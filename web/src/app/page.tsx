@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 
 export default function Home() {
   return (
@@ -6,7 +7,7 @@ export default function Home() {
       <div className="max-w-2xl mx-auto flex flex-col items-center gap-10">
         {/* Logo / wordmark */}
         <div className="flex flex-col items-center gap-3">
-          <span className="text-6xl">🧭</span>
+          <Image src="/icon-512.png" alt="Roam logo" width={80} height={80} priority />
           <h1 className="text-5xl font-bold tracking-tight text-zinc-900 dark:text-white">
             Roam
           </h1>

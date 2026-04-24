@@ -15,6 +15,14 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: { default: "Roam", template: "%s · Roam" },
   description: "Discover a random corner of the web. Roam is a StumbleUpon-style web discovery engine — browser extension, Android app, and web.",
+  icons: {
+    icon: [
+      { url: "/icon-16.png", sizes: "16x16", type: "image/png" },
+      { url: "/icon-32.png", sizes: "32x32", type: "image/png" },
+      { url: "/icon-512.png", sizes: "512x512", type: "image/png" },
+    ],
+    apple: "/apple-touch-icon.png",
+  },
 };
 
 export default function RootLayout({
