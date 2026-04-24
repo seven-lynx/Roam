@@ -24,7 +24,14 @@
  *   4. Batch-upsert into the `urls` table with approved = true
  */
 
-import 'dotenv/config';
+import { fileURLToPath } from 'url';
+import { dirname, resolve } from 'path';
+import { config as dotenvConfig } from 'dotenv';
+
+// Load .env from the repo root (two levels up from scripts/lib/)
+const __dirname = dirname(fileURLToPath(import.meta.url));
+dotenvConfig({ path: resolve(__dirname, '../../.env') });
+
 import { createClient } from '@supabase/supabase-js';
 import fetch from 'node-fetch';
 

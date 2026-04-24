@@ -11,7 +11,6 @@
  * No API key required. Respects Wikipedia's rate limits (500ms between requests).
  */
 
-import 'dotenv/config';
 import fetch from 'node-fetch';
 import { upsertUrls, CATEGORY } from './lib/seed.js';
 
