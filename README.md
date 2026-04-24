@@ -25,7 +25,8 @@ Roam fills that gap with a production-quality platform.
 |---|---|
 | Browser Extension (Chrome + Firefox) | In development |
 | Android App | In development |
-| REST API + Backend | In development |
+| Web (Next.js) | ✅ Live |
+| REST API + Backend | ✅ Live |
 
 ---
 
