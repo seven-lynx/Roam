@@ -1,0 +1,141 @@
+// POST /functions/v1/submit-url
+// Body: { url: string, title?: string, description?: string, subcategory_id?: string }
+// Rate limit: 10 submissions per user per hour (429 if exceeded).
+// Safe Browsing check: auto-rejects flagged URLs (422).
+// Approved URLs move to the moderation queue for admin review.
+
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { corsHeaders } from '../_shared/cors.ts'
+
+const RATE_LIMIT = 10
+
+function normalizeUrl(raw: string): string {
+  const u = new URL(raw) // throws on invalid URL
+  if (!['http:', 'https:'].includes(u.protocol)) {
+    throw new Error('Only http and https URLs are allowed')
+  }
+  u.protocol = 'https:'
+  u.hostname = u.hostname.toLowerCase()
+  if (u.hostname.startsWith('www.')) {
+    u.hostname = u.hostname.slice(4)
+  }
+  const STRIP_PARAMS = [
+    'utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content',
+    'fbclid', 'gclid', 'mc_cid', 'mc_eid', 'ref',
+  ]
+  STRIP_PARAMS.forEach((p) => u.searchParams.delete(p))
+  u.hash = ''
+  if (u.pathname !== '/' && u.pathname.endsWith('/')) {
+    u.pathname = u.pathname.slice(0, -1)
+  }
+  return u.toString()
+}
+
+async function checkSafeBrowsing(url: string, apiKey: string): Promise<boolean> {
+  const res = await fetch(
+    `https://safebrowsing.googleapis.com/v4/threatMatches:find?key=${apiKey}`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        client: { clientId: 'roam', clientVersion: '1.0' },
+        threatInfo: {
+          threatTypes: [
+            'MALWARE',
+            'SOCIAL_ENGINEERING',
+            'UNWANTED_SOFTWARE',
+            'POTENTIALLY_HARMFUL_APPLICATION',
+          ],
+          platformTypes: ['ANY_PLATFORM'],
+          threatEntryTypes: ['URL'],
+          threatEntries: [{ url }],
+        },
+      }),
+    },
+  )
+  const data = await res.json()
+  // Empty or absent matches array means the URL is clean
+  return !data.matches || data.matches.length === 0
+}
+
+Deno.serve(async (req) => {
+  if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
+  if (req.method !== 'POST') return json({ error: 'Method not allowed' }, 405)
+
+  const supabase = createClient(
+    Deno.env.get('SUPABASE_URL')!,
+    Deno.env.get('SUPABASE_ANON_KEY')!,
+    { global: { headers: { Authorization: req.headers.get('Authorization') ?? '' } } },
+  )
+
+  const { data: { user }, error: authError } = await supabase.auth.getUser()
+  if (authError || !user) return json({ error: 'Unauthorized' }, 401)
+
+  let body: { url?: unknown; title?: unknown; description?: unknown; subcategory_id?: unknown }
+  try { body = await req.json() } catch { return json({ error: 'Invalid JSON' }, 400) }
+
+  const { url: rawUrl, title, description, subcategory_id } = body
+  if (typeof rawUrl !== 'string' || !rawUrl) {
+    return json({ error: 'url is required' }, 400)
+  }
+
+  let normalized: string
+  try {
+    normalized = normalizeUrl(rawUrl)
+  } catch (e) {
+    return json({ error: e instanceof Error ? e.message : 'Invalid URL' }, 400)
+  }
+
+  // ── Rate limit ────────────────────────────────────────────────────────────
+  const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString()
+  const { count, error: countError } = await supabase
+    .from('moderation_queue')
+    .select('*', { count: 'exact', head: true })
+    .eq('submitted_by', user.id)
+    .gte('created_at', oneHourAgo)
+
+  if (countError) return json({ error: 'Internal error' }, 500)
+  if ((count ?? 0) >= RATE_LIMIT) {
+    return json({ error: 'Rate limit exceeded — max 10 submissions per hour' }, 429)
+  }
+
+  // ── Safe Browsing check ───────────────────────────────────────────────────
+  const apiKey = Deno.env.get('SAFE_BROWSING_API_KEY')
+  let safeBrowsingPassed: boolean | null = null
+  if (apiKey) {
+    try {
+      safeBrowsingPassed = await checkSafeBrowsing(normalized, apiKey)
+    } catch {
+      // API unreachable — allow submission but leave result as null (unknown)
+      safeBrowsingPassed = null
+    }
+  }
+
+  if (safeBrowsingPassed === false) {
+    return json(
+      { error: "This URL couldn't be submitted — it may be flagged for safety reasons" },
+      422,
+    )
+  }
+
+  // ── Insert into moderation queue ──────────────────────────────────────────
+  const { error: insertError } = await supabase.from('moderation_queue').insert({
+    url: normalized,
+    title: typeof title === 'string' ? title : null,
+    description: typeof description === 'string' ? description : null,
+    subcategory_id: typeof subcategory_id === 'string' ? subcategory_id : null,
+    submitted_by: user.id,
+    safe_browsing_passed: safeBrowsingPassed,
+    status: 'pending',
+  })
+
+  if (insertError) return json({ error: insertError.message }, 500)
+  return json({ ok: true, message: 'URL submitted for review' }, 201)
+})
+
+function json(body: unknown, status = 200) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+  })
+}

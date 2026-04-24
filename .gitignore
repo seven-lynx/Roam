@@ -1,0 +1,42 @@
+# ── Private planning documents ──────────────────────────────────────────────
+PLANNING.md
+TASKS.md
+
+# ── Environment / secrets ────────────────────────────────────────────────────
+.env
+.env.*
+!.env.example
+local.properties
+
+# ── Node / pnpm (web layer + extension build) ────────────────────────────────
+node_modules/
+.pnpm-store/
+dist/
+.next/
+out/
+.turbo/
+*.tsbuildinfo
+
+# ── Supabase CLI ─────────────────────────────────────────────────────────────
+.supabase/
+supabase/.temp/
+
+# ── Android / Kotlin ─────────────────────────────────────────────────────────
+android/.gradle/
+android/build/
+android/app/build/
+android/local.properties
+*.apk
+*.aab
+*.keystore
+*.jks
+
+# ── IDEs ─────────────────────────────────────────────────────────────────────
+.idea/
+*.iml
+.vscode/
+*.swp
+
+# ── OS noise ─────────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
