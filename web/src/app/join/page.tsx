@@ -6,14 +6,14 @@ import { createClient } from "@/lib/supabase/client";
 
 // ── Seed data matches the migration ──────────────────────────────────────────
 const CATEGORIES = [
-  { id: "c10000000000000000000000000000001", label: "Technology" },
-  { id: "c10000000000000000000000000000002", label: "Science" },
-  { id: "c10000000000000000000000000000003", label: "Arts & Culture" },
-  { id: "c10000000000000000000000000000004", label: "Entertainment" },
-  { id: "c10000000000000000000000000000005", label: "Sports & Outdoors" },
-  { id: "c10000000000000000000000000000006", label: "Food & Drink" },
-  { id: "c10000000000000000000000000000007", label: "Travel" },
-  { id: "c10000000000000000000000000000008", label: "Health & Wellness" },
+  { id: "c1000000-0000-0000-0000-000000000001", label: "Science & Nature", emoji: "🔬" },
+  { id: "c1000000-0000-0000-0000-000000000002", label: "Technology", emoji: "💻" },
+  { id: "c1000000-0000-0000-0000-000000000003", label: "Arts & Culture", emoji: "🎨" },
+  { id: "c1000000-0000-0000-0000-000000000004", label: "History & Ideas", emoji: "📜" },
+  { id: "c1000000-0000-0000-0000-000000000005", label: "Games & Hobbies", emoji: "🎮" },
+  { id: "c1000000-0000-0000-0000-000000000006", label: "Weird & Wonderful", emoji: "🌀" },
+  { id: "c1000000-0000-0000-0000-000000000007", label: "People & Places", emoji: "🌍" },
+  { id: "c1000000-0000-0000-0000-000000000008", label: "Mind & Body", emoji: "🧠" },
 ];
 
 type Step = "account" | "categories" | "done";
@@ -44,7 +44,7 @@ export default function JoinPage() {
     setError(null);
     await supabase.auth.signInWithOAuth({
       provider: "google",
-      options: { redirectTo: `${location.origin}/join?step=categories` },
+      options: { redirectTo: `${location.origin}/join` },
     });
   }
 
@@ -117,12 +117,13 @@ export default function JoinPage() {
                   key={cat.id}
                   type="button"
                   onClick={() => toggleCategory(cat.id)}
-                  className={`rounded-xl border-2 px-4 py-3 text-sm font-medium transition-colors ${
+                  className={`flex flex-col items-center gap-1 rounded-xl border-2 px-4 py-3 text-sm font-medium transition-colors ${
                     active
                       ? "border-zinc-900 bg-zinc-900 text-white dark:border-white dark:bg-white dark:text-zinc-900"
                       : "border-zinc-200 text-zinc-700 hover:border-zinc-400 dark:border-zinc-700 dark:text-zinc-300 dark:hover:border-zinc-500"
                   }`}
                 >
+                  {cat.emoji}
                   {cat.label}
                 </button>
               );

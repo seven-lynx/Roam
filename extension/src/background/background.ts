@@ -5,8 +5,27 @@
 // is rehydrated automatically from chrome.storage.local by the custom
 // storage adapter in src/lib/supabase.ts.
 
-import type { Request, Response, StateData } from '../lib/messages';
+import type { Request, Response, StateData, RoamData, CheckUrlData } from '../lib/messages';
 import { getSupabase } from '../lib/supabase';
+
+// ── URL normaliser (mirrors the Edge Function's normalizeUrl) ────────────────
+function normalizeUrl(raw: string): string | null {
+  try {
+    const u = new URL(raw);
+    if (!['http:', 'https:'].includes(u.protocol)) return null;
+    u.protocol = 'https:';
+    u.hostname = u.hostname.toLowerCase();
+    if (u.hostname.startsWith('www.')) u.hostname = u.hostname.slice(4);
+    const STRIP = ['utm_source','utm_medium','utm_campaign','utm_term','utm_content',
+                   'fbclid','gclid','mc_cid','mc_eid','ref'];
+    STRIP.forEach((p) => u.searchParams.delete(p));
+    u.hash = '';
+    if (u.pathname !== '/' && u.pathname.endsWith('/')) u.pathname = u.pathname.slice(0, -1);
+    return u.toString();
+  } catch {
+    return null;
+  }
+}
 
 // ── Message router ─────────────────────────────────────────────────────────
 chrome.runtime.onMessage.addListener(
@@ -23,8 +42,8 @@ async function dispatch(req: Request): Promise<Response> {
     case 'GET_STATE':        return getState();
     case 'SIGN_IN_GOOGLE':  return signInWithGoogle();
     case 'SIGN_OUT':         return signOut();
-    case 'ROAM':             return roam();
-    case 'RATE':             return rate(req.url, req.vote);
+    case 'ROAM':             return roam(req.collectionId);
+    case 'RATE':             return rate(req.url_id, req.vote);
     case 'CHECK_URL':        return checkUrl(req.url);
     case 'SUBMIT_URL':       return submitUrl(req.url, req.categoryId);
     case 'SAVE_LATER':       return saveLater(req.url);
@@ -84,8 +103,12 @@ async function signInWithGoogle(): Promise<Response<StateData>> {
   }
 
   // Exchange the PKCE code for a Supabase session.
-  const code = new URL(responseUrl).searchParams.get('code');
-  if (!code) return { ok: false, error: 'No auth code in redirect URL' };
+  const url = new URL(responseUrl);
+  const code = url.searchParams.get('code') || url.hash.split('code=')[1]?.split('&')[0];
+  if (!code) {
+    console.error('[roam] OAuth redirect URL:', responseUrl);
+    return { ok: false, error: `No auth code in redirect URL. Make sure the extension ID redirect is added to Supabase.` };
+  }
 
   const { error: sessionError } = await supabase.auth.exchangeCodeForSession(code);
   if (sessionError) return { ok: false, error: sessionError.message };
@@ -101,27 +124,49 @@ async function signOut(): Promise<Response<StateData>> {
 
 // ── Feature stubs (implemented in tasks 5.8–5.12) ───────────────────────────
 
-async function roam(): Promise<Response<{ url: string }>> {
-  // TODO (task 5.8): invoke Edge Function `roam` via supabase.functions.invoke()
-  return { ok: false, error: 'Not implemented yet (task 5.8)' };
+async function roam(collectionId?: string): Promise<Response<RoamData>> {
+  const { data, error } = await getSupabase().functions.invoke('roam', {
+    body: collectionId ? { collection_id: collectionId } : {},
+  });
+  if (error) return { ok: false, error: error.message };
+  if (data?.error) return { ok: false, error: data.error };
+  return { ok: true, data: data as RoamData };
 }
 
-async function rate(url: string, vote: 1 | -1): Promise<Response<null>> {
-  // TODO (task 5.9 / 5.10): invoke Edge Function `rate`
-  void url; void vote;
-  return { ok: false, error: 'Not implemented yet (task 5.9/5.10)' };
+async function rate(url_id: string, vote: 1 | -1): Promise<Response<null>> {
+  const { data, error } = await getSupabase().functions.invoke('rate', {
+    body: { url_id, value: vote },
+  });
+  if (error) return { ok: false, error: error.message };
+  if (data?.error) return { ok: false, error: data.error };
+  return { ok: true, data: null };
 }
 
-async function checkUrl(url: string): Promise<Response<{ known: boolean }>> {
-  // TODO (task 5.11): query `urls` table — supabase.from('urls').select('id').eq('url', url)
-  void url;
-  return { ok: false, error: 'Not implemented yet (task 5.11)' };
+async function checkUrl(url: string): Promise<Response<CheckUrlData>> {
+  const normalized = normalizeUrl(url);
+  if (!normalized) return { ok: true, data: { known: false } };
+
+  const { data, error } = await getSupabase()
+    .from('urls')
+    .select('id')
+    .eq('url', normalized)
+    .eq('approved', true)
+    .maybeSingle();
+
+  if (error) return { ok: false, error: error.message };
+  if (!data) return { ok: true, data: { known: false } };
+  return { ok: true, data: { known: true, url_id: data.id as string } };
 }
 
 async function submitUrl(url: string, categoryId: string): Promise<Response<null>> {
-  // TODO (task 5.11): invoke Edge Function `submit-url`
-  void url; void categoryId;
-  return { ok: false, error: 'Not implemented yet (task 5.11)' };
+  // categoryId is a pillar (category), but submit-url expects subcategory_id (optional)
+  // For now, pass as subcategory_id (schema supports null, but UI only exposes pillar)
+  const { data, error } = await getSupabase().functions.invoke('submit-url', {
+    body: { url, subcategory_id: categoryId },
+  });
+  if (error) return { ok: false, error: error.message };
+  if (data?.error) return { ok: false, error: data.error };
+  return { ok: true, data: null };
 }
 
 async function saveLater(url: string): Promise<Response<null>> {
