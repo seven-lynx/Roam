@@ -34,7 +34,22 @@ export default function JoinPage() {
     async function checkSession() {
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
-        console.log('[roam] session found on mount, advancing to categories');
+        console.log('[roam] session found on mount, checking if user already completed onboarding');
+        // Check if user already has category preferences
+        const { data: userCats, error } = await supabase
+          .from('user_categories')
+          .select('id')
+          .limit(1);
+        if (error) {
+          console.log('[roam] error checking user_categories:', error.message);
+        } else if ((userCats?.length ?? 0) > 0) {
+          // User already completed onboarding, redirect to home
+          console.log('[roam] user already has categories, redirecting home');
+          router.push('/');
+          return;
+        }
+        // User has session but no categories, show category picker
+        console.log('[roam] user has session but no categories, advancing to categories');
         setStep("categories");
       }
     }

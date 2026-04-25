@@ -57,8 +57,15 @@ async function dispatch(req: Request): Promise<Response> {
 
 async function getState(): Promise<Response<StateData>> {
   const { data: { session }, error } = await getSupabase().auth.getSession();
-  if (error) return { ok: false, error: error.message };
-  if (!session) return { ok: true, data: { signedIn: false } };
+  if (error) {
+    console.error('[roam-bg] Failed to get session:', error.message);
+    return { ok: false, error: error.message };
+  }
+  if (!session) {
+    console.log('[roam-bg] No session found');
+    return { ok: true, data: { signedIn: false } };
+  }
+  console.log('[roam-bg] Session found:', { email: session.user.email, userId: session.user.id });
   return {
     ok: true,
     data: { signedIn: true, email: session.user.email, userId: session.user.id },
@@ -87,10 +94,17 @@ async function signInWithGoogle(): Promise<Response<StateData>> {
 }
 
 async function exchangeCode(code: string): Promise<Response<StateData>> {
+  console.log('[roam-bg] Exchanging code for session');
   const supabase = getSupabase();
   const { error: sessionError } = await supabase.auth.exchangeCodeForSession(code);
-  if (sessionError) return { ok: false, error: sessionError.message };
-  return getState();
+  if (sessionError) {
+    console.error('[roam-bg] Session exchange failed:', sessionError.message);
+    return { ok: false, error: sessionError.message };
+  }
+  console.log('[roam-bg] Code exchanged successfully, retrieving state');
+  const state = await getState();
+  console.log('[roam-bg] Final state:', state);
+  return state;
 }
 
 async function signOut(): Promise<Response<StateData>> {

@@ -32,7 +32,9 @@ function showError(message: string) {
 }
 
 async function boot() {
+  console.log('[roam-popup] Booting, checking session state');
   const res = await sendToBackground<StateData>({ type: 'GET_STATE' });
+  console.log('[roam-popup] Boot GET_STATE response:', res);
   if (!res.ok) { showError(res.error); return; }
   showState(res.data.signedIn ? 'main' : 'signedout');
 }
@@ -44,6 +46,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // ── Sign in button ─────────────────────────────────────────────────────────
   el('btn-signin').addEventListener('click', async () => {
+    console.log('[roam-popup] Sign in button clicked');
     el<HTMLButtonElement>('btn-signin').disabled = true;
     const res = await sendToBackground<StateData>({ type: 'SIGN_IN_GOOGLE' });
     if (!res.ok) {
@@ -53,9 +56,12 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     // A new tab is opening with the OAuth flow.
     // Poll for session state in case the callback completes while popup is open.
+    console.log('[roam-popup] Starting session state polling');
     const pollInterval = setInterval(async () => {
       const state = await sendToBackground<StateData>({ type: 'GET_STATE' });
+      console.log('[roam-popup] Poll response:', state);
       if (state.ok && state.data.signedIn) {
+        console.log('[roam-popup] Session detected, showing main state');
         clearInterval(pollInterval);
         showState('main');
         el<HTMLButtonElement>('btn-signin').disabled = false;
