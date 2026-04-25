@@ -91,14 +91,23 @@ export default function JoinPage() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) { setError("Session expired — please sign up again."); setLoading(false); return; }
 
+    // First, delete any existing category preferences for this user
+    const { error: deleteError } = await supabase
+      .from("user_categories")
+      .delete()
+      .eq("user_id", user.id);
+    
+    if (deleteError) { setError(deleteError.message); setLoading(false); return; }
+
+    // Then insert the newly selected categories
     const rows = Array.from(selected).map((category_id) => ({
       user_id: user.id,
       category_id,
     }));
 
-    const { error } = await supabase.from("user_categories").upsert(rows);
+    const { error: insertError } = await supabase.from("user_categories").insert(rows);
     setLoading(false);
-    if (error) { setError(error.message); return; }
+    if (insertError) { setError(insertError.message); return; }
     setStep("done");
   }
 
