@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
 // ── Seed data matches the migration ──────────────────────────────────────────
@@ -20,6 +20,7 @@ type Step = "account" | "categories" | "done";
 
 export default function JoinPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const supabase = createClient();
 
   const [step, setStep] = useState<Step>("account");
@@ -32,11 +33,15 @@ export default function JoinPage() {
   // Check session on mount (handles OAuth redirect)
   useEffect(() => {
     async function checkSession() {
+      console.log('[roam] checkSession called');
+      console.log('[roam] searchParams.get("code"):', searchParams.get('code'));
+      const hasOAuthCode = searchParams.has('code');
+      console.log('[roam] hasOAuthCode:', hasOAuthCode);
+      
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
-        console.log('[roam] session found on mount, checking if user needs to pick categories');
+        console.log('[roam] session found on mount');
         // Check for OAuth code in URL (means we just came back from OAuth)
-        const hasOAuthCode = new URLSearchParams(location.search).has('code');
         if (hasOAuthCode) {
           console.log('[roam] OAuth code detected, advancing to categories');
           setStep("categories");
@@ -45,7 +50,7 @@ export default function JoinPage() {
       }
     }
     checkSession();
-  }, []);
+  }, [searchParams]);
 
   // ── Step 1: create account ────────────────────────────────────────────────
   async function handleSignUp(e: React.FormEvent) {
