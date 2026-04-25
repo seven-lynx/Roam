@@ -35,6 +35,12 @@ export default function JoinPage() {
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
         console.log('[roam] session found on mount, checking if user already completed onboarding');
+        // Check if there's an OAuth code in the URL (means we're in the middle of sign-up)
+        const hasOAuthCode = new URLSearchParams(location.search).has('code');
+        if (hasOAuthCode) {
+          console.log('[roam] OAuth code detected, continuing sign-up flow');
+          return;
+        }
         // Check if user already has category preferences
         const { data: userCats, error } = await supabase
           .from('user_categories')
