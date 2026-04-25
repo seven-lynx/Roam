@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Roam</title>
+  <link rel="stylesheet" href="popup.css" />
+</head>
+<body>
+
+  <!-- ── Signed-out state ───────────────────────────────────────────── -->
+  <div id="state-signedout" class="state" hidden>
+    <div class="signedout-body">
+      <img src="icon-48.png" alt="Roam" class="signedout-logo" />
+      <p class="signedout-msg">Sign in to start roaming.</p>
+      <button id="btn-signin" class="btn-primary">Sign in / Sign up</button>
+    </div>
+  </div>
+
+  <!-- ── Error state ────────────────────────────────────────────────── -->
+  <div id="state-error" class="state" hidden>
+    <div class="error-body">
+      <p class="error-msg">Can't reach Roam right now.</p>
+      <button id="btn-retry" class="btn-secondary">Retry</button>
+    </div>
+  </div>
+
+  <!-- ── Main state ─────────────────────────────────────────────────── -->
+  <div id="state-main" class="state" hidden>
+
+    <!-- 4 primary controls -->
+    <div class="controls">
+      <button id="btn-roam"     class="btn-roam"    title="Roam">Roam</button>
+      <button id="btn-upvote"   class="btn-icon"    title="Thumbs up">👍</button>
+      <button id="btn-downvote" class="btn-icon"    title="Thumbs down">👎</button>
+      <button id="btn-config"   class="btn-icon btn-config-toggle" title="Settings" aria-expanded="false">⚙️</button>
+    </div>
+
+    <!-- Submit panel (expands on 👍 for unknown pages) -->
+    <div id="panel-submit" class="panel" hidden>
+      <p class="panel-label">Add this page to Roam?</p>
+      <div id="category-chips" class="chip-grid">
+        <button class="chip" data-category="science">Science</button>
+        <button class="chip" data-category="technology">Technology</button>
+        <button class="chip" data-category="arts_culture">Arts &amp; Culture</button>
+        <button class="chip" data-category="history_ideas">History &amp; Ideas</button>
+        <button class="chip" data-category="games_hobbies">Games &amp; Hobbies</button>
+        <button class="chip" data-category="weird_wonderful">Weird &amp; Wonderful</button>
+        <button class="chip" data-category="people_places">People &amp; Places</button>
+        <button class="chip" data-category="mind_body">Mind &amp; Body</button>
+      </div>
+      <button id="btn-submit" class="btn-primary" disabled>Submit</button>
+    </div>
+
+    <!-- Config panel (expands on ⚙️) -->
+    <div id="panel-config" class="panel" hidden>
+
+      <section class="panel-section">
+        <h3 class="panel-section-title">Current page</h3>
+        <button id="btn-add-collection" class="panel-row">Add to collection…</button>
+        <button id="btn-save-later"     class="panel-row">Save for later</button>
+        <button id="btn-share"          class="panel-row">Copy link</button>
+      </section>
+
+      <section class="panel-section">
+        <h3 class="panel-section-title">Roam mode</h3>
+        <button id="btn-roam-category"   class="panel-row">Roam within this category</button>
+        <button id="btn-roam-collection" class="panel-row">Roam a collection…</button>
+        <button id="btn-manage-collections" class="panel-row">Manage collections ↗</button>
+      </section>
+
+      <section class="panel-section">
+        <h3 class="panel-section-title">Account</h3>
+        <div class="panel-row panel-row--toggle">
+          <span>Skip paywalled sites</span>
+          <label class="toggle">
+            <input type="checkbox" id="toggle-paywall" />
+            <span class="toggle-track"></span>
+          </label>
+        </div>
+        <button id="btn-category-prefs" class="panel-row">Category preferences ↗</button>
+        <button id="btn-signout"        class="panel-row panel-row--danger">Sign out</button>
+      </section>
+
+    </div>
+
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
