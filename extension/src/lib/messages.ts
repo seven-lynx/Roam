@@ -4,8 +4,8 @@ export type Request =
   | { type: 'GET_STATE' }
   | { type: 'SIGN_IN_GOOGLE' }
   | { type: 'SIGN_OUT' }
-  | { type: 'ROAM' }
-  | { type: 'RATE'; url: string; vote: 1 | -1 }
+  | { type: 'ROAM'; collectionId?: string }
+  | { type: 'RATE'; url_id: string; vote: 1 | -1 }
   | { type: 'CHECK_URL'; url: string }
   | { type: 'SUBMIT_URL'; url: string; categoryId: string }
   | { type: 'SAVE_LATER'; url: string }
@@ -19,6 +19,19 @@ export interface StateData {
   signedIn: boolean;
   email?: string;
   userId?: string;
+}
+
+export interface RoamData {
+  id: string;
+  url: string;
+  title: string | null;
+  description: string | null;
+  og_image_url: string | null;
+}
+
+export interface CheckUrlData {
+  known: boolean;
+  url_id?: string;
 }
 
 /** Type-safe wrapper around chrome.runtime.sendMessage */

@@ -1,7 +1,7 @@
 // popup.ts — Roam extension popup entry point
 
 import { sendToBackground } from '../lib/messages';
-import type { StateData } from '../lib/messages';
+import type { StateData, RoamData, CheckUrlData } from '../lib/messages';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function el<T extends HTMLElement>(id: string): T {
@@ -58,32 +58,51 @@ document.addEventListener('DOMContentLoaded', () => {
   el('btn-retry').addEventListener('click', () => boot());
 
   // ── Roam button ───────────────────────────────────────────────────────────
-  el('btn-roam').addEventListener('click', () => {
-    // TODO (task 5.8): call background SW → GET /roam → open URL in current tab
+  el('btn-roam').addEventListener('click', async () => {
     showPanel(null);
+    el<HTMLButtonElement>('btn-roam').disabled = true;
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    const res = await sendToBackground<RoamData>({ type: 'ROAM' });
+    el<HTMLButtonElement>('btn-roam').disabled = false;
+    if (!res.ok) { showError(res.error); return; }
+    if (tab?.id) chrome.tabs.update(tab.id, { url: res.data.url });
     window.close();
   });
 
   // ── Thumbs up ─────────────────────────────────────────────────────────────
   el('btn-upvote').addEventListener('click', async () => {
+    showPanel(null);
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     const url = tab?.url ?? '';
+    if (!url) return;
 
-    // TODO (task 5.9 / 5.11): check if URL is in DB; if known → rate +1 and close;
-    // if unknown → show submit panel
-    const isKnown = false; // placeholder
-    if (isKnown) {
-      // rate +1
+    const check = await sendToBackground<CheckUrlData>({ type: 'CHECK_URL', url });
+    if (!check.ok) { showError(check.error); return; }
+
+    if (check.data.known && check.data.url_id) {
+      // Known URL → rate +1 and close
+      await sendToBackground({ type: 'RATE', url_id: check.data.url_id, vote: 1 });
       window.close();
     } else {
-      showPanel(el('panel-submit').hidden ? 'submit' : null);
+      // Unknown URL → show submit panel so user can pick a category
+      showPanel('submit');
     }
   });
 
   // ── Thumbs down ───────────────────────────────────────────────────────────
-  el('btn-downvote').addEventListener('click', () => {
-    // TODO (task 5.10): POST /rate with -1
+  el('btn-downvote').addEventListener('click', async () => {
     showPanel(null);
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    const url = tab?.url ?? '';
+    if (!url) { window.close(); return; }
+
+    const check = await sendToBackground<CheckUrlData>({ type: 'CHECK_URL', url });
+    if (!check.ok) { showError(check.error); return; }
+
+    if (check.data.known && check.data.url_id) {
+      await sendToBackground({ type: 'RATE', url_id: check.data.url_id, vote: -1 });
+    }
+    // Whether known or unknown, close after downvote
     window.close();
   });
 
@@ -108,9 +127,15 @@ document.addEventListener('DOMContentLoaded', () => {
   el('btn-submit').addEventListener('click', async () => {
     if (!selectedCategory) return;
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    // TODO (task 5.11): POST /submit-url with { url: tab.url, category: selectedCategory }
-    console.log('[roam] submit', tab?.url, selectedCategory);
-    showPanel(null);
+    const url = tab?.url ?? '';
+    if (!url) return;
+    el<HTMLButtonElement>('btn-submit').disabled = true;
+    const res = await sendToBackground({ type: 'SUBMIT_URL', url, categoryId: selectedCategory });
+    el<HTMLButtonElement>('btn-submit').disabled = false;
+    if (!res.ok) {
+      showError(res.error);
+      return;
+    }
     window.close();
   });
 
