@@ -40,7 +40,8 @@ chrome.runtime.onMessage.addListener(
 async function dispatch(req: Request): Promise<Response> {
   switch (req.type) {
     case 'GET_STATE':        return getState();
-    case 'SIGN_IN_GOOGLE':  return signInWithGoogle();
+    case 'SIGN_IN_GOOGLE':   return signInWithGoogle();
+    case 'EXCHANGE_CODE':    return exchangeCode((req as any).code);
     case 'SIGN_OUT':         return signOut();
     case 'ROAM':             return roam(req.collectionId);
     case 'RATE':             return rate(req.url_id, req.vote);
@@ -66,12 +67,7 @@ async function getState(): Promise<Response<StateData>> {
 
 async function signInWithGoogle(): Promise<Response<StateData>> {
   const supabase = getSupabase();
-
-  // SETUP NOTE: Add the redirect URL below to your Supabase project at:
-  //   Authentication → URL Configuration → Redirect URLs
-  // The URL looks like: https://<EXTENSION_ID>.chromiumapp.org/
-  // Find your extension ID at chrome://extensions after loading unpacked.
-  const redirectTo = chrome.identity.getRedirectURL();
+  const redirectTo = `chrome-extension://${chrome.runtime.id}/callback.html`;
 
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: 'google',
@@ -81,38 +77,19 @@ async function signInWithGoogle(): Promise<Response<StateData>> {
     return { ok: false, error: error?.message ?? 'Could not start OAuth flow' };
   }
 
-  // Hand off to Chrome's identity API — opens the Google sign-in window.
-  let responseUrl: string;
+  // Open the OAuth URL in a new tab. The callback page will handle the redirect.
   try {
-    responseUrl = await new Promise<string>((resolve, reject) => {
-      chrome.identity.launchWebAuthFlow(
-        { url: data.url, interactive: true },
-        (url) => {
-          if (chrome.runtime.lastError) {
-            reject(new Error(chrome.runtime.lastError.message));
-          } else if (!url) {
-            reject(new Error('No redirect URL received from OAuth flow'));
-          } else {
-            resolve(url);
-          }
-        }
-      );
-    });
+    await chrome.tabs.create({ url: data.url });
+    return { ok: true, data: { signedIn: false } }; // Popup will auto-update on success
   } catch (err) {
     return { ok: false, error: (err as Error).message };
   }
+}
 
-  // Exchange the PKCE code for a Supabase session.
-  const url = new URL(responseUrl);
-  const code = url.searchParams.get('code') || url.hash.split('code=')[1]?.split('&')[0];
-  if (!code) {
-    console.error('[roam] OAuth redirect URL:', responseUrl);
-    return { ok: false, error: `No auth code in redirect URL. Make sure the extension ID redirect is added to Supabase.` };
-  }
-
+async function exchangeCode(code: string): Promise<Response<StateData>> {
+  const supabase = getSupabase();
   const { error: sessionError } = await supabase.auth.exchangeCodeForSession(code);
   if (sessionError) return { ok: false, error: sessionError.message };
-
   return getState();
 }
 

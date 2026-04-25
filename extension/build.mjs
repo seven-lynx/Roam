@@ -43,9 +43,10 @@ mkdirSync(outdir, { recursive: true });
 
 // Copy static files that don't need bundling
 function copyStatics() {
-  copyFileSync(resolve(__dirname, 'manifest.json'),        resolve(outdir, 'manifest.json'));
-  copyFileSync(resolve(__dirname, 'src/popup/popup.html'), resolve(outdir, 'popup.html'));
-  copyFileSync(resolve(__dirname, 'src/popup/popup.css'),  resolve(outdir, 'popup.css'));
+  copyFileSync(resolve(__dirname, 'manifest.json'),            resolve(outdir, 'manifest.json'));
+  copyFileSync(resolve(__dirname, 'src/popup/popup.html'),     resolve(outdir, 'popup.html'));
+  copyFileSync(resolve(__dirname, 'src/popup/popup.css'),      resolve(outdir, 'popup.css'));
+  copyFileSync(resolve(__dirname, 'src/callback/callback.html'), resolve(outdir, 'callback.html'));
   for (const size of [16, 32, 48, 128]) {
     copyFileSync(
       resolve(__dirname, `icons/icon-${size}.png`),
@@ -71,6 +72,8 @@ const entryPoints = [
   { in: resolve(__dirname, 'src/popup/popup.ts'), out: resolve(outdir, 'popup') },
   // Background service worker
   { in: resolve(__dirname, 'src/background/background.ts'), out: resolve(outdir, 'background') },
+  // OAuth callback handler
+  { in: resolve(__dirname, 'src/callback/callback.ts'), out: resolve(outdir, 'callback') },
 ];
 
 if (watch) {

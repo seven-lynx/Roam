@@ -51,7 +51,18 @@ document.addEventListener('DOMContentLoaded', () => {
       showError(res.error);
       return;
     }
-    showState(res.data.signedIn ? 'main' : 'signedout');
+    // A new tab is opening with the OAuth flow.
+    // Poll for session state in case the callback completes while popup is open.
+    const pollInterval = setInterval(async () => {
+      const state = await sendToBackground<StateData>({ type: 'GET_STATE' });
+      if (state.ok && state.data.signedIn) {
+        clearInterval(pollInterval);
+        showState('main');
+        el<HTMLButtonElement>('btn-signin').disabled = false;
+      }
+    }, 500);
+    // Stop polling after 5 minutes
+    setTimeout(() => clearInterval(pollInterval), 5 * 60 * 1000);
   });
 
   // ── Retry button ───────────────────────────────────────────────────────────
