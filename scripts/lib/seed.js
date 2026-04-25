@@ -98,10 +98,12 @@ export async function fetchOgImage(url) {
       headers: { 'User-Agent': 'Roam-Seeder/1.0 (+https://roamtheweb.app)' },
       redirect: 'follow',
     });
-    clearTimeout(timer);
 
-    if (!res.ok) return null;
+    if (!res.ok) { clearTimeout(timer); return null; }
+    const contentLen = parseInt(res.headers.get('content-length') || '0');
+    if (contentLen > 2_000_000) { clearTimeout(timer); return null; }
     const html = await res.text();
+    clearTimeout(timer);
 
     // og:image
     const ogMatch = html.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i)
@@ -116,6 +118,48 @@ export async function fetchOgImage(url) {
     return null;
   } catch {
     return null;
+  }
+}
+
+/**
+ * Fetch og:image AND og:description from a page.
+ * Returns { image: string|null, description: string|null }
+ */
+export async function fetchOgMeta(url) {
+  try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), OG_TIMEOUT_MS);
+
+    const res = await fetch(url, {
+      signal: controller.signal,
+      headers: { 'User-Agent': 'Roam-Seeder/1.0 (+https://roamtheweb.app)' },
+      redirect: 'follow',
+    });
+
+    if (!res.ok) { clearTimeout(timer); return { image: null, description: null }; }
+    const contentLen = parseInt(res.headers.get('content-length') || '0');
+    if (contentLen > 2_000_000) { clearTimeout(timer); return { image: null, description: null }; }
+    const html = await res.text();
+    clearTimeout(timer);
+
+    // og:image
+    const ogImgMatch = html.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i)
+      ?? html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']/i);
+    const twImgMatch = html.match(/<meta[^>]+name=["']twitter:image["'][^>]+content=["']([^"']+)["']/i)
+      ?? html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+name=["']twitter:image["']/i);
+    const image = ogImgMatch?.[1]?.trim() ?? twImgMatch?.[1]?.trim() ?? null;
+
+    // og:description
+    const ogDescMatch = html.match(/<meta[^>]+property=["']og:description["'][^>]+content=["']([^"']+)["']/i)
+      ?? html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:description["']/i);
+    const metaDescMatch = html.match(/<meta[^>]+name=["']description["'][^>]+content=["']([^"']+)["']/i)
+      ?? html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+name=["']description["']/i);
+    const rawDesc = ogDescMatch?.[1]?.trim() ?? metaDescMatch?.[1]?.trim() ?? null;
+    const description = rawDesc ? rawDesc.slice(0, 500) : null;
+
+    return { image, description };
+  } catch {
+    return { image: null, description: null };
   }
 }
 
@@ -159,13 +203,15 @@ export async function upsertUrls(rows, { fetchOg = true, verbose = true } = {}) 
   log(`[seed] ${fresh.length} new / ${existingSet.size} already exist (${normalised.length} total)`);
   if (fresh.length === 0) return { inserted: 0, skipped: existingSet.size };
 
-  // 3. Fetch og:image for rows that don't have one
+  // 3. Fetch og:image + og:description for rows that don't have them
   if (fetchOg) {
-    log(`[seed] Fetching og:image for ${fresh.length} URLs...`);
+    log(`[seed] Fetching OG metadata for ${fresh.length} URLs...`);
     for (let i = 0; i < fresh.length; i++) {
       const row = fresh[i];
-      if (!row.og_image_url) {
-        row.og_image_url = await fetchOgImage(row.url);
+      if (!row.og_image_url || !row.description) {
+        const meta = await fetchOgMeta(row.url);
+        if (!row.og_image_url) row.og_image_url = meta.image;
+        if (!row.description)  row.description  = meta.description;
       }
       if (verbose && (i + 1) % 10 === 0) {
         log(`[seed]   ${i + 1}/${fresh.length} done`);
@@ -178,6 +224,7 @@ export async function upsertUrls(rows, { fetchOg = true, verbose = true } = {}) 
   for (let i = 0; i < fresh.length; i += BATCH_SIZE) {
     const batch = fresh.slice(i, i + BATCH_SIZE).map((r) => ({
       url:            r.url,
+      original_url:   r.url,
       title:          r.title        ?? null,
       description:    r.description  ?? null,
       og_image_url:   r.og_image_url ?? null,
@@ -210,14 +257,14 @@ export async function upsertUrls(rows, { fetchOg = true, verbose = true } = {}) 
 // ── Category / subcategory ID helpers ────────────────────────────────────────
 // Fixed UUIDs matching the migration seed data
 export const CATEGORY = {
-  TECHNOLOGY:      'c10000000000000000000000000000001',
-  SCIENCE:         'c10000000000000000000000000000002',
-  ARTS_CULTURE:    'c10000000000000000000000000000003',
-  ENTERTAINMENT:   'c10000000000000000000000000000004',
-  SPORTS_OUTDOORS: 'c10000000000000000000000000000005',
-  FOOD_DRINK:      'c10000000000000000000000000000006',
-  TRAVEL:          'c10000000000000000000000000000007',
-  HEALTH_WELLNESS: 'c10000000000000000000000000000008',
+  SCIENCE:         'c1000000-0000-0000-0000-000000000001',
+  TECHNOLOGY:      'c1000000-0000-0000-0000-000000000002',
+  ARTS_CULTURE:    'c1000000-0000-0000-0000-000000000003',
+  HISTORY_IDEAS:   'c1000000-0000-0000-0000-000000000004',
+  GAMES_HOBBIES:   'c1000000-0000-0000-0000-000000000005',
+  WEIRD_WONDERFUL: 'c1000000-0000-0000-0000-000000000006',
+  PEOPLE_PLACES:   'c1000000-0000-0000-0000-000000000007',
+  MIND_BODY:       'c1000000-0000-0000-0000-000000000008',
 };
 
 /** Fetch subcategory IDs from DB by name (case-insensitive prefix match). */

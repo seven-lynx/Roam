@@ -1,0 +1,180 @@
+/**
+ * seed-npr.js — NPR seeder
+ *
+ * Pulls articles from NPR's public RSS feeds.
+ * No API key required. All content is freely readable.
+ *
+ * Feed index: https://www.npr.org/about-npr/178641285/public-radio-satellite-system-feeds
+ * NPR topic feeds: https://feeds.npr.org/{topicId}/rss.xml
+ *
+ * Run from repo root:
+ *   node scripts/seed-npr.js
+ *   node scripts/seed-npr.js --no-cache
+ */
+
+import fetch from 'node-fetch';
+import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'fs';
+import { fileURLToPath } from 'url';
+import { dirname, resolve } from 'path';
+import { upsertUrls, CATEGORY } from './lib/seed.js';
+
+const __dirname  = dirname(fileURLToPath(import.meta.url));
+const CACHE_DIR  = resolve(__dirname, '.cache');
+const CACHE_FILE = resolve(CACHE_DIR, 'npr.json');
+const NO_CACHE   = process.argv.includes('--no-cache');
+
+const DELAY_MS = 1000;
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+// ── NPR topic feeds (numeric IDs) → Roam categories ──────────────────────────
+// Full topic list: https://www.npr.org/sections/
+// Note: IDs 349 (environment), 1067 (animals), 1043 (health-shots), 1021 (mental-health)
+// returned HTTP 404 and have been removed. ID 1006 used for business only (removing economy duplicate).
+const FEEDS = [
+  // Science & Nature
+  { url: 'https://feeds.npr.org/1007/rss.xml',  label: 'science',         categoryId: CATEGORY.SCIENCE },
+  { url: 'https://feeds.npr.org/1057/rss.xml',  label: 'climate',         categoryId: CATEGORY.SCIENCE },
+  // Technology
+  { url: 'https://feeds.npr.org/1019/rss.xml',  label: 'technology',      categoryId: CATEGORY.TECHNOLOGY },
+  { url: 'https://feeds.npr.org/1006/rss.xml',  label: 'business',        categoryId: CATEGORY.TECHNOLOGY },
+  // Arts & Culture
+  { url: 'https://feeds.npr.org/1008/rss.xml',  label: 'arts-culture',    categoryId: CATEGORY.ARTS_CULTURE },
+  { url: 'https://feeds.npr.org/1045/rss.xml',  label: 'pop-culture',     categoryId: CATEGORY.ARTS_CULTURE },
+  { url: 'https://feeds.npr.org/1030/rss.xml',  label: 'books',           categoryId: CATEGORY.ARTS_CULTURE },
+  { url: 'https://feeds.npr.org/1025/rss.xml',  label: 'music-features',  categoryId: CATEGORY.ARTS_CULTURE },
+  { url: 'https://feeds.npr.org/1004/rss.xml',  label: 'movies',          categoryId: CATEGORY.ARTS_CULTURE },
+  // History & Ideas
+  { url: 'https://feeds.npr.org/1003/rss.xml',  label: 'politics',        categoryId: CATEGORY.HISTORY_IDEAS },
+  { url: 'https://feeds.npr.org/1016/rss.xml',  label: 'world',           categoryId: CATEGORY.HISTORY_IDEAS },
+  { url: 'https://feeds.npr.org/1018/rss.xml',  label: 'history',         categoryId: CATEGORY.HISTORY_IDEAS },
+  // Mind & Body
+  { url: 'https://feeds.npr.org/1026/rss.xml',  label: 'life-kit',        categoryId: CATEGORY.MIND_BODY },
+  // People & Places
+  { url: 'https://feeds.npr.org/1017/rss.xml',  label: 'race',            categoryId: CATEGORY.PEOPLE_PLACES },
+  { url: 'https://feeds.npr.org/1015/rss.xml',  label: 'education',       categoryId: CATEGORY.PEOPLE_PLACES },
+  // Games & Hobbies
+  { url: 'https://feeds.npr.org/1048/rss.xml',  label: 'food',            categoryId: CATEGORY.GAMES_HOBBIES },
+  // Weird & Wonderful
+  { url: 'https://feeds.npr.org/2/rss.xml',     label: 'top-stories',     categoryId: CATEGORY.WEIRD_WONDERFUL },
+];
+
+// ── Simple RSS parser (shared pattern with ProPublica seeder) ─────────────────
+function parseRSS(xml) {
+  const items = [];
+  const itemRe = /<item[\s>]([\s\S]*?)<\/item>/gi;
+
+  let m;
+  while ((m = itemRe.exec(xml)) !== null) {
+    const block = m[1];
+
+    const linkMatch = block.match(/<link[^>]*>([^<]+)<\/link>/i)
+      ?? block.match(/<link[^>]+href="([^"]+)"/i);
+    const titleMatch = block.match(/<title[^>]*><!\[CDATA\[([\s\S]*?)\]\]><\/title>/i)
+      ?? block.match(/<title[^>]*>([^<]+)<\/title>/i);
+    const descMatch = block.match(/<description[^>]*><!\[CDATA\[([\s\S]*?)\]\]><\/description>/i)
+      ?? block.match(/<description[^>]*>([^<]*)<\/description>/i);
+    const imgMatch = block.match(/<media:content[^>]+url="([^"]+)"/i)
+      ?? block.match(/<media:thumbnail[^>]+url="([^"]+)"/i)
+      ?? block.match(/<enclosure[^>]+url="([^"]+)"/i);
+
+    const url = linkMatch ? linkMatch[1].trim() : null;
+    if (!url || !url.startsWith('http')) continue;
+
+    // Skip non-article NPR URLs (station pages, programme homepages, etc.)
+    if (!url.includes('npr.org') || url.match(/npr\.org\/(sections|programs|series|podcasts)\/[^/]+\/?$/)) continue;
+
+    const title = titleMatch
+      ? titleMatch[1].replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').trim()
+      : null;
+
+    const rawDesc = descMatch ? descMatch[1] : null;
+    const description = rawDesc
+      ? rawDesc.replace(/<[^>]+>/g, '').replace(/&amp;/g, '&').replace(/&nbsp;/g, ' ').trim().slice(0, 500)
+      : null;
+
+    const ogImage = imgMatch ? imgMatch[1].trim() : null;
+
+    items.push({ url, title, description, ogImage });
+  }
+
+  return items;
+}
+
+// ── Fetch one RSS feed ────────────────────────────────────────────────────────
+async function fetchFeed(feedUrl, label, categoryId) {
+  let res;
+  try {
+    res = await fetch(feedUrl, {
+      headers: { 'User-Agent': 'Roam-Seeder/1.0 (https://roamtheweb.app)' },
+    });
+  } catch (err) {
+    console.warn(`[npr]   ${label}: ${err.message}`);
+    return [];
+  }
+
+  if (!res.ok) {
+    console.warn(`[npr]   ${label}: HTTP ${res.status}`);
+    return [];
+  }
+
+  const xml   = await res.text();
+  const items = parseRSS(xml);
+
+  return items.map((item) => ({
+    url:          item.url,
+    title:        item.title,
+    description:  item.description,
+    og_image_url: item.ogImage,
+    category_id:  categoryId,
+    source:       'npr',
+  }));
+}
+
+// ── Main ──────────────────────────────────────────────────────────────────────
+async function fetchNPR() {
+  console.log(`\n[npr] Fetching ${FEEDS.length} RSS feeds...`);
+  const allRows = [];
+  const seen    = new Set();
+
+  for (const { url: feedUrl, label, categoryId } of FEEDS) {
+    const rows = await fetchFeed(feedUrl, label, categoryId);
+    let added = 0;
+
+    for (const row of rows) {
+      if (!row.url || seen.has(row.url)) continue;
+      seen.add(row.url);
+      allRows.push(row);
+      added++;
+    }
+
+    console.log(`[npr]   ${label}: ${added} articles`);
+    await sleep(DELAY_MS);
+  }
+
+  console.log(`\n[npr] Total unique articles: ${allRows.length}`);
+  return allRows;
+}
+
+async function main() {
+  console.log('=== NPR seeder ===');
+
+  let rows;
+  if (!NO_CACHE && existsSync(CACHE_FILE)) {
+    rows = JSON.parse(readFileSync(CACHE_FILE, 'utf8'));
+    console.log(`[npr] Loaded ${rows.length} rows from cache (use --no-cache to re-fetch)`);
+  } else {
+    rows = await fetchNPR();
+    mkdirSync(CACHE_DIR, { recursive: true });
+    writeFileSync(CACHE_FILE, JSON.stringify(rows));
+    console.log(`[npr] Cached ${rows.length} rows to ${CACHE_FILE}`);
+  }
+
+  console.log(`\n[npr] Total: ${rows.length} — upserting (with OG fetch for missing images)...`);
+  const result = await upsertUrls(rows, { fetchOg: true, verbose: true });
+  console.log(`\n=== Done: inserted ${result.inserted}, skipped ${result.skipped} ===`);
+}
+
+main().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});
