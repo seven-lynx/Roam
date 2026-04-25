@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
@@ -29,6 +29,18 @@ export default function JoinPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
+  // Check session on mount (handles OAuth redirect)
+  useEffect(() => {
+    async function checkSession() {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        console.log('[roam] session found on mount, advancing to categories');
+        setStep("categories");
+      }
+    }
+    checkSession();
+  }, []);
+
   // ── Step 1: create account ────────────────────────────────────────────────
   async function handleSignUp(e: React.FormEvent) {
     e.preventDefault();
@@ -42,10 +54,23 @@ export default function JoinPage() {
 
   async function handleGoogleSignUp() {
     setError(null);
-    await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: { redirectTo: `${location.origin}/join` },
-    });
+    setLoading(true);
+    try {
+      console.log('[roam] starting Google OAuth with redirectTo:', `${location.origin}/join`);
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: { redirectTo: `${location.origin}/join` },
+      });
+      console.log('[roam] OAuth response:', { data, error });
+      if (error) {
+        setError(error.message);
+        setLoading(false);
+      }
+    } catch (err) {
+      console.error('[roam] OAuth error:', err);
+      setError(err instanceof Error ? err.message : 'Unknown error');
+      setLoading(false);
+    }
   }
 
   // ── Step 2: save category preferences ────────────────────────────────────
