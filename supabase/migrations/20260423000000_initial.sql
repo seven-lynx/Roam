@@ -111,6 +111,7 @@ CREATE TABLE public.urls (
   title          TEXT,
   description    TEXT,
   og_image_url   TEXT,
+  category_id    UUID             REFERENCES categories    ON DELETE SET NULL,
   subcategory_id UUID             REFERENCES subcategories ON DELETE SET NULL,
   approved       BOOLEAN          NOT NULL DEFAULT FALSE,
   source         TEXT             NOT NULL DEFAULT 'community',

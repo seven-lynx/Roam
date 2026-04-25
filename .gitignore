@@ -8,6 +8,9 @@ TASKS.md
 !.env.example
 local.properties
 
+# ── Seeder cache ─────────────────────────────────────────────────────────────
+scripts/.cache/
+
 # ── Node / pnpm (web layer + extension build) ────────────────────────────────
 node_modules/
 .pnpm-store/

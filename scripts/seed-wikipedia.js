@@ -12,7 +12,15 @@
  */
 
 import fetch from 'node-fetch';
+import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'fs';
+import { fileURLToPath } from 'url';
+import { dirname, resolve } from 'path';
 import { upsertUrls, CATEGORY } from './lib/seed.js';
+
+const __dirname  = dirname(fileURLToPath(import.meta.url));
+const CACHE_DIR  = resolve(__dirname, '.cache');
+const CACHE_FILE = resolve(CACHE_DIR, 'wikipedia.json');
+const NO_CACHE   = process.argv.includes('--no-cache');
 
 const DELAY_MS       = 500;   // between Wikipedia API calls
 const FEATURED_DAYS  = 365;   // how many days of featured articles to pull
@@ -49,35 +57,35 @@ const CATEGORY_MAP = [
   { wiki: 'History',                 categoryId: CATEGORY.ARTS_CULTURE },
   { wiki: 'Mythology',               categoryId: CATEGORY.ARTS_CULTURE },
 
-  // Entertainment
-  { wiki: 'Film',                    categoryId: CATEGORY.ENTERTAINMENT },
-  { wiki: 'Television',              categoryId: CATEGORY.ENTERTAINMENT },
-  { wiki: 'Video_games',             categoryId: CATEGORY.ENTERTAINMENT },
-  { wiki: 'Comics',                  categoryId: CATEGORY.ENTERTAINMENT },
-  { wiki: 'Anime_and_manga',         categoryId: CATEGORY.ENTERTAINMENT },
+  // Entertainment → Arts & Culture (Film/TV/Comics) and Games & Hobbies (games/anime)
+  { wiki: 'Film',                    categoryId: CATEGORY.ARTS_CULTURE },
+  { wiki: 'Television',              categoryId: CATEGORY.ARTS_CULTURE },
+  { wiki: 'Video_games',             categoryId: CATEGORY.GAMES_HOBBIES },
+  { wiki: 'Comics',                  categoryId: CATEGORY.ARTS_CULTURE },
+  { wiki: 'Anime_and_manga',         categoryId: CATEGORY.GAMES_HOBBIES },
 
-  // Sports & Outdoors
-  { wiki: 'Sports',                  categoryId: CATEGORY.SPORTS_OUTDOORS },
-  { wiki: 'Hiking',                  categoryId: CATEGORY.SPORTS_OUTDOORS },
-  { wiki: 'Cycling',                 categoryId: CATEGORY.SPORTS_OUTDOORS },
-  { wiki: 'Mountaineering',          categoryId: CATEGORY.SPORTS_OUTDOORS },
+  // Sports & Outdoors → People & Places
+  { wiki: 'Sports',                  categoryId: CATEGORY.PEOPLE_PLACES },
+  { wiki: 'Hiking',                  categoryId: CATEGORY.PEOPLE_PLACES },
+  { wiki: 'Cycling',                 categoryId: CATEGORY.PEOPLE_PLACES },
+  { wiki: 'Mountaineering',          categoryId: CATEGORY.PEOPLE_PLACES },
 
-  // Food & Drink
-  { wiki: 'Cuisine',                 categoryId: CATEGORY.FOOD_DRINK },
-  { wiki: 'Cooking',                 categoryId: CATEGORY.FOOD_DRINK },
-  { wiki: 'Beverages',               categoryId: CATEGORY.FOOD_DRINK },
+  // Food & Drink → People & Places (cultural)
+  { wiki: 'Cuisine',                 categoryId: CATEGORY.PEOPLE_PLACES },
+  { wiki: 'Cooking',                 categoryId: CATEGORY.PEOPLE_PLACES },
+  { wiki: 'Beverages',               categoryId: CATEGORY.PEOPLE_PLACES },
 
-  // Travel
-  { wiki: 'Geography',               categoryId: CATEGORY.TRAVEL },
-  { wiki: 'Tourism',                 categoryId: CATEGORY.TRAVEL },
-  { wiki: 'National_parks',          categoryId: CATEGORY.TRAVEL },
-  { wiki: 'Islands',                 categoryId: CATEGORY.TRAVEL },
+  // Travel → People & Places
+  { wiki: 'Geography',               categoryId: CATEGORY.PEOPLE_PLACES },
+  { wiki: 'Tourism',                 categoryId: CATEGORY.PEOPLE_PLACES },
+  { wiki: 'National_parks',          categoryId: CATEGORY.PEOPLE_PLACES },
+  { wiki: 'Islands',                 categoryId: CATEGORY.PEOPLE_PLACES },
 
-  // Health & Wellness
-  { wiki: 'Medicine',                categoryId: CATEGORY.HEALTH_WELLNESS },
-  { wiki: 'Nutrition',               categoryId: CATEGORY.HEALTH_WELLNESS },
-  { wiki: 'Mental_health',           categoryId: CATEGORY.HEALTH_WELLNESS },
-  { wiki: 'Physical_exercise',       categoryId: CATEGORY.HEALTH_WELLNESS },
+  // Health & Wellness → Mind & Body
+  { wiki: 'Medicine',                categoryId: CATEGORY.MIND_BODY },
+  { wiki: 'Nutrition',               categoryId: CATEGORY.MIND_BODY },
+  { wiki: 'Mental_health',           categoryId: CATEGORY.MIND_BODY },
+  { wiki: 'Physical_exercise',       categoryId: CATEGORY.MIND_BODY },
 ];
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -201,11 +209,21 @@ async function fetchCategoryArticles() {
 async function main() {
   console.log('=== Wikipedia seeder ===');
 
-  const featuredRows  = await fetchFeaturedArticles();
-  const categoryRows  = await fetchCategoryArticles();
+  let all;
+  if (!NO_CACHE && existsSync(CACHE_FILE)) {
+    all = JSON.parse(readFileSync(CACHE_FILE, 'utf8'));
+    console.log(`[wikipedia] Loaded ${all.length} rows from cache (use --no-cache to re-fetch)`);
+  } else {
+    const featuredRows  = await fetchFeaturedArticles();
+    const categoryRows  = await fetchCategoryArticles();
+    all = [...featuredRows, ...categoryRows];
 
-  const all = [...featuredRows, ...categoryRows];
-  console.log(`\n[wikipedia] Total collected: ${all.length} — upserting...`);
+    mkdirSync(CACHE_DIR, { recursive: true });
+    writeFileSync(CACHE_FILE, JSON.stringify(all));
+    console.log(`[wikipedia] Cached ${all.length} rows to ${CACHE_FILE}`);
+  }
+
+  console.log(`\n[wikipedia] Total: ${all.length} — upserting...`);
 
   // Wikipedia already provides images — skip OG fetching
   const result = await upsertUrls(all, { fetchOg: false, verbose: true });
