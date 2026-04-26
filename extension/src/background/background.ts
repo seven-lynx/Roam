@@ -42,6 +42,7 @@ async function dispatch(req: Request): Promise<Response> {
     case 'GET_STATE':        return getState();
     case 'SIGN_IN_GOOGLE':   return signInWithGoogle();
     case 'EXCHANGE_CODE':    return exchangeCode((req as any).code);
+    case 'SAVE_SESSION':     return saveSession((req as any).accessToken, (req as any).refreshToken);
     case 'SIGN_OUT':         return signOut();
     case 'ROAM':             return roam(req.collectionId);
     case 'RATE':             return rate(req.url_id, req.vote);
@@ -105,6 +106,29 @@ async function exchangeCode(code: string): Promise<Response<StateData>> {
   const state = await getState();
   console.log('[roam-bg] Final state:', state);
   return state;
+}
+
+async function saveSession(accessToken: string, refreshToken: string): Promise<Response<StateData>> {
+  console.log('[roam-bg] Saving session from OAuth callback');
+  const supabase = getSupabase();
+  try {
+    const { error: setError } = await supabase.auth.setSession({
+      access_token: accessToken,
+      refresh_token: refreshToken,
+    });
+    if (setError) {
+      console.error('[roam-bg] Failed to set session:', setError.message);
+      return { ok: false, error: setError.message };
+    }
+    console.log('[roam-bg] Session set successfully, retrieving state');
+    const state = await getState();
+    console.log('[roam-bg] Final state:', state);
+    return state;
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Unknown error';
+    console.error('[roam-bg] Session save error:', message);
+    return { ok: false, error: message };
+  }
 }
 
 async function signOut(): Promise<Response<StateData>> {

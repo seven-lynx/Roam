@@ -102,13 +102,21 @@ export default function JoinPageContent() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) { setError("Session expired — please sign up again."); setLoading(false); return; }
 
+    console.log('[roam] handleCategories: user =', user.id, 'selected =', Array.from(selected));
+
     // First, delete any existing category preferences for this user
     const { error: deleteError } = await supabase
       .from("user_categories")
       .delete()
       .eq("user_id", user.id);
     
-    if (deleteError) { setError(deleteError.message); setLoading(false); return; }
+    if (deleteError) { 
+      console.error('[roam] Delete failed:', deleteError);
+      setError(`Delete failed: ${deleteError.message}`); 
+      setLoading(false); 
+      return; 
+    }
+    console.log('[roam] Deleted existing categories');
 
     // Then insert the newly selected categories
     const rows = Array.from(selected).map((category_id) => ({
@@ -116,9 +124,17 @@ export default function JoinPageContent() {
       category_id,
     }));
 
-    const { error: insertError } = await supabase.from("user_categories").insert(rows);
+    console.log('[roam] Inserting categories:', rows);
+    const { error: insertError, data: insertData } = await supabase.from("user_categories").insert(rows);
+    
+    if (insertError) { 
+      console.error('[roam] Insert failed:', insertError);
+      setError(`Insert failed: ${insertError.message}`); 
+      setLoading(false); 
+      return; 
+    }
+    console.log('[roam] Categories inserted successfully:', insertData);
     setLoading(false);
-    if (insertError) { setError(insertError.message); return; }
     setStep("done");
   }
 
