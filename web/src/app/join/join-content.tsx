@@ -104,6 +104,16 @@ export default function JoinPageContent() {
 
     console.log('[roam] handleCategories: user =', user.id, 'selected =', Array.from(selected));
 
+    // Verify we have a valid session by checking the session object directly
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      console.error('[roam] No session found, cannot proceed');
+      setError("Session lost. Please reload the page.");
+      setLoading(false);
+      return;
+    }
+    console.log('[roam] Session verified, token present:', !!session.access_token);
+
     // First, delete any existing category preferences for this user
     const { error: deleteError } = await supabase
       .from("user_categories")
@@ -125,7 +135,7 @@ export default function JoinPageContent() {
     }));
 
     console.log('[roam] Inserting categories:', rows);
-    const { error: insertError, data: insertData } = await supabase.from("user_categories").insert(rows);
+    const { error: insertError, data: insertData, count } = await supabase.from("user_categories").insert(rows);
     
     if (insertError) { 
       console.error('[roam] Insert failed:', insertError);
@@ -133,7 +143,15 @@ export default function JoinPageContent() {
       setLoading(false); 
       return; 
     }
-    console.log('[roam] Categories inserted successfully:', insertData);
+    console.log('[roam] Categories inserted successfully, data:', insertData, 'count:', count);
+    
+    // Verify the insert actually saved
+    const { data: verifyData } = await supabase
+      .from("user_categories")
+      .select("*")
+      .eq("user_id", user.id);
+    console.log('[roam] Verification query returned:', verifyData?.length || 0, 'rows');
+
     setLoading(false);
     setStep("done");
   }
