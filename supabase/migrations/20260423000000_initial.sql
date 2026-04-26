@@ -580,32 +580,44 @@ BEGIN
 
   ELSE
     -- ── Standard mode ──────────────────────────────────────────────────────
+    -- If URLs have subcategories assigned, filter by user's selected subcategories.
+    -- If URLs have NULL subcategories, filter by user's selected category pillars.
     SELECT u.id INTO v_url_id
     FROM urls u
-    INNER JOIN subcategories sc ON sc.id = u.subcategory_id
+    LEFT JOIN subcategories sc ON sc.id = u.subcategory_id
     WHERE u.approved = TRUE
       AND (
-        -- User explicitly selected this subcategory
-        EXISTS (
-          SELECT 1 FROM user_categories uc
-          WHERE uc.user_id = p_user_id
-            AND uc.subcategory_id = u.subcategory_id
-        )
-        OR (
-          -- User selected the whole pillar with no subcategory refinements
+        -- Case 1: URL has a subcategory assigned
+        (u.subcategory_id IS NOT NULL AND sc.id IS NOT NULL AND (
+          -- User explicitly selected this subcategory
           EXISTS (
             SELECT 1 FROM user_categories uc
             WHERE uc.user_id = p_user_id
-              AND uc.category_id = sc.category_id
-              AND uc.subcategory_id IS NULL
+              AND uc.subcategory_id = u.subcategory_id
           )
-          AND NOT EXISTS (
-            SELECT 1 FROM user_categories uc2
-            WHERE uc2.user_id = p_user_id
-              AND uc2.category_id = sc.category_id
-              AND uc2.subcategory_id IS NOT NULL
+          OR (
+            -- User selected the whole pillar with no subcategory refinements
+            EXISTS (
+              SELECT 1 FROM user_categories uc
+              WHERE uc.user_id = p_user_id
+                AND uc.category_id = sc.category_id
+                AND uc.subcategory_id IS NULL
+            )
+            AND NOT EXISTS (
+              SELECT 1 FROM user_categories uc2
+              WHERE uc2.user_id = p_user_id
+                AND uc2.category_id = sc.category_id
+                AND uc2.subcategory_id IS NOT NULL
+            )
           )
-        )
+        ))
+        OR
+        -- Case 2: URL has NULL subcategory (unassigned) - allow if user selected any category
+        (u.subcategory_id IS NULL AND EXISTS (
+          SELECT 1 FROM user_categories uc
+          WHERE uc.user_id = p_user_id
+            AND uc.subcategory_id IS NULL
+        ))
       )
       AND NOT EXISTS (
         SELECT 1 FROM seen_urls su
