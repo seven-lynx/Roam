@@ -4,6 +4,12 @@
  * Downloads the Curlie directory dump (2.9M URLs) from curlie.org
  * and imports with intelligent category mapping to Roam's 8 pillars.
  *
+ * Features:
+ *   - Persistent progress tracking across crashes/reboots
+ *   - Extracts once, caches to JSONL for fast resumption
+ *   - Per-batch checkpoint during upsert phase
+ *   - Graceful error handling and recovery
+ *
  * Curlie data is free under open source license (CC-BY-SA-4.0).
  * All imported rows are tagged source = 'curlie'.
  *
@@ -11,27 +17,42 @@
  * Files: categories-*.tsv, content-*.tsv with matching category IDs.
  *
  * Run from repo root:
- *   node scripts/seed-curlie.js
- *   node scripts/seed-curlie.js --no-cache    # re-download
+ *   node scripts/seed-curlie.js             # resume or start
+ *   node scripts/seed-curlie.js --no-cache  # re-download tar.gz
+ *   node scripts/seed-curlie.js --reset     # clear progress and start over
  */
 
 import fetch from 'node-fetch';
-import { readFileSync, writeFileSync, mkdirSync, existsSync, createWriteStream, createReadStream } from 'fs';
+import { readFileSync, writeFileSync, mkdirSync, existsSync, createWriteStream, createReadStream, appendFileSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, resolve } from 'path';
 import { createGunzip } from 'zlib';
 import { pipeline } from 'stream/promises';
 import { extract } from 'tar';
+import { config as dotenvConfig } from 'dotenv';
+import { createClient } from '@supabase/supabase-js';
 import { upsertUrls, CATEGORY } from './lib/seed.js';
 
 const __dirname  = dirname(fileURLToPath(import.meta.url));
 const CACHE_DIR  = resolve(__dirname, '.cache');
 const EXTRACT_DIR = resolve(CACHE_DIR, 'curlie-extracted');
 const CACHE_FILE = resolve(CACHE_DIR, 'curlie-rdf-all.tar.gz');
+const PROGRESS_FILE = resolve(CACHE_DIR, 'curlie-progress.json');
+const EXTRACTED_ROWS_FILE = resolve(CACHE_DIR, 'curlie-extracted-rows.jsonl');
 const NO_CACHE   = process.argv.includes('--no-cache');
+const RESET      = process.argv.includes('--reset');
+
+// Initialize Supabase client
+dotenvConfig({ path: resolve(__dirname, '../../.env') });
+
+const supabase = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_ROLE_KEY,
+);
 
 const CURLIE_DUMP_URL = 'https://vm-138-246-238-70.cloud.mwn.de:9000/curlie/curlie-rdf-all.tar.gz';
 const DELAY_MS = 500;
+const BATCH_SIZE = 50;
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -83,6 +104,48 @@ const CATEGORY_MAP = [
   { prefix: 'Health',                                 roamCategoryId: CATEGORY.MIND_BODY },
   { prefix: 'Home',                                   roamCategoryId: CATEGORY.MIND_BODY },
 ];
+
+// ── Progress checkpoint functions ───────────────────────────────────────────
+
+function loadProgress() {
+  if (RESET) {
+    console.log('[curlie] --reset flag: starting from beginning\n');
+    return { phase: 'extraction', extractionComplete: false, upsertComplete: false, upsertedCount: 0, lastBatchNumber: 0, startedAt: new Date().toISOString() };
+  }
+
+  if (!existsSync(PROGRESS_FILE)) {
+    return { phase: 'extraction', extractionComplete: false, upsertComplete: false, upsertedCount: 0, lastBatchNumber: 0, startedAt: new Date().toISOString() };
+  }
+
+  try {
+    const data = JSON.parse(readFileSync(PROGRESS_FILE, 'utf-8'));
+    console.log(`[curlie] Resuming from checkpoint...`);
+    console.log(`[curlie]   Phase: ${data.phase}`);
+    console.log(`[curlie]   Extraction complete: ${data.extractionComplete}`);
+    console.log(`[curlie]   Upsert complete: ${data.upsertComplete}`);
+    if (data.phase === 'upsert') {
+      console.log(`[curlie]   Last successful batch: ${data.lastBatchNumber}`);
+      console.log(`[curlie]   Total upserted so far: ${data.upsertedCount}\n`);
+    }
+    return data;
+  } catch (err) {
+    console.error('[curlie] Failed to parse progress file, starting fresh:', err.message);
+    return { phase: 'extraction', extractionComplete: false, upsertComplete: false, upsertedCount: 0, lastBatchNumber: 0, startedAt: new Date().toISOString() };
+  }
+}
+
+function saveProgress(data) {
+  if (!existsSync(CACHE_DIR)) {
+    mkdirSync(CACHE_DIR, { recursive: true });
+  }
+
+  const checkpoint = {
+    ...data,
+    lastUpdated: new Date().toISOString(),
+  };
+
+  writeFileSync(PROGRESS_FILE, JSON.stringify(checkpoint, null, 2));
+}
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -137,11 +200,30 @@ async function downloadCurlieDump() {
 
 /**
  * Extract tar.gz, parse structure (ID→path), then parse content (URL entries)
+ * Streams extracted rows to JSONL file for resumability.
  */
 async function extractAndParseTsv() {
   if (!existsSync(CACHE_FILE)) {
     console.error('[curlie] Cache file not found:', CACHE_FILE);
     return [];
+  }
+
+  // If extraction was already complete, load from cached JSONL file
+  if (existsSync(EXTRACTED_ROWS_FILE)) {
+    console.log('[curlie] Loading previously extracted rows from cache...');
+    try {
+      const rows = [];
+      const lines = readFileSync(EXTRACTED_ROWS_FILE, 'utf-8').split('\n');
+      for (const line of lines) {
+        if (!line.trim()) continue;
+        rows.push(JSON.parse(line));
+      }
+      console.log(`[curlie] Loaded ${rows.length} rows from extraction cache`);
+      return rows;
+    } catch (err) {
+      console.error('[curlie] Failed to load extraction cache, re-extracting:', err.message);
+      // Fall through to re-extract
+    }
   }
 
   console.log('[curlie] Extracting tar.gz...');
@@ -202,9 +284,15 @@ async function extractAndParseTsv() {
     console.log(`[curlie] Built map of ${categoryMap.size} category IDs → paths`);
 
     // ──────────────────────────────────────────────────────────────────────
-    // Step 2: Parse content files using the category map
+    // Step 2: Parse content files and stream to JSONL
     // ──────────────────────────────────────────────────────────────────────
+    let rowCount = 0;
     const rows = [];
+
+    // Clear any previous extraction cache
+    if (existsSync(EXTRACTED_ROWS_FILE)) {
+      writeFileSync(EXTRACTED_ROWS_FILE, '');
+    }
 
     for (const file of contentFiles) {
       console.log(`[curlie] Parsing content: ${file}...`);
@@ -221,7 +309,7 @@ async function extractAndParseTsv() {
 
         const url = parts[0]?.trim();
         const title = parts[1]?.trim();
-        const description = parts[1]?.trim();
+        const description = parts[2]?.trim();
         const categoryId = parts[3]?.trim();
 
         // Validate URL
@@ -235,20 +323,26 @@ async function extractAndParseTsv() {
         const roamCategoryId = mapCurlieCategory(categoryPath);
         if (!roamCategoryId) continue; // Unmapped category
 
-        rows.push({
+        const row = {
           url,
           title: title || null,
           description: description || null,
           category_id: roamCategoryId,
           source: 'curlie',
-        });
+        };
+
+        // Stream to JSONL file
+        appendFileSync(EXTRACTED_ROWS_FILE, JSON.stringify(row) + '\n');
+        rows.push(row);
+        rowCount++;
       }
 
-      if (rows.length % 1000 === 0) {
-        console.log(`[curlie]   Total extracted so far: ${rows.length}`);
+      if (rowCount % 1000 === 0) {
+        console.log(`[curlie]   Total extracted so far: ${rowCount}`);
       }
     }
 
+    console.log(`[curlie] Extraction complete: ${rowCount} URLs extracted and cached`);
     return rows;
   } catch (err) {
     console.error('[curlie] Extraction/parsing failed:', err.message);
@@ -258,8 +352,125 @@ async function extractAndParseTsv() {
 }
 
 /**
- * Load Curlie data from cache or download
+ * Upsert URLs with per-batch checkpointing for resumability.
+ * Unlike the generic upsertUrls(), this tracks progress after each batch.
  */
+async function upsertUrlsWithProgress(rows, progress) {
+  const log = console.log;
+
+  // 1. Normalise URLs and drop anything unparseable
+  const normalised = rows
+    .map((r) => ({ ...r, url: normaliseUrl(r.url) }))
+    .filter((r) => r.url !== null);
+
+  if (normalised.length < rows.length) {
+    log(`[curlie] Dropped ${rows.length - normalised.length} unparseable URLs`);
+  }
+
+  // 2. Check which normalised URLs are already in the DB
+  const urls = normalised.map((r) => r.url);
+  const { data: existing } = await supabase
+    .from('urls')
+    .select('url')
+    .in('url', urls);
+
+  const existingSet = new Set((existing ?? []).map((r) => r.url));
+  const fresh = normalised.filter((r) => !existingSet.has(r.url));
+
+  log(`[curlie] ${fresh.length} new / ${existingSet.size} already exist (${normalised.length} total)`);
+  if (fresh.length === 0) {
+    return { inserted: 0, skipped: existingSet.size };
+  }
+
+  // 3. Batch upsert with checkpointing
+  let inserted = 0;
+  const startBatch = progress.lastBatchNumber;
+
+  for (let i = 0; i < fresh.length; i += BATCH_SIZE) {
+    const batchNumber = Math.floor(i / BATCH_SIZE) + 1;
+
+    // Skip already-processed batches on resume
+    if (batchNumber <= startBatch) {
+      log(`[curlie] Skipping batch ${batchNumber} (already processed)`);
+      inserted += Math.min(BATCH_SIZE, fresh.length - i);
+      continue;
+    }
+
+    const batch = fresh.slice(i, i + BATCH_SIZE).map((r) => ({
+      url:            r.url,
+      original_url:   r.url,
+      title:          r.title        ?? null,
+      description:    r.description  ?? null,
+      og_image_url:   r.og_image_url ?? null,
+      category_id:    r.category_id  ?? null,
+      subcategory_id: r.subcategory_id ?? null,
+      source:         r.source       ?? 'manual',
+      approved:       true,
+      wilson_score:   0,
+      upvotes:        0,
+      downvotes:      0,
+    }));
+
+    const { error, count } = await supabase
+      .from('urls')
+      .upsert(batch, { onConflict: 'url', ignoreDuplicates: true })
+      .select('id', { count: 'exact', head: true });
+
+    if (error) {
+      console.error(`[curlie] Upsert error on batch ${batchNumber}:`, error.message);
+      throw new Error(`Batch ${batchNumber} failed: ${error.message}`);
+    } else {
+      inserted += count ?? batch.length;
+      log(`[curlie] Batch ${batchNumber}: upserted ${batch.length} rows`);
+
+      // Save checkpoint after each batch
+      progress.phase = 'upsert';
+      progress.lastBatchNumber = batchNumber;
+      progress.upsertedCount = progress.upsertedCount + (count ?? batch.length);
+      saveProgress(progress);
+    }
+  }
+
+  return { inserted, skipped: existingSet.size };
+}
+
+/**
+ * Normalise URL (copied from lib/seed.js to maintain consistency)
+ */
+function normaliseUrl(urlStr) {
+  try {
+    const url = new URL(urlStr);
+    url.protocol = 'https:';
+    
+    // Strip www
+    let hostname = url.hostname;
+    if (hostname.startsWith('www.')) {
+      hostname = hostname.slice(4);
+    }
+    url.hostname = hostname;
+
+    // Strip tracking params
+    const TRACKING_PARAMS = new Set([
+      'utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content',
+      'utm_id', 'utm_reader', 'utm_name', 'utm_brand',
+      'fbclid', 'gclid', 'msclkid', 'dclid', 'zanpid', 'igshid',
+      'mc_cid', 'mc_eid', 'ref', 'referrer', '_ga', 'twclid',
+      'yclid', 's_cid', 'ncid', 'nr_email_referer',
+    ]);
+    Array.from(url.searchParams.keys()).forEach((key) => {
+      if (TRACKING_PARAMS.has(key)) {
+        url.searchParams.delete(key);
+      }
+    });
+
+    url.hash = '';
+    const normalised = url.href.replace(/\/$/, '').toLowerCase();
+    return normalised;
+  } catch {
+    return null;
+  }
+}
+
 async function loadCurlieData() {
   if (!NO_CACHE && existsSync(CACHE_FILE)) {
     console.log(`[curlie] Using cached dump: ${CACHE_FILE}`);
@@ -278,32 +489,78 @@ async function loadCurlieData() {
  * Main seeder function
  */
 async function seedCurlie() {
-  console.log('\n========== Curlie Seeder ==========\n');
+  console.log('\n========== Curlie Seeder (with resumable checkpoints) ==========\n');
 
-  // Load or download TSV data
-  const rows = await loadCurlieData();
-  if (!rows || rows.length === 0) {
-    console.error('[curlie] Failed to load data. Exiting.');
-    process.exit(1);
+  // Load progress checkpoint
+  let progress = loadProgress();
+
+  // Phase 1: Extraction
+  if (!progress.extractionComplete) {
+    console.log('[curlie] Starting extraction phase...\n');
+    const rows = await loadCurlieData();
+    
+    if (!rows || rows.length === 0) {
+      console.error('[curlie] Failed to load data. Exiting.');
+      process.exit(1);
+    }
+
+    console.log(`[curlie] Extraction complete: ${rows.length} URLs extracted and cached`);
+    
+    // Update progress
+    progress.phase = 'extraction_complete';
+    progress.extractionComplete = true;
+    progress.extractedCount = rows.length;
+    saveProgress(progress);
+    console.log('[curlie] Progress checkpoint saved.\n');
+  } else {
+    console.log('[curlie] Extraction already complete, skipping to upsert phase.\n');
   }
 
-  console.log(`[curlie] Extracted ${rows.length} URLs with mapped categories`);
+  // Phase 2: Upsert
+  if (!progress.upsertComplete) {
+    console.log('[curlie] Starting upsert phase...');
+    console.log(`[curlie] (Resuming from batch ${progress.lastBatchNumber})\n`);
 
-  // Upsert to database (skip OG fetching — Curlie data already has good descriptions)
-  console.log('[curlie] Upserting to database...');
-  const result = await upsertUrls(rows, { fetchOg: false, verbose: true });
+    // Load extracted rows from JSONL
+    const rows = [];
+    const lines = readFileSync(EXTRACTED_ROWS_FILE, 'utf-8').split('\n');
+    for (const line of lines) {
+      if (!line.trim()) continue;
+      rows.push(JSON.parse(line));
+    }
 
-  console.log(`\n[curlie] Complete.`);
-  console.log(`        Inserted: ${result.inserted}`);
-  console.log(`        Skipped:  ${result.skipped}`);
-  console.log(`\n        Total Curlie URLs in system: ~${result.inserted + result.skipped}`);
-  console.log(`        All tagged as source = 'curlie' for identification\n`);
+    console.log(`[curlie] Loaded ${rows.length} rows from extraction cache`);
+
+    try {
+      const result = await upsertUrlsWithProgress(rows, progress);
+      
+      console.log(`\n[curlie] Upsert phase complete.`);
+      console.log(`        Inserted: ${result.inserted}`);
+      console.log(`        Skipped:  ${result.skipped}`);
+      console.log(`        Total Curlie URLs in system: ~${result.inserted + result.skipped}`);
+      
+      // Mark as complete
+      progress.phase = 'complete';
+      progress.upsertComplete = true;
+      saveProgress(progress);
+    } catch (err) {
+      console.error(`[curlie] Upsert failed: ${err.message}`);
+      console.error('[curlie] Progress saved. Run again to resume from checkpoint.');
+      process.exit(1);
+    }
+  } else {
+    console.log('[curlie] Upsert already complete!\n');
+  }
+
+  console.log('[curlie] ✅ All tagged as source = "curlie" for identification\n');
+  console.log(`[curlie] 🎉 Curlie seeding complete!\n`);
 }
 
 // ── Run seeder ───────────────────────────────────────────────────────────────
 
 seedCurlie().catch((err) => {
   console.error('[curlie] Fatal error:', err.message);
+  console.error(err);
   process.exit(1);
 });
 

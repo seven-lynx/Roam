@@ -310,17 +310,55 @@ Filling the discovery pool before launch so that the Roam button has something t
 
 - [x] **4.26** Run the Curlie import pipeline — deduplicate against existing entries, batch insert into `urls` table with `approved = true`
 
-  📖 **What we did:** Optimized the seeder to skip OG image fetching (which would take 8+ hours for 1.2M URLs) and do just the mapping + upsert. The `upsertUrls()` function normalises URLs, deduplicates against the database, and batch-upserts 50 rows at a time. All Curlie URLs are tagged `source = 'curlie'` and `approved = true` (human-curated editorial content). Created a separate background task `scripts/seed-curlie-fetch-og.js` that can run overnight to fetch missing `og_image_url` values later without blocking the main import. **Status: Curlie import is currently running; expected completion: ~10 minutes** (upsert only, no OG fetching).
+  📖 **What we did:** Implemented resumable checkpointing for the Curlie seeder to handle overnight runs safely. The seeder now consists of two phases: (1) **Extraction:** Streams parsed URLs to a JSONL cache file (`.cache/curlie-extracted-rows.jsonl`), so if extraction crashes, it can resume from the cache instead of re-parsing all TSV files. (2) **Upsert:** Batches URLs in groups of 50 and saves a checkpoint (`.cache/curlie-progress.json`) after each batch, allowing resumption from the last completed batch if the process is interrupted. The checkpoint file tracks: phase, batch number, total upserted count, start/resume timestamps. Supports `--reset` flag to start over from scratch. All Curlie URLs are tagged `source = 'curlie'` and `approved = true`. The seeder can now run overnight with full crash-recovery: reboot or terminal crash = resume from checkpoint, no wasted work.
 
-- [ ] **4.26a** Create `scripts/seed-curlie-fetch-og.js` — background task to fetch missing OG images for Curlie URLs overnight without timeout; resumes from progress file if interrupted
+- [x] **4.26a** Create `scripts/seed-curlie-fetch-og.js` — background task to fetch missing OG images for Curlie URLs overnight without timeout; resumes from progress file if interrupted
 
-  📖 **What we did:** Created a separate Deno/Node seeder script that queries for all Curlie URLs without `og_image_url`, fetches images in batches of 50 with 500ms rate limiting between requests, and updates them in the database. Includes persistent progress tracking (`scripts/.cache/curlie-og-progress.json`) so it can be stopped/resumed without losing progress. Can run overnight without worrying about timeouts. Pass `--reset` to start over from the beginning if needed.
+  📖 **What we did:** This file already existed with full checkpoint support. It queries for Curlie URLs without `og_image_url`, fetches images in batches of 50 with 500ms rate limiting, saves checkpoint after each batch (`scripts/.cache/curlie-og-progress.json`), and supports `--reset` flag. Both the main seeder and OG fetcher now follow the same checkpoint pattern for consistency.
 
 - [ ] **4.27** Spot-check 50 random Curlie URLs per pillar to verify mapping quality; adjust mapper if a category is consistently mis-mapped
 
 ### 4e. Verification
 
 - [ ] **4.28** Run all seeders and verify a minimum of 5,000 discoverable URLs per category pillar
+
+### 4d. Additional seeder candidates & content strategy
+
+**Current state:** ~1.45M URLs across 16 seeders. Strong in Technology/Science/Humanities. **Gaps:** Mind & Body (health), niche categories.
+
+#### High Priority — Critical gaps (Next week)
+
+- [ ] **4.29** Write the PubMed seeder — queries NCBI Entrez API (free, no key) by MeSH terms (neuroscience, psychiatry, pharmacology, nutrition, psychology); maps to **Mind & Body** category which is currently weak; pulls ~30-50K articles; effort: 2-3 hours
+
+- [ ] **4.30** Write the Reddit seeder — **HIGH PRIORITY:** Reddit's upvote system = quality signal. User-curated content across all categories. **Status:** API access was denied on previous application. **Solutions to explore:** (1) Reapply for API key (explain use case better: non-commercial, read-only, no spam); (2) Use Pushshift archive API (historical Reddit data, no auth needed, 10M+ posts); (3) Scrape via `reddit.com/r/<subreddit>/top.json` (may require User-Agent spoofing); (4) Use PRAW library with headless browser. Targets: 50+ subreddits (r/science, r/technology, r/history, r/AskHistorians, r/books, r/health, r/fitness, r/Art, r/travel, etc.). Delivers ~12,500 high-quality URLs across all categories. Effort: 3-4 hours (once access method is confirmed).
+
+- [ ] **4.31** Write the Project Gutenberg seeder — Gutendex API (free, no rate limits) pulls ~70K free ebooks by subject; maps to **Literature & Writing** and **History & Ideas**; adds historical/classic perspective vs. modern Open Library; effort: 2 hours
+
+#### Medium Priority — Diversification (Following week)
+
+- [ ] **4.32** Write the Museum APIs seeder — Metropolitan Museum (free, 375K items), Rijksmuseum (free key, 700K items), MOMA (free, 30K items); pulls ~50K artworks total; fills **Visual Arts & Creativity entirely** with high-quality images; effort: 4 hours (multi-API client)
+
+- [ ] **4.33** Write the Smithsonian Magazine seeder — RSS feeds (free, no auth); ~5-10K articles from past 2-3 years; maps: History (40%), Science (30%), Arts (20%), Places (10%); authoritative source; effort: 2 hours
+
+- [ ] **4.34** Write the Substack seeder — scrape trending publications + RSS feeds (no official API); ~25K URLs from independent newsletters; captures independent voices (different from NYT/Guardian); effort: 3-4 hours
+
+#### Lower Priority — Niche content
+
+- [ ] **4.35** Write the IGDB seeder — video games (free API key); top 5K games by rating; maps to Weird & Wonderful niche; effort: 2 hours
+
+- [ ] **4.36** Write the Podcast Index seeder — decentralized audio metadata (free API); top 100 podcasts × 10 episodes each = ~5K URLs; new medium (currently all websites); effort: 2-3 hours
+
+- [ ] **4.37** Write the GitHub Trending seeder — no official API, scrape `github.com/trending` by language/timespan; ~3-5K repos; captures emerging tech projects; effort: 1-2 hours
+
+#### Not Recommended (Pre-launch)
+
+- **YouTube** — API quota (10K units/day) too restrictive. 50K videos = 50+ days minimum. Defer to post-launch.
+- **Europeana** — Slow API (1 req/2s). 50K items = 24+ hour seed time. Lower priority vs. Museum APIs.
+- **CORE, DPLA, JSTOR** — Lower unique value or too much overlap with existing seeders.
+
+#### Pre-Launch Essential
+
+- [ ] **4.23a** Create `paywalled_domains` table in Supabase — lookup table (`domain TEXT PRIMARY KEY`) seeded with ~20 known paywalled sites (nytimes.com, wsj.com, ft.com, bloomberg.com, theatlantic.com, newyorker.com, thetimes.co.uk, etc.); the `roam()` RPC filters these out when user has "skip paywalled sites" enabled; RLS: publicly readable, service-role only for writes. **Critical for day-one UX.**
 
 ---
 
