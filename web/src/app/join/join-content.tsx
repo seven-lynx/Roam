@@ -40,13 +40,6 @@ export default function JoinPageContent() {
         console.log('[roam] hasOAuthCode:', hasOAuthCode);
         console.log('[roam] current URL:', window.location.href);
         
-        // If no OAuth code in URL and user is visiting fresh, clear any existing session data
-        // This prevents auto-login and requires manual sign-in every time
-        if (!hasOAuthCode) {
-          console.log('[roam] No OAuth code, clearing any existing session data');
-          await supabase.auth.signOut();
-        }
-        
         // Wait a bit for Supabase to process the OAuth callback if present
         if (hasOAuthCode) {
           console.log('[roam] Waiting for OAuth callback processing...');
@@ -74,16 +67,20 @@ export default function JoinPageContent() {
             console.log('[roam] OAuth code detected, advancing to categories');
             setStep("categories");
           } else {
-            // Already logged in, show account step with sign out option
+            // Session exists but no OAuth code — shouldn't happen with persistSession: false
+            // but handle it gracefully
             setStep("account");
           }
         } else {
           console.log('[roam] no session found');
           setIsSignedIn(false);
+          setStep("account");
         }
       } catch (err) {
         console.error('[roam] checkSession error:', err);
         setError(err instanceof Error ? err.message : 'Failed to check session');
+        setIsSignedIn(false);
+        setStep("account");
       }
     }
     checkSession();
