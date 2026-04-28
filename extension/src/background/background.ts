@@ -86,6 +86,39 @@ async function dispatch(req: Request): Promise<Response> {
 
 // ── Auth ────────────────────────────────────────────────────────────────────
 
+/**
+ * Fetch user's selected categories and initialize queue
+ */
+async function initializeQueueIfNeeded(): Promise<void> {
+  const session = (await getSupabase().auth.getSession()).data.session;
+  if (!session) return;
+
+  // Check if queue already initialized (has stored state)
+  const stored = await chrome.storage.local.get('url_queue');
+  if (stored.url_queue) return; // Already initialized
+
+  try {
+    // Fetch user's selected categories
+    const { data, error } = await getSupabase()
+      .from('user_categories')
+      .select('category_id')
+      .eq('user_id', session.user.id);
+
+    if (error) {
+      console.error('[roam-bg] Failed to fetch user categories:', error.message);
+      return;
+    }
+
+    const categoryIds = (data || []).map((row: any) => row.category_id);
+    console.log('[roam-bg] Initializing queue with categories:', categoryIds);
+
+    // Initialize queue with user's categories
+    await initializeQueueManagement(categoryIds);
+  } catch (err) {
+    console.error('[roam-bg] Queue initialization error:', err);
+  }
+}
+
 async function getState(): Promise<Response<StateData>> {
   const { data: { session }, error } = await getSupabase().auth.getSession();
   if (error) {
@@ -96,6 +129,10 @@ async function getState(): Promise<Response<StateData>> {
     console.log('[roam-bg] No session found');
     return { ok: true, data: { signedIn: false } };
   }
+
+  // Initialize queue if needed
+  await initializeQueueIfNeeded();
+
   console.log('[roam-bg] Session found:', { email: session.user.email, userId: session.user.id });
   return {
     ok: true,
@@ -132,7 +169,11 @@ async function exchangeCode(code: string): Promise<Response<StateData>> {
     console.error('[roam-bg] Session exchange failed:', sessionError.message);
     return { ok: false, error: sessionError.message };
   }
-  console.log('[roam-bg] Code exchanged successfully, retrieving state');
+  console.log('[roam-bg] Code exchanged successfully, initializing queue');
+
+  // Initialize queue with user's categories
+  await initializeQueueIfNeeded();
+
   const state = await getState();
   console.log('[roam-bg] Final state:', state);
   return state;
@@ -150,7 +191,11 @@ async function saveSession(accessToken: string, refreshToken: string): Promise<R
       console.error('[roam-bg] Failed to set session:', setError.message);
       return { ok: false, error: setError.message };
     }
-    console.log('[roam-bg] Session set successfully, retrieving state');
+    console.log('[roam-bg] Session set successfully, initializing queue');
+
+    // Initialize queue with user's categories
+    await initializeQueueIfNeeded();
+
     const state = await getState();
     console.log('[roam-bg] Final state:', state);
     return state;
@@ -246,18 +291,6 @@ async function submitUrl(url: string, categoryId: string): Promise<Response<null
   if (error) return { ok: false, error: error.message };
   if (data?.error) return { ok: false, error: data.error };
   return { ok: true, data: null };
-}
-
-async function saveLater(url: string): Promise<Response<null>> {
-  // TODO (task 5.12): supabase.from('saved_urls').insert()
-  void url;
-  return { ok: false, error: 'Not implemented yet (task 5.12)' };
-}
-
-async function setPaywallPref(skip: boolean): Promise<Response<null>> {
-  // TODO (task 5.12b): supabase.from('user_settings').upsert({ skip_paywalled: skip })
-  void skip;
-  return { ok: false, error: 'Not implemented yet (task 5.12b)' };
 }
 
 async function getQueueState(): Promise<Response<QueueState>> {
