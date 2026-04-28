@@ -5,8 +5,19 @@
 // is rehydrated automatically from chrome.storage.local by the custom
 // storage adapter in src/lib/supabase.ts.
 
-import type { Request, Response, StateData, RoamData, CheckUrlData } from '../lib/messages';
+import type { Request, Response, StateData, RoamData, CheckUrlData, QueueState, Collection } from '../lib/messages';
 import { getSupabase, clearAuthStorage } from '../lib/supabase';
+import {
+  popHotUrl,
+  clearQueue,
+} from '../lib/queue';
+import {
+  initializeQueueManagement,
+  cleanupOnSignOut,
+  updateCategoryFilter,
+  getQueueStats,
+  fetchFreshUrls as queueFetchFreshUrls,
+} from '../lib/queueManager';
 
 // ── URL normaliser (mirrors the Edge Function's normalizeUrl) ────────────────
 function normalizeUrl(raw: string): string | null {
@@ -51,18 +62,25 @@ chrome.runtime.onMessage.addListener(
 
 async function dispatch(req: Request): Promise<Response> {
   switch (req.type) {
-    case 'GET_STATE':        return getState();
-    case 'SIGN_IN_GOOGLE':   return signInWithGoogle();
-    case 'EXCHANGE_CODE':    return exchangeCode((req as any).code);
-    case 'SAVE_SESSION':     return saveSession((req as any).accessToken, (req as any).refreshToken);
-    case 'SIGN_OUT':         return signOut();
-    case 'ROAM':             return roam();
-    case 'RATE':             return rate(req.url_id, req.vote);
-    case 'CHECK_URL':        return checkUrl(req.url);
-    case 'SUBMIT_URL':       return submitUrl(req.url, req.categoryId);
-    case 'SAVE_LATER':       return saveLater(req.url);
-    case 'SET_PAYWALL_PREF': return setPaywallPref(req.skip);
-    default:                 return { ok: false, error: 'Unknown message type' };
+    case 'GET_STATE':           return getState();
+    case 'SIGN_IN_GOOGLE':      return signInWithGoogle();
+    case 'EXCHANGE_CODE':       return exchangeCode((req as any).code);
+    case 'SAVE_SESSION':        return saveSession((req as any).accessToken, (req as any).refreshToken);
+    case 'SIGN_OUT':            return signOut();
+    case 'ROAM':                return roam();
+    case 'ROAM_COLLECTION':     return roamCollection(req.collectionId);
+    case 'ROAM_CATEGORY':       return roamCategory(req.categoryId);
+    case 'RATE':                return rate(req.url_id, req.vote);
+    case 'CHECK_URL':           return checkUrl(req.url);
+    case 'SUBMIT_URL':          return submitUrl(req.url, req.categoryId);
+    case 'SAVE_LATER':          return saveLater(req.url);
+    case 'SET_PAYWALL_PREF':    return setPaywallPref(req.skip);
+    case 'GET_COLLECTIONS':     return getCollections();
+    case 'CREATE_COLLECTION':   return createCollection(req.name);
+    case 'ADD_URL_TO_COLLECTION': return addUrlToCollection(req.url, req.collectionId);
+    case 'GET_QUEUE_STATE':     return getQueueState();
+    case 'REFRESH_CATEGORIES':  return refreshCategories(req.categoryIds);
+    default:                    return { ok: false, error: 'Unknown message type' };
   }
 }
 
@@ -144,6 +162,9 @@ async function saveSession(accessToken: string, refreshToken: string): Promise<R
 }
 
 async function signOut(): Promise<Response<StateData>> {
+  // Clean up queue before signing out
+  await cleanupOnSignOut();
+
   const { error } = await getSupabase().auth.signOut();
   if (error) return { ok: false, error: error.message };
   // Explicitly clear all auth storage to prevent auto-restore
@@ -154,6 +175,20 @@ async function signOut(): Promise<Response<StateData>> {
 // ── Feature stubs (implemented in tasks 5.8–5.12) ───────────────────────────
 
 async function roam(collectionId?: string): Promise<Response<RoamData>> {
+  // Try to get a hot URL from the prefetch queue first
+  const hotUrl = await popHotUrl();
+
+  if (hotUrl) {
+    // Use cached hot URL
+    const newDomain = getDomain(hotUrl.url);
+    if (newDomain) {
+      await chrome.storage.local.set({ lastRoamDomain: newDomain });
+    }
+
+    return { ok: true, data: hotUrl as RoamData };
+  }
+
+  // Queue is empty, fall back to direct API call
   // Get the last roamed domain to exclude it
   const storage = await chrome.storage.local.get('lastRoamDomain');
   const excludeDomain = storage.lastRoamDomain ?? null;
@@ -223,6 +258,197 @@ async function setPaywallPref(skip: boolean): Promise<Response<null>> {
   // TODO (task 5.12b): supabase.from('user_settings').upsert({ skip_paywalled: skip })
   void skip;
   return { ok: false, error: 'Not implemented yet (task 5.12b)' };
+}
+
+async function getQueueState(): Promise<Response<QueueState>> {
+  try {
+    const stats = await getQueueStats();
+    return { ok: true, data: stats };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Unknown error';
+    return { ok: false, error: message };
+  }
+}
+
+async function refreshCategories(categoryIds: string[]): Promise<Response<null>> {
+  try {
+    await updateCategoryFilter(categoryIds);
+    return { ok: true, data: null };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Unknown error';
+    return { ok: false, error: message };
+  }
+}
+
+async function roamCollection(collectionId: string): Promise<Response<RoamData>> {
+  const { data, error } = await getSupabase().functions.invoke('roam', {
+    body: { collection_id: collectionId },
+  });
+
+  if (error) return { ok: false, error: error.message };
+  if (data?.error) return { ok: false, error: data.error };
+
+  // Save the domain of the URL we just got for next time
+  const newDomain = getDomain(data.url);
+  if (newDomain) {
+    await chrome.storage.local.set({ lastRoamDomain: newDomain });
+  }
+
+  return { ok: true, data: data as RoamData };
+}
+
+async function roamCategory(categoryId: string): Promise<Response<RoamData>> {
+  // Determine which categories match this categoryId and roam within them
+  const CATEGORY_ID_MAP: Record<string, string[]> = {
+    // Map category IDs to array of subcategories (or the ID itself)
+    // For now, just roam normally with no filter
+    // In the future, filter the roam() RPC call by category
+  };
+
+  const { data, error } = await getSupabase().functions.invoke('roam', {
+    body: { category_id: categoryId },
+  });
+
+  if (error) return { ok: false, error: error.message };
+  if (data?.error) return { ok: false, error: data.error };
+
+  const newDomain = getDomain(data.url);
+  if (newDomain) {
+    await chrome.storage.local.set({ lastRoamDomain: newDomain });
+  }
+
+  return { ok: true, data: data as RoamData };
+}
+
+async function saveLater(url: string): Promise<Response<null>> {
+  // Store URL in a local "saved_urls" array for later retrieval
+  const storage = await chrome.storage.local.get('saved_urls');
+  const saved = (storage.saved_urls || []) as string[];
+  
+  if (!saved.includes(url)) {
+    saved.push(url);
+    await chrome.storage.local.set({ saved_urls: saved });
+  }
+
+  return { ok: true, data: null };
+}
+
+async function getCollections(): Promise<Response<Collection[]>> {
+  const { data, error } = await getSupabase()
+    .from('collections')
+    .select('id,name,slug,is_public,item_count:collection_items(count)')
+    .eq('owner_id', (await getSupabase().auth.getSession()).data.session?.user.id)
+    .order('name');
+
+  if (error) return { ok: false, error: error.message };
+
+  // Transform response to include item_count
+  const collections = (data || []).map((c: any) => ({
+    id: c.id,
+    name: c.name,
+    slug: c.slug,
+    is_public: c.is_public,
+    item_count: Array.isArray(c.item_count) && c.item_count[0]?.count
+      ? c.item_count[0].count
+      : 0,
+  }));
+
+  return { ok: true, data: collections };
+}
+
+async function createCollection(name: string): Promise<Response<Collection>> {
+  const session = (await getSupabase().auth.getSession()).data.session;
+  if (!session) return { ok: false, error: 'Not signed in' };
+
+  // Create slug from name
+  const slug = name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '');
+
+  const { data, error } = await getSupabase()
+    .from('collections')
+    .insert({
+      name,
+      slug,
+      owner_id: session.user.id,
+      is_public: false,
+    })
+    .select()
+    .single();
+
+  if (error) return { ok: false, error: error.message };
+
+  return { ok: true, data: {
+    id: data.id,
+    name: data.name,
+    slug: data.slug,
+    is_public: data.is_public,
+    item_count: 0,
+  }};
+}
+
+async function addUrlToCollection(url: string, collectionId: string): Promise<Response<null>> {
+  // First normalize the URL
+  const normalized = normalizeUrl(url);
+  if (!normalized) return { ok: false, error: 'Invalid URL' };
+
+  // Check if URL exists in database
+  const { data: urlData, error: urlError } = await getSupabase()
+    .from('urls')
+    .select('id')
+    .eq('url', normalized)
+    .eq('approved', true)
+    .maybeSingle();
+
+  if (urlError) return { ok: false, error: urlError.message };
+
+  let urlId = urlData?.id;
+
+  if (!urlId) {
+    // URL doesn't exist yet, create it as unapproved
+    const { data: newUrl, error: createError } = await getSupabase()
+      .from('urls')
+      .insert({
+        url: normalized,
+        approved: false,
+        source: 'user_submission',
+      })
+      .select('id')
+      .single();
+
+    if (createError) return { ok: false, error: createError.message };
+    urlId = newUrl.id;
+  }
+
+  // Add to collection
+  const { error: addError } = await getSupabase()
+    .from('collection_items')
+    .insert({
+      collection_id: collectionId,
+      url_id: urlId,
+    });
+
+  if (addError) {
+    // Might fail if already in collection (unique constraint)
+    if (addError.message.includes('unique') || addError.message.includes('duplicate')) {
+      return { ok: true, data: null }; // Already there, that's fine
+    }
+    return { ok: false, error: addError.message };
+  }
+
+  return { ok: true, data: null };
+}
+
+async function setPaywallPref(skip: boolean): Promise<Response<null>> {
+  const session = (await getSupabase().auth.getSession()).data.session;
+  if (!session) return { ok: false, error: 'Not signed in' };
+
+  // For now, store in chrome.storage.local
+  // TODO (task 5.12b): Create user_settings table in DB and sync here
+  await chrome.storage.local.set({ skip_paywalled: skip });
+
+  return { ok: true, data: null };
 }
 
 console.log('[roam] background service worker started');

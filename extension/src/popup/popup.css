@@ -205,3 +205,40 @@ body {
   transition: background var(--transition);
 }
 .btn-secondary:hover { background: var(--bg-hover); }
+
+/* ── Dynamic dropdowns ─────────────────────────────────────────────────── */
+.dropdown-menu {
+  position: fixed;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  z-index: 10000;
+  max-height: 200px;
+  overflow-y: auto;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+}
+
+.dropdown-menu button {
+  width: 100%;
+  padding: 8px 12px;
+  border: none;
+  background: transparent;
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+  font-size: 13px;
+  transition: background var(--transition);
+  white-space: nowrap;
+}
+
+.dropdown-menu button:hover {
+  background: var(--bg-hover);
+}
+
+.dropdown-menu button:first-child {
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+}
+
+.dropdown-menu button:last-child {
+  border-radius: 0 0 var(--radius-sm) var(--radius-sm);
+}
