@@ -13,5 +13,13 @@ export function createClient() {
     console.log('[roam] Supabase initialized:', url);
   }
   
-  return createBrowserClient(url!, key!)
+  // Disable session persistence to prevent auto-login across page reloads.
+  // Users must manually sign in each time. This allows debugging multiple accounts.
+  // But DO detect sessions in URL for OAuth callbacks.
+  return createBrowserClient(url!, key!, {
+    auth: {
+      persistSession: false,
+      detectSessionInUrl: true,
+    },
+  })
 }

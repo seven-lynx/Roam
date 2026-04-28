@@ -38,8 +38,34 @@ export default function JoinPageContent() {
         console.log('[roam] checkSession called');
         const hasOAuthCode = searchParams.has('code');
         console.log('[roam] hasOAuthCode:', hasOAuthCode);
+        console.log('[roam] current URL:', window.location.href);
         
-        const { data: { session } } = await supabase.auth.getSession();
+        // If no OAuth code in URL and user is visiting fresh, clear any existing session data
+        // This prevents auto-login and requires manual sign-in every time
+        if (!hasOAuthCode) {
+          console.log('[roam] No OAuth code, clearing any existing session data');
+          await supabase.auth.signOut();
+        }
+        
+        // Wait a bit for Supabase to process the OAuth callback if present
+        if (hasOAuthCode) {
+          console.log('[roam] Waiting for OAuth callback processing...');
+          await new Promise(resolve => setTimeout(resolve, 500));
+        }
+        
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        console.log('[roam] getSession result:', { 
+          hasSession: !!session,
+          error: sessionError?.message,
+          userId: session?.user?.id 
+        });
+        
+        if (sessionError) {
+          console.error('[roam] Session error:', sessionError);
+          setError(sessionError.message);
+          return;
+        }
+        
         if (session) {
           console.log('[roam] session found on mount');
           setIsSignedIn(true);
@@ -52,6 +78,7 @@ export default function JoinPageContent() {
             setStep("account");
           }
         } else {
+          console.log('[roam] no session found');
           setIsSignedIn(false);
         }
       } catch (err) {
