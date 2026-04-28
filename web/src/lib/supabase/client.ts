@@ -1,4 +1,4 @@
-import { createBrowserClient } from '@supabase/ssr'
+import { createClient as createSupabaseClient } from '@supabase/supabase-js'
 
 export function createClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -13,12 +13,12 @@ export function createClient() {
     console.log('[roam] Supabase initialized:', url);
   }
   
-  // Disable session persistence to prevent auto-login across page reloads.
-  // Users must manually sign in each time. This allows debugging multiple accounts.
-  // But DO detect sessions in URL for OAuth callbacks.
-  return createBrowserClient(url!, key!, {
+  // Enable session persistence - users stay logged in across reloads
+  // They can sign out and switch accounts using the sign out button
+  return createSupabaseClient(url!, key!, {
     auth: {
-      persistSession: false,
+      persistSession: true,
+      autoRefreshToken: true,
       detectSessionInUrl: true,
     },
   })

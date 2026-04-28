@@ -31,56 +31,27 @@ export default function JoinPageContent() {
   const [loading, setLoading] = useState(false);
   const [isSignedIn, setIsSignedIn] = useState(false);
 
-  // Check session on mount (handles OAuth redirect)
+  // Check session on mount
   useEffect(() => {
     async function checkSession() {
       try {
-        console.log('[roam] checkSession called');
-        const hasOAuthCode = searchParams.has('code');
-        console.log('[roam] hasOAuthCode:', hasOAuthCode);
-        console.log('[roam] current URL:', window.location.href);
-        
-        // Wait a bit for Supabase to process the OAuth callback if present
-        if (hasOAuthCode) {
-          console.log('[roam] Waiting for OAuth callback processing...');
-          await new Promise(resolve => setTimeout(resolve, 500));
-        }
-        
-        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-        console.log('[roam] getSession result:', { 
-          hasSession: !!session,
-          error: sessionError?.message,
-          userId: session?.user?.id 
-        });
-        
-        if (sessionError) {
-          console.error('[roam] Session error:', sessionError);
-          setError(sessionError.message);
-          return;
-        }
+        const { data: { session } } = await supabase.auth.getSession();
         
         if (session) {
-          console.log('[roam] session found on mount');
+          console.log('[roam] User session found:', session.user.id);
           setIsSignedIn(true);
-          // Check for OAuth code in URL (means we just came back from OAuth)
-          if (hasOAuthCode) {
-            console.log('[roam] OAuth code detected, advancing to categories');
+          // If user is already signed in, check if they're coming back from OAuth
+          // by checking if there's a code in the URL
+          if (searchParams.has('code')) {
+            console.log('[roam] OAuth redirect detected, advancing to categories');
             setStep("categories");
-          } else {
-            // Session exists but no OAuth code — shouldn't happen with persistSession: false
-            // but handle it gracefully
-            setStep("account");
           }
         } else {
-          console.log('[roam] no session found');
+          console.log('[roam] No session found');
           setIsSignedIn(false);
-          setStep("account");
         }
       } catch (err) {
-        console.error('[roam] checkSession error:', err);
-        setError(err instanceof Error ? err.message : 'Failed to check session');
-        setIsSignedIn(false);
-        setStep("account");
+        console.error('[roam] Session check failed:', err);
       }
     }
     checkSession();
