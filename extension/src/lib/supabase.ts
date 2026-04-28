@@ -23,6 +23,16 @@ export const chromeStorageAdapter = {
   },
 };
 
+/**
+ * Clear all Supabase session data from storage
+ */
+export async function clearAuthStorage(): Promise<void> {
+  await chrome.storage.local.remove([
+    'sb-yrhckctwtdjowulfuaqc-auth-token',
+    'sb-auth-token',
+  ]);
+}
+
 let _client: SupabaseClient | null = null;
 
 /**

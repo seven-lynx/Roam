@@ -6,7 +6,7 @@
 // storage adapter in src/lib/supabase.ts.
 
 import type { Request, Response, StateData, RoamData, CheckUrlData } from '../lib/messages';
-import { getSupabase } from '../lib/supabase';
+import { getSupabase, clearAuthStorage } from '../lib/supabase';
 
 // ── URL normaliser (mirrors the Edge Function's normalizeUrl) ────────────────
 function normalizeUrl(raw: string): string | null {
@@ -146,6 +146,8 @@ async function saveSession(accessToken: string, refreshToken: string): Promise<R
 async function signOut(): Promise<Response<StateData>> {
   const { error } = await getSupabase().auth.signOut();
   if (error) return { ok: false, error: error.message };
+  // Explicitly clear all auth storage to prevent auto-restore
+  await clearAuthStorage();
   return { ok: true, data: { signedIn: false } };
 }
 
