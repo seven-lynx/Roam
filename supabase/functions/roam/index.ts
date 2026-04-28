@@ -23,7 +23,7 @@ Deno.serve(async (req) => {
   const { data: { user }, error: authError } = await supabase.auth.getUser()
   if (authError || !user) return json({ error: 'Unauthorized' }, 401)
 
-  let body: { collection_id?: unknown } = {}
+  let body: { collection_id?: unknown; exclude_domain?: unknown } = {}
   try {
     const text = await req.text()
     if (text) body = JSON.parse(text)
@@ -32,17 +32,33 @@ Deno.serve(async (req) => {
   }
 
   const collectionId = typeof body.collection_id === 'string' ? body.collection_id : null
+  const excludeDomain = typeof body.exclude_domain === 'string' ? body.exclude_domain : null
 
   const { data, error } = await supabase.rpc('roam', {
     p_user_id: user.id,
     ...(collectionId ? { p_collection_id: collectionId } : {}),
+    ...(excludeDomain ? { p_exclude_domain: excludeDomain } : {}),
   })
 
-  if (error) return json({ error: error.message }, 500)
+  if (error) {
+    console.error('RPC error:', {
+      message: error.message,
+      code: error.code,
+      details: (error as any).details,
+      hint: (error as any).hint,
+    })
+    return json({ error: `RPC failed: ${error.message}` }, 500)
+  }
 
   // roam() returns a table — data is an array; take the first row.
+  console.log('RPC returned:', { data_type: typeof data, is_array: Array.isArray(data), length: Array.isArray(data) ? data.length : 'N/A' })
   const row = Array.isArray(data) ? data[0] : null
-  if (!row) return json({ error: 'No more URLs to discover' }, 404)
+  if (!row) {
+    console.log('No row found from RPC')
+    return json({ error: 'No more URLs to discover' }, 404)
+  }
+
+  console.log('Returning URL:', { id: row.id, url: row.url })
 
   return json({
     id:            row.id,

@@ -80,6 +80,7 @@ document.addEventListener('DOMContentLoaded', () => {
     el<HTMLButtonElement>('btn-roam').disabled = true;
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     const res = await sendToBackground<RoamData>({ type: 'ROAM' });
+    console.log('[roam-popup] Roam response:', res);
     el<HTMLButtonElement>('btn-roam').disabled = false;
     if (!res.ok) { showError(res.error); return; }
     if (tab?.id) chrome.tabs.update(tab.id, { url: res.data.url });

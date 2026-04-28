@@ -27,6 +27,18 @@ function normalizeUrl(raw: string): string | null {
   }
 }
 
+// ── Domain extraction helper ──────────────────────────────────────────────────
+function getDomain(url: string): string | null {
+  try {
+    const u = new URL(url);
+    let domain = u.hostname.toLowerCase();
+    if (domain.startsWith('www.')) domain = domain.slice(4);
+    return domain;
+  } catch {
+    return null;
+  }
+}
+
 // ── Message router ─────────────────────────────────────────────────────────
 chrome.runtime.onMessage.addListener(
   (message: Request, _sender, sendResponse: (r: Response) => void) => {
@@ -44,7 +56,7 @@ async function dispatch(req: Request): Promise<Response> {
     case 'EXCHANGE_CODE':    return exchangeCode((req as any).code);
     case 'SAVE_SESSION':     return saveSession((req as any).accessToken, (req as any).refreshToken);
     case 'SIGN_OUT':         return signOut();
-    case 'ROAM':             return roam(req.collectionId);
+    case 'ROAM':             return roam();
     case 'RATE':             return rate(req.url_id, req.vote);
     case 'CHECK_URL':        return checkUrl(req.url);
     case 'SUBMIT_URL':       return submitUrl(req.url, req.categoryId);
@@ -140,11 +152,26 @@ async function signOut(): Promise<Response<StateData>> {
 // ── Feature stubs (implemented in tasks 5.8–5.12) ───────────────────────────
 
 async function roam(collectionId?: string): Promise<Response<RoamData>> {
+  // Get the last roamed domain to exclude it
+  const storage = await chrome.storage.local.get('lastRoamDomain');
+  const excludeDomain = storage.lastRoamDomain ?? null;
+
   const { data, error } = await getSupabase().functions.invoke('roam', {
-    body: collectionId ? { collection_id: collectionId } : {},
+    body: {
+      ...(collectionId ? { collection_id: collectionId } : {}),
+      ...(excludeDomain ? { exclude_domain: excludeDomain } : {}),
+    },
   });
+
   if (error) return { ok: false, error: error.message };
   if (data?.error) return { ok: false, error: data.error };
+
+  // Save the domain of the URL we just got for next time
+  const newDomain = getDomain(data.url);
+  if (newDomain) {
+    await chrome.storage.local.set({ lastRoamDomain: newDomain });
+  }
+
   return { ok: true, data: data as RoamData };
 }
 
