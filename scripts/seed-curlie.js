@@ -309,28 +309,36 @@ async function extractAndParseTsv() {
         // Validate URL
         if (!url || (!url.startsWith('http://') && !url.startsWith('https://'))) continue;
 
-        // Clean strings: remove control characters that break JSONL format
+        // Clean strings: remove only control characters that break line-based parsing
         const cleanString = (str) => {
           if (!str) return null;
           return str
-            .replace(/[\n\r\t]/g, ' ')  // Replace newlines, carriage returns, tabs with space
-            .replace(/[\x00-\x1f\x7f]/g, '')  // Remove other control characters
+            .replace(/[\n\r\x00-\x1f\x7f]/g, '')  // Remove all control characters including newlines
             .trim();
         };
 
         const title = cleanString(parts[1]) || null;
         const description = cleanString(parts[2]) || null;
+        const cleanUrl = cleanString(url);
+
+        if (!cleanUrl) continue;  // Skip if URL becomes empty after cleaning
 
         const row = {
-          url,
+          url: cleanUrl,
           title,
           description,
           category_id: categoryId,
           source: 'curlie',
         };
 
-        // Stream to JSONL file with proper JSON escaping
-        appendFileSync(EXTRACTED_ROWS_FILE, JSON.stringify(row) + '\n');
+        try {
+          // JSON.stringify handles all escaping automatically
+          const jsonStr = JSON.stringify(row);
+          appendFileSync(EXTRACTED_ROWS_FILE, jsonStr + '\n');
+        } catch (err) {
+          // Skip rows that can't be serialized to JSON
+          continue;
+        }
         rows.push(row);
         rowCount++;
       }
