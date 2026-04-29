@@ -309,8 +309,17 @@ async function extractAndParseTsv() {
         // Validate URL
         if (!url || (!url.startsWith('http://') && !url.startsWith('https://'))) continue;
 
-        const title = parts[1]?.trim() || null;
-        const description = parts[2]?.trim() || null;
+        // Clean strings: remove control characters that break JSONL format
+        const cleanString = (str) => {
+          if (!str) return null;
+          return str
+            .replace(/[\n\r\t]/g, ' ')  // Replace newlines, carriage returns, tabs with space
+            .replace(/[\x00-\x1f\x7f]/g, '')  // Remove other control characters
+            .trim();
+        };
+
+        const title = cleanString(parts[1]) || null;
+        const description = cleanString(parts[2]) || null;
 
         const row = {
           url,
@@ -320,7 +329,7 @@ async function extractAndParseTsv() {
           source: 'curlie',
         };
 
-        // Stream to JSONL file
+        // Stream to JSONL file with proper JSON escaping
         appendFileSync(EXTRACTED_ROWS_FILE, JSON.stringify(row) + '\n');
         rows.push(row);
         rowCount++;
