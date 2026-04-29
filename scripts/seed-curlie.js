@@ -377,10 +377,18 @@ async function upsertUrlsWithProgressStreaming(jsonlFile, progress) {
 
   const startBatch = progress.lastBatchNumber;
 
+  let badLines = 0;
   for await (const line of rl) {
     if (!line.trim()) continue;
 
-    const row = JSON.parse(line);
+    let row;
+    try {
+      row = JSON.parse(line);
+    } catch (err) {
+      badLines++;
+      console.warn(`[curlie] Skipping malformed JSON line (${err.message}): ${line.slice(0, 80)}...`);
+      continue;
+    }
 
     // Normalise URL
     const normalisedUrl = normaliseUrl(row.url);
@@ -420,11 +428,9 @@ async function upsertUrlsWithProgressStreaming(jsonlFile, progress) {
     }
   }
 
+  if (badLines > 0) console.warn(`[curlie] Skipped ${badLines} malformed JSON lines total`);
   return { inserted, skipped };
 }
-
-/**
- * Upsert a single batch of rows
  */
 async function upsertBatch(rows, batchNumber, progress) {
   const urls = rows.map((r) => r.url);
