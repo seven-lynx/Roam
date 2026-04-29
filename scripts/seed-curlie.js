@@ -431,6 +431,9 @@ async function upsertUrlsWithProgressStreaming(jsonlFile, progress) {
   if (badLines > 0) console.warn(`[curlie] Skipped ${badLines} malformed JSON lines total`);
   return { inserted, skipped };
 }
+
+/**
+ * Upsert a single batch of rows
  */
 async function upsertBatch(rows, batchNumber, progress) {
   const urls = rows.map((r) => r.url);
