@@ -1,7 +1,7 @@
 /**
  * seed-curlie.js — Curlie (DMOZ successor) seeder
  *
- * Downloads the Curlie directory dump (2.9M URLs) from curlie.org
+ * Downloads the Curlie directory dump (~1.2M URLs) from curlie.org
  * and imports with intelligent category mapping to Roam's 8 pillars.
  *
  * Features:
@@ -9,12 +9,13 @@
  *   - Extracts once, caches to JSONL for fast resumption
  *   - Per-batch checkpoint during upsert phase
  *   - Graceful error handling and recovery
+ *   - Category mapping based on filename (language/region)
  *
  * Curlie data is free under open source license (CC-BY-SA-4.0).
  * All imported rows are tagged source = 'curlie'.
  *
  * Format: TSV (tab-separated values), tar/gzip compressed.
- * Files: categories-*.tsv, content-*.tsv with matching category IDs.
+ * Files: content-*.tsv files (structure files skipped; category mapping by filename).
  *
  * Run from repo root:
  *   node scripts/seed-curlie.js             # resume or start
@@ -65,44 +66,44 @@ const CATEGORY_MAP = [
   // ─────────────────────────────────────────────────────────────────────────
   // SCIENCE
   // ─────────────────────────────────────────────────────────────────────────
-  { prefix: 'Science',                                roamCategoryId: CATEGORY.SCIENCE },
+  { prefix: 'Top/Science',                            roamCategoryId: CATEGORY.SCIENCE },
 
   // ─────────────────────────────────────────────────────────────────────────
   // TECHNOLOGY / COMPUTERS
   // ─────────────────────────────────────────────────────────────────────────
-  { prefix: 'Computers',                              roamCategoryId: CATEGORY.TECHNOLOGY },
+  { prefix: 'Top/Computers',                          roamCategoryId: CATEGORY.TECHNOLOGY },
 
   // ─────────────────────────────────────────────────────────────────────────
   // ARTS & CULTURE
   // ─────────────────────────────────────────────────────────────────────────
-  { prefix: 'Arts',                                   roamCategoryId: CATEGORY.ARTS_CULTURE },
+  { prefix: 'Top/Arts',                               roamCategoryId: CATEGORY.ARTS_CULTURE },
 
   // ─────────────────────────────────────────────────────────────────────────
   // HISTORY & IDEAS / SOCIETY
   // ─────────────────────────────────────────────────────────────────────────
-  { prefix: 'Society',                                roamCategoryId: CATEGORY.HISTORY_IDEAS },
+  { prefix: 'Top/Society',                            roamCategoryId: CATEGORY.HISTORY_IDEAS },
 
   // ─────────────────────────────────────────────────────────────────────────
   // GAMES & HOBBIES / RECREATION
   // ─────────────────────────────────────────────────────────────────────────
-  { prefix: 'Recreation',                             roamCategoryId: CATEGORY.GAMES_HOBBIES },
-  { prefix: 'Sports',                                 roamCategoryId: CATEGORY.GAMES_HOBBIES },
+  { prefix: 'Top/Recreation',                         roamCategoryId: CATEGORY.GAMES_HOBBIES },
+  { prefix: 'Top/Sports',                             roamCategoryId: CATEGORY.GAMES_HOBBIES },
 
   // ─────────────────────────────────────────────────────────────────────────
   // WEIRD & WONDERFUL (News, crime, paranormal themes)
   // ─────────────────────────────────────────────────────────────────────────
-  { prefix: 'News',                                   roamCategoryId: CATEGORY.WEIRD_WONDERFUL },
+  { prefix: 'Top/News',                               roamCategoryId: CATEGORY.WEIRD_WONDERFUL },
 
   // ─────────────────────────────────────────────────────────────────────────
   // PEOPLE & PLACES / REGIONAL
   // ─────────────────────────────────────────────────────────────────────────
-  { prefix: 'Regional',                               roamCategoryId: CATEGORY.PEOPLE_PLACES },
+  { prefix: 'Top/Regional',                           roamCategoryId: CATEGORY.PEOPLE_PLACES },
 
   // ─────────────────────────────────────────────────────────────────────────
   // MIND & BODY / HEALTH
   // ─────────────────────────────────────────────────────────────────────────
-  { prefix: 'Health',                                 roamCategoryId: CATEGORY.MIND_BODY },
-  { prefix: 'Home',                                   roamCategoryId: CATEGORY.MIND_BODY },
+  { prefix: 'Top/Health',                             roamCategoryId: CATEGORY.MIND_BODY },
+  { prefix: 'Top/Home',                               roamCategoryId: CATEGORY.MIND_BODY },
 ];
 
 // ── Progress checkpoint functions ───────────────────────────────────────────
@@ -199,7 +200,8 @@ async function downloadCurlieDump() {
 }
 
 /**
- * Extract tar.gz, parse structure (ID→path), then parse content (URL entries)
+ * Extract tar.gz, parse content files directly
+ * Map to categories based on filename (which language/region)
  * Streams extracted rows to JSONL file for resumability.
  */
 async function extractAndParseTsv() {
@@ -249,42 +251,12 @@ async function extractAndParseTsv() {
     }
 
     const files = await fs.readdir(curliePath);
-    const structureFiles = files.filter((f) => f.endsWith('-s.tsv'));
     const contentFiles = files.filter((f) => f.endsWith('-c.tsv'));
 
-    console.log(`[curlie] Found ${structureFiles.length} structure files and ${contentFiles.length} content files`);
+    console.log(`[curlie] Found ${contentFiles.length} content files`);
 
     // ──────────────────────────────────────────────────────────────────────
-    // Step 1: Build categoryId → fullPath mapping from structure files
-    // ──────────────────────────────────────────────────────────────────────
-    const categoryMap = new Map(); // categoryId → fullPath (e.g., "123456" → "Top/Science")
-
-    for (const file of structureFiles) {
-      console.log(`[curlie] Parsing structure: ${file}...`);
-      const filePath = resolve(curliePath, file);
-      const content = await fs.readFile(filePath, 'utf-8');
-      const lines = content.split('\n');
-
-      for (const line of lines) {
-        if (!line.trim()) continue;
-
-        // Structure file format: id \t description \t fullPath
-        const parts = line.split('\t');
-        if (parts.length < 3) continue;
-
-        const id = parts[0]?.trim();
-        const fullPath = parts[1]?.trim();
-
-        if (id && fullPath) {
-          categoryMap.set(id, fullPath);
-        }
-      }
-    }
-
-    console.log(`[curlie] Built map of ${categoryMap.size} category IDs → paths`);
-
-    // ──────────────────────────────────────────────────────────────────────
-    // Step 2: Parse content files and stream to JSONL
+    // Parse content files directly and map by filename
     // ──────────────────────────────────────────────────────────────────────
     let rowCount = 0;
     const rows = [];
@@ -294,7 +266,32 @@ async function extractAndParseTsv() {
       writeFileSync(EXTRACTED_ROWS_FILE, '');
     }
 
+    // Map filenames to default categories (most generic mapping)
+    const filenameToCategory = {
+      'rdf-Arts-c.tsv': CATEGORY.ARTS_CULTURE,
+      'rdf-Business-c.tsv': CATEGORY.TECHNOLOGY,
+      'rdf-Computers-c.tsv': CATEGORY.TECHNOLOGY,
+      'rdf-Deutsch-c.tsv': CATEGORY.TECHNOLOGY,  // Default to tech
+      'rdf-Europe-c.tsv': CATEGORY.PEOPLE_PLACES,
+      'rdf-Français-c.tsv': CATEGORY.TECHNOLOGY,
+      'rdf-Italiano-c.tsv': CATEGORY.TECHNOLOGY,
+      'rdf-Japanese-c.tsv': CATEGORY.TECHNOLOGY,
+      'rdf-KT-c.tsv': CATEGORY.GAMES_HOBBIES,
+      'rdf-NorthAmerica-c.tsv': CATEGORY.PEOPLE_PLACES,
+      'rdf-Regional-c.tsv': CATEGORY.PEOPLE_PLACES,
+      'rdf-Society-c.tsv': CATEGORY.HISTORY_IDEAS,
+      'rdf-Top-c.tsv': CATEGORY.SCIENCE,  // Miscellaneous
+      'rdf-World-c.tsv': CATEGORY.PEOPLE_PLACES,
+      'rdf-Adult-c.tsv': null,  // Skip adult content
+    };
+
     for (const file of contentFiles) {
+      const categoryId = filenameToCategory[file];
+      if (!categoryId) {
+        console.log(`[curlie] Skipping ${file} (no category mapping)`);
+        continue;
+      }
+
       console.log(`[curlie] Parsing content: ${file}...`);
       const filePath = resolve(curliePath, file);
       const content = await fs.readFile(filePath, 'utf-8');
@@ -305,29 +302,21 @@ async function extractAndParseTsv() {
 
         // Content file format: url \t title \t description \t categoryId
         const parts = line.split('\t');
-        if (parts.length < 4) continue;
+        if (parts.length < 1) continue;
 
         const url = parts[0]?.trim();
-        const title = parts[1]?.trim();
-        const description = parts[2]?.trim();
-        const categoryId = parts[3]?.trim();
 
         // Validate URL
         if (!url || (!url.startsWith('http://') && !url.startsWith('https://'))) continue;
 
-        // Look up the category path from the ID
-        const categoryPath = categoryMap.get(categoryId);
-        if (!categoryPath) continue;
-
-        // Map Curlie path to Roam category
-        const roamCategoryId = mapCurlieCategory(categoryPath);
-        if (!roamCategoryId) continue; // Unmapped category
+        const title = parts[1]?.trim() || null;
+        const description = parts[2]?.trim() || null;
 
         const row = {
           url,
-          title: title || null,
-          description: description || null,
-          category_id: roamCategoryId,
+          title,
+          description,
+          category_id: categoryId,
           source: 'curlie',
         };
 
@@ -337,7 +326,7 @@ async function extractAndParseTsv() {
         rowCount++;
       }
 
-      if (rowCount % 1000 === 0) {
+      if (rowCount % 10000 === 0) {
         console.log(`[curlie]   Total extracted so far: ${rowCount}`);
       }
     }
@@ -352,87 +341,128 @@ async function extractAndParseTsv() {
 }
 
 /**
- * Upsert URLs with per-batch checkpointing for resumability.
- * Unlike the generic upsertUrls(), this tracks progress after each batch.
+ * Upsert URLs from JSONL file with per-batch checkpointing for resumability.
+ * Streams the file line-by-line to avoid loading entire file into memory.
  */
-async function upsertUrlsWithProgress(rows, progress) {
-  const log = console.log;
+async function upsertUrlsWithProgressStreaming(jsonlFile, progress) {
+  const readline = await import('readline');
+  const fs = await import('fs');
 
-  // 1. Normalise URLs and drop anything unparseable
-  const normalised = rows
-    .map((r) => ({ ...r, url: normaliseUrl(r.url) }))
-    .filter((r) => r.url !== null);
+  let inserted = 0;
+  let skipped = 0;
+  let batchNumber = 0;
+  let currentBatch = [];
 
-  if (normalised.length < rows.length) {
-    log(`[curlie] Dropped ${rows.length - normalised.length} unparseable URLs`);
+  const rl = readline.createInterface({
+    input: fs.createReadStream(jsonlFile),
+    crlfDelay: Infinity,
+  });
+
+  const startBatch = progress.lastBatchNumber;
+
+  for await (const line of rl) {
+    if (!line.trim()) continue;
+
+    const row = JSON.parse(line);
+
+    // Normalise URL
+    const normalisedUrl = normaliseUrl(row.url);
+    if (!normalisedUrl) continue;
+
+    row.url = normalisedUrl;
+    currentBatch.push(row);
+
+    // When batch is full, process it
+    if (currentBatch.length === BATCH_SIZE) {
+      batchNumber++;
+
+      // Skip already-processed batches on resume
+      if (batchNumber <= startBatch) {
+        console.log(`[curlie] Skipping batch ${batchNumber} (already processed)`);
+        skipped += currentBatch.length;
+        currentBatch = [];
+        continue;
+      }
+
+      // Upsert this batch
+      const batchResult = await upsertBatch(currentBatch, batchNumber, progress);
+      inserted += batchResult.inserted;
+      skipped += batchResult.skipped;
+      currentBatch = [];
+    }
   }
 
-  // 2. Check which normalised URLs are already in the DB
-  const urls = normalised.map((r) => r.url);
+  // Process remaining rows in final batch
+  if (currentBatch.length > 0) {
+    batchNumber++;
+
+    if (batchNumber > startBatch) {
+      const batchResult = await upsertBatch(currentBatch, batchNumber, progress);
+      inserted += batchResult.inserted;
+      skipped += batchResult.skipped;
+    }
+  }
+
+  return { inserted, skipped };
+}
+
+/**
+ * Upsert a single batch of rows
+ */
+async function upsertBatch(rows, batchNumber, progress) {
+  const urls = rows.map((r) => r.url);
+
+  // Check which URLs already exist
   const { data: existing } = await supabase
     .from('urls')
     .select('url')
     .in('url', urls);
 
   const existingSet = new Set((existing ?? []).map((r) => r.url));
-  const fresh = normalised.filter((r) => !existingSet.has(r.url));
+  const fresh = rows.filter((r) => !existingSet.has(r.url));
 
-  log(`[curlie] ${fresh.length} new / ${existingSet.size} already exist (${normalised.length} total)`);
   if (fresh.length === 0) {
-    return { inserted: 0, skipped: existingSet.size };
+    return { inserted: 0, skipped: rows.length };
   }
 
-  // 3. Batch upsert with checkpointing
-  let inserted = 0;
-  const startBatch = progress.lastBatchNumber;
+  // Map to Supabase schema
+  const batch = fresh.map((r) => ({
+    url:            r.url,
+    original_url:   r.url,
+    title:          r.title        ?? null,
+    description:    r.description  ?? null,
+    og_image_url:   r.og_image_url ?? null,
+    category_id:    r.category_id  ?? null,
+    subcategory_id: r.subcategory_id ?? null,
+    source:         r.source       ?? 'curlie',
+    approved:       true,
+    wilson_score:   0,
+    upvotes:        0,
+    downvotes:      0,
+  }));
 
-  for (let i = 0; i < fresh.length; i += BATCH_SIZE) {
-    const batchNumber = Math.floor(i / BATCH_SIZE) + 1;
+  const { error, count } = await supabase
+    .from('urls')
+    .upsert(batch, { onConflict: 'url', ignoreDuplicates: true })
+    .select('id', { count: 'exact', head: true });
 
-    // Skip already-processed batches on resume
-    if (batchNumber <= startBatch) {
-      log(`[curlie] Skipping batch ${batchNumber} (already processed)`);
-      inserted += Math.min(BATCH_SIZE, fresh.length - i);
-      continue;
-    }
-
-    const batch = fresh.slice(i, i + BATCH_SIZE).map((r) => ({
-      url:            r.url,
-      original_url:   r.url,
-      title:          r.title        ?? null,
-      description:    r.description  ?? null,
-      og_image_url:   r.og_image_url ?? null,
-      category_id:    r.category_id  ?? null,
-      subcategory_id: r.subcategory_id ?? null,
-      source:         r.source       ?? 'manual',
-      approved:       true,
-      wilson_score:   0,
-      upvotes:        0,
-      downvotes:      0,
-    }));
-
-    const { error, count } = await supabase
-      .from('urls')
-      .upsert(batch, { onConflict: 'url', ignoreDuplicates: true })
-      .select('id', { count: 'exact', head: true });
-
-    if (error) {
-      console.error(`[curlie] Upsert error on batch ${batchNumber}:`, error.message);
-      throw new Error(`Batch ${batchNumber} failed: ${error.message}`);
-    } else {
-      inserted += count ?? batch.length;
-      log(`[curlie] Batch ${batchNumber}: upserted ${batch.length} rows`);
-
-      // Save checkpoint after each batch
-      progress.phase = 'upsert';
-      progress.lastBatchNumber = batchNumber;
-      progress.upsertedCount = progress.upsertedCount + (count ?? batch.length);
-      saveProgress(progress);
-    }
+  if (error) {
+    console.error(`[curlie] Upsert error on batch ${batchNumber}:`, error.message);
+    throw new Error(`Batch ${batchNumber} failed: ${error.message}`);
   }
 
-  return { inserted, skipped: existingSet.size };
+  const result = { inserted: count ?? batch.length, skipped: existingSet.size };
+  console.log(`[curlie] Batch ${batchNumber}: upserted ${batch.length} rows`);
+
+  // Save checkpoint after each batch
+  progress.phase = 'upsert';
+  progress.lastBatchNumber = batchNumber;
+  progress.upsertedCount = (progress.upsertedCount || 0) + (count ?? batch.length);
+  saveProgress(progress);
+
+  return result;
 }
+
 
 /**
  * Normalise URL (copied from lib/seed.js to maintain consistency)
@@ -521,18 +551,8 @@ async function seedCurlie() {
     console.log('[curlie] Starting upsert phase...');
     console.log(`[curlie] (Resuming from batch ${progress.lastBatchNumber})\n`);
 
-    // Load extracted rows from JSONL
-    const rows = [];
-    const lines = readFileSync(EXTRACTED_ROWS_FILE, 'utf-8').split('\n');
-    for (const line of lines) {
-      if (!line.trim()) continue;
-      rows.push(JSON.parse(line));
-    }
-
-    console.log(`[curlie] Loaded ${rows.length} rows from extraction cache`);
-
     try {
-      const result = await upsertUrlsWithProgress(rows, progress);
+      const result = await upsertUrlsWithProgressStreaming(EXTRACTED_ROWS_FILE, progress);
       
       console.log(`\n[curlie] Upsert phase complete.`);
       console.log(`        Inserted: ${result.inserted}`);
