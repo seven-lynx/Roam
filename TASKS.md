@@ -263,7 +263,9 @@ Filling the discovery pool before launch so that the Roam button has something t
 - [x] **4.14** Write the Semantic Scholar seeder — queries the API by field of study; pulls paper titles, abstracts, and URLs; maps to Science & Nature and Technology
 
   📖 **What we did:** Created `scripts/seed-semanticscholar.js`. 37 queries × 10 pages × 100 results at 1.1s/request ≈ 7 minutes. No key needed (1 req/s public rate). `fetchOg: false` — abstracts from API. Optional `SEMANTIC_SCHOLAR_API_KEY` in `.env` for 10 req/s. Cached to `scripts/.cache/semanticscholar.json`.
-- [ ] **4.15** Write the PubMed seeder — queries the NCBI Entrez API by MeSH subject terms; maps to Medicine & Health Science, Neuroscience, Nutrition, and related Mind & Body subcategories
+- [x] **4.15** Write the PubMed seeder — queries the NCBI Entrez API by MeSH subject terms; maps to Medicine & Health Science, Neuroscience, Nutrition, and related Mind & Body subcategories
+
+  📖 **What we did:** Implemented `scripts/seed-pubmed.js` (see 4.29 for full details). Covers 25 MeSH terms, yields ~30-50K URLs, maps intelligently to MIND_BODY + SCIENCE where appropriate, includes resumable checkpointing for overnight runs.
 - [ ] **4.16** Write the CORE seeder — queries the CORE API by subject; pulls open-access paper metadata; maps to Science, History, and Mind & Body subcategories
 - [ ] **4.17** Write the DPLA seeder — queries the Digital Public Library of America API by subject; pulls digitised cultural heritage records; maps to History & Ideas, Arts & Culture, and People & Places
 - [ ] **4.18** Write the BoardGameGeek seeder — ABANDONED: Cloudflare blocks both the browse pages (403 after page 11) and the XML API (401 for all batches). Not worth pursuing.
@@ -328,7 +330,9 @@ Filling the discovery pool before launch so that the Roam button has something t
 
 #### High Priority — Critical gaps (Next week)
 
-- [ ] **4.29** Write the PubMed seeder — queries NCBI Entrez API (free, no key) by MeSH terms (neuroscience, psychiatry, pharmacology, nutrition, psychology); maps to **Mind & Body** category which is currently weak; pulls ~30-50K articles; effort: 2-3 hours
+- [x] **4.29** Write the PubMed seeder — queries NCBI Entrez API (free, no key) by MeSH terms (neuroscience, psychiatry, pharmacology, nutrition, psychology); maps to **Mind & Body** category which is currently weak; pulls ~30-50K articles; effort: 2-3 hours
+
+  📖 **What we did:** Implemented `scripts/seed-pubmed.js` with full resumable checkpointing for overnight operation. The seeder has three phases: (1) **Search:** Queries NCBI Entrez API for 25 MeSH terms (Neuroscience, Psychiatry, Psychology, Brain, Memory, Sleep, Nutrition, Pharmacology, Genetics, Immunology, etc.), collecting ~50K+ unique paper IDs. Checkpoints after each term so resumption doesn't re-search. (2) **Fetch:** Batches IDs in groups of 100 and fetches detailed metadata (title, abstract, keywords) from Entrez API. Respects NCBI's 3 req/sec rate limit (350ms delay). (3) **Upsert:** Converts papers to rows and inserts via Supabase in batches of 50 with per-batch checkpointing. **Smart multi-category mapping:** MeSH terms map intelligently (e.g., Genetics → SCIENCE + MIND_BODY, Neuroscience → MIND_BODY + SCIENCE), prioritizing MIND_BODY when multiple categories match. Progress file (`pubmed-progress.json`) tracks phase, searched terms, and upserted count for safe crash recovery. Supports `--reset` flag to start fresh. Expected yield: 30-50K medical/health URLs, closing the Mind & Body gap.
 
 - [ ] **4.30** Write the Reddit seeder — **HIGH PRIORITY:** Reddit's upvote system = quality signal. User-curated content across all categories. **Status:** API access was denied on previous application. **Solutions to explore:** (1) Reapply for API key (explain use case better: non-commercial, read-only, no spam); (2) Use Pushshift archive API (historical Reddit data, no auth needed, 10M+ posts); (3) Scrape via `reddit.com/r/<subreddit>/top.json` (may require User-Agent spoofing); (4) Use PRAW library with headless browser. Targets: 50+ subreddits (r/science, r/technology, r/history, r/AskHistorians, r/books, r/health, r/fitness, r/Art, r/travel, etc.). Delivers ~12,500 high-quality URLs across all categories. Effort: 3-4 hours (once access method is confirmed).
 
