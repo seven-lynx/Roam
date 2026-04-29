@@ -1,6 +1,7 @@
 # ── Private planning documents ──────────────────────────────────────────────
 PLANNING.md
 TASKS.md
+CONTEXT.md
 
 # ── Environment / secrets ────────────────────────────────────────────────────
 .env
