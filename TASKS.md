@@ -193,11 +193,12 @@ Filling the discovery pool before launch so that the Roam button has something t
 | `seed-npr.js` | NPR RSS feeds | none | ✅ 152 rows |
 | `seed-wikivoyage.js` | MediaWiki API | none | ✅ 67,660 rows |
 | `seed-internetarchive.js` | Internet Archive API | none | ✅ 50,966 rows |
-| `seed-curlie.js` | Curlie directory | none | 🔄 ~1,223,386 rows (import in progress) |
+| `seed-curlie.js` | Curlie directory | none | ✅ ~1,223,386 rows (checkpointing ready, awaiting run) |
+| `seed-pubmed.js` | NCBI Entrez API | none | ✅ ~30-50K rows (checkpointing ready, awaiting run) |
 
-**Total rows inserted so far: ~225,486** (existing seeders)
-**Pending: ~1,223,386** (Curlie import running — estimated completion in ~10 minutes)
-**Total expected with Curlie: ~1,448,872**
+**Total rows from complete seeders: ~225,486**
+**Ready for overnight execution:** Curlie (~1.2M) + PubMed (~40K) = ~1.26M pending
+**Total expected after overnight run: ~1.49M**
 
 ### 4a. Seeding infrastructure
 
@@ -265,7 +266,7 @@ Filling the discovery pool before launch so that the Roam button has something t
   📖 **What we did:** Created `scripts/seed-semanticscholar.js`. 37 queries × 10 pages × 100 results at 1.1s/request ≈ 7 minutes. No key needed (1 req/s public rate). `fetchOg: false` — abstracts from API. Optional `SEMANTIC_SCHOLAR_API_KEY` in `.env` for 10 req/s. Cached to `scripts/.cache/semanticscholar.json`.
 - [x] **4.15** Write the PubMed seeder — queries the NCBI Entrez API by MeSH subject terms; maps to Medicine & Health Science, Neuroscience, Nutrition, and related Mind & Body subcategories
 
-  📖 **What we did:** Implemented `scripts/seed-pubmed.js` (see 4.29 for full details). Covers 25 MeSH terms, yields ~30-50K URLs, maps intelligently to MIND_BODY + SCIENCE where appropriate, includes resumable checkpointing for overnight runs.
+  📖 **What we did:** Implemented `scripts/seed-pubmed.js` with three-phase checkpointing: (1) **Search** — queries NCBI Entrez for 25 MeSH terms (Neuroscience, Psychiatry, Brain, Genetics, Immunology, etc.), collecting ~50K+ unique paper IDs, checkpoints after each term; (2) **Fetch** — batches paper IDs in groups of 100, fetches metadata via Entrez API, respects 3 req/sec rate limit; (3) **Upsert** — batches URLs in groups of 50 into Supabase with per-batch checkpointing. Smart multi-category mapping prioritizes MIND_BODY when present (e.g., Genetics → SCIENCE, but Neuroscience → MIND_BODY + SCIENCE). Progress file tracks phase, searched terms, and upserted count for safe crash recovery. Supports `--reset` flag. Expected yield: 30-50K medical/health URLs, closing the Mind & Body category gap. Committed `e5d5d5b` and pushed to origin/main.
 - [ ] **4.16** Write the CORE seeder — queries the CORE API by subject; pulls open-access paper metadata; maps to Science, History, and Mind & Body subcategories
 - [ ] **4.17** Write the DPLA seeder — queries the Digital Public Library of America API by subject; pulls digitised cultural heritage records; maps to History & Ideas, Arts & Culture, and People & Places
 - [ ] **4.18** Write the BoardGameGeek seeder — ABANDONED: Cloudflare blocks both the browse pages (403 after page 11) and the XML API (401 for all batches). Not worth pursuing.
