@@ -45,7 +45,19 @@ async function boot() {
   const res = await sendToBackground<StateData>({ type: 'GET_STATE' });
   console.log('[roam-popup] Boot GET_STATE response:', res);
   if (!res.ok) { showError(res.error); return; }
-  showState(res.data.signedIn ? 'main' : 'signedout');
+  if (!res.data.signedIn) {
+    // First run: user has never opened the extension — send them to /join
+    const { roam_visited } = await chrome.storage.local.get('roam_visited');
+    if (!roam_visited) {
+      await chrome.storage.local.set({ roam_visited: true });
+      chrome.tabs.create({ url: 'https://roamtheweb.app/join' });
+      window.close();
+      return;
+    }
+    showState('signedout');
+    return;
+  }
+  showState('main');
 }
 
 // ── Boot ──────────────────────────────────────────────────────────────────────

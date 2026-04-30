@@ -506,8 +506,12 @@ Background worker maintains a prefetch queue to minimize wait times when users c
 
 ### 5c. Onboarding
 
-- [ ] **5.14** Detect first run (no auth session) — on icon click, open the `/join` web page in a new tab instead of the popup
-- [ ] **5.15** After onboarding completes on the web, the extension detects the new session and switches to normal popup mode
+- [x] **5.14** Detect first run (no auth session) — on icon click, open the `/join` web page in a new tab instead of the popup
+
+  📖 **What we did:** In `popup.ts` `boot()`, after `GET_STATE` returns `signedIn: false`, check `chrome.storage.local` for a `roam_visited` flag. If not set, set it to `true`, call `chrome.tabs.create({ url: 'https://roamtheweb.app/join' })`, then `window.close()`. Subsequent opens (flag already set) fall through to the normal `showState('signedout')` sign-in screen. No manifest changes required — `default_popup` stays, the popup opens briefly then closes itself on first run.
+- [x] **5.15** After onboarding completes on the web, the extension detects the new session and switches to normal popup mode
+
+  📖 **What we did:** No extra implementation needed. When the popup reopens after the user has signed in via the web, `boot()` calls `GET_STATE` which finds the session in `chrome.storage.local` (written by `callback.ts`) and calls `showState('main')`. The existing 500ms polling in the sign-in button handler also covers the case where the user completes OAuth while the popup is still open.
 
 ### 5d. Submission
 
