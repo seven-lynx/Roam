@@ -196,9 +196,9 @@ Filling the discovery pool before launch so that the Roam button has something t
 | `seed-curlie.js` | Curlie directory | none | ✅ 2,732,344 extracted, upsert complete — 34 malformed lines skipped, all rows tagged `source = 'curlie'` |
 | `seed-gutenberg.js` | Gutendex (Project Gutenberg) | none | ✅ 510 rows |
 | `seed-pubmed.js` | NCBI Entrez API | none | 🔄 running — search phase in progress (~30-50K expected) |
-| `seed-reddit.js` | Reddit public JSON API | none | ✅ committed — 35 subreddits across all 8 categories |
-| `seed-ted.js` | TED Talks sitemap + OG | none | 🔄 running — 7,492 curator-approved talks (~3hrs) |
-| `seed-metmuseum.js` | Met Museum Collection API | none | 🔄 running — 39,643 IDs queued across 18 departments |
+| `seed-reddit.js` | Reddit public JSON API | none | ✅ 1,549 rows — 35 subreddits across all 8 categories |
+| `seed-ted.js` | TED Talks sitemap + OG | none | ✅ ~7,492 curator-approved talks — run complete |
+| `seed-metmuseum.js` | Met Museum / Wikidata SPARQL | none | 🔄 running — ~30K items via Wikidata P3634, ~10K upserted so far |
 | `seed-boardgamegeek.js` | BoardGameGeek XML API | none | ⚠️ blocked — API now requires registered Bearer token (approval takes 1+ week) |
 
 **Total rows from complete seeders (excl. Curlie/PubMed in-progress): ~228,000+**
@@ -352,11 +352,13 @@ Filling the discovery pool before launch so that the Roam button has something t
 
 - [x] **4.32** Write the Museum APIs seeder — Metropolitan Museum (free, 375K items), Rijksmuseum (free key, 700K items), MOMA (free, 30K items); pulls ~50K artworks total; fills **Visual Arts & Creativity entirely** with high-quality images; effort: 4 hours (multi-API client)
 
-  📖 **What we did:** Built `scripts/seed-metmuseum.js` targeting 18 Met departments mapped to Roam's Arts & Culture, History & Ideas, and People & Places categories. Phase 1 fetches all object IDs per department and randomly samples up to `maxItems` from each (39,643 total IDs queued). Phase 2 fetches each object concurrently (10 at a time) and skips those without a `primaryImageSmall` (public-domain image). Builds description from artist name/bio, date, and medium. Checkpointed every 200 objects — fully resumable. BGG was attempted but now requires a registered Bearer token (approval takes 1+ week).
+  📖 **What we did:** Originally built `scripts/seed-metmuseum.js` targeting 18 Met departments via the Met's own REST API (`collectionapi.metmuseum.org`). Discovered the Met's API is behind Incapsula WAF which blocks all programmatic access (403 for all `/objects/{id}` requests regardless of User-Agent). Rewrote the seeder to use Wikidata's free SPARQL endpoint instead — Wikidata has ~30K+ Met artworks identified by property P3634 (The Met object ID). The Met URL is constructed as `https://www.metmuseum.org/art/collection/search/{metId}`. Wikidata also provides artist names, creation dates, and Wikimedia Commons images (converted to 400px thumbnails). Paginated at 5,000 results per page with 2s delay and retry on transient errors (429/502/503). Fully resumable via checkpoint. BGG was attempted but now requires a registered Bearer token (approval takes 1+ week).
 
 - [ ] **4.33** Write the Smithsonian Magazine seeder — RSS feeds (free, no auth); ~5-10K articles from past 2-3 years; maps: History (40%), Science (30%), Arts (20%), Places (10%); authoritative source; effort: 2 hours
 
-- [ ] **4.34** Write the TED Talks seeder — uses `talks-curator-approved.xml.gz` sitemap (7,492 quality TED talks vetted by TED editorial); fetches OG/JSON-LD metadata from each talk page; maps to all 8 categories via keyword matching on talk slug; thumbnails from JSON-LD `VideoObject` structured data; effort: 2 hours + crawl time (~3hrs at 1.5s/req)
+- [x] **4.34** Write the TED Talks seeder — uses `talks-curator-approved.xml.gz` sitemap (7,492 quality TED talks vetted by TED editorial); fetches OG/JSON-LD metadata from each talk page; maps to all 8 categories via keyword matching on talk slug; thumbnails from JSON-LD `VideoObject` structured data; effort: 2 hours + crawl time (~3hrs at 1.5s/req)
+
+  📖 **What we did:** Created `scripts/seed-ted.js`. Uses TED's official sitemap index to find `talks-curator-approved.xml.gz` — a deduplicated, editorially vetted list of 7,492 TED talks (avoids TEDx which adds 100K+ lower-quality talks across per-year sitemaps). For each talk URL, fetches the page and extracts JSON-LD `VideoObject` structured data for title, description, and thumbnail. Category mapped from talk slug keywords. Rate-limited to 1 req/1.5s. Fully resumable via checkpoint in `.cache/ted-progress.json`. Committed `441a6c4`.
 
 - [ ] **4.35** Write the Substack seeder — scrape trending publications + RSS feeds (no official API); ~25K URLs from independent newsletters; captures independent voices (different from NYT/Guardian); effort: 3-4 hours
 
