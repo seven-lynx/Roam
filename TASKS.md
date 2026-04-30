@@ -202,7 +202,7 @@ Filling the discovery pool before launch so that the Roam button has something t
 | `seed-boardgamegeek.js` | BoardGameGeek XML API | none | ⚠️ blocked — API now requires registered Bearer token (approval takes 1+ week) |
 | `seed-librivox.js` | LibriVox public API | none | 🔄 running — 18,752 English audiobooks, OG fetch phase |
 | `seed-github.js` | GitHub Search API | optional `GITHUB_TOKEN` | ✅ 5,806 rows — 45 topics × up to 3 pages × 100 repos |
-| `seed-itchio.js` | Itch.io browse API | none | 🔄 running — 33 sources × 30 pages |
+| `seed-itchio.js` | Itch.io browse API | none | ✅ 13,329 rows — 33 sources × 30 pages |
 
 **Total rows from complete seeders (excl. Curlie in-progress): ~268,000+**
 **Curlie:** 2,732,344 rows extracted, upsert complete
