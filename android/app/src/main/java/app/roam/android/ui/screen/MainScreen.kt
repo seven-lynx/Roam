@@ -48,6 +48,7 @@ fun MainScreen(
     val showConfigSheet by vm.showConfigSheet.collectAsState()
     val skipPaywalled by vm.skipPaywalled.collectAsState()
     val preferredLanguages by vm.preferredLanguages.collectAsState()
+    val savedConfirmation by vm.savedConfirmation.collectAsState()
 
     // Auto-load the first page when the screen appears
     LaunchedEffect(Unit) {
@@ -130,6 +131,25 @@ fun MainScreen(
                 }
             }
 
+            // "Saved!" confirmation banner — auto-dismisses after 2 s
+            if (savedConfirmation) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .align(Alignment.BottomCenter)
+                        .background(MaterialTheme.colorScheme.secondaryContainer)
+                        .padding(horizontal = 16.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = "Saved for later",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSecondaryContainer,
+                        modifier = Modifier.weight(1f),
+                    )
+                }
+            }
+
             // Exhausted state
             if (state is RoamState.Exhausted) {
                 Column(
@@ -174,7 +194,7 @@ fun MainScreen(
             preferredLanguages = preferredLanguages,
             onDismiss = { vm.closeConfigSheet() },
             onSaveForLater = {
-                // Task 6.13 — stub
+                vm.saveForLater()
                 vm.closeConfigSheet()
             },
             onShare = {

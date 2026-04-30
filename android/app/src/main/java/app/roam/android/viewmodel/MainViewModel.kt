@@ -1,10 +1,11 @@
 package app.roam.android.viewmodel
 
+import android.app.Application
 import android.content.Context
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
-import androidx.lifecycle.ViewModel
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import app.roam.android.data.repository.RoamRepository
 import app.roam.android.model.RoamUrl
@@ -12,6 +13,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import org.json.JSONArray
 
 sealed interface RoamState {
     data object Idle : RoamState
@@ -21,12 +23,25 @@ sealed interface RoamState {
     data class Error(val message: String) : RoamState
 }
 
+data class SavedUrl(val url: String, val title: String)
+
 class MainViewModel(
+    application: Application,
     private val repo: RoamRepository = RoamRepository(),
-) : ViewModel() {
+) : AndroidViewModel(application) {
+
+    private val prefs = application.getSharedPreferences("roam_saved", Context.MODE_PRIVATE)
+    private val SAVED_KEY = "saved_urls"
 
     private val _state = MutableStateFlow<RoamState>(RoamState.Idle)
     val state: StateFlow<RoamState> = _state.asStateFlow()
+
+    private val _savedUrls = MutableStateFlow<List<SavedUrl>>(loadSavedUrls())
+    val savedUrls: StateFlow<List<SavedUrl>> = _savedUrls.asStateFlow()
+
+    /** True while a save-for-later confirmation should be visible */
+    private val _savedConfirmation = MutableStateFlow(false)
+    val savedConfirmation: StateFlow<Boolean> = _savedConfirmation.asStateFlow()
 
     /** The URL currently loaded in the WebView (may differ from state while loading next) */
     private val _currentUrl = MutableStateFlow<String?>(null)
@@ -151,6 +166,52 @@ class MainViewModel(
             context.getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
         }
         vibrator.vibrate(VibrationEffect.createOneShot(40, VibrationEffect.DEFAULT_AMPLITUDE))
+    }
+
+    fun saveForLater() {
+        val url = _currentUrl.value ?: return
+        val title = ((_state.value as? RoamState.Loaded)?.roamUrl?.title ?: url)
+            .take(200)  // Guard against huge titles
+        val entry = SavedUrl(url = url, title = title)
+        val current = _savedUrls.value
+        if (current.none { it.url == url }) {
+            val updated = listOf(entry) + current   // Newest first
+            _savedUrls.value = updated
+            persistSavedUrls(updated)
+        }
+        _savedConfirmation.value = true
+        viewModelScope.launch {
+            kotlinx.coroutines.delay(2000)
+            _savedConfirmation.value = false
+        }
+    }
+
+    fun removeSavedUrl(url: String) {
+        val updated = _savedUrls.value.filter { it.url != url }
+        _savedUrls.value = updated
+        persistSavedUrls(updated)
+    }
+
+    private fun loadSavedUrls(): List<SavedUrl> {
+        val json = prefs.getString(SAVED_KEY, null) ?: return emptyList()
+        return runCatching {
+            val arr = JSONArray(json)
+            (0 until arr.length()).map { i ->
+                val obj = arr.getJSONObject(i)
+                SavedUrl(url = obj.getString("url"), title = obj.getString("title"))
+            }
+        }.getOrDefault(emptyList())
+    }
+
+    private fun persistSavedUrls(list: List<SavedUrl>) {
+        val arr = JSONArray()
+        list.forEach { saved ->
+            arr.put(org.json.JSONObject().apply {
+                put("url", saved.url)
+                put("title", saved.title)
+            })
+        }
+        prefs.edit().putString(SAVED_KEY, arr.toString()).apply()
     }
 
     private fun extractDomain(url: String?): String? {
