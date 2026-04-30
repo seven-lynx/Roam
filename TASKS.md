@@ -187,7 +187,7 @@ Filling the discovery pool before launch so that the Roam button has something t
 | `seed-wiby.js` | wiby.me | none | ⚠️ 0 rows — bugs fixed, rerun needed |
 | `seed-lobsters.js` | Lobsters JSON API | none | ✅ ~1,000 rows |
 | `seed-semanticscholar.js` | Semantic Scholar API | optional | ✅ ~50,000 rows |
-| `seed-nyt.js` | NYT Article Search API | `NYT_API_KEY` | 🔄 running — fetching fresh Top Stories (14 sections) |
+| `seed-nyt.js` | NYT Article Search API | `NYT_API_KEY` | ✅ 339 rows — 14 Top Stories sections |
 | `seed-guardian.js` | Guardian Content API | `GUARDIAN_API_KEY` | ✅ 18,000 rows |
 | `seed-propublica.js` | ProPublica sitemaps | none | ✅ 106 rows |
 | `seed-npr.js` | NPR RSS feeds | none | ✅ 152 rows |
