@@ -77,7 +77,7 @@ async function runSparql(offset, attempt = 0) {
     },
   });
 
-  if (res.status === 429 || res.status === 503) {
+  if (res.status === 429 || res.status === 502 || res.status === 503) {
     if (attempt >= 3) throw new Error(`SPARQL ${res.status} after 3 retries`);
     const wait = (attempt + 1) * 10000;
     console.warn(`[met] SPARQL ${res.status} — waiting ${wait / 1000}s before retry...`);
