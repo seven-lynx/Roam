@@ -4,6 +4,10 @@
  * Uses Bandcamp's internal tag hub API (`/api/hub/2/dig_deeper`) to enumerate
  * albums and artists by genre tag. No official API key required.
  *
+ * NOTE: The dig_deeper API requires a CSRF token from the session.
+ * This seeder first fetches the tag page HTML to extract the CSRF token,
+ * then uses it for subsequent API calls.
+ *
  * POST body: { tag, page, sort: "pop", tags: [], location: 0, format: "all" }
  * Response:  { items: [...], more_available: bool }
  *
@@ -72,6 +76,48 @@ const TAGS = [
   { tag: 'classical-piano', category: CATEGORY.MIND_BODY },
 ];
 
+// ── Session / CSRF ────────────────────────────────────────────────────────────
+
+let sessionCookies = '';
+let csrfToken = '';
+
+/**
+ * Fetch the tag page once to grab session cookies + CSRF token.
+ * Bandcamp embeds window.__pagedata or similar JSON with a crumb token.
+ */
+async function initSession(firstTag) {
+  const url = `https://bandcamp.com/tag/${encodeURIComponent(firstTag)}`;
+  try {
+    const res = await fetch(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+        'Accept':     'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+      },
+    });
+    if (!res.ok) {
+      console.warn(`[bandcamp] Session init HTTP ${res.status} — proceeding without CSRF`);
+      return;
+    }
+
+    // Capture session cookies
+    const setCookies = res.headers.raw?.()['set-cookie'] ?? [];
+    sessionCookies = setCookies.map(c => c.split(';')[0]).join('; ');
+
+    const html = await res.text();
+
+    // Extract CSRF token from "crumb":"..." or data-crumb="..."
+    const crumbMatch = html.match(/"crumb"\s*:\s*"([^"]+)"/) || html.match(/data-crumb="([^"]+)"/);
+    if (crumbMatch) {
+      csrfToken = crumbMatch[1];
+      console.log(`[bandcamp] CSRF token: ${csrfToken.slice(0, 12)}...`);
+    } else {
+      console.warn('[bandcamp] No CSRF token found in page — API may return empty results');
+    }
+  } catch (err) {
+    console.warn(`[bandcamp] Session init error: ${err.message} — proceeding without CSRF`);
+  }
+}
+
 // ── API fetch ─────────────────────────────────────────────────────────────────
 
 async function fetchTag(tag, categoryId) {
@@ -85,12 +131,14 @@ async function fetchTag(tag, categoryId) {
       const res = await fetch('https://bandcamp.com/api/hub/2/dig_deeper', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          'User-Agent':   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-          'Accept':       'application/json, text/javascript, */*; q=0.01',
-          'Referer':      `https://bandcamp.com/tag/${encodeURIComponent(tag)}`,
-          'Origin':       'https://bandcamp.com',
+          'Content-Type':     'application/json',
+          'User-Agent':       'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+          'Accept':           'application/json, text/javascript, */*; q=0.01',
+          'Referer':          `https://bandcamp.com/tag/${encodeURIComponent(tag)}`,
+          'Origin':           'https://bandcamp.com',
           'X-Requested-With': 'XMLHttpRequest',
+          ...(sessionCookies ? { 'Cookie': sessionCookies } : {}),
+          ...(csrfToken      ? { 'X-CSRF-Token': csrfToken } : {}),
         },
         body: JSON.stringify({
           tag,
@@ -124,13 +172,19 @@ async function fetchTag(tag, categoryId) {
         console.warn(`[bandcamp]   tag=${tag} p${page}: non-JSON response (bot check?) — skipping tag`);
         break;
       }
+
+      // Debug: log keys when items empty to diagnose API changes
+      if (!data?.items?.length) {
+        const keys = Object.keys(data || {}).join(', ');
+        console.warn(`[bandcamp]   tag=${tag} p${page}: empty items — response keys: ${keys || '(none)'}`);
+        break;
+      }
     } catch (err) {
       console.warn(`[bandcamp]   tag=${tag} p${page}: error — ${err.message}`);
       break;
     }
 
-    const items = data?.items ?? [];
-    if (items.length === 0) break;
+    const items = data.items;
 
     for (const item of items) {
       const url = item.tralbum_url || item.url;
@@ -190,6 +244,9 @@ async function main() {
 
     allItems = [];
     const globalSeen = new Set();
+
+    // Init session (grab cookies + CSRF) from first tag page
+    await initSession(TAGS[0].tag);
 
     for (const { tag, category } of TAGS) {
       const entries = await fetchTag(tag, category);
