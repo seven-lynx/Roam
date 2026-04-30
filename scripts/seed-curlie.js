@@ -434,7 +434,7 @@ async function upsertUrlsWithProgressStreaming(jsonlFile, progress) {
 }
 
 /**
- * Upsert a single batch of rows
+ * Upsert a single batch of rows — retries up to 5 times on transient errors
  */
 async function upsertBatch(rows, batchNumber, progress) {
   const urls = rows.map((r) => r.url);
@@ -468,26 +468,37 @@ async function upsertBatch(rows, batchNumber, progress) {
     downvotes:      0,
   }));
 
-  const { error, count } = await supabase
-    .from('urls')
-    .upsert(batch, { onConflict: 'url', ignoreDuplicates: true })
-    .select('id', { count: 'exact', head: true });
+  // Retry up to 5 times with exponential backoff for transient errors
+  const MAX_RETRIES = 5;
+  let lastError;
+  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+    const { error, count } = await supabase
+      .from('urls')
+      .upsert(batch, { onConflict: 'url', ignoreDuplicates: true })
+      .select('id', { count: 'exact', head: true });
 
-  if (error) {
-    console.error(`[curlie] Upsert error on batch ${batchNumber}:`, error.message);
-    throw new Error(`Batch ${batchNumber} failed: ${error.message}`);
+    if (!error) {
+      const result = { inserted: count ?? batch.length, skipped: existingSet.size };
+      console.log(`[curlie] Batch ${batchNumber}: upserted ${batch.length} rows`);
+
+      // Save checkpoint after each successful batch
+      progress.phase = 'upsert';
+      progress.lastBatchNumber = batchNumber;
+      progress.upsertedCount = (progress.upsertedCount || 0) + (count ?? batch.length);
+      saveProgress(progress);
+
+      return result;
+    }
+
+    lastError = error;
+    const delay = attempt * 5000; // 5s, 10s, 15s, 20s, 25s
+    console.warn(`[curlie] Batch ${batchNumber} attempt ${attempt}/${MAX_RETRIES} failed: ${error.message} — retrying in ${delay / 1000}s`);
+    await new Promise((r) => setTimeout(r, delay));
   }
 
-  const result = { inserted: count ?? batch.length, skipped: existingSet.size };
-  console.log(`[curlie] Batch ${batchNumber}: upserted ${batch.length} rows`);
-
-  // Save checkpoint after each batch
-  progress.phase = 'upsert';
-  progress.lastBatchNumber = batchNumber;
-  progress.upsertedCount = (progress.upsertedCount || 0) + (count ?? batch.length);
-  saveProgress(progress);
-
-  return result;
+  // All retries exhausted — log and skip this batch rather than crashing
+  console.error(`[curlie] Batch ${batchNumber} permanently failed after ${MAX_RETRIES} attempts: ${lastError.message} — skipping`);
+  return { inserted: 0, skipped: rows.length };
 }
 
 
