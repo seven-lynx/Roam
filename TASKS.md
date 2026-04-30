@@ -193,13 +193,15 @@ Filling the discovery pool before launch so that the Roam button has something t
 | `seed-npr.js` | NPR RSS feeds | none | ✅ 152 rows |
 | `seed-wikivoyage.js` | MediaWiki API | none | ✅ 67,660 rows |
 | `seed-internetarchive.js` | Internet Archive API | none | ✅ 50,966 rows |
-| `seed-curlie.js` | Curlie directory | none | ✅ 2,732,344 rows |
+| `seed-curlie.js` | Curlie directory | none | ✅ 2,732,344 extracted, upsert complete — 34 malformed lines skipped, all rows tagged `source = 'curlie'` |
 | `seed-gutenberg.js` | Gutendex (Project Gutenberg) | none | ✅ 510 rows |
-| `seed-pubmed.js` | NCBI Entrez API | none | ✅ ~30-50K rows (checkpointing ready, awaiting run) |
+| `seed-pubmed.js` | NCBI Entrez API | none | 🔄 running — search phase in progress (~30-50K expected) |
+| `seed-reddit.js` | Reddit public JSON API | none | ✅ committed — 35 subreddits across all 8 categories |
+| `seed-ted.js` | TED Talks sitemap + OG | none | ⬜ not yet run |
 
-**Total rows from complete seeders: ~2,959,340**
-**Ready for overnight execution:** PubMed (~40K) + any remaining seeders
-**Total expected with all complete: ~3.0M+**
+**Total rows from complete seeders (excl. Curlie/PubMed in-progress): ~228,000+**
+**Curlie:** 2,732,344 rows extracted, upsert phase in progress
+**Total expected when all complete: ~3.0M+**
 
 ### 4a. Seeding infrastructure
 
@@ -314,7 +316,7 @@ Filling the discovery pool before launch so that the Roam button has something t
 
 - [x] **4.26** Run the Curlie import pipeline — deduplicate against existing entries, batch insert into `urls` table with `approved = true`
 
-  📖 **What we did:** Executed the Curlie seeder with full resumable checkpointing. **Fixed two critical bugs:** (1) structure file parsing was reading the wrong column — now correctly reads `categoryPath \t categoryId` instead of swapped columns; (2) JSONL file size (500MB+ for 2.7M URLs) was causing memory exhaustion on load — switched to streaming line-by-line with readline. Extraction: 2,732,344 URLs extracted and cached (exceeds original 1.2M estimate). Upsert phase: Now streaming in batches of 50 rows, saving checkpoint after each batch. With full crash-recovery and resumable checkpointing. Tags all rows `source = 'curlie'`.
+  📖 **What we did:** Executed the Curlie seeder with full resumable checkpointing. **Fixed two critical bugs:** (1) structure file parsing was reading the wrong column — now correctly reads `categoryPath \t categoryId` instead of swapped columns; (2) JSONL file size (500MB+ for 2.7M URLs) was causing memory exhaustion on load — switched to streaming line-by-line with readline. **Additional robustness fixes:** try-catch around `JSON.parse` for malformed lines (34 lines skipped total), retry logic with exponential backoff for transient Supabase errors, and verbose skip-logging suppressed on resume. Extraction: 2,732,344 URLs extracted and cached. Upsert phase: completed successfully across multiple runs with checkpoint resumption. Tags all rows `source = 'curlie'`.
 
 - [x] **4.26a** Create `scripts/seed-curlie-fetch-og.js` — background task to fetch missing OG images for Curlie URLs overnight without timeout; resumes from progress file if interrupted
 
@@ -336,7 +338,9 @@ Filling the discovery pool before launch so that the Roam button has something t
 
   📖 **What we did:** Implemented `scripts/seed-pubmed.js` with full resumable checkpointing for overnight operation. The seeder has three phases: (1) **Search:** Queries NCBI Entrez API for 25 MeSH terms (Neuroscience, Psychiatry, Psychology, Brain, Memory, Sleep, Nutrition, Pharmacology, Genetics, Immunology, etc.), collecting ~50K+ unique paper IDs. Checkpoints after each term so resumption doesn't re-search. (2) **Fetch:** Batches IDs in groups of 100 and fetches detailed metadata (title, abstract, keywords) from Entrez API. Respects NCBI's 3 req/sec rate limit (350ms delay). (3) **Upsert:** Converts papers to rows and inserts via Supabase in batches of 50 with per-batch checkpointing. **Smart multi-category mapping:** MeSH terms map intelligently (e.g., Genetics → SCIENCE + MIND_BODY, Neuroscience → MIND_BODY + SCIENCE), prioritizing MIND_BODY when multiple categories match. Progress file (`pubmed-progress.json`) tracks phase, searched terms, and upserted count for safe crash recovery. Supports `--reset` flag to start fresh. Expected yield: 30-50K medical/health URLs, closing the Mind & Body gap.
 
-- [ ] **4.30** Write the Reddit seeder — **HIGH PRIORITY:** Reddit's upvote system = quality signal. User-curated content across all categories. **Status:** API access was denied on previous application. **Solutions to explore:** (1) Reapply for API key (explain use case better: non-commercial, read-only, no spam); (2) Use Pushshift archive API (historical Reddit data, no auth needed, 10M+ posts); (3) Scrape via `reddit.com/r/<subreddit>/top.json` (may require User-Agent spoofing); (4) Use PRAW library with headless browser. Targets: 50+ subreddits (r/science, r/technology, r/history, r/AskHistorians, r/books, r/health, r/fitness, r/Art, r/travel, etc.). Delivers ~12,500 high-quality URLs across all categories. Effort: 3-4 hours (once access method is confirmed).
+- [x] **4.30** Write the Reddit seeder — **HIGH PRIORITY:** Reddit's upvote system = quality signal. User-curated content across all categories.
+
+  📖 **What we did:** Created `scripts/seed-reddit.js`. Uses the unauthenticated public JSON API (`reddit.com/r/<subreddit>/top.json`) — no API key required. Fetches top posts from 35 curated subreddits mapped across all 8 categories (e.g., r/science → SCIENCE, r/history → HISTORY_IDEAS, r/Art → ARTS_CULTURE, r/Fitness → MIND_BODY, r/travel → PEOPLE_PLACES, r/boardgames → GAMES_HOBBIES, r/WeirdWings → WEIRD_WONDERFUL). Skips self-posts and links to reddit.com itself. Per-subreddit checkpointing with 2s delay between requests. Supports `--no-cache` and `--reset` flags. Committed as `fe7c877`.
 
 - [x] **4.31** Write the Project Gutenberg seeder — Gutendex API (free, no rate limits) pulls ~70K free ebooks by subject; maps to **Literature & Writing** and **History & Ideas**; adds historical/classic perspective vs. modern Open Library; effort: 2 hours
 
@@ -348,15 +352,17 @@ Filling the discovery pool before launch so that the Roam button has something t
 
 - [ ] **4.33** Write the Smithsonian Magazine seeder — RSS feeds (free, no auth); ~5-10K articles from past 2-3 years; maps: History (40%), Science (30%), Arts (20%), Places (10%); authoritative source; effort: 2 hours
 
-- [ ] **4.34** Write the Substack seeder — scrape trending publications + RSS feeds (no official API); ~25K URLs from independent newsletters; captures independent voices (different from NYT/Guardian); effort: 3-4 hours
+- [ ] **4.34** Write the TED Talks seeder — enumerates all ~4,500 talk URLs from the official TED sitemap (`ted.com/sitemaps/talks.xml.gz`), fetches OG/JSON-LD metadata from each talk page; maps to all 8 categories via keyword matching on talk slug; thumbnails from JSON-LD `VideoObject` structured data; ~4,500 high-quality talks; effort: 2 hours + crawl time (~2hrs at 1.5s/req)
+
+- [ ] **4.35** Write the Substack seeder — scrape trending publications + RSS feeds (no official API); ~25K URLs from independent newsletters; captures independent voices (different from NYT/Guardian); effort: 3-4 hours
 
 #### Lower Priority — Niche content
 
-- [ ] **4.35** Write the IGDB seeder — video games (free API key); top 5K games by rating; maps to Weird & Wonderful niche; effort: 2 hours
+- [ ] **4.36** Write the IGDB seeder — video games (free API key); top 5K games by rating; maps to Weird & Wonderful niche; effort: 2 hours
 
-- [ ] **4.36** Write the Podcast Index seeder — decentralized audio metadata (free API); top 100 podcasts × 10 episodes each = ~5K URLs; new medium (currently all websites); effort: 2-3 hours
+- [ ] **4.37** Write the Podcast Index seeder — decentralized audio metadata (free API); top 100 podcasts × 10 episodes each = ~5K URLs; new medium (currently all websites); effort: 2-3 hours
 
-- [ ] **4.37** Write the GitHub Trending seeder — no official API, scrape `github.com/trending` by language/timespan; ~3-5K repos; captures emerging tech projects; effort: 1-2 hours
+- [ ] **4.38** Write the GitHub Trending seeder — no official API, scrape `github.com/trending` by language/timespan; ~3-5K repos; captures emerging tech projects; effort: 1-2 hours
 
 #### Not Recommended (Pre-launch)
 
