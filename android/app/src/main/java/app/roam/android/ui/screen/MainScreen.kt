@@ -1,24 +1,22 @@
 package app.roam.android.ui.screen
 
 import android.content.Intent
-import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.pointerInput
@@ -50,22 +48,13 @@ fun MainScreen(
     val showConfigSheet by vm.showConfigSheet.collectAsState()
     val skipPaywalled by vm.skipPaywalled.collectAsState()
     val preferredLanguages by vm.preferredLanguages.collectAsState()
-    val snackbarHostState = remember { SnackbarHostState() }
 
     // Auto-load the first page when the screen appears
     LaunchedEffect(Unit) {
         vm.roam()
     }
 
-    // Show snackbar on error
-    LaunchedEffect(state) {
-        if (state is RoamState.Error) {
-            snackbarHostState.showSnackbar((state as RoamState.Error).message)
-        }
-    }
-
     Scaffold(
-        snackbarHost = { SnackbarHost(snackbarHostState) },
         bottomBar = {
             BottomBar(
                 onRoam = { vm.roam() },
@@ -113,6 +102,32 @@ fun MainScreen(
             // Loading indicator
             if (state is RoamState.Loading) {
                 LinearProgressIndicator(modifier = Modifier.fillMaxWidth().align(Alignment.TopCenter))
+            }
+
+            // API error banner — persistent, shown until user retries
+            if (state is RoamState.Error) {
+                val errorMsg = (state as RoamState.Error).message
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .align(Alignment.TopCenter)
+                        .background(MaterialTheme.colorScheme.errorContainer)
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = errorMsg,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onErrorContainer,
+                        modifier = Modifier.weight(1f),
+                    )
+                    TextButton(onClick = { vm.roam() }) {
+                        Text(
+                            text = "Retry",
+                            color = MaterialTheme.colorScheme.onErrorContainer,
+                        )
+                    }
+                }
             }
 
             // Exhausted state
