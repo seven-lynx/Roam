@@ -437,23 +437,8 @@ async function upsertUrlsWithProgressStreaming(jsonlFile, progress) {
  * Upsert a single batch of rows — retries up to 5 times on transient errors
  */
 async function upsertBatch(rows, batchNumber, progress) {
-  const urls = rows.map((r) => r.url);
-
-  // Check which URLs already exist
-  const { data: existing } = await supabase
-    .from('urls')
-    .select('url')
-    .in('url', urls);
-
-  const existingSet = new Set((existing ?? []).map((r) => r.url));
-  const fresh = rows.filter((r) => !existingSet.has(r.url));
-
-  if (fresh.length === 0) {
-    return { inserted: 0, skipped: rows.length };
-  }
-
-  // Map to Supabase schema
-  const batch = fresh.map((r) => ({
+  // Map to Supabase schema — no pre-check needed, upsert handles duplicates via ignoreDuplicates
+  const batch = rows.map((r) => ({
     url:            r.url,
     original_url:   r.url,
     title:          r.title        ?? null,
@@ -478,7 +463,7 @@ async function upsertBatch(rows, batchNumber, progress) {
       .select('id', { count: 'exact', head: true });
 
     if (!error) {
-      const result = { inserted: count ?? batch.length, skipped: existingSet.size };
+      const result = { inserted: count ?? batch.length, skipped: 0 };
       console.log(`[curlie] Batch ${batchNumber}: upserted ${batch.length} rows`);
 
       // Save checkpoint after each successful batch
@@ -496,7 +481,6 @@ async function upsertBatch(rows, batchNumber, progress) {
     await new Promise((r) => setTimeout(r, delay));
   }
 
-  // All retries exhausted — log and skip this batch rather than crashing
   console.error(`[curlie] Batch ${batchNumber} permanently failed after ${MAX_RETRIES} attempts: ${lastError.message} — skipping`);
   return { inserted: 0, skipped: rows.length };
 }
