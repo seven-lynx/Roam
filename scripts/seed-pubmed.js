@@ -354,6 +354,7 @@ async function seedPubMed() {
         const categoryId = mapTermsToCategory(paper.foundByTerms);
         rows.push({
           url: paper.url,
+          original_url: paper.url,
           title: paper.title,
           description: paper.description || null,
           category_id: categoryId,
