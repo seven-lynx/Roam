@@ -12,6 +12,7 @@ export type Request =
   | { type: 'SUBMIT_URL'; url: string; categoryId: string }
   | { type: 'SAVE_LATER'; url: string }
   | { type: 'SET_PAYWALL_PREF'; skip: boolean }
+  | { type: 'SET_LANGUAGE_PREF'; languages: string[] }
   | { type: 'GET_COLLECTIONS' }
   | { type: 'CREATE_COLLECTION'; name: string }
   | { type: 'ADD_URL_TO_COLLECTION'; url: string; collectionId: string }

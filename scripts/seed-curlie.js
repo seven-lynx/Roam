@@ -267,23 +267,30 @@ async function extractAndParseTsv() {
     }
 
     // Map filenames to default categories (most generic mapping)
-    const filenameToCategory = {
-      'rdf-Arts-c.tsv': CATEGORY.ARTS_CULTURE,
-      'rdf-Business-c.tsv': CATEGORY.TECHNOLOGY,
-      'rdf-Computers-c.tsv': CATEGORY.TECHNOLOGY,
-      'rdf-Deutsch-c.tsv': CATEGORY.TECHNOLOGY,  // Default to tech
-      'rdf-Europe-c.tsv': CATEGORY.PEOPLE_PLACES,
-      'rdf-Français-c.tsv': CATEGORY.TECHNOLOGY,
-      'rdf-Italiano-c.tsv': CATEGORY.TECHNOLOGY,
-      'rdf-Japanese-c.tsv': CATEGORY.TECHNOLOGY,
-      'rdf-KT-c.tsv': CATEGORY.GAMES_HOBBIES,
-      'rdf-NorthAmerica-c.tsv': CATEGORY.PEOPLE_PLACES,
-      'rdf-Regional-c.tsv': CATEGORY.PEOPLE_PLACES,
-      'rdf-Society-c.tsv': CATEGORY.HISTORY_IDEAS,
-      'rdf-Top-c.tsv': CATEGORY.SCIENCE,  // Miscellaneous
-      'rdf-World-c.tsv': CATEGORY.PEOPLE_PLACES,
-      'rdf-Adult-c.tsv': null,  // Skip adult content
+    // category + explicit language tag per Curlie dump file
+    // Language-specific files are kept (not excluded) so users who opt-in
+    // to those languages can discover them via user_settings.
+    const filenameToMeta = {
+      'rdf-Arts-c.tsv':        { category: CATEGORY.ARTS_CULTURE,    language: 'en' },
+      'rdf-Business-c.tsv':   { category: CATEGORY.TECHNOLOGY,      language: 'en' },
+      'rdf-Computers-c.tsv':  { category: CATEGORY.TECHNOLOGY,      language: 'en' },
+      'rdf-Deutsch-c.tsv':    { category: CATEGORY.TECHNOLOGY,      language: 'de' },
+      'rdf-Europe-c.tsv':     { category: CATEGORY.PEOPLE_PLACES,   language: 'en' }, // mixed; English index
+      'rdf-Français-c.tsv':   { category: CATEGORY.ARTS_CULTURE,    language: 'fr' },
+      'rdf-Italiano-c.tsv':   { category: CATEGORY.ARTS_CULTURE,    language: 'it' },
+      'rdf-Japanese-c.tsv':   { category: CATEGORY.ARTS_CULTURE,    language: 'ja' },
+      'rdf-KT-c.tsv':         { category: CATEGORY.GAMES_HOBBIES,   language: 'en' },
+      'rdf-NorthAmerica-c.tsv': { category: CATEGORY.PEOPLE_PLACES, language: 'en' },
+      'rdf-Regional-c.tsv':   { category: CATEGORY.PEOPLE_PLACES,   language: 'en' },
+      'rdf-Society-c.tsv':    { category: CATEGORY.HISTORY_IDEAS,   language: 'en' },
+      'rdf-Top-c.tsv':        { category: CATEGORY.SCIENCE,         language: 'en' },
+      'rdf-World-c.tsv':      { category: CATEGORY.PEOPLE_PLACES,   language: 'en' }, // mixed; English index
+      'rdf-Adult-c.tsv':      { category: null,                     language: 'en' }, // skip
     };
+    // Legacy alias so the loop below can use a single name
+    const filenameToCategory = Object.fromEntries(
+      Object.entries(filenameToMeta).map(([k, v]) => [k, v.category])
+    );
 
     for (const file of contentFiles) {
       const categoryId = filenameToCategory[file];
@@ -291,8 +298,9 @@ async function extractAndParseTsv() {
         console.log(`[curlie] Skipping ${file} (no category mapping)`);
         continue;
       }
+      const language = filenameToMeta[file]?.language ?? 'en';
 
-      console.log(`[curlie] Parsing content: ${file}...`);
+      console.log(`[curlie] Parsing content: ${file} (lang=${language})...`);
       const filePath = resolve(curliePath, file);
       const content = await fs.readFile(filePath, 'utf-8');
       const lines = content.split('\n');
@@ -328,6 +336,7 @@ async function extractAndParseTsv() {
           title,
           description,
           category_id: categoryId,
+          language,
           source: 'curlie',
         };
 

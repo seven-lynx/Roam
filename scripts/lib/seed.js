@@ -231,6 +231,7 @@ export async function upsertUrls(rows, { fetchOg = true, verbose = true } = {}) 
       category_id:    r.category_id  ?? null,
       subcategory_id: r.subcategory_id ?? null,
       source:         r.source       ?? 'manual',
+      language:       r.language     ?? 'en',
       approved:       true,
       wilson_score:   0,
       upvotes:        0,

@@ -75,6 +75,7 @@ async function dispatch(req: Request): Promise<Response> {
     case 'SUBMIT_URL':          return submitUrl(req.url, req.categoryId);
     case 'SAVE_LATER':          return saveLater(req.url);
     case 'SET_PAYWALL_PREF':    return setPaywallPref(req.skip);
+    case 'SET_LANGUAGE_PREF':   return setLanguagePref(req.languages);
     case 'GET_COLLECTIONS':     return getCollections();
     case 'CREATE_COLLECTION':   return createCollection(req.name);
     case 'ADD_URL_TO_COLLECTION': return addUrlToCollection(req.url, req.collectionId);
@@ -477,9 +478,28 @@ async function setPaywallPref(skip: boolean): Promise<Response<null>> {
   const session = (await getSupabase().auth.getSession()).data.session;
   if (!session) return { ok: false, error: 'Not signed in' };
 
-  // For now, store in chrome.storage.local
-  // TODO (task 5.12b): Create user_settings table in DB and sync here
   await chrome.storage.local.set({ skip_paywalled: skip });
+
+  const { error } = await getSupabase()
+    .from('user_settings')
+    .upsert({ user_id: session.user.id, skip_paywalled: skip }, { onConflict: 'user_id' });
+  if (error) console.warn('[roam] setPaywallPref DB error:', error.message);
+
+  return { ok: true, data: null };
+}
+
+async function setLanguagePref(languages: string[]): Promise<Response<null>> {
+  const session = (await getSupabase().auth.getSession()).data.session;
+  if (!session) return { ok: false, error: 'Not signed in' };
+
+  // Must include at least English to avoid an empty pool
+  const langs = languages.length > 0 ? languages : ['en'];
+  await chrome.storage.local.set({ preferred_languages: langs });
+
+  const { error } = await getSupabase()
+    .from('user_settings')
+    .upsert({ user_id: session.user.id, preferred_languages: langs }, { onConflict: 'user_id' });
+  if (error) console.warn('[roam] setLanguagePref DB error:', error.message);
 
   return { ok: true, data: null };
 }
