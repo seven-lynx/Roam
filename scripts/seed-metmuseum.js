@@ -34,9 +34,9 @@ const NO_CACHE        = process.argv.includes('--no-cache');
 const RESET           = process.argv.includes('--reset');
 
 const BASE_URL        = 'https://collectionapi.metmuseum.org/public/collection/v1';
-const CONCURRENCY     = 10;   // parallel object fetches (well under 80/s limit)
-const CHECKPOINT_EVERY = 200; // save progress every N objects
-const DELAY_MS        = 50;   // small delay between concurrent batches
+const CONCURRENCY     = 1;    // sequential — Met API silently rate-limits concurrent bursts
+const CHECKPOINT_EVERY = 500; // save progress every N objects
+const DELAY_MS        = 120;  // ~8 req/s — comfortably under the 80/s limit
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -93,9 +93,15 @@ async function fetchObject(id) {
     const res = await fetch(`${BASE_URL}/objects/${id}`, {
       headers: { 'User-Agent': 'Roam-Seeder/1.0 (+https://roamtheweb.app)' },
     });
-    if (!res.ok) return null;
+    if (res.status === 429) throw new Error('rate limited');
+    if (!res.ok) { fetchObject.errors = (fetchObject.errors ?? 0) + 1; return null; }
     return await res.json();
-  } catch {
+  } catch (err) {
+    if (err.message === 'rate limited') {
+      console.warn('[met] Rate limited — pausing 10s...');
+      await sleep(10000);
+    }
+    fetchObject.errors = (fetchObject.errors ?? 0) + 1;
     return null;
   }
 }
@@ -171,8 +177,9 @@ async function fetchMetadata(plan, startIdx, existingRows) {
     processed += batch.length;
 
     if (processed % CHECKPOINT_EVERY === 0 || processed >= plan.length) {
+      const errors = fetchObject.errors ?? 0;
       writeFileSync(PROGRESS_FILE, JSON.stringify({ processedIdx: processed, rows }));
-      console.log(`[met]   ${processed} / ${plan.length} processed — ${rows.length} with images`);
+      console.log(`[met]   ${processed} / ${plan.length} processed — ${rows.length} with images${errors ? ` (${errors} errors)` : ''}`);
     }
 
     await sleep(DELAY_MS);
