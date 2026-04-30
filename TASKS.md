@@ -187,7 +187,7 @@ Filling the discovery pool before launch so that the Roam button has something t
 | `seed-wiby.js` | wiby.me | none | ⚠️ 0 rows — bugs fixed, rerun needed |
 | `seed-lobsters.js` | Lobsters JSON API | none | ✅ ~1,000 rows |
 | `seed-semanticscholar.js` | Semantic Scholar API | optional | ✅ ~50,000 rows |
-| `seed-nyt.js` | NYT Article Search API | `NYT_API_KEY` | ⬜ not yet run |
+| `seed-nyt.js` | NYT Article Search API | `NYT_API_KEY` | 🔄 running — fetching fresh Top Stories (14 sections) |
 | `seed-guardian.js` | Guardian Content API | `GUARDIAN_API_KEY` | ✅ 18,000 rows |
 | `seed-propublica.js` | ProPublica sitemaps | none | ✅ 106 rows |
 | `seed-npr.js` | NPR RSS feeds | none | ✅ 152 rows |
@@ -198,7 +198,7 @@ Filling the discovery pool before launch so that the Roam button has something t
 | `seed-pubmed.js` | NCBI Entrez API | none | 🔄 running — search phase in progress (~30-50K expected) |
 | `seed-reddit.js` | Reddit public JSON API | none | ✅ 1,549 rows — 35 subreddits across all 8 categories |
 | `seed-ted.js` | TED Talks sitemap + OG | none | ✅ ~7,492 curator-approved talks — run complete |
-| `seed-metmuseum.js` | Met Museum / Wikidata SPARQL | none | 🔄 running — ~30K items via Wikidata P3634, ~10K upserted so far |
+| `seed-metmuseum.js` | Met Museum / Wikidata SPARQL | none | ✅ 73,211 rows — Wikidata P3634 across all departments |
 | `seed-boardgamegeek.js` | BoardGameGeek XML API | none | ⚠️ blocked — API now requires registered Bearer token (approval takes 1+ week) |
 
 **Total rows from complete seeders (excl. Curlie/PubMed in-progress): ~228,000+**
