@@ -352,7 +352,7 @@ Filling the discovery pool before launch so that the Roam button has something t
 
 - [ ] **4.33** Write the Smithsonian Magazine seeder — RSS feeds (free, no auth); ~5-10K articles from past 2-3 years; maps: History (40%), Science (30%), Arts (20%), Places (10%); authoritative source; effort: 2 hours
 
-- [ ] **4.34** Write the TED Talks seeder — enumerates all ~4,500 talk URLs from the official TED sitemap (`ted.com/sitemaps/talks.xml.gz`), fetches OG/JSON-LD metadata from each talk page; maps to all 8 categories via keyword matching on talk slug; thumbnails from JSON-LD `VideoObject` structured data; ~4,500 high-quality talks; effort: 2 hours + crawl time (~2hrs at 1.5s/req)
+- [ ] **4.34** Write the TED Talks seeder — uses `talks-curator-approved.xml.gz` sitemap (7,492 quality TED talks vetted by TED editorial); fetches OG/JSON-LD metadata from each talk page; maps to all 8 categories via keyword matching on talk slug; thumbnails from JSON-LD `VideoObject` structured data; effort: 2 hours + crawl time (~3hrs at 1.5s/req)
 
 - [ ] **4.35** Write the Substack seeder — scrape trending publications + RSS feeds (no official API); ~25K URLs from independent newsletters; captures independent voices (different from NYT/Guardian); effort: 3-4 hours
 
@@ -363,6 +363,14 @@ Filling the discovery pool before launch so that the Roam button has something t
 - [ ] **4.37** Write the Podcast Index seeder — decentralized audio metadata (free API); top 100 podcasts × 10 episodes each = ~5K URLs; new medium (currently all websites); effort: 2-3 hours
 
 - [ ] **4.38** Write the GitHub Trending seeder — no official API, scrape `github.com/trending` by language/timespan; ~3-5K repos; captures emerging tech projects; effort: 1-2 hours
+
+- [ ] **4.39** Write the Itch.io seeder — indie game discovery platform; enumerate top-rated/most-downloaded games via sitemap or browse pages; ~50K items covering Games & Hobbies and Weird & Wonderful; free, no key; effort: 2-3 hours
+
+- [ ] **4.40** Write the BoardGameGeek seeder — XML API (free, no key); top 10K board games by rank; pulls title, description, thumbnail from BGG API; maps to Games & Hobbies; strong community signal (ratings-based); effort: 2 hours
+
+- [ ] **4.41** Write the LibriVox seeder — free public domain audiobooks catalog API (`librivox.org/api`); ~15K books with descriptions and cover art; maps to Arts & Culture and History & Ideas; no key required; effort: 2 hours
+
+- [ ] **4.42** Write the Bandcamp seeder — music discovery; enumerate genre tag pages (e.g. `bandcamp.com/tag/jazz`) to collect album/artist URLs; ~5K items; Arts & Culture; no official API — parse HTML tag pages; effort: 2-3 hours
 
 #### Not Recommended (Pre-launch)
 
