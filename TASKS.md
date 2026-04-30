@@ -197,7 +197,9 @@ Filling the discovery pool before launch so that the Roam button has something t
 | `seed-gutenberg.js` | Gutendex (Project Gutenberg) | none | ✅ 510 rows |
 | `seed-pubmed.js` | NCBI Entrez API | none | 🔄 running — search phase in progress (~30-50K expected) |
 | `seed-reddit.js` | Reddit public JSON API | none | ✅ committed — 35 subreddits across all 8 categories |
-| `seed-ted.js` | TED Talks sitemap + OG | none | ⬜ not yet run |
+| `seed-ted.js` | TED Talks sitemap + OG | none | 🔄 running — 7,492 curator-approved talks (~3hrs) |
+| `seed-metmuseum.js` | Met Museum Collection API | none | 🔄 running — 39,643 IDs queued across 18 departments |
+| `seed-boardgamegeek.js` | BoardGameGeek XML API | none | ⚠️ blocked — API now requires registered Bearer token (approval takes 1+ week) |
 
 **Total rows from complete seeders (excl. Curlie/PubMed in-progress): ~228,000+**
 **Curlie:** 2,732,344 rows extracted, upsert phase in progress
@@ -348,7 +350,9 @@ Filling the discovery pool before launch so that the Roam button has something t
 
 #### Medium Priority — Diversification (Following week)
 
-- [ ] **4.32** Write the Museum APIs seeder — Metropolitan Museum (free, 375K items), Rijksmuseum (free key, 700K items), MOMA (free, 30K items); pulls ~50K artworks total; fills **Visual Arts & Creativity entirely** with high-quality images; effort: 4 hours (multi-API client)
+- [x] **4.32** Write the Museum APIs seeder — Metropolitan Museum (free, 375K items), Rijksmuseum (free key, 700K items), MOMA (free, 30K items); pulls ~50K artworks total; fills **Visual Arts & Creativity entirely** with high-quality images; effort: 4 hours (multi-API client)
+
+  📖 **What we did:** Built `scripts/seed-metmuseum.js` targeting 18 Met departments mapped to Roam's Arts & Culture, History & Ideas, and People & Places categories. Phase 1 fetches all object IDs per department and randomly samples up to `maxItems` from each (39,643 total IDs queued). Phase 2 fetches each object concurrently (10 at a time) and skips those without a `primaryImageSmall` (public-domain image). Builds description from artist name/bio, date, and medium. Checkpointed every 200 objects — fully resumable. BGG was attempted but now requires a registered Bearer token (approval takes 1+ week).
 
 - [ ] **4.33** Write the Smithsonian Magazine seeder — RSS feeds (free, no auth); ~5-10K articles from past 2-3 years; maps: History (40%), Science (30%), Arts (20%), Places (10%); authoritative source; effort: 2 hours
 
