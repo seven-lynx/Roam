@@ -143,11 +143,9 @@ async function fetchTag(tag, categoryId) {
         body: JSON.stringify({
           filters: {
             sort:            'pop',
-            genre:           tag,
-            subgenre:        '',
+            tags:            [tag],
             format:          'all',
             location:        0,
-            tags:            [],
             highlight_color: null,
           },
           page,
