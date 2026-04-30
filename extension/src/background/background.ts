@@ -485,6 +485,9 @@ async function setPaywallPref(skip: boolean): Promise<Response<null>> {
     .upsert({ user_id: session.user.id, skip_paywalled: skip }, { onConflict: 'user_id' });
   if (error) console.warn('[roam] setPaywallPref DB error:', error.message);
 
+  // Flush queue so cached URLs are not served with the old paywall setting
+  await clearQueue();
+
   return { ok: true, data: null };
 }
 
@@ -500,6 +503,9 @@ async function setLanguagePref(languages: string[]): Promise<Response<null>> {
     .from('user_settings')
     .upsert({ user_id: session.user.id, preferred_languages: langs }, { onConflict: 'user_id' });
   if (error) console.warn('[roam] setLanguagePref DB error:', error.message);
+
+  // Flush queue so cached URLs are not served with the old language setting
+  await clearQueue();
 
   return { ok: true, data: null };
 }
