@@ -176,8 +176,9 @@ async function fetchPaperDetails(ids) {
   for (let i = 0; i < ids.length; i += 100) {
     const batch = ids.slice(i, i + 100);
     const idList = batch.join(',');
+    // Use esummary (not efetch) — esummary supports retmode=json for PubMed
     const url =
-      `https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi` +
+      `https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esummary.fcgi` +
       `?db=pubmed` +
       `&id=${idList}` +
       `&retmode=json`;
@@ -186,19 +187,26 @@ async function fetchPaperDetails(ids) {
       const res = await fetch(url, {
         headers: { 'User-Agent': 'Roam-Seeder/1.0 (https://roamtheweb.app)' },
       });
-      const json = await res.json();
+      // NCBI sometimes returns XML error pages on rate limiting — check before parsing
+      const text = await res.text();
+      if (text.trimStart().startsWith('<')) {
+        throw new Error(`NCBI returned XML (likely rate-limited) at batch ${Math.floor(i / 100) + 1}`);
+      }
+      const json = JSON.parse(text);
 
       if (json.result && json.result.uids) {
         for (const uid of json.result.uids) {
           const article = json.result[uid];
           if (article && article.uid) {
-            // PubMed URL format
             const paperUrl = `https://pubmed.ncbi.nlm.nih.gov/${article.uid}/`;
             const title = article.title || `PubMed ${article.uid}`;
-            const description =
-              (article.abstract && article.abstract[0]) ||
-              (article.keywords && article.keywords.join('; ')) ||
-              '';
+            // esummary has no abstract; build description from journal + date + authors
+            const authors = Array.isArray(article.authors)
+              ? article.authors.slice(0, 3).map((a) => a.name).join(', ')
+              : '';
+            const journal = article.fulljournalname || article.source || '';
+            const pubdate = article.pubdate || '';
+            const description = [authors, journal, pubdate].filter(Boolean).join(' · ');
 
             papers[article.uid] = {
               url: paperUrl,
@@ -214,6 +222,10 @@ async function fetchPaperDetails(ids) {
       await sleep(DELAY_MS);
     } catch (err) {
       console.error(`    [pubmed] Error fetching batch:`, err.message);
+      // Back off longer on rate-limit errors to let NCBI recover
+      if (err.message.includes('XML') || err.message.includes('rate')) {
+        await sleep(5000);
+      }
     }
   }
 

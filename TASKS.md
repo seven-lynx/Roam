@@ -184,7 +184,7 @@ Filling the discovery pool before launch so that the Roam button has something t
 | `seed-openlibrary.js` | Open Library Subjects API | none | ✅ 59,514 rows |
 | `seed-arxiv.js` | arXiv Atom feed | none | ✅ 6,600 rows |
 | `seed-awesome.js` | GitHub Awesome lists | none | ✅ 9,824 rows |
-| `seed-wiby.js` | wiby.me | none | ⚠️ 0 rows — bugs fixed, rerun needed |
+| `seed-wiby.js` | wiby.me | none | ✅ 1,747 rows |
 | `seed-lobsters.js` | Lobsters JSON API | none | ✅ ~1,000 rows |
 | `seed-semanticscholar.js` | Semantic Scholar API | optional | ✅ ~50,000 rows |
 | `seed-nyt.js` | NYT Article Search API | `NYT_API_KEY` | ✅ 339 rows — 14 Top Stories sections |
@@ -195,7 +195,7 @@ Filling the discovery pool before launch so that the Roam button has something t
 | `seed-internetarchive.js` | Internet Archive API | none | ✅ 50,966 rows |
 | `seed-curlie.js` | Curlie directory | none | ✅ 2,732,344 extracted, upsert complete — 34 malformed lines skipped, all rows tagged `source = 'curlie'` |
 | `seed-gutenberg.js` | Gutendex (Project Gutenberg) | none | ✅ 510 rows |
-| `seed-pubmed.js` | NCBI Entrez API | none | 🔄 running — search phase in progress (~30-50K expected) |
+| `seed-pubmed.js` | NCBI Entrez API | none | 🔄 rerunning — fetch phase (fixed: efetch→esummary; first run upserted 0 rows) |
 | `seed-reddit.js` | Reddit public JSON API | none | ✅ 1,549 rows — 35 subreddits across all 8 categories |
 | `seed-ted.js` | TED Talks sitemap + OG | none | ✅ ~7,492 curator-approved talks — run complete |
 | `seed-metmuseum.js` | Met Museum / Wikidata SPARQL | none | ✅ 73,211 rows — Wikidata P3634 across all departments |
