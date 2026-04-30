@@ -109,13 +109,17 @@ async function fetchSitemapGz(url) {
   }
 }
 
-// ── Find the talks sitemap URL from the index ─────────────────────────────────
-async function findTalksSitemap() {
+// ── Find all talks sitemap URLs from the index ──────────────────────────────
+async function findAllTalksSitemaps() {
   const xml = await fetchSitemapGz(SITEMAP_INDEX);
-  const match = xml.match(/<loc>(https?:\/\/[^<]+talks[^<]*)<\/loc>/i);
-  if (match) return match[1].trim();
-  // Fallback: known location
-  return 'https://www.ted.com/sitemaps/talks.xml.gz';
+  const urls = parseLocUrls(xml).filter((u) => u.includes('talks'));
+  // Prefer the curator-approved sitemap — ~7,500 quality talks vetted by TED.
+  // The per-year sitemaps include thousands of TEDx talks that dilute quality.
+  const curated = urls.find((u) => u.includes('curator-approved'));
+  if (curated) return [curated];
+  // Fallback: use all talks sitemaps if curator-approved is not found
+  if (urls.length > 0) return urls;
+  return ['https://www.ted.com/sitemaps/talks-curator-approved.xml.gz'];
 }
 
 // ── Parse <loc> entries from a sitemap XML string ─────────────────────────────
@@ -205,33 +209,39 @@ async function main() {
     talkUrls = JSON.parse(readFileSync(CACHE_FILE, 'utf8'));
     console.log(`[ted] ${talkUrls.length} talks from cache`);
   } else {
-    console.log('[ted] Fetching talks sitemap...');
-    let sitemapUrl;
+    console.log('[ted] Fetching talks sitemaps...');
+    let sitemapUrls;
     try {
-      sitemapUrl = await findTalksSitemap();
-      console.log(`[ted] Found sitemap: ${sitemapUrl}`);
+      sitemapUrls = await findAllTalksSitemaps();
+      console.log(`[ted] Found ${sitemapUrls.length} talk sitemaps`);
     } catch (err) {
       console.error(`[ted] Could not load sitemap index: ${err.message}`);
       process.exit(1);
     }
 
-    let sitemapXml;
-    try {
-      sitemapXml = await fetchSitemapGz(sitemapUrl);
-    } catch (err) {
-      // Try uncompressed fallback
-      console.warn(`[ted] .gz failed (${err.message}), trying .xml...`);
-      const fallback = sitemapUrl.replace('.xml.gz', '.xml');
-      const res = await fetch(fallback, {
-        headers: { 'User-Agent': 'Roam-Seeder/1.0 (+https://roamtheweb.app)' },
-      });
-      if (!res.ok) { console.error(`[ted] Sitemap fetch failed: HTTP ${res.status}`); process.exit(1); }
-      sitemapXml = await res.text();
+    talkUrls = [];
+    for (const sitemapUrl of sitemapUrls) {
+      let sitemapXml;
+      try {
+        sitemapXml = await fetchSitemapGz(sitemapUrl);
+      } catch (err) {
+        // Try uncompressed fallback
+        console.warn(`[ted] .gz failed for ${sitemapUrl} (${err.message}), trying .xml...`);
+        const fallback = sitemapUrl.replace('.xml.gz', '.xml');
+        const res = await fetch(fallback, {
+          headers: { 'User-Agent': 'Roam-Seeder/1.0 (+https://roamtheweb.app)' },
+        });
+        if (!res.ok) { console.warn(`[ted] Skipping ${sitemapUrl}: HTTP ${res.status}`); continue; }
+        sitemapXml = await res.text();
+      }
+      const batch = parseLocUrls(sitemapXml)
+        .filter((u) => u.includes('/talks/') && !u.endsWith('/talks') && !u.includes('?'));
+      talkUrls.push(...batch);
+      console.log(`[ted] ${sitemapUrl.split('/').pop()} — ${batch.length} URLs (total: ${talkUrls.length})`);
     }
-
-    talkUrls = parseLocUrls(sitemapXml)
-      .filter((u) => u.includes('/talks/') && !u.endsWith('/talks'));
-    console.log(`[ted] Found ${talkUrls.length} talk URLs`);
+    // Deduplicate (curator-approved sitemap overlaps with year sitemaps)
+    talkUrls = [...new Set(talkUrls)];
+    console.log(`[ted] Found ${talkUrls.length} talk URLs total`);
     writeFileSync(CACHE_FILE, JSON.stringify(talkUrls));
   }
 
