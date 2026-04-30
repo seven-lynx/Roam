@@ -195,14 +195,16 @@ Filling the discovery pool before launch so that the Roam button has something t
 | `seed-internetarchive.js` | Internet Archive API | none | ✅ 50,966 rows |
 | `seed-curlie.js` | Curlie directory | none | ✅ 2,732,344 extracted, upsert complete — 34 malformed lines skipped, all rows tagged `source = 'curlie'` |
 | `seed-gutenberg.js` | Gutendex (Project Gutenberg) | none | ✅ 510 rows |
-| `seed-pubmed.js` | NCBI Entrez API | none | 🔄 rerunning — fetch phase (fixed: efetch→esummary; first run upserted 0 rows) |
+| `seed-pubmed.js` | NCBI Entrez API | none | ✅ 40,154 rows — 24 MeSH terms, 803 batches (fixed: efetch→esummary + original_url) |
 | `seed-reddit.js` | Reddit public JSON API | none | ✅ 1,549 rows — 35 subreddits across all 8 categories |
 | `seed-ted.js` | TED Talks sitemap + OG | none | ✅ ~7,492 curator-approved talks — run complete |
 | `seed-metmuseum.js` | Met Museum / Wikidata SPARQL | none | ✅ 73,211 rows — Wikidata P3634 across all departments |
 | `seed-boardgamegeek.js` | BoardGameGeek XML API | none | ⚠️ blocked — API now requires registered Bearer token (approval takes 1+ week) |
+| `seed-librivox.js` | LibriVox public API | none | 🔄 running — 18,752 English audiobooks, OG fetch phase |
+| `seed-github.js` | GitHub Search API | optional `GITHUB_TOKEN` | 🔄 ready to run — 46 topics × 3 pages × 100 repos |
 
-**Total rows from complete seeders (excl. Curlie/PubMed in-progress): ~228,000+**
-**Curlie:** 2,732,344 rows extracted, upsert phase in progress
+**Total rows from complete seeders (excl. Curlie in-progress): ~268,000+**
+**Curlie:** 2,732,344 rows extracted, upsert complete
 **Total expected when all complete: ~3.0M+**
 
 ### 4a. Seeding infrastructure
@@ -368,13 +370,17 @@ Filling the discovery pool before launch so that the Roam button has something t
 
 - [ ] **4.37** Write the Podcast Index seeder — decentralized audio metadata (free API); top 100 podcasts × 10 episodes each = ~5K URLs; new medium (currently all websites); effort: 2-3 hours
 
-- [ ] **4.38** Write the GitHub Trending seeder — no official API, scrape `github.com/trending` by language/timespan; ~3-5K repos; captures emerging tech projects; effort: 1-2 hours
+- [x] **4.38** Write the GitHub Trending seeder — uses GitHub Search API by topic; 46 topics × 3 pages × 100 repos = ~5K repos; maps to all 8 categories; optional `GITHUB_TOKEN` for higher rate limit; no key required (10 req/min unauthenticated)
+
+  📖 **What we did:** Created `scripts/seed-github.js`. Uses GitHub's Search API (`api.github.com/search/repositories`) to query 46 curated topics (web, cli, security, bioinformatics, music, game-development, health, maps, etc.) each mapped to a Roam category. Filters `stars:>500` and skips archived repos or those without descriptions. Paginates up to 3 pages per topic (300 repos/topic). Rate-limited to 6.6s/request unauthenticated (10 req/min) or 2.5s with optional `GITHUB_TOKEN`. Deduplicates across topics globally. `fetchOg: false` — descriptions come from the API. Cached to `scripts/.cache/github.json`.
 
 - [ ] **4.39** Write the Itch.io seeder — indie game discovery platform; enumerate top-rated/most-downloaded games via sitemap or browse pages; ~50K items covering Games & Hobbies and Weird & Wonderful; free, no key; effort: 2-3 hours
 
 - [ ] **4.40** Write the BoardGameGeek seeder — XML API (free, no key); top 10K board games by rank; pulls title, description, thumbnail from BGG API; maps to Games & Hobbies; strong community signal (ratings-based); effort: 2 hours
 
-- [ ] **4.41** Write the LibriVox seeder — free public domain audiobooks catalog API (`librivox.org/api`); ~15K books with descriptions and cover art; maps to Arts & Culture and History & Ideas; no key required; effort: 2 hours
+- [x] **4.41** Write the LibriVox seeder — free public domain audiobooks catalog API (`librivox.org/api`); ~15K books with descriptions and cover art; maps to Arts & Culture and History & Ideas; no key required; effort: 2 hours
+
+  📖 **What we did:** Created `scripts/seed-librivox.js`. Fetches all English audiobooks from the LibriVox API in pages of 50 (`offset`-based pagination). Filters for `language === 'English'`. Maps books to categories by keyword matching on title + description (genres field not returned by API). Uses `upsertUrls()` with `fetchOg: true`. Fetched 19,223 English books; 18,752 unique URLs — OG fetch phase running.
 
 - [ ] **4.42** Write the Bandcamp seeder — music discovery; enumerate genre tag pages (e.g. `bandcamp.com/tag/jazz`) to collect album/artist URLs; ~5K items; Arts & Culture; no official API — parse HTML tag pages; effort: 2-3 hours
 
