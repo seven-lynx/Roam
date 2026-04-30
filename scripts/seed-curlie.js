@@ -403,8 +403,9 @@ async function upsertUrlsWithProgressStreaming(jsonlFile, progress) {
 
       // Skip already-processed batches on resume
       if (batchNumber <= startBatch) {
-        console.log(`[curlie] Skipping batch ${batchNumber} (already processed)`);
-        skipped += currentBatch.length;
+        if (batchNumber % 1000 === 0) {
+          console.log(`[curlie] Fast-forwarding... (batch ${batchNumber} / ${startBatch})`);
+        }
         currentBatch = [];
         continue;
       }
