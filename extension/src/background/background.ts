@@ -246,7 +246,20 @@ async function roam(collectionId?: string): Promise<Response<RoamData>> {
     },
   });
 
-  if (error) return { ok: false, error: error.message };
+  if (error) {
+    // FunctionsHttpError carries the raw Response on .context
+    const status: number | undefined = (error as any).context?.status;
+    if (status === 404) {
+      // Pool exhausted for this user's settings — signal "no results"
+      return { ok: true, data: { url: '' } as RoamData };
+    }
+    // Try to surface the actual error body before falling back to generic message
+    try {
+      const body = await (error as any).context?.json?.();
+      if (body?.error) return { ok: false, error: body.error };
+    } catch { /* ignore parse errors */ }
+    return { ok: false, error: error.message };
+  }
   if (data?.error) return { ok: false, error: data.error };
 
   // Save the domain of the URL we just got for next time
