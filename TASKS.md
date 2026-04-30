@@ -201,7 +201,8 @@ Filling the discovery pool before launch so that the Roam button has something t
 | `seed-metmuseum.js` | Met Museum / Wikidata SPARQL | none | ✅ 73,211 rows — Wikidata P3634 across all departments |
 | `seed-boardgamegeek.js` | BoardGameGeek XML API | none | ⚠️ blocked — API now requires registered Bearer token (approval takes 1+ week) |
 | `seed-librivox.js` | LibriVox public API | none | 🔄 running — 18,752 English audiobooks, OG fetch phase |
-| `seed-github.js` | GitHub Search API | optional `GITHUB_TOKEN` | 🔄 ready to run — 46 topics × 3 pages × 100 repos |
+| `seed-github.js` | GitHub Search API | optional `GITHUB_TOKEN` | ✅ 5,806 rows — 45 topics × up to 3 pages × 100 repos |
+| `seed-itchio.js` | Itch.io browse API | none | 🔄 running — 33 sources × 30 pages |
 
 **Total rows from complete seeders (excl. Curlie in-progress): ~268,000+**
 **Curlie:** 2,732,344 rows extracted, upsert complete
@@ -384,7 +385,9 @@ Filling the discovery pool before launch so that the Roam button has something t
 
   📖 **What we did:** Created `scripts/seed-librivox.js`. Fetches all English audiobooks from the LibriVox API in pages of 50 (`offset`-based pagination). Filters for `language === 'English'`. Maps books to categories by keyword matching on title + description (genres field not returned by API). Uses `upsertUrls()` with `fetchOg: true`. Fetched 19,223 English books; 18,752 unique URLs — OG fetch phase running.
 
-- [ ] **4.42** Write the Bandcamp seeder — music discovery; enumerate genre tag pages (e.g. `bandcamp.com/tag/jazz`) to collect album/artist URLs; ~5K items; Arts & Culture; no official API — parse HTML tag pages; effort: 2-3 hours
+- [x] **4.42** Write the Bandcamp seeder — music discovery; enumerate genre tag pages to collect album/artist URLs; ~5K items; Arts & Culture + Weird & Wonderful; no official API — uses internal `dig_deeper` JSON endpoint; effort: 2-3 hours
+
+  📖 **What we did:** Created `scripts/seed-bandcamp.js`. Uses Bandcamp's internal `POST https://bandcamp.com/api/hub/2/dig_deeper` endpoint with `{ tag, page, sort: "pop" }` body. Queries 31 genre tags (jazz, classical, folk, hip-hop, ambient, experimental, synthwave, etc.) mapped to Arts & Culture, Weird & Wonderful, and Mind & Body. Up to 20 pages/tag × ~8-12 items = ~160-240 per tag. Handles 403 Cloudflare blocks gracefully (skips tag). Rate: 1500ms delay. `fetchOg: false`.
 
 #### Not Recommended (Pre-launch)
 
