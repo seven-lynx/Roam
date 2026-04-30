@@ -1,0 +1,175 @@
+package app.roam.android.ui.screen
+
+import android.content.Intent
+import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.dp
+import app.roam.android.MainActivity
+import app.roam.android.viewmodel.MainViewModel
+import app.roam.android.viewmodel.RoamState
+import app.roam.android.ui.component.BottomBar
+import app.roam.android.ui.component.ConfigBottomSheet
+import app.roam.android.ui.component.RoamWebView
+import app.roam.android.ui.component.SubmitBottomSheet
+import kotlin.math.abs
+
+/** Minimum drag distance (px) required to trigger a gesture action */
+private const val SWIPE_THRESHOLD = 80f
+private const val PULL_DOWN_THRESHOLD = 100f
+
+@Composable
+fun MainScreen(
+    vm: MainViewModel,
+    activity: MainActivity,
+    onSignOut: () -> Unit = {},
+) {
+    val context = LocalContext.current
+    val state by vm.state.collectAsState()
+    val currentUrl by vm.currentUrl.collectAsState()
+    val showSubmitSheet by vm.showSubmitSheet.collectAsState()
+    val showConfigSheet by vm.showConfigSheet.collectAsState()
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    // Auto-load the first page when the screen appears
+    LaunchedEffect(Unit) {
+        vm.roam()
+    }
+
+    // Show snackbar on error
+    LaunchedEffect(state) {
+        if (state is RoamState.Error) {
+            snackbarHostState.showSnackbar((state as RoamState.Error).message)
+        }
+    }
+
+    Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
+        bottomBar = {
+            BottomBar(
+                onRoam = { vm.roam() },
+                onThumbsUp = { vm.thumbsUp(context) },
+                onThumbsDown = { vm.thumbsDown(context) },
+                onConfig = { vm.openConfigSheet() },
+            )
+        },
+    ) { innerPadding ->
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding),
+        ) {
+            // WebView
+            RoamWebView(
+                url = currentUrl,
+                modifier = Modifier.fillMaxSize(),
+                onUrlChanged = { vm.onWebViewUrlChanged(it) },
+                onLoadError = { vm.roam() },
+            )
+
+            // Gesture overlay — transparent layer on top for swipe/pull detection.
+            // Buttons underneath remain fully tappable; gestures are shortcuts only.
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .pointerInput(Unit) {
+                        detectDragGestures { change, dragAmount ->
+                            change.consume()
+                            val dx = dragAmount.x
+                            val dy = dragAmount.y
+                            when {
+                                // Pull down → Roam
+                                dy > PULL_DOWN_THRESHOLD && abs(dy) > abs(dx) -> vm.roam()
+                                // Swipe right → 👍
+                                dx > SWIPE_THRESHOLD && abs(dx) > abs(dy) -> vm.thumbsUp(context)
+                                // Swipe left → 👎
+                                dx < -SWIPE_THRESHOLD && abs(dx) > abs(dy) -> vm.thumbsDown(context)
+                            }
+                        }
+                    },
+            )
+
+            // Loading indicator
+            if (state is RoamState.Loading) {
+                LinearProgressIndicator(modifier = Modifier.fillMaxWidth().align(Alignment.TopCenter))
+            }
+
+            // Exhausted state
+            if (state is RoamState.Exhausted) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(32.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = androidx.compose.foundation.layout.Arrangement.Center,
+                ) {
+                    Text(
+                        text = "You've explored everything here",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onBackground,
+                    )
+                    Text(
+                        text = "Add more categories in Settings",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f),
+                        modifier = Modifier.padding(top = 8.dp),
+                    )
+                    TextButton(onClick = { vm.openConfigSheet() }) {
+                        Text("Open Settings")
+                    }
+                }
+            }
+        }
+    }
+
+    // Bottom sheets
+    if (showSubmitSheet) {
+        SubmitBottomSheet(
+            url = currentUrl,
+            onSubmit = { categoryId -> vm.submitUrl(currentUrl ?: "", categoryId) },
+            onDismiss = { vm.closeSubmitSheet() },
+        )
+    }
+
+    if (showConfigSheet) {
+        ConfigBottomSheet(
+            currentUrl = currentUrl,
+            onDismiss = { vm.closeConfigSheet() },
+            onSaveForLater = {
+                // Task 6.13 — stub
+                vm.closeConfigSheet()
+            },
+            onShare = {
+                val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                    type = "text/plain"
+                    putExtra(Intent.EXTRA_TEXT, currentUrl ?: "")
+                }
+                activity.startActivity(Intent.createChooser(shareIntent, null))
+                vm.closeConfigSheet()
+            },
+            onSignOut = {
+                vm.closeConfigSheet()
+                onSignOut()
+            },
+        )
+    }
+}

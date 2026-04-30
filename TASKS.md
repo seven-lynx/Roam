@@ -200,13 +200,15 @@ Filling the discovery pool before launch so that the Roam button has something t
 | `seed-ted.js` | TED Talks sitemap + OG | none | ✅ ~7,492 curator-approved talks — run complete |
 | `seed-metmuseum.js` | Met Museum / Wikidata SPARQL | none | ✅ 73,211 rows — Wikidata P3634 across all departments |
 | `seed-boardgamegeek.js` | BoardGameGeek XML API | none | ⚠️ blocked — API now requires registered Bearer token (approval takes 1+ week) |
-| `seed-librivox.js` | LibriVox public API | none | 🔄 running — 18,752 English audiobooks, OG fetch phase |
+| `seed-librivox.js` | LibriVox public API | none | ✅ 18,752 rows — all English audiobooks, OG metadata fetched, 0 skipped |
 | `seed-github.js` | GitHub Search API | optional `GITHUB_TOKEN` | ✅ 5,806 rows — 45 topics × up to 3 pages × 100 repos |
 | `seed-itchio.js` | Itch.io browse API | none | ✅ 13,329 rows — 33 sources × 30 pages |
+| `seed-bandcamp.js` | Bandcamp internal API | none | ✅ 9,634 rows — 31 genre tags via dig_deeper endpoint |
+| `seed-substack.js` | Substack category API | none | ✅ 14,847 rows — 29 categories, 1 skipped |
 
-**Total rows from complete seeders (excl. Curlie in-progress): ~268,000+**
+**Total rows from complete seeders (excl. Curlie): ~311,000+**
 **Curlie:** 2,732,344 rows extracted, upsert complete
-**Total expected when all complete: ~3.0M+**
+**Grand total in DB: ~3.04M+**
 
 ### 4a. Seeding infrastructure
 
@@ -261,7 +263,7 @@ Filling the discovery pool before launch so that the Roam button has something t
 
   📖 **What we did:** Created `scripts/seed-wiby.js`. 51 queries × 3 pages at 2s each. Parses HTML results. `fetchOg: true`. Cached to `scripts/.cache/wiby.json`. ⚠️ Two bugs were found and fixed: the fetch URL path was wrong (`/search/?q=` returns HTTP 404; correct path is `/?q=`), and the HTML parser looked for `<h2>` tags that don't exist in wiby's markup (results use `<blockquote>` + `.tlink` anchor elements). Both fixes are committed to `seed-wiby.js`. Rerun with `--no-cache` to populate.
 
-  **Result: 0 rows — rerun required.**
+  **Result: 1,747 rows inserted** (after rerun with `--no-cache` following the two bug fixes).
 - [ ] **4.12** Import JSTOR open-access — pull available open-access article metadata; map to Science, History, and Mind & Body
 
 ### 4c. Additional API seeders
@@ -387,7 +389,11 @@ Filling the discovery pool before launch so that the Roam button has something t
 
 - [x] **4.42** Write the Bandcamp seeder — music discovery; enumerate genre tag pages to collect album/artist URLs; ~5K items; Arts & Culture + Weird & Wonderful; no official API — uses internal `dig_deeper` JSON endpoint; effort: 2-3 hours
 
-  📖 **What we did:** Created `scripts/seed-bandcamp.js`. Uses Bandcamp's internal `POST https://bandcamp.com/api/hub/2/dig_deeper` endpoint with `{ tag, page, sort: "pop" }` body. Queries 31 genre tags (jazz, classical, folk, hip-hop, ambient, experimental, synthwave, etc.) mapped to Arts & Culture, Weird & Wonderful, and Mind & Body. Up to 20 pages/tag × ~8-12 items = ~160-240 per tag. Handles 403 Cloudflare blocks gracefully (skips tag). Rate: 1500ms delay. `fetchOg: false`.
+  📖 **What we did:** Created `scripts/seed-bandcamp.js`. Uses Bandcamp's internal `POST https://bandcamp.com/api/hub/2/dig_deeper` endpoint with `{ tag, page, sort: "pop" }` body. Queries 31 genre tags (jazz, classical, folk, hip-hop, ambient, experimental, synthwave, etc.) mapped to Arts & Culture, Weird & Wonderful, and Mind & Body. Up to 20 pages/tag × ~8-12 items = ~160-240 per tag. Handles 403 Cloudflare blocks gracefully (skips tag). Rate: 1500ms delay. `fetchOg: false`. Result: **9,634 items** inserted.
+
+- [x] **4.43** Write the Substack seeder — newsletter discovery; enumerate category publication lists via `GET https://substack.com/api/v1/category/public/{id}/publications?page={n}`; 29 categories mapped to all Roam categories; ~25 pubs/page until empty; no API key required; effort: 1 hour
+
+  📖 **What we did:** Created `scripts/seed-substack.js`. Fetches paginated publication lists for 29 Substack categories (technology, science, culture, art, music, literature, fiction, comics, film-and-tv, humor, fashion, history, philosophy, education, business, finance, news, us-politics, world-politics, travel, international, parenting, food, sports, health, health-politics, faith, climate, design, crypto). Uses `base_url` from each publication object. `fetchOg: false` for speed. Rate: 1000ms delay. Cache: `scripts/.cache/substack.json`. Result: **14,847 items** inserted.
 
 #### Not Recommended (Pre-launch)
 
@@ -503,33 +509,55 @@ Kotlin + Jetpack Compose. Full-screen WebView with a persistent bottom bar. Mirr
 
 ### 6a. Project setup
 
-- [ ] **6.1** Initialise a new Android project in the `android/` folder targeting API 26+ (Android 8.0), using Kotlin and Jetpack Compose
-- [ ] **6.2** Add Supabase Kotlin client dependency and configure it with the project URL and `anon` key (stored in `local.properties`, not committed)
-- [ ] **6.3** Add required permissions to `AndroidManifest.xml`: `INTERNET`, `VIBRATE`
+- [x] **6.1** Initialise a new Android project in the `android/` folder targeting API 26+ (Android 8.0), using Kotlin and Jetpack Compose
+- [x] **6.2** Add Supabase Kotlin client dependency and configure it with the project URL and `anon` key (stored in `local.properties`, not committed)
+- [x] **6.3** Add required permissions to `AndroidManifest.xml`: `INTERNET`, `VIBRATE`
 
 ### 6b. Core UI
 
-- [ ] **6.4** Build the main screen scaffold — full-screen WebView with a persistent `BottomNavigationBar` composable
-- [ ] **6.5** Build the 4-button bottom bar (Roam, 👍, 👎, ⚙️) matching the extension layout
-- [ ] **6.6** Implement the gesture layer — swipe right (👍), swipe left (👎), pull down (Roam), long-press 👍 (submit flow); buttons remain functional alongside gestures
+- [x] **6.4** Build the main screen scaffold — full-screen WebView with a persistent `BottomNavigationBar` composable
+- [x] **6.5** Build the 4-button bottom bar (Roam, 👍, 👎, ⚙️) matching the extension layout
+- [x] **6.6** Implement the gesture layer — swipe right (👍), swipe left (👎), pull down (Roam), long-press 👍 (submit flow); buttons remain functional alongside gestures
 
 ### 6c. Core features
 
-- [ ] **6.7** Implement auth — email/password sign-in and Google OAuth via Supabase; persist session across app restarts
-- [ ] **6.8** Implement the Roam button — calls `GET /roam`, loads the returned URL into the WebView
-- [ ] **6.9** Implement thumbs up on a known page — calls `POST /rate` with `+1`; short haptic pulse on confirmation
-- [ ] **6.10** Implement thumbs down — calls `POST /rate` with `-1`; haptic pulse
-- [ ] **6.11** Implement thumbs up on an unknown page — bottom sheet slides up with a category chip picker and Submit button; calls `POST /submit-url`
+- [x] **6.7** Implement auth — email/password sign-in and Google OAuth via Supabase; persist session across app restarts
+
+  📖 **What we did:** Created `AuthViewModel.kt` which collects `supabase.auth.sessionStatus` as a `StateFlow<AuthState>` — a sealed interface with three states: `Loading`, `Authenticated`, and `Unauthenticated`. `MainActivity` observes this flow and routes accordingly: `Loading` shows `SplashScreen` (a centered spinner shown for the ~50ms Supabase takes to restore a session from disk), `Unauthenticated` shows `OnboardingScreen`, and `Authenticated` shows `MainScreen`. `signOut()` is exposed on `AuthViewModel` and called from `ConfigBottomSheet`. The Supabase Kotlin SDK persists the session token to `SharedPreferences` automatically — no explicit restore logic needed.
+
+- [x] **6.8** Implement the Roam button — calls `GET /roam`, loads the returned URL into the WebView
+
+  📖 **What we did:** Created `RoamRepository.kt` which calls the `roam` Supabase Edge Function via `supabase.functions.invoke("roam")` with an optional `exclude_domain` parameter. Returns `null` on a 404 (pool exhausted for this user). Created `MainViewModel.kt` with a `UiState` sealed interface (`Idle / Loading / Loaded(RoamUrl) / Exhausted / Error`) and a `roam(excludeDomain)` method that transitions through these states. `RoamUrl` is a Kotlin data class matching the Edge Function's JSON response fields. In `MainScreen`, a `LaunchedEffect(Unit)` fires `vm.roam()` automatically on first composition so the app loads a page immediately on launch without the user needing to tap anything.
+
+- [x] **6.9** Implement thumbs up on a known page — calls `POST /rate` with `+1`; short haptic pulse on confirmation
+
+  📖 **What we did:** `thumbsUp()` in `MainViewModel` checks the current state. If `Loaded` (the page came from the discovery pool), it calls the `rate` Edge Function with `value = 1`, triggers a short `CLOCK_TICK` haptic via `Vibrator`, then immediately calls `roam(excludeDomain = currentUrl.host)` to load the next page while excluding the same domain. The `excludeDomain` parameter prevents serving another page from the same site back-to-back.
+
+- [x] **6.10** Implement thumbs down — calls `POST /rate` with `-1`; haptic pulse
+
+  📖 **What we did:** `thumbsDown()` always fires a haptic pulse and calls `roam(excludeDomain = ...)` to advance — even if the current page is unknown (the user may land on any URL manually). If the current state is `Loaded` (the URL came from the pool), it also calls the `rate` Edge Function with `value = -1`. This prevents a crash when thumbing down a manually-navigated page that has no `url_id`.
+
+- [x] **6.11** Implement thumbs up on an unknown page — bottom sheet slides up with a category chip picker and Submit button; calls `POST /submit-url`
+
+  📖 **What we did:** When `thumbsUp()` is called and the current state is not `Loaded` (the page was navigated to manually, not served by discovery), `MainViewModel` sets `showSubmitSheet = true`. `SubmitBottomSheet` renders 8 category chip buttons using the fixed pillar UUIDs (`c1000000-0000-0000-0000-000000000001` through `000000000008`). The Submit button is disabled until a chip is selected. On submit, `MainViewModel.submitUrl(url, categoryId)` calls the `submit-url` Edge Function — which normalises the URL, checks rate limits, runs Safe Browsing, and adds to the moderation queue. The sheet dismisses on success or shows an error message on failure.
+
 - [ ] **6.12** Build the Config bottom sheet — organised into two sections: (1) **Current page**: Add to collection (expandable list of user's collections + "New collection" option), Save for later, Share (Android share sheet); (2) **Roam mode**: Roam within this category chip, Roam a collection (list of user's collections activating collection mode), Manage collections (opens profile in WebView), Category preferences, Sign out
 - [ ] **6.12a** Design and implement empty and error states in the app — (1) no results: full-screen empty state with a shortcut to category settings; (2) API unreachable: inline banner with retry; (3) WebView page fails to load: native error screen with "Try next page" button; (4) signed out on app open: redirect to onboarding
 - [ ] **6.12b** Add "Skip paywalled sites" toggle to the Config bottom sheet — reads and writes the user's `skip_paywalled` preference in Supabase; mirrors the extension's setting (task 5.12b); default is **off**
 - [ ] **6.13** Implement Save for later — saves the current WebView URL to a local bookmark list (no categorisation required)
-- [ ] **6.14** Implement Share — triggers the Android system share sheet with the current URL
+- [x] **6.14** Implement Share — triggers the Android system share sheet with the current URL
+
+  📖 **What we did:** Wired an Android `ACTION_SEND` intent in `MainScreen.kt`. When the Share row in `ConfigBottomSheet` is tapped, `onShare()` fires: it reads the current URL from the WebView's `url` state, creates an `Intent(Intent.ACTION_SEND)` with `type = "text/plain"`, adds the URL as `EXTRA_TEXT`, and launches it with `Intent.createChooser`. The Android OS presents the system share sheet with all installed share targets (messages, clipboard, social apps, etc.). No custom share UI needed.
 
 ### 6d. Onboarding
 
-- [ ] **6.15** Implement onboarding — on first launch (no valid session), open the web `/join` page in a Chrome Custom Tab; after the user completes onboarding and a session is created, the Custom Tab closes and the app transitions to the main screen. No native Compose onboarding screens needed — this shares the single web implementation with the browser extension.
-- [ ] **6.16** Redirect new users to onboarding on first launch; skip to main screen if a valid session exists
+- [x] **6.15** Implement onboarding — on first launch (no valid session), open the web `/join` page in a Chrome Custom Tab; after the user completes onboarding and a session is created, the Custom Tab closes and the app transitions to the main screen. No native Compose onboarding screens needed — this shares the single web implementation with the browser extension.
+
+  📖 **What we did:** Created `OnboardingScreen.kt` which launches `https://roamtheweb.app/join` in a Chrome Custom Tab using `CustomTabsIntent.Builder()`. The CCT shares the Chrome cookie jar, giving the web onboarding flow access to any existing browser session. Added a deep-link intent filter to `AndroidManifest.xml` for `app.roam.android://callback` so the web page can redirect back to the app after sign-up. `MainActivity.handleDeepLink()` intercepts the callback URI, extracts the fragment containing the Supabase session tokens, and calls `supabase.auth.parseFragmentAndImportSession(uri.toString())` to import the session. `AuthViewModel`'s session flow then fires with `Authenticated`, transitioning the app to `MainScreen` automatically.
+
+- [x] **6.16** Redirect new users to onboarding on first launch; skip to main screen if a valid session exists
+
+  📖 **What we did:** This is handled entirely by `AuthViewModel` + `MainActivity` routing. On cold start, `supabase.auth.sessionStatus` emits `Loading` (shows `SplashScreen`) then either `Authenticated` (→ `MainScreen`) or `Unauthenticated` (→ `OnboardingScreen`). No separate "first launch" flag needed — if there's no stored session, the auth status is automatically `Unauthenticated`. The transition is seamless: once the CCT-based onboarding completes and the deep-link imports the session, the `sessionStatus` flow emits `Authenticated` and the app navigates to `MainScreen` without any manual routing code.
 
 ### 6e. Submission
 

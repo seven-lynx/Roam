@@ -16,6 +16,15 @@ function showState(name: 'signedout' | 'error' | 'main') {
   }
 }
 
+function flashButton(id: string, type: 'up' | 'down'): Promise<void> {
+  return new Promise<void>(resolve => {
+    const btn = el(id);
+    const cls = type === 'up' ? 'btn-icon--flash-up' : 'btn-icon--flash-down';
+    btn.classList.add(cls);
+    btn.addEventListener('animationend', () => { btn.classList.remove(cls); resolve(); }, { once: true });
+  });
+}
+
 function showPanel(name: 'submit' | 'config' | null) {
   el('panel-submit').hidden = name !== 'submit';
   el('panel-config').hidden = name !== 'config';
@@ -90,6 +99,8 @@ document.addEventListener('DOMContentLoaded', () => {
   // ── Thumbs up ─────────────────────────────────────────────────────────────
   el('btn-upvote').addEventListener('click', async () => {
     showPanel(null);
+    const flashDone = flashButton('btn-upvote', 'up');
+
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     const url = tab?.url ?? '';
     if (!url) return;
@@ -98,11 +109,15 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!check.ok) { showError(check.error); return; }
 
     if (check.data.known && check.data.url_id) {
-      // Known URL → rate +1 and close
-      await sendToBackground({ type: 'RATE', url_id: check.data.url_id, vote: 1 });
+      // Known URL → rate +1; wait for both the flash and the rate call before closing
+      await Promise.all([
+        flashDone,
+        sendToBackground({ type: 'RATE', url_id: check.data.url_id, vote: 1 }),
+      ]);
       window.close();
     } else {
-      // Unknown URL → show submit panel so user can pick a category
+      // Unknown URL → wait for flash, then show submit panel
+      await flashDone;
       showPanel('submit');
     }
   });
@@ -110,17 +125,23 @@ document.addEventListener('DOMContentLoaded', () => {
   // ── Thumbs down ───────────────────────────────────────────────────────────
   el('btn-downvote').addEventListener('click', async () => {
     showPanel(null);
+    flashButton('btn-downvote', 'down');
+
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     const url = tab?.url ?? '';
-    if (!url) { window.close(); return; }
 
-    const check = await sendToBackground<CheckUrlData>({ type: 'CHECK_URL', url });
-    if (!check.ok) { showError(check.error); return; }
-
-    if (check.data.known && check.data.url_id) {
-      await sendToBackground({ type: 'RATE', url_id: check.data.url_id, vote: -1 });
+    // Fire roam immediately; run the check+rate in parallel to minimise wait time
+    const roamPromise = sendToBackground<RoamData>({ type: 'ROAM' });
+    if (url) {
+      const check = await sendToBackground<CheckUrlData>({ type: 'CHECK_URL', url });
+      if (check.ok && check.data.known && check.data.url_id) {
+        await sendToBackground({ type: 'RATE', url_id: check.data.url_id, vote: -1 });
+      }
     }
-    // Whether known or unknown, close after downvote
+
+    const roamRes = await roamPromise;
+    if (!roamRes.ok) { showError(roamRes.error); return; }
+    if (tab?.id) chrome.tabs.update(tab.id, { url: roamRes.data.url });
     window.close();
   });
 

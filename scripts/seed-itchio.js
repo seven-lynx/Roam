@@ -92,14 +92,20 @@ function parseGames(html) {
   const cells = html.split(/(?=<div[^>]+data-game_id=")/);
 
   for (const cell of cells) {
-    // URL + title: <a ... class="title game_link">TITLE</a>
-    const linkMatch = cell.match(
-      /href="(https?:\/\/[^"]+\.itch\.io\/[^"]+)"[^>]*class="title game_link"[^>]*>([^<]+)<\/a>/
+    // Find the title anchor — identified by data-label="game:ID:title"
+    // Attributes can appear in any order, so we check both orderings for href.
+    const anchorMatch = cell.match(
+      /<a\s[^>]*data-label="game:\d+:title"[^>]*>([^<]+)<\/a>/
     );
-    if (!linkMatch) continue;
+    if (!anchorMatch) continue;
+    const title = decodeHtml(anchorMatch[1].trim());
 
-    const url   = linkMatch[1];
-    const title = decodeHtml(linkMatch[2].trim());
+    // Extract href separately (robust to attribute ordering)
+    const hrefBlock = cell.match(
+      /data-label="game:\d+:title"[^>]*href="(https?:\/\/[^"]+\.itch\.io\/[^"]+)"|href="(https?:\/\/[^"]+\.itch\.io\/[^"]+)"[^>]*data-label="game:\d+:title"/
+    );
+    if (!hrefBlock) continue;
+    const url = hrefBlock[1] || hrefBlock[2];
 
     // Description: title attribute of the .game_text element
     const descMatch = cell.match(/title="([^"]*)" class="game_text"/);
@@ -132,7 +138,7 @@ async function fetchSource(path, categoryId) {
   const entries = [];
 
   for (let page = 1; page <= PAGES_PER_SOURCE; page++) {
-    const url = `https://itch.io/games/${path}?format=json&sort=top&page=${page}`;
+    const url = `https://itch.io/games/${path}?format=json&page=${page}`;
 
     let data;
     try {

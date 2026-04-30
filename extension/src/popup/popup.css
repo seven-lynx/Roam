@@ -242,3 +242,17 @@ body {
 .dropdown-menu button:last-child {
   border-radius: 0 0 var(--radius-sm) var(--radius-sm);
 }
+
+/* ── Button feedback animations ─────────────────────────────────────────── */
+@keyframes flash-up {
+  0%   { background: var(--bg-panel); border-color: var(--border); }
+  35%  { background: rgba(74, 222, 128, 0.25); border-color: #4ade80; }
+  100% { background: var(--bg-panel); border-color: var(--border); }
+}
+@keyframes flash-down {
+  0%   { background: var(--bg-panel); border-color: var(--border); }
+  35%  { background: rgba(248, 113, 113, 0.25); border-color: #f87171; }
+  100% { background: var(--bg-panel); border-color: var(--border); }
+}
+.btn-icon--flash-up   { animation: flash-up   500ms ease forwards; }
+.btn-icon--flash-down { animation: flash-down 500ms ease forwards; }
