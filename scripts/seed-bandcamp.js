@@ -141,12 +141,16 @@ async function fetchTag(tag, categoryId) {
           ...(csrfToken      ? { 'X-CSRF-Token': csrfToken } : {}),
         },
         body: JSON.stringify({
-          tag,
+          filters: {
+            sort:            'pop',
+            genre:           tag,
+            subgenre:        '',
+            format:          'all',
+            location:        0,
+            tags:            [],
+            highlight_color: null,
+          },
           page,
-          sort:     'pop',
-          tags:     [],
-          location: 0,
-          format:   'all',
         }),
       });
 
