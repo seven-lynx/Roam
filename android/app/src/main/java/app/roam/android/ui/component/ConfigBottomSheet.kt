@@ -1,33 +1,68 @@
 package app.roam.android.ui.component
 
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.ElevatedFilterChip
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 
-@OptIn(ExperimentalMaterial3Api::class)
+private data class Language(val code: String, val label: String)
+
+private val LANGUAGES = listOf(
+    Language("en", "English"),
+    Language("fr", "Français"),
+    Language("de", "Deutsch"),
+    Language("it", "Italiano"),
+    Language("es", "Español"),
+    Language("pt", "Português"),
+    Language("nl", "Nederlands"),
+    Language("pl", "Polski"),
+    Language("ja", "日本語"),
+    Language("zh", "中文"),
+    Language("ru", "Русский"),
+    Language("ko", "한국어"),
+)
+
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun ConfigBottomSheet(
     currentUrl: String?,
+    skipPaywalled: Boolean,
+    preferredLanguages: List<String>,
     onDismiss: () -> Unit,
     onSaveForLater: () -> Unit,
     onShare: () -> Unit,
+    onSkipPaywalledChange: (Boolean) -> Unit,
+    onLanguagesChange: (List<String>) -> Unit,
     onSignOut: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    var langPickerOpen by remember { mutableStateOf(false) }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -37,10 +72,11 @@ fun ConfigBottomSheet(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
+                .verticalScroll(rememberScrollState())
                 .navigationBarsPadding()
                 .padding(bottom = 16.dp),
         ) {
-            // Section 1: Current page
+            // ── Section 1: Current page ──────────────────────────────────────
             Text(
                 text = "Current page",
                 style = MaterialTheme.typography.labelMedium,
@@ -66,13 +102,95 @@ fun ConfigBottomSheet(
             HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Section 2: Roam mode
+            // ── Section 2: Roam mode ─────────────────────────────────────────
             Text(
                 text = "Roam mode",
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
             )
+
+            // Skip paywalled sites toggle
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 4.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        "Skip paywalled sites",
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                    Text(
+                        "Hide NYT, WSJ, and similar",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                    )
+                }
+                Switch(
+                    checked = skipPaywalled,
+                    onCheckedChange = onSkipPaywalledChange,
+                )
+            }
+
+            Spacer(modifier = Modifier.height(4.dp))
+
+            // Languages row — tap to expand chip picker
+            TextButton(
+                onClick = { langPickerOpen = !langPickerOpen },
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text("Languages")
+                    val summary = preferredLanguages
+                        .mapNotNull { code -> LANGUAGES.find { it.code == code }?.label }
+                        .joinToString(", ")
+                        .ifEmpty { "English" }
+                    Text(
+                        summary,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                    )
+                }
+            }
+
+            if (langPickerOpen) {
+                FlowRow(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 4.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    LANGUAGES.forEach { lang ->
+                        val selected = preferredLanguages.contains(lang.code)
+                        ElevatedFilterChip(
+                            selected = selected,
+                            onClick = {
+                                val updated = if (selected) {
+                                    // Never allow deselecting the last language
+                                    if (preferredLanguages.size > 1) {
+                                        preferredLanguages - lang.code
+                                    } else {
+                                        preferredLanguages
+                                    }
+                                } else {
+                                    preferredLanguages + lang.code
+                                }
+                                onLanguagesChange(updated)
+                            },
+                            label = { Text(lang.label, style = MaterialTheme.typography.bodySmall) },
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(4.dp))
 
             TextButton(
                 onClick = onSignOut,
@@ -87,3 +205,4 @@ fun ConfigBottomSheet(
         }
     }
 }
+

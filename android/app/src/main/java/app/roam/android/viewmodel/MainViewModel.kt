@@ -44,6 +44,24 @@ class MainViewModel(
     private val _showConfigSheet = MutableStateFlow(false)
     val showConfigSheet: StateFlow<Boolean> = _showConfigSheet.asStateFlow()
 
+    /** User preference: skip paywalled sites */
+    private val _skipPaywalled = MutableStateFlow(false)
+    val skipPaywalled: StateFlow<Boolean> = _skipPaywalled.asStateFlow()
+
+    /** User preference: list of language codes to include (e.g. ["en", "fr"]) */
+    private val _preferredLanguages = MutableStateFlow(listOf("en"))
+    val preferredLanguages: StateFlow<List<String>> = _preferredLanguages.asStateFlow()
+
+    init {
+        viewModelScope.launch {
+            runCatching {
+                val settings = repo.getUserSettings()
+                _skipPaywalled.value = settings.skipPaywalled
+                _preferredLanguages.value = settings.preferredLanguages.ifEmpty { listOf("en") }
+            }
+        }
+    }
+
     fun roam(excludeDomain: String? = null) {
         viewModelScope.launch {
             _state.value = RoamState.Loading
@@ -86,10 +104,28 @@ class MainViewModel(
                 runCatching { repo.rate(loaded.roamUrl.id, -1) }
             }
             roam(excludeDomain = extractDomain(_currentUrl.value))
+        }
+    }
+
     fun submitUrl(url: String, categoryId: String) {
         viewModelScope.launch {
             runCatching { repo.submitUrl(url, categoryId) }
             _showSubmitSheet.value = false
+        }
+    }
+
+    fun setSkipPaywalled(value: Boolean) {
+        _skipPaywalled.value = value
+        viewModelScope.launch {
+            runCatching { repo.upsertUserSettings(skipPaywalled = value) }
+        }
+    }
+
+    fun setPreferredLanguages(langs: List<String>) {
+        val final = langs.ifEmpty { listOf("en") }
+        _preferredLanguages.value = final
+        viewModelScope.launch {
+            runCatching { repo.upsertUserSettings(preferredLanguages = final) }
         }
     }
 
@@ -124,3 +160,4 @@ class MainViewModel(
         }.getOrNull()
     }
 }
+

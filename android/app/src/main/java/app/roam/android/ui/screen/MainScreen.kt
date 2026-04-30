@@ -48,6 +48,8 @@ fun MainScreen(
     val currentUrl by vm.currentUrl.collectAsState()
     val showSubmitSheet by vm.showSubmitSheet.collectAsState()
     val showConfigSheet by vm.showConfigSheet.collectAsState()
+    val skipPaywalled by vm.skipPaywalled.collectAsState()
+    val preferredLanguages by vm.preferredLanguages.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
 
     // Auto-load the first page when the screen appears
@@ -153,6 +155,8 @@ fun MainScreen(
     if (showConfigSheet) {
         ConfigBottomSheet(
             currentUrl = currentUrl,
+            skipPaywalled = skipPaywalled,
+            preferredLanguages = preferredLanguages,
             onDismiss = { vm.closeConfigSheet() },
             onSaveForLater = {
                 // Task 6.13 — stub
@@ -166,6 +170,8 @@ fun MainScreen(
                 activity.startActivity(Intent.createChooser(shareIntent, null))
                 vm.closeConfigSheet()
             },
+            onSkipPaywalledChange = { vm.setSkipPaywalled(it) },
+            onLanguagesChange = { vm.setPreferredLanguages(it) },
             onSignOut = {
                 vm.closeConfigSheet()
                 onSignOut()

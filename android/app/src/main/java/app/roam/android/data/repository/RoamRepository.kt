@@ -2,7 +2,11 @@ package app.roam.android.data.repository
 
 import app.roam.android.data.supabase
 import app.roam.android.model.RoamUrl
+import app.roam.android.model.UserSettings
+import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.functions.functions
+import io.github.jan.supabase.postgrest.postgrest
+import io.github.jan.supabase.postgrest.query.Columns
 import io.ktor.client.call.body
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.buildJsonObject
@@ -50,5 +54,41 @@ class RoamRepository {
             subcategoryId?.let { put("subcategory_id", it) }
         }
         supabase.functions.invoke("submit-url", body = body)
+    }
+
+    /**
+     * Reads the current user's settings row.
+     * Returns defaults (en, no paywall skip) if no row exists yet.
+     */
+    suspend fun getUserSettings(): UserSettings {
+        val userId = supabase.auth.currentUserOrNull()?.id ?: return UserSettings()
+        val results = supabase.postgrest
+            .from("user_settings")
+            .select(Columns.list("preferred_languages", "skip_paywalled")) {
+                filter { eq("user_id", userId) }
+                limit(1)
+            }
+            .decodeList<UserSettings>()
+        return results.firstOrNull() ?: UserSettings(userId = userId)
+    }
+
+    /**
+     * Upserts user settings (preferred_languages and/or skip_paywalled).
+     */
+    suspend fun upsertUserSettings(
+        preferredLanguages: List<String>? = null,
+        skipPaywalled: Boolean? = null,
+    ) {
+        val userId = supabase.auth.currentUserOrNull()?.id ?: return
+        val current = getUserSettings()
+        supabase.postgrest
+            .from("user_settings")
+            .upsert(
+                UserSettings(
+                    userId = userId,
+                    preferredLanguages = preferredLanguages ?: current.preferredLanguages,
+                    skipPaywalled = skipPaywalled ?: current.skipPaywalled,
+                )
+            )
     }
 }
