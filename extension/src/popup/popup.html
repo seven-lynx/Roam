@@ -25,6 +25,15 @@
     </div>
   </div>
 
+  <!-- ── No results state ──────────────────────────────────────────── -->
+  <div id="state-noresults" class="state" hidden>
+    <div class="error-body">
+      <p class="error-msg">You've explored everything in your categories!</p>
+      <p class="error-sub">Add more categories to see new pages.</p>
+      <button id="btn-add-categories" class="btn-primary">Add categories ↗</button>
+    </div>
+  </div>
+
   <!-- ── Main state ─────────────────────────────────────────────────── -->
   <div id="state-main" class="state" hidden>
 
@@ -49,6 +58,7 @@
         <button class="chip" data-category="people_places">People &amp; Places</button>
         <button class="chip" data-category="mind_body">Mind &amp; Body</button>
       </div>
+      <p id="submit-error" class="submit-error" hidden></p>
       <button id="btn-submit" class="btn-primary" disabled>Submit</button>
     </div>
 

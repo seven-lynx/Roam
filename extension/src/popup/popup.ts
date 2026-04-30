@@ -10,8 +10,8 @@ function el<T extends HTMLElement>(id: string): T {
   return e as T;
 }
 
-function showState(name: 'signedout' | 'error' | 'main') {
-  for (const s of ['signedout', 'error', 'main'] as const) {
+function showState(name: 'signedout' | 'error' | 'noresults' | 'main') {
+  for (const s of ['signedout', 'error', 'noresults', 'main'] as const) {
     el(`state-${s}`).hidden = s !== name;
   }
 }
@@ -83,6 +83,12 @@ document.addEventListener('DOMContentLoaded', () => {
   // ── Retry button ───────────────────────────────────────────────────────────
   el('btn-retry').addEventListener('click', () => boot());
 
+  // ── Add categories button (no-results state) ───────────────────────────────
+  el('btn-add-categories').addEventListener('click', () => {
+    chrome.tabs.create({ url: 'https://roamtheweb.app/join' });
+    window.close();
+  });
+
   // ── Roam button ───────────────────────────────────────────────────────────
   el('btn-roam').addEventListener('click', async () => {
     showPanel(null);
@@ -92,6 +98,7 @@ document.addEventListener('DOMContentLoaded', () => {
     console.log('[roam-popup] Roam response:', res);
     el<HTMLButtonElement>('btn-roam').disabled = false;
     if (!res.ok) { showError(res.error); return; }
+    if (!res.data?.url) { showState('noresults'); return; }
     if (tab?.id) chrome.tabs.update(tab.id, { url: res.data.url });
     window.close();
   });
@@ -168,11 +175,19 @@ document.addEventListener('DOMContentLoaded', () => {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     const url = tab?.url ?? '';
     if (!url) return;
+    const submitErr = el<HTMLParagraphElement>('submit-error');
+    submitErr.hidden = true;
     el<HTMLButtonElement>('btn-submit').disabled = true;
     const res = await sendToBackground({ type: 'SUBMIT_URL', url, categoryId: selectedCategory });
     el<HTMLButtonElement>('btn-submit').disabled = false;
     if (!res.ok) {
-      showError(res.error);
+      // Show inline error — Safe Browsing rejection or rate-limit
+      submitErr.textContent = res.error.includes('safe') || res.error.includes('Safe')
+        ? 'This URL was flagged by Google Safe Browsing and cannot be submitted.'
+        : res.error.includes('429') || res.error.includes('rate')
+          ? 'You\'ve submitted too many URLs recently. Try again in an hour.'
+          : res.error;
+      submitErr.hidden = false;
       return;
     }
     window.close();
