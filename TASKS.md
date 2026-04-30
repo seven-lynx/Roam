@@ -374,7 +374,9 @@ Filling the discovery pool before launch so that the Roam button has something t
 
   📖 **What we did:** Created `scripts/seed-github.js`. Uses GitHub's Search API (`api.github.com/search/repositories`) to query 46 curated topics (web, cli, security, bioinformatics, music, game-development, health, maps, etc.) each mapped to a Roam category. Filters `stars:>500` and skips archived repos or those without descriptions. Paginates up to 3 pages per topic (300 repos/topic). Rate-limited to 6.6s/request unauthenticated (10 req/min) or 2.5s with optional `GITHUB_TOKEN`. Deduplicates across topics globally. `fetchOg: false` — descriptions come from the API. Cached to `scripts/.cache/github.json`.
 
-- [ ] **4.39** Write the Itch.io seeder — indie game discovery platform; enumerate top-rated/most-downloaded games via sitemap or browse pages; ~50K items covering Games & Hobbies and Weird & Wonderful; free, no key; effort: 2-3 hours
+- [x] **4.39** Write the Itch.io seeder — indie game discovery platform; enumerate top-rated/most-downloaded games via sitemap or browse pages; ~50K items covering Games & Hobbies and Weird & Wonderful; free, no key; effort: 2-3 hours
+
+  📖 **What we did:** Created `scripts/seed-itchio.js`. Uses `https://itch.io/games/{path}?format=json&sort=top&page=N` (36 items/page). Parses embedded HTML via regex to extract URL, title, description (from `title` attribute of `.game_text`), and genre. Queries 32 sources (genre-action, genre-rpg, tag-horror, tag-experimental, genre-visual-novel, etc.) mapped to Games & Hobbies, Arts & Culture, Weird & Wonderful, and History & Ideas. 30 pages/source × ~36 items = ~1,080/source; ~30K+ total before dedup. Rate: 600ms delay. `fetchOg: false`. Cache: `scripts/.cache/itchio.json`.
 
 - [ ] **4.40** Write the BoardGameGeek seeder — XML API (free, no key); top 10K board games by rank; pulls title, description, thumbnail from BGG API; maps to Games & Hobbies; strong community signal (ratings-based); effort: 2 hours
 
