@@ -77,9 +77,12 @@ function shuffle(arr) {
   return arr;
 }
 
-// ── Fetch all object IDs for a department ─────────────────────────────────────
+// ── Fetch all object IDs for a department (images only) ──────────────────────
+// Uses the search endpoint with hasImages=true to avoid fetching non-public objects
 async function fetchDeptIds(deptId) {
-  const res = await fetch(`${BASE_URL}/objects?departmentIds=${deptId}`, {
+  // q=a matches virtually every record (nearly all have "a" somewhere in metadata)
+  const url = `${BASE_URL}/search?hasImages=true&departmentId=${deptId}&q=a`;
+  const res = await fetch(url, {
     headers: { 'User-Agent': 'Roam-Seeder/1.0 (+https://roamtheweb.app)' },
   });
   if (!res.ok) throw new Error(`HTTP ${res.status} for dept ${deptId}`);
