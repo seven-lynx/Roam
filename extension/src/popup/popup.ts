@@ -50,7 +50,7 @@ async function boot() {
     const { roam_visited } = await chrome.storage.local.get('roam_visited');
     if (!roam_visited) {
       await chrome.storage.local.set({ roam_visited: true });
-      chrome.tabs.create({ url: 'https://roam-flame.vercel.app/join' });
+      chrome.tabs.create({ url: 'https://roamtheweb.app/join' });
       window.close();
       return;
     }
@@ -97,7 +97,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // ── Add categories button (no-results state) ───────────────────────────────
   el('btn-add-categories').addEventListener('click', () => {
-    chrome.tabs.create({ url: 'https://roam-flame.vercel.app/join' });
+    chrome.tabs.create({ url: 'https://roamtheweb.app/join' });
     window.close();
   });
 
@@ -431,12 +431,12 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   el('btn-manage-collections').addEventListener('click', () => {
-    chrome.tabs.create({ url: 'https://roam-flame.vercel.app/u/me' });
+    chrome.tabs.create({ url: 'https://roamtheweb.app/u/me' });
     window.close();
   });
 
   el('btn-category-prefs').addEventListener('click', () => {
-    chrome.tabs.create({ url: 'https://roam-flame.vercel.app/join' });
+    chrome.tabs.create({ url: 'https://roamtheweb.app/join' });
     window.close();
   });
 
