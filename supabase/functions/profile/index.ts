@@ -61,7 +61,7 @@ Deno.serve(async (req) => {
 
   if (profileError || !profile) return json({ error: 'Profile not found' }, 404)
 
-  const [followersRes, followingRes, collectionsRes] = await Promise.all([
+  const [followersRes, followingRes, collectionsRes] = await Promise.allSettled([
     adminClient
       .from('follows')
       .select('*', { count: 'exact', head: true })
@@ -80,11 +80,16 @@ Deno.serve(async (req) => {
       .order('created_at', { ascending: false }),
   ])
 
+  // Extract results from Promise.allSettled, handling failures gracefully
+  const followers = followersRes.status === 'fulfilled' ? followersRes.value.count ?? 0 : 0;
+  const following = followingRes.status === 'fulfilled' ? followingRes.value.count ?? 0 : 0;
+  const collections = collectionsRes.status === 'fulfilled' ? collectionsRes.value.data ?? [] : [];
+
   return json({
     ...profile,
-    follower_count: followersRes.count ?? 0,
-    following_count: followingRes.count ?? 0,
-    collections: collectionsRes.data ?? [],
+    follower_count: followers,
+    following_count: following,
+    collections,
   })
 })
 

@@ -8,6 +8,7 @@
  */
 
 import { getSupabase } from './supabase';
+import { Sentry } from './sentry';
 
 export interface QueuedUrl {
   id: string; // UUID for tracking
@@ -295,6 +296,9 @@ export async function logFailedUrl(
  * Send accumulated failed URLs to the server for moderation queue insertion
  * Called periodically or on sign-out
  */
+let sendFailedUrlBatchRetryCount = 0;
+const MAX_RETRY_ATTEMPTS = 3;
+
 export async function sendFailedUrlBatch(): Promise<void> {
   const failed = await loadFailedUrls();
   if (failed.length === 0) return;
@@ -307,13 +311,32 @@ export async function sendFailedUrlBatch(): Promise<void> {
 
     if (!error) {
       // Clear failed URLs after successful send
+      sendFailedUrlBatchRetryCount = 0;
+      await new Promise<void>((resolve) => {
+        chrome.storage.local.set({ [FAILED_URLS_KEY]: [] }, resolve);
+      });
+    } else {
+      throw error;
+    }
+  } catch (error) {
+    console.error("Failed to send failed URL batch:", error);
+    sendFailedUrlBatchRetryCount++;
+    
+    // Capture to Sentry for visibility
+    Sentry.captureException(error, {
+      level: 'warning',
+      tags: { context: 'failed-url-batch', retryCount: sendFailedUrlBatchRetryCount },
+      extra: { failedUrlCount: failed.length },
+    });
+
+    // If we've retried too many times, clear the batch to prevent indefinite accumulation
+    if (sendFailedUrlBatchRetryCount >= MAX_RETRY_ATTEMPTS) {
+      console.warn('[roam-bg] Max retry attempts reached for failed URL batch, clearing queue');
+      sendFailedUrlBatchRetryCount = 0;
       await new Promise<void>((resolve) => {
         chrome.storage.local.set({ [FAILED_URLS_KEY]: [] }, resolve);
       });
     }
-  } catch (error) {
-    console.error("Failed to send failed URL batch:", error);
-    // Silently fail; will retry next time
   }
 }
 

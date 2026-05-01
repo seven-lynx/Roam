@@ -121,8 +121,20 @@ async function _dispatch(req: Request): Promise<Response> {
     case 'GET_STATE':           return getState();
     case 'SIGN_IN_GOOGLE':      return signInWithGoogle();
     case 'SIGN_IN_GITHUB':      return signInWithGitHub();
-    case 'SIGN_IN_EMAIL':       return signInWithEmail((req as any).email, (req as any).password);
-    case 'SIGN_UP_EMAIL':       return signUpWithEmail((req as any).email, (req as any).password);
+    case 'SIGN_IN_EMAIL': {
+      const { email, password } = req as any;
+      if (typeof email !== 'string' || typeof password !== 'string') {
+        return { ok: false, error: 'Invalid email or password format' };
+      }
+      return signInWithEmail(email, password);
+    }
+    case 'SIGN_UP_EMAIL': {
+      const { email, password } = req as any;
+      if (typeof email !== 'string' || typeof password !== 'string') {
+        return { ok: false, error: 'Invalid email or password format' };
+      }
+      return signUpWithEmail(email, password);
+    }
     case 'GET_CATEGORIES':      return getCategories();
     case 'GET_USER_CATEGORIES': return getUserCategories();
     case 'SET_USER_CATEGORIES': return setUserCategories((req as any).categoryIds);
@@ -184,6 +196,9 @@ async function initializeQueueIfNeeded(): Promise<void> {
   }
 }
 
+// Guard flag to prevent concurrent queue initializations (issue #8)
+let initQueueInProgress = false;
+
 async function getState(): Promise<Response<StateData>> {
   const { data: { session }, error } = await getSupabase().auth.getSession();
   if (error) {
@@ -197,9 +212,18 @@ async function getState(): Promise<Response<StateData>> {
 
   // Fire-and-forget — queue init makes multiple network calls and must NOT
   // block the GET_STATE response (would cause SW response timeout).
-  initializeQueueIfNeeded().catch((err) =>
-    console.error('[roam-bg] Queue init error:', err)
-  );
+  // Use a guard flag to prevent concurrent initializations (issue #8)
+  if (!initQueueInProgress) {
+    initQueueInProgress = true;
+    initializeQueueIfNeeded()
+      .catch((err) => {
+        console.error('[roam-bg] Queue init error:', err);
+        Sentry.captureException(err, { tags: { context: 'queue-init' } });
+      })
+      .finally(() => {
+        initQueueInProgress = false;
+      });
+  }
 
   console.log('[roam-bg] Session found:', { email: session.user.email, userId: session.user.id });
   return {
