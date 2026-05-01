@@ -606,7 +606,7 @@ Kotlin + Jetpack Compose. Full-screen WebView with a persistent bottom bar. Mirr
 ### 6e. Submission
 
 - [ ] **6.17** Generate a signed release APK / AAB
-- [x] **6.18** Register a Google Play developer account ($25) and create a new app listing; during the content rating questionnaire, answer accurately for user-generated content and mature themes — the Weird & Wonderful category (True Crime, Paranormal, Conspiracy Theories) will produce a **Teen** rating, which is correct and expected
+- [ ] **6.18** Register a Google Play developer account ($25) and create a new app listing; during the content rating questionnaire, answer accurately for user-generated content and mature themes — the Weird & Wonderful category (True Crime, Paranormal, Conspiracy Theories) will produce a **Teen** rating, which is correct and expected
 - [ ] **6.19** Submit the AAB for review
 
 ---
@@ -634,6 +634,121 @@ Final checks before making the app public.
 - [x] **8.3** Add `roamtheweb.app` custom domain to Vercel project; add Cloudflare DNS records per Vercel instructions
 - [x] **8.4** Update Supabase Auth — Site URL and redirect URLs to `https://roamtheweb.app`
 - [x] **8.5** Set up `developer@roamtheweb.app` email forwarding via Cloudflare Email Routing
+
+---
+
+## Stage 9 — Pre-Submission Quality & Security Audit (2026-04-30)
+
+**Audit Source:** Comprehensive codebase audit covering extension, Android, web, Supabase, documentation, configuration, and deployment readiness. See [AUDIT_REPORT.md](AUDIT_REPORT.md) for full details.
+
+**Submission Status:** 🔴 **DO NOT SUBMIT** until all **CRITICAL** blockers resolved (est. 2–3 days). High-priority items should be completed before store submissions (5.17, 5.19, 6.19).
+
+### CRITICAL — Blockers (must fix before any release)
+
+- [ ] **9.1** Enforce Safe Browsing API validation in `submit-url` Edge Function — currently if the `SAFE_BROWSING_API_KEY` environment variable is absent, the check is silently skipped, allowing malicious/phishing URLs through unchecked; update the function to throw a startup error if the key is not set; deployment process must verify the secret is configured before the function goes live
+  - **Severity:** CRITICAL — direct security impact
+  - **Effort:** 30 minutes
+  - **Files:** `supabase/functions/submit-url/index.ts` (lines 103–110)
+  - **Blocking:** Chrome Web Store (5.17), Firefox AMO (5.19)
+
+- [ ] **9.2** Add rate limiting to the public `/profile` endpoint — the `GET /functions/v1/profile?username=<username>` endpoint is unauthenticated and unthrottled, allowing username enumeration attacks (~432K usernames/day from one IP) and lightweight DoS; implement per-IP rate limiting (60 requests/minute) returning `429 Too Many Requests` on breach
+  - **Severity:** CRITICAL — security (enumeration + DoS)
+  - **Effort:** 1–2 hours
+  - **Files:** `supabase/functions/profile/index.ts`
+  - **Blocking:** All store submissions
+  - **Implementation options:** Supabase native rate limiting, Deno KV-based counter, or Cloudflare Workers
+
+- [ ] **9.3** Create `moderation_audit_log` table with trigger — records every admin decision (approved/rejected) with admin_id, timestamp, and decision reason; provides tamper-proof audit trail required for content moderation compliance; add PostgreSQL trigger on `moderation_queue.status` update to auto-insert audit rows
+  - **Severity:** CRITICAL — compliance / auditability
+  - **Effort:** 30 minutes
+  - **Files:** New migration `supabase/migrations/20260430000002_moderation_audit_log.sql`
+  - **Blocking:** All store submissions
+  - **Task reference:** 2.15a
+
+- [ ] **9.4** Add `ON DELETE CASCADE` constraint to `collection_items(url_id)` — currently orphaned items remain if a URL is deleted, violating referential integrity; alter the foreign key constraint to cascade deletions automatically
+  - **Severity:** CRITICAL — data integrity
+  - **Effort:** 15 minutes
+  - **Files:** New migration `supabase/migrations/20260430000003_cascade_collection_items.sql`
+  - **Task reference:** 2.15b
+
+- [ ] **9.5** ⏸️ **Supabase Pro upgrade decision** — Free tier storage is 390 MB / 500 MB (78% full); remaining seeders (Curlie: 1.2M URLs) will exceed quota within days; must upgrade to Supabase Pro ($25/month) before completing content seeding or service will degrade
+  - **Severity:** CRITICAL — operational readiness
+  - **Effort:** 5 minutes (dashboard action)
+  - **Cost:** $25/month ($300/year for 12 months)
+  - **Blocking:** Content seeding (Stage 4), all store submissions
+  - **Decision:** Already flagged in "Infrastructure & Scaling Decisions" — awaiting confirmation
+
+### HIGH-PRIORITY — Fix before store submissions
+
+- [ ] **9.6** Add input validation to `POST /collection` slug and name — currently the slug can be empty, contain invalid URL characters (`/`, `..`, unicode), or collide with reserved routes (`admin`, `join`, `privacy`, `terms`, `u`, `c`); validate: slug `[a-z0-9-]{1,100}` + not in RESERVED list, name non-empty + max 200 characters
+  - **Severity:** HIGH — routing / path traversal risk
+  - **Effort:** 1–2 hours + testing
+  - **Files:** `supabase/functions/collection/index.ts` (lines 33–50)
+  - **Task reference:** 2.26a
+
+- [ ] **9.7** Extract shared URL normalization code — the same URL normalization logic (HTTPS enforce, strip www, remove UTM/tracking params, etc.) is duplicated in 3 places: `scripts/lib/seed.js` (Node.js), `supabase/functions/submit-url/index.ts` (Deno), and `extension/src/background/background.ts` (browser); create canonical version in `supabase/functions/_shared/normalise.ts` and import into `submit-url`; keep `seed.js` with comment linking to canonical version
+  - **Severity:** HIGH — maintainability / consistency
+  - **Effort:** 30–45 minutes
+  - **Files:** `supabase/functions/_shared/normalise.ts` (new), `supabase/functions/submit-url/index.ts`, `scripts/lib/seed.js`
+  - **Task reference:** 2.27a
+
+- [ ] **9.8** Fetch categories dynamically instead of hardcoding — web UI and Android both have hardcoded category UUIDs; if category IDs change (schema reset, recovery), UI breaks silently; fetch from `categories` table on client startup and cache locally
+  - **Severity:** HIGH — brittleness
+  - **Effort:** 1–2 hours
+  - **Files:** `web/src/app/join/join-content.tsx` (lines 8–15), `android/app/src/main/java/app/roam/android/viewmodel/MainViewModel.kt`, `extension/src/background/background.ts`
+  - **Impact:** Blocking Chrome/Firefox submissions (Issue #8)
+
+- [ ] **9.9** Verify Android ProGuard rules for Supabase SDK — file exists but content not verified to whitelist Supabase Kotlin client and Jetpack Compose runtime; without rules, ProGuard may obfuscate/strip classes needed at runtime; add -keep rules for `io.github.jan.supabase`, `androidx.compose.runtime`, `okhttp3`, `kotlinx.serialization`
+  - **Severity:** HIGH — runtime failures on release builds
+  - **Effort:** 30 minutes
+  - **Files:** `android/app/proguard-rules.pro`
+  - **Task reference:** 2.25 (final verification)
+
+- [ ] **9.10** Comprehensive OAuth flow testing across all platforms — currently only manual testing documented in `extension/TESTING.md`; need: (1) Firefox OAuth callback handling (different from Chrome), (2) web session restoration after OAuth, (3) Android deep link parsing and state cleanup; document test cases and execute
+  - **Severity:** HIGH — critical user journey
+  - **Effort:** 2–3 days (manual testing sprint)
+  - **Files:** `extension/TESTING.md` (expand), `web/TESTING.md` (create), `android/TESTING.md` (create)
+  - **Task reference:** 2.28b / 5.7 / 6.11
+
+### MEDIUM-PRIORITY — Improve before launch
+
+- [ ] **9.11** Add comprehensive automated test suite — currently 0% test coverage across all platforms; write critical path tests: (1) Extension: message routing, URL normalization, OAuth, queue management; (2) Supabase: RPC validation, Safe Browsing integration, RLS enforcement; (3) Web: category fetch, auth state, form validation; (4) Android: gesture handling, deep link parsing, state restoration
+  - **Severity:** MEDIUM — quality + confidence
+  - **Effort:** 5–10 days (lower priority than submission fixes)
+  - **Minimum:** 2–3 days for critical paths only
+  - **Stack:** Vitest (extension/web), Deno test (Supabase), JUnit (Android)
+  - **Task reference:** 2.28c
+
+- [ ] **9.12** Improve error messages across all platforms — audit and replace technical/unfriendly errors with user-facing messages (e.g., "uid mismatch" → "Your session expired", "Cannot read property 'url' of undefined" → "Failed to load web page")
+  - **Severity:** MEDIUM — UX/troubleshooting
+  - **Effort:** 2–3 hours
+  - **Files:** All platform error paths
+
+- [ ] **9.13** Add loading states to all async operations in UI — web and Android submit buttons, category fetches, OAuth flows should show spinners/progress indicators to prevent double-submission and clarify wait time to users
+  - **Severity:** MEDIUM — UX polish
+  - **Effort:** 4–6 hours
+
+- [ ] **9.14** Validate environment variables at startup across all services — currently services load env vars without checking if they're set; add validation helper that throws on missing critical vars; prevents silent failures in misconfigured deploys
+  - **Severity:** MEDIUM — operational safety
+  - **Effort:** 1 hour
+
+- [ ] **9.15** Expand `extension/TESTING.md` — document Firefox-specific OAuth testing, callback flow verification, session persistence, and queue validation; create similar docs for web and Android
+  - **Severity:** MEDIUM — documentation
+  - **Effort:** 3–4 hours
+
+### LOW-PRIORITY — Polish & cleanup
+
+- [ ] **9.16** Remove unused code and TODO comments — `extension/src/popup/popup.ts` has unused `roam_visited` storage check; `android/.../MainViewModel.kt` has incomplete feature TODOs; `web/src/app/admin/` dashboard is incomplete
+  - **Severity:** LOW — code hygiene
+  - **Effort:** 1–2 hours
+
+- [ ] **9.17** Expand README.md — add architecture diagram, development setup guide, testing guide, deployment runbook, and database schema (ERD)
+  - **Severity:** LOW — documentation
+  - **Effort:** 3–4 hours
+
+- [ ] **9.18** Add structured logging and error tracking — integrate Sentry (free tier) or LogRocket for client-side errors; makes debugging production issues possible without user reports
+  - **Severity:** LOW — observability
+  - **Effort:** 4–6 hours
 
 ---
 
