@@ -1,10 +1,28 @@
+"use client";
+
 import Link from "next/link";
 import Image from "next/image";
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { Header } from "@/components/Header";
 import FeedbackWidget from "@/components/FeedbackWidget";
+import { createClient } from "@/lib/supabase/client";
 
 export default function Home() {
+  const router = useRouter();
+
+  useEffect(() => {
+    const supabase = createClient();
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) router.replace('/dashboard');
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center px-6 py-24 text-center bg-white dark:bg-zinc-950">
+    <>
+      <Header />
+      <main className="flex min-h-screen flex-col items-center justify-center px-6 py-24 text-center bg-white dark:bg-zinc-950">
       <div className="max-w-2xl mx-auto flex flex-col items-center gap-10">
         {/* Logo / wordmark */}
         <div className="flex flex-col items-center gap-3">
@@ -125,7 +143,7 @@ export default function Home() {
         </div>
 
         {/* Footer */}
-        <div className="w-full border-t border-zinc-200 dark:border-zinc-800 pt-10 mt-4 flex justify-between items-center text-sm text-zinc-600 dark:text-zinc-400">
+        <div className="w-full border-t border-zinc-200 dark:border-zinc-800 pt-10 mt-4 flex justify-center items-center text-sm text-zinc-600 dark:text-zinc-400">
           <div className="flex gap-6">
             <Link href="/privacy" className="hover:text-zinc-900 dark:hover:text-white">
               Privacy
@@ -137,11 +155,11 @@ export default function Home() {
               GitHub
             </a>
           </div>
-          <span>Made with ❤️</span>
         </div>
       </div>
 
       <FeedbackWidget />
     </main>
+    </>
   );
 }

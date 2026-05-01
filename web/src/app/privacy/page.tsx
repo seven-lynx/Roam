@@ -7,7 +7,7 @@ export const metadata: Metadata = {
 };
 
 const EFFECTIVE = "23 April 2026";
-const CONTACT = "privacy@roamtheweb.app";
+const CONTACT = "legal@roamtheweb.app";
 
 export default function PrivacyPage() {
   return (

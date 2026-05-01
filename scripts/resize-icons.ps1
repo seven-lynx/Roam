@@ -3,7 +3,7 @@
 
 Add-Type -AssemblyName System.Drawing
 
-$src = Join-Path $PSScriptRoot "..\roam_logo.png"
+$src = Join-Path $PSScriptRoot "..\assets\roam_logo.png"
 $srcImg = [System.Drawing.Image]::FromFile((Resolve-Path $src))
 
 $targets = @(

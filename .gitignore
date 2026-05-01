@@ -1,7 +1,13 @@
-# ── Private planning documents ──────────────────────────────────────────────
+# ── Dev-facing docs (internal only; not for end users) ──────────────────────
 PLANNING.md
 TASKS.md
 CONTEXT.md
+docs/
+android/TESTING.md
+extension/TESTING.md
+web/TESTING.md
+web/AGENTS.md
+web/CLAUDE.md
 
 # ── Environment / secrets ────────────────────────────────────────────────────
 .env

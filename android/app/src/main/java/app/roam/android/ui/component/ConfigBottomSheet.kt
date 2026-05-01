@@ -74,6 +74,7 @@ fun ConfigBottomSheet(
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var langPickerOpen by remember { mutableStateOf(false) }
     var collectionPickerOpen by remember { mutableStateOf(false) }
+    var collectionPickerMode by remember { mutableStateOf("add") } // "add" or "roam"
     var newCollectionDialogOpen by remember { mutableStateOf(false) }
     var newCollectionName by remember { mutableStateOf("") }
 
@@ -112,7 +113,7 @@ fun ConfigBottomSheet(
             }
 
             TextButton(
-                onClick = { collectionPickerOpen = true },
+                onClick = { collectionPickerMode = "add"; collectionPickerOpen = true },
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
             ) {
                 Text("Add to collection…", modifier = Modifier.fillMaxWidth())
@@ -141,7 +142,7 @@ fun ConfigBottomSheet(
             TextButton(
                 onClick = {
                     if (collections.isEmpty()) Unit
-                    else collectionPickerOpen = true
+                    else { collectionPickerMode = "roam"; collectionPickerOpen = true }
                 },
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
             ) {
@@ -263,28 +264,31 @@ fun ConfigBottomSheet(
     if (collectionPickerOpen) {
         AlertDialog(
             onDismissRequest = { collectionPickerOpen = false },
-            title = { Text("Choose a collection") },
+            title = { Text(if (collectionPickerMode == "roam") "Roam a collection" else "Choose a collection") },
             text = {
                 Column {
                     collections.forEach { col ->
                         TextButton(
                             onClick = {
                                 collectionPickerOpen = false
-                                onAddToCollection(col.id)
+                                if (collectionPickerMode == "roam") onRoamCollection(col.id)
+                                else onAddToCollection(col.id)
                             },
                             modifier = Modifier.fillMaxWidth(),
                         ) {
                             Text(col.name, modifier = Modifier.fillMaxWidth())
                         }
                     }
-                    TextButton(
-                        onClick = {
-                            collectionPickerOpen = false
-                            newCollectionDialogOpen = true
-                        },
-                        modifier = Modifier.fillMaxWidth(),
-                    ) {
-                        Text("+ New collection", modifier = Modifier.fillMaxWidth())
+                    if (collectionPickerMode == "add") {
+                        TextButton(
+                            onClick = {
+                                collectionPickerOpen = false
+                                newCollectionDialogOpen = true
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            Text("+ New collection", modifier = Modifier.fillMaxWidth())
+                        }
                     }
                 }
             },

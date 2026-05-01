@@ -9,6 +9,7 @@ import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.functions.functions
 import io.github.jan.supabase.postgrest.postgrest
 import io.github.jan.supabase.postgrest.query.Columns
+import io.github.jan.supabase.postgrest.query.Order
 import io.ktor.client.call.body
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.buildJsonObject
@@ -101,7 +102,7 @@ class RoamRepository {
         return supabase.postgrest
             .from("categories")
             .select(Columns.list("id", "name", "icon", "sort_order")) {
-                order("sort_order")
+                order("sort_order", Order.ASCENDING)
             }
             .decodeList()
     }
@@ -115,7 +116,7 @@ class RoamRepository {
             .from("collections")
             .select {
                 filter { eq("user_id", userId) }
-                order("name")
+                order("name", Order.ASCENDING)
             }
             .decodeList()
     }

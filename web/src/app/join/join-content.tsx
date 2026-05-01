@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
 type CategoryItem = { id: string; label: string; emoji: string };
@@ -23,6 +23,8 @@ type Step = "account" | "categories" | "done";
 
 export default function JoinPageContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const isAndroid = searchParams.get('platform') === 'android';
   const supabase = createClient();
 
   const [step, setStep] = useState<Step>("account");
@@ -111,7 +113,12 @@ export default function JoinPageContent() {
     setError(null);
     setLoading(true);
     try {
-      const redirectUrl = `${location.origin}/join`;
+      // When launched from the Android CCT, keep the user in the web flow so
+      // they can pick categories; we'll redirect back to the app via deep link
+      // after the categories step instead of jumping straight into the app.
+      const redirectUrl = isAndroid
+        ? `${location.origin}/join?platform=android`
+        : `${location.origin}/join`;
       console.log('[roam] Starting Google OAuth with redirectTo:', redirectUrl);
       
       // signInWithOAuth will either:
@@ -228,6 +235,29 @@ export default function JoinPageContent() {
       console.log('[roam] Categories inserted successfully:', insertData?.length || 0, 'rows');
       
       setLoading(false);
+
+      if (isAndroid) {
+        // Pass the session back to the Android app via deep link so the native
+        // Supabase client can import it.  handleDeeplinks() accepts the
+        // standard Supabase implicit-grant fragment format.
+        try {
+          const { data: { session } } = await supabase.auth.getSession();
+          if (session) {
+            const fragment = new URLSearchParams({
+              access_token: session.access_token,
+              refresh_token: session.refresh_token ?? '',
+              token_type: 'bearer',
+              type: 'signup',
+              expires_in: String(session.expires_in ?? 3600),
+            });
+            window.location.href = `app.roam.android://callback#${fragment.toString()}`;
+            return;
+          }
+        } catch (e) {
+          console.error('[roam] Failed to get session for Android redirect', e);
+        }
+      }
+
       setStep("done");
     } catch (err) {
       console.error('[roam] Unexpected error in handleCategories:', err);
@@ -248,10 +278,10 @@ export default function JoinPageContent() {
             update your preferences any time from your profile.
           </p>
           <button
-            onClick={() => router.push("/")}
+            onClick={() => router.push("/dashboard")}
             className="mt-2 rounded-full bg-zinc-900 dark:bg-white px-8 py-3 text-white dark:text-zinc-900 font-semibold hover:opacity-90 transition-opacity"
           >
-            Back to home
+            Start roaming →
           </button>
         </div>
       </main>

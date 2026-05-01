@@ -74,10 +74,20 @@ export function Header() {
           </button>
 
           {profileMenu && (
-            <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-zinc-900 rounded-lg shadow-lg border border-zinc-200 dark:border-zinc-800 py-2 z-50">
+            <div className="absolute right-0 mt-2 w-56 bg-white dark:bg-zinc-900 rounded-lg shadow-lg border border-zinc-200 dark:border-zinc-800 py-2 z-50">
               <Link href="/profile" className="block px-4 py-2 text-zinc-900 dark:text-white hover:bg-zinc-100 dark:hover:bg-zinc-800">
                 Profile
               </Link>
+              <Link href="/collections" className="block px-4 py-2 text-zinc-900 dark:text-white hover:bg-zinc-100 dark:hover:bg-zinc-800">
+                Collections
+              </Link>
+              <Link href="/following" className="block px-4 py-2 text-zinc-900 dark:text-white hover:bg-zinc-100 dark:hover:bg-zinc-800">
+                Following
+              </Link>
+              <Link href="/history" className="block px-4 py-2 text-zinc-900 dark:text-white hover:bg-zinc-100 dark:hover:bg-zinc-800">
+                History
+              </Link>
+              <hr className="my-1 border-zinc-200 dark:border-zinc-700" />
               <Link href="/settings" className="block px-4 py-2 text-zinc-900 dark:text-white hover:bg-zinc-100 dark:hover:bg-zinc-800">
                 Settings
               </Link>

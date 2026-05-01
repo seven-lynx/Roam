@@ -7,6 +7,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import app.roam.android.data.supabase
 import app.roam.android.ui.screen.MainScreen
@@ -17,6 +18,8 @@ import app.roam.android.viewmodel.AuthState
 import app.roam.android.viewmodel.AuthViewModel
 import app.roam.android.viewmodel.MainViewModel
 import io.github.jan.supabase.auth.auth
+import io.github.jan.supabase.auth.handleDeeplinks
+import kotlinx.coroutines.launch
 
 
 class MainActivity : ComponentActivity() {
@@ -53,8 +56,10 @@ class MainActivity : ComponentActivity() {
     private fun handleDeepLink(intent: Intent?) {
         val uri = intent?.data ?: return
         if (uri.scheme == "app.roam.android" && uri.host == "callback") {
-            // Supabase Auth handles the token exchange from the URI fragment
-            supabase.auth.parseFragmentAndImportSession(uri.toString())
+            // supabase-kt v3: handleDeeplinks handles both PKCE (code) and implicit (fragment) flows
+            lifecycleScope.launch {
+                runCatching { supabase.handleDeeplinks(intent) }
+            }
         }
     }
 }

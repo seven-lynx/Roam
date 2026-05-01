@@ -17,7 +17,7 @@ try {
   process.exit(1);
 }
 
-const sourceImage = path.join(__dirname, '../roam_logo.png');
+const sourceImage = path.join(__dirname, '../assets/roam_logo.png');
 const iconSizes = [
   // Extension icons
   { size: 16, dest: 'extension/icons/icon-16.png' },

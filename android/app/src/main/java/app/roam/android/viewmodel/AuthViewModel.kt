@@ -27,8 +27,8 @@ class AuthViewModel : ViewModel() {
             when (status) {
                 is SessionStatus.Authenticated -> AuthState.Authenticated
                 is SessionStatus.NotAuthenticated -> AuthState.Unauthenticated
-                is SessionStatus.LoadingFromStorage -> AuthState.Loading
-                is SessionStatus.NetworkError -> AuthState.Unauthenticated
+                SessionStatus.Initializing -> AuthState.Loading
+                is SessionStatus.RefreshFailure -> AuthState.Unauthenticated
             }
         }
         .stateIn(
