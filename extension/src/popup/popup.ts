@@ -1,7 +1,7 @@
 // popup.ts — Roam extension popup entry point
 
 import { sendToBackground } from '../lib/messages';
-import type { StateData, RoamData, CheckUrlData, Collection } from '../lib/messages';
+import type { StateData, RoamData, CheckUrlData, Collection, CategoryItem } from '../lib/messages';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function el<T extends HTMLElement>(id: string): T {
@@ -46,23 +46,41 @@ function showError(message: string) {
 let categoriesContext: 'firsttime' | 'settings' = 'firsttime';
 
 async function checkAndRouteAfterSignIn(): Promise<void> {
-  const cats = await sendToBackground<{ categoryIds: string[] }>({ type: 'GET_USER_CATEGORIES' });
-  if (cats.ok && cats.data.categoryIds.length > 0) {
-    populateCategoryChips(cats.data.categoryIds);
+  const [cats, allCats] = await Promise.all([
+    sendToBackground<{ categoryIds: string[] }>({ type: 'GET_USER_CATEGORIES' }),
+    sendToBackground<CategoryItem[]>({ type: 'GET_CATEGORIES' }),
+  ]);
+  const selectedIds = cats.ok ? cats.data.categoryIds : [];
+  const categoryItems = allCats.ok ? allCats.data : undefined;
+  if (cats.ok && selectedIds.length > 0) {
+    populateCategoryChips(selectedIds, categoryItems);
     showState('main');
   } else {
     categoriesContext = 'firsttime';
-    populateCategoryChips(cats.ok ? cats.data.categoryIds : []);
+    populateCategoryChips(selectedIds, categoryItems);
     showState('categories');
   }
 }
 
-function populateCategoryChips(selectedIds: string[]) {
-  const chips = document.querySelectorAll<HTMLButtonElement>('#category-select-chips .chip');
-  chips.forEach((chip) => {
-    const id = chip.dataset.catId;
-    chip.classList.toggle('selected', id !== undefined && selectedIds.includes(id));
-  });
+function populateCategoryChips(selectedIds: string[], categories?: CategoryItem[]) {
+  const container = el('category-select-chips');
+  if (categories) {
+    // Render chips dynamically from the DB-fetched (or fallback) list
+    container.innerHTML = '';
+    for (const cat of categories) {
+      const btn = document.createElement('button');
+      btn.className = 'chip' + (selectedIds.includes(cat.id) ? ' selected' : '');
+      btn.dataset.catId = cat.id;
+      btn.textContent = `${cat.icon} ${cat.name}`;
+      container.appendChild(btn);
+    }
+  } else {
+    // Fallback: just mark the existing static chips
+    container.querySelectorAll<HTMLButtonElement>('.chip').forEach((chip) => {
+      const id = chip.dataset.catId;
+      chip.classList.toggle('selected', id !== undefined && selectedIds.includes(id));
+    });
+  }
   const saveBtn = document.getElementById('btn-save-categories') as HTMLButtonElement | null;
   if (saveBtn) saveBtn.disabled = selectedIds.length === 0;
 }
@@ -95,8 +113,11 @@ document.addEventListener('DOMContentLoaded', () => {
   // ── No-results "Edit categories" button ───────────────────────────────────
   el('btn-add-categories').addEventListener('click', async () => {
     categoriesContext = 'settings';
-    const cats = await sendToBackground<{ categoryIds: string[] }>({ type: 'GET_USER_CATEGORIES' });
-    populateCategoryChips(cats.ok ? cats.data.categoryIds : []);
+    const [cats, allCats] = await Promise.all([
+      sendToBackground<{ categoryIds: string[] }>({ type: 'GET_USER_CATEGORIES' }),
+      sendToBackground<CategoryItem[]>({ type: 'GET_CATEGORIES' }),
+    ]);
+    populateCategoryChips(cats.ok ? cats.data.categoryIds : [], allCats.ok ? allCats.data : undefined);
     showState('categories');
   });
 
@@ -590,8 +611,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
   el('btn-category-prefs').addEventListener('click', async () => {
     categoriesContext = 'settings';
-    const cats = await sendToBackground<{ categoryIds: string[] }>({ type: 'GET_USER_CATEGORIES' });
-    populateCategoryChips(cats.ok ? cats.data.categoryIds : []);
+    const [cats, allCats] = await Promise.all([
+      sendToBackground<{ categoryIds: string[] }>({ type: 'GET_USER_CATEGORIES' }),
+      sendToBackground<CategoryItem[]>({ type: 'GET_CATEGORIES' }),
+    ]);
+    populateCategoryChips(cats.ok ? cats.data.categoryIds : [], allCats.ok ? allCats.data : undefined);
     showPanel(null);
     showState('categories');
   });

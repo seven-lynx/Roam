@@ -1,6 +1,7 @@
 package app.roam.android.data.repository
 
 import app.roam.android.data.supabase
+import app.roam.android.model.CategoryItem
 import app.roam.android.model.Collection
 import app.roam.android.model.RoamUrl
 import app.roam.android.model.UserSettings
@@ -91,6 +92,18 @@ class RoamRepository {
                     skipPaywalled = skipPaywalled ?: current.skipPaywalled,
                 )
             )
+    }
+
+    /**
+     * Returns all categories, ordered by sort_order.
+     */
+    suspend fun getCategories(): List<CategoryItem> {
+        return supabase.postgrest
+            .from("categories")
+            .select(Columns.list("id", "name", "icon", "sort_order")) {
+                order("sort_order")
+            }
+            .decodeList()
     }
 
     /**

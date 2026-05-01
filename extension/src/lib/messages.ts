@@ -6,6 +6,7 @@ export type Request =
   | { type: 'SIGN_IN_GITHUB' }
   | { type: 'SIGN_IN_EMAIL'; email: string; password: string }
   | { type: 'SIGN_UP_EMAIL'; email: string; password: string }
+  | { type: 'GET_CATEGORIES' }
   | { type: 'GET_USER_CATEGORIES' }
   | { type: 'SET_USER_CATEGORIES'; categoryIds: string[] }
   | { type: 'SIGN_OUT' }
@@ -56,6 +57,12 @@ export interface QueueState {
   warming_count: number;
   failed_count: number;
   category_filter: string[];
+}
+
+export interface CategoryItem {
+  id: string;
+  name: string;
+  icon: string;
 }
 
 export interface UserCategoriesData {

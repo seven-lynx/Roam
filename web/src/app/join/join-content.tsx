@@ -4,8 +4,11 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
-// ── Seed data matches the migration ──────────────────────────────────────────
-const CATEGORIES = [
+type CategoryItem = { id: string; label: string; emoji: string };
+
+// Fallback used immediately (before the DB responds) and if the fetch fails.
+// The UUIDs are stable — fixed in the migration seed — so this is safe.
+const FALLBACK_CATEGORIES: CategoryItem[] = [
   { id: "c1000000-0000-0000-0000-000000000001", label: "Science & Nature", emoji: "🔬" },
   { id: "c1000000-0000-0000-0000-000000000002", label: "Technology", emoji: "💻" },
   { id: "c1000000-0000-0000-0000-000000000003", label: "Arts & Culture", emoji: "🎨" },
@@ -29,6 +32,26 @@ export default function JoinPageContent() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [isSignedIn, setIsSignedIn] = useState(false);
+  // Start with the hardcoded fallback; replaced by DB data as soon as it loads.
+  const [categories, setCategories] = useState<CategoryItem[]>(FALLBACK_CATEGORIES);
+
+  // Fetch categories from DB on mount (replaces hardcoded fallback if successful).
+  useEffect(() => {
+    (async () => {
+      try {
+        const { data } = await supabase
+          .from("categories")
+          .select("id, name, icon, sort_order")
+          .order("sort_order");
+        if (data && data.length > 0) {
+          setCategories(data.map((c) => ({ id: c.id, label: c.name, emoji: c.icon })));
+        }
+      } catch {
+        // silently keep fallback on error
+      }
+    })();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Check session on mount and listen for auth state changes
   useEffect(() => {
@@ -246,7 +269,7 @@ export default function JoinPageContent() {
           </div>
 
           <div className="grid grid-cols-2 gap-3">
-            {CATEGORIES.map((cat) => {
+            {categories.map((cat) => {
               const active = selected.has(cat.id);
               return (
                 <button

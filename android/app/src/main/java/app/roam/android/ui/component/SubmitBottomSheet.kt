@@ -23,26 +23,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-
-// Fixed pillar category UUIDs — match the migration seed data exactly.
-// Passed as `subcategory_id` to the submit-url Edge Function (same convention as the extension).
-private data class Category(val label: String, val id: String)
-
-private val CATEGORIES = listOf(
-    Category("🔬 Science",           "c1000000-0000-0000-0000-000000000001"),
-    Category("💻 Technology",        "c1000000-0000-0000-0000-000000000002"),
-    Category("🎨 Arts & Culture",    "c1000000-0000-0000-0000-000000000003"),
-    Category("📜 History & Ideas",   "c1000000-0000-0000-0000-000000000004"),
-    Category("🎮 Games & Hobbies",   "c1000000-0000-0000-0000-000000000005"),
-    Category("🌀 Weird & Wonderful", "c1000000-0000-0000-0000-000000000006"),
-    Category("🌍 People & Places",   "c1000000-0000-0000-0000-000000000007"),
-    Category("🧠 Mind & Body",       "c1000000-0000-0000-0000-000000000008"),
-)
+import app.roam.android.model.CategoryItem
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun SubmitBottomSheet(
     url: String?,
+    categories: List<CategoryItem>,
     onSubmit: (categoryId: String) -> Unit,
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
@@ -87,11 +74,11 @@ fun SubmitBottomSheet(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                CATEGORIES.forEach { cat ->
+                categories.forEach { cat ->
                     FilterChip(
                         selected = selectedId == cat.id,
                         onClick = { selectedId = if (selectedId == cat.id) null else cat.id },
-                        label = { Text(cat.label) },
+                        label = { Text("${cat.icon} ${cat.name}") },
                     )
                 }
             }

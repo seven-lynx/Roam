@@ -24,7 +24,7 @@ Roam fills that gap with a production-quality platform.
 | Platform | Status |
 |---|---|
 | Browser Extension (Chrome + Firefox) | In development |
-| Android App | In development |
+| Android App | In development | 
 | Web (Next.js) | ✅ Live |
 | REST API + Backend | ✅ Live |
 
@@ -40,8 +40,10 @@ Roam fills that gap with a production-quality platform.
 
 ### Rating System
 - **Thumbs up / thumbs down** on each discovered page
-- Ratings influence what you see next (preference learning, no black-box models)
-- Pages with sustained negative votes are deprioritised
+- Your ratings improve your own recommendations over time — no black-box models, two simple rules:
+  1. **Topic affinity** — topics you thumbs-up more often appear slightly more often in your results (up to +30% weight boost). Topics you down-vote are not hidden — just weighted a little less, so you still find unexpected things.
+  2. **Domain muting** — if you thumbs-down 2 or more pages from the same website, that site is automatically muted for 30 days. It comes back on its own; you never have to manage a blocklist.
+- Pages with sustained negative votes from the whole community are deprioritised for everyone
 
 ### Content Pool
 - Users submit URLs for community review

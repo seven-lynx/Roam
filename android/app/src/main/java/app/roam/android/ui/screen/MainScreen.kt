@@ -52,6 +52,7 @@ fun MainScreen(
     val preferredLanguages by vm.preferredLanguages.collectAsState()
     val savedConfirmation by vm.savedConfirmation.collectAsState()
     val collections by vm.collections.collectAsState()
+    val categories by vm.categories.collectAsState()
 
     // Auto-load the first page when the screen appears
     LaunchedEffect(Unit) {
@@ -185,6 +186,7 @@ fun MainScreen(
     if (showSubmitSheet) {
         SubmitBottomSheet(
             url = currentUrl,
+            categories = categories,
             onSubmit = { categoryId -> vm.submitUrl(currentUrl ?: "", categoryId) },
             onDismiss = { vm.closeSubmitSheet() },
         )

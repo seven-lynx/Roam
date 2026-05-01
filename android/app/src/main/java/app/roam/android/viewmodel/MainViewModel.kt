@@ -8,6 +8,7 @@ import android.os.VibratorManager
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import app.roam.android.data.repository.RoamRepository
+import app.roam.android.model.CategoryItem
 import app.roam.android.model.Collection
 import app.roam.android.model.RoamUrl
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -76,7 +77,15 @@ class MainViewModel(
     private val _preferredLanguages = MutableStateFlow(listOf("en"))
     val preferredLanguages: StateFlow<List<String>> = _preferredLanguages.asStateFlow()
 
+    /** Available categories (starts as hardcoded fallback, replaced by DB data on init) */
+    private val _categories = MutableStateFlow(CategoryItem.FALLBACK)
+    val categories: StateFlow<List<CategoryItem>> = _categories.asStateFlow()
+
     init {
+        viewModelScope.launch {
+            runCatching { repo.getCategories() }
+                .onSuccess { if (it.isNotEmpty()) _categories.value = it }
+        }
         viewModelScope.launch {
             runCatching {
                 val settings = repo.getUserSettings()

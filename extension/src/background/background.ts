@@ -5,7 +5,7 @@
 // is rehydrated automatically from chrome.storage.local by the custom
 // storage adapter in src/lib/supabase.ts.
 
-import type { Request, Response, StateData, RoamData, CheckUrlData, QueueState, Collection } from '../lib/messages';
+import type { Request, Response, StateData, RoamData, CheckUrlData, QueueState, Collection, CategoryItem } from '../lib/messages';
 import { getSupabase, clearAuthStorage } from '../lib/supabase';
 import {
   popHotUrl,
@@ -67,6 +67,7 @@ async function dispatch(req: Request): Promise<Response> {
     case 'SIGN_IN_GITHUB':      return signInWithGitHub();
     case 'SIGN_IN_EMAIL':       return signInWithEmail((req as any).email, (req as any).password);
     case 'SIGN_UP_EMAIL':       return signUpWithEmail((req as any).email, (req as any).password);
+    case 'GET_CATEGORIES':      return getCategories();
     case 'GET_USER_CATEGORIES': return getUserCategories();
     case 'SET_USER_CATEGORIES': return setUserCategories((req as any).categoryIds);
     case 'EXCHANGE_CODE':       return exchangeCode((req as any).code);
@@ -256,6 +257,38 @@ async function signUpWithEmail(email: string, password: string): Promise<Respons
   }
   // Verification email sent — user must confirm before signing in
   return { ok: true, data: { needsVerification: true } };
+}
+
+// In-memory cache for categories list (stable, 20-min TTL is just extra safety)
+const CATEGORIES_FALLBACK: CategoryItem[] = [
+  { id: 'c1000000-0000-0000-0000-000000000001', name: 'Science & Nature', icon: '🔬' },
+  { id: 'c1000000-0000-0000-0000-000000000002', name: 'Technology',       icon: '💻' },
+  { id: 'c1000000-0000-0000-0000-000000000003', name: 'Arts & Culture',   icon: '🎨' },
+  { id: 'c1000000-0000-0000-0000-000000000004', name: 'History & Ideas',  icon: '📜' },
+  { id: 'c1000000-0000-0000-0000-000000000005', name: 'Games & Hobbies',  icon: '🎮' },
+  { id: 'c1000000-0000-0000-0000-000000000006', name: 'Weird & Wonderful',icon: '🌀' },
+  { id: 'c1000000-0000-0000-0000-000000000007', name: 'People & Places',  icon: '🌍' },
+  { id: 'c1000000-0000-0000-0000-000000000008', name: 'Mind & Body',      icon: '🧠' },
+];
+let categoriesCache: { items: CategoryItem[]; fetchedAt: number } | null = null;
+const CATEGORIES_TTL = 20 * 60 * 1000;
+
+async function getCategories(): Promise<Response<CategoryItem[]>> {
+  const now = Date.now();
+  if (categoriesCache && now - categoriesCache.fetchedAt < CATEGORIES_TTL) {
+    return { ok: true, data: categoriesCache.items };
+  }
+  try {
+    const { data, error } = await getSupabase()
+      .from('categories')
+      .select('id, name, icon, sort_order')
+      .order('sort_order');
+    if (!error && data && data.length > 0) {
+      categoriesCache = { items: data as CategoryItem[], fetchedAt: now };
+      return { ok: true, data: data as CategoryItem[] };
+    }
+  } catch { /* fall through to fallback */ }
+  return { ok: true, data: CATEGORIES_FALLBACK };
 }
 
 async function getUserCategories(): Promise<Response<{ categoryIds: string[] }>> {
