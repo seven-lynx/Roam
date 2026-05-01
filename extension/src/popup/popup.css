@@ -446,3 +446,47 @@ body {
   margin: -2px 0 2px;
 }
 .categories-chips { margin-bottom: 4px; }
+
+/* ── Feedback state ─────────────────────────────────────────────────── */
+.feedback-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+}
+.feedback-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+}
+.feedback-sub {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: -4px;
+}
+.feedback-textarea {
+  width: 100%;
+  padding: 8px 10px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-size: 13px;
+  font-family: inherit;
+  resize: vertical;
+  outline: none;
+  min-height: 90px;
+}
+.feedback-textarea:focus { border-color: var(--accent); }
+.feedback-count {
+  font-size: 11px;
+  color: var(--text-muted);
+  text-align: right;
+  margin-top: -4px;
+}
+.feedback-success {
+  color: #4ade80;
+  font-size: 13px;
+  text-align: center;
+  padding: 4px 0;
+}

@@ -25,7 +25,8 @@ export type Request =
   | { type: 'GET_QUEUE_STATE' }
   | { type: 'REFRESH_CATEGORIES'; categoryIds: string[] }
   | { type: 'EXCHANGE_CODE'; code: string }
-  | { type: 'SAVE_SESSION'; accessToken: string; refreshToken: string };
+  | { type: 'SAVE_SESSION'; accessToken: string; refreshToken: string }
+  | { type: 'SEND_FEEDBACK'; message: string; email?: string; platform: string };
 
 export type Response<T = unknown> =
   | { ok: true; data: T }

@@ -58,6 +58,8 @@ function copyStatics() {
   }
 }
 
+const sentryDsn = env.SENTRY_DSN ?? '';
+
 const sharedConfig = {
   bundle: true,
   minify: !watch,
@@ -67,6 +69,8 @@ const sharedConfig = {
     'process.env.NODE_ENV': watch ? '"development"' : '"production"',
     '__SUPABASE_URL__': JSON.stringify(supabaseUrl),
     '__SUPABASE_ANON_KEY__': JSON.stringify(supabaseAnonKey),
+    '__SENTRY_DSN__': JSON.stringify(sentryDsn),
+    '__ENVIRONMENT__': watch ? '"development"' : '"production"',
   },
 };
 

@@ -171,11 +171,39 @@
           <label class="lang-option"><input type="checkbox" value="ko" /> 한국어</label>
         </div>
         <button id="btn-category-prefs" class="panel-row">Category preferences ↗</button>
+        <button id="btn-send-feedback"   class="panel-row">Send feedback</button>
         <button id="btn-signout"        class="panel-row panel-row--danger">Sign out</button>
       </section>
 
     </div>
 
+  </div>
+
+  <!-- ── Feedback state ───────────────────────────────────────────── -->
+  <div id="state-feedback" class="state" hidden>
+    <div class="feedback-body">
+      <button id="btn-back-feedback" class="btn-back">← Back</button>
+      <p class="feedback-title">Send feedback</p>
+      <p class="feedback-sub">Bug, suggestion, or just saying hi — we read everything.</p>
+      <textarea
+        id="feedback-message"
+        class="feedback-textarea"
+        placeholder="What's on your mind?"
+        maxlength="2000"
+        rows="5"
+      ></textarea>
+      <p class="feedback-count"><span id="feedback-chars">0</span> / 2000</p>
+      <input
+        id="feedback-email"
+        type="email"
+        class="form-input"
+        placeholder="Email (optional — for follow-up)"
+        autocomplete="email"
+      />
+      <p id="feedback-error" class="auth-error" hidden></p>
+      <p id="feedback-success" class="feedback-success" hidden>Thanks! We got your feedback.</p>
+      <button id="btn-feedback-submit" class="btn-primary" disabled>Send</button>
+    </div>
   </div>
 
   <script src="popup.js"></script>

@@ -5,6 +5,7 @@ plugins {
     id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.compose")
     id("org.jetbrains.kotlin.plugin.serialization")
+    id("io.sentry.android.gradle") version "4.14.1"
 }
 
 android {
@@ -33,6 +34,10 @@ android {
         buildConfigField(
             "String", "SUPABASE_ANON_KEY",
             "\"${localProperties["SUPABASE_ANON_KEY"] ?: ""}\""
+        )
+        buildConfigField(
+            "String", "SENTRY_DSN",
+            "\"${localProperties["SENTRY_DSN"] ?: ""}\""
         )
     }
 
@@ -91,6 +96,9 @@ dependencies {
     // Serialization
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")
 
+    // Error tracking
+    implementation("io.sentry:sentry-android:7.22.1")
+
     // Test
     testImplementation("junit:junit:4.13.2")
     androidTestImplementation("androidx.test.ext:junit:1.2.1")
@@ -99,4 +107,12 @@ dependencies {
     androidTestImplementation("androidx.compose.ui:ui-test-junit4")
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
+}
+
+sentry {
+    // Upload source maps to Sentry for readable stack traces.
+    // Requires SENTRY_AUTH_TOKEN env var at release build time (CI only).
+    // Set to false locally to skip the upload step.
+    autoUploadProguardMapping.set(System.getenv("SENTRY_AUTH_TOKEN") != null)
+    uploadNativeSymbols.set(false)
 }

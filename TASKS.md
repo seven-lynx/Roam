@@ -770,9 +770,21 @@ Final checks before making the app public.
   - **Severity:** LOW — documentation
   - **Effort:** 3–4 hours
 
-- [ ] **9.18** Add structured logging and error tracking — integrate Sentry (free tier) or LogRocket for client-side errors; makes debugging production issues possible without user reports
+- [x] **9.18** Add structured logging and error tracking — integrate Sentry (free tier) or LogRocket for client-side errors; makes debugging production issues possible without user reports
   - **Severity:** LOW — observability
   - **Effort:** 4–6 hours
+
+  📖 **What we did (2026-05-01):** Integrated Sentry across all three platforms.
+  - **Web:** `@sentry/nextjs` 10.51.0 added. Created `sentry.client.config.ts`, `sentry.server.config.ts`, `sentry.edge.config.ts`, and `src/instrumentation.ts` (Next.js instrumentation hook). `next.config.ts` wrapped with `withSentryConfig`. All init is conditional — if `NEXT_PUBLIC_SENTRY_DSN` / `SENTRY_DSN` are not set, Sentry is a no-op. `tracesSampleRate: 0.1` in production.
+  - **Extension:** `@sentry/browser` added. Created `src/lib/sentry.ts` — initialises if `__SENTRY_DSN__` build constant is set. Added `__SENTRY_DSN__` to `build.mjs` define block (reads from root `.env`). Both `background.ts` and `popup.ts` import `../lib/sentry` as their first import.
+  - **Android:** `io.sentry:sentry-android:7.22.1` added to `app/build.gradle.kts`. `io.sentry.android.gradle` Gradle plugin added. `SentryAndroid.init()` called in `RoamApplication.onCreate()` using `BuildConfig.SENTRY_DSN` (from `local.properties`). Auto-upload of ProGuard mapping only triggers if `SENTRY_AUTH_TOKEN` env var is present (CI). Added `-keep class io.sentry.**` to ProGuard rules as explicit safeguard.
+
+- [x] **9.19** Add in-app feedback form — users should be able to send a message and optional email without leaving the app
+
+  📖 **What we did (2026-05-01):** Built a feedback form across all platforms backed by a Supabase `feedback` table and an Edge Function.
+  - **Supabase:** `feedback` table (migration `20260501000006_feedback.sql`) with `platform`, `message`, `email`, `user_id` columns. RLS allows anyone to INSERT; SELECT blocked (service role only). Rate limited: 5 submissions per 10 min per IP. Edge Function `feedback/index.ts` deployed — validates message length (1–2000 chars), platform enum, optional email format, extracts `user_id` from auth header if present.
+  - **Extension:** "Send feedback" button added to Account section in popup config panel. Opens a dedicated `#state-feedback` screen with textarea (2000-char counter), optional email input, error/success messages. Background handles `SEND_FEEDBACK` message → POSTs to Edge Function; detects Firefox vs Chrome via `navigator.userAgent` for platform tag.
+  - **Web:** `FeedbackWidget` client component (modal) added to page footer alongside Privacy / Terms / GitHub links. Calls the same Edge Function with `platform: 'web'`.
 
 ---
 
@@ -782,7 +794,9 @@ These tasks are not required for launch but should be completed before Roam has 
 
 - [ ] **8.1** Build dead link detection — a scheduled Supabase Edge Function that sends HTTP HEAD requests to a rotating batch of URLs and marks any that return a persistent error (404, 410, connection refused) as `inactive = true`; inactive URLs are excluded from discovery but not deleted, preserving rating history
 - [ ] **8.2** Build community flagging — users can flag a live URL as spam, broken, or inappropriate; flags above a threshold auto-hide the URL pending review in the admin queue
-- [ ] **8.3** Set up error monitoring — integrate Sentry (free tier, ~5K errors/month) or enable Supabase Edge Function log alerts; goal is an email notification when an Edge Function throws an unhandled exception in production, rather than discovering failures from user reports
+- [x] **8.3** Set up error monitoring — integrate Sentry (free tier, ~5K errors/month) or enable Supabase Edge Function log alerts; goal is an email notification when an Edge Function throws an unhandled exception in production, rather than discovering failures from user reports
+
+  📖 **What we did (2026-05-01):** Completed as part of task 9.18 — Sentry integrated across web, extension, and Android. See 9.18 for full details. To activate: set `NEXT_PUBLIC_SENTRY_DSN` + `SENTRY_DSN` in Vercel env vars; set `SENTRY_DSN` in root `.env` for extension builds; add `SENTRY_DSN` to `android/local.properties` for Android.
 - [ ] **8.4** Document the database backup and restore procedure — confirm the Supabase backup schedule (Pro: daily point-in-time), test a full restore to a throwaway project, and write the exact steps in `supabase/README.md` so recovery is not improvised under pressure
 - [ ] **8.5** Create a staging environment — provision a second free Supabase project and add a `NEXT_PUBLIC_SUPABASE_URL` override in a Vercel preview branch environment; gives a safe place to test schema migrations (especially irreversible ones) before running them on the production database
 - [ ] **8.6** Send email notifications on submission status change — when a user's `moderation_queue` row moves from `pending` to `approved` or `rejected`, trigger a transactional email via Supabase Auth's SMTP integration (or a free Resend.com account); include the URL and decision in the message body so users know their contribution was reviewed

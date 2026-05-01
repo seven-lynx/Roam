@@ -7,6 +7,12 @@
 -keep class io.github.jan.supabase.** { *; }
 -dontwarn io.github.jan.supabase.**
 
+# ── Sentry Android SDK ───────────────────────────────────────────────────────
+# Sentry ships its own consumer ProGuard rules via the Gradle plugin, but keep
+# these as an explicit safeguard in case the plugin rules don't apply.
+-keep class io.sentry.** { *; }
+-dontwarn io.sentry.**
+
 # ── Ktor HTTP client (used by Supabase SDK) ──────────────────────────────────
 -keep class io.ktor.** { *; }
 -dontwarn io.ktor.**

@@ -7,6 +7,7 @@
     "dev": "node build.mjs --watch"
   },
   "dependencies": {
+    "@sentry/browser": "^10.51.0",
     "@supabase/supabase-js": "^2.104.1"
   },
   "devDependencies": {

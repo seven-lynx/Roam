@@ -5,6 +5,7 @@
 // is rehydrated automatically from chrome.storage.local by the custom
 // storage adapter in src/lib/supabase.ts.
 
+import '../lib/sentry'; // must be first — initialises Sentry if SENTRY_DSN is set
 import type { Request, Response, StateData, RoamData, CheckUrlData, QueueState, Collection, CategoryItem } from '../lib/messages';
 import { getSupabase, clearAuthStorage } from '../lib/supabase';
 import {
@@ -87,6 +88,7 @@ async function dispatch(req: Request): Promise<Response> {
     case 'ADD_URL_TO_COLLECTION': return addUrlToCollection(req.url, req.collectionId);
     case 'GET_QUEUE_STATE':     return getQueueState();
     case 'REFRESH_CATEGORIES':  return refreshCategories(req.categoryIds);
+    case 'SEND_FEEDBACK':       return sendFeedback((req as any).message, (req as any).email, (req as any).platform);
     default:                    return { ok: false, error: 'Unknown message type' };
   }
 }
@@ -630,6 +632,26 @@ async function setLanguagePref(languages: string[]): Promise<Response<null>> {
   // Flush queue so cached URLs are not served with the old language setting
   await clearQueue();
 
+  return { ok: true, data: null };
+}
+
+async function sendFeedback(message: string, email: string | undefined, platform: string): Promise<Response<null>> {
+  const session = (await getSupabase().auth.getSession()).data.session;
+  const authHeader = session ? `Bearer ${session.access_token}` : undefined;
+
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (authHeader) headers['Authorization'] = authHeader;
+
+  const res = await fetch(`${__SUPABASE_URL__}/functions/v1/feedback`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({ message, email: email || undefined, platform }),
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: 'Request failed' }));
+    return { ok: false, error: err.error ?? 'Failed to send feedback' };
+  }
   return { ok: true, data: null };
 }
 

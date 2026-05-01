@@ -1,5 +1,6 @@
 // popup.ts — Roam extension popup entry point
 
+import '../lib/sentry'; // must be first — initialises Sentry if SENTRY_DSN is set
 import { sendToBackground } from '../lib/messages';
 import type { StateData, RoamData, CheckUrlData, Collection, CategoryItem } from '../lib/messages';
 
@@ -10,10 +11,10 @@ function el<T extends HTMLElement>(id: string): T {
   return e as T;
 }
 
-type AppState = 'signedout' | 'auth' | 'email-auth' | 'categories' | 'error' | 'noresults' | 'main';
+type AppState = 'signedout' | 'auth' | 'email-auth' | 'categories' | 'error' | 'noresults' | 'main' | 'feedback';
 
 function showState(name: AppState) {
-  for (const s of ['signedout', 'auth', 'email-auth', 'categories', 'error', 'noresults', 'main'] as const) {
+  for (const s of ['signedout', 'auth', 'email-auth', 'categories', 'error', 'noresults', 'main', 'feedback'] as const) {
     el(`state-${s}`).hidden = s !== name;
   }
 }
@@ -624,6 +625,63 @@ document.addEventListener('DOMContentLoaded', () => {
     await sendToBackground({ type: 'SIGN_OUT' });
     showPanel(null);
     showState('signedout');
+  });
+
+  // ── Feedback ──────────────────────────────────────────────────────────────
+  el('btn-send-feedback').addEventListener('click', () => {
+    // Reset feedback form
+    el<HTMLTextAreaElement>('feedback-message').value = '';
+    el<HTMLInputElement>('feedback-email').value = '';
+    el('feedback-chars').textContent = '0';
+    el('feedback-error').hidden = true;
+    el('feedback-success').hidden = true;
+    el<HTMLButtonElement>('btn-feedback-submit').disabled = true;
+    el<HTMLButtonElement>('btn-feedback-submit').textContent = 'Send';
+    showPanel(null);
+    showState('feedback');
+  });
+
+  el('btn-back-feedback').addEventListener('click', () => {
+    showPanel('config');
+    showState('main');
+  });
+
+  el('feedback-message').addEventListener('input', () => {
+    const val = el<HTMLTextAreaElement>('feedback-message').value;
+    el('feedback-chars').textContent = String(val.length);
+    el<HTMLButtonElement>('btn-feedback-submit').disabled = val.trim().length === 0;
+  });
+
+  el('btn-feedback-submit').addEventListener('click', async () => {
+    const message = el<HTMLTextAreaElement>('feedback-message').value.trim();
+    const email = el<HTMLInputElement>('feedback-email').value.trim() || undefined;
+    if (!message) return;
+
+    const submitBtn = el<HTMLButtonElement>('btn-feedback-submit');
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Sending…';
+    el('feedback-error').hidden = true;
+
+    // Detect Firefox vs Chrome for platform tagging
+    const isFirefox = navigator.userAgent.includes('Firefox');
+    const platform = isFirefox ? 'extension-firefox' : 'extension-chrome';
+
+    const res = await sendToBackground({ type: 'SEND_FEEDBACK', message, email, platform });
+    if (!res.ok) {
+      el<HTMLParagraphElement>('feedback-error').textContent = res.error;
+      el('feedback-error').hidden = false;
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'Send';
+      return;
+    }
+
+    el('feedback-success').hidden = false;
+    submitBtn.textContent = 'Sent ✓';
+    // Auto-return after 2 seconds
+    setTimeout(() => {
+      showPanel('config');
+      showState('main');
+    }, 2000);
   });
 
   // ── Paywall toggle ────────────────────────────────────────────────────────
