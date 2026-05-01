@@ -143,7 +143,7 @@ async function getState(): Promise<Response<StateData>> {
 
 async function signInWithGoogle(): Promise<Response<StateData>> {
   const supabase = getSupabase();
-  const redirectTo = `chrome-extension://${chrome.runtime.id}/callback.html`;
+  const redirectTo = chrome.runtime.getURL('callback.html');
 
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: 'google',

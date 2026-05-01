@@ -532,7 +532,7 @@ Background worker maintains a prefetch queue to minimize wait times when users c
 
 - [x] **5.16** Package the extension for Chrome (`dist/` folder zipped)
 - [ ] **5.17** Register a Chrome Web Store developer account ($5) and submit
-- [ ] **5.18** Package the extension for Firefox (same `dist/`, minor `manifest.json` adjustments)
+- [x] **5.18** Package the extension for Firefox (same `dist/`, minor `manifest.json` adjustments)
 - [ ] **5.19** Submit to Firefox Add-ons (AMO) — free
 
 ---

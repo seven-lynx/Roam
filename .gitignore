@@ -49,3 +49,5 @@ Thumbs.db
 *.log
 extension/build_output.txt
 extension/roam-extension.zip
+extension/roam-firefox.zip
+extension/dist-firefox/

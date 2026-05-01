@@ -1,7 +1,8 @@
 // build.mjs — esbuild pipeline for the Roam browser extension
 // Usage:
-//   node build.mjs          → single production build
-//   node build.mjs --watch  → watch mode for development
+//   node build.mjs             → single production build (Chrome)
+//   node build.mjs --firefox   → single production build (Firefox)
+//   node build.mjs --watch     → watch mode for development (Chrome)
 
 import * as esbuild from 'esbuild';
 import { copyFileSync, mkdirSync, readFileSync } from 'fs';
@@ -10,6 +11,7 @@ import { fileURLToPath } from 'url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const watch = process.argv.includes('--watch');
+const firefox = process.argv.includes('--firefox');
 
 // ── Load env vars from root .env ────────────────────────────────────────────
 function loadRootEnv() {
@@ -38,12 +40,13 @@ if (!supabaseUrl || !supabaseAnonKey) {
   process.exit(1);
 }
 
-const outdir = resolve(__dirname, 'dist');
+const outdir = resolve(__dirname, firefox ? 'dist-firefox' : 'dist');
 mkdirSync(outdir, { recursive: true });
 
 // Copy static files that don't need bundling
 function copyStatics() {
-  copyFileSync(resolve(__dirname, 'manifest.json'),            resolve(outdir, 'manifest.json'));
+  const manifestSrc = firefox ? 'manifest.firefox.json' : 'manifest.json';
+  copyFileSync(resolve(__dirname, manifestSrc),               resolve(outdir, 'manifest.json'));
   copyFileSync(resolve(__dirname, 'src/popup/popup.html'),     resolve(outdir, 'popup.html'));
   copyFileSync(resolve(__dirname, 'src/popup/popup.css'),      resolve(outdir, 'popup.css'));
   copyFileSync(resolve(__dirname, 'src/callback/callback.html'), resolve(outdir, 'callback.html'));
@@ -59,7 +62,7 @@ const sharedConfig = {
   bundle: true,
   minify: !watch,
   sourcemap: watch,
-  target: ['chrome120', 'firefox121'],
+  target: firefox ? ['firefox121'] : ['chrome120'],
   define: {
     'process.env.NODE_ENV': watch ? '"development"' : '"production"',
     '__SUPABASE_URL__': JSON.stringify(supabaseUrl),
