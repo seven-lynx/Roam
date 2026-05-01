@@ -231,7 +231,7 @@ fun MainScreen(
             },
             onCategoryPrefs = {
                 CustomTabsIntent.Builder().build()
-                    .launchUrl(context, Uri.parse("https://roamtheweb.app/join"))
+                    .launchUrl(context, Uri.parse("https://roamtheweb.app/profile"))
                 vm.closeConfigSheet()
             },
             onSkipPaywalledChange = { vm.setSkipPaywalled(it) },

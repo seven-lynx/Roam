@@ -23,7 +23,7 @@ Deno.serve(async (req) => {
   const { data: { user }, error: authError } = await supabase.auth.getUser()
   if (authError || !user) return json({ error: 'Unauthorized' }, 401)
 
-  let body: { collection_id?: unknown; exclude_domain?: unknown } = {}
+  let body: { collection_id?: unknown; exclude_domain?: unknown; subcategory_id?: unknown } = {}
   try {
     const text = await req.text()
     if (text) body = JSON.parse(text)
@@ -31,13 +31,15 @@ Deno.serve(async (req) => {
     return json({ error: 'Invalid JSON' }, 400)
   }
 
-  const collectionId = typeof body.collection_id === 'string' ? body.collection_id : null
-  const excludeDomain = typeof body.exclude_domain === 'string' ? body.exclude_domain : null
+  const collectionId   = typeof body.collection_id  === 'string' ? body.collection_id  : null
+  const excludeDomain  = typeof body.exclude_domain  === 'string' ? body.exclude_domain  : null
+  const subcategoryId  = typeof body.subcategory_id  === 'string' ? body.subcategory_id  : null
 
   const { data, error } = await supabase.rpc('roam', {
     p_user_id: user.id,
-    ...(collectionId ? { p_collection_id: collectionId } : {}),
+    ...(collectionId  ? { p_collection_id:  collectionId  } : {}),
     ...(excludeDomain ? { p_exclude_domain: excludeDomain } : {}),
+    ...(subcategoryId ? { p_subcategory_id: subcategoryId } : {}),
   })
 
   if (error) {

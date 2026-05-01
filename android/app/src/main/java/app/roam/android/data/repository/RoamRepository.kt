@@ -21,13 +21,18 @@ class RoamRepository {
 
     /**
      * Calls POST /functions/v1/roam.
-     * Optionally restricts to a specific collection.
+     * Optionally restricts to a specific collection or subcategory.
      * Returns null on 404 (pool exhausted).
      */
-    suspend fun roam(collectionId: String? = null, excludeDomain: String? = null): RoamUrl? {
+    suspend fun roam(
+        collectionId: String? = null,
+        excludeDomain: String? = null,
+        subcategoryId: String? = null,
+    ): RoamUrl? {
         val body = buildJsonObject {
             collectionId?.let { put("collection_id", it) }
             excludeDomain?.let { put("exclude_domain", it) }
+            subcategoryId?.let { put("subcategory_id", it) }
         }
         val response = supabase.functions.invoke("roam", body = body)
         if (response.status.value == 404) return null

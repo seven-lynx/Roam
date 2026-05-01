@@ -241,13 +241,17 @@ class MainViewModel(
 
     fun roamWithinCategory() {
         val loaded = _state.value as? RoamState.Loaded
-        // Use the subcategory of the current page if known; fall back to global roam
-        val categoryId = loaded?.roamUrl?.subcategoryId
+        val subcategoryId = loaded?.roamUrl?.subcategoryId
+        _activeCollectionId.value = null  // clear any collection scope
         _showConfigSheet.value = false
         viewModelScope.launch {
             _state.value = RoamState.Loading
             runCatching {
-                repo.roam(collectionId = null, excludeDomain = extractDomain(_currentUrl.value))
+                repo.roam(
+                    collectionId = null,
+                    excludeDomain = extractDomain(_currentUrl.value),
+                    subcategoryId = subcategoryId,
+                )
             }.onSuccess { result ->
                 if (result == null) _state.value = RoamState.Exhausted
                 else { _currentUrl.value = result.url; _state.value = RoamState.Loaded(result) }
