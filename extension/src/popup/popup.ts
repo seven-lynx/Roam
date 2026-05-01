@@ -100,7 +100,7 @@ async function checkAndRouteAfterSignIn(): Promise<void> {
 
 function populateCategoryChips(selectedIds: string[], categories: CategoryItem[]) {
   const container = el('category-select-chips');
-  container.innerHTML = '';
+  while (container.firstChild) container.removeChild(container.firstChild);
   for (const cat of categories) {
     const btn = document.createElement('button');
     btn.className = 'chip' + (selectedIds.includes(cat.id) ? ' selected' : '');
@@ -475,7 +475,12 @@ document.addEventListener('DOMContentLoaded', () => {
         font-size: 13px;
         border-radius: 0;
       `;
-      option.innerHTML = `${col.name} <span style="color: var(--text-muted); font-size: 11px;">(${col.item_count})</span>`;
+      option.textContent = col.name + ' ';
+      const countSpan = document.createElement('span');
+      countSpan.style.color = 'var(--text-muted)';
+      countSpan.style.fontSize = '11px';
+      countSpan.textContent = `(${col.item_count})`;
+      option.appendChild(countSpan);
       option.addEventListener('click', async () => {
         const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
         if (!tab?.url) return;

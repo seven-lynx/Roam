@@ -6,9 +6,10 @@
 
 import * as esbuild from 'esbuild';
 import { sentryEsbuildPlugin } from '@sentry/esbuild-plugin';
-import { copyFileSync, mkdirSync, readFileSync } from 'fs';
+import { copyFileSync, mkdirSync, readFileSync, createWriteStream, readdirSync } from 'fs';
 import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
+import archiver from 'archiver';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const watch = process.argv.includes('--watch');
@@ -57,6 +58,40 @@ function copyStatics() {
       resolve(outdir, `icon-${size}.png`)
     );
   }
+}
+
+// Create a zip file from the dist folder for store submission
+function createZip() {
+  return new Promise((promiseResolve, reject) => {
+    const zipPath = resolve(outdir, firefox ? 'roam-extension-firefox.zip' : 'roam-extension.zip');
+    const output = createWriteStream(zipPath);
+    const archive = archiver('zip', { zlib: { level: 9 } });
+
+    output.on('close', () => {
+      const zipName = firefox ? 'roam-extension-firefox.zip' : 'roam-extension.zip';
+      console.log(`[roam] Zip archive created: ${zipName} (${archive.pointer()} bytes)`);
+      promiseResolve();
+    });
+
+    archive.on('error', (err) => {
+      reject(err);
+    });
+
+    output.on('error', (err) => {
+      reject(err);
+    });
+
+    archive.pipe(output);
+
+    // Add all files from dist except the zip file itself
+    const files = readdirSync(outdir).filter(f => !f.endsWith('.zip'));
+    for (const file of files) {
+      const filePath = resolve(outdir, file);
+      archive.file(filePath, { name: file });
+    }
+
+    archive.finalize();
+  });
 }
 
 const sentryDsn = env.SENTRY_DSN ?? '';
@@ -137,5 +172,11 @@ if (watch) {
     ] : [],
   });
   copyStatics();
+  try {
+    await createZip();
+  } catch (err) {
+    console.error('[roam] Error creating zip file:', err);
+    process.exit(1);
+  }
   console.log('[roam] Build complete → dist/');
 }

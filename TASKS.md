@@ -548,9 +548,17 @@ Background worker maintains a prefetch queue to minimize wait times when users c
 ### 5d. Submission
 
 - [x] **5.16** Package the extension for Chrome (`dist/` folder zipped)
-- [ ] **5.17** Register a Chrome Web Store developer account ($5) and submit
+- [x] **5.17** Register a Chrome Web Store developer account ($5) and submit
+
+  📖 **What we did:** Submitted `dist/roam-extension.zip` (381 KB) to the Chrome Web Store developer dashboard. Extension is under review.
+
 - [x] **5.18** Package the extension for Firefox (same `dist/`, minor `manifest.json` adjustments)
-- [ ] **5.19** Submit to Firefox Add-ons (AMO) — free
+
+  📖 **What we did:** Created `manifest.firefox.json` with Firefox-specific settings: `browser_specific_settings.gecko` with `id: "roam@roamtheweb.app"`, `strict_min_version: "140.0"`, `data_collection_permissions: { required: ["browsingActivity"] }`, and `gecko_android.strict_min_version: "142.0"`. Also added `background.scripts: ["background.js"]` as Firefox fallback alongside `service_worker`. Firefox build produced via `npm run build -- --firefox` → `dist-firefox/roam-extension-firefox.zip` (2.15 MB, includes source maps). Fixed two `innerHTML` usages in `popup.ts` (replaced with `removeChild` loop and `createElement` + `textContent` for DOM safety). Iterated through three AMO validator runs to fix: (1) missing `background.scripts` fallback, (2) `data_collection_permissions` wrong type (array → object), (3) version compatibility warnings resolved by bumping `strict_min_version` to 140.0. Final result: **Add-on passed validation** (0 errors, 3 non-blocking warnings from Sentry SDK internals and expected `service_worker` notice).
+
+- [x] **5.19** Submit to Firefox Add-ons (AMO) — free
+
+  📖 **What we did:** Prepared full AMO submission package. Created `extension/README.md` with reviewer build instructions (OS, Node 24.x, pnpm 10.x, env var values, step-by-step build commands). Created `dist-firefox/roam-extension-source.zip` (83 KB) containing all TypeScript source, manifests, `build.mjs`, `pnpm-lock.yaml`, and docs — required by AMO since esbuild produces minified output. Submitted `roam-extension-firefox.zip` as the extension package and `roam-extension-source.zip` as the source upload. Notes to reviewer included explanation of Sentry `innerHTML` warnings, dual `service_worker`/`scripts` manifest pattern, and `browsingActivity` data declaration rationale. Extension is under AMO review.
 
 ---
 

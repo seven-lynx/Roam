@@ -7,7 +7,13 @@
   "browser_specific_settings": {
     "gecko": {
       "id": "roam@roamtheweb.app",
-      "strict_min_version": "121.0"
+      "strict_min_version": "140.0",
+      "data_collection_permissions": {
+        "required": ["browsingActivity"]
+      }
+    },
+    "gecko_android": {
+      "strict_min_version": "142.0"
     }
   },
 
@@ -31,6 +37,7 @@
 
   "background": {
     "service_worker": "background.js",
+    "scripts": ["background.js"],
     "type": "module"
   },
 
