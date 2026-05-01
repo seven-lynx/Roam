@@ -19,9 +19,7 @@ export default function Home() {
 
         {/* Description */}
         <p className="text-lg text-zinc-600 dark:text-zinc-300 leading-relaxed max-w-lg">
-          Roam is a StumbleUpon-style web discovery engine. Every tap or click
-          sends you somewhere new — curated by real ratings, filtered by your
-          interests.
+          Roam is a community-driven web discovery platform. Every tap or click sends you somewhere new — curated by real ratings, filtered by your interests. No algorithms, no feeds, no noise.
         </p>
 
         {/* CTAs */}
@@ -49,41 +47,101 @@ export default function Home() {
             <h2 className="font-semibold text-zinc-900 dark:text-white text-lg">
               Browser extension
             </h2>
-            <p className="text-zinc-500 dark:text-zinc-400 text-sm">
-              Hit Roam from your toolbar. Works in Chrome and Firefox.
+            <p className="text-zinc-600 dark:text-zinc-400 text-sm">
+              Click the roam button while browsing to discover new pages. Rate pages with 👍👎 to personalize your recommendations.
             </p>
-            <span className="mt-2 text-sm text-zinc-400 italic">Coming soon</span>
+            <div className="flex gap-2 mt-auto">
+              <a
+                href="https://chromewebstore.google.com/detail/roam/[ID]"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-blue-600 hover:underline text-sm font-semibold"
+              >
+                Chrome →
+              </a>
+              <a
+                href="https://addons.mozilla.org/firefox/addon/roam/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-blue-600 hover:underline text-sm font-semibold"
+              >
+                Firefox →
+              </a>
+            </div>
           </div>
           <div className="flex flex-col gap-2">
             <h2 className="font-semibold text-zinc-900 dark:text-white text-lg">
               Android app
             </h2>
-            <p className="text-zinc-500 dark:text-zinc-400 text-sm">
-              Swipe through the web on mobile.
+            <p className="text-zinc-600 dark:text-zinc-400 text-sm">
+              Swipe to discover. Tap to save. Read offline. The full Roam experience in your pocket.
             </p>
-            <span className="mt-2 text-sm text-zinc-400 italic">Coming soon</span>
+            <div className="flex gap-2 mt-auto">
+              <a
+                href="https://play.google.com/store/apps/details?id=com.roam"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-blue-600 hover:underline text-sm font-semibold"
+              >
+                Google Play →
+              </a>
+            </div>
           </div>
+        </div>
+
+        {/* Features */}
+        <div className="w-full border-t border-zinc-200 dark:border-zinc-800 pt-10 mt-4">
+          <h2 className="text-2xl font-bold text-zinc-900 dark:text-white mb-8">Why Roam?</h2>
+          <div className="grid sm:grid-cols-2 gap-6">
+            <div className="text-left">
+              <div className="text-3xl mb-3">🎯</div>
+              <h3 className="font-semibold text-zinc-900 dark:text-white mb-2">Your interests</h3>
+              <p className="text-sm text-zinc-600 dark:text-zinc-400">
+                Select categories that match what you care about. Discovery is personalized, not algorithmic.
+              </p>
+            </div>
+            <div className="text-left">
+              <div className="text-3xl mb-3">⭐</div>
+              <h3 className="font-semibold text-zinc-900 dark:text-white mb-2">Real ratings</h3>
+              <p className="text-sm text-zinc-600 dark:text-zinc-400">
+                Pages are ranked by genuine user votes, not engagement metrics or ad revenue.
+              </p>
+            </div>
+            <div className="text-left">
+              <div className="text-3xl mb-3">🚫</div>
+              <h3 className="font-semibold text-zinc-900 dark:text-white mb-2">No feeds</h3>
+              <p className="text-sm text-zinc-600 dark:text-zinc-400">
+                One button = one page. No infinite scrolling, no rabbit holes, no notifications.
+              </p>
+            </div>
+            <div className="text-left">
+              <div className="text-3xl mb-3">👥</div>
+              <h3 className="font-semibold text-zinc-900 dark:text-white mb-2">Community</h3>
+              <p className="text-sm text-zinc-600 dark:text-zinc-400">
+                Follow friends, discover what they're reading, and share collections.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="w-full border-t border-zinc-200 dark:border-zinc-800 pt-10 mt-4 flex justify-between items-center text-sm text-zinc-600 dark:text-zinc-400">
+          <div className="flex gap-6">
+            <Link href="/privacy" className="hover:text-zinc-900 dark:hover:text-white">
+              Privacy
+            </Link>
+            <Link href="/terms" className="hover:text-zinc-900 dark:hover:text-white">
+              Terms
+            </Link>
+            <a href="https://github.com/seito/roam" target="_blank" rel="noopener noreferrer" className="hover:text-zinc-900 dark:hover:text-white">
+              GitHub
+            </a>
+          </div>
+          <span>Made with ❤️</span>
         </div>
       </div>
 
-      {/* Footer */}
-      <footer className="mt-24 flex gap-6 text-sm text-zinc-400 dark:text-zinc-600">
-        <Link href="/privacy" className="hover:text-zinc-600 dark:hover:text-zinc-400 transition-colors">
-          Privacy
-        </Link>
-        <Link href="/terms" className="hover:text-zinc-600 dark:hover:text-zinc-400 transition-colors">
-          Terms
-        </Link>
-        <a
-          href="https://github.com/seven-lynx/Roam"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="hover:text-zinc-600 dark:hover:text-zinc-400 transition-colors"
-        >
-          GitHub
-        </a>
-        <FeedbackWidget />
-      </footer>
+      <FeedbackWidget />
     </main>
   );
 }

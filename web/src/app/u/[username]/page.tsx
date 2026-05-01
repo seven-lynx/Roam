@@ -1,122 +1,238 @@
-import { notFound } from "next/navigation";
-import Link from "next/link";
-import type { Metadata } from "next";
+'use client';
 
-const FUNCTIONS_URL = process.env.NEXT_PUBLIC_SUPABASE_URL + "/functions/v1";
-const ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+import { useState, useEffect } from 'react';
+import Link from 'next/link';
+import { useParams } from 'next/navigation';
+import { Header } from '@/components/Header';
+import { LoadingPage, Button, Card, Avatar } from '@/components/UI';
+import { createClient } from '@/lib/supabase/client';
+import { useSession } from '@/lib/hooks';
 
-interface Collection {
+type UserProfile = {
   id: string;
-  name: string;
-  slug: string;
-  description: string | null;
-  item_count: number;
-}
-
-interface ProfileData {
   username: string;
-  display_name: string | null;
-  bio: string | null;
-  avatar_url: string | null;
+  email: string;
+  bio?: string;
   follower_count: number;
   following_count: number;
-  collections: Collection[];
-}
+};
 
-async function getProfile(username: string): Promise<ProfileData | null> {
-  const res = await fetch(`${FUNCTIONS_URL}/profile?username=${encodeURIComponent(username)}`, {
-    headers: { Authorization: `Bearer ${ANON_KEY}` },
-    next: { revalidate: 60 },
-  });
-  if (res.status === 404) return null;
-  if (!res.ok) return null;
-  const { data } = await res.json();
-  return data as ProfileData;
-}
+type UserCollection = {
+  id: string;
+  name: string;
+  description?: string;
+  public: boolean;
+  item_count: number;
+};
 
-export async function generateMetadata(
-  { params }: { params: Promise<{ username: string }> }
-): Promise<Metadata> {
-  const { username } = await params;
-  const profile = await getProfile(username);
-  if (!profile) return { title: "User not found" };
-  return {
-    title: profile.display_name ?? profile.username,
-    description: profile.bio ?? `${profile.username}'s profile on Roam`,
-  };
-}
+export default function UserProfilePage() {
+  const params = useParams();
+  const username = params.username as string;
+  const { session, loading: sessionLoading } = useSession();
+  const supabase = createClient();
 
-export default async function ProfilePage(
-  { params }: { params: Promise<{ username: string }> }
-) {
-  const { username } = await params;
-  const profile = await getProfile(username);
-  if (!profile) notFound();
+  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [collections, setCollections] = useState<UserCollection[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [isFollowing, setIsFollowing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    loadProfile();
+  }, [username]);
+
+  useEffect(() => {
+    if (profile && session?.user.id) {
+      checkFollowing();
+    }
+  }, [profile, session]);
+
+  async function loadProfile() {
+    try {
+      const { data, error: err } = await supabase
+        .from('profiles')
+        .select('id, username, email, bio')
+        .eq('username', username)
+        .single();
+
+      if (err) {
+        setError('User not found');
+        return;
+      }
+
+      // Get stats via function
+      const { data: stats, error: statsErr } = await supabase.functions.invoke('profile', {
+        body: { user_id: data.id },
+      });
+
+      const profileData = {
+        ...data,
+        follower_count: stats?.follower_count || 0,
+        following_count: stats?.following_count || 0,
+      };
+
+      setProfile(profileData);
+
+      // Load public collections
+      const { data: cols } = await supabase
+        .from('collections')
+        .select('id, name, description, public')
+        .eq('user_id', data.id)
+        .eq('public', true)
+        .order('created_at', { ascending: false });
+
+      // Get item counts
+      const collectionsWithCounts = await Promise.all(
+        (cols || []).map(async (col) => {
+          const { count } = await supabase
+            .from('collection_items')
+            .select('id', { count: 'exact' })
+            .eq('collection_id', col.id);
+          return {
+            ...col,
+            item_count: count || 0,
+          };
+        })
+      );
+
+      setCollections(collectionsWithCounts);
+    } catch (e) {
+      console.error('Failed to load profile:', e);
+      setError('Failed to load profile');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function checkFollowing() {
+    if (!profile) return;
+
+    try {
+      const { data } = await supabase
+        .from('follows')
+        .select('id')
+        .eq('follower_id', session?.user.id)
+        .eq('following_id', profile.id)
+        .single();
+
+      setIsFollowing(!!data);
+    } catch (e) {
+      // User is not following
+      setIsFollowing(false);
+    }
+  }
+
+  async function handleFollow() {
+    if (!profile) return;
+
+    try {
+      await supabase.functions.invoke('follow', {
+        body: { action: isFollowing ? 'unfollow' : 'follow', user_id: profile.id },
+      });
+      setIsFollowing(!isFollowing);
+    } catch (e) {
+      console.error('Failed to toggle follow:', e);
+    }
+  }
+
+  if (loading) return <LoadingPage />;
+
+  if (error || !profile) {
+    return (
+      <div className="min-h-screen bg-white dark:bg-zinc-950">
+        <Header />
+        <main className="max-w-4xl mx-auto px-6 py-12 text-center">
+          <h1 className="text-2xl font-bold text-zinc-900 dark:text-white mb-4">User not found</h1>
+          <p className="text-zinc-600 dark:text-zinc-400 mb-6">The user you're looking for doesn't exist or has been removed.</p>
+          <Link href="/friends">
+            <Button>Back to friends</Button>
+          </Link>
+        </main>
+      </div>
+    );
+  }
+
+  const isOwnProfile = session?.user.id === profile.id;
 
   return (
-    <main className="min-h-screen bg-white dark:bg-zinc-950 px-6 py-16">
-      <div className="max-w-2xl mx-auto flex flex-col gap-10">
+    <div className="min-h-screen bg-white dark:bg-zinc-950">
+      <Header />
 
-        {/* Header */}
-        <div className="flex items-start gap-5">
-          {profile.avatar_url ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={profile.avatar_url}
-              alt={profile.username}
-              className="w-16 h-16 rounded-full object-cover bg-zinc-200"
-            />
-          ) : (
-            <div className="w-16 h-16 rounded-full bg-zinc-200 dark:bg-zinc-800 flex items-center justify-center text-2xl font-bold text-zinc-500 select-none">
-              {(profile.display_name ?? profile.username)[0].toUpperCase()}
+      <main className="max-w-4xl mx-auto px-6 py-12">
+        {/* Profile header */}
+        <div className="mb-12">
+          <div className="flex items-start justify-between mb-6">
+            <div className="flex items-center gap-6">
+              <Avatar initial={profile.email?.[0] || '?'} size="lg" />
+              <div>
+                <h1 className="text-3xl font-bold text-zinc-900 dark:text-white">{profile.username}</h1>
+                <p className="text-zinc-600 dark:text-zinc-400">{profile.email}</p>
+              </div>
             </div>
-          )}
-          <div className="flex flex-col gap-1">
-            <h1 className="text-2xl font-bold text-zinc-900 dark:text-white">
-              {profile.display_name ?? profile.username}
-            </h1>
-            <p className="text-zinc-500 dark:text-zinc-400 text-sm">@{profile.username}</p>
-            {profile.bio && (
-              <p className="mt-1 text-zinc-600 dark:text-zinc-300 text-sm max-w-sm">{profile.bio}</p>
+            {!isOwnProfile && session && (
+              <Button variant={isFollowing ? 'secondary' : 'primary'} onClick={handleFollow}>
+                {isFollowing ? 'Following ⭐' : 'Follow'}
+              </Button>
             )}
-            <div className="flex gap-4 mt-2 text-sm text-zinc-500 dark:text-zinc-400">
-              <span><strong className="text-zinc-900 dark:text-white">{profile.follower_count}</strong> followers</span>
-              <span><strong className="text-zinc-900 dark:text-white">{profile.following_count}</strong> following</span>
-            </div>
+            {isOwnProfile && (
+              <Link href="/profile">
+                <Button variant="secondary">Edit profile</Button>
+              </Link>
+            )}
+          </div>
+
+          {/* Stats */}
+          <div className="grid grid-cols-3 gap-4">
+            <Card>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-zinc-900 dark:text-white">{profile.follower_count}</div>
+                <div className="text-sm text-zinc-600 dark:text-zinc-400">Followers</div>
+              </div>
+            </Card>
+            <Card>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-zinc-900 dark:text-white">{profile.following_count}</div>
+                <div className="text-sm text-zinc-600 dark:text-zinc-400">Following</div>
+              </div>
+            </Card>
+            <Card>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-zinc-900 dark:text-white">{collections.length}</div>
+                <div className="text-sm text-zinc-600 dark:text-zinc-400">Collections</div>
+              </div>
+            </Card>
           </div>
         </div>
 
+        {/* Bio */}
+        {profile.bio && (
+          <Card className="mb-12">
+            <h2 className="text-lg font-semibold text-zinc-900 dark:text-white mb-2">About</h2>
+            <p className="text-zinc-600 dark:text-zinc-400">{profile.bio}</p>
+          </Card>
+        )}
+
         {/* Collections */}
-        <section className="flex flex-col gap-4">
-          <h2 className="text-lg font-semibold text-zinc-900 dark:text-white">Collections</h2>
-          {profile.collections.length === 0 ? (
-            <p className="text-zinc-400 text-sm">No public collections yet.</p>
-          ) : (
-            <div className="grid gap-3">
-              {profile.collections.map((col) => (
-                <Link
-                  key={col.id}
-                  href={`/c/${col.slug}`}
-                  className="flex items-center justify-between rounded-xl border border-zinc-200 dark:border-zinc-800 px-5 py-4 hover:bg-zinc-50 dark:hover:bg-zinc-900 transition-colors"
-                >
-                  <div className="flex flex-col gap-0.5">
-                    <span className="font-medium text-zinc-900 dark:text-white">{col.name}</span>
-                    {col.description && (
-                      <span className="text-sm text-zinc-500 dark:text-zinc-400 line-clamp-1">{col.description}</span>
+        {collections.length > 0 && (
+          <div>
+            <h2 className="text-2xl font-bold text-zinc-900 dark:text-white mb-6">Public collections</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {collections.map((collection) => (
+                <Link key={collection.id} href={`/collections/${collection.id}`}>
+                  <Card className="hover:shadow-lg transition-shadow h-full cursor-pointer">
+                    <h3 className="text-lg font-semibold text-zinc-900 dark:text-white mb-2">{collection.name}</h3>
+                    {collection.description && (
+                      <p className="text-zinc-600 dark:text-zinc-400 text-sm mb-4">{collection.description}</p>
                     )}
-                  </div>
-                  <span className="text-sm text-zinc-400 shrink-0 ml-4">{col.item_count} links</span>
+                    <div className="text-sm text-zinc-600 dark:text-zinc-400">{collection.item_count} items</div>
+                  </Card>
                 </Link>
               ))}
             </div>
-          )}
-        </section>
-
-        {/* Back */}
-        <Link href="/" className="text-sm text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors">
-          ← Back to Roam
-        </Link>
-      </div>
-    </main>
+          </div>
+        )}
+      </main>
+    </div>
   );
 }
+
