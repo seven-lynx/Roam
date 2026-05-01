@@ -143,7 +143,10 @@ async function getState(): Promise<Response<StateData>> {
 
 async function signInWithGoogle(): Promise<Response<StateData>> {
   const supabase = getSupabase();
-  const redirectTo = `chrome-extension://${chrome.runtime.id}/callback.html`;
+  // Use Chrome's identity-managed URL — a real HTTPS scheme Supabase accepts.
+  // chrome.identity.launchWebAuthFlow intercepts the final redirect before the
+  // browser navigates to it, so Supabase never needs to actually reach this host.
+  const redirectTo = `https://${chrome.runtime.id}.chromiumapp.org/`;
 
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: 'google',
@@ -153,13 +156,50 @@ async function signInWithGoogle(): Promise<Response<StateData>> {
     return { ok: false, error: error?.message ?? 'Could not start OAuth flow' };
   }
 
-  // Open the OAuth URL in a new tab. The callback page will handle the redirect.
+  // launchWebAuthFlow opens a Chrome-managed auth popup and returns the
+  // callback URL (with tokens in the fragment) once the flow completes.
+  let callbackUrl: string;
   try {
-    await chrome.tabs.create({ url: data.url });
-    return { ok: true, data: { signedIn: false } }; // Popup will auto-update on success
+    callbackUrl = await new Promise<string>((resolve, reject) => {
+      chrome.identity.launchWebAuthFlow(
+        { url: data.url, interactive: true },
+        (responseUrl) => {
+          if (chrome.runtime.lastError || !responseUrl) {
+            reject(new Error(chrome.runtime.lastError?.message ?? 'Auth flow cancelled'));
+          } else {
+            resolve(responseUrl);
+          }
+        },
+      );
+    });
   } catch (err) {
     return { ok: false, error: (err as Error).message };
   }
+
+  // Extract tokens from the callback URL fragment or query string
+  const parsed = new URL(callbackUrl);
+  const params = new URLSearchParams(
+    parsed.hash.slice(1) || parsed.search.slice(1),
+  );
+  const accessToken  = params.get('access_token');
+  const refreshToken = params.get('refresh_token');
+  const code         = params.get('code');
+
+  if (accessToken && refreshToken) {
+    const { error: setError } = await supabase.auth.setSession({
+      access_token: accessToken,
+      refresh_token: refreshToken,
+    });
+    if (setError) return { ok: false, error: setError.message };
+  } else if (code) {
+    const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
+    if (exchangeError) return { ok: false, error: exchangeError.message };
+  } else {
+    return { ok: false, error: 'No tokens returned from OAuth flow' };
+  }
+
+  await initializeQueueIfNeeded();
+  return getState();
 }
 
 async function exchangeCode(code: string): Promise<Response<StateData>> {
