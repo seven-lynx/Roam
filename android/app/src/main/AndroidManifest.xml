@@ -35,6 +35,17 @@
             </intent-filter>
 
         </activity>
-    </application>
+    
+    <!-- Required: set your sentry.io project identifier (DSN) -->
+    <meta-data android:name="io.sentry.dsn" android:value="https://5c9c266b485c0519536a1b7fdc0e6d15@o4511314783633408.ingest.us.sentry.io/4511314873090048" />
+
+    <!-- breadcrumbs for user interactions (clicks, swipes, scrolls) -->
+    <meta-data android:name="io.sentry.traces.user-interaction.enable" android:value="true" />
+    <!-- view hierarchy for crash reports -->
+    <meta-data android:name="io.sentry.attach-view-hierarchy" android:value="true" />
+
+    <!-- 10% trace sampling in production (wizard default 1.0 is too high) -->
+    <meta-data android:name="io.sentry.traces.sample-rate" android:value="0.1" />
+</application>
 
 </manifest>

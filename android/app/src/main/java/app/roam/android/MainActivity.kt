@@ -18,6 +18,7 @@ import app.roam.android.viewmodel.AuthViewModel
 import app.roam.android.viewmodel.MainViewModel
 import io.github.jan.supabase.auth.auth
 
+
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
