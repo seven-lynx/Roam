@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
 // ── Seed data matches the migration ──────────────────────────────────────────
@@ -20,7 +20,6 @@ type Step = "account" | "categories" | "done";
 
 export default function JoinPageContent() {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const supabase = createClient();
 
   const [step, setStep] = useState<Step>("account");
@@ -31,31 +30,46 @@ export default function JoinPageContent() {
   const [loading, setLoading] = useState(false);
   const [isSignedIn, setIsSignedIn] = useState(false);
 
-  // Check session on mount
+  // Check session on mount and listen for auth state changes
   useEffect(() => {
-    async function checkSession() {
+    // First, check if we already have a session
+    async function checkInitialSession() {
       try {
         const { data: { session } } = await supabase.auth.getSession();
-        
         if (session) {
-          console.log('[roam] User session found:', session.user.id);
+          console.log('[roam] Initial session found:', session.user.id);
           setIsSignedIn(true);
-          // If user is already signed in, check if they're coming back from OAuth
-          // by checking if there's a code in the URL
-          if (searchParams.has('code')) {
-            console.log('[roam] OAuth redirect detected, advancing to categories');
-            setStep("categories");
-          }
-        } else {
-          console.log('[roam] No session found');
-          setIsSignedIn(false);
         }
       } catch (err) {
-        console.error('[roam] Session check failed:', err);
+        console.error('[roam] Initial session check failed:', err);
       }
     }
-    checkSession();
-  }, [searchParams]);
+
+    checkInitialSession();
+
+    // Set up a listener for auth state changes (fires when session appears/disappears)
+    // This is critical for OAuth: when Google redirects back to /join?code=...,
+    // Supabase exchanges the code for a session asynchronously and fires this event.
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log('[roam] Auth state changed:', event, 'session:', session?.user.id);
+
+      if (session) {
+        setIsSignedIn(true);
+        // If this is an OAuth callback (event = 'INITIAL_SESSION' after OAuth redirect),
+        // and we're still on step "account", advance to "categories"
+        if (event === 'SIGNED_IN' || (event === 'INITIAL_SESSION' && session)) {
+          setStep("categories");
+        }
+      } else {
+        setIsSignedIn(false);
+      }
+    });
+
+    // Clean up the subscription on unmount
+    return () => {
+      subscription?.unsubscribe();
+    };
+  }, [supabase]);
 
   // ── Step 1: create account ────────────────────────────────────────────────
   async function handleSignUp(e: React.FormEvent) {
@@ -72,19 +86,34 @@ export default function JoinPageContent() {
     setError(null);
     setLoading(true);
     try {
-      console.log('[roam] starting Google OAuth with redirectTo:', `${location.origin}/join`);
-      const { data, error } = await supabase.auth.signInWithOAuth({
-        provider: "google",
-        options: { redirectTo: `${location.origin}/join` },
+      const redirectUrl = `${location.origin}/join`;
+      console.log('[roam] Starting Google OAuth with redirectTo:', redirectUrl);
+      
+      // signInWithOAuth will either:
+      // 1. Redirect to Google (and we leave this page)
+      // 2. Fail with an error
+      // So if this doesn't throw/redirect, something went wrong
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: { 
+          redirectTo: redirectUrl,
+          // Ensure we don't suppress the redirect
+          skipBrowserRedirect: false,
+        },
       });
-      console.log('[roam] OAuth response:', { data, error });
+      
       if (error) {
-        setError(error.message);
+        console.error('[roam] OAuth error:', error);
+        setError(error.message || 'Failed to start Google sign-in');
         setLoading(false);
+        return;
       }
+      
+      // If we get here without error, the redirect should happen automatically
+      console.log('[roam] OAuth redirect should have occurred');
     } catch (err) {
-      console.error('[roam] OAuth error:', err);
-      setError(err instanceof Error ? err.message : 'Unknown error');
+      console.error('[roam] OAuth exception:', err);
+      setError(err instanceof Error ? err.message : 'Unknown error during sign-in');
       setLoading(false);
     }
   }
@@ -128,61 +157,58 @@ export default function JoinPageContent() {
     setError(null);
     setLoading(true);
 
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) { setError("Session expired — please sign up again."); setLoading(false); return; }
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) { 
+        setError("Not signed in — please refresh the page and try again."); 
+        setLoading(false); 
+        return; 
+      }
 
-    console.log('[roam] handleCategories: user =', user.id, 'selected =', Array.from(selected));
+      console.log('[roam] handleCategories: user =', user.id, 'selected =', Array.from(selected));
 
-    // Verify we have a valid session by checking the session object directly
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) {
-      console.error('[roam] No session found, cannot proceed');
-      setError("Session lost. Please reload the page.");
+      const rows = Array.from(selected).map((category_id) => ({
+        user_id: user.id,
+        category_id,
+      }));
+
+      // Delete any existing category preferences for this user
+      console.log('[roam] Clearing previous categories for user', user.id);
+      const { error: deleteError } = await supabase
+        .from("user_categories")
+        .delete()
+        .eq("user_id", user.id);
+      
+      if (deleteError) { 
+        console.error('[roam] Delete failed:', deleteError);
+        setError(`Failed to clear previous selections: ${deleteError.message}`); 
+        setLoading(false); 
+        return; 
+      }
+
+      // Insert the newly selected categories
+      console.log('[roam] Inserting', rows.length, 'categories:', rows);
+      const { error: insertError, data: insertData } = await supabase
+        .from("user_categories")
+        .insert(rows)
+        .select();
+      
+      if (insertError) { 
+        console.error('[roam] Insert failed:', insertError);
+        setError(`Failed to save categories: ${insertError.message}`); 
+        setLoading(false); 
+        return; 
+      }
+      
+      console.log('[roam] Categories inserted successfully:', insertData?.length || 0, 'rows');
+      
       setLoading(false);
-      return;
+      setStep("done");
+    } catch (err) {
+      console.error('[roam] Unexpected error in handleCategories:', err);
+      setError(err instanceof Error ? err.message : 'Unexpected error');
+      setLoading(false);
     }
-    console.log('[roam] Session verified, token present:', !!session.access_token);
-
-    // First, delete any existing category preferences for this user
-    const { error: deleteError } = await supabase
-      .from("user_categories")
-      .delete()
-      .eq("user_id", user.id);
-    
-    if (deleteError) { 
-      console.error('[roam] Delete failed:', deleteError);
-      setError(`Delete failed: ${deleteError.message}`); 
-      setLoading(false); 
-      return; 
-    }
-    console.log('[roam] Deleted existing categories');
-
-    // Then insert the newly selected categories
-    const rows = Array.from(selected).map((category_id) => ({
-      user_id: user.id,
-      category_id,
-    }));
-
-    console.log('[roam] Inserting categories:', rows);
-    const { error: insertError, data: insertData, count } = await supabase.from("user_categories").insert(rows);
-    
-    if (insertError) { 
-      console.error('[roam] Insert failed:', insertError);
-      setError(`Insert failed: ${insertError.message}`); 
-      setLoading(false); 
-      return; 
-    }
-    console.log('[roam] Categories inserted successfully, data:', insertData, 'count:', count);
-    
-    // Verify the insert actually saved
-    const { data: verifyData } = await supabase
-      .from("user_categories")
-      .select("*")
-      .eq("user_id", user.id);
-    console.log('[roam] Verification query returned:', verifyData?.length || 0, 'rows');
-
-    setLoading(false);
-    setStep("done");
   }
 
   // ── Step 3: done ─────────────────────────────────────────────────────────
