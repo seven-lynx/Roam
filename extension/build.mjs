@@ -127,7 +127,7 @@ if (watch) {
         authToken: sentryAuthToken,
         org: sentryOrg,
         project: sentryProject,
-        release: { name: sentryRelease },
+        release: { name: sentryRelease, setCommits: { auto: true } },
         telemetry: false,
         sourcemaps: {
           assets: ['./dist/*.js', './dist/*.js.map'],
