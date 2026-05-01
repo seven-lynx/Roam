@@ -1,5 +1,20 @@
 # Roam — Build Tasks & Learning Log
 
+---
+
+## Infrastructure & Scaling Decisions (2026-04-30)
+
+- [ ] **DECISION: Upgrade to Supabase Pro ($25/month)** — Free tier storage is maxed (390 MB of 500 MB); Curlie import + remaining seeders require at least 1-2 GB. Cost: $25/month ($300/year). Roadmap: stay on Pro for next 6+ months (enough for ~500M URLs); revisit self-hosted Postgres if storage hits 100 GB. See HOSTING_COSTS.md for full cost analysis and alternatives.
+
+---
+
+## Documentation Improvements (2026-04-30)
+
+- [ ] Add API documentation for Supabase Edge Functions and database schema (supabase/README.md or supabase/API.md)
+- [ ] Write a web app testing guide (web/TESTING.md) for QA and onboarding
+- [ ] Replace web/README.md with a project-specific overview or link to main README
+- [ ] Add contribution guidelines (CONTRIBUTING.md) and a code of conduct (CODE_OF_CONDUCT.md) for open source clarity
+
 This document lists every task required to ship Roam, organised by stage. As each task is completed, it will be checked off and followed by a plain-English explanation of what was done and why, so you can follow along and build understanding as the project grows.
 
 ---
@@ -591,7 +606,7 @@ Kotlin + Jetpack Compose. Full-screen WebView with a persistent bottom bar. Mirr
 ### 6e. Submission
 
 - [ ] **6.17** Generate a signed release APK / AAB
-- [ ] **6.18** Register a Google Play developer account ($25) and create a new app listing; during the content rating questionnaire, answer accurately for user-generated content and mature themes — the Weird & Wonderful category (True Crime, Paranormal, Conspiracy Theories) will produce a **Teen** rating, which is correct and expected
+- [x] **6.18** Register a Google Play developer account ($25) and create a new app listing; during the content rating questionnaire, answer accurately for user-generated content and mature themes — the Weird & Wonderful category (True Crime, Paranormal, Conspiracy Theories) will produce a **Teen** rating, which is correct and expected
 - [ ] **6.19** Submit the AAB for review
 
 ---
@@ -609,6 +624,16 @@ Final checks before making the app public.
 - [ ] **7.7** Confirm all store submissions are approved and live
 - [ ] **7.8** Seed content is sufficient — at least 5,000 discoverable URLs per pillar category
 - [ ] **7.9** Verify Privacy Policy and Terms of Service are live and linked correctly from the Play Store listing and Chrome Web Store listing
+
+---
+
+## Stage 8 — Infrastructure & Domain
+
+- [x] **8.1** Register `roamtheweb.app` domain on Cloudflare
+- [x] **8.2** Update all codebase URLs from `roam-flame.vercel.app` to `roamtheweb.app` (extension, Android, Supabase config)
+- [x] **8.3** Add `roamtheweb.app` custom domain to Vercel project; add Cloudflare DNS records per Vercel instructions
+- [x] **8.4** Update Supabase Auth — Site URL and redirect URLs to `https://roamtheweb.app`
+- [x] **8.5** Set up `developer@roamtheweb.app` email forwarding via Cloudflare Email Routing
 
 ---
 
