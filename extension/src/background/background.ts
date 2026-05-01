@@ -152,8 +152,11 @@ async function getState(): Promise<Response<StateData>> {
     return { ok: true, data: { signedIn: false } };
   }
 
-  // Initialize queue if needed
-  await initializeQueueIfNeeded();
+  // Fire-and-forget — queue init makes multiple network calls and must NOT
+  // block the GET_STATE response (would cause SW response timeout).
+  initializeQueueIfNeeded().catch((err) =>
+    console.error('[roam-bg] Queue init error:', err)
+  );
 
   console.log('[roam-bg] Session found:', { email: session.user.email, userId: session.user.id });
   return {
@@ -196,8 +199,10 @@ async function exchangeCode(code: string): Promise<Response<StateData>> {
   }
   console.log('[roam-bg] Code exchanged successfully, initializing queue');
 
-  // Initialize queue with user's categories
-  await initializeQueueIfNeeded();
+  // Fire-and-forget — must not block the auth response.
+  initializeQueueIfNeeded().catch((err) =>
+    console.error('[roam-bg] Queue init error:', err)
+  );
 
   const state = await getState();
   console.log('[roam-bg] Final state:', state);
@@ -218,8 +223,10 @@ async function saveSession(accessToken: string, refreshToken: string): Promise<R
     }
     console.log('[roam-bg] Session set successfully, initializing queue');
 
-    // Initialize queue with user's categories
-    await initializeQueueIfNeeded();
+    // Fire-and-forget — must not block the auth response.
+    initializeQueueIfNeeded().catch((err) =>
+      console.error('[roam-bg] Queue init error:', err)
+    );
 
     const state = await getState();
     console.log('[roam-bg] Final state:', state);
@@ -269,7 +276,7 @@ async function signInWithEmail(email: string, password: string): Promise<Respons
   const { data, error } = await getSupabase().auth.signInWithPassword({ email, password });
   if (error) return { ok: false, error: error.message };
 
-  await initializeQueueIfNeeded();
+  initializeQueueIfNeeded().catch((err) => console.error('[roam-bg] Queue init error:', err));
   return {
     ok: true,
     data: { signedIn: true, email: data.user?.email, userId: data.user?.id },
@@ -282,7 +289,7 @@ async function signUpWithEmail(email: string, password: string): Promise<Respons
 
   if (data.session) {
     // Session created immediately (e.g. email confirmation disabled)
-    await initializeQueueIfNeeded();
+    initializeQueueIfNeeded().catch((err) => console.error('[roam-bg] Queue init error:', err));
     return { ok: true, data: { needsVerification: false } };
   }
   // Verification email sent — user must confirm before signing in
