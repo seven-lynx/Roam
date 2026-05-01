@@ -137,9 +137,27 @@ async function _dispatch(req: Request): Promise<Response> {
     }
     case 'GET_CATEGORIES':      return getCategories();
     case 'GET_USER_CATEGORIES': return getUserCategories();
-    case 'SET_USER_CATEGORIES': return setUserCategories((req as any).categoryIds);
-    case 'EXCHANGE_CODE':       return exchangeCode((req as any).code);
-    case 'SAVE_SESSION':        return saveSession((req as any).accessToken, (req as any).refreshToken);
+    case 'SET_USER_CATEGORIES': {
+      const { categoryIds } = req as any;
+      if (!Array.isArray(categoryIds)) {
+        return { ok: false, error: 'categoryIds must be an array' };
+      }
+      return setUserCategories(categoryIds);
+    }
+    case 'EXCHANGE_CODE': {
+      const { code } = req as any;
+      if (typeof code !== 'string') {
+        return { ok: false, error: 'Invalid code format' };
+      }
+      return exchangeCode(code);
+    }
+    case 'SAVE_SESSION': {
+      const { accessToken, refreshToken } = req as any;
+      if (typeof accessToken !== 'string' || typeof refreshToken !== 'string') {
+        return { ok: false, error: 'Invalid session tokens' };
+      }
+      return saveSession(accessToken, refreshToken);
+    }
     case 'SIGN_OUT':            return signOut();
     case 'ROAM':                return roam();
     case 'ROAM_COLLECTION':     return roamCollection(req.collectionId);
@@ -154,9 +172,20 @@ async function _dispatch(req: Request): Promise<Response> {
     case 'CREATE_COLLECTION':   return createCollection(req.name);
     case 'ADD_URL_TO_COLLECTION': return addUrlToCollection(req.url, req.collectionId);
     case 'GET_QUEUE_STATE':     return getQueueState();
-    case 'REFRESH_CATEGORIES':  return refreshCategories(req.categoryIds);
-    case 'GET_PROFILE':         return getProfile();
-    case 'SEND_FEEDBACK':       return sendFeedback((req as any).message, (req as any).email, (req as any).platform);
+    case 'SEND_FEEDBACK': {
+      const { message, email, platform } = req as any;
+      if (typeof message !== 'string') {
+        return { ok: false, error: 'message is required' };
+      }
+      return sendFeedback(message, email, platform);
+    }
+    case 'REFRESH_CATEGORIES': {
+      const { categoryIds } = req as any;
+      if (!Array.isArray(categoryIds)) {
+        return { ok: false, error: 'categoryIds must be an array' };
+      }
+      return refreshCategories(categoryIds);
+    }
     default:                    return { ok: false, error: 'Something went wrong. Please try again.' };
   }
 }

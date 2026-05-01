@@ -144,19 +144,15 @@ Deno.serve(async (req) => {
       if (colError || !col) return json({ error: 'Collection not found' }, 404)
 
       // Enforce per-user 10K cap across all collections
-      const { data: userCols } = await supabase
-        .from('collections')
-        .select('id')
-        .eq('user_id', user.id)
+      // Use RPC for efficient aggregation instead of multi-query
+      const { data: countResult, error: countError } = await supabase
+        .rpc('count_user_collection_items', { user_id: user.id })
+      
+      if (countError || countResult === null) {
+        return json({ error: 'Failed to check collection limit' }, 500)
+      }
 
-      const collectionIds = (userCols ?? []).map((c: { id: string }) => c.id)
-
-      const { count: itemCount } = collectionIds.length > 0
-        ? await supabase
-            .from('collection_items')
-            .select('*', { count: 'exact', head: true })
-            .in('collection_id', collectionIds)
-        : { count: 0 }
+      const itemCount = countResult
 
       if ((itemCount ?? 0) >= COLLECTION_ITEM_CAP) {
         return json(

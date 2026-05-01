@@ -215,7 +215,21 @@ export async function fetchFreshUrls(
         description: r.value.data.description,
         category_id: r.value.data.category_id,
         og_image_url: r.value.data.og_image_url,
-      }));
+      }))
+      .filter((item) => {
+        // Validate URL format: must be a non-empty string and valid URL
+        if (typeof item.url !== "string" || item.url.length === 0) {
+          console.warn("Invalid URL in queue response:", item.url);
+          return false;
+        }
+        try {
+          new URL(item.url);
+          return true;
+        } catch (e) {
+          console.warn("Malformed URL in queue response:", item.url);
+          return false;
+        }
+      });
   } catch (error) {
     console.error("Error fetching fresh URLs:", error);
     return [];
