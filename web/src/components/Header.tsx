@@ -81,12 +81,6 @@ export function Header() {
               <Link href="/collections" className="block px-4 py-2 text-zinc-900 dark:text-white hover:bg-zinc-100 dark:hover:bg-zinc-800">
                 Collections
               </Link>
-              <Link href="/following" className="block px-4 py-2 text-zinc-900 dark:text-white hover:bg-zinc-100 dark:hover:bg-zinc-800">
-                Following
-              </Link>
-              <Link href="/history" className="block px-4 py-2 text-zinc-900 dark:text-white hover:bg-zinc-100 dark:hover:bg-zinc-800">
-                History
-              </Link>
               <hr className="my-1 border-zinc-200 dark:border-zinc-700" />
               <Link href="/settings" className="block px-4 py-2 text-zinc-900 dark:text-white hover:bg-zinc-100 dark:hover:bg-zinc-800">
                 Settings

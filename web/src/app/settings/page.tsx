@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Header } from '@/components/Header';
@@ -20,6 +20,64 @@ export default function SettingsPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [notificationsLoading, setNotificationsLoading] = useState(false);
+
+  useEffect(() => {
+    // Load dark mode preference from localStorage
+    const isDark = localStorage.getItem('theme') === 'dark';
+    setDarkMode(isDark);
+    if (isDark) {
+      document.documentElement.classList.add('dark');
+    }
+
+    // Load notification settings from user_settings
+    loadNotificationSettings();
+  }, []);
+
+  async function loadNotificationSettings() {
+    try {
+      const { data } = await supabase
+        .from('user_settings')
+        .select('email_notifications')
+        .eq('user_id', session?.user.id)
+        .single();
+      if (data) {
+        setEmailNotifications(data.email_notifications ?? true);
+      }
+    } catch (e) {
+      // Settings may not exist yet, use default
+    }
+  }
+
+  async function handleDarkModeToggle() {
+    const newDarkMode = !darkMode;
+    setDarkMode(newDarkMode);
+    localStorage.setItem('theme', newDarkMode ? 'dark' : 'light');
+    if (newDarkMode) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  }
+
+  async function handleNotificationsToggle() {
+    setNotificationsLoading(true);
+    try {
+      const newValue = !emailNotifications;
+      await supabase.from('user_settings').upsert(
+        {
+          user_id: session?.user.id,
+          email_notifications: newValue,
+        },
+        { onConflict: 'user_id' }
+      );
+      setEmailNotifications(newValue);
+    } catch (e) {
+      console.error('Failed to update notification settings:', e);
+    } finally {
+      setNotificationsLoading(false);
+    }
+  }
 
   if (!isReady) return <LoadingPage />;
 
@@ -73,7 +131,7 @@ export default function SettingsPage() {
       // This should be implemented via an edge function
       // For now, just sign out and inform user
       await supabase.auth.signOut();
-      alert('Please contact support@roam.com to complete account deletion');
+      alert('Please contact legal@roamtheweb.app to complete account deletion');
       router.push('/');
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to delete account');
@@ -111,7 +169,7 @@ export default function SettingsPage() {
           <div className="flex items-center justify-between">
             <span className="text-zinc-600 dark:text-zinc-400">Dark mode</span>
             <button
-              onClick={() => setDarkMode(!darkMode)}
+              onClick={handleDarkModeToggle}
               className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
                 darkMode ? 'bg-zinc-900 dark:bg-white' : 'bg-zinc-300 dark:bg-zinc-700'
               }`}
@@ -131,10 +189,11 @@ export default function SettingsPage() {
           <div className="flex items-center justify-between">
             <span className="text-zinc-600 dark:text-zinc-400">Email notifications</span>
             <button
-              onClick={() => setEmailNotifications(!emailNotifications)}
+              onClick={handleNotificationsToggle}
+              disabled={notificationsLoading}
               className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
                 emailNotifications ? 'bg-zinc-900 dark:bg-white' : 'bg-zinc-300 dark:bg-zinc-700'
-              }`}
+              } ${notificationsLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
             >
               <span
                 className={`inline-block h-4 w-4 transform rounded-full bg-white dark:bg-zinc-900 transition-transform ${

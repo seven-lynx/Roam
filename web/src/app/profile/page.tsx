@@ -29,6 +29,7 @@ export default function ProfilePage() {
   const [selectedCategories, setSelectedCategories] = useState<Set<string>>(new Set());
   const [followerCount, setFollowerCount] = useState(0);
   const [followingCount, setFollowingCount] = useState(0);
+  const [collectionCount, setCollectionCount] = useState(0);
   const [loading, setLoading] = useState(false);
   const [saved, setSaved] = useState(false);
 
@@ -80,6 +81,16 @@ export default function ProfilePage() {
       }
     } catch (e) {
       console.error('Failed to load stats:', e);
+    }
+    
+    try {
+      const { data } = await supabase
+        .from('collections')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', session?.user.id);
+      setCollectionCount(data?.length || 0);
+    } catch (e) {
+      console.error('Failed to load collection count:', e);
     }
   }
 
@@ -149,7 +160,7 @@ export default function ProfilePage() {
             </Card>
             <Card>
               <div className="text-center">
-                <div className="text-2xl font-bold text-zinc-900 dark:text-white">0</div>
+                <div className="text-2xl font-bold text-zinc-900 dark:text-white">{collectionCount}</div>
                 <div className="text-sm text-zinc-600 dark:text-zinc-400">Collections</div>
               </div>
             </Card>
