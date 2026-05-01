@@ -198,7 +198,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const errorEl = el<HTMLParagraphElement>('email-auth-error');
 
     if (!email || !password) {
-      errorEl.textContent = 'Enter your email and password.';
+      errorEl.textContent = 'Please enter both your email and password.';
       errorEl.hidden = false;
       return;
     }
@@ -519,7 +519,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Check if current URL is known to get its category
     const check = await sendToBackground<CheckUrlData>({ type: 'CHECK_URL', url });
     if (!check.ok || !check.data.category_id) {
-      showError('Could not determine category for this page');
+      showError('Couldn\'t determine a category for this page. Try a different one.');
       return;
     }
 

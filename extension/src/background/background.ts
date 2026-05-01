@@ -89,7 +89,7 @@ async function dispatch(req: Request): Promise<Response> {
     case 'GET_QUEUE_STATE':     return getQueueState();
     case 'REFRESH_CATEGORIES':  return refreshCategories(req.categoryIds);
     case 'SEND_FEEDBACK':       return sendFeedback((req as any).message, (req as any).email, (req as any).platform);
-    default:                    return { ok: false, error: 'Unknown message type' };
+    default:                    return { ok: false, error: 'Something went wrong. Please try again.' };
   }
 }
 
@@ -158,7 +158,7 @@ async function signInWithGoogle(): Promise<Response<StateData>> {
     options: { redirectTo, skipBrowserRedirect: true },
   });
   if (error || !data.url) {
-    return { ok: false, error: error?.message ?? 'Could not start OAuth flow' };
+    return { ok: false, error: 'Could not open the sign-in page. Please try again.' };
   }
 
   await chrome.tabs.create({ url: data.url });
@@ -230,7 +230,7 @@ async function signInWithGitHub(): Promise<Response<StateData>> {
     options: { redirectTo, skipBrowserRedirect: true },
   });
   if (error || !data.url) {
-    return { ok: false, error: error?.message ?? 'Could not start GitHub OAuth flow' };
+    return { ok: false, error: 'Could not open the sign-in page. Please try again.' };
   }
 
   await chrome.tabs.create({ url: data.url });
@@ -295,34 +295,34 @@ async function getCategories(): Promise<Response<CategoryItem[]>> {
 
 async function getUserCategories(): Promise<Response<{ categoryIds: string[] }>> {
   const session = (await getSupabase().auth.getSession()).data.session;
-  if (!session) return { ok: false, error: 'Not signed in' };
+  if (!session) return { ok: false, error: 'You\'re not signed in. Please sign in and try again.' };
 
   const { data, error } = await getSupabase()
     .from('user_categories')
     .select('category_id')
     .eq('user_id', session.user.id);
 
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: 'Couldn\'t load your categories. Please try again.' };
   return { ok: true, data: { categoryIds: (data || []).map((r: any) => r.category_id) } };
 }
 
 async function setUserCategories(categoryIds: string[]): Promise<Response<null>> {
   const session = (await getSupabase().auth.getSession()).data.session;
-  if (!session) return { ok: false, error: 'Not signed in' };
+  if (!session) return { ok: false, error: 'You\'re not signed in. Please sign in and try again.' };
 
   // Replace all existing categories for this user
   const { error: delError } = await getSupabase()
     .from('user_categories')
     .delete()
     .eq('user_id', session.user.id);
-  if (delError) return { ok: false, error: delError.message };
+  if (delError) return { ok: false, error: 'Couldn\'t save your preferences. Please try again.' };
 
   if (categoryIds.length > 0) {
     const rows = categoryIds.map((id) => ({ user_id: session.user.id, category_id: id }));
     const { error: insError } = await getSupabase()
       .from('user_categories')
       .insert(rows);
-    if (insError) return { ok: false, error: insError.message };
+    if (insError) return { ok: false, error: 'Couldn\'t save your preferences. Please try again.' };
   }
 
   // Refresh queue with new categories
@@ -517,7 +517,7 @@ async function getCollections(): Promise<Response<Collection[]>> {
 
 async function createCollection(name: string): Promise<Response<Collection>> {
   const session = (await getSupabase().auth.getSession()).data.session;
-  if (!session) return { ok: false, error: 'Not signed in' };
+  if (!session) return { ok: false, error: 'You\'re not signed in. Please sign in and try again.' };
 
   // Create slug from name
   const slug = name
@@ -550,7 +550,7 @@ async function createCollection(name: string): Promise<Response<Collection>> {
 async function addUrlToCollection(url: string, collectionId: string): Promise<Response<null>> {
   // First normalize the URL
   const normalized = normalizeUrl(url);
-  if (!normalized) return { ok: false, error: 'Invalid URL' };
+  if (!normalized) return { ok: false, error: 'That doesn\'t look like a valid URL.' };
 
   // Check if URL exists in database
   const { data: urlData, error: urlError } = await getSupabase()
@@ -560,7 +560,7 @@ async function addUrlToCollection(url: string, collectionId: string): Promise<Re
     .eq('approved', true)
     .maybeSingle();
 
-  if (urlError) return { ok: false, error: urlError.message };
+  if (urlError) return { ok: false, error: 'Couldn\'t add to collection. Please try again.' };
 
   let urlId = urlData?.id;
 
@@ -576,7 +576,7 @@ async function addUrlToCollection(url: string, collectionId: string): Promise<Re
       .select('id')
       .single();
 
-    if (createError) return { ok: false, error: createError.message };
+    if (createError) return { ok: false, error: 'Couldn\'t add to collection. Please try again.' };
     urlId = newUrl.id;
   }
 
@@ -593,7 +593,7 @@ async function addUrlToCollection(url: string, collectionId: string): Promise<Re
     if (addError.message.includes('unique') || addError.message.includes('duplicate')) {
       return { ok: true, data: null }; // Already there, that's fine
     }
-    return { ok: false, error: addError.message };
+    return { ok: false, error: 'Couldn\'t add to collection. Please try again.' };
   }
 
   return { ok: true, data: null };
@@ -601,7 +601,7 @@ async function addUrlToCollection(url: string, collectionId: string): Promise<Re
 
 async function setPaywallPref(skip: boolean): Promise<Response<null>> {
   const session = (await getSupabase().auth.getSession()).data.session;
-  if (!session) return { ok: false, error: 'Not signed in' };
+  if (!session) return { ok: false, error: 'You\'re not signed in. Please sign in and try again.' };
 
   await chrome.storage.local.set({ skip_paywalled: skip });
 
@@ -618,7 +618,7 @@ async function setPaywallPref(skip: boolean): Promise<Response<null>> {
 
 async function setLanguagePref(languages: string[]): Promise<Response<null>> {
   const session = (await getSupabase().auth.getSession()).data.session;
-  if (!session) return { ok: false, error: 'Not signed in' };
+  if (!session) return { ok: false, error: 'You\'re not signed in. Please sign in and try again.' };
 
   // Must include at least English to avoid an empty pool
   const langs = languages.length > 0 ? languages : ['en'];
@@ -649,8 +649,8 @@ async function sendFeedback(message: string, email: string | undefined, platform
   });
 
   if (!res.ok) {
-    const err = await res.json().catch(() => ({ error: 'Request failed' }));
-    return { ok: false, error: err.error ?? 'Failed to send feedback' };
+    const err = await res.json().catch(() => ({}));
+    return { ok: false, error: err.error ?? 'Couldn\'t send your feedback. Please try again.' };
   }
   return { ok: true, data: null };
 }

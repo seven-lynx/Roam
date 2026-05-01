@@ -129,7 +129,7 @@ export default function JoinPageContent() {
       
       if (error) {
         console.error('[roam] OAuth error:', error);
-        setError(error.message || 'Failed to start Google sign-in');
+        setError(error.message || 'Couldn\'t start Google sign-in — please try again.');
         setLoading(false);
         return;
       }
@@ -138,7 +138,7 @@ export default function JoinPageContent() {
       console.log('[roam] OAuth redirect should have occurred');
     } catch (err) {
       console.error('[roam] OAuth exception:', err);
-      setError(err instanceof Error ? err.message : 'Unknown error during sign-in');
+      setError(err instanceof Error ? err.message : 'Sign-in failed — please try again.');
       setLoading(false);
     }
   }
@@ -162,7 +162,7 @@ export default function JoinPageContent() {
       console.log('[roam] Signed out successfully');
     } catch (err) {
       console.error('[roam] Sign out error:', err);
-      setError(err instanceof Error ? err.message : 'Failed to sign out');
+      setError(err instanceof Error ? err.message : 'Sign-out failed — please try again.');
       setLoading(false);
     }
   }
@@ -206,7 +206,7 @@ export default function JoinPageContent() {
       
       if (deleteError) { 
         console.error('[roam] Delete failed:', deleteError);
-        setError(`Failed to clear previous selections: ${deleteError.message}`); 
+        setError('Couldn\'t save your preferences — please try again.'); 
         setLoading(false); 
         return; 
       }
@@ -220,7 +220,7 @@ export default function JoinPageContent() {
       
       if (insertError) { 
         console.error('[roam] Insert failed:', insertError);
-        setError(`Failed to save categories: ${insertError.message}`); 
+        setError('Couldn\'t save your preferences — please try again.'); 
         setLoading(false); 
         return; 
       }
@@ -231,7 +231,7 @@ export default function JoinPageContent() {
       setStep("done");
     } catch (err) {
       console.error('[roam] Unexpected error in handleCategories:', err);
-      setError(err instanceof Error ? err.message : 'Unexpected error');
+      setError(err instanceof Error ? err.message : 'Something went wrong — please try again.');
       setLoading(false);
     }
   }

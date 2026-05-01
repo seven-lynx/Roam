@@ -743,10 +743,11 @@ Final checks before making the app public.
   - **Stack:** Vitest (extension/web), Deno test (Supabase), JUnit (Android)
   - **Task reference:** 2.28c
 
-- [ ] **9.12** Improve error messages across all platforms — audit and replace technical/unfriendly errors with user-facing messages (e.g., "uid mismatch" → "Your session expired", "Cannot read property 'url' of undefined" → "Failed to load web page")
+- [x] **9.12** Improve error messages across all platforms — audit and replace technical/unfriendly errors with user-facing messages (e.g., "uid mismatch" → "Your session expired", "Cannot read property 'url' of undefined" → "Failed to load web page")
   - **Severity:** MEDIUM — UX/troubleshooting
   - **Effort:** 2–3 hours
   - **Files:** All platform error paths
+  - **What we did:** Replaced 10+ raw/technical strings across `extension/background.ts`, `extension/popup.ts`, `web/join-content.tsx`, and `android/MainViewModel.kt`. Removed raw Supabase error message pass-throughs in category save/delete flows. All builds pass.
 
 - [ ] **9.13** Add loading states to all async operations in UI — web and Android submit buttons, category fetches, OAuth flows should show spinners/progress indicators to prevent double-submission and clarify wait time to users
   - **Severity:** MEDIUM — UX polish

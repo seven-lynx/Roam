@@ -111,12 +111,7 @@ class MainViewModel(
                     _state.value = RoamState.Loaded(result)
                 }
             }.onFailure { e ->
-                _state.value = RoamState.Error(e.message ?: "Unknown error")
-            }
-        }
-    }
-
-    fun thumbsUp(context: Context) {
+                _state.value = RoamState.Error(e.message ?: "Something went wrong. Please try again.")(context: Context) {
         val loaded = _state.value as? RoamState.Loaded ?: run {
             // Unknown page — show submit sheet
             _showSubmitSheet.value = true
@@ -252,12 +247,7 @@ class MainViewModel(
                 if (result == null) _state.value = RoamState.Exhausted
                 else { _currentUrl.value = result.url; _state.value = RoamState.Loaded(result) }
             }.onFailure { e ->
-                _state.value = RoamState.Error(e.message ?: "Unknown error")
-            }
-        }
-    }
-
-    fun roamCollection(collectionId: String) {
+                _state.value = RoamState.Error(e.message ?: "Something went wrong. Please try again.")(collectionId: String) {
         setCollectionFilter(collectionId)
         _showConfigSheet.value = false
         roam()
