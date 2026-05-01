@@ -51,6 +51,10 @@ const TRACKING_PARAMS = new Set([
 ]);
 
 // ── URL normalisation ─────────────────────────────────────────────────────────
+// NOTE: The canonical URL normalisation logic is in
+// supabase/functions/_shared/normalise.ts (Deno/TypeScript).
+// This Node.js version is semantically equivalent but uses Node-compatible APIs.
+// If you add new tracking params or change the normalisation logic, update BOTH.
 export function normaliseUrl(raw) {
   let u;
   try {

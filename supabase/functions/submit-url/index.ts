@@ -6,6 +6,7 @@
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { corsHeaders } from '../_shared/cors.ts'
+import { normalizeUrl } from '../_shared/normalise.ts'
 
 const RATE_LIMIT = 10
 
@@ -16,28 +17,6 @@ if (!SAFE_BROWSING_API_KEY) {
   throw new Error(
     'SAFE_BROWSING_API_KEY environment variable is required for submit-url',
   )
-}
-
-function normalizeUrl(raw: string): string {
-  const u = new URL(raw) // throws on invalid URL
-  if (!['http:', 'https:'].includes(u.protocol)) {
-    throw new Error('Only http and https URLs are allowed')
-  }
-  u.protocol = 'https:'
-  u.hostname = u.hostname.toLowerCase()
-  if (u.hostname.startsWith('www.')) {
-    u.hostname = u.hostname.slice(4)
-  }
-  const STRIP_PARAMS = [
-    'utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content',
-    'fbclid', 'gclid', 'mc_cid', 'mc_eid', 'ref',
-  ]
-  STRIP_PARAMS.forEach((p) => u.searchParams.delete(p))
-  u.hash = ''
-  if (u.pathname !== '/' && u.pathname.endsWith('/')) {
-    u.pathname = u.pathname.slice(0, -1)
-  }
-  return u.toString()
 }
 
 async function checkSafeBrowsing(url: string, apiKey: string): Promise<boolean> {

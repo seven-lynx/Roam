@@ -12,6 +12,28 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { corsHeaders } from '../_shared/cors.ts'
 
 const COLLECTION_ITEM_CAP = 10_000
+const RESERVED_SLUGS = new Set(['join', 'admin', 'privacy', 'terms', 'u', 'c'])
+
+function validateName(name: string): { valid: boolean; error?: string } {
+  if (typeof name !== 'string') return { valid: false, error: 'name must be a string' }
+  const trimmed = name.trim()
+  if (trimmed.length === 0) return { valid: false, error: 'name cannot be empty' }
+  if (trimmed.length > 200) return { valid: false, error: 'name max 200 characters' }
+  return { valid: true }
+}
+
+function validateSlug(slug: string): { valid: boolean; error?: string } {
+  if (typeof slug !== 'string') return { valid: false, error: 'slug must be a string' }
+  if (slug.length === 0) return { valid: false, error: 'slug cannot be empty' }
+  if (slug.length > 100) return { valid: false, error: 'slug max 100 characters' }
+  if (!/^[a-z0-9-]+$/.test(slug)) {
+    return { valid: false, error: 'slug must contain only lowercase letters, numbers, and hyphens' }
+  }
+  if (RESERVED_SLUGS.has(slug)) {
+    return { valid: false, error: `"${slug}" is a reserved slug` }
+  }
+  return { valid: true }
+}
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
@@ -35,12 +57,16 @@ Deno.serve(async (req) => {
     // ── Create collection ───────────────────────────────────────────────────
     case 'create': {
       const { name, slug, is_public } = body
-      if (typeof name !== 'string' || typeof slug !== 'string') {
-        return json({ error: 'name and slug are required strings' }, 400)
-      }
+      
+      const nameValidation = validateName(name)
+      if (!nameValidation.valid) return json({ error: nameValidation.error }, 400)
+      
+      const slugValidation = validateSlug(slug)
+      if (!slugValidation.valid) return json({ error: slugValidation.error }, 400)
+      
       const { data, error } = await supabase
         .from('collections')
-        .insert({ user_id: user.id, name, slug, is_public: is_public !== false })
+        .insert({ user_id: user.id, name: name as string, slug: slug as string, is_public: is_public !== false })
         .select()
         .single()
       if (error) {
@@ -56,8 +82,19 @@ Deno.serve(async (req) => {
       if (typeof id !== 'string') return json({ error: 'id is required' }, 400)
 
       const patch: Record<string, unknown> = {}
-      if (typeof name === 'string') patch.name = name
-      if (typeof slug === 'string') patch.slug = slug
+      
+      if (name !== undefined) {
+        const nameValidation = validateName(name)
+        if (!nameValidation.valid) return json({ error: nameValidation.error }, 400)
+        patch.name = name
+      }
+      
+      if (slug !== undefined) {
+        const slugValidation = validateSlug(slug)
+        if (!slugValidation.valid) return json({ error: slugValidation.error }, 400)
+        patch.slug = slug
+      }
+      
       if (typeof is_public === 'boolean') patch.is_public = is_public
 
       if (Object.keys(patch).length === 0) return json({ error: 'Nothing to update' }, 400)
@@ -69,7 +106,10 @@ Deno.serve(async (req) => {
         .eq('user_id', user.id)
         .select()
         .single()
-      if (error) return json({ error: error.message }, 500)
+      if (error) {
+        if (error.code === '23505') return json({ error: 'A collection with that slug already exists' }, 409)
+        return json({ error: error.message }, 500)
+      }
       if (!data) return json({ error: 'Collection not found' }, 404)
       return json(data)
     }
