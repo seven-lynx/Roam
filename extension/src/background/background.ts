@@ -419,6 +419,7 @@ async function roam(collectionId?: string): Promise<Response<RoamData>> {
     if (newDomain) {
       await chrome.storage.local.set({ lastRoamDomain: newDomain });
     }
+    console.log('[roam-bg] roam() from queue:', { url: queued.url });
     return { ok: true, data: queued as RoamData };
   }
 
@@ -456,6 +457,7 @@ async function roam(collectionId?: string): Promise<Response<RoamData>> {
     await chrome.storage.local.set({ lastRoamDomain: newDomain });
   }
 
+  console.log('[roam-bg] roam() from API:', { url: data.url });
   return { ok: true, data: data as RoamData };
 }
 
@@ -470,6 +472,7 @@ async function rate(url_id: string, vote: 1 | -1): Promise<Response<null>> {
 
 async function checkUrl(url: string): Promise<Response<CheckUrlData>> {
   const normalized = normalizeUrl(url);
+  console.log('[roam-bg] checkUrl:', { raw: url, normalized });
   if (!normalized) return { ok: true, data: { known: false } };
 
   // Try exact normalized URL first
@@ -480,6 +483,7 @@ async function checkUrl(url: string): Promise<Response<CheckUrlData>> {
     .eq('approved', true)
     .maybeSingle();
 
+  console.log('[roam-bg] checkUrl exact match:', { query: normalized, found: !!data, error: error?.message });
   if (error) return { ok: false, error: error.message };
   if (data) return { ok: true, data: { known: true, url_id: data.id as string, category_id: data.category_id ?? undefined } };
 
@@ -492,6 +496,7 @@ async function checkUrl(url: string): Promise<Response<CheckUrlData>> {
     .eq('approved', true)
     .maybeSingle());
 
+  console.log('[roam-bg] checkUrl slash fallback:', { query: withSlash, found: !!data, error: error?.message });
   if (error) return { ok: false, error: error.message };
   if (data) return { ok: true, data: { known: true, url_id: data.id as string, category_id: data.category_id ?? undefined } };
 
