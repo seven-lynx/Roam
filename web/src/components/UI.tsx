@@ -95,3 +95,24 @@ export function Avatar({ initial, size = 'md' }: { initial: string; size?: 'sm' 
     </div>
   );
 }
+
+export function Toast({ message, variant = 'error', onDismiss }: { message: string; variant?: 'error' | 'success' | 'info'; onDismiss: () => void }) {
+  const variantClass = {
+    error: 'bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-100 border-red-300 dark:border-red-700',
+    success: 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-100 border-green-300 dark:border-green-700',
+    info: 'bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-100 border-blue-300 dark:border-blue-700',
+  }[variant];
+
+  return (
+    <div className={`fixed bottom-4 right-4 p-4 rounded-lg border ${variantClass} shadow-lg max-w-sm z-50 flex items-start gap-3`}>
+      <div className="flex-1">{message}</div>
+      <button
+        onClick={onDismiss}
+        className="text-current opacity-70 hover:opacity-100 transition-opacity"
+        aria-label="Dismiss"
+      >
+        ✕
+      </button>
+    </div>
+  );
+}

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { Header } from '@/components/Header';
-import { LoadingPage, Button, Card, Spinner } from '@/components/UI';
+import { LoadingPage, Button, Card, Spinner, Toast } from '@/components/UI';
 import { createClient } from '@/lib/supabase/client';
 import { useRequireAuth, useUserCategories } from '@/lib/hooks';
 import Link from 'next/link';
@@ -27,6 +27,7 @@ export default function DashboardPage() {
   const [savedToCollection, setSavedToCollection] = useState(false);
   const [showSavePanel, setShowSavePanel] = useState(false);
   const [userCollections, setUserCollections] = useState<Array<{ id: string; name: string }>>([]);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (isReady) {
@@ -75,6 +76,7 @@ export default function DashboardPage() {
     if (!currentUrl) return;
 
     try {
+      setError(null);
       await supabase.functions.invoke('rate', {
         body: { url_id: currentUrl.id, vote },
       });
@@ -83,6 +85,8 @@ export default function DashboardPage() {
       // Auto-advance after 1 second
       setTimeout(() => fetchNextUrl(), 1000);
     } catch (e) {
+      const message = e instanceof Error ? e.message : 'Failed to record vote';
+      setError(message);
       console.error('Failed to record vote:', e);
     }
   }
@@ -91,6 +95,7 @@ export default function DashboardPage() {
     if (!currentUrl) return;
 
     try {
+      setError(null);
       await supabase.functions.invoke('collection', {
         body: {
           action: 'add_item',
@@ -102,9 +107,18 @@ export default function DashboardPage() {
       setShowSavePanel(false);
       setTimeout(() => setSavedToCollection(false), 2000);
     } catch (e) {
+      const message = e instanceof Error ? e.message : 'Failed to save to collection';
+      setError(message);
       console.error('Failed to save to collection:', e);
     }
   }
+
+  useEffect(() => {
+    if (error) {
+      const timer = setTimeout(() => setError(null), 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [error]);
 
   if (!isReady) return <LoadingPage />;
 
@@ -254,6 +268,15 @@ export default function DashboardPage() {
           <div className="fixed bottom-4 right-4 bg-green-600 text-white px-6 py-3 rounded-lg shadow-lg">
             ✅ Saved to collection!
           </div>
+        )}
+
+        {/* Error toast */}
+        {error && (
+          <Toast
+            message={error}
+            variant="error"
+            onDismiss={() => setError(null)}
+          />
         )}
       </main>
     </div>
