@@ -55,9 +55,11 @@ export default function JoinPageContent() {
 
       if (session) {
         setIsSignedIn(true);
-        // If this is an OAuth callback (event = 'INITIAL_SESSION' after OAuth redirect),
-        // and we're still on step "account", advance to "categories"
-        if (event === 'SIGNED_IN' || (event === 'INITIAL_SESSION' && session)) {
+        // Only auto-advance to categories if this is a fresh SIGNED_IN event
+        // (i.e., the user just completed OAuth or email signup).
+        // Don't advance on INITIAL_SESSION (page load) — let user interact first.
+        if (event === 'SIGNED_IN' && step === 'account') {
+          console.log('[roam] Fresh sign-in detected, advancing to categories');
           setStep("categories");
         }
       } else {
@@ -69,7 +71,7 @@ export default function JoinPageContent() {
     return () => {
       subscription?.unsubscribe();
     };
-  }, [supabase]);
+  }, [supabase, step]);
 
   // ── Step 1: create account ────────────────────────────────────────────────
   async function handleSignUp(e: React.FormEvent) {
