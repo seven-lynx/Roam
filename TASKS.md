@@ -252,7 +252,8 @@ Filling the discovery pool before launch so that the Roam button has something t
 
   📖 **What we did:** Created `scripts/lib/seed.js` — a shared ESM module that all seeder scripts will import. It sets up a Supabase client using the service-role key (which bypasses RLS so seeders can write without being authenticated as a user). `normaliseUrl()` enforces HTTPS, strips `www.`, lowercases the hostname, removes fragments, strips 20+ known tracking params (UTM, fbclid, gclid, etc.), and removes trailing slashes. `fetchOgMeta()` fetches the raw HTML of a page (8-second timeout) and extracts both the `og:image` / `twitter:image` tag and the `og:description` / `meta[name=description]` tag in a single request — so each URL only needs one HTTP fetch to populate both its image and description. `upsertUrls()` ties it all together: normalise → deduplicate against the DB → call `fetchOgMeta` when `fetchOg: true` → batch-upsert 50 rows at a time with `approved = true`. Also exports `CATEGORY` constants (the 8 fixed UUIDs from the migration) so seeders don't need to hardcode them.
 
-- [ ] **4.1a** Keep normalisation logic in sync between Node.js and Deno — see task 2.27a; after extracting `_shared/normalise.ts`, update `seed.js` to include a comment pointing to the canonical list of stripped parameters so future additions (new tracking params) are made in both places at once
+- [x] **4.1a** Keep normalisation logic in sync between Node.js and Deno — see task 2.27a; after extracting `_shared/normalise.ts`, update `seed.js` to include a comment pointing to the canonical list of stripped parameters so future additions (new tracking params) are made in both places at once
+  - **What we did:** Done as part of 2.27a. `seed.js` has a header comment pointing to `_shared/normalise.ts` as the canonical version and warning to keep both in sync.
 - [x] **4.1b** Add language tagging to the seeder pipeline — `upsertUrls()` in `seed.js` now passes `language: r.language ?? 'en'` in the upsert batch so individual seeders can override the language per-row (e.g. `language: 'fr'`) while all existing seeders default to English; `seed-curlie.js` updated to tag each Curlie dump file with its correct language (`rdf-Deutsch-c.tsv` → `'de'`, `rdf-Français-c.tsv` → `'fr'`, `rdf-Italiano-c.tsv` → `'it'`, `rdf-Japanese-c.tsv` → `'ja'`) so future re-seeds write the correct language; `submit-url` Edge Function updated to accept an optional `language` field from the client (defaults `'en'`) and write it to `moderation_queue`
 
 ### 4b. Original API seeders
@@ -269,8 +270,8 @@ Filling the discovery pool before launch so that the Roam button has something t
 
   **Result: 948 rows inserted.**
 
-- [ ] **4.3a** Register a free Reddit "script" app at reddit.com/prefs/apps — required before any Reddit API requests; takes 2 minutes; generates a client ID and secret for the seeder to use
-- [ ] **4.4** Write the Reddit seeder — pulls top all-time posts from a curated list of subreddits (one per subcategory); uses the credentials from task 4.3a
+- [x] **4.3a** ~~Register a free Reddit "script" app at reddit.com/prefs/apps~~ — **Superseded by 4.30.** The Reddit seeder (4.30) was implemented using the unauthenticated public JSON API instead of the authenticated script app. No API key is needed.
+- [x] **4.4** ~~Write the Reddit seeder~~ — **Superseded by 4.30.** The Reddit seeder was written as part of 4.30 using the unauthenticated `reddit.com/r/<subreddit>/top.json` API (no credentials required). See 4.30 for full details.
 - [x] **4.5** Write the NASA seeder — pulls Astronomy Picture of the Day archive and image descriptions; maps to Space & Astronomy
 
   📖 **What we did:** Created `scripts/seed-nasa.js`. Fetches APOD entries in monthly chunks from 2000-01-01 to present using the NASA APOD API (`api.nasa.gov`). Monthly chunks (not yearly) avoid HTTP 503 errors from large date ranges. 3-attempt retry on 5xx errors with 5s/10s/15s backoff, 1s delay between requests. Requires `NASA_API_KEY` in `.env` (free at api.nasa.gov). Cached to `scripts/.cache/nasa.json`.
@@ -316,7 +317,7 @@ Filling the discovery pool before launch so that the Roam button has something t
   📖 **What we did:** Implemented `scripts/seed-pubmed.js` with three-phase checkpointing: (1) **Search** — queries NCBI Entrez for 25 MeSH terms (Neuroscience, Psychiatry, Brain, Genetics, Immunology, etc.), collecting ~50K+ unique paper IDs, checkpoints after each term; (2) **Fetch** — batches paper IDs in groups of 100, fetches metadata via Entrez API, respects 3 req/sec rate limit; (3) **Upsert** — batches URLs in groups of 50 into Supabase with per-batch checkpointing. Smart multi-category mapping prioritizes MIND_BODY when present (e.g., Genetics → SCIENCE, but Neuroscience → MIND_BODY + SCIENCE). Progress file tracks phase, searched terms, and upserted count for safe crash recovery. Supports `--reset` flag. Expected yield: 30-50K medical/health URLs, closing the Mind & Body category gap. Committed `e5d5d5b` and pushed to origin/main.
 - [ ] **4.16** Write the CORE seeder — queries the CORE API by subject; pulls open-access paper metadata; maps to Science, History, and Mind & Body subcategories
 - [ ] **4.17** Write the DPLA seeder — queries the Digital Public Library of America API by subject; pulls digitised cultural heritage records; maps to History & Ideas, Arts & Culture, and People & Places
-- [ ] **4.18** Write the BoardGameGeek seeder — ABANDONED: Cloudflare blocks both the browse pages (403 after page 11) and the XML API (401 for all batches). Not worth pursuing.
+- [x] **4.18** Write the BoardGameGeek seeder — **ABANDONED:** Cloudflare blocks both the browse pages (403 after page 11) and the XML API (401 for all batches). Not worth pursuing. BGG now also requires a registered Bearer token with 1+ week approval time.
 - [ ] **4.19** Write the IGDB seeder — queries the IGDB API for top-rated games; maps to the Video Games subcategory
 - [x] **4.20** Write the NYT seeder — queries the NYT Article Search API by section; maps article metadata to History & Ideas, Science, Technology, Arts & Culture, and People & Places
 
@@ -404,7 +405,7 @@ Filling the discovery pool before launch so that the Roam button has something t
 
   📖 **What we did:** Created `scripts/seed-ted.js`. Uses TED's official sitemap index to find `talks-curator-approved.xml.gz` — a deduplicated, editorially vetted list of 7,492 TED talks (avoids TEDx which adds 100K+ lower-quality talks across per-year sitemaps). For each talk URL, fetches the page and extracts JSON-LD `VideoObject` structured data for title, description, and thumbnail. Category mapped from talk slug keywords. Rate-limited to 1 req/1.5s. Fully resumable via checkpoint in `.cache/ted-progress.json`. Committed `441a6c4`.
 
-- [ ] **4.35** Write the Substack seeder — scrape trending publications + RSS feeds (no official API); ~25K URLs from independent newsletters; captures independent voices (different from NYT/Guardian); effort: 3-4 hours
+- [x] **4.35** ~~Write the Substack seeder~~ — **Superseded by 4.43.** Implemented as 4.43 using the Substack category publications API. See 4.43 for full details and result (14,847 items inserted).
 
 #### Lower Priority — Niche content
 
@@ -589,7 +590,7 @@ Kotlin + Jetpack Compose. Full-screen WebView with a persistent bottom bar. Mirr
 
 - [x] **6.11** Implement thumbs up on an unknown page — bottom sheet slides up with a category chip picker and Submit button; calls `POST /submit-url`
 
-  📖 **What we did:** When `thumbsUp()` is called and the current state is not `Loaded` (the page was navigated to manually, not served by discovery), `MainViewModel` sets `showSubmitSheet = true`. `SubmitBottomSheet` renders 8 category chip buttons using the fixed pillar UUIDs (`c1000000-0000-0000-0000-000000000001` through `000000000008`). The Submit button is disabled until a chip is selected. On submit, `MainViewModel.submitUrl(url, categoryId)` calls the `submit-url` Edge Function — which normalises the URL, checks rate limits, runs Safe Browsing, and adds to the moderation queue. The sheet dismisses on success or shows an error message on failure.
+  📖 **What we did:** When `thumbsUp()` is called and the current state is not `Loaded` (the page was navigated to manually, not served by discovery), `MainViewModel` sets `showSubmitSheet = true`. `SubmitBottomSheet` renders category chip buttons dynamically from a `List<CategoryItem>` passed in from `MainViewModel.categories` (see task 9.8) — categories are fetched from the DB on init with a hardcoded fallback. The Submit button is disabled until a chip is selected. On submit, `MainViewModel.submitUrl(url, categoryId)` calls the `submit-url` Edge Function — which normalises the URL, checks rate limits, runs Safe Browsing, and adds to the moderation queue. The sheet dismisses on success or shows an error message on failure.
 
 - [x] **6.12** Build the Config bottom sheet — organised into two sections: (1) **Current page**: Add to collection (expandable list of user's collections + "New collection" option), Save for later, Share (Android share sheet); (2) **Roam mode**: Roam within this category chip, Roam a collection (list of user's collections activating collection mode), Manage collections (opens profile in WebView), Category preferences, Sign out
 - [x] **6.12a** Design and implement empty and error states in the app — (1) no results: full-screen empty state with a shortcut to category settings; (2) API unreachable: inline banner with retry; (3) WebView page fails to load: native error screen with "Try next page" button; (4) signed out on app open: redirect to onboarding
@@ -657,56 +658,60 @@ Final checks before making the app public.
 
 **Audit Source:** Comprehensive codebase audit covering extension, Android, web, Supabase, documentation, configuration, and deployment readiness. See [AUDIT_REPORT.md](AUDIT_REPORT.md) for full details.
 
-**Submission Status:** 🔴 **DO NOT SUBMIT** until all **CRITICAL** blockers resolved (est. 2–3 days). High-priority items should be completed before store submissions (5.17, 5.19, 6.19).
+**Submission Status:** � **All CRITICAL blockers resolved.** Remaining blockers before store submission: 9.9 (ProGuard rules), 9.10 (OAuth testing).
 
 ### CRITICAL — Blockers (must fix before any release)
 
-- [ ] **9.1** Enforce Safe Browsing API validation in `submit-url` Edge Function — currently if the `SAFE_BROWSING_API_KEY` environment variable is absent, the check is silently skipped, allowing malicious/phishing URLs through unchecked; update the function to throw a startup error if the key is not set; deployment process must verify the secret is configured before the function goes live
+- [x] **9.1** Enforce Safe Browsing API validation in `submit-url` Edge Function — currently if the `SAFE_BROWSING_API_KEY` environment variable is absent, the check is silently skipped, allowing malicious/phishing URLs through unchecked; update the function to throw a startup error if the key is not set; deployment process must verify the secret is configured before the function goes live
   - **Severity:** CRITICAL — direct security impact
   - **Effort:** 30 minutes
   - **Files:** `supabase/functions/submit-url/index.ts` (lines 103–110)
   - **Blocking:** Chrome Web Store (5.17), Firefox AMO (5.19)
+  - **What we did:** See task 2.21a. Top-level `if (!SAFE_BROWSING_API_KEY) throw new Error(...)` added to `submit-url/index.ts`; Safe Browsing API errors now return 503 instead of silently allowing through. Secret set via `npx supabase secrets set`. Deployed 2026-05-01.
 
-- [ ] **9.2** Add rate limiting to the public `/profile` endpoint — the `GET /functions/v1/profile?username=<username>` endpoint is unauthenticated and unthrottled, allowing username enumeration attacks (~432K usernames/day from one IP) and lightweight DoS; implement per-IP rate limiting (60 requests/minute) returning `429 Too Many Requests` on breach
+- [x] **9.2** Add rate limiting to the public `/profile` endpoint — the `GET /functions/v1/profile?username=<username>` endpoint is unauthenticated and unthrottled, allowing username enumeration attacks (~432K usernames/day from one IP) and lightweight DoS; implement per-IP rate limiting (60 requests/minute) returning `429 Too Many Requests` on breach
   - **Severity:** CRITICAL — security (enumeration + DoS)
   - **Effort:** 1–2 hours
   - **Files:** `supabase/functions/profile/index.ts`
   - **Blocking:** All store submissions
-  - **Implementation options:** Supabase native rate limiting, Deno KV-based counter, or Cloudflare Workers
+  - **What we did:** See task 2.21b. Created `supabase/functions/_shared/rate-limit.ts` with in-memory per-IP bucket (60 req/min window). `profile/index.ts` checks on every GET; returns 429 with `Retry-After` header on breach. Client IP from `X-Forwarded-For` / `Fly-Client-IP` / `Cf-Connecting-IP`. Deployed 2026-05-01.
 
-- [ ] **9.3** Create `moderation_audit_log` table with trigger — records every admin decision (approved/rejected) with admin_id, timestamp, and decision reason; provides tamper-proof audit trail required for content moderation compliance; add PostgreSQL trigger on `moderation_queue.status` update to auto-insert audit rows
+- [x] **9.3** Create `moderation_audit_log` table with trigger — records every admin decision (approved/rejected) with admin_id, timestamp, and decision reason; provides tamper-proof audit trail required for content moderation compliance; add PostgreSQL trigger on `moderation_queue.status` update to auto-insert audit rows
   - **Severity:** CRITICAL — compliance / auditability
   - **Effort:** 30 minutes
-  - **Files:** New migration `supabase/migrations/20260430000002_moderation_audit_log.sql`
+  - **Files:** `supabase/migrations/20260501000001_moderation_audit_log.sql` (note: initial version also in `20260424000000_schema_improvements.sql`)
   - **Blocking:** All store submissions
   - **Task reference:** 2.15a
+  - **What we did:** See task 2.15a. `moderation_audit_log` table created with `AFTER UPDATE OF status` trigger on `moderation_queue`; only logs transitions out of `pending` to `approved`/`rejected`; RLS enforces admin-read-only. Applied 2026-05-01.
 
-- [ ] **9.4** Add `ON DELETE CASCADE` constraint to `collection_items(url_id)` — currently orphaned items remain if a URL is deleted, violating referential integrity; alter the foreign key constraint to cascade deletions automatically
+- [x] **9.4** Add `ON DELETE CASCADE` constraint to `collection_items(url_id)` — currently orphaned items remain if a URL is deleted, violating referential integrity; alter the foreign key constraint to cascade deletions automatically
   - **Severity:** CRITICAL — data integrity
   - **Effort:** 15 minutes
-  - **Files:** New migration `supabase/migrations/20260430000003_cascade_collection_items.sql`
+  - **Files:** `supabase/migrations/20260424000000_schema_improvements.sql` (already applied)
   - **Task reference:** 2.15b
+  - **What we did:** See task 2.15b. `ON DELETE CASCADE` on `collection_items(url_id)` was included in `20260424000000_schema_improvements.sql` and verified applied to the remote database.
 
-- [ ] **9.5** ⏸️ **Supabase Pro upgrade decision** — Free tier storage is 390 MB / 500 MB (78% full); remaining seeders (Curlie: 1.2M URLs) will exceed quota within days; must upgrade to Supabase Pro ($25/month) before completing content seeding or service will degrade
+- [x] **9.5** **Supabase Pro upgrade** — Free tier storage is 390 MB / 500 MB (78% full); remaining seeders (Curlie: 1.2M URLs) will exceed quota within days; must upgrade to Supabase Pro ($25/month) before completing content seeding or service will degrade
   - **Severity:** CRITICAL — operational readiness
   - **Effort:** 5 minutes (dashboard action)
   - **Cost:** $25/month ($300/year for 12 months)
-  - **Blocking:** Content seeding (Stage 4), all store submissions
-  - **Decision:** Already flagged in "Infrastructure & Scaling Decisions" — awaiting confirmation
+  - **What we did:** Upgraded to Supabase Pro 2026-05-01. Storage quota increased from 500 MB → 8 GB. See "Infrastructure & Scaling Decisions" at top of file.
 
 ### HIGH-PRIORITY — Fix before store submissions
 
-- [ ] **9.6** Add input validation to `POST /collection` slug and name — currently the slug can be empty, contain invalid URL characters (`/`, `..`, unicode), or collide with reserved routes (`admin`, `join`, `privacy`, `terms`, `u`, `c`); validate: slug `[a-z0-9-]{1,100}` + not in RESERVED list, name non-empty + max 200 characters
+- [x] **9.6** Add input validation to `POST /collection` slug and name — currently the slug can be empty, contain invalid URL characters (`/`, `..`, unicode), or collide with reserved routes (`admin`, `join`, `privacy`, `terms`, `u`, `c`); validate: slug `[a-z0-9-]{1,100}` + not in RESERVED list, name non-empty + max 200 characters
   - **Severity:** HIGH — routing / path traversal risk
   - **Effort:** 1–2 hours + testing
   - **Files:** `supabase/functions/collection/index.ts` (lines 33–50)
   - **Task reference:** 2.26a
+  - **What we did:** See task 2.26a. `validateName()` and `validateSlug()` added; slug regex `[a-z0-9-]{1,100}`, RESERVED_SLUGS set blocks `join/admin/privacy/terms/u/c`. Returns 400 with descriptive message. Deployed 2026-05-01.
 
-- [ ] **9.7** Extract shared URL normalization code — the same URL normalization logic (HTTPS enforce, strip www, remove UTM/tracking params, etc.) is duplicated in 3 places: `scripts/lib/seed.js` (Node.js), `supabase/functions/submit-url/index.ts` (Deno), and `extension/src/background/background.ts` (browser); create canonical version in `supabase/functions/_shared/normalise.ts` and import into `submit-url`; keep `seed.js` with comment linking to canonical version
+- [x] **9.7** Extract shared URL normalization code — the same URL normalization logic (HTTPS enforce, strip www, remove UTM/tracking params, etc.) is duplicated in 3 places: `scripts/lib/seed.js` (Node.js), `supabase/functions/submit-url/index.ts` (Deno), and `extension/src/background/background.ts` (browser); create canonical version in `supabase/functions/_shared/normalise.ts` and import into `submit-url`; keep `seed.js` with comment linking to canonical version
   - **Severity:** HIGH — maintainability / consistency
   - **Effort:** 30–45 minutes
   - **Files:** `supabase/functions/_shared/normalise.ts` (new), `supabase/functions/submit-url/index.ts`, `scripts/lib/seed.js`
   - **Task reference:** 2.27a
+  - **What we did:** See task 2.27a. `_shared/normalise.ts` created with canonical `normalizeUrl()`; `submit-url/index.ts` imports it; `seed.js` updated with cross-reference comment. Deployed 2026-05-01.
 
 - [x] **9.8** Fetch categories dynamically instead of hardcoding — web UI and Android both have hardcoded category UUIDs; if category IDs change (schema reset, recovery), UI breaks silently; fetch from `categories` table on client startup and cache locally
   - **Severity:** HIGH — brittleness
