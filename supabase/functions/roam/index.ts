@@ -66,7 +66,7 @@ Deno.serve(async (req) => {
     title:         row.title,
     description:   row.description,
     og_image_url:  row.og_image_url,
-    subcategory_id: row.subcategory_id,
+    category_id:   row.subcategory_id,
     wilson_score:  row.wilson_score,
   })
 })

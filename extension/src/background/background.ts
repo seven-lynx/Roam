@@ -500,6 +500,7 @@ async function checkUrl(url: string): Promise<Response<CheckUrlData>> {
   if (error) return { ok: false, error: error.message };
   if (data) return { ok: true, data: { known: true, url_id: data.id as string, category_id: data.category_id ?? undefined } };
 
+  // URL not found in either form
   return { ok: true, data: { known: false } };
 }
 

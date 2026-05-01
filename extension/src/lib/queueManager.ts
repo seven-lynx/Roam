@@ -23,6 +23,7 @@ import {
   logFailedUrl,
 } from "./queue";
 import { getSupabase } from "./supabase";
+import { Sentry } from "./sentry";
 
 const MAX_HOT = 3;
 const MAX_WARMING = 5;
@@ -63,7 +64,12 @@ export function startValidationLoop(): void {
 
   const loop = async () => {
     while (validationLoopRunning) {
-      await validateNextUrl();
+      try {
+        await validateNextUrl();
+      } catch (error) {
+        console.error('[roam-bg] Validation loop error:', error);
+        Sentry.captureException(error, { tags: { context: 'validation-loop' } });
+      }
       await sleep(VALIDATION_CHECK_INTERVAL);
     }
   };
@@ -110,11 +116,16 @@ export function startRefillLoop(): void {
 
   const loop = async () => {
     while (refillLoopRunning) {
-      const state = await getQueueState();
+      try {
+        const state = await getQueueState();
 
-      // Refill if hot + warming drops below threshold
-      if (state.hot_count + state.warming_count < REFILL_THRESHOLD) {
-        await refillQueue();
+        // Refill if hot + warming drops below threshold
+        if (state.hot_count + state.warming_count < REFILL_THRESHOLD) {
+          await refillQueue();
+        }
+      } catch (error) {
+        console.error('[roam-bg] Refill loop error:', error);
+        Sentry.captureException(error, { tags: { context: 'refill-loop' } });
       }
 
       await sleep(REFILL_CHECK_INTERVAL);
