@@ -55,9 +55,11 @@ function showPanel(name: 'submit' | 'config' | null) {
 function showError(message: string) {
   const span = document.querySelector<HTMLElement>('#state-error .error-msg');
   if (span) span.textContent = message;
-  // Capture every user-visible error so beta issues surface in Sentry.
+  // Capture user-visible errors as warnings (not errors) so beta issues surface in Sentry
+  // without inflating the error count. The underlying bg errors are already captured as
+  // errors by the dispatch() wrapper in background.ts.
   Sentry.captureMessage(`popup error shown: ${message}`, {
-    level: 'error',
+    level: 'warning',
     tags: { context: 'showError' },
   });
   showState('error');

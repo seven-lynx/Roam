@@ -102,6 +102,7 @@ async function dispatch(req: Request): Promise<Response> {
     const expectedUserErrors = new Set<string>([
       'SIGN_IN_EMAIL',
       'SIGN_UP_EMAIL',
+      'GET_PROFILE', // Missing profile is expected for users who haven't completed web onboarding
     ]);
     if (!expectedUserErrors.has(req.type)) {
       Sentry.captureMessage(`[bg] ${req.type} failed: ${result.error}`, {
@@ -569,7 +570,7 @@ async function getCollections(): Promise<Response<Collection[]>> {
   const { data, error } = await getSupabase()
     .from('collections')
     .select('id,name,slug,is_public,item_count:collection_items(count)')
-    .eq('owner_id', (await getSupabase().auth.getSession()).data.session?.user.id)
+    .eq('user_id', (await getSupabase().auth.getSession()).data.session?.user.id)
     .order('name');
 
   if (error) return { ok: false, error: error.message };
@@ -603,7 +604,7 @@ async function createCollection(name: string): Promise<Response<Collection>> {
     .insert({
       name,
       slug,
-      owner_id: session.user.id,
+      user_id: session.user.id,
       is_public: false,
     })
     .select()
