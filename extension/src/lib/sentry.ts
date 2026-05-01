@@ -9,12 +9,14 @@
 import * as Sentry from '@sentry/browser';
 
 declare const __SENTRY_DSN__: string;
+declare const __SENTRY_RELEASE__: string;
 
 const dsn = typeof __SENTRY_DSN__ !== 'undefined' ? __SENTRY_DSN__ : '';
 
 if (dsn) {
   Sentry.init({
     dsn,
+    release: typeof __SENTRY_RELEASE__ !== 'undefined' ? __SENTRY_RELEASE__ : undefined,
     environment: typeof __ENVIRONMENT__ !== 'undefined' ? __ENVIRONMENT__ : 'production',
 
     // Low sample rate — extensions can be chatty.

@@ -21,6 +21,10 @@ out/
 .turbo/
 *.tsbuildinfo
 
+# ── Sentry source maps (uploaded to Sentry, deleted after build) ─────────────
+extension/dist/*.js.map
+extension/dist-firefox/*.js.map
+
 # ── Supabase CLI ─────────────────────────────────────────────────────────────
 .supabase/
 supabase/.temp/

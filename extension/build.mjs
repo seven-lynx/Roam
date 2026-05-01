@@ -5,6 +5,7 @@
 //   node build.mjs --watch     → watch mode for development (Chrome)
 
 import * as esbuild from 'esbuild';
+import { sentryEsbuildPlugin } from '@sentry/esbuild-plugin';
 import { copyFileSync, mkdirSync, readFileSync } from 'fs';
 import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
@@ -59,11 +60,23 @@ function copyStatics() {
 }
 
 const sentryDsn = env.SENTRY_DSN ?? '';
+const sentryAuthToken = env.SENTRY_AUTH_TOKEN ?? '';
+const sentryOrg = env.SENTRY_ORG ?? '7-lynx';
+const sentryProject = env.SENTRY_PROJECT ?? 'roam-extension';
+
+// Derive a release identifier from package.json version + git SHA (best-effort)
+let sentryRelease = 'unknown';
+try {
+  const pkg = JSON.parse(readFileSync(resolve(__dirname, 'package.json'), 'utf8'));
+  sentryRelease = pkg.version ?? 'unknown';
+} catch { /* ignore */ }
 
 const sharedConfig = {
   bundle: true,
   minify: !watch,
-  sourcemap: watch,
+  // In production: generate external source maps (not referenced in bundle, uploaded to Sentry only)
+  // In watch mode: inline source maps for debugging
+  sourcemap: watch ? true : 'external',
   target: firefox ? ['firefox121'] : ['chrome120'],
   define: {
     'process.env.NODE_ENV': watch ? '"development"' : '"production"',
@@ -71,6 +84,7 @@ const sharedConfig = {
     '__SUPABASE_ANON_KEY__': JSON.stringify(supabaseAnonKey),
     '__SENTRY_DSN__': JSON.stringify(sentryDsn),
     '__ENVIRONMENT__': watch ? '"development"' : '"production"',
+    '__SENTRY_RELEASE__': JSON.stringify(sentryRelease),
   },
 };
 
@@ -94,9 +108,35 @@ if (watch) {
   await Promise.all(contexts.map((ctx) => ctx.watch()));
   console.log('[roam] Watching for changes… (Ctrl+C to stop)');
 } else {
+  // Build all entry points; upload source maps to Sentry if auth token is present
+  const canUploadMaps = !firefox && sentryDsn && sentryAuthToken;
+  if (!canUploadMaps && sentryAuthToken) {
+    console.warn('[roam] Skipping Sentry source map upload for Firefox build.');
+  } else if (!sentryAuthToken) {
+    console.warn('[roam] SENTRY_AUTH_TOKEN not set — source maps will NOT be uploaded to Sentry.');
+  }
+
   await Promise.all(
     entryPoints.map(({ in: entryPoint, out: outfile }) =>
-      esbuild.build({ ...sharedConfig, entryPoints: [entryPoint], outfile: outfile + '.js', format: 'iife' })
+      esbuild.build({
+        ...sharedConfig,
+        entryPoints: [entryPoint],
+        outfile: outfile + '.js',
+        format: 'iife',
+        plugins: canUploadMaps ? [
+          sentryEsbuildPlugin({
+            authToken: sentryAuthToken,
+            org: sentryOrg,
+            project: sentryProject,
+            release: { name: sentryRelease },
+            telemetry: false,
+            sourcemaps: {
+              assets: outfile + '.js.map',
+              deleteFilesAfterUpload: [outfile + '.js.map'],
+            },
+          }),
+        ] : [],
+      })
     )
   );
   copyStatics();

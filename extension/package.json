@@ -11,6 +11,7 @@
     "@supabase/supabase-js": "^2.104.1"
   },
   "devDependencies": {
+    "@sentry/esbuild-plugin": "^5.2.1",
     "@types/chrome": "^0.0.320",
     "esbuild": "^0.25.0",
     "typescript": "^5"
