@@ -28,6 +28,7 @@ export type Request =
   | { type: 'REFRESH_CATEGORIES'; categoryIds: string[] }
   | { type: 'EXCHANGE_CODE'; code: string }
   | { type: 'SAVE_SESSION'; accessToken: string; refreshToken: string }
+  | { type: 'GET_PROFILE' }
   | { type: 'SEND_FEEDBACK'; message: string; email?: string; platform: string };
 
 export type Response<T = unknown> =
@@ -82,6 +83,10 @@ export interface Collection {
   slug: string;
   is_public: boolean;
   item_count: number;
+}
+
+export interface ProfileData {
+  username: string;
 }
 
 /** Type-safe wrapper around chrome.runtime.sendMessage.

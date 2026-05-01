@@ -2,7 +2,7 @@
 
 import '../lib/sentry'; // must be first — initialises Sentry if SENTRY_DSN is set
 import { sendToBackground } from '../lib/messages';
-import type { StateData, RoamData, CheckUrlData, Collection, CategoryItem } from '../lib/messages';
+import type { StateData, RoamData, CheckUrlData, Collection, CategoryItem, ProfileData } from '../lib/messages';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function el<T extends HTMLElement>(id: string): T {
@@ -444,10 +444,11 @@ document.addEventListener('DOMContentLoaded', () => {
         const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
         if (!tab?.url) return;
         const res = await sendToBackground({ type: 'ADD_URL_TO_COLLECTION', url: tab.url, collectionId: col.id });
+        menu.remove();
         if (res.ok) {
-          // Close the menu and show success
-          menu.remove();
           window.close();
+        } else {
+          showError(res.error ?? "Couldn't add to collection.");
         }
       });
       option.addEventListener('mouseover', () => option.style.background = 'var(--bg-hover)');
@@ -477,14 +478,15 @@ document.addEventListener('DOMContentLoaded', () => {
       const name = prompt('Collection name:');
       if (!name) return;
       const res = await sendToBackground<Collection>({ type: 'CREATE_COLLECTION', name });
-      if (res.ok) {
-        // Reload collections and add URL
-        await loadCollectionsForDropdown();
-        const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-        if (!tab?.url) return;
-        await sendToBackground({ type: 'ADD_URL_TO_COLLECTION', url: tab.url, collectionId: res.data.id });
-        menu.remove();
+      if (!res.ok) { showError(res.error ?? "Couldn't create collection."); menu.remove(); return; }
+      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+      if (!tab?.url) { menu.remove(); return; }
+      const addRes = await sendToBackground({ type: 'ADD_URL_TO_COLLECTION', url: tab.url, collectionId: res.data.id });
+      menu.remove();
+      if (addRes.ok) {
         window.close();
+      } else {
+        showError(addRes.error ?? "Couldn't add to collection.");
       }
     });
     menu.appendChild(newColOption);
@@ -616,8 +618,12 @@ document.addEventListener('DOMContentLoaded', () => {
     }, { once: true });
   });
 
-  el('btn-manage-collections').addEventListener('click', () => {
-    chrome.tabs.create({ url: 'https://roamtheweb.app/u/me' });
+  el('btn-manage-collections').addEventListener('click', async () => {
+    const res = await sendToBackground<ProfileData>({ type: 'GET_PROFILE' });
+    const url = res.ok
+      ? `https://roamtheweb.app/u/${res.data.username}`
+      : 'https://roamtheweb.app';
+    chrome.tabs.create({ url });
     window.close();
   });
 

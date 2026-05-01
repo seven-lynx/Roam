@@ -6,7 +6,7 @@
 // storage adapter in src/lib/supabase.ts.
 
 import { Sentry } from '../lib/sentry'; // must be first — initialises Sentry if SENTRY_DSN is set
-import type { Request, Response, StateData, RoamData, CheckUrlData, QueueState, Collection, CategoryItem } from '../lib/messages';
+import type { Request, Response, StateData, RoamData, CheckUrlData, QueueState, Collection, CategoryItem, ProfileData } from '../lib/messages';
 import { getSupabase, clearAuthStorage } from '../lib/supabase';
 
 declare const __SUPABASE_URL__: string;
@@ -102,6 +102,7 @@ async function dispatch(req: Request): Promise<Response> {
     case 'ADD_URL_TO_COLLECTION': return addUrlToCollection(req.url, req.collectionId);
     case 'GET_QUEUE_STATE':     return getQueueState();
     case 'REFRESH_CATEGORIES':  return refreshCategories(req.categoryIds);
+    case 'GET_PROFILE':         return getProfile();
     case 'SEND_FEEDBACK':       return sendFeedback((req as any).message, (req as any).email, (req as any).platform);
     default:                    return { ok: false, error: 'Something went wrong. Please try again.' };
   }
@@ -604,6 +605,7 @@ async function addUrlToCollection(url: string, collectionId: string): Promise<Re
       .from('urls')
       .insert({
         url: normalized,
+        original_url: normalized,
         approved: false,
         source: 'user_submission',
       })
@@ -667,6 +669,20 @@ async function setLanguagePref(languages: string[]): Promise<Response<null>> {
   await clearQueue();
 
   return { ok: true, data: null };
+}
+
+async function getProfile(): Promise<Response<ProfileData>> {
+  const session = (await getSupabase().auth.getSession()).data.session;
+  if (!session) return { ok: false, error: 'Not signed in.' };
+
+  const { data, error } = await getSupabase()
+    .from('profiles')
+    .select('username')
+    .eq('id', session.user.id)
+    .single();
+
+  if (error || !data) return { ok: false, error: 'Profile not found.' };
+  return { ok: true, data: { username: data.username } };
 }
 
 async function sendFeedback(message: string, email: string | undefined, platform: string): Promise<Response<null>> {
