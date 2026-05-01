@@ -1,8 +1,23 @@
 // popup.ts — Roam extension popup entry point
 
 import '../lib/sentry'; // must be first — initialises Sentry if SENTRY_DSN is set
+import { Sentry } from '../lib/sentry';
 import { sendToBackground } from '../lib/messages';
 import type { StateData, RoamData, CheckUrlData, Collection, CategoryItem, ProfileData } from '../lib/messages';
+
+// ── Global error capture ───────────────────────────────────────────────────
+window.addEventListener('unhandledrejection', (event) => {
+  Sentry.captureException(
+    event.reason ?? new Error('Unhandled promise rejection'),
+    { tags: { context: 'popup-unhandledrejection' } }
+  );
+});
+window.addEventListener('error', (event) => {
+  Sentry.captureException(
+    event.error ?? new Error(event.message || 'Unknown popup error'),
+    { tags: { context: 'popup-error' } }
+  );
+});
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function el<T extends HTMLElement>(id: string): T {
@@ -40,6 +55,11 @@ function showPanel(name: 'submit' | 'config' | null) {
 function showError(message: string) {
   const span = document.querySelector<HTMLElement>('#state-error .error-msg');
   if (span) span.textContent = message;
+  // Capture every user-visible error so beta issues surface in Sentry.
+  Sentry.captureMessage(`popup error shown: ${message}`, {
+    level: 'error',
+    tags: { context: 'showError' },
+  });
   showState('error');
 }
 

@@ -54,6 +54,24 @@ function getDomain(url: string): string | null {
   }
 }
 
+// ── Global error capture ───────────────────────────────────────────────────
+// Service worker context: use self.addEventListener (no window).
+// These catch any thrown error or unhandled promise rejection that slips
+// past a try/catch — including queueManager background loops.
+self.addEventListener('unhandledrejection', (event) => {
+  Sentry.captureException(
+    (event as PromiseRejectionEvent).reason ?? new Error('Unhandled promise rejection'),
+    { tags: { context: 'sw-unhandledrejection' } }
+  );
+});
+self.addEventListener('error', (event) => {
+  const e = event as ErrorEvent;
+  Sentry.captureException(
+    e.error ?? new Error(e.message || 'Unknown SW error'),
+    { tags: { context: 'sw-error' } }
+  );
+});
+
 // ── Message router ─────────────────────────────────────────────────────────
 // Keep the SW alive while the popup has an open port connection.
 chrome.runtime.onConnect.addListener((_port) => {
@@ -76,6 +94,28 @@ chrome.runtime.onMessage.addListener(
 );
 
 async function dispatch(req: Request): Promise<Response> {
+  const result = await _dispatch(req);
+
+  // Capture unexpected {ok: false} to Sentry so beta errors surface automatically.
+  // Skip expected user-input failures (wrong password, sign-up validation, etc.).
+  if (!result.ok) {
+    const expectedUserErrors = new Set<string>([
+      'SIGN_IN_EMAIL',
+      'SIGN_UP_EMAIL',
+    ]);
+    if (!expectedUserErrors.has(req.type)) {
+      Sentry.captureMessage(`[bg] ${req.type} failed: ${result.error}`, {
+        level: 'error',
+        tags: { messageType: req.type, context: 'dispatch' },
+        extra: { error: result.error },
+      });
+    }
+  }
+
+  return result;
+}
+
+async function _dispatch(req: Request): Promise<Response> {
   switch (req.type) {
     case 'GET_STATE':           return getState();
     case 'SIGN_IN_GOOGLE':      return signInWithGoogle();
