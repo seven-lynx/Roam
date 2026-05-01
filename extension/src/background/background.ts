@@ -12,6 +12,7 @@ import { getSupabase, clearAuthStorage } from '../lib/supabase';
 declare const __SUPABASE_URL__: string;
 import {
   popHotUrl,
+  popAnyUrl,
   clearQueue,
 } from '../lib/queue';
 import {
@@ -368,17 +369,15 @@ async function setUserCategories(categoryIds: string[]): Promise<Response<null>>
 // ── Feature stubs (implemented in tasks 5.8–5.12) ───────────────────────────
 
 async function roam(collectionId?: string): Promise<Response<RoamData>> {
-  // Try to get a hot URL from the prefetch queue first
-  const hotUrl = await popHotUrl();
+  // Try hot queue first (instant), then warming queue (DB-verified, skip re-fetch)
+  const queued = await popAnyUrl();
 
-  if (hotUrl) {
-    // Use cached hot URL
-    const newDomain = getDomain(hotUrl.url);
+  if (queued) {
+    const newDomain = getDomain(queued.url);
     if (newDomain) {
       await chrome.storage.local.set({ lastRoamDomain: newDomain });
     }
-
-    return { ok: true, data: hotUrl as RoamData };
+    return { ok: true, data: queued as RoamData };
   }
 
   // Queue is empty, fall back to direct API call

@@ -184,6 +184,31 @@ export async function popHotUrl(): Promise<QueuedUrl | null> {
 }
 
 /**
+ * Pop the best available URL: hot first, then first warming URL.
+ * Used as a fallback so Roam doesn't make a redundant live API call when
+ * the queue has just been filled but validation hasn't run yet.
+ */
+export async function popAnyUrl(): Promise<QueuedUrl | null> {
+  const queue = await loadQueue();
+
+  if (queue.hot.length > 0) {
+    const url = queue.hot.shift()!;
+    await saveQueue(queue);
+    return url;
+  }
+
+  if (queue.warming.length > 0) {
+    // Use the first warming URL directly — it comes from the DB (approved),
+    // so skipping the HEAD check here is acceptable as a one-time fast-path.
+    const url = queue.warming.shift()!;
+    await saveQueue(queue);
+    return url;
+  }
+
+  return null;
+}
+
+/**
  * Get the next URL from warming that is ready to validate (respecting backoff)
  */
 export async function getNextWarmingUrl(): Promise<QueuedUrl | null> {

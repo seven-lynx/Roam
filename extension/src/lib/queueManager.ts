@@ -184,30 +184,27 @@ export async function fetchFreshUrls(
   }>
 > {
   try {
-    const results = [];
+    // Fire all requests in parallel — ~1s instead of count × ~1s sequential.
+    const settled = await Promise.allSettled(
+      Array.from({ length: count }, () =>
+        getSupabase().functions.invoke("roam", {
+          body: { category_filter: categoryFilter },
+        })
+      )
+    );
 
-    // Fetch URLs one at a time up to the count requested
-    // This is simple but could be optimized by batching the RPC call
-    for (let i = 0; i < count; i++) {
-      const { data, error } = await getSupabase().functions.invoke("roam", {
-        body: { category_filter: categoryFilter },
-      });
-
-      if (error || !data) {
-        console.error("Failed to fetch URL:", error?.message || "Unknown error");
-        break;
-      }
-
-      results.push({
-        url: data.url,
-        title: data.title,
-        description: data.description,
-        category_id: data.category_id,
-        og_image_url: data.og_image_url,
-      });
-    }
-
-    return results;
+    return settled
+      .filter(
+        (r): r is PromiseFulfilledResult<{ data: any; error: any }> =>
+          r.status === "fulfilled" && !r.value.error && r.value.data
+      )
+      .map((r) => ({
+        url: r.value.data.url,
+        title: r.value.data.title,
+        description: r.value.data.description,
+        category_id: r.value.data.category_id,
+        og_image_url: r.value.data.og_image_url,
+      }));
   } catch (error) {
     console.error("Error fetching fresh URLs:", error);
     return [];
