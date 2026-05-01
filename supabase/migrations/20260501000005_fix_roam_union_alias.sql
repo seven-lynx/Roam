@@ -1,168 +1,8 @@
--- =============================================================================
--- Personalization: domain suppression + subcategory affinity
--- =============================================================================
+-- Fix roam() v5: "missing FROM-clause entry for table u"
 --
--- Two signals derived from per-user ratings:
---
--- 1. DOMAIN SUPPRESSION
---    A user who downvotes 2+ URLs from the same domain will stop seeing that
---    domain for 30 days. A trigger on `ratings` maintains the
---    `user_suppressed_domains` table automatically. Suppression lifts if the
---    user removes enough downvotes to drop below 2.
---
--- 2. SUBCATEGORY AFFINITY
---    Each upvote on a URL increases the user's affinity score for that URL's
---    subcategory; downvotes decrease it. roam() multiplies wilson_score by
---    (1 + 0.3 × clamp(affinity, 0, 10) / 10) — up to +30% for subcategories
---    the user has consistently upvoted. Negative affinity is clamped to 0:
---    it never suppresses content (domain suppression handles repeated dislikes).
---    A trigger on `ratings` maintains the table; existing ratings are backfilled.
--- =============================================================================
+-- In a UNION ALL, ORDER BY / LIMIT apply to the whole union, not just the last
+-- SELECT. Wrapping the fallback in a subquery scopes the ORDER BY correctly.
 
--- ── 1. user_suppressed_domains ───────────────────────────────────────────────
-CREATE TABLE IF NOT EXISTS public.user_suppressed_domains (
-  user_id          UUID        NOT NULL REFERENCES auth.users ON DELETE CASCADE,
-  domain           TEXT        NOT NULL,
-  downvote_count   SMALLINT    NOT NULL DEFAULT 2,
-  suppressed_until TIMESTAMPTZ NOT NULL,
-  PRIMARY KEY (user_id, domain)
-);
-
-CREATE INDEX IF NOT EXISTS idx_user_suppressed_domains
-  ON public.user_suppressed_domains (user_id, domain);
-
-ALTER TABLE public.user_suppressed_domains ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "suppressed_domains: users can read own"
-  ON public.user_suppressed_domains FOR SELECT
-  USING (auth.uid() = user_id);
-
--- ── 2. user_subcategory_affinity ─────────────────────────────────────────────
--- score = running sum of votes (+1 / -1) for URLs in that subcategory.
-CREATE TABLE IF NOT EXISTS public.user_subcategory_affinity (
-  user_id        UUID   NOT NULL REFERENCES auth.users    ON DELETE CASCADE,
-  subcategory_id UUID   NOT NULL REFERENCES subcategories ON DELETE CASCADE,
-  score          FLOAT  NOT NULL DEFAULT 0,
-  PRIMARY KEY (user_id, subcategory_id)
-);
-
-ALTER TABLE public.user_subcategory_affinity ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "affinity: users can read own"
-  ON public.user_subcategory_affinity FOR SELECT
-  USING (auth.uid() = user_id);
-
--- ── 3. Trigger: maintain domain suppression ──────────────────────────────────
-CREATE OR REPLACE FUNCTION public.update_domain_suppression()
-RETURNS TRIGGER LANGUAGE plpgsql SECURITY DEFINER
-SET search_path = public AS $$
-DECLARE
-  v_domain TEXT;
-  v_uid    UUID;
-  v_count  BIGINT;
-BEGIN
-  IF TG_OP = 'DELETE' THEN
-    v_uid := OLD.user_id;
-    SELECT u.domain INTO v_domain FROM urls u WHERE u.id = OLD.url_id;
-  ELSE
-    v_uid := NEW.user_id;
-    SELECT u.domain INTO v_domain FROM urls u WHERE u.id = NEW.url_id;
-  END IF;
-
-  IF v_domain IS NULL THEN RETURN NULL; END IF;
-
-  -- Count this user's current -1 ratings for this domain (AFTER trigger so
-  -- the triggering row is already reflected in the table).
-  SELECT COUNT(*) INTO v_count
-  FROM   ratings r
-  INNER  JOIN urls u ON u.id = r.url_id
-  WHERE  r.user_id = v_uid
-    AND  u.domain  = v_domain
-    AND  r.value   = -1;
-
-  IF v_count >= 2 THEN
-    INSERT INTO user_suppressed_domains (user_id, domain, downvote_count, suppressed_until)
-    VALUES (v_uid, v_domain, v_count::SMALLINT, NOW() + INTERVAL '30 days')
-    ON CONFLICT (user_id, domain) DO UPDATE
-      SET downvote_count   = EXCLUDED.downvote_count,
-          -- Push suppression window forward, never backward
-          suppressed_until = GREATEST(user_suppressed_domains.suppressed_until, EXCLUDED.suppressed_until);
-  ELSE
-    DELETE FROM user_suppressed_domains
-    WHERE user_id = v_uid AND domain = v_domain;
-  END IF;
-
-  RETURN NULL;
-END;
-$$;
-
-DROP TRIGGER IF EXISTS trg_ratings_domain_suppression ON public.ratings;
-CREATE TRIGGER trg_ratings_domain_suppression
-  AFTER INSERT OR UPDATE OR DELETE ON public.ratings
-  FOR EACH ROW EXECUTE FUNCTION public.update_domain_suppression();
-
--- ── 4. Trigger: maintain subcategory affinity ────────────────────────────────
-CREATE OR REPLACE FUNCTION public.update_subcategory_affinity()
-RETURNS TRIGGER LANGUAGE plpgsql SECURITY DEFINER
-SET search_path = public AS $$
-DECLARE
-  v_subcat_id UUID;
-  v_uid       UUID;
-  v_delta     FLOAT;
-BEGIN
-  IF TG_OP = 'INSERT' THEN
-    SELECT subcategory_id INTO v_subcat_id FROM urls WHERE id = NEW.url_id;
-    v_uid   := NEW.user_id;
-    v_delta := NEW.value;
-  ELSIF TG_OP = 'UPDATE' THEN
-    SELECT subcategory_id INTO v_subcat_id FROM urls WHERE id = NEW.url_id;
-    v_uid   := NEW.user_id;
-    v_delta := NEW.value - OLD.value;  -- e.g. flip +1→-1 gives delta = -2
-  ELSE -- DELETE
-    SELECT subcategory_id INTO v_subcat_id FROM urls WHERE id = OLD.url_id;
-    v_uid   := OLD.user_id;
-    v_delta := -OLD.value;
-  END IF;
-
-  -- No-op if URL has no subcategory, or vote didn't actually change
-  IF v_subcat_id IS NULL OR v_delta = 0 THEN RETURN NULL; END IF;
-
-  INSERT INTO user_subcategory_affinity (user_id, subcategory_id, score)
-  VALUES (v_uid, v_subcat_id, v_delta)
-  ON CONFLICT (user_id, subcategory_id) DO UPDATE
-    SET score = user_subcategory_affinity.score + EXCLUDED.score;
-
-  RETURN NULL;
-END;
-$$;
-
-DROP TRIGGER IF EXISTS trg_ratings_subcategory_affinity ON public.ratings;
-CREATE TRIGGER trg_ratings_subcategory_affinity
-  AFTER INSERT OR UPDATE OR DELETE ON public.ratings
-  FOR EACH ROW EXECUTE FUNCTION public.update_subcategory_affinity();
-
--- ── 5. Backfill from existing ratings ────────────────────────────────────────
-
--- Affinity backfill
-INSERT INTO user_subcategory_affinity (user_id, subcategory_id, score)
-SELECT r.user_id, u.subcategory_id, SUM(r.value)::FLOAT
-FROM   ratings r
-INNER  JOIN urls u ON u.id = r.url_id
-WHERE  u.subcategory_id IS NOT NULL
-GROUP  BY r.user_id, u.subcategory_id
-ON CONFLICT (user_id, subcategory_id) DO UPDATE
-  SET score = EXCLUDED.score;
-
--- Domain suppression backfill
-INSERT INTO user_suppressed_domains (user_id, domain, downvote_count, suppressed_until)
-SELECT r.user_id, u.domain, COUNT(*)::SMALLINT, NOW() + INTERVAL '30 days'
-FROM   ratings r
-INNER  JOIN urls u ON u.id = r.url_id
-WHERE  r.value = -1
-  AND  u.domain IS NOT NULL
-GROUP  BY r.user_id, u.domain
-HAVING COUNT(*) >= 2
-ON CONFLICT (user_id, domain) DO NOTHING;
-
--- ── 6. roam() v5: affinity-weighted + domain suppression ─────────────────────
 DROP FUNCTION IF EXISTS public.roam(UUID, UUID, TEXT) CASCADE;
 
 CREATE FUNCTION public.roam(
@@ -231,7 +71,7 @@ BEGIN
     -- ── Collection mode ──────────────────────────────────────────────────────
     SELECT c.id INTO v_url_id
     FROM (
-      -- Random sample
+      -- Random sample (~10% of table pages)
       SELECT u.id,
              u.wilson_score * (1.0 + 0.3 * LEAST(GREATEST(COALESCE(aff.score, 0), 0), 10.0) / 10.0) AS eff_score
       FROM   urls u TABLESAMPLE BERNOULLI(10)
@@ -258,7 +98,7 @@ BEGIN
 
       UNION ALL
 
-      -- Fallback top-50
+      -- Fallback top-50 (wrapped so ORDER BY / LIMIT scope to this branch only)
       SELECT fb.id, fb.eff_score
       FROM (
         SELECT u.id,
@@ -325,7 +165,7 @@ BEGIN
 
       UNION ALL
 
-      -- Fallback top-100
+      -- Fallback top-100 (wrapped so ORDER BY / LIMIT scope to this branch only)
       SELECT fb.id, fb.eff_score
       FROM (
         SELECT u.id,
