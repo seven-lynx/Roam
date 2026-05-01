@@ -7,6 +7,8 @@
  * Queue state persists to chrome.storage.local so it survives page restarts.
  */
 
+import { getSupabase } from './supabase';
+
 export interface QueuedUrl {
   id: string; // UUID for tracking
   url: string;
@@ -298,20 +300,12 @@ export async function sendFailedUrlBatch(): Promise<void> {
   if (failed.length === 0) return;
 
   try {
-    // Send to Edge Function (will be implemented)
-    const response = await fetch(
-      `${process.env.SUPABASE_URL}/functions/v1/log-failed-urls`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${process.env.SUPABASE_ANON_KEY}`,
-        },
-        body: JSON.stringify({ failed_urls: failed }),
-      }
-    );
+    // Send to Edge Function via the Supabase client
+    const { error } = await getSupabase().functions.invoke('log-failed-urls', {
+      body: { failed_urls: failed },
+    });
 
-    if (response.ok) {
+    if (!error) {
       // Clear failed URLs after successful send
       await new Promise<void>((resolve) => {
         chrome.storage.local.set({ [FAILED_URLS_KEY]: [] }, resolve);
