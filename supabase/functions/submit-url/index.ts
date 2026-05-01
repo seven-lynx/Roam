@@ -9,6 +9,15 @@ import { corsHeaders } from '../_shared/cors.ts'
 
 const RATE_LIMIT = 10
 
+// Fail fast at boot if the Safe Browsing key is missing — prevents a
+// misconfigured deploy from silently accepting unscreened URL submissions.
+const SAFE_BROWSING_API_KEY = Deno.env.get('SAFE_BROWSING_API_KEY')
+if (!SAFE_BROWSING_API_KEY) {
+  throw new Error(
+    'SAFE_BROWSING_API_KEY environment variable is required for submit-url',
+  )
+}
+
 function normalizeUrl(raw: string): string {
   const u = new URL(raw) // throws on invalid URL
   if (!['http:', 'https:'].includes(u.protocol)) {
@@ -100,18 +109,20 @@ Deno.serve(async (req) => {
   }
 
   // ── Safe Browsing check ───────────────────────────────────────────────────
-  const apiKey = Deno.env.get('SAFE_BROWSING_API_KEY')
-  let safeBrowsingPassed: boolean | null = null
-  if (apiKey) {
-    try {
-      safeBrowsingPassed = await checkSafeBrowsing(normalized, apiKey)
-    } catch {
-      // API unreachable — allow submission but leave result as null (unknown)
-      safeBrowsingPassed = null
-    }
+  // The API key is verified at boot above; if the call itself fails (network,
+  // quota, transient 5xx) we reject the submission rather than letting it
+  // through unscreened. Better to surface a 503 than approve a malicious URL.
+  let safeBrowsingPassed: boolean
+  try {
+    safeBrowsingPassed = await checkSafeBrowsing(normalized, SAFE_BROWSING_API_KEY)
+  } catch {
+    return json(
+      { error: 'Safe Browsing check unavailable — please try again shortly' },
+      503,
+    )
   }
 
-  if (safeBrowsingPassed === false) {
+  if (!safeBrowsingPassed) {
     return json(
       { error: "This URL couldn't be submitted — it may be flagged for safety reasons" },
       422,

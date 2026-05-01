@@ -9,10 +9,32 @@
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { corsHeaders } from '../_shared/cors.ts'
+import { clientIp, rateLimit } from '../_shared/rate-limit.ts'
+
+// 60 requests per minute per IP — enough for normal browsing of profile pages,
+// well below the rate needed for username enumeration (~5 req/sec sustained).
+const RATE_LIMIT = 60
+const WINDOW_MS = 60_000
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
   if (req.method !== 'GET') return json({ error: 'Method not allowed' }, 405)
+
+  const ip = clientIp(req)
+  const limit = rateLimit(`profile:${ip}`, RATE_LIMIT, WINDOW_MS)
+  if (!limit.allowed) {
+    return new Response(
+      JSON.stringify({ error: 'Too many requests' }),
+      {
+        status: 429,
+        headers: {
+          ...corsHeaders,
+          'Content-Type': 'application/json',
+          'Retry-After': String(limit.retryAfterSec),
+        },
+      },
+    )
+  }
 
   const url = new URL(req.url)
   const username = url.searchParams.get('username')
