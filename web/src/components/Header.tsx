@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { useSession } from '@/lib/hooks';
@@ -22,7 +23,10 @@ export function Header() {
     return (
       <header className="border-b border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950">
         <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
-          <Link href="/" className="font-bold text-2xl">🧭 Roam</Link>
+          <Link href="/" className="flex items-center gap-2 font-bold text-2xl">
+            <Image src="/icon-512.png" alt="Roam" width={32} height={32} />
+            Roam
+          </Link>
         </div>
       </header>
     );
@@ -32,7 +36,10 @@ export function Header() {
     return (
       <header className="border-b border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950">
         <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
-          <Link href="/" className="font-bold text-2xl">🧭 Roam</Link>
+          <Link href="/" className="flex items-center gap-2 font-bold text-2xl">
+            <Image src="/icon-512.png" alt="Roam" width={32} height={32} />
+            Roam
+          </Link>
           <div className="flex gap-4">
             <Link href="/join" className="text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white">
               Sign in
@@ -49,7 +56,10 @@ export function Header() {
   return (
     <header className="border-b border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
-        <Link href="/dashboard" className="font-bold text-2xl">🧭 Roam</Link>
+        <Link href="/dashboard" className="flex items-center gap-2 font-bold text-2xl">
+          <Image src="/icon-512.png" alt="Roam" width={32} height={32} />
+          Roam
+        </Link>
 
         {/* Navigation */}
         <nav className="hidden md:flex gap-8">

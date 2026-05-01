@@ -271,7 +271,7 @@ export default function JoinPageContent() {
     return (
       <main className="flex min-h-screen flex-col items-center justify-center px-6 text-center bg-white dark:bg-zinc-950">
         <div className="flex flex-col items-center gap-6 max-w-sm">
-          <span className="text-5xl">🧭</span>
+          <Image src="/icon-512.png" alt="Roam" width={80} height={80} />
           <h1 className="text-3xl font-bold text-zinc-900 dark:text-white">You&apos;re all set!</h1>
           <p className="text-zinc-500 dark:text-zinc-400">
             Download the browser extension or app to start roaming. You can also
@@ -338,7 +338,7 @@ export default function JoinPageContent() {
     <main className="flex min-h-screen flex-col items-center justify-center px-6 bg-white dark:bg-zinc-950">
       <div className="w-full max-w-sm flex flex-col gap-8">
         <div className="text-center">
-          <span className="text-4xl">🧭</span>
+          <Image src="/icon-512.png" alt="Roam" width={64} height={64} className="mx-auto" />
           <h1 className="mt-3 text-3xl font-bold text-zinc-900 dark:text-white">
             {isSignedIn ? "You're signed in" : "Create your account"}
           </h1>
