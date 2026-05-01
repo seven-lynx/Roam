@@ -59,10 +59,10 @@ Deno.serve(async (req) => {
   const { data: { user }, error: authError } = await supabase.auth.getUser()
   if (authError || !user) return json({ error: 'Unauthorized' }, 401)
 
-  let body: { url?: unknown; title?: unknown; description?: unknown; subcategory_id?: unknown; language?: unknown }
+  let body: { url?: unknown; title?: unknown; description?: unknown; category_id?: unknown; language?: unknown }
   try { body = await req.json() } catch { return json({ error: 'Invalid JSON' }, 400) }
 
-  const { url: rawUrl, title, description, subcategory_id, language } = body
+  const { url: rawUrl, title, description, category_id, language } = body
   if (typeof rawUrl !== 'string' || !rawUrl) {
     return json({ error: 'url is required' }, 400)
   }
@@ -109,15 +109,22 @@ Deno.serve(async (req) => {
   }
 
   // ── Insert into moderation queue ──────────────────────────────────────────
+  // category_id is a top-level category UUID hint from the submitter.
+  // moderation_queue has no category_id column, so we store it as reviewer_note
+  // so admins can see the submitter's suggested category.
+  const categoryHint = typeof category_id === 'string' && category_id
+    ? `category_hint:${category_id}`
+    : null
+
   const { error: insertError } = await supabase.from('moderation_queue').insert({
     url: normalized,
     title: typeof title === 'string' ? title : null,
     description: typeof description === 'string' ? description : null,
-    subcategory_id: typeof subcategory_id === 'string' ? subcategory_id : null,
     language: typeof language === 'string' && language ? language : 'en',
     submitted_by: user.id,
     safe_browsing_passed: safeBrowsingPassed,
     status: 'pending',
+    ...(categoryHint ? { reviewer_note: categoryHint } : {}),
   })
 
   if (insertError) return json({ error: insertError.message }, 500)

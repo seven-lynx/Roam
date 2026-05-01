@@ -71,6 +71,7 @@ async function checkAndRouteAfterSignIn(): Promise<void> {
   } else {
     categoriesContext = 'firsttime';
     populateCategoryChips(selectedIds, categoryItems);
+    el('btn-back-categories').hidden = true;
     showState('categories');
   }
 }
@@ -130,6 +131,7 @@ document.addEventListener('DOMContentLoaded', () => {
       cats.ok ? cats.data.categoryIds : [],
       allCats.ok && allCats.data.length > 0 ? allCats.data : FALLBACK_CATEGORIES,
     );
+    el('btn-back-categories').hidden = false;
     showState('categories');
   });
 
@@ -282,9 +284,8 @@ document.addEventListener('DOMContentLoaded', () => {
     if (categoriesContext === 'settings') {
       showPanel('config');
       showState('main');
-    } else {
-      showState('signedout');
     }
+    // In firsttime mode the button is hidden — nothing to do
   });
 
   // ── Roam button ───────────────────────────────────────────────────────────
@@ -346,6 +347,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const roamRes = await roamPromise;
     if (!roamRes.ok) { showError(roamRes.error); return; }
+    if (!roamRes.data?.url) { showState('noresults'); return; }
     if (tab?.id) chrome.tabs.update(tab.id, { url: roamRes.data.url });
     window.close();
   });
@@ -356,6 +358,18 @@ document.addEventListener('DOMContentLoaded', () => {
     showPanel(open ? 'config' : null);
   });
 
+  // ── Submit panel chips: populate from FALLBACK_CATEGORIES (real UUIDs) ──────
+  {
+    const container = el('category-chips');
+    for (const cat of FALLBACK_CATEGORIES) {
+      const btn = document.createElement('button');
+      btn.className = 'chip';
+      btn.dataset.catId = cat.id;
+      btn.textContent = `${cat.icon} ${cat.name}`;
+      container.appendChild(btn);
+    }
+  }
+
   // ── Category chip selection ────────────────────────────────────────────────
   let selectedCategory: string | null = null;
   el('category-chips').addEventListener('click', (e) => {
@@ -363,7 +377,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!chip) return;
     el('category-chips').querySelectorAll('.chip').forEach((c) => c.classList.remove('selected'));
     chip.classList.add('selected');
-    selectedCategory = chip.dataset.category ?? null;
+    selectedCategory = chip.dataset.catId ?? null;
     el<HTMLButtonElement>('btn-submit').disabled = false;
   });
 
@@ -589,10 +603,11 @@ document.addEventListener('DOMContentLoaded', () => {
           type: 'ROAM_COLLECTION',
           collectionId: col.id,
         });
+        menu.remove();
         if (!res.ok) { showError(res.error); return; }
+        if (!res.data?.url) { showState('noresults'); return; }
         const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
         if (tab?.id) chrome.tabs.update(tab.id, { url: res.data.url });
-        menu.remove();
         window.close();
       });
       option.addEventListener('mouseover', () => option.style.background = 'var(--bg-hover)');
@@ -638,6 +653,7 @@ document.addEventListener('DOMContentLoaded', () => {
       allCats.ok && allCats.data.length > 0 ? allCats.data : FALLBACK_CATEGORIES,
     );
     showPanel(null);
+    el('btn-back-categories').hidden = false;
     showState('categories');
   });
 

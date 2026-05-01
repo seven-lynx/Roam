@@ -433,21 +433,19 @@ async function checkUrl(url: string): Promise<Response<CheckUrlData>> {
 
   const { data, error } = await getSupabase()
     .from('urls')
-    .select('id')
+    .select('id,category_id')
     .eq('url', normalized)
     .eq('approved', true)
     .maybeSingle();
 
   if (error) return { ok: false, error: error.message };
   if (!data) return { ok: true, data: { known: false } };
-  return { ok: true, data: { known: true, url_id: data.id as string } };
+  return { ok: true, data: { known: true, url_id: data.id as string, category_id: data.category_id ?? undefined } };
 }
 
 async function submitUrl(url: string, categoryId: string): Promise<Response<null>> {
-  // categoryId is a pillar (category), but submit-url expects subcategory_id (optional)
-  // For now, pass as subcategory_id (schema supports null, but UI only exposes pillar)
   const { data, error } = await getSupabase().functions.invoke('submit-url', {
-    body: { url, subcategory_id: categoryId },
+    body: { url, category_id: categoryId },
   });
   if (error) return { ok: false, error: error.message };
   if (data?.error) return { ok: false, error: data.error };
