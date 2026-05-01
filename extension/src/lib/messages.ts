@@ -3,6 +3,11 @@
 export type Request =
   | { type: 'GET_STATE' }
   | { type: 'SIGN_IN_GOOGLE' }
+  | { type: 'SIGN_IN_GITHUB' }
+  | { type: 'SIGN_IN_EMAIL'; email: string; password: string }
+  | { type: 'SIGN_UP_EMAIL'; email: string; password: string }
+  | { type: 'GET_USER_CATEGORIES' }
+  | { type: 'SET_USER_CATEGORIES'; categoryIds: string[] }
   | { type: 'SIGN_OUT' }
   | { type: 'ROAM'; collectionId?: string }
   | { type: 'ROAM_COLLECTION'; collectionId: string }
@@ -51,6 +56,14 @@ export interface QueueState {
   warming_count: number;
   failed_count: number;
   category_filter: string[];
+}
+
+export interface UserCategoriesData {
+  categoryIds: string[];
+}
+
+export interface SignUpEmailData {
+  needsVerification: boolean;
 }
 
 export interface Collection {

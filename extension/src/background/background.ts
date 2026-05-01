@@ -64,6 +64,11 @@ async function dispatch(req: Request): Promise<Response> {
   switch (req.type) {
     case 'GET_STATE':           return getState();
     case 'SIGN_IN_GOOGLE':      return signInWithGoogle();
+    case 'SIGN_IN_GITHUB':      return signInWithGitHub();
+    case 'SIGN_IN_EMAIL':       return signInWithEmail((req as any).email, (req as any).password);
+    case 'SIGN_UP_EMAIL':       return signUpWithEmail((req as any).email, (req as any).password);
+    case 'GET_USER_CATEGORIES': return getUserCategories();
+    case 'SET_USER_CATEGORIES': return setUserCategories((req as any).categoryIds);
     case 'EXCHANGE_CODE':       return exchangeCode((req as any).code);
     case 'SAVE_SESSION':        return saveSession((req as any).accessToken, (req as any).refreshToken);
     case 'SIGN_OUT':            return signOut();
@@ -211,6 +216,83 @@ async function signOut(): Promise<Response<StateData>> {
   // Explicitly clear all auth storage to prevent auto-restore
   await clearAuthStorage();
   return { ok: true, data: { signedIn: false } };
+}
+
+async function signInWithGitHub(): Promise<Response<StateData>> {
+  const supabase = getSupabase();
+  const redirectTo = chrome.runtime.getURL('callback.html');
+
+  const { data, error } = await supabase.auth.signInWithOAuth({
+    provider: 'github',
+    options: { redirectTo, skipBrowserRedirect: true },
+  });
+  if (error || !data.url) {
+    return { ok: false, error: error?.message ?? 'Could not start GitHub OAuth flow' };
+  }
+
+  await chrome.tabs.create({ url: data.url });
+  return { ok: true, data: { signedIn: false } };
+}
+
+async function signInWithEmail(email: string, password: string): Promise<Response<StateData>> {
+  const { data, error } = await getSupabase().auth.signInWithPassword({ email, password });
+  if (error) return { ok: false, error: error.message };
+
+  await initializeQueueIfNeeded();
+  return {
+    ok: true,
+    data: { signedIn: true, email: data.user?.email, userId: data.user?.id },
+  };
+}
+
+async function signUpWithEmail(email: string, password: string): Promise<Response<{ needsVerification: boolean }>> {
+  const { data, error } = await getSupabase().auth.signUp({ email, password });
+  if (error) return { ok: false, error: error.message };
+
+  if (data.session) {
+    // Session created immediately (e.g. email confirmation disabled)
+    await initializeQueueIfNeeded();
+    return { ok: true, data: { needsVerification: false } };
+  }
+  // Verification email sent — user must confirm before signing in
+  return { ok: true, data: { needsVerification: true } };
+}
+
+async function getUserCategories(): Promise<Response<{ categoryIds: string[] }>> {
+  const session = (await getSupabase().auth.getSession()).data.session;
+  if (!session) return { ok: false, error: 'Not signed in' };
+
+  const { data, error } = await getSupabase()
+    .from('user_categories')
+    .select('category_id')
+    .eq('user_id', session.user.id);
+
+  if (error) return { ok: false, error: error.message };
+  return { ok: true, data: { categoryIds: (data || []).map((r: any) => r.category_id) } };
+}
+
+async function setUserCategories(categoryIds: string[]): Promise<Response<null>> {
+  const session = (await getSupabase().auth.getSession()).data.session;
+  if (!session) return { ok: false, error: 'Not signed in' };
+
+  // Replace all existing categories for this user
+  const { error: delError } = await getSupabase()
+    .from('user_categories')
+    .delete()
+    .eq('user_id', session.user.id);
+  if (delError) return { ok: false, error: delError.message };
+
+  if (categoryIds.length > 0) {
+    const rows = categoryIds.map((id) => ({ user_id: session.user.id, category_id: id }));
+    const { error: insError } = await getSupabase()
+      .from('user_categories')
+      .insert(rows);
+    if (insError) return { ok: false, error: insError.message };
+  }
+
+  // Refresh queue with new categories
+  await updateCategoryFilter(categoryIds);
+  return { ok: true, data: null };
 }
 
 // ── Feature stubs (implemented in tasks 5.8–5.12) ───────────────────────────

@@ -302,3 +302,147 @@ body {
 }
 .btn-icon--flash-up   { animation: flash-up   500ms ease forwards; }
 .btn-icon--flash-down { animation: flash-down 500ms ease forwards; }
+
+/* ── Auth / email / categories states ──────────────────────────────── */
+.auth-body, .email-auth-body, .categories-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 16px;
+}
+
+.btn-back {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 12px;
+  cursor: pointer;
+  padding: 0;
+  text-align: left;
+  align-self: flex-start;
+}
+.btn-back:hover { color: var(--text); }
+
+.auth-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+  margin: 2px 0 4px;
+}
+
+.btn-oauth {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 9px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-panel);
+  color: var(--text);
+  font-size: 13px;
+  cursor: pointer;
+  transition: background var(--transition), border-color var(--transition);
+  text-align: left;
+}
+.btn-oauth:hover    { background: var(--bg-hover); border-color: var(--accent); }
+.btn-oauth:disabled { opacity: 0.4; cursor: not-allowed; }
+.oauth-icon { flex-shrink: 0; }
+
+.auth-divider {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-muted);
+  font-size: 11px;
+}
+.auth-divider::before,
+.auth-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+
+.auth-waiting {
+  font-size: 12px;
+  color: var(--text-muted);
+  text-align: center;
+  padding: 2px 0;
+}
+
+/* ── Auth tabs ──────────────────────────────────────────────────────── */
+.auth-tabs {
+  display: flex;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  margin-bottom: 2px;
+}
+.auth-tab {
+  flex: 1;
+  padding: 7px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 13px;
+  cursor: pointer;
+  transition: background var(--transition), color var(--transition);
+}
+.auth-tab--active {
+  background: var(--bg-hover);
+  color: var(--text);
+  font-weight: 600;
+}
+
+/* ── Email form ─────────────────────────────────────────────────────── */
+.email-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.form-input {
+  width: 100%;
+  padding: 8px 10px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-size: 13px;
+  outline: none;
+  transition: border-color var(--transition);
+}
+.form-input:focus         { border-color: var(--accent); }
+.form-input::placeholder  { color: var(--text-muted); }
+
+.auth-error {
+  color: #f87171;
+  font-size: 12px;
+  text-align: center;
+  margin: 0;
+}
+.verify-msg {
+  font-size: 12px;
+  color: var(--text-muted);
+  text-align: center;
+  line-height: 1.5;
+  padding: 2px 0;
+}
+
+/* ── Categories state ───────────────────────────────────────────────── */
+.categories-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.categories-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+}
+.categories-sub {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin: -2px 0 2px;
+}
+.categories-chips { margin-bottom: 4px; }

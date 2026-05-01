@@ -10,8 +10,10 @@ function el<T extends HTMLElement>(id: string): T {
   return e as T;
 }
 
-function showState(name: 'signedout' | 'error' | 'noresults' | 'main') {
-  for (const s of ['signedout', 'error', 'noresults', 'main'] as const) {
+type AppState = 'signedout' | 'auth' | 'email-auth' | 'categories' | 'error' | 'noresults' | 'main';
+
+function showState(name: AppState) {
+  for (const s of ['signedout', 'auth', 'email-auth', 'categories', 'error', 'noresults', 'main'] as const) {
     el(`state-${s}`).hidden = s !== name;
   }
 }
@@ -40,24 +42,41 @@ function showError(message: string) {
   showState('error');
 }
 
+// Context for categories screen: 'firsttime' (post sign-in) or 'settings' (from config panel)
+let categoriesContext: 'firsttime' | 'settings' = 'firsttime';
+
+async function checkAndRouteAfterSignIn(): Promise<void> {
+  const cats = await sendToBackground<{ categoryIds: string[] }>({ type: 'GET_USER_CATEGORIES' });
+  if (cats.ok && cats.data.categoryIds.length > 0) {
+    populateCategoryChips(cats.data.categoryIds);
+    showState('main');
+  } else {
+    categoriesContext = 'firsttime';
+    populateCategoryChips(cats.ok ? cats.data.categoryIds : []);
+    showState('categories');
+  }
+}
+
+function populateCategoryChips(selectedIds: string[]) {
+  const chips = document.querySelectorAll<HTMLButtonElement>('#category-select-chips .chip');
+  chips.forEach((chip) => {
+    const id = chip.dataset.catId;
+    chip.classList.toggle('selected', id !== undefined && selectedIds.includes(id));
+  });
+  const saveBtn = document.getElementById('btn-save-categories') as HTMLButtonElement | null;
+  if (saveBtn) saveBtn.disabled = selectedIds.length === 0;
+}
+
 async function boot() {
   console.log('[roam-popup] Booting, checking session state');
   const res = await sendToBackground<StateData>({ type: 'GET_STATE' });
   console.log('[roam-popup] Boot GET_STATE response:', res);
   if (!res.ok) { showError(res.error); return; }
   if (!res.data.signedIn) {
-    // First run: user has never opened the extension — send them to /join
-    const { roam_visited } = await chrome.storage.local.get('roam_visited');
-    if (!roam_visited) {
-      await chrome.storage.local.set({ roam_visited: true });
-      chrome.tabs.create({ url: 'https://roamtheweb.app/join' });
-      window.close();
-      return;
-    }
     showState('signedout');
     return;
   }
-  showState('main');
+  await checkAndRouteAfterSignIn();
 }
 
 // ── Boot ──────────────────────────────────────────────────────────────────────
@@ -65,40 +84,174 @@ document.addEventListener('DOMContentLoaded', () => {
   // Ask the background SW for the current auth state and show the right view.
   boot();
 
-  // ── Sign in button ─────────────────────────────────────────────────────────
-  el('btn-signin').addEventListener('click', async () => {
-    console.log('[roam-popup] Sign in button clicked');
-    el<HTMLButtonElement>('btn-signin').disabled = true;
-    const res = await sendToBackground<StateData>({ type: 'SIGN_IN_GOOGLE' });
-    if (!res.ok) {
-      el<HTMLButtonElement>('btn-signin').disabled = false;
-      showError(res.error);
-      return;
-    }
-    // A new tab is opening with the OAuth flow.
-    // Poll for session state in case the callback completes while popup is open.
-    console.log('[roam-popup] Starting session state polling');
-    const pollInterval = setInterval(async () => {
-      const state = await sendToBackground<StateData>({ type: 'GET_STATE' });
-      console.log('[roam-popup] Poll response:', state);
-      if (state.ok && state.data.signedIn) {
-        console.log('[roam-popup] Session detected, showing main state');
-        clearInterval(pollInterval);
-        showState('main');
-        el<HTMLButtonElement>('btn-signin').disabled = false;
-      }
-    }, 500);
-    // Stop polling after 5 minutes
-    setTimeout(() => clearInterval(pollInterval), 5 * 60 * 1000);
+  // ── Sign in button → show auth method selection ───────────────────────────
+  el('btn-signin').addEventListener('click', () => {
+    showState('auth');
   });
 
   // ── Retry button ───────────────────────────────────────────────────────────
   el('btn-retry').addEventListener('click', () => boot());
 
-  // ── Add categories button (no-results state) ───────────────────────────────
-  el('btn-add-categories').addEventListener('click', () => {
-    chrome.tabs.create({ url: 'https://roamtheweb.app/join' });
-    window.close();
+  // ── No-results "Edit categories" button ───────────────────────────────────
+  el('btn-add-categories').addEventListener('click', async () => {
+    categoriesContext = 'settings';
+    const cats = await sendToBackground<{ categoryIds: string[] }>({ type: 'GET_USER_CATEGORIES' });
+    populateCategoryChips(cats.ok ? cats.data.categoryIds : []);
+    showState('categories');
+  });
+
+  // ── Auth: back to signed-out ───────────────────────────────────────────────
+  el('btn-back-auth').addEventListener('click', () => showState('signedout'));
+
+  // ── Auth: back email → back to auth methods ───────────────────────────────
+  el('btn-back-email').addEventListener('click', () => showState('auth'));
+
+  // ── Auth: Google OAuth ────────────────────────────────────────────────────
+  async function startOAuthFlow(provider: 'google' | 'github') {
+    const buttons = ['btn-auth-google', 'btn-auth-github', 'btn-auth-email'];
+    buttons.forEach((id) => (el<HTMLButtonElement>(id).disabled = true));
+    el('auth-waiting').hidden = false;
+
+    const msgType = provider === 'google' ? 'SIGN_IN_GOOGLE' : 'SIGN_IN_GITHUB';
+    const res = await sendToBackground<StateData>({ type: msgType });
+    if (!res.ok) {
+      buttons.forEach((id) => (el<HTMLButtonElement>(id).disabled = false));
+      el('auth-waiting').hidden = true;
+      showError(res.error);
+      return;
+    }
+
+    // Poll until the callback tab completes and session is saved
+    const pollInterval = setInterval(async () => {
+      const state = await sendToBackground<StateData>({ type: 'GET_STATE' });
+      if (state.ok && state.data.signedIn) {
+        clearInterval(pollInterval);
+        await checkAndRouteAfterSignIn();
+      }
+    }, 500);
+    setTimeout(() => clearInterval(pollInterval), 5 * 60 * 1000);
+  }
+
+  el('btn-auth-google').addEventListener('click', () => startOAuthFlow('google'));
+  el('btn-auth-github').addEventListener('click', () => startOAuthFlow('github'));
+
+  // ── Auth: show email form ─────────────────────────────────────────────────
+  el('btn-auth-email').addEventListener('click', () => {
+    // Reset email form state
+    el<HTMLInputElement>('input-email').value = '';
+    el<HTMLInputElement>('input-password').value = '';
+    el('email-auth-error').hidden = true;
+    el('email-verify-msg').hidden = true;
+    el<HTMLButtonElement>('btn-email-submit').textContent = 'Sign in';
+    el('tab-signin').classList.add('auth-tab--active');
+    el('tab-signup').classList.remove('auth-tab--active');
+    showState('email-auth');
+  });
+
+  // ── Email auth: tab switching ─────────────────────────────────────────────
+  let emailMode: 'signin' | 'signup' = 'signin';
+
+  el('tab-signin').addEventListener('click', () => {
+    emailMode = 'signin';
+    el('tab-signin').classList.add('auth-tab--active');
+    el('tab-signup').classList.remove('auth-tab--active');
+    el<HTMLButtonElement>('btn-email-submit').textContent = 'Sign in';
+    el('email-auth-error').hidden = true;
+    el('email-verify-msg').hidden = true;
+  });
+
+  el('tab-signup').addEventListener('click', () => {
+    emailMode = 'signup';
+    el('tab-signup').classList.add('auth-tab--active');
+    el('tab-signin').classList.remove('auth-tab--active');
+    el<HTMLButtonElement>('btn-email-submit').textContent = 'Sign up';
+    el('email-auth-error').hidden = true;
+    el('email-verify-msg').hidden = true;
+  });
+
+  // ── Email auth: submit ────────────────────────────────────────────────────
+  el('btn-email-submit').addEventListener('click', async () => {
+    const email = el<HTMLInputElement>('input-email').value.trim();
+    const password = el<HTMLInputElement>('input-password').value;
+    const errorEl = el<HTMLParagraphElement>('email-auth-error');
+
+    if (!email || !password) {
+      errorEl.textContent = 'Enter your email and password.';
+      errorEl.hidden = false;
+      return;
+    }
+
+    const submitBtn = el<HTMLButtonElement>('btn-email-submit');
+    submitBtn.disabled = true;
+    errorEl.hidden = true;
+
+    if (emailMode === 'signin') {
+      const res = await sendToBackground<StateData>({ type: 'SIGN_IN_EMAIL', email, password });
+      submitBtn.disabled = false;
+      if (!res.ok) {
+        errorEl.textContent = res.error;
+        errorEl.hidden = false;
+        return;
+      }
+      await checkAndRouteAfterSignIn();
+    } else {
+      const res = await sendToBackground<{ needsVerification: boolean }>({ type: 'SIGN_UP_EMAIL', email, password });
+      submitBtn.disabled = false;
+      if (!res.ok) {
+        errorEl.textContent = res.error;
+        errorEl.hidden = false;
+        return;
+      }
+      if (res.data.needsVerification) {
+        el('email-verify-msg').hidden = false;
+        submitBtn.textContent = 'Resend email';
+      } else {
+        // Immediately signed in
+        await checkAndRouteAfterSignIn();
+      }
+    }
+  });
+
+  // ── Categories: chip multi-select ─────────────────────────────────────────
+  el('category-select-chips').addEventListener('click', (e) => {
+    const chip = (e.target as HTMLElement).closest<HTMLButtonElement>('.chip');
+    if (!chip) return;
+    chip.classList.toggle('selected');
+    const anySelected = el('category-select-chips').querySelectorAll('.chip.selected').length > 0;
+    el<HTMLButtonElement>('btn-save-categories').disabled = !anySelected;
+    el('categories-error').hidden = true;
+  });
+
+  // ── Categories: save ─────────────────────────────────────────────────────
+  el('btn-save-categories').addEventListener('click', async () => {
+    const selected = Array.from(
+      el('category-select-chips').querySelectorAll<HTMLButtonElement>('.chip.selected')
+    ).map((c) => c.dataset.catId!);
+
+    const saveBtn = el<HTMLButtonElement>('btn-save-categories');
+    saveBtn.disabled = true;
+    const errEl = el<HTMLParagraphElement>('categories-error');
+    errEl.hidden = true;
+
+    const res = await sendToBackground({ type: 'SET_USER_CATEGORIES', categoryIds: selected });
+    saveBtn.disabled = false;
+    if (!res.ok) {
+      errEl.textContent = res.error;
+      errEl.hidden = false;
+      return;
+    }
+    showPanel(null);
+    showState('main');
+  });
+
+  // ── Categories: back button ───────────────────────────────────────────────
+  el('btn-back-categories').addEventListener('click', () => {
+    if (categoriesContext === 'settings') {
+      showPanel('config');
+      showState('main');
+    } else {
+      showState('signedout');
+    }
   });
 
   // ── Roam button ───────────────────────────────────────────────────────────
@@ -435,9 +588,12 @@ document.addEventListener('DOMContentLoaded', () => {
     window.close();
   });
 
-  el('btn-category-prefs').addEventListener('click', () => {
-    chrome.tabs.create({ url: 'https://roamtheweb.app/join' });
-    window.close();
+  el('btn-category-prefs').addEventListener('click', async () => {
+    categoriesContext = 'settings';
+    const cats = await sendToBackground<{ categoryIds: string[] }>({ type: 'GET_USER_CATEGORIES' });
+    populateCategoryChips(cats.ok ? cats.data.categoryIds : []);
+    showPanel(null);
+    showState('categories');
   });
 
   el('btn-signout').addEventListener('click', async () => {
