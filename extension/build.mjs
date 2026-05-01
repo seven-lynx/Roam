@@ -74,9 +74,9 @@ try {
 const sharedConfig = {
   bundle: true,
   minify: !watch,
-  // In production: generate external source maps (not referenced in bundle, uploaded to Sentry only)
+  // In production: generate source maps with references so Sentry plugin can find them (uploaded, then deleted)
   // In watch mode: inline source maps for debugging
-  sourcemap: watch ? true : 'external',
+  sourcemap: true,
   target: firefox ? ['firefox121'] : ['chrome120'],
   define: {
     'process.env.NODE_ENV': watch ? '"development"' : '"production"',
@@ -89,18 +89,18 @@ const sharedConfig = {
 };
 
 const entryPoints = [
-  // Popup UI
-  { in: resolve(__dirname, 'src/popup/popup.ts'), out: resolve(outdir, 'popup') },
+  // Popup UI — `out` is relative to outdir (esbuild appends .js)
+  { in: resolve(__dirname, 'src/popup/popup.ts'), out: 'popup' },
   // Background service worker
-  { in: resolve(__dirname, 'src/background/background.ts'), out: resolve(outdir, 'background') },
+  { in: resolve(__dirname, 'src/background/background.ts'), out: 'background' },
   // OAuth callback handler
-  { in: resolve(__dirname, 'src/callback/callback.ts'), out: resolve(outdir, 'callback') },
+  { in: resolve(__dirname, 'src/callback/callback.ts'), out: 'callback' },
 ];
 
 if (watch) {
   const contexts = await Promise.all(
-    entryPoints.map(({ in: entryPoint, out: outfile }) =>
-      esbuild.context({ ...sharedConfig, entryPoints: [entryPoint], outfile: outfile + '.js', format: 'iife' })
+    entryPoints.map(({ in: entryPoint, out: name }) =>
+      esbuild.context({ ...sharedConfig, entryPoints: [entryPoint], outfile: resolve(outdir, name + '.js'), format: 'iife' })
     )
   );
 
@@ -116,29 +116,26 @@ if (watch) {
     console.warn('[roam] SENTRY_AUTH_TOKEN not set — source maps will NOT be uploaded to Sentry.');
   }
 
-  await Promise.all(
-    entryPoints.map(({ in: entryPoint, out: outfile }) =>
-      esbuild.build({
-        ...sharedConfig,
-        entryPoints: [entryPoint],
-        outfile: outfile + '.js',
-        format: 'iife',
-        plugins: canUploadMaps ? [
-          sentryEsbuildPlugin({
-            authToken: sentryAuthToken,
-            org: sentryOrg,
-            project: sentryProject,
-            release: { name: sentryRelease },
-            telemetry: false,
-            sourcemaps: {
-              assets: outfile + '.js.map',
-              deleteFilesAfterUpload: [outfile + '.js.map'],
-            },
-          }),
-        ] : [],
-      })
-    )
-  );
+  // Single build call with all entry points + one Sentry plugin instance
+  await esbuild.build({
+    ...sharedConfig,
+    entryPoints,
+    outdir,
+    format: 'iife',
+    plugins: canUploadMaps ? [
+      sentryEsbuildPlugin({
+        authToken: sentryAuthToken,
+        org: sentryOrg,
+        project: sentryProject,
+        release: { name: sentryRelease },
+        telemetry: false,
+        sourcemaps: {
+          assets: ['./dist/*.js', './dist/*.js.map'],
+          filesToDeleteAfterUpload: ['./dist/*.js.map'],
+        },
+      }),
+    ] : [],
+  });
   copyStatics();
   console.log('[roam] Build complete → dist/');
 }
