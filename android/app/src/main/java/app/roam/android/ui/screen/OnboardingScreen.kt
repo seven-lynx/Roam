@@ -11,7 +11,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 
-private const val ONBOARDING_URL = "https://roamtheweb.app/join"
+private const val ONBOARDING_URL = "https://roam-flame.vercel.app/join"
 
 /**
  * Shown when the user has no valid session.

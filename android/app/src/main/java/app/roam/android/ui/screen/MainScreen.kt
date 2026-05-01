@@ -223,12 +223,12 @@ fun MainScreen(
             },
             onManageCollections = {
                 CustomTabsIntent.Builder().build()
-                    .launchUrl(context, Uri.parse("https://roamtheweb.app/u/me"))
+                    .launchUrl(context, Uri.parse("https://roam-flame.vercel.app/u/me"))
                 vm.closeConfigSheet()
             },
             onCategoryPrefs = {
                 CustomTabsIntent.Builder().build()
-                    .launchUrl(context, Uri.parse("https://roamtheweb.app/join"))
+                    .launchUrl(context, Uri.parse("https://roam-flame.vercel.app/join"))
                 vm.closeConfigSheet()
             },
             onSkipPaywalledChange = { vm.setSkipPaywalled(it) },
