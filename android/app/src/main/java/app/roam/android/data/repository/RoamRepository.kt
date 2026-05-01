@@ -169,4 +169,24 @@ class RoamRepository {
             .decodeList<RoamUrl>()
         return results.firstOrNull()
     }
+
+    /** Saves a URL to the server-side saved_urls table. */
+    suspend fun saveUrl(url: String, title: String, urlId: String? = null) {
+        val body = buildJsonObject {
+            put("action", "save")
+            put("url", url)
+            put("title", title)
+            urlId?.let { put("url_id", it) }
+        }
+        supabase.functions.invoke("save-url", body = body)
+    }
+
+    /** Removes a URL from the server-side saved_urls table. */
+    suspend fun unsaveUrl(url: String) {
+        val body = buildJsonObject {
+            put("action", "unsave")
+            put("url", url)
+        }
+        supabase.functions.invoke("save-url", body = body)
+    }
 }

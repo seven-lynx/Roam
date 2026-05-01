@@ -54,6 +54,7 @@ fun MainScreen(
     val savedConfirmation by vm.savedConfirmation.collectAsState()
     val collections by vm.collections.collectAsState()
     val categories by vm.categories.collectAsState()
+    val savedUrls by vm.savedUrls.collectAsState()
 
     // Auto-load the first page when the screen appears
     LaunchedEffect(Unit) {
@@ -199,6 +200,7 @@ fun MainScreen(
             skipPaywalled = skipPaywalled,
             preferredLanguages = preferredLanguages,
             collections = collections,
+            savedUrls = savedUrls,
             onDismiss = { vm.closeConfigSheet() },
             onSaveForLater = {
                 vm.saveForLater()
@@ -236,6 +238,7 @@ fun MainScreen(
             },
             onSkipPaywalledChange = { vm.setSkipPaywalled(it) },
             onLanguagesChange = { vm.setPreferredLanguages(it) },
+            onRemoveSavedUrl = { url -> vm.removeSavedUrl(url) },
             onSignOut = {
                 vm.closeConfigSheet()
                 onSignOut()

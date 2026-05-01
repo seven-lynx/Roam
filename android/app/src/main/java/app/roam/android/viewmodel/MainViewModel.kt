@@ -190,12 +190,17 @@ class MainViewModel(
         val url = _currentUrl.value ?: return
         val title = ((_state.value as? RoamState.Loaded)?.roamUrl?.title ?: url)
             .take(200)  // Guard against huge titles
+        val urlId = (_state.value as? RoamState.Loaded)?.roamUrl?.id
         val entry = SavedUrl(url = url, title = title)
         val current = _savedUrls.value
         if (current.none { it.url == url }) {
             val updated = listOf(entry) + current   // Newest first
             _savedUrls.value = updated
             persistSavedUrls(updated)
+        }
+        // Sync to server in the background (fire-and-forget)
+        viewModelScope.launch {
+            runCatching { repo.saveUrl(url, title, urlId) }
         }
         _savedConfirmation.value = true
         viewModelScope.launch {
@@ -208,6 +213,9 @@ class MainViewModel(
         val updated = _savedUrls.value.filter { it.url != url }
         _savedUrls.value = updated
         persistSavedUrls(updated)
+        viewModelScope.launch {
+            runCatching { repo.unsaveUrl(url) }
+        }
     }
 
     fun openAddToCollection() {
