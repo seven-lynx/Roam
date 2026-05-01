@@ -5,9 +5,11 @@
 // is rehydrated automatically from chrome.storage.local by the custom
 // storage adapter in src/lib/supabase.ts.
 
-import '../lib/sentry'; // must be first — initialises Sentry if SENTRY_DSN is set
+import { Sentry } from '../lib/sentry'; // must be first — initialises Sentry if SENTRY_DSN is set
 import type { Request, Response, StateData, RoamData, CheckUrlData, QueueState, Collection, CategoryItem } from '../lib/messages';
 import { getSupabase, clearAuthStorage } from '../lib/supabase';
+
+declare const __SUPABASE_URL__: string;
 import {
   popHotUrl,
   clearQueue,
@@ -52,11 +54,22 @@ function getDomain(url: string): string | null {
 }
 
 // ── Message router ─────────────────────────────────────────────────────────
+// Keep the SW alive while the popup has an open port connection.
+chrome.runtime.onConnect.addListener((_port) => {
+  // No-op: the open port itself prevents Chrome from terminating the SW.
+});
+
 chrome.runtime.onMessage.addListener(
   (message: Request, _sender, sendResponse: (r: Response) => void) => {
     dispatch(message)
       .then(sendResponse)
-      .catch((err: Error) => sendResponse({ ok: false, error: err.message }));
+      .catch((err: Error) => {
+        Sentry.captureException(err, {
+          extra: { messageType: (message as any).type },
+          tags: { context: 'background-dispatch' },
+        });
+        sendResponse({ ok: false, error: err.message });
+      });
     return true; // keep the message channel open for the async response
   }
 );
@@ -153,16 +166,23 @@ async function signInWithGoogle(): Promise<Response<StateData>> {
   const supabase = getSupabase();
   const redirectTo = chrome.runtime.getURL('callback.html');
 
-  const { data, error } = await supabase.auth.signInWithOAuth({
-    provider: 'google',
-    options: { redirectTo, skipBrowserRedirect: true },
-  });
-  if (error || !data.url) {
+  try {
+    const { data, error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo, skipBrowserRedirect: true },
+    });
+    if (error || !data.url) {
+      Sentry.captureException(error || new Error('signInWithOAuth returned no URL'), {
+        tags: { context: 'signInWithGoogle' },
+      });
+      return { ok: false, error: 'Could not open the sign-in page. Please try again.' };
+    }
+    await chrome.tabs.create({ url: data.url });
+    return { ok: true, data: { signedIn: false } };
+  } catch (err) {
+    Sentry.captureException(err, { tags: { context: 'signInWithGoogle' } });
     return { ok: false, error: 'Could not open the sign-in page. Please try again.' };
   }
-
-  await chrome.tabs.create({ url: data.url });
-  return { ok: true, data: { signedIn: false } };
 }
 
 async function exchangeCode(code: string): Promise<Response<StateData>> {
@@ -171,6 +191,7 @@ async function exchangeCode(code: string): Promise<Response<StateData>> {
   const { error: sessionError } = await supabase.auth.exchangeCodeForSession(code);
   if (sessionError) {
     console.error('[roam-bg] Session exchange failed:', sessionError.message);
+    Sentry.captureException(sessionError, { tags: { context: 'exchangeCode' } });
     return { ok: false, error: sessionError.message };
   }
   console.log('[roam-bg] Code exchanged successfully, initializing queue');
@@ -225,16 +246,23 @@ async function signInWithGitHub(): Promise<Response<StateData>> {
   const supabase = getSupabase();
   const redirectTo = chrome.runtime.getURL('callback.html');
 
-  const { data, error } = await supabase.auth.signInWithOAuth({
-    provider: 'github',
-    options: { redirectTo, skipBrowserRedirect: true },
-  });
-  if (error || !data.url) {
+  try {
+    const { data, error } = await supabase.auth.signInWithOAuth({
+      provider: 'github',
+      options: { redirectTo, skipBrowserRedirect: true },
+    });
+    if (error || !data.url) {
+      Sentry.captureException(error || new Error('signInWithOAuth returned no URL'), {
+        tags: { context: 'signInWithGitHub' },
+      });
+      return { ok: false, error: 'Could not open the sign-in page. Please try again.' };
+    }
+    await chrome.tabs.create({ url: data.url });
+    return { ok: true, data: { signedIn: false } };
+  } catch (err) {
+    Sentry.captureException(err, { tags: { context: 'signInWithGitHub' } });
     return { ok: false, error: 'Could not open the sign-in page. Please try again.' };
   }
-
-  await chrome.tabs.create({ url: data.url });
-  return { ok: true, data: { signedIn: false } };
 }
 
 async function signInWithEmail(email: string, password: string): Promise<Response<StateData>> {

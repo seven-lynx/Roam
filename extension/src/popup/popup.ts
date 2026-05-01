@@ -46,13 +46,25 @@ function showError(message: string) {
 // Context for categories screen: 'firsttime' (post sign-in) or 'settings' (from config panel)
 let categoriesContext: 'firsttime' | 'settings' = 'firsttime';
 
+// Local fallback so chips always render even if the background SW fails to respond
+const FALLBACK_CATEGORIES: CategoryItem[] = [
+  { id: 'c1000000-0000-0000-0000-000000000001', name: 'Science & Nature', icon: '🔬' },
+  { id: 'c1000000-0000-0000-0000-000000000002', name: 'Technology',       icon: '💻' },
+  { id: 'c1000000-0000-0000-0000-000000000003', name: 'Arts & Culture',   icon: '🎨' },
+  { id: 'c1000000-0000-0000-0000-000000000004', name: 'History & Ideas',  icon: '📜' },
+  { id: 'c1000000-0000-0000-0000-000000000005', name: 'Games & Hobbies',  icon: '🎮' },
+  { id: 'c1000000-0000-0000-0000-000000000006', name: 'Weird & Wonderful', icon: '🌀' },
+  { id: 'c1000000-0000-0000-0000-000000000007', name: 'People & Places',  icon: '🌍' },
+  { id: 'c1000000-0000-0000-0000-000000000008', name: 'Mind & Body',      icon: '🧠' },
+];
+
 async function checkAndRouteAfterSignIn(): Promise<void> {
   const [cats, allCats] = await Promise.all([
     sendToBackground<{ categoryIds: string[] }>({ type: 'GET_USER_CATEGORIES' }),
     sendToBackground<CategoryItem[]>({ type: 'GET_CATEGORIES' }),
   ]);
   const selectedIds = cats.ok ? cats.data.categoryIds : [];
-  const categoryItems = allCats.ok ? allCats.data : undefined;
+  const categoryItems = allCats.ok && allCats.data.length > 0 ? allCats.data : FALLBACK_CATEGORIES;
   if (cats.ok && selectedIds.length > 0) {
     populateCategoryChips(selectedIds, categoryItems);
     showState('main');
@@ -63,24 +75,15 @@ async function checkAndRouteAfterSignIn(): Promise<void> {
   }
 }
 
-function populateCategoryChips(selectedIds: string[], categories?: CategoryItem[]) {
+function populateCategoryChips(selectedIds: string[], categories: CategoryItem[]) {
   const container = el('category-select-chips');
-  if (categories) {
-    // Render chips dynamically from the DB-fetched (or fallback) list
-    container.innerHTML = '';
-    for (const cat of categories) {
-      const btn = document.createElement('button');
-      btn.className = 'chip' + (selectedIds.includes(cat.id) ? ' selected' : '');
-      btn.dataset.catId = cat.id;
-      btn.textContent = `${cat.icon} ${cat.name}`;
-      container.appendChild(btn);
-    }
-  } else {
-    // Fallback: just mark the existing static chips
-    container.querySelectorAll<HTMLButtonElement>('.chip').forEach((chip) => {
-      const id = chip.dataset.catId;
-      chip.classList.toggle('selected', id !== undefined && selectedIds.includes(id));
-    });
+  container.innerHTML = '';
+  for (const cat of categories) {
+    const btn = document.createElement('button');
+    btn.className = 'chip' + (selectedIds.includes(cat.id) ? ' selected' : '');
+    btn.dataset.catId = cat.id;
+    btn.textContent = `${cat.icon} ${cat.name}`;
+    container.appendChild(btn);
   }
   const saveBtn = document.getElementById('btn-save-categories') as HTMLButtonElement | null;
   if (saveBtn) saveBtn.disabled = selectedIds.length === 0;
@@ -100,6 +103,11 @@ async function boot() {
 
 // ── Boot ──────────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
+  // Keep the background service worker alive while the popup is open.
+  // MV3 service workers are terminated after ~30 s of inactivity; an open port
+  // prevents that, so messages sent later (e.g. SIGN_IN_GOOGLE) always land.
+  try { chrome.runtime.connect({ name: 'popup-keepalive' }); } catch { /* ignore */ }
+
   // Ask the background SW for the current auth state and show the right view.
   boot();
 
@@ -118,7 +126,10 @@ document.addEventListener('DOMContentLoaded', () => {
       sendToBackground<{ categoryIds: string[] }>({ type: 'GET_USER_CATEGORIES' }),
       sendToBackground<CategoryItem[]>({ type: 'GET_CATEGORIES' }),
     ]);
-    populateCategoryChips(cats.ok ? cats.data.categoryIds : [], allCats.ok ? allCats.data : undefined);
+    populateCategoryChips(
+      cats.ok ? cats.data.categoryIds : [],
+      allCats.ok && allCats.data.length > 0 ? allCats.data : FALLBACK_CATEGORIES,
+    );
     showState('categories');
   });
 
@@ -616,7 +627,10 @@ document.addEventListener('DOMContentLoaded', () => {
       sendToBackground<{ categoryIds: string[] }>({ type: 'GET_USER_CATEGORIES' }),
       sendToBackground<CategoryItem[]>({ type: 'GET_CATEGORIES' }),
     ]);
-    populateCategoryChips(cats.ok ? cats.data.categoryIds : [], allCats.ok ? allCats.data : undefined);
+    populateCategoryChips(
+      cats.ok ? cats.data.categoryIds : [],
+      allCats.ok && allCats.data.length > 0 ? allCats.data : FALLBACK_CATEGORIES,
+    );
     showPanel(null);
     showState('categories');
   });

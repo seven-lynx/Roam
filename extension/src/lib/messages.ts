@@ -1,5 +1,7 @@
 // messages.ts — Type-safe message protocol between popup and background SW
 
+import { Sentry } from './sentry';
+
 export type Request =
   | { type: 'GET_STATE' }
   | { type: 'SIGN_IN_GOOGLE' }
@@ -82,7 +84,31 @@ export interface Collection {
   item_count: number;
 }
 
-/** Type-safe wrapper around chrome.runtime.sendMessage */
-export function sendToBackground<T = unknown>(req: Request): Promise<Response<T>> {
-  return chrome.runtime.sendMessage(req) as Promise<Response<T>>;
+/** Type-safe wrapper around chrome.runtime.sendMessage.
+ *  Retries once if the SW was just woken from sleep, and captures any
+ *  Chrome runtime errors (e.g. "Service worker response timeout") to Sentry. */
+export async function sendToBackground<T = unknown>(req: Request): Promise<Response<T>> {
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      if (attempt > 0) {
+        // Brief pause — gives Chrome time to restart the SW before the retry.
+        await new Promise<void>((r) => setTimeout(r, 300));
+      }
+      return (await chrome.runtime.sendMessage(req)) as Response<T>;
+    } catch (err) {
+      if (attempt === 1) {
+        // Both attempts failed — capture to Sentry and return a safe error object.
+        Sentry.captureException(err, {
+          extra: { messageType: (req as { type: string }).type },
+          tags: { context: 'sendToBackground' },
+        });
+        return {
+          ok: false,
+          error: 'Something went wrong. Please close and reopen the extension.',
+        } as Response<T>;
+      }
+    }
+  }
+  // Unreachable, but TypeScript needs this.
+  return { ok: false, error: 'Something went wrong.' } as Response<T>;
 }
