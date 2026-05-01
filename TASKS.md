@@ -708,11 +708,12 @@ Final checks before making the app public.
   - **Files:** `supabase/functions/_shared/normalise.ts` (new), `supabase/functions/submit-url/index.ts`, `scripts/lib/seed.js`
   - **Task reference:** 2.27a
 
-- [ ] **9.8** Fetch categories dynamically instead of hardcoding — web UI and Android both have hardcoded category UUIDs; if category IDs change (schema reset, recovery), UI breaks silently; fetch from `categories` table on client startup and cache locally
+- [x] **9.8** Fetch categories dynamically instead of hardcoding — web UI and Android both have hardcoded category UUIDs; if category IDs change (schema reset, recovery), UI breaks silently; fetch from `categories` table on client startup and cache locally
   - **Severity:** HIGH — brittleness
   - **Effort:** 1–2 hours
   - **Files:** `web/src/app/join/join-content.tsx` (lines 8–15), `android/app/src/main/java/app/roam/android/viewmodel/MainViewModel.kt`, `extension/src/background/background.ts`
   - **Impact:** Blocking Chrome/Firefox submissions (Issue #8)
+  - **What we did:** Created `android/model/CategoryItem.kt` with `@Serializable` data class + `FALLBACK` companion object. Added `getCategories()` to `RoamRepository` and `categories` `StateFlow` to `MainViewModel` (init fetches from DB, falls back to static list). `SubmitBottomSheet` now accepts `categories: List<CategoryItem>` from the VM instead of its own private const. Extension: added `GET_CATEGORIES` to `messages.ts` + `CategoryItem` interface; `background.ts` gets `getCategories()` with 20-min in-memory cache + hardcoded fallback; `populateCategoryChips()` in `popup.ts` now renders chips from the fetched list; `popup.html` chip container left empty. Web: `FALLBACK_CATEGORIES` constant + `useState(FALLBACK_CATEGORIES)` + `useEffect` fetch replaces the static `CATEGORIES` const. Committed 2fdf991.
 
 - [ ] **9.9** Verify Android ProGuard rules for Supabase SDK — file exists but content not verified to whitelist Supabase Kotlin client and Jetpack Compose runtime; without rules, ProGuard may obfuscate/strip classes needed at runtime; add -keep rules for `io.github.jan.supabase`, `androidx.compose.runtime`, `okhttp3`, `kotlinx.serialization`
   - **Severity:** HIGH — runtime failures on release builds
