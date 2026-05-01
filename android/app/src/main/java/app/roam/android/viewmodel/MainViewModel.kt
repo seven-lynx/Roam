@@ -8,6 +8,7 @@ import android.os.VibratorManager
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import app.roam.android.data.repository.RoamRepository
+import app.roam.android.model.Collection
 import app.roam.android.model.RoamUrl
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -42,6 +43,14 @@ class MainViewModel(
     /** True while a save-for-later confirmation should be visible */
     private val _savedConfirmation = MutableStateFlow(false)
     val savedConfirmation: StateFlow<Boolean> = _savedConfirmation.asStateFlow()
+
+    /** User's collections (lazy-loaded when config sheet opens) */
+    private val _collections = MutableStateFlow<List<Collection>>(emptyList())
+    val collections: StateFlow<List<Collection>> = _collections.asStateFlow()
+
+    /** Controls whether the "add to collection" dialog is visible */
+    private val _showAddToCollection = MutableStateFlow(false)
+    val showAddToCollection: StateFlow<Boolean> = _showAddToCollection.asStateFlow()
 
     /** The URL currently loaded in the WebView (may differ from state while loading next) */
     private val _currentUrl = MutableStateFlow<String?>(null)
@@ -190,6 +199,59 @@ class MainViewModel(
         val updated = _savedUrls.value.filter { it.url != url }
         _savedUrls.value = updated
         persistSavedUrls(updated)
+    }
+
+    fun openAddToCollection() {
+        viewModelScope.launch {
+            runCatching { _collections.value = repo.getCollections() }
+        }
+        _showAddToCollection.value = true
+    }
+    fun closeAddToCollection() { _showAddToCollection.value = false }
+
+    fun addCurrentUrlToCollection(collectionId: String) {
+        val loaded = _state.value as? RoamState.Loaded ?: return
+        viewModelScope.launch {
+            runCatching { repo.addUrlToCollection(collectionId, loaded.roamUrl.id) }
+            _showAddToCollection.value = false
+            closeConfigSheet()
+        }
+    }
+
+    fun createCollectionAndAdd(name: String) {
+        val loaded = _state.value as? RoamState.Loaded ?: return
+        viewModelScope.launch {
+            runCatching {
+                val col = repo.createCollection(name)
+                repo.addUrlToCollection(col.id, loaded.roamUrl.id)
+            }
+            _showAddToCollection.value = false
+            closeConfigSheet()
+        }
+    }
+
+    fun roamWithinCategory() {
+        val loaded = _state.value as? RoamState.Loaded
+        // Use the subcategory of the current page if known; fall back to global roam
+        val categoryId = loaded?.roamUrl?.subcategoryId
+        _showConfigSheet.value = false
+        viewModelScope.launch {
+            _state.value = RoamState.Loading
+            runCatching {
+                repo.roam(collectionId = null, excludeDomain = extractDomain(_currentUrl.value))
+            }.onSuccess { result ->
+                if (result == null) _state.value = RoamState.Exhausted
+                else { _currentUrl.value = result.url; _state.value = RoamState.Loaded(result) }
+            }.onFailure { e ->
+                _state.value = RoamState.Error(e.message ?: "Unknown error")
+            }
+        }
+    }
+
+    fun roamCollection(collectionId: String) {
+        setCollectionFilter(collectionId)
+        _showConfigSheet.value = false
+        roam()
     }
 
     private fun loadSavedUrls(): List<SavedUrl> {

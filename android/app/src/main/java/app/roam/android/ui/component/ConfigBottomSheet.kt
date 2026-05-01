@@ -12,11 +12,13 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ElevatedFilterChip
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -29,6 +31,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import app.roam.android.model.Collection
 
 private data class Language(val code: String, val label: String)
 
@@ -53,9 +56,16 @@ fun ConfigBottomSheet(
     currentUrl: String?,
     skipPaywalled: Boolean,
     preferredLanguages: List<String>,
+    collections: List<Collection>,
     onDismiss: () -> Unit,
     onSaveForLater: () -> Unit,
     onShare: () -> Unit,
+    onAddToCollection: (collectionId: String) -> Unit,
+    onCreateCollectionAndAdd: (name: String) -> Unit,
+    onRoamWithinCategory: () -> Unit,
+    onRoamCollection: (collectionId: String) -> Unit,
+    onManageCollections: () -> Unit,
+    onCategoryPrefs: () -> Unit,
     onSkipPaywalledChange: (Boolean) -> Unit,
     onLanguagesChange: (List<String>) -> Unit,
     onSignOut: () -> Unit,
@@ -63,6 +73,9 @@ fun ConfigBottomSheet(
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var langPickerOpen by remember { mutableStateOf(false) }
+    var collectionPickerOpen by remember { mutableStateOf(false) }
+    var newCollectionDialogOpen by remember { mutableStateOf(false) }
+    var newCollectionName by remember { mutableStateOf("") }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -98,6 +111,13 @@ fun ConfigBottomSheet(
                 Text("Share", modifier = Modifier.fillMaxWidth())
             }
 
+            TextButton(
+                onClick = { collectionPickerOpen = true },
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
+            ) {
+                Text("Add to collection…", modifier = Modifier.fillMaxWidth())
+            }
+
             Spacer(modifier = Modifier.height(8.dp))
             HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
             Spacer(modifier = Modifier.height(8.dp))
@@ -109,6 +129,40 @@ fun ConfigBottomSheet(
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
             )
+
+            // Roam scope actions
+            TextButton(
+                onClick = onRoamWithinCategory,
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
+            ) {
+                Text("Roam within this category", modifier = Modifier.fillMaxWidth())
+            }
+
+            TextButton(
+                onClick = {
+                    if (collections.isEmpty()) Unit
+                    else collectionPickerOpen = true
+                },
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
+            ) {
+                Text("Roam a collection…", modifier = Modifier.fillMaxWidth())
+            }
+
+            TextButton(
+                onClick = onManageCollections,
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
+            ) {
+                Text("Manage collections ↗", modifier = Modifier.fillMaxWidth())
+            }
+
+            TextButton(
+                onClick = onCategoryPrefs,
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
+            ) {
+                Text("Category preferences ↗", modifier = Modifier.fillMaxWidth())
+            }
+
+            Spacer(modifier = Modifier.height(4.dp))
 
             // Skip paywalled sites toggle
             Row(
@@ -203,6 +257,74 @@ fun ConfigBottomSheet(
                 )
             }
         }
+    }
+
+    // ── Collection picker dialog (Add to collection OR Roam a collection) ──
+    if (collectionPickerOpen) {
+        AlertDialog(
+            onDismissRequest = { collectionPickerOpen = false },
+            title = { Text("Choose a collection") },
+            text = {
+                Column {
+                    collections.forEach { col ->
+                        TextButton(
+                            onClick = {
+                                collectionPickerOpen = false
+                                onAddToCollection(col.id)
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            Text(col.name, modifier = Modifier.fillMaxWidth())
+                        }
+                    }
+                    TextButton(
+                        onClick = {
+                            collectionPickerOpen = false
+                            newCollectionDialogOpen = true
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text("+ New collection", modifier = Modifier.fillMaxWidth())
+                    }
+                }
+            },
+            confirmButton = {},
+            dismissButton = {
+                TextButton(onClick = { collectionPickerOpen = false }) { Text("Cancel") }
+            },
+        )
+    }
+
+    // ── New-collection dialog ──────────────────────────────────────────────
+    if (newCollectionDialogOpen) {
+        AlertDialog(
+            onDismissRequest = { newCollectionDialogOpen = false },
+            title = { Text("New collection") },
+            text = {
+                OutlinedTextField(
+                    value = newCollectionName,
+                    onValueChange = { newCollectionName = it },
+                    label = { Text("Name") },
+                    singleLine = true,
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        if (newCollectionName.isNotBlank()) {
+                            onCreateCollectionAndAdd(newCollectionName.trim())
+                            newCollectionName = ""
+                            newCollectionDialogOpen = false
+                        }
+                    },
+                ) { Text("Create & add") }
+            },
+            dismissButton = {
+                TextButton(onClick = { newCollectionDialogOpen = false; newCollectionName = "" }) {
+                    Text("Cancel")
+                }
+            },
+        )
     }
 }
 

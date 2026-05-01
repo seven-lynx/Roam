@@ -1,6 +1,8 @@
 package app.roam.android.ui.screen
 
 import android.content.Intent
+import android.net.Uri
+import androidx.browser.customtabs.CustomTabsIntent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -49,6 +51,7 @@ fun MainScreen(
     val skipPaywalled by vm.skipPaywalled.collectAsState()
     val preferredLanguages by vm.preferredLanguages.collectAsState()
     val savedConfirmation by vm.savedConfirmation.collectAsState()
+    val collections by vm.collections.collectAsState()
 
     // Auto-load the first page when the screen appears
     LaunchedEffect(Unit) {
@@ -192,6 +195,7 @@ fun MainScreen(
             currentUrl = currentUrl,
             skipPaywalled = skipPaywalled,
             preferredLanguages = preferredLanguages,
+            collections = collections,
             onDismiss = { vm.closeConfigSheet() },
             onSaveForLater = {
                 vm.saveForLater()
@@ -203,6 +207,28 @@ fun MainScreen(
                     putExtra(Intent.EXTRA_TEXT, currentUrl ?: "")
                 }
                 activity.startActivity(Intent.createChooser(shareIntent, null))
+                vm.closeConfigSheet()
+            },
+            onAddToCollection = { collectionId ->
+                vm.addCurrentUrlToCollection(collectionId)
+            },
+            onCreateCollectionAndAdd = { name ->
+                vm.createCollectionAndAdd(name)
+            },
+            onRoamWithinCategory = {
+                vm.roamWithinCategory()
+            },
+            onRoamCollection = { collectionId ->
+                vm.roamCollection(collectionId)
+            },
+            onManageCollections = {
+                CustomTabsIntent.Builder().build()
+                    .launchUrl(context, Uri.parse("https://roamtheweb.app/u/me"))
+                vm.closeConfigSheet()
+            },
+            onCategoryPrefs = {
+                CustomTabsIntent.Builder().build()
+                    .launchUrl(context, Uri.parse("https://roamtheweb.app/join"))
                 vm.closeConfigSheet()
             },
             onSkipPaywalledChange = { vm.setSkipPaywalled(it) },

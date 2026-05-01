@@ -1,6 +1,7 @@
 package app.roam.android.data.repository
 
 import app.roam.android.data.supabase
+import app.roam.android.model.Collection
 import app.roam.android.model.RoamUrl
 import app.roam.android.model.UserSettings
 import io.github.jan.supabase.auth.auth
@@ -90,5 +91,63 @@ class RoamRepository {
                     skipPaywalled = skipPaywalled ?: current.skipPaywalled,
                 )
             )
+    }
+
+    /**
+     * Returns the authenticated user's collections, ordered by name.
+     */
+    suspend fun getCollections(): List<Collection> {
+        val userId = supabase.auth.currentUserOrNull()?.id ?: return emptyList()
+        return supabase.postgrest
+            .from("collections")
+            .select {
+                filter { eq("user_id", userId) }
+                order("name")
+            }
+            .decodeList()
+    }
+
+    /**
+     * Creates a new collection. [slug] is auto-derived from [name] if not provided.
+     * Returns the created collection.
+     */
+    suspend fun createCollection(name: String): Collection {
+        val slug = name.lowercase()
+            .replace(Regex("[^a-z0-9]+"), "-")
+            .trim('-')
+            .take(60)
+        val body = buildJsonObject {
+            put("action", "create")
+            put("name", name)
+            put("slug", slug)
+        }
+        val response = supabase.functions.invoke("collection", body = body)
+        return json.decodeFromString(response.body())
+    }
+
+    /**
+     * Adds a URL to a collection by URL ID.
+     */
+    suspend fun addUrlToCollection(collectionId: String, urlId: String) {
+        val body = buildJsonObject {
+            put("action", "add_item")
+            put("collection_id", collectionId)
+            put("url_id", urlId)
+        }
+        supabase.functions.invoke("collection", body = body)
+    }
+
+    /**
+     * Looks up the URL record for [url] — returns its ID and subcategory_id if known.
+     */
+    suspend fun checkUrl(url: String): RoamUrl? {
+        val results = supabase.postgrest
+            .from("urls")
+            .select(Columns.list("id", "url", "subcategory_id")) {
+                filter { eq("url", url) }
+                limit(1)
+            }
+            .decodeList<RoamUrl>()
+        return results.firstOrNull()
     }
 }
