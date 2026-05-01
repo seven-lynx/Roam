@@ -48,7 +48,7 @@ export function getSupabase(): SupabaseClient {
         persistSession: true,
         autoRefreshToken: true,
         detectSessionInUrl: false, // no URL to detect in a service worker
-        flowType: 'implicit',     // PKCE requires chrome-extension:// to be a valid server redirect; implicit avoids that
+        flowType: 'pkce',
       },
     });
   }
