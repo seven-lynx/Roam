@@ -22,23 +22,48 @@ This creates `extension/dist/` with the compiled popup and background service wo
 2. Enable **Developer mode** (toggle top-right)
 3. Click **Load unpacked**
 4. Select the `extension/dist/` folder
-5. Note the **Extension ID** (used in redirect URLs)
+5. Note the **Extension ID** — visible under the extension name (e.g. `abcdefghijklmnopqrstuvwxyzabcdef`)
 
-### 3. Configure Supabase redirect URL
+### 3. Load in Firefox
 
-Add your extension's redirect URL to Supabase:
+> **Build Firefox dist first:** `cd extension && node build.mjs --firefox`
+> This creates `extension/dist-firefox/` with the Firefox manifest.
 
-1. Go to **Supabase → Authentication → Redirect URLs**
-2. Add: `https://<EXTENSION_ID>.chromiumapp.org/`
-3. Save
+1. Open `about:debugging#/runtime/this-firefox`
+2. Click **Load Temporary Add-on…**
+3. Select `extension/dist-firefox/manifest.json`
+4. Note the **Internal UUID** — shown in the extension's details under "Internal UUID"
+   (looks like `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx`)
 
-### 4. Set environment variables
+> **Note:** When loaded temporarily, Firefox assigns a random UUID each session.
+> For a stable UUID (needed for a registered Supabase redirect URL), use a **signed** extension via Firefox AMO. After signing, the UUID stabilises and can be pre-registered.
 
-Create `extension/.env.local` (or use the root `.env`):
+### 4. Configure Supabase redirect URLs
+
+Add both redirect URLs to Supabase:
+
+1. Go to **Supabase → Authentication → URL Configuration → Redirect URLs**
+2. Add the **Chrome** redirect URL:
+   ```
+   chrome-extension://<EXTENSION_ID>/callback.html
+   ```
+   Replace `<EXTENSION_ID>` with the ID from step 2 (e.g. `chrome-extension://abcdefghijklmnopqrstuvwxyzabcdef/callback.html`)
+3. Add the **Firefox** redirect URL:
+   ```
+   moz-extension://<FIREFOX_INTERNAL_UUID>/callback.html
+   ```
+   Replace `<FIREFOX_INTERNAL_UUID>` with the UUID from step 3
+4. Save both entries
+
+> **Tip:** If the callback page shows "No authorization code found", it will display the exact URL it expects — copy that URL and add it to Supabase.
+
+### 5. Set environment variables
+
+Create a `.env` file at the **repo root** (not inside `extension/`):
 
 ```
-VITE_SUPABASE_URL=https://yrhckctwtdjowulfuaqc.supabase.co
-VITE_SUPABASE_ANON_KEY=<your_anon_key>
+SUPABASE_URL=https://yrhckctwtdjowulfuaqc.supabase.co
+SUPABASE_ANON_KEY=<your_anon_key>
 ```
 
 ---
@@ -47,7 +72,7 @@ VITE_SUPABASE_ANON_KEY=<your_anon_key>
 
 The extension logs all activity to the background service worker console.
 
-### Open background service worker console
+### Chrome: Open background service worker console
 
 1. Go to `chrome://extensions/`
 2. Find **Roam** extension
@@ -55,6 +80,13 @@ The extension logs all activity to the background service worker console.
 4. Scroll to **Service Worker** section
 5. Click **Inspect** — opens DevTools for the background SW
 6. Go to **Console** tab to see logs
+
+### Firefox: Open background service worker console
+
+1. Go to `about:debugging#/runtime/this-firefox`
+2. Find **Roam** under Temporary Extensions
+3. Click **Inspect** — opens DevTools for the background SW
+4. Go to **Console** tab to see logs
 
 ### Popup DevTools
 
@@ -68,13 +100,15 @@ Right-click the popup → **Inspect** opens a separate DevTools for popup code.
 
 **Precondition:** Not signed in (popup shows sign-in button)
 
+> **Firefox note:** Ensure `moz-extension://<UUID>/callback.html` is added to Supabase Redirect URLs (see Setup → Step 4). The UUID shown in `about:debugging` is per-session for temporary add-ons; use a signed AMO build for a stable UUID.
+
 **Steps:**
 
 1. Click extension icon → popup opens
 2. Click **Sign In with Google**
 3. A new tab opens with Google OAuth — select your Google account
-4. Callback page processes the redirect
-5. Popup should auto-detect session and show main state
+4. Callback page processes the redirect and closes automatically
+5. Popup detects the session and switches to main state
 6. Check background SW console for logs:
    ```
    [roam-bg] Code exchanged successfully, initializing queue
@@ -469,11 +503,14 @@ Use this checklist to verify all features work together:
 
 ## Next Steps
 
-After all tests pass:
+After all Chrome tests pass, repeat in Firefox:
 
-1. Load extension in Firefox and repeat tests (manifest.json needs minor adjustments)
-2. Test on multiple Google accounts
-3. Test with multiple collections and URLs
-4. Stress test: rapid Roam clicks (should never get duplicates or errors)
-5. Long-running test: leave extension running 30+ minutes, check queue state doesn't degrade
+1. Build Firefox dist: `node build.mjs --firefox`
+2. Load `dist-firefox/manifest.json` as a Temporary Add-on in `about:debugging`
+3. Note the Internal UUID and add `moz-extension://<UUID>/callback.html` to Supabase Redirect URLs
+4. Repeat all flows above — behavior is identical to Chrome
+5. Test on multiple Google/GitHub accounts
+6. Test with multiple collections and URLs
+7. Stress test: rapid Roam clicks (should never get duplicates or errors)
+8. Long-running test: leave extension running 30+ minutes, check queue state doesn't degrade
 

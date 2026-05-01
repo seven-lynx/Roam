@@ -732,6 +732,7 @@ Final checks before making the app public.
   - **Effort:** 2–3 days (manual testing sprint)
   - **Files:** `extension/TESTING.md` (expand), `web/TESTING.md` (create), `android/TESTING.md` (create)
   - **Task reference:** 2.28b / 5.7 / 6.11
+  - ⚙️ **Partial (extension Firefox parity done):** Audited Chrome vs Firefox extension for API parity. All WebExtensions APIs used (`chrome.tabs`, `chrome.storage`, `chrome.runtime`, `chrome.runtime.sendMessage`) are supported in Firefox via the `chrome.*` compatibility shim — no code changes needed. The only code bug found: `callback.ts` error message hardcoded `chrome-extension://` instead of using `chrome.runtime.getURL('callback.html')`, which in Firefox returns `moz-extension://` — **fixed**. Also corrected the stale Supabase redirect URL setup instruction in `extension/TESTING.md` (`chromiumapp.org` was for `chrome.identity` which this extension doesn't use — correct URL is `chrome-extension://<ID>/callback.html`). Added Firefox load instructions (`about:debugging`, dist-firefox build step, Internal UUID), Firefox DevTools section, and Firefox-specific OAuth note. Rebuilt both `dist/` and `dist-firefox/`. Remaining: web session restoration testing + Android deep link testing (still manual work).
 
 ### MEDIUM-PRIORITY — Improve before launch
 

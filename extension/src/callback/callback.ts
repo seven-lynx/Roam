@@ -81,7 +81,7 @@ async function handleCallback() {
   }
 
   // No session data or code found
-  showError('No authorization code found. Make sure you added the extension callback URL to Supabase Authentication → URL Configuration. The URL should be: chrome-extension://' + chrome.runtime.id + '/callback.html');
+  showError('No authorization code found. Make sure you added the extension callback URL to Supabase Authentication → URL Configuration. The URL should be: ' + chrome.runtime.getURL('callback.html'));
 }
 
 function showError(message: string) {
