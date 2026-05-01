@@ -17,7 +17,9 @@ export type Request =
   | { type: 'CREATE_COLLECTION'; name: string }
   | { type: 'ADD_URL_TO_COLLECTION'; url: string; collectionId: string }
   | { type: 'GET_QUEUE_STATE' }
-  | { type: 'REFRESH_CATEGORIES'; categoryIds: string[] };
+  | { type: 'REFRESH_CATEGORIES'; categoryIds: string[] }
+  | { type: 'EXCHANGE_CODE'; code: string }
+  | { type: 'SAVE_SESSION'; accessToken: string; refreshToken: string };
 
 export type Response<T = unknown> =
   | { ok: true; data: T }

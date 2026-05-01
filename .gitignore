@@ -44,3 +44,8 @@ android/local.properties
 # ── OS noise ─────────────────────────────────────────────────────────────────
 .DS_Store
 Thumbs.db
+
+# ── Build artifacts / debug logs ─────────────────────────────────────────────
+*.log
+extension/build_output.txt
+extension/roam-extension.zip
