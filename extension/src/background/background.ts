@@ -472,7 +472,8 @@ async function checkUrl(url: string): Promise<Response<CheckUrlData>> {
   const normalized = normalizeUrl(url);
   if (!normalized) return { ok: true, data: { known: false } };
 
-  const { data, error } = await getSupabase()
+  // Try exact normalized URL first
+  let { data, error } = await getSupabase()
     .from('urls')
     .select('id,category_id')
     .eq('url', normalized)
@@ -480,8 +481,21 @@ async function checkUrl(url: string): Promise<Response<CheckUrlData>> {
     .maybeSingle();
 
   if (error) return { ok: false, error: error.message };
-  if (!data) return { ok: true, data: { known: false } };
-  return { ok: true, data: { known: true, url_id: data.id as string, category_id: data.category_id ?? undefined } };
+  if (data) return { ok: true, data: { known: true, url_id: data.id as string, category_id: data.category_id ?? undefined } };
+
+  // Fallback: try with trailing slash (in case the stored URL has one)
+  const withSlash = normalized.endsWith('/') ? normalized : normalized + '/';
+  ({ data, error } = await getSupabase()
+    .from('urls')
+    .select('id,category_id')
+    .eq('url', withSlash)
+    .eq('approved', true)
+    .maybeSingle());
+
+  if (error) return { ok: false, error: error.message };
+  if (data) return { ok: true, data: { known: true, url_id: data.id as string, category_id: data.category_id ?? undefined } };
+
+  return { ok: true, data: { known: false } };
 }
 
 async function submitUrl(url: string, categoryId: string): Promise<Response<null>> {
