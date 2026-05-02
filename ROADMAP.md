@@ -26,6 +26,7 @@
 | **[Stage 10](#stage-10--web-app-polish--bug-fixes)** — Polish | ⏳ In Progress | 6/21 | 15h |
 | **[Stage 11](#stage-11--comprehensive-audit-fixes--testing)** — Hardening | ⏳ In Progress | 25/30 | 100h |
 | **[Stage 12](#stage-12--web-app-rebuild)** — Web Rebuild | ✅ Complete | 21/22 | 40h |
+| **[Stage 13](#stage-13--extension-rebuild)** — Extension Rebuild | ⏳ In Progress | 1/8 | 8h |
 | **[Post-Launch](#post-launch)** — Roadmap | 📋 Planned | 3/22 | 45h |
 
 
@@ -41,12 +42,13 @@
 - ⏳ **Stage 6:** Android Play Store submission pending (3 tasks: 6.17–6.19)
 - ⏳ **Stages 7 & 9:** Testing and security hardening (29 tasks remaining)
 - ⏳ **Stages 10, 11 & 12:** Web polish, hardening, and rebuild (42 tasks remaining)
+- ⏳ **Stage 13:** Extension rebuild (7 tasks remaining)
 - 📋 **Post-Launch:** Roadmap ready (19 tasks planned)
 
 **Major Milestones (Completed May 1, 2026):**
 - ✅ Supabase backend with 11 tables, 15+ RLS policies, 9 Edge Functions
 - ✅ Web app (Next.js) with dashboard, admin panel, onboarding, profile pages
-- ✅ Browser extension (Chrome + Firefox) with queue system, URL prefetching, category filtering
+- ✅ Browser extension (Chrome + Firefox) with event-driven SW, popup prefetch, category filtering
 - ✅ Android app (Kotlin + Compose) with full parity to extension; 500+ lines of UI
 - ✅ ~1.69M URLs seeded from 26 sources (Wikipedia, Curlie, NASA, NPR, GitHub, arXiv, Reddit, Substack, etc.)
 - ✅ Centralized logging, Sentry error tracking, form validation, admin moderation UI
@@ -54,9 +56,9 @@
 - ✅ 59+ tests across all platforms with 30%+ coverage on critical paths
 
 **Immediate Next Steps:**
-1. Stage 6: Submit Android app to Google Play Store (6.17–6.19)
-2. Stage 7: Finalize end-to-end testing (9 tasks)
-3. Stage 9: Complete remaining security hardening (20 tasks)
+1. Stage 13: Extension rebuild (13.2–13.8)
+2. Stage 6: Submit Android app to Google Play Store (6.17–6.19)
+3. Stage 7: Finalize end-to-end testing (9 tasks)
 
 **Known Issues:** None blocking launch. Pre-launch testing (Stage 7) underway.
 
@@ -72,7 +74,7 @@
 
 ## Project Progress
 
-**Overall Completion: 237 / 323 tasks (73%)**
+**Overall Completion: 238 / 331 tasks (72%)**
 
 | Category | Complete | Total | % |
 |----------|----------|-------|-----|
@@ -80,6 +82,7 @@
 | Testing & QA (Stage 7) | 0 | 9 | 0% |
 | Security & Quality (Stage 9) | 31 | 37 | 84% |
 | Web Polish & Hardening (Stages 10–12) | 52 | 73 | 71% |
+| Extension Rebuild (Stage 13) | 1 | 8 | 13% |
 | Post-Launch Roadmap | 3 | 22 | 14% |
 
 **Time invested: 400+ hours**
@@ -103,6 +106,7 @@
 - Stage 10 (Web Polish): 6/21 tasks
 - Stage 11 (Hardening): 25/30 tasks
 - Stage 12 (Web Rebuild): 21/22 tasks
+- Stage 13 (Extension Rebuild): 1/8 tasks
 
 ### Post-Launch Roadmap
 - Pool quality (8.1–8.3): wilson floor, broken link reporting, dead-link cleanup scripts
@@ -1874,6 +1878,39 @@ Complete ground-up rebuild of the web app. The web becomes a focused **account m
 
 - [x] **12.22** Update test suite for rebuilt components — update or replace existing join, profile, and settings tests to match the new component structure; add tests for `AuthProvider`, `Footer`, `UsernamePrompt`, forgot-password flow, and reset-password flow; delete tests for removed routes (dashboard, collections, friends); run `pnpm test:ci` and confirm all tests pass with no regressions
   - **Files:** `web/src/__tests__/` (multiple files)
+
+---
+
+## Stage 13 — Extension Rebuild {#stage-13--extension-rebuild}
+
+Ground-up rebuild of the browser extension. The existing codebase has ~500 lines of dead code (`queue.ts`, `queueManager.ts`) left over from a pre-fetch queue system that could not function under Chrome MV3's service worker lifecycle. Background loops are terminated after ~30 s; URL validation via `fetch` in no-cors mode always returns `status: 0` (opaque response), making the validator a no-op. The rebuild deletes all dead infrastructure and replaces it with a simple, correct, event-driven design documented in `extension/DESIGN.md`.
+
+**Design reference:** `extension/DESIGN.md`
+
+- [x] **13.1** Write `extension/DESIGN.md` — detailed technical spec covering MV3 constraints, file structure, background SW lifecycle, prefetch design, OAuth flow, popup state machine, message protocol, build pipeline, error handling, storage layout, URL normalisation, and test checklist
+
+  Created `extension/DESIGN.md` (May 2, 2026). Covers all architecture decisions and serves as the canonical reference for the rebuild and any future contributors.
+
+- [ ] **13.2** Delete `queue.ts`, `queueManager.ts`, `logger.ts` — these three files are entirely dead: the two queue files implement loops that are killed by the MV3 SW lifecycle, and `logger.ts` was never imported in any hot path; removing them eliminates ~700 lines of unreachable code
+  - **Files:** `extension/src/lib/queue.ts` (delete), `extension/src/lib/queueManager.ts` (delete), `extension/src/lib/logger.ts` (delete)
+
+- [ ] **13.3** Simplify `env.ts` — strip the class, LogLevel enum, and multi-error accumulator; replace with a single `validateEnvironment()` function (~20 lines) that reads the three `__INJECTED__` build-time constants and throws a single descriptive string if `SUPABASE_URL` or `SUPABASE_ANON_KEY` are missing or malformed; `SENTRY_DSN` absence is a `console.warn` only
+  - **Files:** `extension/src/lib/env.ts`
+
+- [ ] **13.4** Trim `messages.ts` — remove `GET_QUEUE_STATE` (returns dummy data; no caller needs it after cleanup), `QueueState` interface (queue is gone), and `REFRESH_CATEGORIES` (it is an alias for `SET_USER_CATEGORIES` that adds confusion); update all type imports that reference the removed types
+  - **Files:** `extension/src/lib/messages.ts`
+
+- [ ] **13.5** Add prefetch + remove dead cases in `background.ts` — (a) add `prefetchNext()` helper that calls the `roam` Edge Function and writes the result to `chrome.storage.session` under key `prefetch` with a `cachedAt` timestamp; (b) update `roam()` handler to be cache-first: read session storage, return cached value and fire `prefetchNext()` (no await) on hit, fall through to live call on miss or if entry is older than 5 minutes; (c) update `chrome.runtime.onConnect` listener to call `prefetchNext()` whenever the popup connects; (d) remove `GET_QUEUE_STATE` and `REFRESH_CATEGORIES` cases from `_dispatch()`
+  - **Files:** `extension/src/background/background.ts`
+
+- [ ] **13.6** Refactor `popup.ts` — extract the repeated collection-dropdown DOM-building code into a single `showDropdown(anchor, items, onPick, footer?)` helper (~30 lines); replace the two verbatim copies (~80 lines each) in `btn-add-collection` and `btn-roam-collection` handlers with calls to the helper; no other functional changes
+  - **Files:** `extension/src/popup/popup.ts`
+
+- [ ] **13.7** Build, load, and manually test Chrome build — run `pnpm build`; load `dist/` as an unpacked extension in Chrome; run through all 14 flows in `extension/TESTING.md`; verify prefetch works (open popup → wait 1 s → click Roam, navigation should be near-instant)
+  - **Files:** `extension/dist/` (build output)
+
+- [ ] **13.8** Build and test Firefox build; resubmit to stores — run `pnpm build:firefox`; load `dist-firefox/` in Firefox and verify OAuth callback and core flows work; create updated zip files and submit updated packages to Chrome Web Store and Firefox AMO
+  - **Files:** `extension/dist-firefox/` (build output)
 
 ---
 
