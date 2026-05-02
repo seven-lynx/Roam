@@ -6,6 +6,8 @@
 // storage adapter in src/lib/supabase.ts.
 
 import { Sentry } from '../lib/sentry'; // must be first — initialises Sentry if SENTRY_DSN is set
+import { validateEnvironment } from '../lib/env'; // validate env vars immediately after Sentry
+validateEnvironment(); // will throw if validation fails
 import type { Request, Response, StateData, RoamData, CheckUrlData, QueueState, Collection, CategoryItem, ProfileData } from '../lib/messages';
 import { getSupabase, clearAuthStorage } from '../lib/supabase';
 

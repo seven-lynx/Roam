@@ -5,6 +5,13 @@
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { corsHeaders } from '../_shared/cors.ts'
+import { validateRequired } from '../_shared/env.ts'
+
+// Validate required environment variables at startup
+const env = validateRequired([
+  'SUPABASE_URL',
+  'SUPABASE_ANON_KEY',
+])
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -15,8 +22,8 @@ Deno.serve(async (req) => {
   }
 
   const supabase = createClient(
-    Deno.env.get('SUPABASE_URL')!,
-    Deno.env.get('SUPABASE_ANON_KEY')!,
+    env.SUPABASE_URL,
+    env.SUPABASE_ANON_KEY,
     { global: { headers: { Authorization: req.headers.get('Authorization') ?? '' } } },
   )
 

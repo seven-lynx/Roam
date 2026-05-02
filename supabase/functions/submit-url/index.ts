@@ -7,17 +7,17 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { corsHeaders } from '../_shared/cors.ts'
 import { normalizeUrl } from '../_shared/normalise.ts'
+import { validateRequired } from '../_shared/env.ts'
 
 const RATE_LIMIT = 10
 
-// Fail fast at boot if the Safe Browsing key is missing — prevents a
-// misconfigured deploy from silently accepting unscreened URL submissions.
-const SAFE_BROWSING_API_KEY = Deno.env.get('SAFE_BROWSING_API_KEY')
-if (!SAFE_BROWSING_API_KEY) {
-  const errorMsg = 'SAFE_BROWSING_API_KEY environment variable is required for submit-url function to operate'
-  console.error(errorMsg)
-  throw new Error(errorMsg)
-}
+// Validate required environment variables at startup
+const env = validateRequired([
+  'SUPABASE_URL',
+  'SUPABASE_ANON_KEY',
+  'SAFE_BROWSING_API_KEY',
+])
+const SAFE_BROWSING_API_KEY = env.SAFE_BROWSING_API_KEY
 
 async function checkSafeBrowsing(url: string, apiKey: string): Promise<{ safe: boolean; error?: string }> {
   try {
