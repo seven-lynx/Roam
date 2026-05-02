@@ -1,4 +1,4 @@
-# Roam � Build Tasks & Learning Log
+﻿# Roam � Build Tasks & Learning Log
 
 ---
 
@@ -9,7 +9,7 @@
 ### By Priority
 - **[?? Critical Issues](#-critical-issues)** (0 blocking, 3 in progress)
 - **[Stages by Status](#-stages-by-status)**
-- **[Next Task](#next-task)** ? [Post-Launch Stage 8](#post-launch)
+- **[Next Tasks](#-stages-by-status)** ? [Post-Launch](#post-launch)
 
 ### By Stage (Jump to details)
 | Stage | Status | Tasks | Time |
@@ -27,13 +27,6 @@
 | **[Stage 11](#stage-11--comprehensive-audit-fixes--testing)** � Hardening | ? In Progress | 25/30 | 100h |
 | **[Post-Launch](#post-launch)** � Roadmap | ?? Planned | 3/22 | 45h |
 
-### By Topic
-- [??? Security & Auth](#security--auth)
-- [?? Database & Seeding](#database--seeding)
-- [?? User Interface](#user-interface)
-- [?? Platforms](#platforms-web--extension--android)
-- [?? Infrastructure](#infrastructure--testing)
-- [?? Documentation](#documentation)
 
 ---
 
@@ -65,14 +58,6 @@
 3. Stage 9: Complete remaining security hardening (20 tasks)
 
 **Known Issues:** None blocking launch. Pre-launch testing (Stage 7) underway.
-
----
-
-## How to read this document
-
-- `[ ]` � Not started
-- `[x]` � Complete
-- Each completed task includes a ?? note explaining the work in plain English.
 
 ---
 
@@ -133,7 +118,7 @@
 
 ---
 
-## Infrastructure & Scaling Decisions (2026-04-30)
+## Infrastructure & Scaling Decisions
 
 - [x] **DECISION: Upgrade to Supabase Pro ($25/month)** � Free tier storage is maxed (390 MB of 500 MB); Curlie import + remaining seeders require at least 1-2 GB. Cost: $25/month ($300/year). Roadmap: stay on Pro for next 6+ months (enough for ~500M URLs); revisit self-hosted Postgres if storage hits 100 GB. See HOSTING_COSTS.md for full cost analysis and alternatives.
 
@@ -141,7 +126,7 @@
 
 ---
 
-## Documentation Improvements (2026-04-30)
+## Documentation Improvements
 
 - [x] Add API documentation for Supabase Edge Functions and database schema (supabase/README.md or supabase/API.md)
   - ?? Completed in task 11.4 (supabase/API.md created with all 9 functions documented)
@@ -159,13 +144,13 @@ This document lists every task required to ship Roam, organised by stage. As eac
 
 ## How to read this document
 
-- `[ ]` � Not started
-- `[x]` � Complete
-- Each completed task includes a ?? note explaining the work in plain English.
+- `[ ]` -- Not started
+- `[x]` -- Complete
+- Each completed task includes a note explaining the work in plain English.
 
 ---
 
-## Stage 1 � Repository Structure {#stage-1--repository-structure}
+## Stage 1 � Repository Structure
 
 Getting the folder layout in place before writing any real code. A consistent structure means you always know where things live.
 
@@ -183,7 +168,7 @@ Getting the folder layout in place before writing any real code. A consistent st
 
 ---
 
-## Stage 2 � Supabase Project Setup {#stage-2--supabase-project-setup}
+## Stage 2 � Supabase Project Setup
 
 Everything that lives on Supabase's servers. This is the backbone � the database, authentication, and server-side logic that all three surfaces (web, extension, Android) will talk to.
 
@@ -284,7 +269,7 @@ Server-side TypeScript functions that run on Supabase's servers. Each one handle
 
 ---
 
-## Stage 3 � Web Layer {#stage-3--web-layer}
+## Stage 3 � Web Layer
 
 The publicly accessible website. Hosted on Vercel. Serves profile pages, collection pages, onboarding, and the admin panel. Calls Supabase directly for all data � no separate server needed.
 
@@ -342,7 +327,7 @@ The publicly accessible website. Hosted on Vercel. Serves profile pages, collect
 
 ---
 
-## Stage 4 � Content Seeding {#stage-4--content-seeding}
+## Stage 4 � Content Seeding
 
 Filling the discovery pool before launch so that the Roam button has something to return on day one. All sources are free, human-curated APIs or public datasets. No automated crawls or LLM-generated content � human editorial judgment is the quality baseline.
 
@@ -596,7 +581,7 @@ Filling the discovery pool before launch so that the Roam button has something t
 
 ---
 
-## Stage 5 � Browser Extension {#stage-5--browser-extension}
+## Stage 5 � Browser Extension
 
 The Chrome + Firefox extension. Single codebase, Manifest V3. No page injection � everything lives in the popup.
 
@@ -711,7 +696,7 @@ Background worker maintains a prefetch queue to minimize wait times when users c
 
 ---
 
-## Stage 6 � Android App {#stage-6--android-app}
+## Stage 6 � Android App
 
 Kotlin + Jetpack Compose. Full-screen WebView with a persistent bottom bar. Mirrors the extension's controls exactly.
 
@@ -820,7 +805,7 @@ Kotlin + Jetpack Compose. Full-screen WebView with a persistent bottom bar. Mirr
 
 ---
 
-## Stage 7 � Testing & Launch Prep {#stage-7--testing--launch-prep}
+## Stage 7 � Testing & Launch Prep
 
 Final checks before making the app public.
 
@@ -836,7 +821,7 @@ Final checks before making the app public.
 
 ---
 
-## Stage 8 � Infrastructure & Domain {#stage-8--infrastructure--domain}
+## Stage 8 � Infrastructure & Domain
 
 - [x] **8.1** Register `roamtheweb.app` domain on Cloudflare
 - [x] **8.2** Update all codebase URLs from `roam-flame.vercel.app` to `roamtheweb.app` (extension, Android, Supabase config)
@@ -846,7 +831,7 @@ Final checks before making the app public.
 
 ---
 
-## Stage 9 � Pre-Submission Quality & Security Audit (2026-04-30) {#stage-9--pre-submission-quality--security-audit}
+## Stage 9 � Pre-Submission Quality & Security Audit
 
 **Audit Source:** Comprehensive codebase audit covering extension, Android, web, Supabase, documentation, configuration, and deployment readiness. See [docs/AUDIT_REPORT.md](docs/AUDIT_REPORT.md) for full details.
 
@@ -1062,7 +1047,7 @@ Final checks before making the app public.
 
 ---
 
-## Stage 10 � Web App Polish & Bug Fixes {#stage-10--web-app-polish--bug-fixes}
+## Stage 10 � Web App Polish & Bug Fixes
 
 Issues identified by web audit (2026-05-01). Ordered by severity.
 
@@ -1151,7 +1136,7 @@ Issues identified by web audit (2026-05-01). Ordered by severity.
 
 ---
 
-## Stage 11 � Comprehensive Audit Fixes & Testing (2026-05-01) {#stage-11--comprehensive-audit-fixes--testing}
+## Stage 11 � Comprehensive Audit Fixes & Testing
 
 Addressing all findings from the comprehensive codebase audit conducted 2026-05-01. Organized by severity and effort to unblock app store submissions and establish production readiness.
 
@@ -1802,7 +1787,7 @@ These must be completed before any app store submission or launch is possible.
 
 ---
 
-## Post-Launch (after first users) {#post-launch}
+## Post-Launch
 
 These tasks are not required for launch but should be completed before Roam has significant traffic.
 
@@ -1934,7 +1919,7 @@ These tasks are not required for launch but should be completed before Roam has 
 
 ---
 
-## Audit Findings Follow-Up (from 2026-05-01 codebase audit) {#audit-findings-follow-up}
+## Audit Findings Follow-Up
 
 These tasks are derived from the comprehensive codebase audit conducted 2026-05-01. Most critical findings are already addressed in Stage 11; these are minor items and documentation enhancements.
 
