@@ -88,7 +88,7 @@ chrome.runtime.onMessage.addListener(
       .then(sendResponse)
       .catch((err: Error) => {
         Sentry.captureException(err, {
-          extra: { messageType: (message as any).type },
+          extra: { messageType: message.type },
           tags: { context: 'background-dispatch' },
         });
         sendResponse({ ok: false, error: err.message });
@@ -126,40 +126,30 @@ async function _dispatch(req: Request): Promise<Response> {
     case 'SIGN_IN_GOOGLE':      return signInWithGoogle();
     case 'SIGN_IN_GITHUB':      return signInWithGitHub();
     case 'SIGN_IN_EMAIL': {
-      const { email, password } = req as any;
-      if (typeof email !== 'string' || typeof password !== 'string') {
-        return { ok: false, error: 'Invalid email or password format' };
-      }
+      // TypeScript narrows req type to { type: 'SIGN_IN_EMAIL'; email: string; password: string }
+      const { email, password } = req;
       return signInWithEmail(email, password);
     }
     case 'SIGN_UP_EMAIL': {
-      const { email, password } = req as any;
-      if (typeof email !== 'string' || typeof password !== 'string') {
-        return { ok: false, error: 'Invalid email or password format' };
-      }
+      // TypeScript narrows req type to { type: 'SIGN_UP_EMAIL'; email: string; password: string }
+      const { email, password } = req;
       return signUpWithEmail(email, password);
     }
     case 'GET_CATEGORIES':      return getCategories();
     case 'GET_USER_CATEGORIES': return getUserCategories();
     case 'SET_USER_CATEGORIES': {
-      const { categoryIds } = req as any;
-      if (!Array.isArray(categoryIds)) {
-        return { ok: false, error: 'categoryIds must be an array' };
-      }
+      // TypeScript narrows req type to { type: 'SET_USER_CATEGORIES'; categoryIds: string[] }
+      const { categoryIds } = req;
       return setUserCategories(categoryIds);
     }
     case 'EXCHANGE_CODE': {
-      const { code } = req as any;
-      if (typeof code !== 'string') {
-        return { ok: false, error: 'Invalid code format' };
-      }
+      // TypeScript narrows req type to { type: 'EXCHANGE_CODE'; code: string }
+      const { code } = req;
       return exchangeCode(code);
     }
     case 'SAVE_SESSION': {
-      const { accessToken, refreshToken } = req as any;
-      if (typeof accessToken !== 'string' || typeof refreshToken !== 'string') {
-        return { ok: false, error: 'Invalid session tokens' };
-      }
+      // TypeScript narrows req type to { type: 'SAVE_SESSION'; accessToken: string; refreshToken: string }
+      const { accessToken, refreshToken } = req;
       return saveSession(accessToken, refreshToken);
     }
     case 'SIGN_OUT':            return signOut();
@@ -177,18 +167,14 @@ async function _dispatch(req: Request): Promise<Response> {
     case 'ADD_URL_TO_COLLECTION': return addUrlToCollection(req.url, req.collectionId);
     case 'GET_QUEUE_STATE':     return getQueueState();
     case 'SEND_FEEDBACK': {
-      const { message, email, platform } = req as any;
-      if (typeof message !== 'string') {
-        return { ok: false, error: 'message is required' };
-      }
+      // TypeScript narrows req type to { type: 'SEND_FEEDBACK'; message: string; email?: string; platform: string }
+      const { message, email, platform } = req;
       return sendFeedback(message, email, platform);
     }
     case 'REPORT_URL':      return reportUrl(req.url_id);
     case 'REFRESH_CATEGORIES': {
-      const { categoryIds } = req as any;
-      if (!Array.isArray(categoryIds)) {
-        return { ok: false, error: 'categoryIds must be an array' };
-      }
+      // TypeScript narrows req type to { type: 'REFRESH_CATEGORIES'; categoryIds: string[] }
+      const { categoryIds } = req;
       return refreshCategories(categoryIds);
     }
     default:                    return { ok: false, error: 'Something went wrong. Please try again.' };
@@ -495,15 +481,20 @@ async function roam(collectionId?: string): Promise<Response<RoamData>> {
 
   if (error) {
     // FunctionsHttpError carries the raw Response on .context
-    const status: number | undefined = (error as any).context?.status;
+    const status = (error as { context?: { status?: number } }).context?.status;
     if (status === 404) {
       // Pool exhausted for this user's settings — signal "no results"
       return { ok: true, data: { url: '' } as RoamData };
     }
     // Try to surface the actual error body before falling back to generic message
     try {
-      const body = await (error as any).context?.json?.();
-      if (body?.error) return { ok: false, error: body.error };
+      const json = (error as { context?: { json?: () => Promise<unknown> } }).context?.json;
+      if (typeof json === 'function') {
+        const body = await json();
+        if ((body as { error?: string }).error) {
+          return { ok: false, error: (body as { error: string }).error };
+        }
+      }
     } catch { /* ignore parse errors */ }
     return { ok: false, error: error.message };
   }
