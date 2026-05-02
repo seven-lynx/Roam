@@ -92,11 +92,16 @@ Load the unpacked extension from `extension/dist/` in Chrome, or `extension/dist
 **After completing any task:**
 1. Summarize what was done in 2–3 sentences.
 2. Add an entry to `ROADMAP.md` or `CONTEXT.md` as appropriate.
-3. **Update ROADMAP.md tallies** any time a task is marked complete or a new task is added. The tallies appear in four places — all must be kept in sync:
-   - **Nav table** (top of file): `Tasks` column per stage (e.g. `16/36`)
-   - **Stages by Status** section: done/total count per stage
-   - **Project Progress table**: per-category counts and the overall `X / Y tasks (Z%)` headline
-   - **Executive Summary**: bullet points describing completion state and remaining task counts
+3. **Update ROADMAP.md tallies** any time a task is marked complete or a new task is added. The tallies appear in **four places** — all must be kept in sync. Use PowerShell `.Replace()` (not `replace_string_in_file`) because ROADMAP.md contains U+FFFD characters that break the tool:
+
+   | Location | Example string to find & replace |
+   |---|---|
+   | **Nav table** — `Tasks` column of the stage row near top of file | `\| **[Stage 9(...)]** — Security Audit \| ⏳ In Progress \| 28/37 \| 60h \|` |
+   | **Project Progress headline** — inside `## Project Progress` | `**Overall Completion: 213 / 301 tasks (71%)**` |
+   | **Project Progress table row** — per-category row | `\| Security & Quality (Stage 9) \| 28 \| 37 \| 76% \|` |
+   | **Stages by Status** — under `## Stages by Status` | `- Stage 9 (Security Audit): 28/37 tasks` |
+
+   The nav table rows use full markdown links — do **not** assume plain text; copy the exact anchor text from the file.
 
    Recount by running:
    ```powershell
