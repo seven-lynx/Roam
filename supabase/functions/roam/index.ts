@@ -13,7 +13,7 @@ const env = validateRequired([
   'SUPABASE_ANON_KEY',
 ])
 
-Deno.serv e(async (req) => {
+Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return json('ok', 200)
   }
@@ -50,24 +50,15 @@ Deno.serv e(async (req) => {
   })
 
   if (error) {
-    console.error('RPC error:', {
-      message: error.message,
-      code: error.code,
-      details: (error as any).details,
-      hint: (error as any).hint,
-    })
-    return json({ error: `RPC failed: ${error.message}` }, 500)
+    console.error('roam RPC error', { code: error.code })
+    return json({ error: 'Discovery failed. Please try again.' }, 500)
   }
 
   // roam() returns a table — data is an array; take the first row.
-  console.log('RPC returned:', { data_type: typeof data, is_array: Array.isArray(data), length: Array.isArray(data) ? data.length : 'N/A' })
   const row = Array.isArray(data) ? data[0] : null
   if (!row) {
-    console.log('No row found from RPC')
     return json({ error: 'No more URLs to discover' }, 404)
   }
-
-  console.log('Returning URL:', { id: row.id, url: row.url })
 
   return json({
     id:            row.id,
