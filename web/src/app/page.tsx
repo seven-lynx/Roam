@@ -54,7 +54,14 @@ export default async function Home() {
               Click the roam button while browsing to discover new pages. Rate pages with 👍👎 to personalize your recommendations.
             </p>
             <div className="flex gap-2 mt-auto">
-              <span className="text-zinc-400 text-sm">Chrome (coming soon)</span>
+              <a
+                href="https://chromewebstore.google.com/detail/ojgphkdgkefokhjnojkddhalnlbajfpc?utm_source=item-share-cb"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-blue-600 hover:underline text-sm font-semibold"
+              >
+                Chrome →
+              </a>
               <a
                 href="https://addons.mozilla.org/firefox/addon/roam-the-web/"
                 target="_blank"
