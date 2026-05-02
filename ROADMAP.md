@@ -930,7 +930,7 @@ Final checks before making the app public.
   - **Severity:** MEDIUM — UX polish
   - **Effort:** 4�6 hours
 
-- [ ] **9.14** Validate environment variables at startup across all services — currently services load env vars without checking if they're set; add validation helper that throws on missing critical vars; prevents silent failures in misconfigured deploys
+- [x] **9.14** Validate environment variables at startup across all services — currently services load env vars without checking if they're set; add validation helper that throws on missing critical vars; prevents silent failures in misconfigured deploys
   - **Severity:** MEDIUM — operational safety
   - **Effort:** 1 hour
 
@@ -1003,7 +1003,7 @@ Final checks before making the app public.
   - **Files:** `extension/src/lib/queueManager.ts`
   - Added `Sentry.captureException(error, { tags: { context: 'refill-queue' } })` to `refillQueue`'s catch block. All three error paths in the queue manager now report to Sentry.
 
-- [ ] **9.28** Replace unsafe `(req as any)` type casts in background.ts — the extension's message handler casts request objects to `any` without runtime validation, allowing undefined values to propagate into functions; add a discriminated-union message type and validate at the handler boundary
+- [x] **9.28** Replace unsafe `(req as any)` type casts in background.ts — the extension's message handler casts request objects to `any` without runtime validation, allowing undefined values to propagate into functions; add a discriminated-union message type and validate at the handler boundary
   - **Severity:** MEDIUM
   - **Files:** `extension/src/background/background.ts` (L124�129)
 
