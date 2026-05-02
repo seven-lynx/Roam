@@ -1,6 +1,5 @@
 # ── Dev-facing docs (internal only; not for end users) ──────────────────────
 PLANNING.md
-TASKS.md
 CONTEXT.md
 docs/
 android/TESTING.md
@@ -8,6 +7,9 @@ extension/TESTING.md
 web/TESTING.md
 web/AGENTS.md
 web/CLAUDE.md
+
+# ── Tracked public roadmap / planning ────────────────────────────────────────
+# ROADMAP.md is tracked and published for contributors
 
 # ── Environment / secrets ────────────────────────────────────────────────────
 .env
