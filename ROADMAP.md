@@ -15,17 +15,17 @@
 | Stage | Status | Tasks | Time |
 |-------|--------|-------|------|
 | **[Stage 1](#stage-1--repository-structure)** — Repository | ✅ Done | 3/3 | 2h |
-| **[Stage 2](#stage-2--supabase-project-setup)** — Backend | ✅ Done | 27/27 | 40h |
-| **[Stage 3](#stage-3--web-layer)** — Web App | ✅ Done | 11/11 | 30h |
-| **[Stage 4](#stage-4--content-seeding)** — Content | ✅ Done | 43/43 | 120h |
-| **[Stage 5](#stage-5--browser-extension)** — Extension | ✅ Done | 19/19 | 80h |
-| **[Stage 6](#stage-6--android-app)** — Mobile | ✅ Done | 25/25 | 100h |
+| **[Stage 2](#stage-2--supabase-project-setup)** — Backend | ✅ Done | 38/38 | 40h |
+| **[Stage 3](#stage-3--web-layer)** — Web App | ✅ Done | 11/14 | 30h |
+| **[Stage 4](#stage-4--content-seeding)** — Content | ✅ Done | 39/61 | 120h |
+| **[Stage 5](#stage-5--browser-extension)** — Extension | ✅ Done | 26/26 | 80h |
+| **[Stage 6](#stage-6--android-app)** — Mobile | ⏳ In Progress | 26/29 | 100h |
 | **[Stage 7](#stage-7--testing--launch-prep)** — QA | ⏳ In Progress | 0/9 | 20h |
 | **[Stage 8](#stage-8--infrastructure--domain)** — Deployment | ✅ Done | 5/5 | 8h |
-| **[Stage 9](#stage-9--pre-submission-quality--security-audit)** — Security Audit | ⏳ In Progress | 20/35 | 60h |
-| **[Stage 10](#stage-10--web-app-polish--bug-fixes)** — Polish | ✅ Done | 6/21 | 15h |
-| **[Stage 11](#stage-11--comprehensive-audit-fixes--testing)** — Hardening | ✅ Done | 30/30 | 100h |
-| **[Post-Launch](#post-launch)** — Roadmap | 📋 Planned | 9/9 | 45h |
+| **[Stage 9](#stage-9--pre-submission-quality--security-audit)** — Security Audit | ⏳ In Progress | 16/36 | 60h |
+| **[Stage 10](#stage-10--web-app-polish--bug-fixes)** — Polish | ⏳ In Progress | 6/21 | 15h |
+| **[Stage 11](#stage-11--comprehensive-audit-fixes--testing)** — Hardening | ⏳ In Progress | 25/30 | 100h |
+| **[Post-Launch](#post-launch)** — Roadmap | 📋 Planned | 3/22 | 45h |
 
 ### By Topic
 - [🛡️ Security & Auth](#security--auth)
@@ -42,9 +42,12 @@
 **Roam Status:** 🟢 **All critical functionality implemented.** Code compiles, tests pass, all platform builds verified.
 
 **Completion:** 
-- ✅ **Stages 1–6, 8, 10–11:** Fully complete (120+ tasks)
-- ⏳ **Stage 7 & 9 remaining:** Testing, final audit fixes (20 tasks)
-- 📋 **Post-Launch:** Roadmap ready (algorithm improvements + features)
+- ✅ **Stages 1, 2, 5, 8:** Fully complete (72 tasks)
+- 🔧 **Stages 3, 4:** Core complete; 25 enhancement/seeder tasks planned (optional)
+- ⏳ **Stage 6:** Android Play Store submission pending (3 tasks: 6.17–6.19)
+- ⏳ **Stages 7 & 9:** Testing and security hardening (29 tasks remaining)
+- ⏳ **Stages 10 & 11:** Web polish and hardening (36 tasks remaining)
+- 📋 **Post-Launch:** Roadmap ready (19 tasks planned)
 
 **Major Milestones (Completed May 1, 2026):**
 - ✅ Supabase backend with 11 tables, 15+ RLS policies, 9 Edge Functions
@@ -57,9 +60,9 @@
 - ✅ 59+ tests across all platforms with 30%+ coverage on critical paths
 
 **Immediate Next Steps:**
-1. Stage 7: Finalize end-to-end testing (7 test cases)
-2. Stage 9: Complete remaining security hardening (5 tasks)
-3. Post-Launch: Pool quality (8.1–8.3), peer serendipity (8.8)
+1. Stage 6: Submit Android app to Google Play Store (6.17–6.19)
+2. Stage 7: Finalize end-to-end testing (9 tasks)
+3. Stage 9: Complete remaining security hardening (20 tasks)
 
 **Known Issues:** None blocking launch. Pre-launch testing (Stage 7) underway.
 
@@ -75,14 +78,15 @@
 
 ## 🎯 Project Progress
 
-**Overall Completion: 155 / 185 tasks (84%)**
+**Overall Completion: 199 / 295 tasks (67%)**
 
 | Category | Complete | Total | % |
 |----------|----------|-------|-----|
-| Pre-launch (Stages 1–11) | 120 | 130 | 92% |
+| Core Launch (Stages 1–6, 8) | 149 | 177 | 84% |
 | Testing & QA (Stage 7) | 0 | 9 | 0% |
-| Store Submissions (Stage 9.10+) | 5 | 10 | 50% |
-| Post-launch (Stage 8+) | 0 | 37 | 0% |
+| Security & Quality (Stage 9) | 16 | 36 | 44% |
+| Web Polish & Hardening (Stages 10–11) | 31 | 51 | 61% |
+| Post-Launch Roadmap | 3 | 22 | 14% |
 
 **Time invested: 400+ hours**
 
@@ -92,18 +96,18 @@
 
 ### ✅ Complete & Tested
 - Stage 1 (Repository): 3/3 tasks ✅
-- Stage 2 (Supabase): 27/27 tasks ✅
-- Stage 3 (Web): 11/11 tasks ✅
-- Stage 4 (Seeding): 43/43 tasks ✅
-- Stage 5 (Extension): 19/19 tasks ✅
-- Stage 6 (Android): 25/25 tasks ✅
+- Stage 2 (Supabase): 38/38 tasks ✅
+- Stage 3 (Web): 11/14 tasks ✅ *(3 admin enhancement tasks planned)*
+- Stage 4 (Seeding): 39/61 tasks ✅ *(22 optional seeders planned)*
+- Stage 5 (Extension): 26/26 tasks ✅
 - Stage 8 (Infrastructure): 5/5 tasks ✅
-- Stage 10 (Web Polish): 6/21 tasks ✅
-- Stage 11 (Hardening): 30/30 tasks ✅
 
 ### ⏳ In Progress
+- Stage 6 (Android): 26/29 tasks *(Play Store submission: 6.17–6.19)*
 - Stage 7 (Testing): 0/9 tasks
-- Stage 9 (Security Audit): 20/35 tasks
+- Stage 9 (Security Audit): 16/36 tasks
+- Stage 10 (Web Polish): 6/21 tasks
+- Stage 11 (Hardening): 25/30 tasks
 
 ### 📋 Post-Launch Roadmap
 - Pool quality (8.1–8.3): wilson floor, broken link reporting, dead-link cleanup scripts
@@ -123,8 +127,8 @@
 5. ✅ Safe Browsing hardening
 
 **Upcoming (Stage 7):**
-1. End-to-end testing (7 scenarios)
-2. Store submission (3 platforms)
+1. End-to-end testing (9 tasks: 7.1–7.9)
+2. Android Play Store submission (6.17–6.19)
 3. Launch coordination
 
 ---
