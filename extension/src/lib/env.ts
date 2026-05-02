@@ -72,10 +72,3 @@ export function validateEnvironment(): ExtensionEnv {
 
   return { SUPABASE_URL, SUPABASE_ANON_KEY, SENTRY_DSN };
 }
-
-// Validate at module load
-export const env = validateEnvironment();
-
-export function getEnv() {
-  return env;
-}

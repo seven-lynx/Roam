@@ -1,33 +1,21 @@
-// background.ts — Roam extension background service worker (task 5.6 / 5.7)
+﻿// background.ts — Roam extension background service worker
 //
-// Lifecycle: Chrome may terminate and restart this SW at any time.
-// The Supabase client is created fresh on each activation; the auth session
-// is rehydrated automatically from chrome.storage.local by the custom
-// storage adapter in src/lib/supabase.ts.
+// Event-driven only. No background loops.
+// Chrome may terminate and restart this SW at any time.
+// The Supabase client rehydrates its session from chrome.storage.local automatically.
 
-import { Sentry } from '../lib/sentry'; // must be first — initialises Sentry if SENTRY_DSN is set
-import { validateEnvironment } from '../lib/env'; // validate env vars immediately after Sentry
-validateEnvironment(); // will throw if validation fails
-import type { Request, Response, StateData, RoamData, CheckUrlData, QueueState, Collection, CategoryItem, ProfileData } from '../lib/messages';
+import { Sentry } from '../lib/sentry';
+import { validateEnvironment } from '../lib/env';
+import type { Request, Response, StateData, RoamData, CheckUrlData, Collection, CategoryItem, ProfileData } from '../lib/messages';
 import { getSupabase, clearAuthStorage } from '../lib/supabase';
 import { FALLBACK_CATEGORIES } from '../lib/constants';
 
 declare const __SUPABASE_URL__: string;
-import {
-  popHotUrl,
-  popAnyUrl,
-  clearQueue,
-  sendFailedUrlBatch,
-} from '../lib/queue';
-import {
-  initializeQueueManagement,
-  cleanupOnSignOut,
-  updateCategoryFilter,
-  getQueueStats,
-  fetchFreshUrls as queueFetchFreshUrls,
-} from '../lib/queueManager';
 
-// ── URL normaliser (mirrors the Edge Function's normalizeUrl) ────────────────
+// Validate env vars at SW startup. Throws (crashing the SW with a clear message) if missing.
+validateEnvironment();
+
+// ── URL normaliser ────────────────────────────────────────────────────────────
 function normalizeUrl(raw: string): string | null {
   try {
     const u = new URL(raw);
@@ -35,337 +23,110 @@ function normalizeUrl(raw: string): string | null {
     u.protocol = 'https:';
     u.hostname = u.hostname.toLowerCase();
     if (u.hostname.startsWith('www.')) u.hostname = u.hostname.slice(4);
-    const STRIP = ['utm_source','utm_medium','utm_campaign','utm_term','utm_content',
-                   'fbclid','gclid','mc_cid','mc_eid','ref'];
+    const STRIP = ['utm_source','utm_medium','utm_campaign','utm_term','utm_content','fbclid','gclid','mc_cid','mc_eid','ref'];
     STRIP.forEach((p) => u.searchParams.delete(p));
     u.hash = '';
     if (u.pathname !== '/' && u.pathname.endsWith('/')) u.pathname = u.pathname.slice(0, -1);
     return u.toString();
-  } catch {
-    return null;
-  }
+  } catch { return null; }
 }
 
-// ── Domain extraction helper ──────────────────────────────────────────────────
 function getDomain(url: string): string | null {
   try {
     const u = new URL(url);
     let domain = u.hostname.toLowerCase();
     if (domain.startsWith('www.')) domain = domain.slice(4);
     return domain;
-  } catch {
-    return null;
-  }
+  } catch { return null; }
 }
 
-// ── Global error capture ───────────────────────────────────────────────────
-// Service worker context: use self.addEventListener (no window).
-// These catch any thrown error or unhandled promise rejection that slips
-// past a try/catch — including queueManager background loops.
+// ── Global error capture ──────────────────────────────────────────────────────
 self.addEventListener('unhandledrejection', (event) => {
-  Sentry.captureException(
-    (event as PromiseRejectionEvent).reason ?? new Error('Unhandled promise rejection'),
-    { tags: { context: 'sw-unhandledrejection' } }
-  );
+  Sentry.captureException((event as PromiseRejectionEvent).reason ?? new Error('Unhandled promise rejection'), { tags: { context: 'sw-unhandledrejection' } });
 });
 self.addEventListener('error', (event) => {
   const e = event as ErrorEvent;
-  Sentry.captureException(
-    e.error ?? new Error(e.message || 'Unknown SW error'),
-    { tags: { context: 'sw-error' } }
-  );
+  Sentry.captureException(e.error ?? new Error(e.message || 'Unknown SW error'), { tags: { context: 'sw-error' } });
 });
 
-// ── Message router ─────────────────────────────────────────────────────────
-// Keep the SW alive while the popup has an open port connection.
-chrome.runtime.onConnect.addListener((_port) => {
-  // No-op: the open port itself prevents Chrome from terminating the SW.
-});
+// ── Message router ────────────────────────────────────────────────────────────
+chrome.runtime.onConnect.addListener((_port) => { /* keeps SW alive while popup is open */ });
 
 chrome.runtime.onMessage.addListener(
   (message: Request, _sender, sendResponse: (r: Response) => void) => {
-    dispatch(message)
-      .then(sendResponse)
-      .catch((err: Error) => {
-        Sentry.captureException(err, {
-          extra: { messageType: message.type },
-          tags: { context: 'background-dispatch' },
-        });
-        sendResponse({ ok: false, error: err.message });
-      });
-    return true; // keep the message channel open for the async response
+    dispatch(message).then(sendResponse).catch((err: Error) => {
+      Sentry.captureException(err, { extra: { messageType: message.type }, tags: { context: 'background-dispatch' } });
+      sendResponse({ ok: false, error: err.message });
+    });
+    return true;
   }
 );
 
 async function dispatch(req: Request): Promise<Response> {
   const result = await _dispatch(req);
-
-  // Capture unexpected {ok: false} to Sentry so beta errors surface automatically.
-  // Skip expected user-input failures (wrong password, sign-up validation, etc.).
   if (!result.ok) {
-    const expectedUserErrors = new Set<string>([
-      'SIGN_IN_EMAIL',
-      'SIGN_UP_EMAIL',
-      'GET_PROFILE', // Missing profile is expected for users who haven't completed web onboarding
-    ]);
-    if (!expectedUserErrors.has(req.type)) {
-      Sentry.captureMessage(`[bg] ${req.type} failed: ${result.error}`, {
-        level: 'error',
-        tags: { messageType: req.type, context: 'dispatch' },
-        extra: { error: result.error },
-      });
+    const expected = new Set(['SIGN_IN_EMAIL', 'SIGN_UP_EMAIL', 'GET_PROFILE']);
+    if (!expected.has(req.type)) {
+      Sentry.captureMessage(`[bg] ${req.type} failed: ${result.error}`, { level: 'error', tags: { messageType: req.type } });
     }
   }
-
   return result;
 }
 
 async function _dispatch(req: Request): Promise<Response> {
   switch (req.type) {
-    case 'GET_STATE':           return getState();
-    case 'SIGN_IN_GOOGLE':      return signInWithGoogle();
-    case 'SIGN_IN_GITHUB':      return signInWithGitHub();
-    case 'SIGN_IN_EMAIL': {
-      // TypeScript narrows req type to { type: 'SIGN_IN_EMAIL'; email: string; password: string }
-      const { email, password } = req;
-      return signInWithEmail(email, password);
-    }
-    case 'SIGN_UP_EMAIL': {
-      // TypeScript narrows req type to { type: 'SIGN_UP_EMAIL'; email: string; password: string }
-      const { email, password } = req;
-      return signUpWithEmail(email, password);
-    }
-    case 'GET_CATEGORIES':      return getCategories();
-    case 'GET_USER_CATEGORIES': return getUserCategories();
-    case 'SET_USER_CATEGORIES': {
-      // TypeScript narrows req type to { type: 'SET_USER_CATEGORIES'; categoryIds: string[] }
-      const { categoryIds } = req;
-      return setUserCategories(categoryIds);
-    }
-    case 'EXCHANGE_CODE': {
-      // TypeScript narrows req type to { type: 'EXCHANGE_CODE'; code: string }
-      const { code } = req;
-      return exchangeCode(code);
-    }
-    case 'SAVE_SESSION': {
-      // TypeScript narrows req type to { type: 'SAVE_SESSION'; accessToken: string; refreshToken: string }
-      const { accessToken, refreshToken } = req;
-      return saveSession(accessToken, refreshToken);
-    }
-    case 'SIGN_OUT':            return signOut();
-    case 'ROAM':                return roam();
-    case 'ROAM_COLLECTION':     return roamCollection(req.collectionId);
-    case 'ROAM_CATEGORY':       return roamCategory(req.categoryId);
-    case 'RATE':                return rate(req.url_id, req.vote);
-    case 'CHECK_URL':           return checkUrl(req.url);
-    case 'SUBMIT_URL':          return submitUrl(req.url, req.categoryId);
-    case 'SAVE_LATER':          return saveLater(req.url);
-    case 'SET_PAYWALL_PREF':    return setPaywallPref(req.skip);
-    case 'SET_LANGUAGE_PREF':   return setLanguagePref(req.languages);
-    case 'GET_COLLECTIONS':     return getCollections();
-    case 'CREATE_COLLECTION':   return createCollection(req.name);
+    case 'GET_STATE':             return getState();
+    case 'SIGN_IN_GOOGLE':        return signInWithOAuth('google');
+    case 'SIGN_IN_GITHUB':        return signInWithOAuth('github');
+    case 'SIGN_IN_EMAIL':         return signInWithEmail(req.email, req.password);
+    case 'SIGN_UP_EMAIL':         return signUpWithEmail(req.email, req.password);
+    case 'EXCHANGE_CODE':         return exchangeCode(req.code);
+    case 'SAVE_SESSION':          return saveSession(req.accessToken, req.refreshToken);
+    case 'SIGN_OUT':              return signOut();
+    case 'GET_CATEGORIES':        return getCategories();
+    case 'GET_USER_CATEGORIES':   return getUserCategories();
+    case 'SET_USER_CATEGORIES':   return setUserCategories(req.categoryIds);
+    case 'ROAM':                  return roam();
+    case 'ROAM_COLLECTION':       return roamCollection(req.collectionId);
+    case 'ROAM_CATEGORY':         return roamCategory(req.categoryId);
+    case 'RATE':                  return rate(req.url_id, req.vote);
+    case 'CHECK_URL':             return checkUrl(req.url);
+    case 'SUBMIT_URL':            return submitUrl(req.url, req.categoryId);
+    case 'SAVE_LATER':            return saveLater(req.url);
+    case 'SET_PAYWALL_PREF':      return setPaywallPref(req.skip);
+    case 'SET_LANGUAGE_PREF':     return setLanguagePref(req.languages);
+    case 'GET_COLLECTIONS':       return getCollections();
+    case 'CREATE_COLLECTION':     return createCollection(req.name);
     case 'ADD_URL_TO_COLLECTION': return addUrlToCollection(req.url, req.collectionId);
-    case 'GET_QUEUE_STATE':     return getQueueState();
-    case 'SEND_FEEDBACK': {
-      // TypeScript narrows req type to { type: 'SEND_FEEDBACK'; message: string; email?: string; platform: string }
-      const { message, email, platform } = req;
-      return sendFeedback(message, email, platform);
-    }
-    case 'REPORT_URL':      return reportUrl(req.url_id);
-    case 'REFRESH_CATEGORIES': {
-      // TypeScript narrows req type to { type: 'REFRESH_CATEGORIES'; categoryIds: string[] }
-      const { categoryIds } = req;
-      return refreshCategories(categoryIds);
-    }
-    default:                    return { ok: false, error: 'Something went wrong. Please try again.' };
+    case 'GET_PROFILE':           return getProfile();
+    case 'SEND_FEEDBACK':         return sendFeedback(req.message, req.email, req.platform);
+    case 'REPORT_URL':            return reportUrl(req.url_id);
+    case 'REFRESH_CATEGORIES':    return setUserCategories(req.categoryIds);
+    case 'GET_QUEUE_STATE':       return { ok: true, data: { hot_count: 0, warming_count: 0, failed_count: 0, category_filter: [] } };
+    default:                      return { ok: false, error: 'Something went wrong. Please try again.' };
   }
 }
 
-// ── Auth ────────────────────────────────────────────────────────────────────
-
-// Deduplicates concurrent calls — all callers share the same in-flight promise.
-let _initQueuePromise: Promise<void> | null = null;
-
-/**
- * Fetch user's selected categories and initialize queue.
- * Concurrent callers share the same in-flight promise so initialization
- * never runs more than once at a time regardless of call site.
- */
-function initializeQueueIfNeeded(): Promise<void> {
-  if (_initQueuePromise) return _initQueuePromise;
-  _initQueuePromise = _doInitializeQueue().finally(() => {
-    _initQueuePromise = null;
-  });
-  return _initQueuePromise;
-}
-
-async function _doInitializeQueue(): Promise<void> {
-  const session = (await getSupabase().auth.getSession()).data.session;
-  if (!session) return;
-
-  // Check if queue already initialized (has stored state)
-  const stored = await chrome.storage.local.get('url_queue');
-  if (stored.url_queue) return; // Already initialized
-
-  try {
-    // Fetch user's selected categories
-    const { data, error } = await getSupabase()
-      .from('user_categories')
-      .select('category_id')
-      .eq('user_id', session.user.id);
-
-    if (error) {
-      console.error('[roam-bg] Failed to fetch user categories:', error.message);
-      return;
-    }
-
-    const categoryIds = (data || []).map((row: any) => row.category_id);
-    console.log('[roam-bg] Initializing queue with categories:', categoryIds);
-
-    // Initialize queue with user's categories
-    await initializeQueueManagement(categoryIds);
-  } catch (err) {
-    console.error('[roam-bg] Queue initialization error:', err);
-  }
-}
-
+// ── Auth ──────────────────────────────────────────────────────────────────────
 async function getState(): Promise<Response<StateData>> {
   const { data: { session }, error } = await getSupabase().auth.getSession();
-  if (error) {
-    console.error('[roam-bg] Failed to get session:', error.message);
-    return { ok: false, error: error.message };
-  }
-  if (!session) {
-    console.log('[roam-bg] No session found');
-    return { ok: true, data: { signedIn: false } };
-  }
-
-  // Fire-and-forget — queue init makes multiple network calls and must NOT
-  // block the GET_STATE response (would cause SW response timeout).
-  // Concurrent calls are deduplicated inside initializeQueueIfNeeded.
-  initializeQueueIfNeeded().catch((err) => {
-    console.error('[roam-bg] Queue init error:', err);
-    Sentry.captureException(err, { tags: { context: 'queue-init' } });
-  });
-
-  console.log('[roam-bg] Session found:', { email: session.user.email, userId: session.user.id });
-  return {
-    ok: true,
-    data: { signedIn: true, email: session.user.email, userId: session.user.id },
-  };
-}
-
-async function signInWithGoogle(): Promise<Response<StateData>> {
-  const supabase = getSupabase();
-  const redirectTo = chrome.runtime.getURL('callback.html');
-
-  try {
-    const { data, error } = await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: { redirectTo, skipBrowserRedirect: true },
-    });
-    if (error || !data.url) {
-      Sentry.captureException(error || new Error('signInWithOAuth returned no URL'), {
-        tags: { context: 'signInWithGoogle' },
-      });
-      return { ok: false, error: 'Could not open the sign-in page. Please try again.' };
-    }
-    await chrome.tabs.create({ url: data.url });
-    return { ok: true, data: { signedIn: false } };
-  } catch (err) {
-    Sentry.captureException(err, { tags: { context: 'signInWithGoogle' } });
-    return { ok: false, error: 'Could not open the sign-in page. Please try again.' };
-  }
-}
-
-async function exchangeCode(code: string): Promise<Response<StateData>> {
-  console.log('[roam-bg] Exchanging code for session');
-  const supabase = getSupabase();
-  const { error: sessionError } = await supabase.auth.exchangeCodeForSession(code);
-  if (sessionError) {
-    console.error('[roam-bg] Session exchange failed:', sessionError.message);
-    Sentry.captureException(sessionError, { tags: { context: 'exchangeCode' } });
-    return { ok: false, error: sessionError.message };
-  }
-  console.log('[roam-bg] Code exchanged successfully, initializing queue');
-
-  // Fire-and-forget — must not block the auth response.
-  initializeQueueIfNeeded().catch((err) =>
-    console.error('[roam-bg] Queue init error:', err)
-  );
-
-  const state = await getState();
-  console.log('[roam-bg] Final state:', state);
-  return state;
-}
-
-async function saveSession(accessToken: string, refreshToken: string): Promise<Response<StateData>> {
-  console.log('[roam-bg] Saving session from OAuth callback');
-  const supabase = getSupabase();
-  try {
-    const { error: setError } = await supabase.auth.setSession({
-      access_token: accessToken,
-      refresh_token: refreshToken,
-    });
-    if (setError) {
-      console.error('[roam-bg] Failed to set session:', setError.message);
-      return { ok: false, error: setError.message };
-    }
-    console.log('[roam-bg] Session set successfully, initializing queue');
-
-    // Fire-and-forget — must not block the auth response.
-    initializeQueueIfNeeded().catch((err) =>
-      console.error('[roam-bg] Queue init error:', err)
-    );
-
-    const state = await getState();
-    console.log('[roam-bg] Final state:', state);
-    return state;
-  } catch (err) {
-    const message = err instanceof Error ? err.message : 'Unknown error';
-    console.error('[roam-bg] Session save error:', message);
-    return { ok: false, error: message };
-  }
-}
-
-async function signOut(): Promise<Response<StateData>> {
-  // Send any accumulated failed URLs to moderation before signing out
-  try {
-    await sendFailedUrlBatch();
-  } catch (error) {
-    console.error('[roam-bg] Error sending failed URLs during sign-out:', error);
-    Sentry.captureException(error, { tags: { context: 'signout-failed-batch-send' } });
-  }
-
-  // Clean up queue after attempting to send failed URLs
-  await cleanupOnSignOut();
-
-  const { error } = await getSupabase().auth.signOut();
   if (error) return { ok: false, error: error.message };
-  // Explicitly clear all auth storage to prevent auto-restore
-  await clearAuthStorage();
-  return { ok: true, data: { signedIn: false } };
+  if (!session) return { ok: true, data: { signedIn: false } };
+  return { ok: true, data: { signedIn: true, email: session.user.email, userId: session.user.id } };
 }
 
-async function signInWithGitHub(): Promise<Response<StateData>> {
-  const supabase = getSupabase();
+async function signInWithOAuth(provider: 'google' | 'github'): Promise<Response<StateData>> {
   const redirectTo = chrome.runtime.getURL('callback.html');
-
   try {
-    const { data, error } = await supabase.auth.signInWithOAuth({
-      provider: 'github',
-      options: { redirectTo, skipBrowserRedirect: true },
-    });
+    const { data, error } = await getSupabase().auth.signInWithOAuth({ provider, options: { redirectTo, skipBrowserRedirect: true } });
     if (error || !data.url) {
-      Sentry.captureException(error || new Error('signInWithOAuth returned no URL'), {
-        tags: { context: 'signInWithGitHub' },
-      });
+      Sentry.captureException(error || new Error('signInWithOAuth returned no URL'), { tags: { context: `signInWith_${provider}` } });
       return { ok: false, error: 'Could not open the sign-in page. Please try again.' };
     }
     await chrome.tabs.create({ url: data.url });
     return { ok: true, data: { signedIn: false } };
   } catch (err) {
-    Sentry.captureException(err, { tags: { context: 'signInWithGitHub' } });
+    Sentry.captureException(err, { tags: { context: `signInWith_${provider}` } });
     return { ok: false, error: 'Could not open the sign-in page. Please try again.' };
   }
 }
@@ -373,146 +134,116 @@ async function signInWithGitHub(): Promise<Response<StateData>> {
 async function signInWithEmail(email: string, password: string): Promise<Response<StateData>> {
   const { data, error } = await getSupabase().auth.signInWithPassword({ email, password });
   if (error) return { ok: false, error: error.message };
-
-  initializeQueueIfNeeded().catch((err) => console.error('[roam-bg] Queue init error:', err));
-  return {
-    ok: true,
-    data: { signedIn: true, email: data.user?.email, userId: data.user?.id },
-  };
+  return { ok: true, data: { signedIn: true, email: data.user?.email, userId: data.user?.id } };
 }
 
 async function signUpWithEmail(email: string, password: string): Promise<Response<{ needsVerification: boolean }>> {
   const { data, error } = await getSupabase().auth.signUp({ email, password });
   if (error) return { ok: false, error: error.message };
-
-  if (data.session) {
-    // Session created immediately (e.g. email confirmation disabled)
-    initializeQueueIfNeeded().catch((err) => console.error('[roam-bg] Queue init error:', err));
-    return { ok: true, data: { needsVerification: false } };
-  }
-  // Verification email sent — user must confirm before signing in
-  return { ok: true, data: { needsVerification: true } };
+  return { ok: true, data: { needsVerification: !data.session } };
 }
 
-// In-memory cache for categories list (stable, 20-min TTL is just extra safety)
+async function exchangeCode(code: string): Promise<Response<StateData>> {
+  const { error } = await getSupabase().auth.exchangeCodeForSession(code);
+  if (error) { Sentry.captureException(error, { tags: { context: 'exchangeCode' } }); return { ok: false, error: error.message }; }
+  return getState();
+}
+
+async function saveSession(accessToken: string, refreshToken: string): Promise<Response<StateData>> {
+  try {
+    const { error } = await getSupabase().auth.setSession({ access_token: accessToken, refresh_token: refreshToken });
+    if (error) return { ok: false, error: error.message };
+    return getState();
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : 'Unknown error' };
+  }
+}
+
+async function signOut(): Promise<Response<StateData>> {
+  const { error } = await getSupabase().auth.signOut();
+  if (error) return { ok: false, error: error.message };
+  await clearAuthStorage();
+  return { ok: true, data: { signedIn: false } };
+}
+
+// ── Categories ────────────────────────────────────────────────────────────────
 let categoriesCache: { items: CategoryItem[]; fetchedAt: number } | null = null;
 const CATEGORIES_TTL = 20 * 60 * 1000;
 
 async function getCategories(): Promise<Response<CategoryItem[]>> {
   const now = Date.now();
-  if (categoriesCache && now - categoriesCache.fetchedAt < CATEGORIES_TTL) {
-    return { ok: true, data: categoriesCache.items };
-  }
+  if (categoriesCache && now - categoriesCache.fetchedAt < CATEGORIES_TTL) return { ok: true, data: categoriesCache.items };
   try {
-    const { data, error } = await getSupabase()
-      .from('categories')
-      .select('id, name, icon, sort_order')
-      .order('sort_order');
-    if (!error && data && data.length > 0) {
-      categoriesCache = { items: data as CategoryItem[], fetchedAt: now };
-      return { ok: true, data: data as CategoryItem[] };
-    }
-  } catch { /* fall through to fallback */ }
+    const { data, error } = await getSupabase().from('categories').select('id, name, icon, sort_order').order('sort_order');
+    if (!error && data && data.length > 0) { categoriesCache = { items: data as CategoryItem[], fetchedAt: now }; return { ok: true, data: data as CategoryItem[] }; }
+  } catch { /* fall through */ }
   return { ok: true, data: FALLBACK_CATEGORIES };
 }
 
 async function getUserCategories(): Promise<Response<{ categoryIds: string[] }>> {
   const session = (await getSupabase().auth.getSession()).data.session;
-  if (!session) return { ok: false, error: 'You\'re not signed in. Please sign in and try again.' };
-
-  const { data, error } = await getSupabase()
-    .from('user_categories')
-    .select('category_id')
-    .eq('user_id', session.user.id);
-
-  if (error) return { ok: false, error: 'Couldn\'t load your categories. Please try again.' };
+  if (!session) return { ok: false, error: "You're not signed in. Please sign in and try again." };
+  const { data, error } = await getSupabase().from('user_categories').select('category_id').eq('user_id', session.user.id);
+  if (error) return { ok: false, error: "Couldn't load your categories. Please try again." };
   return { ok: true, data: { categoryIds: (data || []).map((r: any) => r.category_id) } };
 }
 
 async function setUserCategories(categoryIds: string[]): Promise<Response<null>> {
   const session = (await getSupabase().auth.getSession()).data.session;
-  if (!session) return { ok: false, error: 'You\'re not signed in. Please sign in and try again.' };
-
-  // Replace all existing categories for this user
-  const { error: delError } = await getSupabase()
-    .from('user_categories')
-    .delete()
-    .eq('user_id', session.user.id);
-  if (delError) return { ok: false, error: 'Couldn\'t save your preferences. Please try again.' };
-
+  if (!session) return { ok: false, error: "You're not signed in. Please sign in and try again." };
+  const { error: delError } = await getSupabase().from('user_categories').delete().eq('user_id', session.user.id);
+  if (delError) return { ok: false, error: "Couldn't save your preferences. Please try again." };
   if (categoryIds.length > 0) {
     const rows = categoryIds.map((id) => ({ user_id: session.user.id, category_id: id }));
-    const { error: insError } = await getSupabase()
-      .from('user_categories')
-      .insert(rows);
-    if (insError) return { ok: false, error: 'Couldn\'t save your preferences. Please try again.' };
+    const { error: insError } = await getSupabase().from('user_categories').insert(rows);
+    if (insError) return { ok: false, error: "Couldn't save your preferences. Please try again." };
   }
-
-  // Refresh queue with new categories
-  await updateCategoryFilter(categoryIds);
   return { ok: true, data: null };
 }
 
-// ── Feature stubs (implemented in tasks 5.8–5.12) ───────────────────────────
-
-async function roam(collectionId?: string): Promise<Response<RoamData>> {
-  // Try hot queue first (instant), then warming queue (DB-verified, skip re-fetch)
-  const queued = await popAnyUrl();
-
-  if (queued) {
-    const newDomain = getDomain(queued.url);
-    if (newDomain) {
-      await chrome.storage.local.set({ lastRoamDomain: newDomain });
-    }
-    return { ok: true, data: queued as RoamData };
-  }
-
-  // Queue is empty, fall back to direct API call
-  // Get the last roamed domain to exclude it
+// ── Roam ──────────────────────────────────────────────────────────────────────
+async function roam(): Promise<Response<RoamData>> {
   const storage = await chrome.storage.local.get('lastRoamDomain');
   const excludeDomain = storage.lastRoamDomain ?? null;
-
   const { data, error } = await getSupabase().functions.invoke('roam', {
-    body: {
-      ...(collectionId ? { collection_id: collectionId } : {}),
-      ...(excludeDomain ? { exclude_domain: excludeDomain } : {}),
-    },
+    body: { ...(excludeDomain ? { exclude_domain: excludeDomain } : {}) },
   });
-
   if (error) {
-    // FunctionsHttpError carries the raw Response on .context
-    const status = (error as { context?: { status?: number } }).context?.status;
-    if (status === 404) {
-      // Pool exhausted for this user's settings — signal "no results"
-      return { ok: true, data: { url: '' } as RoamData };
-    }
-    // Try to surface the actual error body before falling back to generic message
+    const status = (error as any).context?.status;
+    if (status === 404) return { ok: true, data: { url: '' } as RoamData };
     try {
-      const json = (error as { context?: { json?: () => Promise<unknown> } }).context?.json;
-      if (typeof json === 'function') {
-        const body = await json();
-        if ((body as { error?: string }).error) {
-          return { ok: false, error: (body as { error: string }).error };
-        }
-      }
-    } catch { /* ignore parse errors */ }
+      const body = await (error as any).context?.json?.();
+      if ((body as any)?.error) return { ok: false, error: (body as any).error };
+    } catch { /* ignore */ }
     return { ok: false, error: error.message };
   }
   if (data?.error) return { ok: false, error: data.error };
-
-  // Save the domain of the URL we just got for next time
   const newDomain = getDomain(data.url);
-  if (newDomain) {
-    await chrome.storage.local.set({ lastRoamDomain: newDomain });
-  }
-
+  if (newDomain) await chrome.storage.local.set({ lastRoamDomain: newDomain });
   return { ok: true, data: data as RoamData };
 }
 
+async function roamCollection(collectionId: string): Promise<Response<RoamData>> {
+  const { data, error } = await getSupabase().functions.invoke('roam', { body: { collection_id: collectionId } });
+  if (error) return { ok: false, error: error.message };
+  if (data?.error) return { ok: false, error: data.error };
+  const newDomain = getDomain(data.url);
+  if (newDomain) await chrome.storage.local.set({ lastRoamDomain: newDomain });
+  return { ok: true, data: data as RoamData };
+}
+
+async function roamCategory(categoryId: string): Promise<Response<RoamData>> {
+  const { data, error } = await getSupabase().functions.invoke('roam', { body: { category_id: categoryId } });
+  if (error) return { ok: false, error: error.message };
+  if (data?.error) return { ok: false, error: data.error };
+  const newDomain = getDomain(data.url);
+  if (newDomain) await chrome.storage.local.set({ lastRoamDomain: newDomain });
+  return { ok: true, data: data as RoamData };
+}
+
+// ── Rate / Check / Submit ─────────────────────────────────────────────────────
 async function rate(url_id: string, vote: 1 | -1): Promise<Response<null>> {
-  const { data, error } = await getSupabase().functions.invoke('rate', {
-    body: { url_id, value: vote },
-  });
+  const { data, error } = await getSupabase().functions.invoke('rate', { body: { url_id, value: vote } });
   if (error) return { ok: false, error: error.message };
   if (data?.error) return { ok: false, error: data.error };
   return { ok: true, data: null };
@@ -521,294 +252,109 @@ async function rate(url_id: string, vote: 1 | -1): Promise<Response<null>> {
 async function checkUrl(url: string): Promise<Response<CheckUrlData>> {
   const normalized = normalizeUrl(url);
   if (!normalized) return { ok: true, data: { known: false } };
-
-  // Try exact normalized URL first
-  let { data, error } = await getSupabase()
-    .from('urls')
-    .select('id,category_id')
-    .eq('url', normalized)
-    .eq('approved', true)
-    .maybeSingle();
-
+  let { data, error } = await getSupabase().from('urls').select('id,category_id').eq('url', normalized).eq('approved', true).maybeSingle();
   if (error) return { ok: false, error: error.message };
   if (data) return { ok: true, data: { known: true, url_id: data.id as string, category_id: data.category_id ?? undefined } };
-
-  // Fallback: try with trailing slash (in case the stored URL has one)
   const withSlash = normalized.endsWith('/') ? normalized : normalized + '/';
-  ({ data, error } = await getSupabase()
-    .from('urls')
-    .select('id,category_id')
-    .eq('url', withSlash)
-    .eq('approved', true)
-    .maybeSingle());
-
+  ({ data, error } = await getSupabase().from('urls').select('id,category_id').eq('url', withSlash).eq('approved', true).maybeSingle());
   if (error) return { ok: false, error: error.message };
   if (data) return { ok: true, data: { known: true, url_id: data.id as string, category_id: data.category_id ?? undefined } };
-
-  // URL not found in either form
   return { ok: true, data: { known: false } };
 }
 
 async function submitUrl(url: string, categoryId: string): Promise<Response<null>> {
   const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-  if (!categoryId || !UUID_RE.test(categoryId)) {
-    return { ok: false, error: 'Invalid category selection.' };
-  }
-  const { data, error } = await getSupabase().functions.invoke('submit-url', {
-    body: { url, category_id: categoryId },
-  });
+  if (!categoryId || !UUID_RE.test(categoryId)) return { ok: false, error: 'Invalid category selection.' };
+  const { data, error } = await getSupabase().functions.invoke('submit-url', { body: { url, category_id: categoryId } });
   if (error) return { ok: false, error: error.message };
   if (data?.error) return { ok: false, error: data.error };
   return { ok: true, data: null };
 }
 
-async function getQueueState(): Promise<Response<QueueState>> {
-  try {
-    const stats = await getQueueStats();
-    return { ok: true, data: stats };
-  } catch (err) {
-    const message = err instanceof Error ? err.message : 'Unknown error';
-    return { ok: false, error: message };
-  }
-}
-
-async function refreshCategories(categoryIds: string[]): Promise<Response<null>> {
-  try {
-    await updateCategoryFilter(categoryIds);
-    return { ok: true, data: null };
-  } catch (err) {
-    const message = err instanceof Error ? err.message : 'Unknown error';
-    return { ok: false, error: message };
-  }
-}
-
-async function roamCollection(collectionId: string): Promise<Response<RoamData>> {
-  const { data, error } = await getSupabase().functions.invoke('roam', {
-    body: { collection_id: collectionId },
-  });
-
-  if (error) return { ok: false, error: error.message };
-  if (data?.error) return { ok: false, error: data.error };
-
-  // Save the domain of the URL we just got for next time
-  const newDomain = getDomain(data.url);
-  if (newDomain) {
-    await chrome.storage.local.set({ lastRoamDomain: newDomain });
-  }
-
-  return { ok: true, data: data as RoamData };
-}
-
-async function roamCategory(categoryId: string): Promise<Response<RoamData>> {
-  // Determine which categories match this categoryId and roam within them
-  const CATEGORY_ID_MAP: Record<string, string[]> = {
-    // Map category IDs to array of subcategories (or the ID itself)
-    // For now, just roam normally with no filter
-    // In the future, filter the roam() RPC call by category
-  };
-
-  const { data, error } = await getSupabase().functions.invoke('roam', {
-    body: { category_id: categoryId },
-  });
-
-  if (error) return { ok: false, error: error.message };
-  if (data?.error) return { ok: false, error: data.error };
-
-  const newDomain = getDomain(data.url);
-  if (newDomain) {
-    await chrome.storage.local.set({ lastRoamDomain: newDomain });
-  }
-
-  return { ok: true, data: data as RoamData };
-}
-
+// ── Save for later ────────────────────────────────────────────────────────────
 async function saveLater(url: string): Promise<Response<null>> {
-  // Store URL in a local "saved_urls" array for later retrieval
   const storage = await chrome.storage.local.get('saved_urls');
   const saved = (storage.saved_urls || []) as string[];
-  
-  if (!saved.includes(url)) {
-    saved.push(url);
-    await chrome.storage.local.set({ saved_urls: saved });
-  }
-
+  if (!saved.includes(url)) { saved.push(url); await chrome.storage.local.set({ saved_urls: saved }); }
   return { ok: true, data: null };
 }
 
-async function getCollections(): Promise<Response<Collection[]>> {
-  const { data, error } = await getSupabase()
-    .from('collections')
-    .select('id,name,slug,is_public,item_count:collection_items(count)')
-    .eq('user_id', (await getSupabase().auth.getSession()).data.session?.user.id)
-    .order('name');
-
-  if (error) return { ok: false, error: error.message };
-
-  // Transform response to include item_count
-  const collections = (data || []).map((c: any) => ({
-    id: c.id,
-    name: c.name,
-    slug: c.slug,
-    is_public: c.is_public,
-    item_count: Array.isArray(c.item_count) && c.item_count[0]?.count
-      ? c.item_count[0].count
-      : 0,
-  }));
-
-  return { ok: true, data: collections };
-}
-
-async function createCollection(name: string): Promise<Response<Collection>> {
-  const session = (await getSupabase().auth.getSession()).data.session;
-  if (!session) return { ok: false, error: 'You\'re not signed in. Please sign in and try again.' };
-
-  // Create slug from name
-  const slug = name
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-|-$/g, '');
-
-  const { data, error } = await getSupabase()
-    .from('collections')
-    .insert({
-      name,
-      slug,
-      user_id: session.user.id,
-      is_public: false,
-    })
-    .select()
-    .single();
-
-  if (error) return { ok: false, error: error.message };
-
-  return { ok: true, data: {
-    id: data.id,
-    name: data.name,
-    slug: data.slug,
-    is_public: data.is_public,
-    item_count: 0,
-  }};
-}
-
-async function addUrlToCollection(url: string, collectionId: string): Promise<Response<null>> {
-  // First normalize the URL
-  const normalized = normalizeUrl(url);
-  if (!normalized) return { ok: false, error: 'That doesn\'t look like a valid URL.' };
-
-  // Check if URL exists in database
-  const { data: urlData, error: urlError } = await getSupabase()
-    .from('urls')
-    .select('id')
-    .eq('url', normalized)
-    .eq('approved', true)
-    .maybeSingle();
-
-  if (urlError) return { ok: false, error: 'Couldn\'t add to collection. Please try again.' };
-
-  let urlId = urlData?.id;
-
-  if (!urlId) {
-    // URL doesn't exist yet, create it as unapproved
-    const { data: newUrl, error: createError } = await getSupabase()
-      .from('urls')
-      .insert({
-        url: normalized,
-        original_url: normalized,
-        approved: false,
-        source: 'user_submission',
-      })
-      .select('id')
-      .single();
-
-    if (createError) return { ok: false, error: 'Couldn\'t add to collection. Please try again.' };
-    urlId = newUrl.id;
-  }
-
-  // Add to collection
-  const { error: addError } = await getSupabase()
-    .from('collection_items')
-    .insert({
-      collection_id: collectionId,
-      url_id: urlId,
-    });
-
-  if (addError) {
-    // Might fail if already in collection (unique constraint)
-    if (addError.message.includes('unique') || addError.message.includes('duplicate')) {
-      return { ok: true, data: null }; // Already there, that's fine
-    }
-    return { ok: false, error: 'Couldn\'t add to collection. Please try again.' };
-  }
-
-  return { ok: true, data: null };
-}
-
+// ── Preferences ───────────────────────────────────────────────────────────────
 async function setPaywallPref(skip: boolean): Promise<Response<null>> {
   const session = (await getSupabase().auth.getSession()).data.session;
-  if (!session) return { ok: false, error: 'You\'re not signed in. Please sign in and try again.' };
-
+  if (!session) return { ok: false, error: "You're not signed in. Please sign in and try again." };
   await chrome.storage.local.set({ skip_paywalled: skip });
-
-  const { error } = await getSupabase()
-    .from('user_settings')
-    .upsert({ user_id: session.user.id, skip_paywalled: skip }, { onConflict: 'user_id' });
+  const { error } = await getSupabase().from('user_settings').upsert({ user_id: session.user.id, skip_paywalled: skip }, { onConflict: 'user_id' });
   if (error) console.warn('[roam] setPaywallPref DB error:', error.message);
-
-  // Flush queue so cached URLs are not served with the old paywall setting
-  await clearQueue();
-
   return { ok: true, data: null };
 }
 
 async function setLanguagePref(languages: string[]): Promise<Response<null>> {
   const session = (await getSupabase().auth.getSession()).data.session;
-  if (!session) return { ok: false, error: 'You\'re not signed in. Please sign in and try again.' };
-
-  // Must include at least English to avoid an empty pool
+  if (!session) return { ok: false, error: "You're not signed in. Please sign in and try again." };
   const langs = languages.length > 0 ? languages : ['en'];
   await chrome.storage.local.set({ preferred_languages: langs });
-
-  const { error } = await getSupabase()
-    .from('user_settings')
-    .upsert({ user_id: session.user.id, preferred_languages: langs }, { onConflict: 'user_id' });
+  const { error } = await getSupabase().from('user_settings').upsert({ user_id: session.user.id, preferred_languages: langs }, { onConflict: 'user_id' });
   if (error) console.warn('[roam] setLanguagePref DB error:', error.message);
-
-  // Flush queue so cached URLs are not served with the old language setting
-  await clearQueue();
-
   return { ok: true, data: null };
 }
 
+// ── Collections ───────────────────────────────────────────────────────────────
+async function getCollections(): Promise<Response<Collection[]>> {
+  const session = (await getSupabase().auth.getSession()).data.session;
+  if (!session) return { ok: false, error: "You're not signed in. Please sign in and try again." };
+  const { data, error } = await getSupabase().from('collections').select('id,name,slug,is_public,item_count:collection_items(count)').eq('user_id', session.user.id).order('name');
+  if (error) return { ok: false, error: error.message };
+  const collections = (data || []).map((c: any) => ({ id: c.id, name: c.name, slug: c.slug, is_public: c.is_public, item_count: Array.isArray(c.item_count) && c.item_count[0]?.count ? c.item_count[0].count : 0 }));
+  return { ok: true, data: collections };
+}
+
+async function createCollection(name: string): Promise<Response<Collection>> {
+  const session = (await getSupabase().auth.getSession()).data.session;
+  if (!session) return { ok: false, error: "You're not signed in. Please sign in and try again." };
+  const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+  const { data, error } = await getSupabase().from('collections').insert({ name, slug, user_id: session.user.id, is_public: false }).select().single();
+  if (error) return { ok: false, error: error.message };
+  return { ok: true, data: { id: data.id, name: data.name, slug: data.slug, is_public: data.is_public, item_count: 0 } };
+}
+
+async function addUrlToCollection(url: string, collectionId: string): Promise<Response<null>> {
+  const normalized = normalizeUrl(url);
+  if (!normalized) return { ok: false, error: "That doesn't look like a valid URL." };
+  const { data: urlData, error: urlError } = await getSupabase().from('urls').select('id').eq('url', normalized).eq('approved', true).maybeSingle();
+  if (urlError) return { ok: false, error: "Couldn't add to collection. Please try again." };
+  let urlId = urlData?.id;
+  if (!urlId) {
+    const { data: newUrl, error: createError } = await getSupabase().from('urls').insert({ url: normalized, original_url: normalized, approved: false, source: 'user_submission' }).select('id').single();
+    if (createError) return { ok: false, error: "Couldn't add to collection. Please try again." };
+    urlId = newUrl.id;
+  }
+  const { error: addError } = await getSupabase().from('collection_items').insert({ collection_id: collectionId, url_id: urlId });
+  if (addError) {
+    if (addError.message.includes('unique') || addError.message.includes('duplicate')) return { ok: true, data: null };
+    return { ok: false, error: "Couldn't add to collection. Please try again." };
+  }
+  return { ok: true, data: null };
+}
+
+// ── Profile ───────────────────────────────────────────────────────────────────
 async function getProfile(): Promise<Response<ProfileData>> {
   const session = (await getSupabase().auth.getSession()).data.session;
   if (!session) return { ok: false, error: 'Not signed in.' };
-
-  const { data, error } = await getSupabase()
-    .from('profiles')
-    .select('username')
-    .eq('id', session.user.id)
-    .single();
-
+  const { data, error } = await getSupabase().from('profiles').select('username').eq('id', session.user.id).single();
   if (error || !data) return { ok: false, error: 'Profile not found.' };
   return { ok: true, data: { username: data.username } };
 }
 
+// ── Feedback & moderation ─────────────────────────────────────────────────────
 async function sendFeedback(message: string, email: string | undefined, platform: string): Promise<Response<null>> {
   const session = (await getSupabase().auth.getSession()).data.session;
-  const authHeader = session ? `Bearer ${session.access_token}` : undefined;
-
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-  if (authHeader) headers['Authorization'] = authHeader;
-
-  const res = await fetch(`${__SUPABASE_URL__}/functions/v1/feedback`, {
-    method: 'POST',
-    headers,
-    body: JSON.stringify({ message, email: email || undefined, platform }),
-  });
-
+  if (session) headers['Authorization'] = `Bearer ${session.access_token}`;
+  const res = await fetch(`${__SUPABASE_URL__}/functions/v1/feedback`, { method: 'POST', headers, body: JSON.stringify({ message, email: email || undefined, platform }) });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
-    return { ok: false, error: err.error ?? 'Couldn\'t send your feedback. Please try again.' };
+    return { ok: false, error: (err as any).error ?? "Couldn't send your feedback. Please try again." };
   }
   return { ok: true, data: null };
 }
@@ -816,19 +362,10 @@ async function sendFeedback(message: string, email: string | undefined, platform
 async function reportUrl(url_id: string): Promise<Response<null>> {
   const session = (await getSupabase().auth.getSession()).data.session;
   if (!session) return { ok: false, error: 'You must be signed in to report a link.' };
-
-  const res = await fetch(`${__SUPABASE_URL__}/functions/v1/report-url`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${session.access_token}`,
-    },
-    body: JSON.stringify({ url_id }),
-  });
-
+  const res = await fetch(`${__SUPABASE_URL__}/functions/v1/report-url`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` }, body: JSON.stringify({ url_id }) });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
-    return { ok: false, error: err.error ?? 'Couldn\'t report the link. Please try again.' };
+    return { ok: false, error: (err as any).error ?? "Couldn't report the link. Please try again." };
   }
   return { ok: true, data: null };
 }
