@@ -21,6 +21,7 @@ export default function SettingsPage() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [notificationsLoading, setNotificationsLoading] = useState(false);
+  const [deleteLoading, setDeleteLoading] = useState(false);
 
   useEffect(() => {
     // Load dark mode preference from localStorage
@@ -124,17 +125,87 @@ export default function SettingsPage() {
   }
 
   async function handleDeleteAccount() {
-    if (!confirm('Are you absolutely sure? This cannot be undone.')) return;
+    if (!confirm('Are you absolutely sure? This action cannot be undone. All your data will be permanently deleted.')) {
+      return;
+    }
+    if (!confirm('This is your final confirmation. Your account and all data will be deleted.')) {
+      return;
+    }
 
-    setLoading(true);
+    setDeleteLoading(true);
     try {
-      // This should be implemented via an edge function
-      // For now, just sign out and inform user
+      // Get the user session to access auth token
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error('No active session');
+
+      // Call the delete-user Edge Function
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/delete-user`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${session.access_token}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to delete account');
+      }
+
+      // Account deleted successfully, sign out and redirect
+      alert('Your account has been permanently deleted.');
       await supabase.auth.signOut();
-      alert('Please contact legal@roamtheweb.app to complete account deletion');
       router.push('/');
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to delete account');
+      setDeleteLoading(false);
+    }
+  }
+
+  async function handleExportData() {
+    try {
+      setLoading(true);
+      setError(null);
+
+      // Get the user session to access auth token
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error('No active session');
+
+      // Call the export-user Edge Function
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/export-user`,
+        {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${session.access_token}`,
+            'Accept': 'application/json'
+          }
+        }
+      );
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to export data');
+      }
+
+      // Download the JSON file
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `roam-data-export-${new Date().toISOString().split('T')[0]}.json`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+
+      setSuccess('Your data has been downloaded as JSON');
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to export data');
+    } finally {
       setLoading(false);
     }
   }
@@ -234,6 +305,27 @@ export default function SettingsPage() {
 
         {/* Danger zone */}
         <Card className="border-red-200 dark:border-red-900">
+          <h2 className="text-xl font-semibold text-red-600 dark:text-red-400 mb-6">Data & Privacy</h2>
+          <div className="flex flex-col gap-4">
+            <div>
+              <p className="text-sm text-zinc-600 dark:text-zinc-400 mb-2">
+                Download all your data (profile, ratings, collections) as a JSON file. This is your right under GDPR.
+              </p>
+              <button
+                onClick={handleExportData}
+                disabled={loading}
+                className="w-full rounded-lg border border-blue-300 dark:border-blue-700 px-4 py-2 text-blue-600 dark:text-blue-400 font-semibold hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors disabled:opacity-50"
+              >
+                {loading ? 'Exporting...' : 'Download my data'}
+              </button>
+            </div>
+            {error && <div className="text-red-600 dark:text-red-400 text-sm">{error}</div>}
+            {success && <div className="text-green-600 dark:text-green-400 text-sm">{success}</div>}
+          </div>
+        </Card>
+
+        {/* Danger zone */}
+        <Card className="border-red-200 dark:border-red-900 mt-8">
           <h2 className="text-xl font-semibold text-red-600 dark:text-red-400 mb-6">Danger zone</h2>
           <div className="flex flex-col gap-4">
             <button
@@ -242,13 +334,18 @@ export default function SettingsPage() {
             >
               Sign out
             </button>
-            <button
-              onClick={handleDeleteAccount}
-              disabled={loading}
-              className="w-full rounded-lg bg-red-600 text-white font-semibold px-4 py-2 hover:bg-red-700 transition-colors disabled:opacity-50"
-            >
-              Delete account
-            </button>
+            <div>
+              <p className="text-sm text-red-600 dark:text-red-400 mb-2">
+                Permanently delete your account and all associated data. This action cannot be undone.
+              </p>
+              <button
+                onClick={handleDeleteAccount}
+                disabled={deleteLoading}
+                className="w-full rounded-lg bg-red-600 text-white font-semibold px-4 py-2 hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {deleteLoading ? 'Deleting...' : 'Delete account permanently'}
+              </button>
+            </div>
           </div>
         </Card>
       </main>
