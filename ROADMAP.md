@@ -51,7 +51,7 @@
 - ✅ Web app (Next.js) with dashboard, admin panel, onboarding, profile pages
 - ✅ Browser extension (Chrome + Firefox) with queue system, URL prefetching, category filtering
 - ✅ Android app (Kotlin + Compose) with full parity to extension; 500+ lines of UI
-- ✅ 3.04M+ URLs seeded from 26 sources (Wikipedia, Curlie, NASA, NPR, GitHub, arXiv, Reddit, Substack, etc.)
+- ✅ ~1.69M URLs seeded from 26 sources (Wikipedia, Curlie, NASA, NPR, GitHub, arXiv, Reddit, Substack, etc.)
 - ✅ Centralized logging, Sentry error tracking, form validation, admin moderation UI
 - ✅ GitHub Actions CI/CD pipeline with automated tests
 - ✅ 59+ tests across all platforms with 30%+ coverage on critical paths
@@ -360,7 +360,7 @@ Filling the discovery pool before launch so that the Roam button has something t
 | `seed-npr.js` | NPR RSS feeds | none | ✅ 152 rows |
 | `seed-wikivoyage.js` | MediaWiki API | none | ✅ 67,660 rows |
 | `seed-internetarchive.js` | Internet Archive API | none | ✅ 50,966 rows |
-| `seed-curlie.js` | Curlie directory | none | ✅ 2,732,344 extracted, upsert complete — 34 malformed lines skipped, all rows tagged `source = 'curlie'` |
+| `seed-curlie.js` | Curlie directory | none | ✅ ~1,223,391 inserted — 2,732,344 extracted from archive, ~1.5M discarded as unmapped to Roam categories, 34 malformed lines skipped, all rows tagged `source = 'curlie'` |
 | `seed-gutenberg.js` | Gutendex (Project Gutenberg) | none | ✅ 510 rows |
 | `seed-pubmed.js` | NCBI Entrez API | none | ✅ 40,154 rows — 24 MeSH terms, 803 batches (fixed: efetch→esummary + original_url) |
 | `seed-reddit.js` | Reddit public JSON API | none | ✅ 1,549 rows — 35 subreddits across all 8 categories |
@@ -373,9 +373,9 @@ Filling the discovery pool before launch so that the Roam button has something t
 | `seed-bandcamp.js` | Bandcamp internal API | none | ✅ 9,634 rows — 31 genre tags via dig_deeper endpoint |
 | `seed-substack.js` | Substack category API | none | ✅ 14,847 rows — 29 categories, 1 skipped |
 
-**Total rows from complete seeders (excl. Curlie): ~311,000+**
-**Curlie:** 2,732,344 rows extracted, upsert complete
-**Grand total in DB: ~3.04M+**
+**Total rows from complete seeders (excl. Curlie): ~464,000+**
+**Curlie:** ~1,223,391 rows inserted (2,732,344 extracted from archive; ~1.5M discarded as unmapped)
+**Grand total in DB: ~1.69M**
 
 ### 4a. Seeding infrastructure
 
@@ -494,7 +494,7 @@ Filling the discovery pool before launch so that the Roam button has something t
 
 - [x] **4.26** Run the Curlie import pipeline — deduplicate against existing entries, batch insert into `urls` table with `approved = true`
 
-  📖 **What we did:** Executed the Curlie seeder with full resumable checkpointing. **Fixed two critical bugs:** (1) structure file parsing was reading the wrong column — now correctly reads `categoryPath \t categoryId` instead of swapped columns; (2) JSONL file size (500MB+ for 2.7M URLs) was causing memory exhaustion on load — switched to streaming line-by-line with readline. **Additional robustness fixes:** try-catch around `JSON.parse` for malformed lines (34 lines skipped total), retry logic with exponential backoff for transient Supabase errors, and verbose skip-logging suppressed on resume. Extraction: 2,732,344 URLs extracted and cached. Upsert phase: completed successfully across multiple runs with checkpoint resumption. Tags all rows `source = 'curlie'`.
+  📖 **What we did:** Executed the Curlie seeder with full resumable checkpointing. **Fixed two critical bugs:** (1) structure file parsing was reading the wrong column — now correctly reads `categoryPath \t categoryId` instead of swapped columns; (2) JSONL file size (500MB+ for 2.7M URLs) was causing memory exhaustion on load — switched to streaming line-by-line with readline. **Additional robustness fixes:** try-catch around `JSON.parse` for malformed lines (34 lines skipped total), retry logic with exponential backoff for transient Supabase errors, and verbose skip-logging suppressed on resume. Extraction: 2,732,344 URLs extracted and cached from archive. Category mapping: ~1,223,391 matched to Roam's 8 pillars; ~1.5M discarded as unmapped. Upsert phase: completed successfully across multiple runs with checkpoint resumption. Tags all rows `source = 'curlie'`.
 
 - [x] **4.26a** Create `scripts/seed-curlie-fetch-og.js` — background task to fetch missing OG images for Curlie URLs overnight without timeout; resumes from progress file if interrupted
 
