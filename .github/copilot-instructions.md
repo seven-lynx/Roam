@@ -93,6 +93,17 @@ Load the unpacked extension from `extension/dist/` in Chrome, or `extension/dist
 1. Summarize what was done in 2–3 sentences.
 2. Add an entry to `ROADMAP.md` or `CONTEXT.md` as appropriate.
 3. Commit with a clear message (no AI references in commit messages).
+4. After every `git push`, verify CI passed:
+   ```powershell
+   $env:PATH = [System.Environment]::GetEnvironmentVariable("PATH","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("PATH","User")
+   gh run list --limit 2
+   ```
+   If the CI run shows `X` (failure), immediately fetch the failure log and fix it before moving on:
+   ```powershell
+   $id = (gh run list --limit 1 --json databaseId --jq '.[0].databaseId')
+   gh run view $id --log-failed 2>&1 | Select-Object -Last 40
+   ```
+   Note: `gh` and `pnpm` require a refreshed PATH in VS Code's integrated terminal — always prepend the PATH refresh line above before calling either tool.
 
 **Hard rules:**
 - Never create stubs or TODOs without explicit permission.
