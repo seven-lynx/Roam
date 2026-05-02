@@ -422,6 +422,111 @@ CREATE POLICY "Collections visible to owner and followers"
       SELECT 1 FROM follows
       WHERE follows.follower_id = auth.uid()
       AND follows.following_id = collections.user_id
+
+---
+
+## Integration Testing
+
+Integration tests verify that Edge Functions handle request/response contracts correctly and error appropriately.
+
+### Test Coverage
+
+Tests located in `supabase/functions/_tests/integration.test.ts`:
+
+- **roam function:**
+  - Returns single URL when pool has items
+  - Accepts optional collection_id, subcategory_id, exclude_domain parameters
+  - Returns 401 when not authenticated
+  - Returns 404 when pool exhausted
+
+- **rate function:**
+  - Accepts url_id and value (1 or -1)
+  - Validates value is 1 or -1 (rejects other values)
+  - Validates url_id is string UUID
+  - Returns 401 when not authenticated
+
+- **submit-url function:**
+  - Accepts url, title, description, category_id
+  - Requires url parameter (returns 400 if missing or empty)
+  - Enforces rate limit (10 per hour, returns 429)
+  - Checks Safe Browsing (returns 422 for malicious, 503 for API errors)
+  - Returns 401 when not authenticated
+
+- **follow function:**
+  - Handles follow, unfollow, accept, reject actions
+  - Sets is_pending=true for private profiles
+  - Returns 409 if already following
+  - Returns 401 when not authenticated
+
+- **profile function:**
+  - Accepts GET with username query parameter
+  - Returns 400 if username missing
+  - Enforces rate limit (60 per minute per IP)
+  - Returns profile with follower/following counts
+
+- **Cross-function integration:**
+  - User can discover, rate, and submit URLs in single session
+  - User can follow/unfollow other users
+  - All private operations require authentication
+  - Invalid JSON returns 400
+  - HTTP methods validated (POST/GET/OPTIONS)
+  - CORS headers present in all responses
+  - Error responses have consistent format
+
+### Running Tests
+
+**With Mocks (no database required):**
+```bash
+cd supabase/functions
+deno test --allow-net _tests/integration.test.ts
+```
+
+**Against Supabase Local Emulator:**
+```bash
+# Start emulator
+supabase start
+
+# Run tests
+deno test --allow-net --allow-env _tests/integration.test.ts
+```
+
+**Against Staging Project:**
+```bash
+# Set environment
+export SUPABASE_URL="https://staging-project.supabase.co"
+export SUPABASE_ANON_KEY="your-staging-key"
+
+# Run tests
+deno test --allow-net --allow-env _tests/integration.test.ts
+```
+
+### Extending Tests
+
+To add tests for a new function:
+
+1. Create a mock response in the mock Supabase client
+2. Add test cases for:
+   - Success case (happy path)
+   - Authentication failure (401)
+   - Invalid parameters (400)
+   - Rate limit (429, if applicable)
+   - Safe Browsing rejection (422, if applicable)
+   - Database errors (500)
+3. Run tests: `deno test _tests/integration.test.ts`
+
+Example:
+```typescript
+Deno.test("new-function - Does the right thing", async () => {
+  const supabase = createMockSupabaseClient()
+  mockSupabaseState.authenticated = true
+
+  const { data: { user } } = await supabase.auth.getUser()
+  const { data, error } = await supabase.from('table').select('*')
+
+  assertEquals(error, null)
+  assertEquals(data !== null, true)
+})
+```
     )
   );
 ```
