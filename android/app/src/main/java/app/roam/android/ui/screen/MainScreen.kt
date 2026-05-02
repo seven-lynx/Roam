@@ -239,6 +239,7 @@ fun MainScreen(
             onSkipPaywalledChange = { vm.setSkipPaywalled(it) },
             onLanguagesChange = { vm.setPreferredLanguages(it) },
             onRemoveSavedUrl = { url -> vm.removeSavedUrl(url) },
+            onReportBrokenLink = { vm.reportBrokenLink() },
             onSignOut = {
                 vm.closeConfigSheet()
                 onSignOut()

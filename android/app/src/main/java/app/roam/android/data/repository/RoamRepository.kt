@@ -189,4 +189,14 @@ class RoamRepository {
         }
         supabase.functions.invoke("save-url", body = body)
     }
+
+    /**
+     * Reports a URL as broken/dead. Sets urls.inactive = TRUE on the server.
+     */
+    suspend fun reportUrl(urlId: String) {
+        val body = buildJsonObject {
+            put("url_id", urlId)
+        }
+        supabase.functions.invoke("report-url", body = body)
+    }
 }

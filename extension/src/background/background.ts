@@ -182,6 +182,7 @@ async function _dispatch(req: Request): Promise<Response> {
       }
       return sendFeedback(message, email, platform);
     }
+    case 'REPORT_URL':      return reportUrl(req.url_id);
     case 'REFRESH_CATEGORIES': {
       const { categoryIds } = req as any;
       if (!Array.isArray(categoryIds)) {
@@ -819,6 +820,26 @@ async function sendFeedback(message: string, email: string | undefined, platform
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
     return { ok: false, error: err.error ?? 'Couldn\'t send your feedback. Please try again.' };
+  }
+  return { ok: true, data: null };
+}
+
+async function reportUrl(url_id: string): Promise<Response<null>> {
+  const session = (await getSupabase().auth.getSession()).data.session;
+  if (!session) return { ok: false, error: 'You must be signed in to report a link.' };
+
+  const res = await fetch(`${__SUPABASE_URL__}/functions/v1/report-url`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${session.access_token}`,
+    },
+    body: JSON.stringify({ url_id }),
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    return { ok: false, error: err.error ?? 'Couldn\'t report the link. Please try again.' };
   }
   return { ok: true, data: null };
 }

@@ -75,6 +75,7 @@ fun ConfigBottomSheet(
     onSkipPaywalledChange: (Boolean) -> Unit,
     onLanguagesChange: (List<String>) -> Unit,
     onRemoveSavedUrl: (url: String) -> Unit,
+    onReportBrokenLink: () -> Unit,
     onSignOut: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -253,6 +254,17 @@ fun ConfigBottomSheet(
             }
 
             Spacer(modifier = Modifier.height(4.dp))
+
+            TextButton(
+                onClick = onReportBrokenLink,
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
+            ) {
+                Text(
+                    "Report broken link",
+                    color = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
 
             TextButton(
                 onClick = onSignOut,

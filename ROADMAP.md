@@ -1787,16 +1787,9 @@ These tasks are not required for launch but should be completed before Roam has 
 
   📖 **What we did:** Created `supabase/migrations/20260502000003_wilson_score_floor.sql`. Added `AND u.wilson_score > -0.1` to all four candidate-pool WHERE blocks in `roam()` (TABLESAMPLE + ORDER BY fallback in both standard and collection modes). Also added `CHECK (wilson_score >= -1 AND wilson_score <= 1) NOT VALID` constraint to `urls` — `NOT VALID` skips row-by-row validation on the existing 1.69M rows for a fast migration. This is `roam()` v9. Deployed with `supabase db push`.
 
-- [ ] **8.2** Dead link report button — small "Report broken link" action in the URL card's config area near "Send feedback"; one click marks `urls.inactive = true` and immediately skips to the next URL
-  - **Severity:** MEDIUM — fastest quality signal; users already see the bad links
-  - **Effort:** 2 hours
-  - **Files:** `supabase/migrations/20260502000004_url_inactive.sql` (new), `supabase/functions/report-url/index.ts` (new), `web/src/app/dashboard/page.tsx` (update)
-  - **Details:**
-    - Migration: `ALTER TABLE urls ADD COLUMN IF NOT EXISTS inactive BOOLEAN NOT NULL DEFAULT FALSE`; add `AND NOT u.inactive` to all `roam()` candidate branches; index on `(inactive, approved)` for fast filtering
-    - Edge Function `report-url`: authenticates user, validates `url_id`, sets `urls.inactive = TRUE`, logs reporter `user_id` + timestamp to a new `url_reports` table (for future abuse tracking)
-    - UI: small muted "Report broken link" text button placed below the URL card action row, near where "Send feedback" lives on the landing page; no modal needed — single click → `fetch('/functions/v1/report-url')` → skip to next URL with a brief toast "Thanks, we'll remove it"
-    - RLS: `url_reports` insert allowed for authenticated users; `urls.inactive` write allowed only via Edge Function (SECURITY DEFINER)
-  - **Acceptance:** Clicking the button marks the URL inactive, it never appears in discovery again, and the user is served the next URL automatically
+- [x] **8.2** Dead link report button — small "Report broken link" action in the URL card's config area near "Send feedback"; one click marks `urls.inactive = true` and immediately skips to the next URL
+
+  📖 **What we did:** Created `supabase/migrations/20260502000004_url_inactive.sql` adding `urls.inactive BOOLEAN NOT NULL DEFAULT FALSE`, a `url_reports` audit table, and an index on `(inactive, approved)`. Upgraded `roam()` to v10 with `AND NOT u.inactive` in all four candidate branches. Created `supabase/functions/report-url/index.ts` — authenticated POST endpoint that sets `urls.inactive = TRUE` and logs the report; rate-limited to 20/10 min per user. Added `REPORT_URL` message type to `extension/src/lib/messages.ts`, "Report broken link" button to the config panel in `popup.html`, click handler in `popup.ts` (CHECK_URL → REPORT_URL → ROAM → close), and `reportUrl()` in `background.ts`. Android: added `reportUrl()` to `RoamRepository`, `reportBrokenLink()` to `MainViewModel`, `onReportBrokenLink` param to `ConfigBottomSheet`, and wired it in `MainScreen`. Migration pushed and function deployed with `supabase db push` / `supabase functions deploy report-url`.
 
 - [x] **8.3** Set up error monitoring — integrate Sentry (free tier, ~5K errors/month) or enable Supabase Edge Function log alerts; goal is an email notification when an Edge Function throws an unhandled exception in production, rather than discovering failures from user reports
 

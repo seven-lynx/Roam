@@ -218,6 +218,16 @@ class MainViewModel(
         }
     }
 
+    fun reportBrokenLink() {
+        val loaded = _state.value as? RoamState.Loaded ?: return
+        val urlId = loaded.roamUrl.id
+        _showConfigSheet.value = false
+        viewModelScope.launch {
+            runCatching { repo.reportUrl(urlId) }
+            roam(excludeDomain = extractDomain(_currentUrl.value))
+        }
+    }
+
     fun openAddToCollection() {
         viewModelScope.launch {
             runCatching { _collections.value = repo.getCollections() }

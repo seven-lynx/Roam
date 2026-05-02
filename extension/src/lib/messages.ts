@@ -29,7 +29,8 @@ export type Request =
   | { type: 'EXCHANGE_CODE'; code: string }
   | { type: 'SAVE_SESSION'; accessToken: string; refreshToken: string }
   | { type: 'GET_PROFILE' }
-  | { type: 'SEND_FEEDBACK'; message: string; email?: string; platform: string };
+  | { type: 'SEND_FEEDBACK'; message: string; email?: string; platform: string }
+  | { type: 'REPORT_URL'; url_id: string };
 
 export type Response<T = unknown> =
   | { ok: true; data: T }

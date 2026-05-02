@@ -690,6 +690,45 @@ document.addEventListener('DOMContentLoaded', () => {
     showState('signedout');
   });
 
+  // ── Report broken link ────────────────────────────────────────────────────
+  el('btn-report-url').addEventListener('click', async () => {
+    const btn = el<HTMLButtonElement>('btn-report-url');
+    btn.disabled = true;
+    btn.textContent = 'Reporting…';
+
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    const url = tab?.url ?? '';
+
+    if (!url) {
+      btn.disabled = false;
+      btn.textContent = 'Report broken link';
+      return;
+    }
+
+    const check = await sendToBackground<CheckUrlData>({ type: 'CHECK_URL', url });
+    if (!check.ok || !check.data.known || !check.data.url_id) {
+      btn.disabled = false;
+      btn.textContent = 'Report broken link';
+      return;
+    }
+
+    const res = await sendToBackground({ type: 'REPORT_URL', url_id: check.data.url_id });
+    if (!res.ok) {
+      btn.disabled = false;
+      btn.textContent = 'Report broken link';
+      return;
+    }
+
+    // Show confirmation, then roam to the next URL
+    btn.textContent = 'Reported ✓ — skipping…';
+    showPanel(null);
+    const roamRes = await sendToBackground<RoamData>({ type: 'ROAM' });
+    if (!roamRes.ok) { showError(roamRes.error); return; }
+    if (!roamRes.data?.url) { showState('noresults'); return; }
+    if (tab?.id) chrome.tabs.update(tab.id, { url: roamRes.data.url });
+    window.close();
+  });
+
   // ── Feedback ──────────────────────────────────────────────────────────────
   el('btn-send-feedback').addEventListener('click', () => {
     // Reset feedback form
