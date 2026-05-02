@@ -197,10 +197,23 @@ async function _dispatch(req: Request): Promise<Response> {
 
 // ── Auth ────────────────────────────────────────────────────────────────────
 
+// Deduplicates concurrent calls — all callers share the same in-flight promise.
+let _initQueuePromise: Promise<void> | null = null;
+
 /**
- * Fetch user's selected categories and initialize queue
+ * Fetch user's selected categories and initialize queue.
+ * Concurrent callers share the same in-flight promise so initialization
+ * never runs more than once at a time regardless of call site.
  */
-async function initializeQueueIfNeeded(): Promise<void> {
+function initializeQueueIfNeeded(): Promise<void> {
+  if (_initQueuePromise) return _initQueuePromise;
+  _initQueuePromise = _doInitializeQueue().finally(() => {
+    _initQueuePromise = null;
+  });
+  return _initQueuePromise;
+}
+
+async function _doInitializeQueue(): Promise<void> {
   const session = (await getSupabase().auth.getSession()).data.session;
   if (!session) return;
 
@@ -230,9 +243,6 @@ async function initializeQueueIfNeeded(): Promise<void> {
   }
 }
 
-// Guard flag to prevent concurrent queue initializations (issue #8)
-let initQueueInProgress = false;
-
 async function getState(): Promise<Response<StateData>> {
   const { data: { session }, error } = await getSupabase().auth.getSession();
   if (error) {
@@ -246,18 +256,11 @@ async function getState(): Promise<Response<StateData>> {
 
   // Fire-and-forget — queue init makes multiple network calls and must NOT
   // block the GET_STATE response (would cause SW response timeout).
-  // Use a guard flag to prevent concurrent initializations (issue #8)
-  if (!initQueueInProgress) {
-    initQueueInProgress = true;
-    initializeQueueIfNeeded()
-      .catch((err) => {
-        console.error('[roam-bg] Queue init error:', err);
-        Sentry.captureException(err, { tags: { context: 'queue-init' } });
-      })
-      .finally(() => {
-        initQueueInProgress = false;
-      });
-  }
+  // Concurrent calls are deduplicated inside initializeQueueIfNeeded.
+  initializeQueueIfNeeded().catch((err) => {
+    console.error('[roam-bg] Queue init error:', err);
+    Sentry.captureException(err, { tags: { context: 'queue-init' } });
+  });
 
   console.log('[roam-bg] Session found:', { email: session.user.email, userId: session.user.id });
   return {
