@@ -8,13 +8,13 @@ export const metadata: Metadata = { title: 'Profile' };
 export default async function ProfilePage() {
   const supabase = await createClient();
 
-  const { data: { session } } = await supabase.auth.getSession();
-  if (!session) redirect('/join?mode=signin');
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) redirect('/join?mode=signin');
 
   const [profileResult, categoriesResult, userCategoriesResult] = await Promise.all([
-    supabase.from('profiles').select('*').eq('user_id', session.user.id).single(),
+    supabase.from('profiles').select('*').eq('user_id', user.id).single(),
     supabase.from('categories').select('id, name, icon, sort_order').order('sort_order'),
-    supabase.from('user_categories').select('category_id').eq('user_id', session.user.id),
+    supabase.from('user_categories').select('category_id').eq('user_id', user.id),
   ]);
 
   const profile = profileResult.data;
@@ -23,8 +23,8 @@ export default async function ProfilePage() {
 
   return (
     <ProfileClient
-      userId={session.user.id}
-      email={session.user.email ?? ''}
+      userId={user.id}
+      email={user.email ?? ''}
       profile={profile}
       allCategories={allCategories}
       initialCategoryIds={userCategoryIds}

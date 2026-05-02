@@ -5,8 +5,8 @@ import { createClient } from "@/lib/supabase/server";
 
 export default async function Home() {
   const supabase = await createClient();
-  const { data: { session } } = await supabase.auth.getSession();
-  if (session) redirect('/profile');
+  const { data: { user } } = await supabase.auth.getUser();
+  if (user) redirect('/profile');
 
   return (
     <div className="flex flex-col items-center justify-center px-6 py-24 text-center bg-white dark:bg-zinc-950">
