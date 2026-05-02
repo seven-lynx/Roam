@@ -77,6 +77,9 @@ jobs:
       - name: Build extension
         working-directory: ./extension
         run: pnpm build
+        env:
+          SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL || 'https://ci-placeholder.supabase.co' }}
+          SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'ci-placeholder-anon-key' }}
 
       # Scripts layer
       - name: Lint scripts
