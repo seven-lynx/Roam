@@ -170,7 +170,7 @@ Getting the folder layout in place before writing any real code. A consistent st
 
 - [x] **1.2** Add a root `.gitignore` covering Node, Kotlin, and Android build artefacts
 
-  📖 **What we did:** Created `.gitignore` at the repo root covering: `PLANNING.md` and `TASKS.md` (private planning docs, not for public view), `.env` files (secrets), `node_modules/` and `dist/` (Node build outputs), `.next/` (Next.js server output), Supabase CLI temp files, Android Gradle build folders, APK/AAB/keystore files, and common IDE files (`.idea/`, `.vscode/`). Keeping secrets and build artefacts out of Git is basic hygiene — anyone who clones the repo should never find credentials or generated files committed there.
+  📖 **What we did:** Created `.gitignore` at the repo root covering: `PLANNING.md` (private planning docs, not for public view), `.env` files (secrets), `node_modules/` and `dist/` (Node build outputs), `.next/` (Next.js server output), Supabase CLI temp files, Android Gradle build folders, APK/AAB/keystore files, and common IDE files (`.idea/`, `.vscode/`). Keeping secrets and build artefacts out of Git is basic hygiene — anyone who clones the repo should never find credentials or generated files committed there. *(Note: ROADMAP.md is now tracked in version control as a public roadmap for contributors.)*
 
 - [x] **1.4** Add MIT `LICENSE` file to the repository root
 
@@ -1596,7 +1596,7 @@ These must be completed before any app store submission or launch is possible.
     - Only TODO comments found are in:
       - Build artifacts (.next, dist-firefox) — not part of source
       - node_modules dependencies — not our code
-      - TASKS.md and PLANNING.md themselves — expected
+      - ROADMAP.md and PLANNING.md themselves — expected (public roadmap + internal planning)
   - **Status:** Codebase is clean; no spurious TODOs remain. Task complete by prior cleanup work.
 
 - [x] **11.19** Add instrumentation to critical user journeys in Sentry

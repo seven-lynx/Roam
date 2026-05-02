@@ -1,6 +1,6 @@
 # Roam — Rediscover the Web
 
-> One button. Infinite web. Your interests. No algorithms, no feeds, no noise.
+> One button. Infinite web.
 
 Roam is a community-driven web discovery platform that helps you find genuinely interesting pages matched to your interests. Press one button and land on a curated page voted on by real users, not ranked by engagement metrics or algorithmic preference.
 
@@ -379,8 +379,7 @@ roam/
 │   └── resize-icons.ps1      # Icon resizing script
 │
 ├── PLANNING.md               # Long-term roadmap
-├── TASKS.md                  # Current sprint tasks
-├── AUDIT_REPORT.md          # Codebase quality audit
+├── ROADMAP.md                # Public build tasks & progress tracking
 ├── LICENSE                   # MIT license
 └── README.md                # This file
 ```
