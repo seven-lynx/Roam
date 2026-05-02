@@ -559,6 +559,10 @@ async function checkUrl(url: string): Promise<Response<CheckUrlData>> {
 }
 
 async function submitUrl(url: string, categoryId: string): Promise<Response<null>> {
+  const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  if (!categoryId || !UUID_RE.test(categoryId)) {
+    return { ok: false, error: 'Invalid category selection.' };
+  }
   const { data, error } = await getSupabase().functions.invoke('submit-url', {
     body: { url, category_id: categoryId },
   });

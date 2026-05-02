@@ -395,8 +395,9 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // ── Submit unknown URL ────────────────────────────────────────────────────
+  const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
   el('btn-submit').addEventListener('click', async () => {
-    if (!selectedCategory) return;
+    if (!selectedCategory || !UUID_RE.test(selectedCategory)) return;
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     const url = tab?.url ?? '';
     if (!url) return;
