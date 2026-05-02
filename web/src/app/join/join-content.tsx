@@ -158,6 +158,8 @@ export default function JoinPageContent() {
     try {
       const { error: err } = await supabase.auth.signInWithPassword({ email, password });
       if (err) { setError(err.message); return; }
+      // Invalidate the RSC cache so the server re-reads the fresh session cookie.
+      router.refresh();
       router.replace("/profile");
     } catch (err) {
       Sentry.captureException(err, { tags: { context: "email-signin" } });
@@ -213,6 +215,7 @@ export default function JoinPageContent() {
         }
       }
 
+      router.refresh();
       router.replace("/profile");
     } catch (err) {
       Sentry.captureException(err, { tags: { context: "category-selection" } });
