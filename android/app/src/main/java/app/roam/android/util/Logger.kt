@@ -2,6 +2,7 @@ package app.roam.android.util
 
 import android.util.Log
 import io.sentry.Sentry
+import app.roam.android.BuildConfig
 
 /**
  * Centralized logging utility for Roam Android app.
@@ -112,7 +113,7 @@ object Logger {
     val UNSAFE_KEYS = setOf("email", "password", "token", "secret", "userId", "id", "url", "response", "body", "payload", "session")
 
     return context.filter { (key, _) ->
-      val keyLower = key.toLowerCase()
+      val keyLower = key.lowercase()
       UNSAFE_KEYS.none { keyLower.contains(it) } && SAFE_KEYS.any { keyLower.contains(it) }
     }
   }
