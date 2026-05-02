@@ -13,8 +13,8 @@ export function validateEnvironment(): void {
 
   if (!url || !url.startsWith('https://'))
     throw new Error('[roam] SUPABASE_URL is missing or not HTTPS. Set it in the root .env file.');
-  if (!key || key.length < 50)
-    throw new Error('[roam] SUPABASE_ANON_KEY is missing or looks invalid. Set it in the root .env file.');
+  if (!key)
+    throw new Error('[roam] SUPABASE_ANON_KEY is missing. Set it in the root .env file.');
   if (!dsn)
     console.warn('[roam] SENTRY_DSN not set — error reporting disabled.');
 }

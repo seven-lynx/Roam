@@ -353,11 +353,14 @@ document.addEventListener('DOMContentLoaded', () => {
   // ── Roam button ───────────────────────────────────────────────────────────
   el('btn-roam').addEventListener('click', async () => {
     showPanel(null);
-    el<HTMLButtonElement>('btn-roam').disabled = true;
+    const roamBtn = el<HTMLButtonElement>('btn-roam');
+    roamBtn.disabled = true;
+    roamBtn.textContent = 'Roaming…';
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     const res = await sendToBackground<RoamData>({ type: 'ROAM' });
     console.log('[roam-popup] Roam response:', res);
-    el<HTMLButtonElement>('btn-roam').disabled = false;
+    roamBtn.disabled = false;
+    roamBtn.textContent = 'Roam';
     if (!res.ok) { showError(res.error); return; }
     if (!res.data?.url) { showState('noresults'); return; }
     if (tab?.id) chrome.tabs.update(tab.id, { url: res.data.url });
@@ -558,6 +561,7 @@ document.addEventListener('DOMContentLoaded', () => {
       categoryId: check.data.category_id,
     });
     if (!res.ok) { showError(res.error); return; }
+    if (!res.data?.url) { showState('noresults'); return; }
     if (tab?.id) chrome.tabs.update(tab.id, { url: res.data.url });
     window.close();
   });

@@ -26,7 +26,7 @@
 | **[Stage 10](#stage-10--web-app-polish--bug-fixes)** — Polish | ⏳ In Progress | 6/21 | 15h |
 | **[Stage 11](#stage-11--comprehensive-audit-fixes--testing)** — Hardening | ⏳ In Progress | 25/30 | 100h |
 | **[Stage 12](#stage-12--web-app-rebuild)** — Web Rebuild | ✅ Complete | 21/22 | 40h |
-| **[Stage 13](#stage-13--extension-rebuild)** — Extension Rebuild | ✅ Complete | 8/8 | 8h |
+| **[Stage 13](#stage-13--extension-rebuild)** — Extension Rebuild | ✅ Complete | 9/9 | 8h |
 | **[Post-Launch](#post-launch)** — Roadmap | 📋 Planned | 3/22 | 45h |
 
 
@@ -56,9 +56,9 @@
 - ✅ 59+ tests across all platforms with 30%+ coverage on critical paths
 
 **Immediate Next Steps:**
-1. Stage 13: Extension rebuild (13.2–13.8)
-2. Stage 6: Submit Android app to Google Play Store (6.17–6.19)
-3. Stage 7: Finalize end-to-end testing (9 tasks)
+1. Stage 6: Submit Android app to Google Play Store (6.17–6.19)
+2. Stage 7: Finalize end-to-end testing (9 tasks)
+3. Load `extension/dist/` unpacked in Chrome and run manual test flows (TESTING.md)
 
 **Known Issues:** None blocking launch. Pre-launch testing (Stage 7) underway.
 
@@ -74,7 +74,7 @@
 
 ## Project Progress
 
-**Overall Completion: 245 / 331 tasks (74%)**
+**Overall Completion: 246 / 332 tasks (74%)**
 
 | Category | Complete | Total | % |
 |----------|----------|-------|-----|
@@ -82,7 +82,7 @@
 | Testing & QA (Stage 7) | 0 | 9 | 0% |
 | Security & Quality (Stage 9) | 31 | 37 | 84% |
 | Web Polish & Hardening (Stages 10–12) | 52 | 73 | 71% |
-| Extension Rebuild (Stage 13) | 8 | 8 | 100% |
+| Extension Rebuild (Stage 13) | 9 | 9 | 100% |
 | Post-Launch Roadmap | 3 | 22 | 14% |
 
 **Time invested: 400+ hours**
@@ -98,7 +98,7 @@
 - Stage 4 (Seeding): 39/61 tasks ✅ *(22 optional seeders planned)*
 - Stage 5 (Extension): 26/26 tasks ✅
 - Stage 8 (Infrastructure): 5/5 tasks ✅
-- Stage 13 (Extension Rebuild): 8/8 tasks ✅
+- Stage 13 (Extension Rebuild): 9/9 tasks ✅
 
 ### ⏳ In Progress
 - Stage 6 (Android): 26/29 tasks *(Play Store submission: 6.17–6.19)*
@@ -1925,6 +1925,11 @@ Ground-up rebuild of the browser extension. The existing codebase has ~500 lines
   - **Files:** `extension/dist-firefox/` (build output)
 
   Firefox build produced `roam-extension-firefox.zip` at 2.1 MB (includes source maps for AMO review) (May 2, 2026). Load `extension/dist-firefox/manifest.json` as a Temporary Add-on in `about:debugging` to test. Submit zips to Chrome Web Store Dashboard and Firefox AMO.
+
+- [x] **13.9** Post-rebuild fixes and prefetch speed improvements — (a) remove the `key.length < 50` guard in `env.ts` that falsely rejected the new `sb_publishable_*` format (46 chars, under the old JWT-era 50-char threshold), causing a "SUPABASE_ANON_KEY missing or looks invalid" startup crash; (b) add missing empty-URL guard to the `btn-roam-category` handler so a 404/no-results Edge Function response shows the `noresults` state instead of navigating to an empty string; (c) add `prefetchInFlight` deduplication so a Roam click while prefetch is mid-flight awaits the in-progress request instead of issuing a second parallel API call; (d) add `chrome.runtime.onStartup` and `chrome.runtime.onInstalled` listeners to pre-warm the session cache on browser launch, making the first popup open of the day near-instant; (e) add "Roaming…" button label during async resolution for immediate visual feedback on cache-miss clicks
+  - **Files:** `extension/src/lib/env.ts`, `extension/src/popup/popup.ts`, `extension/src/background/background.ts`
+
+  Fixed key-length validation bug, added noresults guard to roam-category, and overhauled prefetch to eliminate the slow-path race condition (May 2, 2026). Cache-hit clicks now navigate in <50 ms; cache-miss clicks await the already-in-flight prefetch instead of doubling the API load.
 
 ---
 

@@ -18,6 +18,11 @@ validateEnvironment();
 const PREFETCH_KEY = 'prefetch';
 const PREFETCH_TTL = 5 * 60 * 1000; // 5 minutes
 
+// Deduplicates concurrent prefetch calls within a single SW activation.
+// If the popup is opened and Roam is clicked before the prefetch completes,
+// roam() awaits this promise instead of issuing a second parallel API call.
+let prefetchInFlight: Promise<void> | null = null;
+
 // ── URL normaliser ────────────────────────────────────────────────────────────
 function normalizeUrl(raw: string): string | null {
   try {
@@ -53,6 +58,10 @@ self.addEventListener('error', (event) => {
 });
 
 // ── Message router ────────────────────────────────────────────────────────────
+// Pre-warm the prefetch cache on browser startup and extension install/update,
+// so the first popup open after a browser restart is already near-instant.
+chrome.runtime.onStartup.addListener(() => { prefetchNext(); });
+chrome.runtime.onInstalled.addListener(() => { prefetchNext(); });
 chrome.runtime.onConnect.addListener((_port) => { prefetchNext(); });
 
 chrome.runtime.onMessage.addListener(
@@ -225,12 +234,16 @@ async function callRoamApi(body: Record<string, unknown> = {}): Promise<Response
 }
 
 async function prefetchNext(): Promise<void> {
-  try {
-    const result = await callRoamApi();
-    if (result.ok && result.data.url) {
-      await chrome.storage.session.set({ [PREFETCH_KEY]: { data: result.data, cachedAt: Date.now() } });
-    }
-  } catch { /* fire-and-forget — never block the popup */ }
+  if (prefetchInFlight) return; // already running — don't double-fetch
+  prefetchInFlight = (async () => {
+    try {
+      const result = await callRoamApi();
+      if (result.ok && result.data.url) {
+        await chrome.storage.session.set({ [PREFETCH_KEY]: { data: result.data, cachedAt: Date.now() } });
+      }
+    } catch { /* never block the popup */ }
+    finally { prefetchInFlight = null; }
+  })();
 }
 
 async function roam(): Promise<Response<RoamData>> {
@@ -241,7 +254,19 @@ async function roam(): Promise<Response<RoamData>> {
     prefetchNext(); // fire-and-forget — restock for next click
     return { ok: true, data: cached.data };
   }
-  return callRoamApi(); // cache miss — live call
+  // Cache miss — if a prefetch is already in flight, await it rather than
+  // issuing a second parallel API call (happens when user clicks Roam fast).
+  if (prefetchInFlight) {
+    await prefetchInFlight;
+    const stored2 = await chrome.storage.session.get(PREFETCH_KEY);
+    const cached2 = stored2[PREFETCH_KEY] as { data: RoamData; cachedAt: number } | undefined;
+    if (cached2 && Date.now() - cached2.cachedAt < PREFETCH_TTL) {
+      await chrome.storage.session.remove(PREFETCH_KEY);
+      prefetchNext();
+      return { ok: true, data: cached2.data };
+    }
+  }
+  return callRoamApi(); // true cache miss — live call
 }
 
 async function roamCollection(collectionId: string): Promise<Response<RoamData>> {
