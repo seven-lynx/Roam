@@ -22,7 +22,7 @@
 | **[Stage 6](#stage-6--android-app)** — Mobile | ⏳ In Progress | 26/29 | 100h |
 | **[Stage 7](#stage-7--testing--launch-prep)** — QA | ⏳ In Progress | 0/9 | 20h |
 | **[Stage 8](#stage-8--infrastructure--domain)** — Deployment | ✅ Done | 5/5 | 8h |
-| **[Stage 9](#stage-9--pre-submission-quality--security-audit)** — Security Audit | ⏳ In Progress | 29/37 | 60h |
+| **[Stage 9](#stage-9--pre-submission-quality--security-audit)** — Security Audit | ⏳ In Progress | 31/37 | 60h |
 | **[Stage 10](#stage-10--web-app-polish--bug-fixes)** — Polish | ⏳ In Progress | 6/21 | 15h |
 | **[Stage 11](#stage-11--comprehensive-audit-fixes--testing)** — Hardening | ⏳ In Progress | 25/30 | 100h |
 | **[Post-Launch](#post-launch)** — Roadmap | 📋 Planned | 3/22 | 45h |
@@ -71,13 +71,13 @@
 
 ## Project Progress
 
-**Overall Completion: 214 / 301 tasks (71%)**
+**Overall Completion: 216 / 301 tasks (72%)**
 
 | Category | Complete | Total | % |
 |----------|----------|-------|-----|
 | Core Launch (Stages 1–6, 8) | 149 | 177 | 84% |
 | Testing & QA (Stage 7) | 0 | 9 | 0% |
-| Security & Quality (Stage 9) | 29 | 37 | 78% |
+| Security & Quality (Stage 9) | 31 | 37 | 84% |
 | Web Polish & Hardening (Stages 10–11) | 31 | 51 | 61% |
 | Post-Launch Roadmap | 3 | 22 | 14% |
 
@@ -98,7 +98,7 @@
 ### ⏳ In Progress
 - Stage 6 (Android): 26/29 tasks *(Play Store submission: 6.17–6.19)*
 - Stage 7 (Testing): 0/9 tasks
-- Stage 9 (Security Audit): 29/37 tasks
+- Stage 9 (Security Audit): 31/37 tasks
 - Stage 10 (Web Polish): 6/21 tasks
 - Stage 11 (Hardening): 25/30 tasks
 
@@ -1007,7 +1007,7 @@ Final checks before making the app public.
   - **Severity:** MEDIUM
   - **Files:** `extension/src/background/background.ts` (L124�129)
 
-- [ ] **9.29** Fix O(n) query pattern in collection add — `supabase/functions/collection/index.ts` issues one query per user collection to check membership; refactor to a single `IN (...)` query or a batch upsert to avoid performance degradation as collection count grows
+- [x] **9.29** Fix O(n) query pattern in collection add — `supabase/functions/collection/index.ts` issues one query per user collection to check membership; refactor to a single `IN (...)` query or a batch upsert to avoid performance degradation as collection count grows
   - **Severity:** MEDIUM
   - **Files:** `supabase/functions/collection/index.ts` (L131�147)
 
@@ -1016,7 +1016,7 @@ Final checks before making the app public.
   - **Files:** `supabase/functions/log-failed-urls/index.ts`
   - Verified: function already uses `Deno.serve(async (req: Request) => {...})` — the correct modern Supabase Deno runtime entry point. No export syntax issues. No changes needed.
 
-- [ ] **9.31** Add response validation in queue manager — `queueManager.ts` adds URLs to the queue without validating the shape of the RPC response; malformed or partial responses could corrupt queue state; add a runtime schema check before inserting into storage
+- [x] **9.31** Add response validation in queue manager — `queueManager.ts` adds URLs to the queue without validating the shape of the RPC response; malformed or partial responses could corrupt queue state; add a runtime schema check before inserting into storage
   - **Severity:** MEDIUM
   - **Files:** `extension/src/lib/queueManager.ts` (L190�200)
 

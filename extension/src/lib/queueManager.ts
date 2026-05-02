@@ -205,32 +205,52 @@ export async function fetchFreshUrls(
       )
     );
 
-    return settled
-      .filter(
-        (r): r is PromiseFulfilledResult<{ data: any; error: any }> =>
-          r.status === "fulfilled" && !r.value.error && r.value.data
-      )
-      .map((r) => ({
-        url: r.value.data.url,
-        title: r.value.data.title,
-        description: r.value.data.description,
-        category_id: r.value.data.category_id,
-        og_image_url: r.value.data.og_image_url,
-      }))
-      .filter((item) => {
-        // Validate URL format: must be a non-empty string and valid URL
-        if (typeof item.url !== "string" || item.url.length === 0) {
-          console.warn("Invalid URL in queue response:", item.url);
-          return false;
-        }
-        try {
-          new URL(item.url);
-          return true;
-        } catch (e) {
-          console.warn("Malformed URL in queue response:", item.url);
-          return false;
-        }
+    const validResponses: Array<{
+      url: string;
+      title?: string;
+      description?: string;
+      category_id?: string;
+      og_image_url?: string;
+    }> = [];
+
+    for (const r of settled) {
+      if (r.status !== "fulfilled" || r.value.error || !r.value.data) continue;
+
+      const d = r.value.data;
+
+      // Runtime schema guard: data must be a plain object with a string url field.
+      if (typeof d !== "object" || d === null || Array.isArray(d)) {
+        console.warn("[roam-bg] Unexpected roam() response shape (not an object):", typeof d);
+        Sentry.captureMessage("roam() returned unexpected data shape", {
+          level: "warning",
+          tags: { context: "queue-response-validation" },
+          extra: { dataType: typeof d },
+        });
+        continue;
+      }
+
+      if (typeof d.url !== "string" || d.url.length === 0) {
+        console.warn("[roam-bg] roam() response missing valid url field:", d.url);
+        continue;
+      }
+
+      try {
+        new URL(d.url);
+      } catch {
+        console.warn("[roam-bg] roam() response has malformed url:", d.url);
+        continue;
+      }
+
+      validResponses.push({
+        url: d.url,
+        title:        typeof d.title       === "string" ? d.title       : undefined,
+        description:  typeof d.description === "string" ? d.description : undefined,
+        category_id:  typeof d.category_id === "string" ? d.category_id : undefined,
+        og_image_url: typeof d.og_image_url === "string" ? d.og_image_url : undefined,
       });
+    }
+
+    return validResponses;
   } catch (error) {
     console.error("Error fetching fresh URLs:", error);
     return [];
