@@ -18,6 +18,8 @@ export default function SettingsPage() {
     return localStorage.getItem('theme') === 'dark';
   });
   const [emailNotifications, setEmailNotifications] = useState(true);
+  const [discoveryMode, setDiscoveryMode] = useState<'discovery' | 'deep_dive'>('discovery');
+  const [discoveryModeLoading, setDiscoveryModeLoading] = useState(false);
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [passwordStrength, setPasswordStrength] = useState<'weak' | 'fair' | 'good' | 'strong'>('weak');
@@ -33,11 +35,12 @@ export default function SettingsPage() {
     try {
       const { data } = await supabase
         .from('user_settings')
-        .select('email_notifications')
+        .select('email_notifications, discovery_mode')
         .eq('user_id', session?.user.id)
         .single();
       if (data) {
         setEmailNotifications(data.email_notifications ?? true);
+        setDiscoveryMode((data.discovery_mode as 'discovery' | 'deep_dive') ?? 'discovery');
       }
     } catch (e) {
       // Settings may not exist yet, use default
@@ -84,6 +87,21 @@ export default function SettingsPage() {
       console.error('Failed to update notification settings:', e);
     } finally {
       setNotificationsLoading(false);
+    }
+  }
+
+  async function handleDiscoveryModeChange(mode: 'discovery' | 'deep_dive') {
+    setDiscoveryModeLoading(true);
+    try {
+      await supabase.from('user_settings').upsert(
+        { user_id: session?.user.id, discovery_mode: mode },
+        { onConflict: 'user_id' }
+      );
+      setDiscoveryMode(mode);
+    } catch (e) {
+      console.error('Failed to update discovery mode:', e);
+    } finally {
+      setDiscoveryModeLoading(false);
     }
   }
 
@@ -304,6 +322,65 @@ export default function SettingsPage() {
                   emailNotifications ? 'translate-x-6' : 'translate-x-1'
                 }`}
               />
+            </button>
+          </div>
+        </Card>
+
+        {/* Discovery Mode */}
+        <Card className="mb-8">
+          <h2 className="text-xl font-semibold text-zinc-900 dark:text-white mb-2">Discovery mode</h2>
+          <p className="text-sm text-zinc-500 dark:text-zinc-400 mb-6">
+            Controls how Roam selects URLs for you.
+          </p>
+          <div className={`flex flex-col gap-3 ${discoveryModeLoading ? 'opacity-50 pointer-events-none' : ''}`}>
+            <button
+              onClick={() => handleDiscoveryModeChange('discovery')}
+              className={`flex items-start gap-4 rounded-xl border-2 p-4 text-left transition-colors ${
+                discoveryMode === 'discovery'
+                  ? 'border-zinc-900 dark:border-white bg-zinc-50 dark:bg-zinc-800'
+                  : 'border-zinc-200 dark:border-zinc-700 hover:border-zinc-400 dark:hover:border-zinc-500'
+              }`}
+            >
+              <span className={`mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full border-2 ${
+                discoveryMode === 'discovery'
+                  ? 'border-zinc-900 dark:border-white'
+                  : 'border-zinc-400 dark:border-zinc-600'
+              }`}>
+                {discoveryMode === 'discovery' && (
+                  <span className="h-2 w-2 rounded-full bg-zinc-900 dark:bg-white" />
+                )}
+              </span>
+              <div>
+                <span className="font-semibold text-zinc-900 dark:text-white">Discovery</span>
+                <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-0.5">
+                  Mix of your top interests with occasional adjacent topics. Great for finding unexpected gems.
+                </p>
+              </div>
+            </button>
+
+            <button
+              onClick={() => handleDiscoveryModeChange('deep_dive')}
+              className={`flex items-start gap-4 rounded-xl border-2 p-4 text-left transition-colors ${
+                discoveryMode === 'deep_dive'
+                  ? 'border-zinc-900 dark:border-white bg-zinc-50 dark:bg-zinc-800'
+                  : 'border-zinc-200 dark:border-zinc-700 hover:border-zinc-400 dark:hover:border-zinc-500'
+              }`}
+            >
+              <span className={`mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full border-2 ${
+                discoveryMode === 'deep_dive'
+                  ? 'border-zinc-900 dark:border-white'
+                  : 'border-zinc-400 dark:border-zinc-600'
+              }`}>
+                {discoveryMode === 'deep_dive' && (
+                  <span className="h-2 w-2 rounded-full bg-zinc-900 dark:bg-white" />
+                )}
+              </span>
+              <div>
+                <span className="font-semibold text-zinc-900 dark:text-white">Deep Dive</span>
+                <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-0.5">
+                  Focus on your highest-rated topics only. Best when you know exactly what you want.
+                </p>
+              </div>
             </button>
           </div>
         </Card>
