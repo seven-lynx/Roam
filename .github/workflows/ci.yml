@@ -41,7 +41,19 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-pnpm-store-
 
-      - name: Install dependencies
+      - name: Install root dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install web dependencies
+        working-directory: ./web
+        run: pnpm install --frozen-lockfile
+
+      - name: Install extension dependencies
+        working-directory: ./extension
+        run: pnpm install --frozen-lockfile
+
+      - name: Install scripts dependencies
+        working-directory: ./scripts
         run: pnpm install --frozen-lockfile
 
       # Web layer
