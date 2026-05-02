@@ -9,7 +9,7 @@
 ### By Priority
 - **[🚨 Critical Issues](#-critical-issues)** (0 blocking, 3 in progress)
 - **[Stages by Status](#-stages-by-status)**
-- **[Next Task](#next-task)** → [11.28 Interest Calibration](#1128-interest-calibration-with-revealed-preferences-scoring)
+- **[Next Task](#next-task)** → [Post-Launch Stage 8](#post-launch)
 
 ### By Stage (Jump to details)
 | Stage | Status | Tasks | Time |
@@ -25,7 +25,7 @@
 | **[Stage 9](#stage-9--pre-submission-quality--security-audit)** — Security Audit | ⏳ In Progress | 20/35 | 60h |
 | **[Stage 10](#stage-10--web-app-polish--bug-fixes)** — Polish | ✅ Done | 6/21 | 15h |
 | **[Stage 11](#stage-11--comprehensive-audit-fixes--testing)** — Hardening | ✅ Done | 30/30 | 100h |
-| **[Post-Launch](#post-launch)** — Roadmap | 📋 Planned | 8/8 | 40h |
+| **[Post-Launch](#post-launch)** — Roadmap | 📋 Planned | 9/9 | 45h |
 
 ### By Topic
 - [🛡️ Security & Auth](#security--auth)
@@ -59,7 +59,7 @@
 **Immediate Next Steps:**
 1. Stage 7: Finalize end-to-end testing (7 test cases)
 2. Stage 9: Complete remaining security hardening (5 tasks)
-3. Stage 11 (NEW): Implement algorithm improvements (Tasks 11.28–11.30, 8.8)
+3. Post-Launch: Pool quality (8.1–8.3), peer serendipity (8.8)
 
 **Known Issues:** None blocking launch. Pre-launch testing (Stage 7) underway.
 
@@ -82,7 +82,7 @@
 | Pre-launch (Stages 1–11) | 120 | 130 | 92% |
 | Testing & QA (Stage 7) | 0 | 9 | 0% |
 | Store Submissions (Stage 9.10+) | 5 | 10 | 50% |
-| Post-launch (Stage 8+) | 0 | 36 | 0% |
+| Post-launch (Stage 8+) | 0 | 37 | 0% |
 
 **Time invested: 400+ hours**
 
@@ -106,8 +106,8 @@
 - Stage 9 (Security Audit): 20/35 tasks
 
 ### 📋 Post-Launch Roadmap
-- Algorithm improvements (11.28–11.30, 8.8)
-- Feature enhancements (11.24–11.27, 10.7–10.21)
+- Pool quality (8.1–8.3): wilson floor, broken link reporting, dead-link cleanup scripts
+- Feature enhancements: peer serendipity (8.8), browsing history (8.7), submission emails (8.6)
 
 ---
 
@@ -1713,10 +1713,10 @@ These must be completed before any app store submission or launch is possible.
   - **Details:** Use husky + lint-staged to run ESLint and Prettier on staged files before commit; blocks commit if linting fails
   - **Acceptance:** Pre-commit hook installed, `git commit` runs linter automatically, failed lint blocks commit
 
-- [ ] **11.28** Interest Calibration with Revealed Preferences Scoring
+- [x] **11.28** Interest Calibration with Revealed Preferences Scoring
   - **Severity:** MEDIUM — significantly improves discovery algorithm accuracy
   - **Effort:** 4-5 hours
-  - **Files:** `supabase/migrations/20260501000002_user_interest_scores.sql` (new), `supabase/functions/roam/index.ts` (update), new table `user_interest_scores`
+  - **Files:** `supabase/migrations/20260502000000_interest_calibration.sql` (new)
   - **Details:** 
     - Create `user_interest_scores` table: `user_id`, `subcategory_id`, `upvote_count`, `downvote_count`, `calibrated_weight`, `last_updated`
     - Automatically calculate interest intensity (hidden from user) based on upvote ratio per subcategory
@@ -1726,10 +1726,16 @@ These must be completed before any app store submission or launch is possible.
     - Upsert scores after every rating event (in `rate` function); compute calibrated weight on-the-fly during discovery queries
   - **Acceptance:** Discovery algorithm ranks high-confidence subcategories higher; users see more relevant content tailored to their actual engagement patterns; no UI changes; automatic behind-the-scenes
 
-- [ ] **11.29** Interest Interaction Patterns & Adjacent Category Recommendations
+  📖 **What we did (2026-05-02):** Created `supabase/migrations/20260502000000_interest_calibration.sql`.
+  - Added `user_interest_scores` table with `upvote_count`, `downvote_count`, `calibrated_weight`, `last_updated`
+  - Added `update_interest_scores()` trigger function — fires on every INSERT/UPDATE/DELETE on `ratings`, upserts per-subcategory counts and recomputes `calibrated_weight = (upvote_ratio / 0.5)` in-place
+  - Backfills from all existing ratings on migration run
+  - Replaced `roam()` additive affinity formula with `wilson_score * CLAMP(calibrated_weight, 0.4, 2.0)` — cold-start defaults to 1.0 (neutral), 80% upvotes → 1.6x, 30% → 0.6x, lower clamp 0.4 ensures heavily-penalised subcategories still occasionally surface
+
+- [x] **11.29** Interest Interaction Patterns & Adjacent Category Recommendations
   - **Severity:** MEDIUM — enables discovery of adjacent interests (serendipity within safe bounds)
   - **Effort:** 3-4 hours
-  - **Files:** `supabase/migrations/20260501000003_interest_pairs.sql` (new), `supabase/functions/roam/index.ts` (update)
+  - **Files:** `supabase/migrations/20260502000001_interest_pair_scores.sql` (new)
   - **Details:**
     - Create `interest_pair_scores` table: `user_id`, `subcategory_a_id`, `subcategory_b_id`, `upvote_count`, `downvote_count`, `pair_weight`
     - Track which **pairs** of subcategories produce high engagement together (e.g., "Physics + Philosophy" might be 90% upvotes, "Physics + Economics" only 40%)
@@ -1738,17 +1744,28 @@ These must be completed before any app store submission or launch is possible.
     - Upsert pair scores after every rating; rank discovery results by both single-subcategory weight AND pair interactions
   - **Acceptance:** Users naturally discover adjacent interests without explicit "explore mode"; algorithm learns category combinations user enjoys; serves more serendipitous-yet-relevant URLs
 
-- [ ] **11.30** Explore/Exploit Discovery Mode Toggle
+  📖 **What we did (2026-05-02):** Created `supabase/migrations/20260502000001_interest_pair_scores.sql`.
+  - Added `interest_pair_scores` table with canonical-ordered pair keys (`subcategory_a_id < subcategory_b_id`), `upvote_count`, `downvote_count`, `pair_weight`
+  - Added `update_pair_scores()` trigger — fires after `trg_ratings_interest_scores`; on each rating, reads user’s top-5 liked subcategories from `user_interest_scores` (calibrated_weight ≥ 0.8) and upserts pair counts for each pairing with the rated URL’s subcategory
+  - Backfills pairs from existing `user_interest_scores` using geometric mean of individual calibrated weights
+  - Updated `roam()` v7: with 12% probability on un-pinned standard requests, finds user’s top subcategory then queries `interest_pair_scores` for its best pair partner (pair_weight > 1.0); serves from that adjacent subcategory instead of the normal pool
+
+- [x] **11.30** Explore/Exploit Discovery Mode Toggle
   - **Severity:** LOW — gives users agency over algorithm behavior (optional polish)
   - **Effort:** 1.5 hours
-  - **Files:** `web/src/app/settings/page.tsx` (update), `supabase/functions/roam/index.ts` (update)
+  - **Files:** `web/src/app/settings/page.tsx` (update), `supabase/migrations/20260502000002_discovery_mode.sql` (new)
   - **Details:**
     - Add toggle in settings: **"Discovery Mode"** — switch between "Deep Dive" (exploit) and "Discovery" (explore)
     - Deep Dive: serve only from top-weighted subcategories (highest calibrated weight); high confidence matches
     - Discovery: serve 80% from top interests + 20% from adjacent/paired categories or lower-confidence subcategories; enables serendipity
     - Pass preference to `roam()` function; adjust probability weights based on toggle
-    - Store preference in `profiles` table as `discovery_mode` (enum: 'deep_dive' | 'discovery')
+    - Store preference in `user_settings` table as `discovery_mode` (values: 'deep_dive' | 'discovery')
   - **Acceptance:** Settings page has toggle, discovery algorithm respects user's preference, "Deep Dive" mode feels focused, "Discovery" mode feels serendipitous
+
+  📖 **What we did (2026-05-02):** Created `supabase/migrations/20260502000002_discovery_mode.sql` and updated `web/src/app/settings/page.tsx`.
+  - Added `discovery_mode TEXT DEFAULT 'discovery' CHECK (IN ('discovery', 'deep_dive'))` column to `user_settings`
+  - Updated `roam()` v8: `'discovery'` keeps the 12% adjacent serving from task 11.29; `'deep_dive'` narrows to the user’s top-3 subcategories by calibrated_weight and disables adjacent serving entirely — falls back to full allowed list if insufficient data
+  - Settings page: new “Discovery mode” card with two radio-button styled options, saves via `user_settings` upsert on click
 
 ---
 
@@ -1756,8 +1773,24 @@ These must be completed before any app store submission or launch is possible.
 
 These tasks are not required for launch but should be completed before Roam has significant traffic.
 
-- [ ] **8.1** Build dead link detection — a scheduled Supabase Edge Function that sends HTTP HEAD requests to a rotating batch of URLs and marks any that return a persistent error (404, 410, connection refused) as `inactive = true`; inactive URLs are excluded from discovery but not deleted, preserving rating history
-- [ ] **8.2** Build community flagging — users can flag a live URL as spam, broken, or inappropriate; flags above a threshold auto-hide the URL pending review in the admin queue
+- [ ] **8.1** Add wilson_score floor to `roam()` — add `AND u.wilson_score > -0.1` guard to all candidate-pool branches; stops chronically-downvoted URLs from re-surfacing via TABLESAMPLE while community data accumulates
+  - **Severity:** LOW — quick quality baseline
+  - **Effort:** 30 minutes
+  - **Files:** `supabase/migrations/20260502000003_wilson_score_floor.sql` (new)
+  - **Details:** New migration that DROPs + recreates `roam()` v9 with the floor applied to both the TABLESAMPLE branch and the fallback ORDER BY branch. Also add a `CHECK (wilson_score >= -1)` sanity constraint to `urls` while here.
+  - **Acceptance:** Running `SELECT * FROM urls WHERE approved AND wilson_score < -0.1` returns URLs that are now excluded from discovery
+
+- [ ] **8.2** Dead link report button — small "Report broken link" action in the URL card's config area near "Send feedback"; one click marks `urls.inactive = true` and immediately skips to the next URL
+  - **Severity:** MEDIUM — fastest quality signal; users already see the bad links
+  - **Effort:** 2 hours
+  - **Files:** `supabase/migrations/20260502000004_url_inactive.sql` (new), `supabase/functions/report-url/index.ts` (new), `web/src/app/dashboard/page.tsx` (update)
+  - **Details:**
+    - Migration: `ALTER TABLE urls ADD COLUMN IF NOT EXISTS inactive BOOLEAN NOT NULL DEFAULT FALSE`; add `AND NOT u.inactive` to all `roam()` candidate branches; index on `(inactive, approved)` for fast filtering
+    - Edge Function `report-url`: authenticates user, validates `url_id`, sets `urls.inactive = TRUE`, logs reporter `user_id` + timestamp to a new `url_reports` table (for future abuse tracking)
+    - UI: small muted "Report broken link" text button placed below the URL card action row, near where "Send feedback" lives on the landing page; no modal needed — single click → `fetch('/functions/v1/report-url')` → skip to next URL with a brief toast "Thanks, we'll remove it"
+    - RLS: `url_reports` insert allowed for authenticated users; `urls.inactive` write allowed only via Edge Function (SECURITY DEFINER)
+  - **Acceptance:** Clicking the button marks the URL inactive, it never appears in discovery again, and the user is served the next URL automatically
+
 - [x] **8.3** Set up error monitoring — integrate Sentry (free tier, ~5K errors/month) or enable Supabase Edge Function log alerts; goal is an email notification when an Edge Function throws an unhandled exception in production, rather than discovering failures from user reports
 
   📖 **What we did (2026-05-01):** Completed as part of task 9.18 — Sentry integrated across web, extension, and Android. See 9.18 for full details. To activate: set `NEXT_PUBLIC_SENTRY_DSN` + `SENTRY_DSN` in Vercel env vars; set `SENTRY_DSN` in root `.env` for extension builds; add `SENTRY_DSN` to `android/local.properties` for Android.
@@ -1778,6 +1811,19 @@ These tasks are not required for launch but should be completed before Roam has 
     - Compute similarity scores periodically (daily cron) or on-demand for active users; cache in database
     - Prevents filter bubbles: users discover URLs outside their primary interests that peers with similar taste enjoyed
   - **Acceptance:** Discovery algorithm occasionally recommends URLs from "peer-liked" category; users serendipitously find high-quality content discovered by similar users; no performance regression
+
+- [ ] **8.9** One-time seed pool quality sweep — a suite of scripts to run once (or re-run periodically) that systematically removes or repairs dead and low-quality entries from the seed data
+  - **Severity:** HIGH for pool quality — seed data has significant rot from time-sensitive sources (news articles, blog posts with moved slugs, domains that have shut down)
+  - **Effort:** 4–6 hours (scripts + one run + review)
+  - **Files:** `scripts/cleanup-dead-links.mjs` (new), `scripts/cleanup-redirect-follow.mjs` (new), `scripts/cleanup-domain-audit.mjs` (new), `scripts/lib/http-check.mjs` (new)
+  - **Details:**
+    - **`lib/http-check.mjs`** — shared utility: async HEAD request with 8s timeout; follows up to 3 redirects; returns `{ status, finalUrl, redirected, redirectChain }`; rate-limits to 10 req/s per domain; respects `Retry-After` headers
+    - **`cleanup-dead-links.mjs`** — reads all `approved = TRUE AND inactive IS NOT TRUE` URLs in batches of 500; fires HEAD requests; marks `inactive = TRUE` for hard 4xx (404, 410, 451), connection refused, timeout after 3 retries, SSL cert failure. Estimated runtime: ~2–4 hours for 50K URLs at 10 req/s.
+    - **`cleanup-redirect-follow.mjs`** — for URLs that returned a 3xx, follows redirect chain; if final URL is on same domain at a different path → updates `urls.url` in place (preserving all ratings); if final URL is homepage/root or different domain → marks inactive
+    - **`cleanup-domain-audit.mjs`** — groups inactive URLs by domain; if >80% of a domain's URLs are inactive, outputs a SQL snippet recommending bulk removal. Does not auto-delete.
+    - Run order: `http-check` (shared) → `dead-links` → `redirect-follow` → `domain-audit`
+    - All scripts are dry-run by default (`--dry-run` flag); pass `--commit` to write to DB
+  - **Acceptance:** After a full run, `SELECT COUNT(*) FROM urls WHERE inactive = TRUE` has grown; a test roam session no longer returns 404 pages for at least 10 consecutive serves; domain audit identifies any fully-dead seed sources
 
 ---
 
