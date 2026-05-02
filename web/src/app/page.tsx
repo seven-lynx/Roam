@@ -83,7 +83,7 @@ export default function Home() {
                 <span className="text-zinc-400 text-sm">Chrome (coming soon)</span>
               )}
               <a
-                href="https://addons.mozilla.org/firefox/addon/roam/"
+                href="https://addons.mozilla.org/firefox/addon/roam-the-web/"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-blue-600 hover:underline text-sm font-semibold"
