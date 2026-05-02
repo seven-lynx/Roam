@@ -111,7 +111,7 @@ Load the unpacked extension from `extension/dist/` in Chrome, or `extension/dist
    $td=0;foreach($v in $d.Values){$td+=$v};$to=0;foreach($v in $o.Values){$to+=$v}
    "TOTAL: $td / $($td+$to)"
    ```
-4. Commit with a clear message (no AI references in commit messages).
+4. Commit with a clear message. Never reference AI, Copilot, or automated tooling in commit messages, PR descriptions, code comments, or any user-facing or developer-facing docs.
 4. After every `git push`, verify CI passed:
    ```powershell
    $env:PATH = [System.Environment]::GetEnvironmentVariable("PATH","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("PATH","User")
@@ -126,6 +126,7 @@ Load the unpacked extension from `extension/dist/` in Chrome, or `extension/dist
 
 **Hard rules:**
 - Never create stubs or TODOs without explicit permission.
+- Never reference AI, Copilot, or automated tooling anywhere in the codebase — not in comments, docs, commit messages, changelogs, or PR descriptions. All output must read as human-authored.
 - Never take breaking changes without warning and approval.
 - Never go down a research rabbit hole — read the docs first, then implement.
 - If unsure, ask. Do not guess and vamp.
