@@ -73,3 +73,9 @@ export function rateLimit(
   existing.count++
   return { allowed: true }
 }
+
+/** Test-only: reset in-memory rate-limit state between test cases. */
+export function _resetBucketsForTesting(): void {
+  buckets.clear()
+  callsSinceSweep = 0
+}

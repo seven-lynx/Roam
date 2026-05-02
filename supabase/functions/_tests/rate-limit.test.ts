@@ -5,53 +5,10 @@
  */
 
 import { assertEquals, assert } from "https://deno.land/std@0.208.0/assert/mod.ts"
-
-// Rate limiter implementation (mirrored from _shared/rate-limit.ts)
-interface Bucket {
-  count: number
-  resetAt: number
-}
-
-const buckets = new Map<string, Bucket>()
-let callsSinceSweep = 0
-
-function maybeSweep(now: number) {
-  callsSinceSweep++
-  if (callsSinceSweep < 1024) return
-  callsSinceSweep = 0
-  for (const [key, b] of buckets) {
-    if (b.resetAt <= now) buckets.delete(key)
-  }
-}
-
-function rateLimit(
-  key: string,
-  limit: number,
-  windowMs: number,
-): { allowed: true } | { allowed: false; retryAfterSec: number } {
-  const now = Date.now()
-  maybeSweep(now)
-
-  const existing = buckets.get(key)
-  if (!existing || existing.resetAt <= now) {
-    buckets.set(key, { count: 1, resetAt: now + windowMs })
-    return { allowed: true }
-  }
-
-  if (existing.count >= limit) {
-    return {
-      allowed: false,
-      retryAfterSec: Math.max(1, Math.ceil((existing.resetAt - now) / 1000)),
-    }
-  }
-
-  existing.count++
-  return { allowed: true }
-}
+import { rateLimit, _resetBucketsForTesting } from '../_shared/rate-limit.ts'
 
 Deno.test('Rate Limiter - Basic Behavior', () => {
-  buckets.clear() // Clear state between tests
-  callsSinceSweep = 0
+  _resetBucketsForTesting()
 
   const key = 'test:192.168.1.1'
   const limit = 3
@@ -75,8 +32,7 @@ Deno.test('Rate Limiter - Basic Behavior', () => {
 })
 
 Deno.test('Rate Limiter - Retry-After Header Value', () => {
-  buckets.clear()
-  callsSinceSweep = 0
+  _resetBucketsForTesting()
 
   const key = 'test:192.168.1.2'
   const limit = 1
@@ -96,8 +52,7 @@ Deno.test('Rate Limiter - Retry-After Header Value', () => {
 })
 
 Deno.test('Rate Limiter - Window Expiration', () => {
-  buckets.clear()
-  callsSinceSweep = 0
+  _resetBucketsForTesting()
 
   const key = 'test:192.168.1.3'
   const limit = 2
@@ -120,8 +75,7 @@ Deno.test('Rate Limiter - Window Expiration', () => {
 })
 
 Deno.test('Rate Limiter - Independent Buckets', () => {
-  buckets.clear()
-  callsSinceSweep = 0
+  _resetBucketsForTesting()
 
   const limit = 1
   const windowMs = 60000
@@ -148,8 +102,7 @@ Deno.test('Rate Limiter - Independent Buckets', () => {
 })
 
 Deno.test('Rate Limiter - Different Functions Have Independent Buckets', () => {
-  buckets.clear()
-  callsSinceSweep = 0
+  _resetBucketsForTesting()
 
   const limit = 1
   const windowMs = 60000
@@ -172,8 +125,7 @@ Deno.test('Rate Limiter - Different Functions Have Independent Buckets', () => {
 })
 
 Deno.test('Rate Limiter - Minimum Retry-After is 1', () => {
-  buckets.clear()
-  callsSinceSweep = 0
+  _resetBucketsForTesting()
 
   const key = 'test:192.168.1.4'
   const limit = 1

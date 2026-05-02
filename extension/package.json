@@ -4,7 +4,9 @@
   "private": true,
   "scripts": {
     "build": "node build.mjs",
-    "dev": "node build.mjs --watch"
+    "dev": "node build.mjs --watch",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@sentry/browser": "^10.51.0",
@@ -15,6 +17,7 @@
     "@types/chrome": "^0.0.320",
     "archiver": "^7.0.1",
     "esbuild": "^0.25.0",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^2.0.0"
   }
 }

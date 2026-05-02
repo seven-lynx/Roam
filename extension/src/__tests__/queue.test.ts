@@ -1,208 +1,168 @@
 /**
  * Tests for browser extension URL queue management.
- * Verifies: queue eviction after max retries, exponential backoff,
- * queue state persistence, hot/warming queue separation.
+ * Verifies: exponential backoff (real implementation), queue eviction state
+ * machine, hot/warming queue separation, invalid-ID handling.
  */
 
-import { assertEquals, assert } from "https://deno.land/std@0.208.0/assert/mod.ts"
+import { describe, it, expect, beforeEach, vi } from 'vitest'
 
-// Queue types and constants (mirrored from extension/src/lib/queue.ts)
+// Mock supabase and sentry before any import of queue.ts so those modules are
+// never executed (they require Chrome storage and build-time constants).
+vi.mock('../lib/supabase', () => ({
+  getSupabase: vi.fn(),
+  clearAuthStorage: vi.fn(),
+  chromeStorageAdapter: {
+    getItem: vi.fn(),
+    setItem: vi.fn(),
+    removeItem: vi.fn(),
+  },
+}))
+
+vi.mock('../lib/sentry', () => ({
+  Sentry: {
+    captureException: vi.fn(),
+    captureMessage: vi.fn(),
+    addBreadcrumb: vi.fn(),
+    withScope: vi.fn((fn: (scope: unknown) => void) =>
+      fn({ setTag: vi.fn(), setContext: vi.fn(), setLevel: vi.fn() })
+    ),
+  },
+}))
+
+import { getRetryDelay } from '../lib/queue'
+
+// ─── Shared types/helpers for eviction state machine tests ───────────────────
+
 interface QueuedUrl {
-  id: string;
-  url: string;
-  title?: string;
-  description?: string;
-  category_id?: string;
-  og_image_url?: string;
-  status: "hot" | "warming" | "failed";
-  retry_count: number;
-  last_retry_time?: number;
-  added_at: number;
+  id: string
+  url: string
+  status: 'hot' | 'warming' | 'failed'
+  retry_count: number
+  last_retry_time?: number
+  added_at: number
 }
 
-const MAX_HOT = 3
-const MAX_WARMING = 5
 const MAX_RETRIES = 3
-const MIN_RETRY_DELAY = 500
 
-function getRetryDelay(retryCount: number): number {
-  return MIN_RETRY_DELAY * Math.pow(2, retryCount)
+function createMockUrl(
+  id: string,
+  url: string,
+  status: 'hot' | 'warming' | 'failed' = 'warming',
+): QueuedUrl {
+  return { id, url, status, retry_count: 0, added_at: Date.now() }
 }
 
-// Mock queue state for testing
-let mockQueueState = { hot: [] as QueuedUrl[], warming: [] as QueuedUrl[] }
+/**
+ * Pure eviction logic that mirrors scheduleRetry() from queue.ts.
+ * Tested here because the real function requires chrome.storage;
+ * this validates the state-machine contract independently.
+ */
+function scheduleRetryLogic(
+  queue: { hot: QueuedUrl[]; warming: QueuedUrl[] },
+  urlId: string,
+): { evicted: boolean; newRetryCount?: number } {
+  const idx = queue.warming.findIndex((u) => u.id === urlId)
+  if (idx === -1) return { evicted: false }
 
-function createMockUrl(id: string, url: string, status: "hot" | "warming" | "failed" = "warming"): QueuedUrl {
-  return {
-    id,
-    url,
-    status,
-    retry_count: 0,
-    added_at: Date.now(),
-  }
-}
-
-// Queue eviction logic (simplified from actual implementation)
-function scheduleRetryLogic(queue: typeof mockQueueState, urlId: string): { evicted: boolean; newRetryCount?: number } {
-  const warmingIndex = queue.warming.findIndex((u) => u.id === urlId)
-  if (warmingIndex === -1) {
-    return { evicted: false }
-  }
-
-  const url = queue.warming[warmingIndex]
-
+  const url = queue.warming[idx]
   if (url.retry_count >= MAX_RETRIES) {
-    // Evict after too many retries
-    queue.warming.splice(warmingIndex, 1)
+    queue.warming.splice(idx, 1)
     return { evicted: true }
-  } else {
-    // Move to back of queue with retry count incremented
-    queue.warming.splice(warmingIndex, 1)
-    url.retry_count += 1
-    url.last_retry_time = Date.now()
-    queue.warming.push(url)
-    return { evicted: false, newRetryCount: url.retry_count }
   }
+
+  queue.warming.splice(idx, 1)
+  url.retry_count += 1
+  url.last_retry_time = Date.now()
+  queue.warming.push(url)
+  return { evicted: false, newRetryCount: url.retry_count }
 }
 
-Deno.test('Queue Eviction - URL Evicted After 3 Retries', () => {
-  mockQueueState = { hot: [], warming: [] }
-  const url = createMockUrl('url1', 'https://example.com')
-  mockQueueState.warming.push(url)
+// ─── Exponential backoff — real implementation ────────────────────────────────
 
-  // First retry: should move to back
-  let result = scheduleRetryLogic(mockQueueState, 'url1')
-  assertEquals(result.evicted, false)
-  assertEquals(result.newRetryCount, 1)
-  assertEquals(mockQueueState.warming.length, 1)
-
-  // Second retry: should move to back
-  result = scheduleRetryLogic(mockQueueState, 'url1')
-  assertEquals(result.evicted, false)
-  assertEquals(result.newRetryCount, 2)
-  assertEquals(mockQueueState.warming.length, 1)
-
-  // Third retry: should move to back
-  result = scheduleRetryLogic(mockQueueState, 'url1')
-  assertEquals(result.evicted, false)
-  assertEquals(result.newRetryCount, 3)
-  assertEquals(mockQueueState.warming.length, 1)
-
-  // Fourth attempt: should evict
-  result = scheduleRetryLogic(mockQueueState, 'url1')
-  assertEquals(result.evicted, true)
-  assertEquals(mockQueueState.warming.length, 0)
+describe('getRetryDelay (real implementation)', () => {
+  it('retryCount=0 -> 500 ms', () => expect(getRetryDelay(0)).toBe(500))
+  it('retryCount=1 -> 1000 ms', () => expect(getRetryDelay(1)).toBe(1000))
+  it('retryCount=2 -> 2000 ms', () => expect(getRetryDelay(2)).toBe(2000))
+  it('retryCount=3 -> 4000 ms', () => expect(getRetryDelay(3)).toBe(4000))
+  it('doubles with every additional retry', () => {
+    for (let i = 0; i < 5; i++) {
+      expect(getRetryDelay(i + 1)).toBe(getRetryDelay(i) * 2)
+    }
+  })
 })
 
-Deno.test('Queue Eviction - Multiple URLs', () => {
-  mockQueueState = { hot: [], warming: [] }
-  const url1 = createMockUrl('url1', 'https://example1.com')
-  const url2 = createMockUrl('url2', 'https://example2.com')
-  const url3 = createMockUrl('url3', 'https://example3.com')
+// ─── Queue eviction state machine ─────────────────────────────────────────────
 
-  mockQueueState.warming.push(url1, url2, url3)
+describe('Queue eviction after max retries', () => {
+  let queue: { hot: QueuedUrl[]; warming: QueuedUrl[] }
 
-  // Retry url1 3 times, then evict
-  for (let i = 0; i < 3; i++) {
-    const result = scheduleRetryLogic(mockQueueState, 'url1')
-    assertEquals(result.evicted, false)
-  }
-  let result = scheduleRetryLogic(mockQueueState, 'url1')
-  assertEquals(result.evicted, true)
-  assertEquals(mockQueueState.warming.length, 2)
+  beforeEach(() => {
+    queue = { hot: [], warming: [] }
+  })
 
-  // url2 and url3 should still be in queue
-  assert(mockQueueState.warming.some((u) => u.id === 'url2'))
-  assert(mockQueueState.warming.some((u) => u.id === 'url3'))
+  it('evicts a URL exactly when retry_count reaches MAX_RETRIES', () => {
+    queue.warming.push(createMockUrl('url1', 'https://example.com'))
+
+    for (let i = 1; i <= MAX_RETRIES; i++) {
+      const r = scheduleRetryLogic(queue, 'url1')
+      expect(r.evicted).toBe(false)
+      expect(r.newRetryCount).toBe(i)
+      expect(queue.warming).toHaveLength(1)
+    }
+
+    const final = scheduleRetryLogic(queue, 'url1')
+    expect(final.evicted).toBe(true)
+    expect(queue.warming).toHaveLength(0)
+  })
+
+  it('moves the URL to the back of the warming queue on each retry', () => {
+    const url1 = createMockUrl('url1', 'https://example1.com')
+    const url2 = createMockUrl('url2', 'https://example2.com')
+    queue.warming.push(url1, url2)
+
+    scheduleRetryLogic(queue, 'url1')
+
+    expect(queue.warming[0].id).toBe('url2')
+    expect(queue.warming[1].id).toBe('url1')
+  })
+
+  it('only evicts the targeted URL, leaving others intact', () => {
+    queue.warming.push(
+      createMockUrl('url1', 'https://a.com'),
+      createMockUrl('url2', 'https://b.com'),
+      createMockUrl('url3', 'https://c.com'),
+    )
+
+    for (let i = 0; i <= MAX_RETRIES; i++) scheduleRetryLogic(queue, 'url1')
+
+    expect(queue.warming).toHaveLength(2)
+    expect(queue.warming.some((u) => u.id === 'url2')).toBe(true)
+    expect(queue.warming.some((u) => u.id === 'url3')).toBe(true)
+  })
+
+  it('does not crash for an unknown URL id', () => {
+    queue.warming.push(createMockUrl('url1', 'https://example.com'))
+    const r = scheduleRetryLogic(queue, 'nonexistent')
+    expect(r.evicted).toBe(false)
+    expect(queue.warming).toHaveLength(1)
+  })
 })
 
-Deno.test('Exponential Backoff - Retry Delays', () => {
-  // First retry: 500ms * 2^0 = 500ms
-  const delay0 = getRetryDelay(0)
-  assertEquals(delay0, 500)
+// ─── Hot / warming queue separation ──────────────────────────────────────────
 
-  // Second retry: 500ms * 2^1 = 1000ms
-  const delay1 = getRetryDelay(1)
-  assertEquals(delay1, 1000)
+describe('Hot/warming queue separation', () => {
+  it('evicting from warming does not affect hot URLs', () => {
+    const queue = {
+      hot: [
+        createMockUrl('hot1', 'https://hot1.com', 'hot'),
+        createMockUrl('hot2', 'https://hot2.com', 'hot'),
+      ],
+      warming: [createMockUrl('warm1', 'https://warm1.com', 'warming')],
+    }
 
-  // Third retry: 500ms * 2^2 = 2000ms
-  const delay2 = getRetryDelay(2)
-  assertEquals(delay2, 2000)
+    for (let i = 0; i <= MAX_RETRIES; i++) scheduleRetryLogic(queue, 'warm1')
 
-  // Fourth retry: 500ms * 2^3 = 4000ms
-  const delay3 = getRetryDelay(3)
-  assertEquals(delay3, 4000)
-})
-
-Deno.test('Queue - Hot/Warming Separation', () => {
-  mockQueueState = { hot: [], warming: [] }
-
-  const hotUrl1 = createMockUrl('hot1', 'https://hot1.com', 'hot')
-  const hotUrl2 = createMockUrl('hot2', 'https://hot2.com', 'hot')
-  const warmingUrl = createMockUrl('warm1', 'https://warm1.com', 'warming')
-
-  mockQueueState.hot.push(hotUrl1, hotUrl2)
-  mockQueueState.warming.push(warmingUrl)
-
-  assertEquals(mockQueueState.hot.length, 2)
-  assertEquals(mockQueueState.warming.length, 1)
-
-  // Evicting warming URL should not affect hot URLs
-  scheduleRetryLogic(mockQueueState, 'warm1')
-  scheduleRetryLogic(mockQueueState, 'warm1')
-  scheduleRetryLogic(mockQueueState, 'warm1')
-  const result = scheduleRetryLogic(mockQueueState, 'warm1')
-  assertEquals(result.evicted, true)
-
-  // Hot URLs should be unaffected
-  assertEquals(mockQueueState.hot.length, 2)
-})
-
-Deno.test('Queue - Invalid URL ID Handling', () => {
-  mockQueueState = { hot: [], warming: [] }
-  const url = createMockUrl('url1', 'https://example.com')
-  mockQueueState.warming.push(url)
-
-  // Retry non-existent URL should not crash
-  const result = scheduleRetryLogic(mockQueueState, 'nonexistent')
-  assertEquals(result.evicted, false)
-  assertEquals(mockQueueState.warming.length, 1)
-})
-
-Deno.test('Queue - Retry Count Tracking', () => {
-  mockQueueState = { hot: [], warming: [] }
-  const url = createMockUrl('url1', 'https://example.com')
-  mockQueueState.warming.push(url)
-
-  assertEquals(url.retry_count, 0)
-
-  // First retry
-  scheduleRetryLogic(mockQueueState, 'url1')
-  assertEquals(mockQueueState.warming[0].retry_count, 1)
-
-  // Second retry
-  scheduleRetryLogic(mockQueueState, 'url1')
-  assertEquals(mockQueueState.warming[0].retry_count, 2)
-
-  // Third retry
-  scheduleRetryLogic(mockQueueState, 'url1')
-  assertEquals(mockQueueState.warming[0].retry_count, 3)
-})
-
-Deno.test('Queue - Last Retry Time Updated', () => {
-  mockQueueState = { hot: [], warming: [] }
-  const url = createMockUrl('url1', 'https://example.com')
-  mockQueueState.warming.push(url)
-
-  const originalTime = url.last_retry_time
-  
-  // Simulate time passing and retry
-  await new Promise((resolve) => setTimeout(resolve, 10))
-  
-  scheduleRetryLogic(mockQueueState, 'url1')
-  const newTime = mockQueueState.warming[0].last_retry_time
-  
-  // Should have updated the timestamp
-  assert(newTime !== originalTime)
-  assert(newTime! > (originalTime ?? 0))
+    expect(queue.warming).toHaveLength(0)
+    expect(queue.hot).toHaveLength(2)
+  })
 })
