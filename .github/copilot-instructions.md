@@ -92,7 +92,26 @@ Load the unpacked extension from `extension/dist/` in Chrome, or `extension/dist
 **After completing any task:**
 1. Summarize what was done in 2–3 sentences.
 2. Add an entry to `ROADMAP.md` or `CONTEXT.md` as appropriate.
-3. Commit with a clear message (no AI references in commit messages).
+3. **Update ROADMAP.md tallies** any time a task is marked complete or a new task is added. The tallies appear in four places — all must be kept in sync:
+   - **Nav table** (top of file): `Tasks` column per stage (e.g. `16/36`)
+   - **Stages by Status** section: done/total count per stage
+   - **Project Progress table**: per-category counts and the overall `X / Y tasks (Z%)` headline
+   - **Executive Summary**: bullet points describing completion state and remaining task counts
+
+   Recount by running:
+   ```powershell
+   $c=[IO.File]::ReadAllLines("ROADMAP.md"); $cur="other"; $d=@{}; $o=@{}
+   foreach($l in $c){
+     if($l -match '^## Stage (\d+)'){$cur="Stage $($Matches[1])"}
+     if($l -match '^## Post-Launch'){$cur="PostLaunch"}
+     if($l -match '^\- \[x\] \*\*'){if(!$d[$cur]){$d[$cur]=0};$d[$cur]++}
+     elseif($l -match '^\- \[ \] \*\*'){if(!$o[$cur]){$o[$cur]=0};$o[$cur]++}
+   }
+   ($d.Keys+$o.Keys|Select-Object -Unique|Sort-Object)|%{$dd=$d[$_]??0;$oo=$o[$_]??0;"${_}: $dd/$($dd+$oo) (open=$oo)"}
+   $td=0;foreach($v in $d.Values){$td+=$v};$to=0;foreach($v in $o.Values){$to+=$v}
+   "TOTAL: $td / $($td+$to)"
+   ```
+4. Commit with a clear message (no AI references in commit messages).
 4. After every `git push`, verify CI passed:
    ```powershell
    $env:PATH = [System.Environment]::GetEnvironmentVariable("PATH","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("PATH","User")
