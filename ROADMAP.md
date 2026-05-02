@@ -74,7 +74,7 @@
 
 ## Project Progress
 
-**Overall Completion: 238 / 331 tasks (72%)**
+**Overall Completion: 243 / 331 tasks (73%)**
 
 | Category | Complete | Total | % |
 |----------|----------|-------|-----|
@@ -82,7 +82,7 @@
 | Testing & QA (Stage 7) | 0 | 9 | 0% |
 | Security & Quality (Stage 9) | 31 | 37 | 84% |
 | Web Polish & Hardening (Stages 10–12) | 52 | 73 | 71% |
-| Extension Rebuild (Stage 13) | 1 | 8 | 13% |
+| Extension Rebuild (Stage 13) | 6 | 8 | 75% |
 | Post-Launch Roadmap | 3 | 22 | 14% |
 
 **Time invested: 400+ hours**
@@ -106,7 +106,7 @@
 - Stage 10 (Web Polish): 6/21 tasks
 - Stage 11 (Hardening): 25/30 tasks
 - Stage 12 (Web Rebuild): 21/22 tasks
-- Stage 13 (Extension Rebuild): 1/8 tasks
+- Stage 13 (Extension Rebuild): 6/8 tasks
 
 ### Post-Launch Roadmap
 - Pool quality (8.1–8.3): wilson floor, broken link reporting, dead-link cleanup scripts
@@ -1891,20 +1891,30 @@ Ground-up rebuild of the browser extension. The existing codebase has ~500 lines
 
   Created `extension/DESIGN.md` (May 2, 2026). Covers all architecture decisions and serves as the canonical reference for the rebuild and any future contributors.
 
-- [ ] **13.2** Delete `queue.ts`, `queueManager.ts`, `logger.ts` — these three files are entirely dead: the two queue files implement loops that are killed by the MV3 SW lifecycle, and `logger.ts` was never imported in any hot path; removing them eliminates ~700 lines of unreachable code
+- [x] **13.2** Delete `queue.ts`, `queueManager.ts`, `logger.ts` — these three files are entirely dead: the two queue files implement loops that are killed by the MV3 SW lifecycle, and `logger.ts` was never imported in any hot path; removing them eliminates ~700 lines of unreachable code
   - **Files:** `extension/src/lib/queue.ts` (delete), `extension/src/lib/queueManager.ts` (delete), `extension/src/lib/logger.ts` (delete)
 
-- [ ] **13.3** Simplify `env.ts` — strip the class, LogLevel enum, and multi-error accumulator; replace with a single `validateEnvironment()` function (~20 lines) that reads the three `__INJECTED__` build-time constants and throws a single descriptive string if `SUPABASE_URL` or `SUPABASE_ANON_KEY` are missing or malformed; `SENTRY_DSN` absence is a `console.warn` only
+  Deleted all three files and their companion test `queue.test.ts` (May 2, 2026). Net: −700 lines, zero callers broken.
+
+- [x] **13.3** Simplify `env.ts` — strip the class, LogLevel enum, and multi-error accumulator; replace with a single `validateEnvironment()` function (~20 lines) that reads the three `__INJECTED__` build-time constants and throws a single descriptive string if `SUPABASE_URL` or `SUPABASE_ANON_KEY` are missing or malformed; `SENTRY_DSN` absence is a `console.warn` only
   - **Files:** `extension/src/lib/env.ts`
 
-- [ ] **13.4** Trim `messages.ts` — remove `GET_QUEUE_STATE` (returns dummy data; no caller needs it after cleanup), `QueueState` interface (queue is gone), and `REFRESH_CATEGORIES` (it is an alias for `SET_USER_CATEGORIES` that adds confusion); update all type imports that reference the removed types
+  Replaced 75-line class-based validator with a 20-line `validateEnvironment()` function (May 2, 2026). Same validation logic, no multi-error accumulator, no LogLevel dependency.
+
+- [x] **13.4** Trim `messages.ts` — remove `GET_QUEUE_STATE` (returns dummy data; no caller needs it after cleanup), `QueueState` interface (queue is gone), and `REFRESH_CATEGORIES` (it is an alias for `SET_USER_CATEGORIES` that adds confusion); update all type imports that reference the removed types
   - **Files:** `extension/src/lib/messages.ts`
 
-- [ ] **13.5** Add prefetch + remove dead cases in `background.ts` — (a) add `prefetchNext()` helper that calls the `roam` Edge Function and writes the result to `chrome.storage.session` under key `prefetch` with a `cachedAt` timestamp; (b) update `roam()` handler to be cache-first: read session storage, return cached value and fire `prefetchNext()` (no await) on hit, fall through to live call on miss or if entry is older than 5 minutes; (c) update `chrome.runtime.onConnect` listener to call `prefetchNext()` whenever the popup connects; (d) remove `GET_QUEUE_STATE` and `REFRESH_CATEGORIES` cases from `_dispatch()`
+  Removed `GET_QUEUE_STATE`, `REFRESH_CATEGORIES` from the `Request` union and deleted the `QueueState` interface (May 2, 2026). No callers remained.
+
+- [x] **13.5** Add prefetch + remove dead cases in `background.ts` — (a) add `prefetchNext()` helper that calls the `roam` Edge Function and writes the result to `chrome.storage.session` under key `prefetch` with a `cachedAt` timestamp; (b) update `roam()` handler to be cache-first: read session storage, return cached value and fire `prefetchNext()` (no await) on hit, fall through to live call on miss or if entry is older than 5 minutes; (c) update `chrome.runtime.onConnect` listener to call `prefetchNext()` whenever the popup connects; (d) remove `GET_QUEUE_STATE` and `REFRESH_CATEGORIES` cases from `_dispatch()`
   - **Files:** `extension/src/background/background.ts`
 
-- [ ] **13.6** Refactor `popup.ts` — extract the repeated collection-dropdown DOM-building code into a single `showDropdown(anchor, items, onPick, footer?)` helper (~30 lines); replace the two verbatim copies (~80 lines each) in `btn-add-collection` and `btn-roam-collection` handlers with calls to the helper; no other functional changes
+  Added `callRoamApi()` helper (extracted from old `roam()`), `prefetchNext()` (fire-and-forget, writes to `chrome.storage.session`), and made `roam()` cache-first with 5-minute TTL (May 2, 2026). Popup `onConnect` now triggers a prefetch so the next Roam click is near-instant. Removed `GET_QUEUE_STATE` and `REFRESH_CATEGORIES` dead cases.
+
+- [x] **13.6** Refactor `popup.ts` — extract the repeated collection-dropdown DOM-building code into a single `showDropdown(anchor, items, onPick, footer?)` helper (~30 lines); replace the two verbatim copies (~80 lines each) in `btn-add-collection` and `btn-roam-collection` handlers with calls to the helper; no other functional changes
   - **Files:** `extension/src/popup/popup.ts`
+
+  Added `showDropdown(anchor, items, footer?)` helper (~40 lines) and replaced both ~80-line inline blocks with calls to it (May 2, 2026). Net: −130 lines, identical behaviour.
 
 - [ ] **13.7** Build, load, and manually test Chrome build — run `pnpm build`; load `dist/` as an unpacked extension in Chrome; run through all 14 flows in `extension/TESTING.md`; verify prefetch works (open popup → wait 1 s → click Roam, navigation should be near-instant)
   - **Files:** `extension/dist/` (build output)
