@@ -16,6 +16,7 @@ import {
   popHotUrl,
   popAnyUrl,
   clearQueue,
+  sendFailedUrlBatch,
 } from '../lib/queue';
 import {
   initializeQueueManagement,
@@ -337,7 +338,15 @@ async function saveSession(accessToken: string, refreshToken: string): Promise<R
 }
 
 async function signOut(): Promise<Response<StateData>> {
-  // Clean up queue before signing out
+  // Send any accumulated failed URLs to moderation before signing out
+  try {
+    await sendFailedUrlBatch();
+  } catch (error) {
+    console.error('[roam-bg] Error sending failed URLs during sign-out:', error);
+    Sentry.captureException(error, { tags: { context: 'signout-failed-batch-send' } });
+  }
+
+  // Clean up queue after attempting to send failed URLs
   await cleanupOnSignOut();
 
   const { error } = await getSupabase().auth.signOut();

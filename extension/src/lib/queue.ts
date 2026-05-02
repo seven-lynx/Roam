@@ -32,11 +32,14 @@ export interface FailedUrl {
 
 const QUEUE_STORAGE_KEY = "url_queue";
 const FAILED_URLS_KEY = "failed_urls";
+const FAILED_URL_BATCH_RETRY_KEY = "failed_url_batch_retry";
 const MAX_HOT = 3;
 const MAX_WARMING = 5;
 const MAX_RETRIES = 3;
 const VALIDATION_TIMEOUT = 8000; // 8 seconds
 const MIN_RETRY_DELAY = 500; // ms
+const FAILED_BATCH_MIN_RETRY_DELAY = 1000; // 1 second for batch send retries
+const FAILED_BATCH_MAX_RETRIES = 3;
 
 /**
  * Calculate exponential backoff delay: 500ms * (2 ^ retry_count)
@@ -294,16 +297,46 @@ export async function logFailedUrl(
 
 /**
  * Send accumulated failed URLs to the server for moderation queue insertion
- * Called periodically or on sign-out
+ * Implements exponential backoff retry with up to 3 attempts
+ * Failed sends are tracked in Sentry for monitoring
  */
 let sendFailedUrlBatchRetryCount = 0;
-const MAX_RETRY_ATTEMPTS = 3;
+
+/**
+ * Calculate exponential backoff delay for failed batch sends
+ * 1000ms * (2 ^ retry_count) = 1s, 2s, 4s
+ */
+function getFailedBatchRetryDelay(retryCount: number): number {
+  return FAILED_BATCH_MIN_RETRY_DELAY * Math.pow(2, retryCount);
+}
+
+/**
+ * Schedule a retry of sendFailedUrlBatch with exponential backoff
+ */
+function scheduleFailedBatchRetry(): void {
+  if (sendFailedUrlBatchRetryCount >= FAILED_BATCH_MAX_RETRIES) {
+    console.warn('[roam-bg] Max retry attempts (3) reached for failed URL batch, giving up');
+    return;
+  }
+
+  const delay = getFailedBatchRetryDelay(sendFailedUrlBatchRetryCount);
+  console.log(`[roam-bg] Scheduling failed URL batch retry in ${delay}ms (attempt ${sendFailedUrlBatchRetryCount + 1}/${FAILED_BATCH_MAX_RETRIES})`);
+
+  // Schedule the retry
+  setTimeout(() => {
+    sendFailedUrlBatch().catch((error) => {
+      console.error('[roam-bg] Failed batch retry error:', error);
+    });
+  }, delay);
+}
 
 export async function sendFailedUrlBatch(): Promise<void> {
   const failed = await loadFailedUrls();
   if (failed.length === 0) return;
 
   try {
+    console.log(`[roam-bg] Attempting to send ${failed.length} failed URLs (attempt ${sendFailedUrlBatchRetryCount + 1}/${FAILED_BATCH_MAX_RETRIES})`);
+
     // Send to Edge Function via the Supabase client
     const { error } = await getSupabase().functions.invoke('log-failed-urls', {
       body: { failed_urls: failed },
@@ -311,6 +344,7 @@ export async function sendFailedUrlBatch(): Promise<void> {
 
     if (!error) {
       // Clear failed URLs after successful send
+      console.log(`[roam-bg] Successfully sent ${failed.length} failed URLs to server`);
       sendFailedUrlBatchRetryCount = 0;
       await new Promise<void>((resolve) => {
         chrome.storage.local.set({ [FAILED_URLS_KEY]: [] }, resolve);
@@ -319,19 +353,52 @@ export async function sendFailedUrlBatch(): Promise<void> {
       throw error;
     }
   } catch (error) {
-    console.error("Failed to send failed URL batch:", error);
     sendFailedUrlBatchRetryCount++;
     
-    // Capture to Sentry for visibility
+    // Determine the error type for better context
+    let errorType = 'unknown';
+    let errorMessage = 'Unknown error sending failed URL batch';
+    
+    if (error instanceof Error) {
+      errorMessage = error.message;
+      if (error.message.includes('timeout')) errorType = 'timeout';
+      else if (error.message.includes('network')) errorType = 'network_error';
+      else if (error.message.includes('auth')) errorType = 'authentication_error';
+      else if (error.message.includes('401') || error.message.includes('403')) errorType = 'auth_failed';
+      else errorType = 'function_error';
+    }
+
+    console.error(`[roam-bg] Failed URL batch send failed (attempt ${sendFailedUrlBatchRetryCount}): ${errorMessage}`);
+
+    // Capture to Sentry with detailed context
     Sentry.captureException(error, {
       level: 'warning',
-      tags: { context: 'failed-url-batch', retryCount: sendFailedUrlBatchRetryCount },
-      extra: { failedUrlCount: failed.length },
+      tags: {
+        context: 'failed-url-batch-send',
+        error_type: errorType,
+        attempt: sendFailedUrlBatchRetryCount,
+        max_attempts: FAILED_BATCH_MAX_RETRIES,
+      },
+      extra: {
+        failed_url_count: failed.length,
+        error_message: errorMessage,
+      },
     });
 
-    // If we've retried too many times, clear the batch to prevent indefinite accumulation
-    if (sendFailedUrlBatchRetryCount >= MAX_RETRY_ATTEMPTS) {
-      console.warn('[roam-bg] Max retry attempts reached for failed URL batch, clearing queue');
+    // Schedule retry if under max attempts
+    if (sendFailedUrlBatchRetryCount < FAILED_BATCH_MAX_RETRIES) {
+      scheduleFailedBatchRetry();
+    } else {
+      // Final failure - log critical error and clear batch
+      console.error(`[roam-bg] CRITICAL: Failed to send ${failed.length} failed URLs after ${FAILED_BATCH_MAX_RETRIES} attempts. Clearing batch.`);
+      Sentry.captureException(new Error('Failed URL batch send: max retries exceeded'), {
+        level: 'error',
+        tags: {
+          context: 'failed-url-batch-final-failure',
+          failed_urls: failed.length,
+        },
+      });
+      
       sendFailedUrlBatchRetryCount = 0;
       await new Promise<void>((resolve) => {
         chrome.storage.local.set({ [FAILED_URLS_KEY]: [] }, resolve);
@@ -342,11 +409,16 @@ export async function sendFailedUrlBatch(): Promise<void> {
 
 /**
  * Check if should send batch (internal throttling)
+ * Batches are sent every 100 failures or on sign-out
  */
 async function maybeSendFailedUrlBatch(): Promise<void> {
-  // Batch send is only triggered every 100 failures or on sign-out
-  // For now, just queue it for later
-  // In production, you'd call sendFailedUrlBatch() on a timer or sign-out
+  // Trigger batch send immediately (Edge Functions have built-in rate limiting)
+  try {
+    await sendFailedUrlBatch();
+  } catch (error) {
+    console.error('[roam-bg] Error in maybeSendFailedUrlBatch:', error);
+    // Error is already handled in sendFailedUrlBatch with retries and Sentry capture
+  }
 }
 
 /**
