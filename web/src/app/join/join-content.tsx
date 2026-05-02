@@ -5,6 +5,7 @@ import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
 import * as Sentry from "@sentry/nextjs";
 import { createClient } from "@/lib/supabase/client";
+import { validateEmail, validatePassword, getPasswordStrengthColor, getPasswordStrengthLabel } from "@/lib/validation";
 
 type CategoryItem = { id: string; label: string; emoji: string };
 
@@ -32,6 +33,9 @@ export default function JoinPageContent() {
   const [step, setStep] = useState<Step>("account");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [emailError, setEmailError] = useState<string | null>(null);
+  const [passwordError, setPasswordError] = useState<string | null>(null);
+  const [passwordStrength, setPasswordStrength] = useState<'weak' | 'fair' | 'good' | 'strong'>('weak');
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -151,6 +155,32 @@ export default function JoinPageContent() {
       subscription?.unsubscribe();
     };
   }, [supabase, step]);
+
+  // ── Validation handlers ───────────────────────────────────────────────────
+  function handleEmailChange(value: string) {
+    setEmail(value);
+    if (!value) {
+      setEmailError(null);
+      return;
+    }
+    const validation = validateEmail(value);
+    setEmailError(validation.error || null);
+  }
+
+  function handlePasswordChange(value: string) {
+    setPassword(value);
+    if (!value) {
+      setPasswordError(null);
+      setPasswordStrength('weak');
+      return;
+    }
+    const validation = validatePassword(value);
+    setPasswordError(validation.error || null);
+    setPasswordStrength(validation.strength);
+  }
+
+  // Check if form is valid for submission
+  const isFormValid = email && password && !emailError && !passwordError && passwordStrength !== 'weak';
 
   // ── Step 1: create account ────────────────────────────────────────────────
   async function handleSignUp(e: React.FormEvent) {
@@ -571,28 +601,65 @@ export default function JoinPageContent() {
 
             {/* Email / password */}
             <form onSubmit={handleSignUp} className="flex flex-col gap-4">
-              <input
-                type="email"
-                required
-                placeholder="Email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="rounded-xl border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-4 py-3 text-zinc-900 dark:text-white placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:focus:ring-white"
-              />
-              <input
-                type="password"
-                required
-                minLength={8}
-                placeholder="Password (min 8 characters)"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="rounded-xl border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-4 py-3 text-zinc-900 dark:text-white placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:focus:ring-white"
-              />
+              <div className="flex flex-col gap-1">
+                <input
+                  type="email"
+                  required
+                  placeholder="Email"
+                  value={email}
+                  onChange={(e) => handleEmailChange(e.target.value)}
+                  className={`rounded-xl border-2 bg-white dark:bg-zinc-900 px-4 py-3 text-zinc-900 dark:text-white placeholder:text-zinc-400 focus:outline-none focus:ring-2 transition-colors ${
+                    emailError
+                      ? 'border-red-500 dark:border-red-500 focus:ring-red-500 dark:focus:ring-red-500'
+                      : 'border-zinc-300 dark:border-zinc-700 focus:ring-zinc-900 dark:focus:ring-white'
+                  }`}
+                />
+                {emailError && <p className="text-xs text-red-500 mt-1">{emailError}</p>}
+              </div>
+
+              <div className="flex flex-col gap-1">
+                <input
+                  type="password"
+                  required
+                  minLength={8}
+                  placeholder="Password (min 8 characters)"
+                  value={password}
+                  onChange={(e) => handlePasswordChange(e.target.value)}
+                  className={`rounded-xl border-2 bg-white dark:bg-zinc-900 px-4 py-3 text-zinc-900 dark:text-white placeholder:text-zinc-400 focus:outline-none focus:ring-2 transition-colors ${
+                    passwordError
+                      ? 'border-red-500 dark:border-red-500 focus:ring-red-500 dark:focus:ring-red-500'
+                      : 'border-zinc-300 dark:border-zinc-700 focus:ring-zinc-900 dark:focus:ring-white'
+                  }`}
+                />
+                {password && (
+                  <div className="flex items-center gap-2 mt-2">
+                    <div className="flex-1 h-1.5 bg-zinc-200 dark:bg-zinc-700 rounded-full overflow-hidden">
+                      <div
+                        className={`h-full transition-all ${getPasswordStrengthColor(passwordStrength)}`}
+                        style={{
+                          width:
+                            passwordStrength === 'weak'
+                              ? '25%'
+                              : passwordStrength === 'fair'
+                                ? '50%'
+                                : passwordStrength === 'good'
+                                  ? '75%'
+                                  : '100%',
+                        }}
+                      />
+                    </div>
+                    <span className="text-xs text-zinc-600 dark:text-zinc-400 font-medium">
+                      {getPasswordStrengthLabel(passwordStrength)}
+                    </span>
+                  </div>
+                )}
+                {passwordError && <p className="text-xs text-red-500 mt-1">{passwordError}</p>}
+              </div>
               {error && <p className="text-sm text-red-500">{error}</p>}
               <button
                 type="submit"
-                disabled={loading}
-                className="rounded-full bg-zinc-900 dark:bg-white px-8 py-3 text-white dark:text-zinc-900 font-semibold hover:opacity-90 transition-opacity disabled:opacity-50"
+                disabled={loading || !isFormValid}
+                className="rounded-full bg-zinc-900 dark:bg-white px-8 py-3 text-white dark:text-zinc-900 font-semibold hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {loading ? "Creating account…" : "Create account"}
               </button>

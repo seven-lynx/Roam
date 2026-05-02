@@ -7,6 +7,7 @@ import { Header } from '@/components/Header';
 import { LoadingPage, Button, Card, Input } from '@/components/UI';
 import { createClient } from '@/lib/supabase/client';
 import { useRequireAuth } from '@/lib/hooks';
+import { validatePassword, validatePasswordsMatch, getPasswordStrengthColor, getPasswordStrengthLabel } from '@/lib/validation';
 
 export default function SettingsPage() {
   const { isReady, session } = useRequireAuth();
@@ -17,6 +18,9 @@ export default function SettingsPage() {
   const [emailNotifications, setEmailNotifications] = useState(true);
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [passwordStrength, setPasswordStrength] = useState<'weak' | 'fair' | 'good' | 'strong'>('weak');
+  const [passwordError, setPasswordError] = useState<string | null>(null);
+  const [confirmPasswordError, setConfirmPasswordError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -80,6 +84,44 @@ export default function SettingsPage() {
     }
   }
 
+  // Validation handlers
+  function handleNewPasswordChange(value: string) {
+    setNewPassword(value);
+    if (!value) {
+      setPasswordError(null);
+      setPasswordStrength('weak');
+      setConfirmPasswordError(null);
+      return;
+    }
+    const validation = validatePassword(value);
+    setPasswordError(validation.error || null);
+    setPasswordStrength(validation.strength);
+
+    // Check if passwords match
+    if (confirmPassword) {
+      const matchValidation = validatePasswordsMatch(value, confirmPassword);
+      setConfirmPasswordError(matchValidation.error || null);
+    }
+  }
+
+  function handleConfirmPasswordChange(value: string) {
+    setConfirmPassword(value);
+    if (!value) {
+      setConfirmPasswordError(null);
+      return;
+    }
+    const matchValidation = validatePasswordsMatch(newPassword, value);
+    setConfirmPasswordError(matchValidation.error || null);
+  }
+
+  // Check if password form is valid for submission
+  const isPasswordFormValid =
+    newPassword &&
+    confirmPassword &&
+    !passwordError &&
+    !confirmPasswordError &&
+    passwordStrength !== 'weak';
+
   if (!isReady) return <LoadingPage />;
 
   async function handlePasswordChange(e: React.FormEvent) {
@@ -87,18 +129,6 @@ export default function SettingsPage() {
     setLoading(true);
     setError(null);
     setSuccess(null);
-
-    if (newPassword !== confirmPassword) {
-      setError('Passwords do not match');
-      setLoading(false);
-      return;
-    }
-
-    if (newPassword.length < 8) {
-      setError('Password must be at least 8 characters');
-      setLoading(false);
-      return;
-    }
 
     try {
       const { error: err } = await supabase.auth.updateUser({
@@ -279,25 +309,63 @@ export default function SettingsPage() {
         <Card className="mb-8">
           <h2 className="text-xl font-semibold text-zinc-900 dark:text-white mb-6">Security</h2>
           <form onSubmit={handlePasswordChange} className="flex flex-col gap-4">
-            <Input
-              label="New password"
-              type="password"
-              placeholder="••••••••"
-              value={newPassword}
-              onChange={(e) => setNewPassword(e.target.value)}
-              required={true}
-            />
-            <Input
-              label="Confirm password"
-              type="password"
-              placeholder="••••••••"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              required={true}
-            />
-            {error && <div className="text-red-600 text-sm">{error}</div>}
-            {success && <div className="text-green-600 text-sm">{success}</div>}
-            <Button type="submit" disabled={loading}>
+            <div className="flex flex-col gap-1">
+              <label className="text-sm font-medium text-zinc-700 dark:text-zinc-300">New password</label>
+              <input
+                type="password"
+                placeholder="••••••••"
+                value={newPassword}
+                onChange={(e) => handleNewPasswordChange(e.target.value)}
+                className={`rounded-lg border-2 bg-white dark:bg-zinc-900 px-3 py-2 text-zinc-900 dark:text-white placeholder:text-zinc-400 focus:outline-none focus:ring-2 transition-colors ${
+                  passwordError
+                    ? 'border-red-500 dark:border-red-500 focus:ring-red-500 dark:focus:ring-red-500'
+                    : 'border-zinc-300 dark:border-zinc-700 focus:ring-zinc-900 dark:focus:ring-white'
+                }`}
+              />
+              {newPassword && (
+                <div className="flex items-center gap-2 mt-2">
+                  <div className="flex-1 h-1.5 bg-zinc-200 dark:bg-zinc-700 rounded-full overflow-hidden">
+                    <div
+                      className={`h-full transition-all ${getPasswordStrengthColor(passwordStrength)}`}
+                      style={{
+                        width:
+                          passwordStrength === 'weak'
+                            ? '25%'
+                            : passwordStrength === 'fair'
+                              ? '50%'
+                              : passwordStrength === 'good'
+                                ? '75%'
+                                : '100%',
+                      }}
+                    />
+                  </div>
+                  <span className="text-xs text-zinc-600 dark:text-zinc-400 font-medium">
+                    {getPasswordStrengthLabel(passwordStrength)}
+                  </span>
+                </div>
+              )}
+              {passwordError && <p className="text-xs text-red-500 mt-1">{passwordError}</p>}
+            </div>
+
+            <div className="flex flex-col gap-1">
+              <label className="text-sm font-medium text-zinc-700 dark:text-zinc-300">Confirm password</label>
+              <input
+                type="password"
+                placeholder="••••••••"
+                value={confirmPassword}
+                onChange={(e) => handleConfirmPasswordChange(e.target.value)}
+                className={`rounded-lg border-2 bg-white dark:bg-zinc-900 px-3 py-2 text-zinc-900 dark:text-white placeholder:text-zinc-400 focus:outline-none focus:ring-2 transition-colors ${
+                  confirmPasswordError
+                    ? 'border-red-500 dark:border-red-500 focus:ring-red-500 dark:focus:ring-red-500'
+                    : 'border-zinc-300 dark:border-zinc-700 focus:ring-zinc-900 dark:focus:ring-white'
+                }`}
+              />
+              {confirmPasswordError && <p className="text-xs text-red-500 mt-1">{confirmPasswordError}</p>}
+            </div>
+
+            {error && <div className="text-red-600 dark:text-red-400 text-sm">{error}</div>}
+            {success && <div className="text-green-600 dark:text-green-400 text-sm">{success}</div>}
+            <Button type="submit" disabled={loading || !isPasswordFormValid}>
               {loading ? 'Updating...' : 'Update password'}
             </Button>
           </form>
