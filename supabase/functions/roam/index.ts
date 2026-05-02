@@ -13,7 +13,7 @@ const env = validateRequired([
   'SUPABASE_ANON_KEY',
 ])
 
-Deno.serve(async (req) => {
+Deno.serv e(async (req) => {
   if (req.method === 'OPTIONS') {
     return json('ok', 200)
   }
