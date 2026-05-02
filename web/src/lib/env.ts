@@ -37,8 +37,6 @@ function validateEnvironment(): EnvVars {
   const NEXT_PUBLIC_SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   if (!NEXT_PUBLIC_SUPABASE_ANON_KEY) {
     missingVars.push('NEXT_PUBLIC_SUPABASE_ANON_KEY');
-  } else if (NEXT_PUBLIC_SUPABASE_ANON_KEY.length < 50) {
-    errors.push('NEXT_PUBLIC_SUPABASE_ANON_KEY looks invalid (too short: ' + NEXT_PUBLIC_SUPABASE_ANON_KEY.length + ' chars)');
   }
 
   const NEXT_PUBLIC_SENTRY_DSN = process.env.NEXT_PUBLIC_SENTRY_DSN;
