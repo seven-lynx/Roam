@@ -35,6 +35,10 @@ jest.mock('@supabase/supabase-js', () => ({
   createClient: jest.fn(),
 }))
 
+jest.mock('@supabase/ssr', () => ({
+  createServerClient: jest.fn(() => ({ auth: {}, from: jest.fn() })),
+}))
+
 // Suppress console output during tests (unless explicitly enabled)
 const originalError = console.error
 const originalWarn = console.warn

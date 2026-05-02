@@ -7,16 +7,12 @@ export function validateSupabaseEnv() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-  const missing: string[] = [];
-  if (!url) missing.push('NEXT_PUBLIC_SUPABASE_URL');
-  if (!key) missing.push('NEXT_PUBLIC_SUPABASE_ANON_KEY');
-
-  if (missing.length > 0) {
-    throw new Error(
-      `Missing required Supabase environment variables: ${missing.join(', ')}. ` +
-      `Please check your .env.local file and ensure these variables are set.`
-    );
-  }
+  if (!url) throw new Error(
+    'Missing SUPABASE_URL: Set NEXT_PUBLIC_SUPABASE_URL in your .env.local file.'
+  );
+  if (!key) throw new Error(
+    'Missing SUPABASE_ANON_KEY: Set NEXT_PUBLIC_SUPABASE_ANON_KEY in your .env.local file.'
+  );
 
   return { url: url as string, key: key as string };
 }

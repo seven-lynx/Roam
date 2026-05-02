@@ -51,7 +51,7 @@ function getLogLevel(): LogLevel {
   return process.env.NODE_ENV === 'development' ? LogLevel.DEBUG : LogLevel.ERROR;
 }
 
-const CURRENT_LOG_LEVEL = getLogLevel();
+let currentLogLevel = getLogLevel();
 
 /**
  * Safely format log context, stripping sensitive fields.
@@ -62,7 +62,7 @@ function sanitizeContext(context?: Record<string, unknown>): Record<string, unkn
   if (!context) return {};
 
   const safe: Record<string, unknown> = {};
-  const SAFE_KEYS = ['statusCode', 'count', 'duration', 'retry', 'attempt', 'reason', 'category', 'type', 'action'];
+  const SAFE_KEYS = ['statuscode', 'count', 'duration', 'retry', 'attempt', 'reason', 'category', 'type', 'action'];
   const UNSAFE_KEYS = ['email', 'password', 'token', 'secret', 'userId', 'id', 'url', 'response', 'body', 'payload'];
 
   for (const [key, value] of Object.entries(context)) {
@@ -83,7 +83,7 @@ function sanitizeContext(context?: Record<string, unknown>): Record<string, unkn
  * Example: logDebug('queue', 'URL validated', { count: 8 });
  */
 export function logDebug(module: string, message: string, context?: Record<string, unknown>): void {
-  if (CURRENT_LOG_LEVEL > LogLevel.DEBUG) return;
+  if (currentLogLevel > LogLevel.DEBUG) return;
 
   const sanitized = sanitizeContext(context);
   console.debug(`[${module}] ${message}`, sanitized);
@@ -95,7 +95,7 @@ export function logDebug(module: string, message: string, context?: Record<strin
  * Example: logInfo('auth', 'Session loaded', { attempt: 2 });
  */
 export function logInfo(module: string, message: string, context?: Record<string, unknown>): void {
-  if (CURRENT_LOG_LEVEL > LogLevel.INFO) return;
+  if (currentLogLevel > LogLevel.INFO) return;
 
   const sanitized = sanitizeContext(context);
   console.info(`[${module}] ${message}`, sanitized);
@@ -107,7 +107,7 @@ export function logInfo(module: string, message: string, context?: Record<string
  * Example: logWarn('roam', 'Slow API response', { duration: 5000 });
  */
 export function logWarn(module: string, message: string, context?: Record<string, unknown>): void {
-  if (CURRENT_LOG_LEVEL > LogLevel.WARN) return;
+  if (currentLogLevel > LogLevel.WARN) return;
 
   const sanitized = sanitizeContext(context);
   console.warn(`[${module}] ${message}`, sanitized);
@@ -140,6 +140,7 @@ export function logError(module: string, message: string, context?: Record<strin
  * Persists to localStorage on client-side.
  */
 export function setLogLevel(level: LogLevel): void {
+  currentLogLevel = level;
   if (typeof localStorage !== 'undefined') {
     localStorage.setItem('roam_log_level', level.toString());
   }

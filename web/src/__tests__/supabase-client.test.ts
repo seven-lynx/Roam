@@ -28,7 +28,7 @@ describe('Supabase Client (web/server)', () => {
   })
 
   it('should throw with clear message when URL is missing', () => {
-    process.env.NEXT_PUBLIC_SUPABASE_URL = undefined
+    delete process.env.NEXT_PUBLIC_SUPABASE_URL
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = 'anon-key-123'
 
     const { createServerSupabase } = require('@/lib/supabase/server')
@@ -40,7 +40,7 @@ describe('Supabase Client (web/server)', () => {
 
   it('should throw with clear message when ANON_KEY is missing', () => {
     process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://project.supabase.co'
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = undefined
+    delete process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
     const { createServerSupabase } = require('@/lib/supabase/server')
 
