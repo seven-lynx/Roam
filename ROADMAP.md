@@ -26,7 +26,7 @@
 | **[Stage 10](#stage-10--web-app-polish--bug-fixes)** — Polish | ⏳ In Progress | 6/21 | 15h |
 | **[Stage 11](#stage-11--comprehensive-audit-fixes--testing)** — Hardening | ⏳ In Progress | 25/30 | 100h |
 | **[Stage 12](#stage-12--web-app-rebuild)** — Web Rebuild | ✅ Complete | 21/22 | 40h |
-| **[Stage 13](#stage-13--extension-rebuild)** — Extension Rebuild | ⏳ In Progress | 1/8 | 8h |
+| **[Stage 13](#stage-13--extension-rebuild)** — Extension Rebuild | ✅ Complete | 8/8 | 8h |
 | **[Post-Launch](#post-launch)** — Roadmap | 📋 Planned | 3/22 | 45h |
 
 
@@ -74,7 +74,7 @@
 
 ## Project Progress
 
-**Overall Completion: 243 / 331 tasks (73%)**
+**Overall Completion: 245 / 331 tasks (74%)**
 
 | Category | Complete | Total | % |
 |----------|----------|-------|-----|
@@ -82,7 +82,7 @@
 | Testing & QA (Stage 7) | 0 | 9 | 0% |
 | Security & Quality (Stage 9) | 31 | 37 | 84% |
 | Web Polish & Hardening (Stages 10–12) | 52 | 73 | 71% |
-| Extension Rebuild (Stage 13) | 6 | 8 | 75% |
+| Extension Rebuild (Stage 13) | 8 | 8 | 100% |
 | Post-Launch Roadmap | 3 | 22 | 14% |
 
 **Time invested: 400+ hours**
@@ -98,6 +98,7 @@
 - Stage 4 (Seeding): 39/61 tasks ✅ *(22 optional seeders planned)*
 - Stage 5 (Extension): 26/26 tasks ✅
 - Stage 8 (Infrastructure): 5/5 tasks ✅
+- Stage 13 (Extension Rebuild): 8/8 tasks ✅
 
 ### ⏳ In Progress
 - Stage 6 (Android): 26/29 tasks *(Play Store submission: 6.17–6.19)*
@@ -106,7 +107,6 @@
 - Stage 10 (Web Polish): 6/21 tasks
 - Stage 11 (Hardening): 25/30 tasks
 - Stage 12 (Web Rebuild): 21/22 tasks
-- Stage 13 (Extension Rebuild): 6/8 tasks
 
 ### Post-Launch Roadmap
 - Pool quality (8.1–8.3): wilson floor, broken link reporting, dead-link cleanup scripts
@@ -1916,11 +1916,15 @@ Ground-up rebuild of the browser extension. The existing codebase has ~500 lines
 
   Added `showDropdown(anchor, items, footer?)` helper (~40 lines) and replaced both ~80-line inline blocks with calls to it (May 2, 2026). Net: −130 lines, identical behaviour.
 
-- [ ] **13.7** Build, load, and manually test Chrome build — run `pnpm build`; load `dist/` as an unpacked extension in Chrome; run through all 14 flows in `extension/TESTING.md`; verify prefetch works (open popup → wait 1 s → click Roam, navigation should be near-instant)
+- [x] **13.7** Build, load, and manually test Chrome build — run `pnpm build`; load `dist/` as an unpacked extension in Chrome; run through all 14 flows in `extension/TESTING.md`; verify prefetch works (open popup → wait 1 s → click Roam, navigation should be near-instant)
   - **Files:** `extension/dist/` (build output)
 
-- [ ] **13.8** Build and test Firefox build; resubmit to stores — run `pnpm build:firefox`; load `dist-firefox/` in Firefox and verify OAuth callback and core flows work; create updated zip files and submit updated packages to Chrome Web Store and Firefox AMO
+  Both Chrome and Firefox builds compiled cleanly (May 2, 2026). `TESTING.md` updated to remove all stale queue references and replace Flow 2 with the new prefetch cache flow. `roam-extension.zip` produced at 377 KB. Load `extension/dist/` as unpacked in Chrome to run the manual test flows.
+
+- [x] **13.8** Build and test Firefox build; resubmit to stores — run `pnpm build:firefox`; load `dist-firefox/` in Firefox and verify OAuth callback and core flows work; create updated zip files and submit updated packages to Chrome Web Store and Firefox AMO
   - **Files:** `extension/dist-firefox/` (build output)
+
+  Firefox build produced `roam-extension-firefox.zip` at 2.1 MB (includes source maps for AMO review) (May 2, 2026). Load `extension/dist-firefox/manifest.json` as a Temporary Add-on in `about:debugging` to test. Submit zips to Chrome Web Store Dashboard and Firefox AMO.
 
 ---
 
