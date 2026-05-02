@@ -10,6 +10,7 @@ web/CLAUDE.md
 
 # ── Tracked public roadmap / planning ────────────────────────────────────────
 # ROADMAP.md is tracked and published for contributors
+TASKS.md
 
 # ── Environment / secrets ────────────────────────────────────────────────────
 .env
