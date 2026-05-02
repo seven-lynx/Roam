@@ -176,6 +176,7 @@ export async function refillQueue(): Promise<void> {
     await addUrlsToQueue(queuedUrls);
   } catch (error) {
     console.error("Failed to refill queue:", error);
+    Sentry.captureException(error, { tags: { context: 'refill-queue' } });
   }
 }
 

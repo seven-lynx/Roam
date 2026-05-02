@@ -22,7 +22,7 @@
 | **[Stage 6](#stage-6--android-app)** — Mobile | ⏳ In Progress | 26/29 | 100h |
 | **[Stage 7](#stage-7--testing--launch-prep)** — QA | ⏳ In Progress | 0/9 | 20h |
 | **[Stage 8](#stage-8--infrastructure--domain)** — Deployment | ✅ Done | 5/5 | 8h |
-| **[Stage 9](#stage-9--pre-submission-quality--security-audit)** — Security Audit | ⏳ In Progress | 18/37 | 60h |
+| **[Stage 9](#stage-9--pre-submission-quality--security-audit)** — Security Audit | ⏳ In Progress | 22/37 | 60h |
 | **[Stage 10](#stage-10--web-app-polish--bug-fixes)** — Polish | ⏳ In Progress | 6/21 | 15h |
 | **[Stage 11](#stage-11--comprehensive-audit-fixes--testing)** — Hardening | ⏳ In Progress | 25/30 | 100h |
 | **[Post-Launch](#post-launch)** — Roadmap | 📋 Planned | 3/22 | 45h |
@@ -78,13 +78,13 @@
 
 ## 🎯 Project Progress
 
-**Overall Completion: 201 / 296 tasks (68%)**
+**Overall Completion: 205 / 296 tasks (69%)**
 
 | Category | Complete | Total | % |
 |----------|----------|-------|-----|
 | Core Launch (Stages 1–6, 8) | 149 | 177 | 84% |
 | Testing & QA (Stage 7) | 0 | 9 | 0% |
-| Security & Quality (Stage 9) | 18 | 37 | 49% |
+| Security & Quality (Stage 9) | 22 | 37 | 59% |
 | Web Polish & Hardening (Stages 10–11) | 31 | 51 | 61% |
 | Post-Launch Roadmap | 3 | 22 | 14% |
 
@@ -105,7 +105,7 @@
 ### ⏳ In Progress
 - Stage 6 (Android): 26/29 tasks *(Play Store submission: 6.17–6.19)*
 - Stage 7 (Testing): 0/9 tasks
-- Stage 9 (Security Audit): 18/37 tasks
+- Stage 9 (Security Audit): 22/37 tasks
 - Stage 10 (Web Polish): 6/21 tasks
 - Stage 11 (Hardening): 25/30 tasks
 
@@ -1003,17 +1003,19 @@ Final checks before making the app public.
   - **Files:** `web/src/proxy.ts` (L32–36)
   - 📖 Completed as part of task 11.17. Admin check now uses `typeof user?.app_metadata === 'object' && user.app_metadata !== null && (user.app_metadata as Record<string, unknown>)?.role === 'admin'` — fully null-safe before accessing `.role`.
 
-- [ ] **9.25** Replace `Promise.all` with `Promise.allSettled` in profile Edge Function — `supabase/functions/profile/index.ts` runs parallel queries via `Promise.all()`; if any single query fails the entire request fails; switch to `Promise.allSettled()` so partial data is still returned and individual failures are handled gracefully
+- [x] **9.25** Replace `Promise.all` with `Promise.allSettled` in profile Edge Function
   - **Severity:** HIGH
-  - **Files:** `supabase/functions/profile/index.ts` (L66–81)
+  - **Files:** `supabase/functions/profile/index.ts`
+  - 📖 Already implemented. `profile/index.ts` uses `Promise.allSettled()` for the three parallel queries (followers, following, collections) and handles each result individually, returning `0`/`[]` for any failed sub-query rather than failing the entire request.
 
 - [ ] **9.26** Fix race condition in queue initialization — multiple rapid sign-in events can call `initializeQueueIfNeeded()` concurrently, running the init path in parallel and corrupting storage; add an in-progress guard (e.g. a module-level promise variable) so only one initialization runs at a time
   - **Severity:** MEDIUM
   - **Files:** `extension/src/background/background.ts` (L196–201)
 
-- [ ] **9.27** Add error capture to `refillQueue` — `queueManager.ts`'s `startRefillLoop` and `refillQueue` have no try-catch; uncaught errors silently kill the loop causing queue starvation with no Sentry alert; wrap both in try-catch with `Sentry.captureException`
+- [x] **9.27** Add error capture to `refillQueue` — `startRefillLoop` and `startValidationLoop` already had try-catch + Sentry; `refillQueue` itself only had `console.error` with no Sentry capture, so failed refills were invisible in production
   - **Severity:** MEDIUM
-  - **Files:** `extension/src/lib/queueManager.ts` (L152–168)
+  - **Files:** `extension/src/lib/queueManager.ts`
+  - 📖 Added `Sentry.captureException(error, { tags: { context: 'refill-queue' } })` to `refillQueue`'s catch block. All three error paths in the queue manager now report to Sentry.
 
 - [ ] **9.28** Replace unsafe `(req as any)` type casts in background.ts — the extension's message handler casts request objects to `any` without runtime validation, allowing undefined values to propagate into functions; add a discriminated-union message type and validate at the handler boundary
   - **Severity:** MEDIUM
@@ -1031,12 +1033,12 @@ Final checks before making the app public.
   - **Severity:** MEDIUM
   - **Files:** `extension/src/lib/queueManager.ts` (L190–200)
 
-- [ ] **9.32** Extract duplicate fallback-categories constant — fallback category IDs are hardcoded in two places in the extension; move to a single shared constant to prevent future divergence
+- [x] **9.32** Extract duplicate fallback-categories constant — completed as task 9.37; both copies removed, shared constant in `extension/src/lib/constants.ts`.
   - **Severity:** LOW
 
-- [ ] **9.33** Suppress noisy console errors for falsy-but-valid values in web — several `console.error` calls fire for values that are falsy but semantically valid (e.g. empty arrays, zero); guard these with intent-explicit checks to reduce noise
+- [x] **9.33** Suppress noisy console errors for falsy-but-valid values in web
   - **Severity:** LOW
-  - **Files:** `web/src/`
+  - 📖 Investigated — all `console.error` calls in `web/src/` are inside catch blocks for genuine exceptions. No instances of firing on empty arrays or zero values were found. No changes needed.
 
 - [ ] **9.34** Restrict Supabase Edge Function CORS origins — all Edge Functions return `Access-Control-Allow-Origin: *`; consider restricting to known origins (`roamtheweb.app`, extension ID) once those are stable, to reduce CSRF surface
   - **Severity:** LOW
