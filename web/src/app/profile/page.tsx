@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Header } from '@/components/Header';
-import { LoadingPage, Button, Card, Avatar, Input, Spinner } from '@/components/UI';
+import { LoadingPage, Button, Card, Avatar, Spinner } from '@/components/UI';
 import { createClient } from '@/lib/supabase/client';
 import { useRequireAuth, useProfile } from '@/lib/hooks';
 
@@ -32,19 +32,6 @@ export default function ProfilePage() {
   const [collectionCount, setCollectionCount] = useState(0);
   const [loading, setLoading] = useState(false);
   const [saved, setSaved] = useState(false);
-
-  useEffect(() => {
-    if (isReady) {
-      loadCategories();
-      loadStats();
-    }
-  }, [isReady]);
-
-  useEffect(() => {
-    if (!profileLoading && profile) {
-      loadUserCategories();
-    }
-  }, [profile, profileLoading]);
 
   async function loadCategories() {
     try {
@@ -93,6 +80,19 @@ export default function ProfilePage() {
       console.error('Failed to load collection count:', e);
     }
   }
+
+  useEffect(() => {
+    if (isReady) {
+      loadCategories();
+      loadStats();
+    }
+  }, [isReady]);
+
+  useEffect(() => {
+    if (!profileLoading && profile) {
+      loadUserCategories();
+    }
+  }, [profile, profileLoading]);
 
   async function handleSaveCategories() {
     setLoading(true);

@@ -61,18 +61,11 @@ export default function DashboardPage() {
     };
   }, []);
 
-  useEffect(() => {
-    if (isReady) {
-      fetchNextUrl();
-      loadCollections();
-    }
-  }, [isReady]);
-
   async function loadCollections() {
     try {
       const { data } = await supabase
         .rpc('get_user_collections');
-      setUserCollections((data as any) || []);
+      setUserCollections((data as { id: string; name: string }[]) || []);
     } catch (e) {
       console.error('Failed to load collections:', e);
     }
@@ -136,6 +129,13 @@ export default function DashboardPage() {
       span?.end();
     }
   }
+
+  useEffect(() => {
+    if (isReady) {
+      fetchNextUrl();
+      loadCollections();
+    }
+  }, [isReady]);
 
   async function handleVote(vote: 1 | -1) {
     if (!currentUrl) return;
@@ -354,7 +354,7 @@ export default function DashboardPage() {
               <h3 className="text-xl font-bold text-zinc-900 dark:text-white mb-4">Save to collection</h3>
               {userCollections.length === 0 ? (
                 <div className="text-center py-8">
-                  <p className="text-zinc-600 dark:text-zinc-400 mb-4">You haven't created any collections yet.</p>
+                  <p className="text-zinc-600 dark:text-zinc-400 mb-4">You haven&apos;t created any collections yet.</p>
                   <Link href="/collections?new=true" className="text-blue-600 hover:underline">
                     Create a collection →
                   </Link>

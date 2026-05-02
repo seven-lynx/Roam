@@ -1,5 +1,6 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
+import type { User } from '@supabase/supabase-js'
 import { logError } from '@/lib/logger'
 
 export async function proxy(request: NextRequest) {
@@ -27,15 +28,15 @@ export async function proxy(request: NextRequest) {
 
     // Refresh the session if it has expired.
     // IMPORTANT: do not run any logic between createServerClient and getUser.
-    let user: any = null;
+    let user: User | null = null;
     try {
       const { data: { user: authUser }, error: authError } = await supabase.auth.getUser();
       if (!authError && authUser) {
         user = authUser;
       } else if (authError) {
         logError('middleware', 'Supabase auth.getUser() returned error', {
-          errorCode: (authError as any).code,
-          errorStatus: (authError as any).status,
+          errorCode: (authError as { code?: string }).code,
+          errorStatus: (authError as { status?: number }).status,
         });
       }
     } catch (error) {
@@ -53,7 +54,7 @@ export async function proxy(request: NextRequest) {
       const isAdmin =
         typeof user?.app_metadata === 'object' &&
         user.app_metadata !== null &&
-        (user.app_metadata as Record<string, any>)?.role === 'admin';
+        (user.app_metadata as Record<string, unknown>)?.role === 'admin';
       
       if (!isAdmin) {
         return NextResponse.redirect(new URL('/', request.url))

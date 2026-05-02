@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Header } from '@/components/Header';
-import { LoadingPage, Button, Card, Avatar, Spinner } from '@/components/UI';
+import { LoadingPage, Button, Card, Avatar } from '@/components/UI';
 import { createClient } from '@/lib/supabase/client';
 import { useRequireAuth } from '@/lib/hooks';
 
@@ -13,6 +13,16 @@ type User = {
   email: string;
   bio?: string;
   following?: boolean;
+};
+
+type FollowRecord = {
+  follower_id: string;
+  profiles: { id: string; username: string; email: string; bio?: string } | null;
+};
+
+type FollowingRecord = {
+  following_id: string;
+  profiles: { id: string; username: string; email: string; bio?: string } | null;
 };
 
 export default function FriendsPage() {
@@ -25,13 +35,6 @@ export default function FriendsPage() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
 
-  useEffect(() => {
-    if (isReady) {
-      loadFollowers();
-      loadFollowing();
-    }
-  }, [isReady]);
-
   async function loadFollowers() {
     try {
       const { data, error } = await supabase
@@ -41,14 +44,14 @@ export default function FriendsPage() {
 
       if (!error && data) {
         setFollowers(
-          (data as any)
-            .map((f: any) => ({
-              id: f.profiles?.id,
-              username: f.profiles?.username,
-              email: f.profiles?.email,
+          (data as FollowRecord[])
+            .map((f) => ({
+              id: f.profiles?.id ?? '',
+              username: f.profiles?.username ?? '',
+              email: f.profiles?.email ?? '',
               bio: f.profiles?.bio,
             }))
-            .filter((u: any) => u.id)
+            .filter((u) => u.id)
         );
       }
     } catch (e) {
@@ -67,29 +70,18 @@ export default function FriendsPage() {
 
       if (!error && data) {
         setFollowing(
-          (data as any)
-            .map((f: any) => ({
-              id: f.profiles?.id,
-              username: f.profiles?.username,
-              email: f.profiles?.email,
+          (data as FollowingRecord[])
+            .map((f) => ({
+              id: f.profiles?.id ?? '',
+              username: f.profiles?.username ?? '',
+              email: f.profiles?.email ?? '',
               bio: f.profiles?.bio,
             }))
-            .filter((u: any) => u.id)
+            .filter((u) => u.id)
         );
       }
     } catch (e) {
       console.error('Failed to load following:', e);
-    }
-  }
-
-  async function handleFollow(userId: string) {
-    try {
-      await supabase.functions.invoke('follow', {
-        body: { action: 'follow', user_id: userId },
-      });
-      loadFollowing();
-    } catch (e) {
-      console.error('Failed to follow:', e);
     }
   }
 
@@ -103,6 +95,14 @@ export default function FriendsPage() {
       console.error('Failed to unfollow:', e);
     }
   }
+
+  useEffect(() => {
+    if (isReady) {
+      loadFollowers();
+      loadFollowing();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isReady]);
 
   if (!isReady) return <LoadingPage />;
 

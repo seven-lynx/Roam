@@ -28,7 +28,7 @@ type UserCollection = {
 export default function UserProfilePage() {
   const params = useParams();
   const username = params.username as string;
-  const { session, loading: sessionLoading } = useSession();
+  const { session } = useSession();
   const supabase = createClient();
 
   const [profile, setProfile] = useState<UserProfile | null>(null);
@@ -36,16 +36,6 @@ export default function UserProfilePage() {
   const [loading, setLoading] = useState(true);
   const [isFollowing, setIsFollowing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    loadProfile();
-  }, [username]);
-
-  useEffect(() => {
-    if (profile && session?.user.id) {
-      checkFollowing();
-    }
-  }, [profile, session]);
 
   async function loadProfile() {
     try {
@@ -61,7 +51,7 @@ export default function UserProfilePage() {
       }
 
       // Get stats via function
-      const { data: stats, error: statsErr } = await supabase.functions.invoke('profile', {
+      const { data: stats } = await supabase.functions.invoke('profile', {
         body: { user_id: data.id },
       });
 
@@ -116,7 +106,7 @@ export default function UserProfilePage() {
         .single();
 
       setIsFollowing(!!data);
-    } catch (e) {
+    } catch {
       // User is not following
       setIsFollowing(false);
     }
@@ -135,6 +125,16 @@ export default function UserProfilePage() {
     }
   }
 
+  useEffect(() => {
+    loadProfile();
+  }, [username]);
+
+  useEffect(() => {
+    if (profile && session?.user.id) {
+      checkFollowing();
+    }
+  }, [profile, session]);
+
   if (loading) return <LoadingPage />;
 
   if (error || !profile) {
@@ -143,7 +143,7 @@ export default function UserProfilePage() {
         <Header />
         <main className="max-w-4xl mx-auto px-6 py-12 text-center">
           <h1 className="text-2xl font-bold text-zinc-900 dark:text-white mb-4">User not found</h1>
-          <p className="text-zinc-600 dark:text-zinc-400 mb-6">The user you're looking for doesn't exist or has been removed.</p>
+          <p className="text-zinc-600 dark:text-zinc-400 mb-6">The user you&apos;re looking for doesn&apos;t exist or has been removed.</p>
           <Link href="/friends">
             <Button>Back to friends</Button>
           </Link>

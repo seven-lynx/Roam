@@ -58,10 +58,10 @@ const CURRENT_LOG_LEVEL = getLogLevel();
  * Safe fields: statusCode, count, duration, retry, attempt
  * Unsafe fields (never logged): email, password, token, secret, userId, id, url (full URLs can leak intent)
  */
-function sanitizeContext(context?: Record<string, any>): Record<string, any> {
+function sanitizeContext(context?: Record<string, unknown>): Record<string, unknown> {
   if (!context) return {};
 
-  const safe: Record<string, any> = {};
+  const safe: Record<string, unknown> = {};
   const SAFE_KEYS = ['statusCode', 'count', 'duration', 'retry', 'attempt', 'reason', 'category', 'type', 'action'];
   const UNSAFE_KEYS = ['email', 'password', 'token', 'secret', 'userId', 'id', 'url', 'response', 'body', 'payload'];
 
@@ -82,7 +82,7 @@ function sanitizeContext(context?: Record<string, any>): Record<string, any> {
  * Log at DEBUG level (most verbose).
  * Example: logDebug('queue', 'URL validated', { count: 8 });
  */
-export function logDebug(module: string, message: string, context?: Record<string, any>): void {
+export function logDebug(module: string, message: string, context?: Record<string, unknown>): void {
   if (CURRENT_LOG_LEVEL > LogLevel.DEBUG) return;
 
   const sanitized = sanitizeContext(context);
@@ -94,7 +94,7 @@ export function logDebug(module: string, message: string, context?: Record<strin
  * Log at INFO level.
  * Example: logInfo('auth', 'Session loaded', { attempt: 2 });
  */
-export function logInfo(module: string, message: string, context?: Record<string, any>): void {
+export function logInfo(module: string, message: string, context?: Record<string, unknown>): void {
   if (CURRENT_LOG_LEVEL > LogLevel.INFO) return;
 
   const sanitized = sanitizeContext(context);
@@ -106,7 +106,7 @@ export function logInfo(module: string, message: string, context?: Record<string
  * Log at WARN level.
  * Example: logWarn('roam', 'Slow API response', { duration: 5000 });
  */
-export function logWarn(module: string, message: string, context?: Record<string, any>): void {
+export function logWarn(module: string, message: string, context?: Record<string, unknown>): void {
   if (CURRENT_LOG_LEVEL > LogLevel.WARN) return;
 
   const sanitized = sanitizeContext(context);
@@ -119,7 +119,7 @@ export function logWarn(module: string, message: string, context?: Record<string
  * Captures the error to Sentry for monitoring.
  * Example: logError('submit', 'URL rejected by Safe Browsing', { statusCode: 403 });
  */
-export function logError(module: string, message: string, context?: Record<string, any>, error?: Error): void {
+export function logError(module: string, message: string, context?: Record<string, unknown>, error?: Error): void {
   const sanitized = sanitizeContext(context);
   console.error(`[${module}] ${message}`, sanitized, error);
 

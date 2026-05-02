@@ -28,7 +28,6 @@ export default function UrlPage() {
   const [url, setUrl] = useState<UrlDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [userVote, setUserVote] = useState<'like' | 'dislike' | null>(null);
-  const [saved, setSaved] = useState(false);
 
   useEffect(() => {
     loadUrl();

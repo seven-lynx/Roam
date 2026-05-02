@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { Header } from '@/components/Header';
-import { LoadingPage, Button, Card, Avatar } from '@/components/UI';
+import { LoadingPage, Button, Card } from '@/components/UI';
 import { createClient } from '@/lib/supabase/client';
 import { useSession, useRequireAuth } from '@/lib/hooks';
 
@@ -37,12 +37,6 @@ export default function CollectionDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [isOwner, setIsOwner] = useState(false);
 
-  useEffect(() => {
-    if (isReady) {
-      loadCollection();
-    }
-  }, [isReady, collectionId]);
-
   async function loadCollection() {
     try {
       const { data: col, error: err } = await supabase
@@ -71,7 +65,7 @@ export default function CollectionDetailPage() {
 
       setCollection({
         ...col,
-        items: items?.map((item: any) => ({
+        items: items?.map((item: { id: string; urls: Omit<CollectionItem, 'id'> | null }) => ({
           id: item.id,
           ...item.urls,
         })) || [],
@@ -94,6 +88,12 @@ export default function CollectionDetailPage() {
       console.error('Failed to remove item:', e);
     }
   }
+
+  useEffect(() => {
+    if (isReady) {
+      loadCollection();
+    }
+  }, [isReady, collectionId]);
 
   if (!isReady || loading) return <LoadingPage />;
 

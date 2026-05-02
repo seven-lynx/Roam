@@ -4,6 +4,15 @@ import { useEffect, useState } from 'react';
 import { createClient } from './supabase/client';
 import type { Session } from '@supabase/supabase-js';
 
+export interface Profile {
+  user_id: string;
+  id?: string;
+  username: string;
+  email: string;
+  bio?: string;
+  avatar_url?: string;
+}
+
 /**
  * Hook to get current user session
  * Handles auth state changes and provides loading state
@@ -40,16 +49,14 @@ export function useSession() {
 export function useProfile() {
   const supabase = createClient();
   const { session, loading: sessionLoading } = useSession();
-  const [profile, setProfile] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
+  const [profile, setProfile] = useState<Profile | null>(null);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (sessionLoading || !session?.user.id) {
-      setLoading(false);
-      return;
-    }
+    if (sessionLoading || !session?.user.id) return;
 
+    setLoading(true);
     (async () => {
       try {
         const { data, error: err } = await supabase
@@ -82,14 +89,12 @@ export function useUserCategories() {
   const supabase = createClient();
   const { session, loading: sessionLoading } = useSession();
   const [categories, setCategories] = useState<string[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (sessionLoading || !session?.user.id) {
-      setLoading(false);
-      return;
-    }
+    if (sessionLoading || !session?.user.id) return;
 
+    setLoading(true);
     (async () => {
       try {
         const { data } = await supabase
@@ -112,16 +117,14 @@ export function useUserCategories() {
  */
 export function useRequireAuth() {
   const { session, loading } = useSession();
-  const [isReady, setIsReady] = useState(false);
 
   useEffect(() => {
     if (!loading && !session) {
       window.location.href = '/join';
     }
-    if (!loading && session) {
-      setIsReady(true);
-    }
   }, [session, loading]);
+
+  const isReady = !loading && !!session;
 
   return { isReady, session };
 }

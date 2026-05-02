@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import { Header } from '@/components/Header';
 import { LoadingPage, Button, Card, Input, Spinner } from '@/components/UI';
 import { createClient } from '@/lib/supabase/client';
@@ -19,7 +19,6 @@ type Collection = {
 export default function CollectionsPage() {
   const { isReady } = useRequireAuth();
   const { session } = useSession();
-  const router = useRouter();
   const searchParams = useSearchParams();
   const supabase = createClient();
 
@@ -31,12 +30,6 @@ export default function CollectionsPage() {
   const [newPublic, setNewPublic] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (isReady) {
-      loadCollections();
-    }
-  }, [isReady]);
 
   async function loadCollections() {
     try {
@@ -75,6 +68,12 @@ export default function CollectionsPage() {
       setLoading(false);
     }
   }
+
+  useEffect(() => {
+    if (isReady) {
+      loadCollections();
+    }
+  }, [isReady]);
 
   async function handleCreateCollection(e: React.FormEvent) {
     e.preventDefault();
@@ -118,6 +117,8 @@ export default function CollectionsPage() {
       setError('Failed to delete collection');
     }
   }
+
+  void handleDeleteCollection; // defined for future use
 
   if (!isReady) return <LoadingPage />;
 

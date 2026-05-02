@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import ModerationDetail from "./ModerationDetail";
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
@@ -19,7 +18,6 @@ type AnalyticsData = {
 };
 
 export default function AdminPageClient() {
-  const router = useRouter();
   const supabase = createClient();
 
   const [items, setItems] = useState<QueueItem[]>([]);

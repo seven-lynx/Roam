@@ -1,10 +1,9 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Header } from '@/components/Header';
-import { LoadingPage, Button, Card, Input } from '@/components/UI';
+import { LoadingPage, Button, Card } from '@/components/UI';
 import { createClient } from '@/lib/supabase/client';
 import { useRequireAuth } from '@/lib/hooks';
 import { validatePassword, validatePasswordsMatch, getPasswordStrengthColor, getPasswordStrengthLabel } from '@/lib/validation';
@@ -14,7 +13,10 @@ export default function SettingsPage() {
   const router = useRouter();
   const supabase = createClient();
 
-  const [darkMode, setDarkMode] = useState(false);
+  const [darkMode, setDarkMode] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    return localStorage.getItem('theme') === 'dark';
+  });
   const [emailNotifications, setEmailNotifications] = useState(true);
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -26,18 +28,6 @@ export default function SettingsPage() {
   const [success, setSuccess] = useState<string | null>(null);
   const [notificationsLoading, setNotificationsLoading] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
-
-  useEffect(() => {
-    // Load dark mode preference from localStorage
-    const isDark = localStorage.getItem('theme') === 'dark';
-    setDarkMode(isDark);
-    if (isDark) {
-      document.documentElement.classList.add('dark');
-    }
-
-    // Load notification settings from user_settings
-    loadNotificationSettings();
-  }, []);
 
   async function loadNotificationSettings() {
     try {
@@ -51,8 +41,20 @@ export default function SettingsPage() {
       }
     } catch (e) {
       // Settings may not exist yet, use default
+      void e;
     }
   }
+
+  useEffect(() => {
+    if (darkMode) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+
+    // Load notification settings from user_settings
+    loadNotificationSettings();
+  }, []);
 
   async function handleDarkModeToggle() {
     const newDarkMode = !darkMode;

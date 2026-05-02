@@ -141,7 +141,7 @@ export default function Home() {
               <div className="text-3xl mb-3">👥</div>
               <h3 className="font-semibold text-zinc-900 dark:text-white mb-2">Community</h3>
               <p className="text-sm text-zinc-600 dark:text-zinc-400">
-                Follow friends, discover what they're reading, and share collections.
+                Follow friends, discover what they&apos;re reading, and share collections.
               </p>
             </div>
           </div>

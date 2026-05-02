@@ -12,7 +12,18 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Test config files use require()
+    "jest.config.js",
+    "jest.setup.js",
+    "src/__tests__/**",
   ]),
+  {
+    rules: {
+      // Calling async load functions from useEffect is valid React practice.
+      // The rule aggressively flags any function call that internally calls setState.
+      "react-hooks/set-state-in-effect": "off",
+    },
+  },
 ]);
 
 export default eslintConfig;

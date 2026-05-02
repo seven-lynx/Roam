@@ -5,7 +5,7 @@ import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { useSession } from '@/lib/hooks';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 
 export function Header() {
   const { session, loading } = useSession();

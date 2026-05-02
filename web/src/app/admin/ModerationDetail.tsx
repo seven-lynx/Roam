@@ -22,7 +22,6 @@ export default function ModerationDetail({
 }: ModerationDetailProps) {
   const supabase = createClient();
   const [status, setStatus] = useState<"idle" | "loading">("idle");
-  const [decision, setDecision] = useState<"approved" | "rejected" | null>(null);
 
   if (!item) return null;
 
@@ -147,13 +146,13 @@ export default function ModerationDetail({
           )}
 
           {/* Category */}
-          {(item.subcategory as any)?.label && (
+          {item.subcategory?.label && (
             <div>
               <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
                 Category
               </label>
               <div className="bg-zinc-50 dark:bg-zinc-800 rounded-lg px-4 py-3 text-sm text-zinc-900 dark:text-white">
-                {(item.subcategory as any).label}
+                {item.subcategory?.label}
               </div>
             </div>
           )}
@@ -182,8 +181,8 @@ export default function ModerationDetail({
               Submitted by
             </label>
             <div className="bg-zinc-50 dark:bg-zinc-800 rounded-lg px-4 py-3 text-sm text-zinc-900 dark:text-white">
-              {(item.profile as any)?.display_name ||
-                (item.profile as any)?.username ||
+              {item.profile?.display_name ||
+                item.profile?.username ||
                 item.submitted_by ||
                 "Unknown"}
             </div>
