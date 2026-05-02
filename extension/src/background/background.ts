@@ -10,6 +10,7 @@ import { validateEnvironment } from '../lib/env'; // validate env vars immediate
 validateEnvironment(); // will throw if validation fails
 import type { Request, Response, StateData, RoamData, CheckUrlData, QueueState, Collection, CategoryItem, ProfileData } from '../lib/messages';
 import { getSupabase, clearAuthStorage } from '../lib/supabase';
+import { FALLBACK_CATEGORIES } from '../lib/constants';
 
 declare const __SUPABASE_URL__: string;
 import {
@@ -405,16 +406,6 @@ async function signUpWithEmail(email: string, password: string): Promise<Respons
 }
 
 // In-memory cache for categories list (stable, 20-min TTL is just extra safety)
-const CATEGORIES_FALLBACK: CategoryItem[] = [
-  { id: 'c1000000-0000-0000-0000-000000000001', name: 'Science & Nature', icon: '🔬' },
-  { id: 'c1000000-0000-0000-0000-000000000002', name: 'Technology',       icon: '💻' },
-  { id: 'c1000000-0000-0000-0000-000000000003', name: 'Arts & Culture',   icon: '🎨' },
-  { id: 'c1000000-0000-0000-0000-000000000004', name: 'History & Ideas',  icon: '📜' },
-  { id: 'c1000000-0000-0000-0000-000000000005', name: 'Games & Hobbies',  icon: '🎮' },
-  { id: 'c1000000-0000-0000-0000-000000000006', name: 'Weird & Wonderful',icon: '🌀' },
-  { id: 'c1000000-0000-0000-0000-000000000007', name: 'People & Places',  icon: '🌍' },
-  { id: 'c1000000-0000-0000-0000-000000000008', name: 'Mind & Body',      icon: '🧠' },
-];
 let categoriesCache: { items: CategoryItem[]; fetchedAt: number } | null = null;
 const CATEGORIES_TTL = 20 * 60 * 1000;
 
@@ -433,7 +424,7 @@ async function getCategories(): Promise<Response<CategoryItem[]>> {
       return { ok: true, data: data as CategoryItem[] };
     }
   } catch { /* fall through to fallback */ }
-  return { ok: true, data: CATEGORIES_FALLBACK };
+  return { ok: true, data: FALLBACK_CATEGORIES };
 }
 
 async function getUserCategories(): Promise<Response<{ categoryIds: string[] }>> {

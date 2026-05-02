@@ -22,7 +22,7 @@
 | **[Stage 6](#stage-6--android-app)** — Mobile | ⏳ In Progress | 26/29 | 100h |
 | **[Stage 7](#stage-7--testing--launch-prep)** — QA | ⏳ In Progress | 0/9 | 20h |
 | **[Stage 8](#stage-8--infrastructure--domain)** — Deployment | ✅ Done | 5/5 | 8h |
-| **[Stage 9](#stage-9--pre-submission-quality--security-audit)** — Security Audit | ⏳ In Progress | 16/36 | 60h |
+| **[Stage 9](#stage-9--pre-submission-quality--security-audit)** — Security Audit | ⏳ In Progress | 18/37 | 60h |
 | **[Stage 10](#stage-10--web-app-polish--bug-fixes)** — Polish | ⏳ In Progress | 6/21 | 15h |
 | **[Stage 11](#stage-11--comprehensive-audit-fixes--testing)** — Hardening | ⏳ In Progress | 25/30 | 100h |
 | **[Post-Launch](#post-launch)** — Roadmap | 📋 Planned | 3/22 | 45h |
@@ -78,13 +78,13 @@
 
 ## 🎯 Project Progress
 
-**Overall Completion: 199 / 295 tasks (67%)**
+**Overall Completion: 201 / 296 tasks (68%)**
 
 | Category | Complete | Total | % |
 |----------|----------|-------|-----|
 | Core Launch (Stages 1–6, 8) | 149 | 177 | 84% |
 | Testing & QA (Stage 7) | 0 | 9 | 0% |
-| Security & Quality (Stage 9) | 16 | 36 | 44% |
+| Security & Quality (Stage 9) | 18 | 37 | 49% |
 | Web Polish & Hardening (Stages 10–11) | 31 | 51 | 61% |
 | Post-Launch Roadmap | 3 | 22 | 14% |
 
@@ -105,7 +105,7 @@
 ### ⏳ In Progress
 - Stage 6 (Android): 26/29 tasks *(Play Store submission: 6.17–6.19)*
 - Stage 7 (Testing): 0/9 tasks
-- Stage 9 (Security Audit): 16/36 tasks
+- Stage 9 (Security Audit): 18/37 tasks
 - Stage 10 (Web Polish): 6/21 tasks
 - Stage 11 (Hardening): 25/30 tasks
 
@@ -850,7 +850,7 @@ Final checks before making the app public.
 
 **Audit Source:** Comprehensive codebase audit covering extension, Android, web, Supabase, documentation, configuration, and deployment readiness. See [docs/AUDIT_REPORT.md](docs/AUDIT_REPORT.md) for full details.
 
-**Submission Status:** ✅ **All CRITICAL blockers resolved.** Remaining blockers before store submission: 9.10 (OAuth testing), 9.21 (Unix gradlew for CI).
+**Submission Status:** ✅ **All CRITICAL blockers resolved.** Remaining blockers before store submission: 9.10 (OAuth testing).
 
 ### CRITICAL — Blockers (must fix before any release)
 
@@ -984,10 +984,10 @@ Final checks before making the app public.
   - **Files:** `android/app/src/main/AndroidManifest.xml`
   - 📖 Changed `android:allowBackup="true"` → `android:allowBackup="false"`. Found during Android build audit.
 
-- [ ] **9.21** Add Unix `gradlew` shell script to `android/` — `gradlew.bat` (Windows) and `gradle-wrapper.jar` are now present but without a `gradlew` Unix shell script the project cannot be built on macOS/Linux CI (e.g. GitHub Actions `ubuntu-latest`)
+- [x] **9.21** Add Unix `gradlew` shell script to `android/` — `gradlew.bat` (Windows) and `gradle-wrapper.jar` are now present but without a `gradlew` Unix shell script the project cannot be built on macOS/Linux CI (e.g. GitHub Actions `ubuntu-latest`)
   - **Severity:** MEDIUM — CI/CD readiness
-  - **Effort:** 5 minutes
-  - **Files:** `android/gradlew` (new, must be `chmod +x`)
+  - **Files:** `android/gradlew`
+  - 📖 File already existed — `android/gradlew` is a proper POSIX shell script (`#!/bin/sh`) with full Gradle wrapper logic. CI passes on `ubuntu-latest` (verified via GitHub Actions). Task was a false open.
 
 - [ ] **9.22** Fix `sendFailedUrlBatch` silent failure — currently if the POST to `/log-failed-urls` fails, failed URLs are silently discarded with no retry and no Sentry capture; implement exponential backoff retry and capture the error to Sentry on final failure so moderation data is not lost
   - **Severity:** HIGH
@@ -1045,6 +1045,11 @@ Final checks before making the app public.
 - [ ] **9.35** Add runtime category validation in extension submit panel — the category selection in the submit panel is only validated at the TypeScript type level; add a runtime guard so an unchecked submit cannot reach the Edge Function with an invalid or missing category ID
   - **Severity:** LOW
   - **Files:** `extension/src/` (submit panel component)
+
+- [x] **9.37** Extract duplicate fallback categories constant in extension — `CATEGORIES_FALLBACK` in `background.ts` and `FALLBACK_CATEGORIES` in `popup.ts` were identical 8-element arrays; divergence would cause silent category mismatch bugs; moved to `extension/src/lib/constants.ts` and both files now import from the shared source
+  - **Severity:** LOW — maintainability / correctness risk
+  - **Files:** `extension/src/lib/constants.ts` (new), `extension/src/background/background.ts`, `extension/src/popup/popup.ts`
+  - 📖 Created `constants.ts` with the single `FALLBACK_CATEGORIES` export. Removed the local copy from `background.ts` (was `CATEGORIES_FALLBACK`) and from `popup.ts`. Both files now import the shared constant. TypeScript reports no errors; extension build passes.
 
 - [x] **9.36** Fix debug console spam and error-message leak in `roam/index.ts` — the roam Edge Function had a parse-time syntax error (`Deno.serv e(`), three verbose debug `console.log` statements exposing internal response shapes, and an error handler that forwarded the raw `error.message` string to API callers (leaking DB internals); task 11.1 missed this file
   - **Severity:** HIGH — syntax error prevents redeployment from source; error leak exposes schema details

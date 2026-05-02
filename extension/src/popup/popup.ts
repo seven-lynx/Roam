@@ -4,6 +4,7 @@ import '../lib/sentry'; // must be first — initialises Sentry if SENTRY_DSN is
 import { Sentry } from '../lib/sentry';
 import { sendToBackground } from '../lib/messages';
 import type { StateData, RoamData, CheckUrlData, Collection, CategoryItem, ProfileData } from '../lib/messages';
+import { FALLBACK_CATEGORIES } from '../lib/constants';
 
 // ── Global error capture ───────────────────────────────────────────────────
 window.addEventListener('unhandledrejection', (event) => {
@@ -68,17 +69,7 @@ function showError(message: string) {
 // Context for categories screen: 'firsttime' (post sign-in) or 'settings' (from config panel)
 let categoriesContext: 'firsttime' | 'settings' = 'firsttime';
 
-// Local fallback so chips always render even if the background SW fails to respond
-const FALLBACK_CATEGORIES: CategoryItem[] = [
-  { id: 'c1000000-0000-0000-0000-000000000001', name: 'Science & Nature', icon: '🔬' },
-  { id: 'c1000000-0000-0000-0000-000000000002', name: 'Technology',       icon: '💻' },
-  { id: 'c1000000-0000-0000-0000-000000000003', name: 'Arts & Culture',   icon: '🎨' },
-  { id: 'c1000000-0000-0000-0000-000000000004', name: 'History & Ideas',  icon: '📜' },
-  { id: 'c1000000-0000-0000-0000-000000000005', name: 'Games & Hobbies',  icon: '🎮' },
-  { id: 'c1000000-0000-0000-0000-000000000006', name: 'Weird & Wonderful', icon: '🌀' },
-  { id: 'c1000000-0000-0000-0000-000000000007', name: 'People & Places',  icon: '🌍' },
-  { id: 'c1000000-0000-0000-0000-000000000008', name: 'Mind & Body',      icon: '🧠' },
-];
+// FALLBACK_CATEGORIES imported from ../lib/constants
 
 async function checkAndRouteAfterSignIn(): Promise<void> {
   const [cats, allCats] = await Promise.all([
