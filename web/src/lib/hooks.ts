@@ -2,84 +2,21 @@
 
 import { useEffect, useState } from 'react';
 import { createClient } from './supabase/client';
+import { useAuth } from '@/components/AuthProvider';
 import type { Session } from '@supabase/supabase-js';
 
-export interface Profile {
-  user_id: string;
-  id?: string;
-  username: string;
-  email: string;
-  bio?: string;
-  avatar_url?: string;
-}
+export type { Profile } from '@/components/AuthProvider';
 
-/**
- * Hook to get current user session
- * Handles auth state changes and provides loading state
- */
+/** Thin wrapper — prefer useAuth() directly. */
 export function useSession() {
-  const supabase = createClient();
-  const [session, setSession] = useState<Session | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    // Check initial session
-    (async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      setSession(session);
-      setLoading(false);
-    })();
-
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-      setLoading(false);
-    });
-
-    return () => subscription?.unsubscribe();
-  }, [supabase]);
-
+  const { session, loading } = useAuth();
   return { session, loading };
 }
 
-/**
- * Hook to get current user profile
- * Requires valid session
- */
+/** Thin wrapper — prefer useAuth() directly. */
 export function useProfile() {
-  const supabase = createClient();
-  const { session, loading: sessionLoading } = useSession();
-  const [profile, setProfile] = useState<Profile | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (sessionLoading || !session?.user.id) return;
-
-    setLoading(true);
-    (async () => {
-      try {
-        const { data, error: err } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('user_id', session.user.id)
-          .single();
-
-        if (err) {
-          setError(err.message);
-          return;
-        }
-
-        setProfile(data);
-      } catch (e) {
-        setError(e instanceof Error ? e.message : 'Failed to load profile');
-      } finally {
-        setLoading(false);
-      }
-    })();
-  }, [supabase, session, sessionLoading]);
-
-  return { profile, loading, error };
+  const { profile, loading } = useAuth();
+  return { profile, loading, error: null };
 }
 
 /**

@@ -25,6 +25,7 @@
 | **[Stage 9](#stage-9--pre-submission-quality--security-audit)** — Security Audit | ⏳ In Progress | 31/37 | 60h |
 | **[Stage 10](#stage-10--web-app-polish--bug-fixes)** — Polish | ⏳ In Progress | 6/21 | 15h |
 | **[Stage 11](#stage-11--comprehensive-audit-fixes--testing)** — Hardening | ⏳ In Progress | 25/30 | 100h |
+| **[Stage 12](#stage-12--web-app-rebuild)** — Web Rebuild | ✅ Complete | 21/22 | 40h |
 | **[Post-Launch](#post-launch)** — Roadmap | 📋 Planned | 3/22 | 45h |
 
 
@@ -39,7 +40,7 @@
 - ⚙️ **Stages 3, 4:** Core complete; 25 enhancement/seeder tasks planned (optional)
 - ⏳ **Stage 6:** Android Play Store submission pending (3 tasks: 6.17–6.19)
 - ⏳ **Stages 7 & 9:** Testing and security hardening (29 tasks remaining)
-- ⏳ **Stages 10 & 11:** Web polish and hardening (36 tasks remaining)
+- ⏳ **Stages 10, 11 & 12:** Web polish, hardening, and rebuild (42 tasks remaining)
 - 📋 **Post-Launch:** Roadmap ready (19 tasks planned)
 
 **Major Milestones (Completed May 1, 2026):**
@@ -71,14 +72,14 @@
 
 ## Project Progress
 
-**Overall Completion: 216 / 301 tasks (72%)**
+**Overall Completion: 237 / 323 tasks (73%)**
 
 | Category | Complete | Total | % |
 |----------|----------|-------|-----|
 | Core Launch (Stages 1–6, 8) | 149 | 177 | 84% |
 | Testing & QA (Stage 7) | 0 | 9 | 0% |
 | Security & Quality (Stage 9) | 31 | 37 | 84% |
-| Web Polish & Hardening (Stages 10–11) | 31 | 51 | 61% |
+| Web Polish & Hardening (Stages 10–12) | 52 | 73 | 71% |
 | Post-Launch Roadmap | 3 | 22 | 14% |
 
 **Time invested: 400+ hours**
@@ -101,6 +102,7 @@
 - Stage 9 (Security Audit): 31/37 tasks
 - Stage 10 (Web Polish): 6/21 tasks
 - Stage 11 (Hardening): 25/30 tasks
+- Stage 12 (Web Rebuild): 21/22 tasks
 
 ### Post-Launch Roadmap
 - Pool quality (8.1–8.3): wilson floor, broken link reporting, dead-link cleanup scripts
@@ -1784,6 +1786,94 @@ These must be completed before any app store submission or launch is possible.
   - Added `discovery_mode TEXT DEFAULT 'discovery' CHECK (IN ('discovery', 'deep_dive'))` column to `user_settings`
   - Updated `roam()` v8: `'discovery'` keeps the 12% adjacent serving from task 11.29; `'deep_dive'` narrows to the user�s top-3 subcategories by calibrated_weight and disables adjacent serving entirely — falls back to full allowed list if insufficient data
   - Settings page: new �Discovery mode� card with two radio-button styled options, saves via `user_settings` upsert on click
+
+---
+
+## Stage 12 — Web App Rebuild {#stage-12--web-app-rebuild}
+
+Complete ground-up rebuild of the web app. The web becomes a focused **account management portal**: onboarding funnel, profile/settings hub, and admin panel. Discovery stays in the Android app and browser extension. Specification: `docs/WEB_DESIGN.md`.
+
+**Routes removed:** `/dashboard`, `/collections`, `/collections/[id]`, `/c/[slug]`, `/friends`, `/urls/[id]`, `/u/[username]`, `/profile/edit`
+
+**Routes rebuilt or added:** `/`, `/join`, `/auth/callback`, `/auth/verify-email`, `/forgot-password`, `/auth/reset-password`, `/profile`, `/settings`, `/admin`, `/privacy`, `/terms`, `not-found.tsx`
+
+### Prerequisites & Cleanup
+
+- [ ] **12.1** Enable GitHub OAuth in Supabase Auth dashboard — create a GitHub OAuth App, add the Supabase callback URL as an authorised redirect URI, paste the client ID and secret into Supabase; verify that "Confirm email" is enabled in Supabase Auth settings (required for the verify-email screen)
+  - **Files:** Supabase dashboard (Auth → Providers), `supabase/config.toml`
+
+- [x] **12.2** Install `next-themes`; remove unused `recharts` from `web/package.json`; run `pnpm install` to update lockfile
+  - **Files:** `web/package.json`, `web/pnpm-lock.yaml`
+
+- [x] **12.3** Delete removed routes and clean up entry points — remove `app/dashboard/`, `app/collections/`, `app/c/`, `app/friends/`, `app/urls/`, `app/u/`, `app/profile/edit/`; remove dead imports and nav links referencing those routes from `Header.tsx`
+  - **Files:** `web/src/app/` (multiple deletions), `web/src/components/Header.tsx`
+
+### Layout Foundation
+
+- [x] **12.4** Build `AuthProvider` client context — single `createClient()` instance per render tree; provides `session`, `profile`, and `loading` to all client islands; add `AuthProvider` to root `layout.tsx`; update `hooks.ts` so `useSession()` and `useProfile()` read from context rather than issuing independent Supabase calls
+  - **Files:** `web/src/components/AuthProvider.tsx` (new), `web/src/app/layout.tsx`, `web/src/lib/hooks.ts`
+
+- [x] **12.5** Build `Footer` Server Component — `© {year} Roam · GitHub · Terms · Privacy · support@roamtheweb.app`; GitHub links to `https://github.com/seito/roam`; support is `mailto:legal@roamtheweb.app`; include in root `layout.tsx` below page content
+  - **Files:** `web/src/components/Footer.tsx` (new), `web/src/app/layout.tsx`
+
+- [x] **12.6** Rebuild `Header` as Server Component — receives session as prop from layout (no client-side session fetch); logged-out: logo + "Sign in" (`/join?mode=signin`) + "Get started" (`/join`); logged-in: logo + avatar dropdown (Profile, Settings, divider, Sign out); mobile: hamburger → slide-down with same links; no Friends/Collections/Discover nav links
+  - **Files:** `web/src/components/Header.tsx`
+
+- [x] **12.7** Fix dark mode flash — wrap root layout body in `next-themes` `<ThemeProvider>`; update `settings/page.tsx` dark mode UI to call `setTheme()` from `useTheme()` instead of manually writing `localStorage` and toggling `document.documentElement.classList`; remove the manual `useEffect` dark-mode initialisation from settings
+  - **Files:** `web/src/app/layout.tsx`, `web/src/app/settings/page.tsx`
+
+### Auth Routes
+
+- [x] **12.8** Add `/auth/callback` route handler — Server route handler (`route.ts`) that calls `supabase.auth.exchangeCodeForSession(code)`; checks `profiles` table for the signed-in user: if `username IS NULL` (new user) redirect to `/join?step=categories`; otherwise redirect to `/profile`; handles error param with redirect to `/join?error=...`
+  - **Files:** `web/src/app/auth/callback/route.ts` (new)
+
+- [x] **12.9** Add `/auth/verify-email` page — shown after email sign-up when Supabase requires confirmation; displays email address, "Resend verification email" button (calls `supabase.auth.resend()`), and "Use a different address" link that resets to `/join`
+  - **Files:** `web/src/app/auth/verify-email/page.tsx` (new)
+
+- [x] **12.10** Add `/forgot-password` page — email input; calls `supabase.auth.resetPasswordForEmail(email, { redirectTo: origin + '/auth/reset-password' })`; success state shows "Check your inbox — link expires in 1 hour" with back-to-sign-in link; error state surfaces Supabase message
+  - **Files:** `web/src/app/forgot-password/page.tsx` (new)
+
+- [x] **12.11** Add `/auth/reset-password` page — receives `?token_hash=...&type=recovery` from email link; calls `supabase.auth.verifyOtp()` to establish session; shows new-password + confirm form with strength bar; on success updates password via `supabase.auth.updateUser()` and redirects to `/profile` after 2 seconds
+  - **Files:** `web/src/app/auth/reset-password/page.tsx` (new)
+
+### Core Pages
+
+- [x] **12.12** Rebuild `/` landing page as Server Component — remove `'use client'` and `useEffect` redirect; use `createClient()` from server lib and check session server-side; if signed in, `redirect('/profile')`; keep existing marketing copy, extension download links (Firefox AMO + Chrome coming-soon), Google Play link, and "Why Roam?" features grid
+  - **Files:** `web/src/app/page.tsx`
+
+- [x] **12.13** Rebuild `/join` — create-account and sign-in tabs toggled by `?mode=signin`; all three providers (Google, GitHub, email); OAuth buttons call `signInWithOAuth({ redirectTo: origin + '/auth/callback' })`; email create: email + password + confirm-password + strength bar + T&C checkbox (must be checked); email sign-in: email + password + "Forgot password?" link to `/forgot-password`; after email sign-up: show verify-email state if confirmation required, else advance to category step; category step (step 2): 8-category chip grid, must select ≥1, "Start exploring →" saves to `user_categories` and redirects to `/profile`; remove all `Sentry.addBreadcrumb()` and `console.log` calls; preserve `?platform=android` deep-link redirect logic
+  - **Files:** `web/src/app/join/page.tsx`, `web/src/app/join/join-content.tsx`
+
+- [x] **12.14** Rebuild `/profile` — Server Component shell with server-side session check (redirect to `/join?mode=signin` if unauthenticated); fetch profile row and `user_categories` in parallel; render `<UsernamePrompt>` blocking client island if `profile.username IS NULL` (user must pick username before seeing anything else); inline edit for username (pencil → input → save/cancel) and bio; category chip grid with "Save interests" button that appears when selection differs from DB; no separate edit page; no follower/following stats
+  - **Files:** `web/src/app/profile/page.tsx`, `web/src/components/UsernamePrompt.tsx` (new)
+
+- [x] **12.15** Rebuild `/settings` — server-side auth guard; detect provider from `session.user.app_metadata.provider`; sections: Discovery mode toggle (segmented control, saves to `user_settings`), Email notifications toggle (saves to `user_settings`), Appearance selector (Light/Dark/System via `next-themes`), Account (provider info + change-password form for `'email'` provider only OR informational message for Google/GitHub), Danger zone (Download my data, Delete account); replace both `window.confirm` calls on delete with a two-step modal; remove password fields for OAuth users
+  - **Files:** `web/src/app/settings/page.tsx`
+
+- [x] **12.16** Clean up `/admin` — replace `window.confirm` on approve and reject actions with a proper React modal component; keep existing `AdminPageClient`, `ModerationDetail`, `ModerationActions` structure; no other changes
+  - **Files:** `web/src/app/admin/AdminPageClient.tsx`, `web/src/app/admin/ModerationActions.tsx`
+
+### Polish
+
+- [x] **12.17** Add `not-found.tsx` custom 404 page — centered layout: Roam icon 64px, `h1` "Page not found", one-line message, "Go home →" link to `/`; no Header or Footer (avoids session check on 404); closes AUDIT.2
+  - **Files:** `web/src/app/not-found.tsx` (new)
+
+- [x] **12.18** Update `/privacy` page — add GitHub OAuth to section 2 ("Account data"): extend the existing sentence to cover both Google and GitHub sign-in, noting that we receive email address and profile name from each provider
+  - **Files:** `web/src/app/privacy/page.tsx`
+
+- [x] **12.19** Remove all `Sentry.addBreadcrumb()` calls from page and component code — Sentry's Next.js SDK auto-instruments route changes, fetch calls, and unhandled errors; manual breadcrumbs in page logic add noise without value; keep `Sentry.captureException()` only inside actual error `catch` blocks; replace any breadcrumbs that carry meaningful context with `logger.ts` debug calls
+  - **Files:** `web/src/app/join/join-content.tsx`, `web/src/app/dashboard/page.tsx` (being deleted), any remaining pages with `Sentry.addBreadcrumb`
+
+- [x] **12.20** Remove all raw `console.log` and `console.error` calls from component/page code — replace with `logger.ts` equivalents or remove if redundant; `console.log('[roam] ...')` debug statements throughout join-content are the main offenders
+  - **Files:** `web/src/app/join/join-content.tsx`, any other page/component files with raw console calls
+
+- [x] **12.21** Add server-side auth guards to `/profile` and `/settings` — both pages should redirect to `/join?mode=signin` at the Server Component level before any HTML ships; eliminate `useRequireAuth()` usage on those pages; update `hooks.ts` to mark `useRequireAuth` as deprecated or remove it if no longer used elsewhere
+  - **Files:** `web/src/app/profile/page.tsx`, `web/src/app/settings/page.tsx`, `web/src/lib/hooks.ts`
+
+### Testing
+
+- [x] **12.22** Update test suite for rebuilt components — update or replace existing join, profile, and settings tests to match the new component structure; add tests for `AuthProvider`, `Footer`, `UsernamePrompt`, forgot-password flow, and reset-password flow; delete tests for removed routes (dashboard, collections, friends); run `pnpm test:ci` and confirm all tests pass with no regressions
+  - **Files:** `web/src/__tests__/` (multiple files)
 
 ---
 

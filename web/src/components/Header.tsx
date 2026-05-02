@@ -4,26 +4,46 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
-import { useSession } from '@/lib/hooks';
-import { useState } from 'react';
+import { useAuth } from '@/components/AuthProvider';
+import { useState, useEffect, useRef } from 'react';
 
 export function Header() {
-  const { session, loading } = useSession();
+  const { session, loading } = useAuth();
   const router = useRouter();
   const supabase = createClient();
   const [menuOpen, setMenuOpen] = useState(false);
   const [profileMenu, setProfileMenu] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setProfileMenu(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Close mobile menu on route change
+  useEffect(() => {
+    setMenuOpen(false);
+  }, []);
 
   const handleLogout = async () => {
+    setProfileMenu(false);
     await supabase.auth.signOut();
     router.push('/');
   };
+
+  const initial = session?.user?.email?.[0].toUpperCase() ?? '?';
 
   if (loading) {
     return (
       <header className="border-b border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950">
         <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
-          <Link href="/" className="flex items-center gap-2 font-bold text-2xl">
+          <Link href="/" className="flex items-center gap-2 font-bold text-2xl text-zinc-900 dark:text-white">
             <Image src="/icon-512.png" alt="Roam" width={32} height={32} />
             Roam
           </Link>
@@ -36,15 +56,21 @@ export function Header() {
     return (
       <header className="border-b border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950">
         <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
-          <Link href="/" className="flex items-center gap-2 font-bold text-2xl">
+          <Link href="/" className="flex items-center gap-2 font-bold text-2xl text-zinc-900 dark:text-white">
             <Image src="/icon-512.png" alt="Roam" width={32} height={32} />
             Roam
           </Link>
-          <div className="flex gap-4">
-            <Link href="/join" className="text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white">
+          <div className="flex gap-4 items-center">
+            <Link
+              href="/join?mode=signin"
+              className="text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white transition-colors"
+            >
               Sign in
             </Link>
-            <Link href="/join" className="bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 px-4 py-2 rounded-lg font-semibold text-sm hover:opacity-90">
+            <Link
+              href="/join"
+              className="bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 px-4 py-2 rounded-lg font-semibold text-sm hover:opacity-90 transition-opacity"
+            >
               Get started
             </Link>
           </div>
@@ -56,48 +82,52 @@ export function Header() {
   return (
     <header className="border-b border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
-        <Link href="/dashboard" className="flex items-center gap-2 font-bold text-2xl">
+        <Link href="/profile" className="flex items-center gap-2 font-bold text-2xl text-zinc-900 dark:text-white">
           <Image src="/icon-512.png" alt="Roam" width={32} height={32} />
           Roam
         </Link>
 
-        {/* Navigation */}
-        <nav className="hidden md:flex gap-8">
-          <Link href="/dashboard" className="text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white">
-            Discover
+        {/* Desktop nav */}
+        <nav className="hidden md:flex items-center gap-6">
+          <Link href="/profile" className="text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white transition-colors">
+            Profile
           </Link>
-          <Link href="/collections" className="text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white">
-            Collections
-          </Link>
-          <Link href="/friends" className="text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white">
-            Friends
+          <Link href="/settings" className="text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white transition-colors">
+            Settings
           </Link>
         </nav>
 
-        {/* Profile menu */}
-        <div className="relative">
+        {/* Avatar dropdown */}
+        <div className="relative hidden md:block" ref={dropdownRef}>
           <button
-            onClick={() => setProfileMenu(!profileMenu)}
-            className="flex items-center justify-center w-10 h-10 rounded-full bg-zinc-200 dark:bg-zinc-800 hover:bg-zinc-300 dark:hover:bg-zinc-700 transition-colors text-zinc-900 dark:text-white font-semibold"
+            onClick={() => setProfileMenu(v => !v)}
+            aria-label="Open account menu"
+            aria-expanded={profileMenu}
+            className="flex items-center justify-center w-10 h-10 rounded-full bg-zinc-200 dark:bg-zinc-800 hover:bg-zinc-300 dark:hover:bg-zinc-700 transition-colors text-zinc-900 dark:text-white font-semibold text-sm"
           >
-            {session.user?.email?.[0].toUpperCase()}
+            {initial}
           </button>
 
           {profileMenu && (
-            <div className="absolute right-0 mt-2 w-56 bg-white dark:bg-zinc-900 rounded-lg shadow-lg border border-zinc-200 dark:border-zinc-800 py-2 z-50">
-              <Link href="/profile" className="block px-4 py-2 text-zinc-900 dark:text-white hover:bg-zinc-100 dark:hover:bg-zinc-800">
+            <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-zinc-900 rounded-lg shadow-lg border border-zinc-200 dark:border-zinc-800 py-1 z-50">
+              <Link
+                href="/profile"
+                onClick={() => setProfileMenu(false)}
+                className="block px-4 py-2 text-sm text-zinc-900 dark:text-white hover:bg-zinc-100 dark:hover:bg-zinc-800"
+              >
                 Profile
               </Link>
-              <Link href="/collections" className="block px-4 py-2 text-zinc-900 dark:text-white hover:bg-zinc-100 dark:hover:bg-zinc-800">
-                Collections
-              </Link>
-              <hr className="my-1 border-zinc-200 dark:border-zinc-700" />
-              <Link href="/settings" className="block px-4 py-2 text-zinc-900 dark:text-white hover:bg-zinc-100 dark:hover:bg-zinc-800">
+              <Link
+                href="/settings"
+                onClick={() => setProfileMenu(false)}
+                className="block px-4 py-2 text-sm text-zinc-900 dark:text-white hover:bg-zinc-100 dark:hover:bg-zinc-800"
+              >
                 Settings
               </Link>
+              <hr className="my-1 border-zinc-200 dark:border-zinc-700" />
               <button
                 onClick={handleLogout}
-                className="w-full text-left px-4 py-2 text-red-600 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-zinc-100 dark:hover:bg-zinc-800"
               >
                 Sign out
               </button>
@@ -107,29 +137,35 @@ export function Header() {
 
         {/* Mobile menu button */}
         <button
-          onClick={() => setMenuOpen(!menuOpen)}
-          className="md:hidden flex flex-col gap-1 w-10 h-10 items-center justify-center"
+          onClick={() => setMenuOpen(v => !v)}
+          aria-label="Open menu"
+          aria-expanded={menuOpen}
+          className="md:hidden flex flex-col gap-1.5 w-10 h-10 items-center justify-center"
         >
-          <span className="w-6 h-0.5 bg-zinc-900 dark:bg-white"></span>
-          <span className="w-6 h-0.5 bg-zinc-900 dark:bg-white"></span>
-          <span className="w-6 h-0.5 bg-zinc-900 dark:bg-white"></span>
+          <span className="w-6 h-0.5 bg-zinc-900 dark:bg-white rounded"></span>
+          <span className="w-6 h-0.5 bg-zinc-900 dark:bg-white rounded"></span>
+          <span className="w-6 h-0.5 bg-zinc-900 dark:bg-white rounded"></span>
         </button>
       </div>
 
       {/* Mobile menu */}
       {menuOpen && (
         <nav className="md:hidden border-t border-zinc-200 dark:border-zinc-800 py-4 px-6 flex flex-col gap-4">
-          <Link href="/dashboard" className="text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white">
-            Discover
+          <Link href="/profile" className="text-zinc-700 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white">
+            Profile
           </Link>
-          <Link href="/collections" className="text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white">
-            Collections
+          <Link href="/settings" className="text-zinc-700 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white">
+            Settings
           </Link>
-          <Link href="/friends" className="text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white">
-            Friends
-          </Link>
+          <button
+            onClick={handleLogout}
+            className="text-left text-red-600 hover:text-red-700"
+          >
+            Sign out
+          </button>
         </nav>
       )}
     </header>
   );
 }
+

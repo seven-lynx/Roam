@@ -27,8 +27,8 @@ export default function PrivacyPage() {
         <h3>Account data</h3>
         <p>
           When you create an account we collect your email address and, if you sign in
-          with Google, your Google profile name and avatar URL. You may optionally set
-          a username, display name, and bio.
+          with Google or GitHub, your profile name and avatar URL from that provider.
+          You may optionally set a username, display name, and bio.
         </p>
         <h3>Usage data</h3>
         <p>

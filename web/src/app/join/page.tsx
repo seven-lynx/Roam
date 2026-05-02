@@ -1,19 +1,22 @@
 import { Suspense } from "react";
 import Image from "next/image";
+import type { Metadata } from "next";
 import JoinPageContent from "./join-content";
 
-// ── Suspense fallback for OAuth code detection ────────────────────────────
+export const metadata: Metadata = {
+  title: "Join",
+};
+
 function JoinPageLoading() {
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center px-6 bg-white dark:bg-zinc-950">
+    <div className="flex min-h-[calc(100vh-8rem)] flex-col items-center justify-center px-6 bg-white dark:bg-zinc-950">
       <div className="w-full max-w-sm flex flex-col gap-8">
         <div className="text-center">
           <Image src="/icon-512.png" alt="Roam" width={64} height={64} className="mx-auto" />
-          <h1 className="mt-3 text-3xl font-bold text-zinc-900 dark:text-white">Create your account</h1>
-          <p className="mt-2 text-zinc-500 dark:text-zinc-400">Free, forever.</p>
+          <h1 className="mt-4 text-2xl font-bold text-zinc-900 dark:text-white">Loading…</h1>
         </div>
       </div>
-    </main>
+    </div>
   );
 }
 

@@ -1,28 +1,15 @@
-"use client";
-
+import { redirect } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
-import { useEffect } from "react";
-import { useRouter } from "next/navigation";
-import { Header } from "@/components/Header";
-import FeedbackWidget from "@/components/FeedbackWidget";
-import { createClient } from "@/lib/supabase/client";
+import { createClient } from "@/lib/supabase/server";
 
-export default function Home() {
-  const router = useRouter();
-
-  useEffect(() => {
-    const supabase = createClient();
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) router.replace('/dashboard');
-    });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+export default async function Home() {
+  const supabase = await createClient();
+  const { data: { session } } = await supabase.auth.getSession();
+  if (session) redirect('/profile');
 
   return (
-    <>
-      <Header />
-      <main className="flex min-h-screen flex-col items-center justify-center px-6 py-24 text-center bg-white dark:bg-zinc-950">
+    <div className="flex flex-col items-center justify-center px-6 py-24 text-center bg-white dark:bg-zinc-950">
       <div className="max-w-2xl mx-auto flex flex-col items-center gap-10">
         {/* Logo / wordmark */}
         <div className="flex flex-col items-center gap-3">
@@ -62,26 +49,12 @@ export default function Home() {
           className="w-full border-t border-zinc-200 dark:border-zinc-800 pt-10 mt-4 grid sm:grid-cols-2 gap-6 text-left"
         >
           <div className="flex flex-col gap-2">
-            <h2 className="font-semibold text-zinc-900 dark:text-white text-lg">
-              Browser extension
-            </h2>
+            <h2 className="font-semibold text-zinc-900 dark:text-white text-lg">Browser extension</h2>
             <p className="text-zinc-600 dark:text-zinc-400 text-sm">
               Click the roam button while browsing to discover new pages. Rate pages with 👍👎 to personalize your recommendations.
             </p>
             <div className="flex gap-2 mt-auto">
-              {/* Chrome extension link: coming soon once published to Web Store */}
-              {false ? (
-                <a
-                  href="#"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-blue-600 hover:underline text-sm font-semibold"
-                >
-                  Chrome →
-                </a>
-              ) : (
-                <span className="text-zinc-400 text-sm">Chrome (coming soon)</span>
-              )}
+              <span className="text-zinc-400 text-sm">Chrome (coming soon)</span>
               <a
                 href="https://addons.mozilla.org/firefox/addon/roam-the-web/"
                 target="_blank"
@@ -93,9 +66,7 @@ export default function Home() {
             </div>
           </div>
           <div className="flex flex-col gap-2">
-            <h2 className="font-semibold text-zinc-900 dark:text-white text-lg">
-              Android app
-            </h2>
+            <h2 className="font-semibold text-zinc-900 dark:text-white text-lg">Android app</h2>
             <p className="text-zinc-600 dark:text-zinc-400 text-sm">
               Swipe to discover. Tap to save. Read offline. The full Roam experience in your pocket.
             </p>
@@ -138,33 +109,15 @@ export default function Home() {
               </p>
             </div>
             <div className="text-left">
-              <div className="text-3xl mb-3">👥</div>
-              <h3 className="font-semibold text-zinc-900 dark:text-white mb-2">Community</h3>
+              <div className="text-3xl mb-3">🌐</div>
+              <h3 className="font-semibold text-zinc-900 dark:text-white mb-2">Community-curated</h3>
               <p className="text-sm text-zinc-600 dark:text-zinc-400">
-                Follow friends, discover what they&apos;re reading, and share collections.
+                Real people submit and rate pages. The best content rises; the noise disappears.
               </p>
             </div>
           </div>
         </div>
-
-        {/* Footer */}
-        <div className="w-full border-t border-zinc-200 dark:border-zinc-800 pt-10 mt-4 flex justify-center items-center text-sm text-zinc-600 dark:text-zinc-400">
-          <div className="flex gap-6">
-            <Link href="/privacy" className="hover:text-zinc-900 dark:hover:text-white">
-              Privacy
-            </Link>
-            <Link href="/terms" className="hover:text-zinc-900 dark:hover:text-white">
-              Terms
-            </Link>
-            <a href="https://github.com/seito/roam" target="_blank" rel="noopener noreferrer" className="hover:text-zinc-900 dark:hover:text-white">
-              GitHub
-            </a>
-          </div>
-        </div>
       </div>
-
-      <FeedbackWidget />
-    </main>
-    </>
+    </div>
   );
 }

@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import ModerationDetail from "./ModerationDetail";
-import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
+
 
 type QueueItem = {
   id: string;
@@ -328,37 +328,20 @@ export default function AdminPageClient() {
                     Submissions Over Time
                   </h2>
                   {analyticsData.submissionsByDate.length > 0 ? (
-                    <ResponsiveContainer width="100%" height={300}>
-                      <LineChart data={analyticsData.submissionsByDate}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#d4d4d8" />
-                        <XAxis
-                          dataKey="date"
-                          tick={{ fontSize: 12 }}
-                          stroke="#71717a"
-                        />
-                        <YAxis
-                          tick={{ fontSize: 12 }}
-                          stroke="#71717a"
-                        />
-                        <Tooltip
-                          contentStyle={{
-                            backgroundColor: "#27272a",
-                            border: "1px solid #52525b",
-                            borderRadius: "8px",
-                          }}
-                          labelStyle={{ color: "#fafafa" }}
-                        />
-                        <Legend />
-                        <Line
-                          type="monotone"
-                          dataKey="count"
-                          stroke="#3b82f6"
-                          name="Submissions"
-                          strokeWidth={2}
-                          dot={{ fill: "#3b82f6", r: 4 }}
-                        />
-                      </LineChart>
-                    </ResponsiveContainer>
+                    <div className="flex flex-col gap-1">
+                      {analyticsData.submissionsByDate.map((d: { date: string; count: number }) => {
+                        const max = Math.max(...analyticsData.submissionsByDate.map((x: { count: number }) => x.count), 1);
+                        return (
+                          <div key={d.date} className="flex items-center gap-2 text-xs">
+                            <span className="w-24 text-right text-zinc-500 shrink-0">{d.date}</span>
+                            <div className="flex-1 bg-zinc-100 dark:bg-zinc-800 rounded">
+                              <div className="bg-blue-500 rounded h-4" style={{ width: `${(d.count / max) * 100}%` }} />
+                            </div>
+                            <span className="w-8 text-zinc-700 dark:text-zinc-300">{d.count}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
                   ) : (
                     <p className="text-zinc-500">No submission data available</p>
                   )}
@@ -370,38 +353,20 @@ export default function AdminPageClient() {
                     Top Submission Categories
                   </h2>
                   {analyticsData.submissionsByCategory.length > 0 ? (
-                    <ResponsiveContainer width="100%" height={300}>
-                      <BarChart data={analyticsData.submissionsByCategory}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#d4d4d8" />
-                        <XAxis
-                          dataKey="category"
-                          tick={{ fontSize: 12 }}
-                          stroke="#71717a"
-                          angle={-45}
-                          textAnchor="end"
-                          height={100}
-                        />
-                        <YAxis
-                          tick={{ fontSize: 12 }}
-                          stroke="#71717a"
-                        />
-                        <Tooltip
-                          contentStyle={{
-                            backgroundColor: "#27272a",
-                            border: "1px solid #52525b",
-                            borderRadius: "8px",
-                          }}
-                          labelStyle={{ color: "#fafafa" }}
-                        />
-                        <Legend />
-                        <Bar
-                          dataKey="count"
-                          fill="#8b5cf6"
-                          name="Submissions"
-                          radius={[8, 8, 0, 0]}
-                        />
-                      </BarChart>
-                    </ResponsiveContainer>
+                    <div className="flex flex-col gap-1">
+                      {analyticsData.submissionsByCategory.map((d: { category: string; count: number }) => {
+                        const max = Math.max(...analyticsData.submissionsByCategory.map((x: { count: number }) => x.count), 1);
+                        return (
+                          <div key={d.category} className="flex items-center gap-2 text-xs">
+                            <span className="w-32 truncate text-right text-zinc-500 shrink-0">{d.category}</span>
+                            <div className="flex-1 bg-zinc-100 dark:bg-zinc-800 rounded">
+                              <div className="bg-violet-500 rounded h-4" style={{ width: `${(d.count / max) * 100}%` }} />
+                            </div>
+                            <span className="w-8 text-zinc-700 dark:text-zinc-300">{d.count}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
                   ) : (
                     <p className="text-zinc-500">No category data available</p>
                   )}
