@@ -164,10 +164,10 @@ Submits a new URL for moderation. Normalizes the URL, checks rate limits, runs S
 **Error Responses:**
 - **400** — Invalid URL (not a valid HTTP/HTTPS URL after normalization)
 - **401** — Unauthorized
-- **403** — Safe Browsing API rejected URL as unsafe (malware, phishing, etc.)
+- **422** — Safe Browsing API rejected URL as unsafe (malware, phishing, etc.)
 - **429** — Rate limit exceeded (max 10 submissions per hour per user)
 - **500** — Internal server error
-- **503** — Safe Browsing API temporarily unavailable
+- **503** — Safe Browsing API temporarily unavailable (network error or API service down)
 
 **Details:**
 - **URL Normalization:** HTTPS enforced, `www.` stripped, UTM/tracking params removed, fragments stripped, trailing slashes removed
@@ -185,8 +185,10 @@ const response = await supabase.functions.invoke('submit-url', {
   }
 });
 
-if (response.error?.status === 403) {
+if (response.error?.status === 422) {
   // Show user: "This URL was rejected as unsafe"
+} else if (response.error?.status === 503) {
+  // Show user: "Safety check unavailable. Try again in a moment."
 } else if (response.error?.status === 429) {
   // Show user: "You've submitted too many URLs. Try again later."
 }

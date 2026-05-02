@@ -14,36 +14,57 @@ const RATE_LIMIT = 10
 // misconfigured deploy from silently accepting unscreened URL submissions.
 const SAFE_BROWSING_API_KEY = Deno.env.get('SAFE_BROWSING_API_KEY')
 if (!SAFE_BROWSING_API_KEY) {
-  throw new Error(
-    'SAFE_BROWSING_API_KEY environment variable is required for submit-url',
-  )
+  const errorMsg = 'SAFE_BROWSING_API_KEY environment variable is required for submit-url function to operate'
+  console.error(errorMsg)
+  throw new Error(errorMsg)
 }
 
-async function checkSafeBrowsing(url: string, apiKey: string): Promise<boolean> {
-  const res = await fetch(
-    `https://safebrowsing.googleapis.com/v4/threatMatches:find?key=${apiKey}`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        client: { clientId: 'roam', clientVersion: '1.0' },
-        threatInfo: {
-          threatTypes: [
-            'MALWARE',
-            'SOCIAL_ENGINEERING',
-            'UNWANTED_SOFTWARE',
-            'POTENTIALLY_HARMFUL_APPLICATION',
-          ],
-          platformTypes: ['ANY_PLATFORM'],
-          threatEntryTypes: ['URL'],
-          threatEntries: [{ url }],
-        },
-      }),
-    },
-  )
-  const data = await res.json()
-  // Empty or absent matches array means the URL is clean
-  return !data.matches || data.matches.length === 0
+async function checkSafeBrowsing(url: string, apiKey: string): Promise<{ safe: boolean; error?: string }> {
+  try {
+    const res = await fetch(
+      `https://safebrowsing.googleapis.com/v4/threatMatches:find?key=${apiKey}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          client: { clientId: 'roam', clientVersion: '1.0' },
+          threatInfo: {
+            threatTypes: [
+              'MALWARE',
+              'SOCIAL_ENGINEERING',
+              'UNWANTED_SOFTWARE',
+              'POTENTIALLY_HARMFUL_APPLICATION',
+            ],
+            platformTypes: ['ANY_PLATFORM'],
+            threatEntryTypes: ['URL'],
+            threatEntries: [{ url }],
+          },
+        }),
+      },
+    )
+
+    // Check for HTTP-level errors from the Safe Browsing API
+    if (!res.ok) {
+      const errorBody = await res.text()
+      console.error(`Safe Browsing API error: ${res.status} ${res.statusText}`, { url, status: res.status, body: errorBody.slice(0, 200) })
+      return {
+        safe: false,
+        error: `Safe Browsing API returned ${res.status}; service may be temporarily unavailable`,
+      }
+    }
+
+    const data = await res.json()
+    // Empty or absent matches array means the URL is clean
+    const isSafe = !data.matches || data.matches.length === 0
+    return { safe: isSafe }
+  } catch (err) {
+    const errorMsg = err instanceof Error ? err.message : String(err)
+    console.error('Safe Browsing API network error', { url, error: errorMsg })
+    return {
+      safe: false,
+      error: `Network error contacting Safe Browsing API: ${errorMsg}`,
+    }
+  }
 }
 
 Deno.serve(async (req) => {
@@ -88,20 +109,19 @@ Deno.serve(async (req) => {
   }
 
   // ── Safe Browsing check ───────────────────────────────────────────────────
-  // The API key is verified at boot above; if the call itself fails (network,
-  // quota, transient 5xx) we reject the submission rather than letting it
-  // through unscreened. Better to surface a 503 than approve a malicious URL.
-  let safeBrowsingPassed: boolean
-  try {
-    safeBrowsingPassed = await checkSafeBrowsing(normalized, SAFE_BROWSING_API_KEY)
-  } catch {
+  // The API key is verified at boot above. Safe Browsing failures (network,
+  // quota, API errors) return 503. Detections (malicious URL) return 422.
+  const sbResult = await checkSafeBrowsing(normalized, SAFE_BROWSING_API_KEY)
+  
+  if (sbResult.error) {
+    console.warn('Safe Browsing API unavailable', { url: normalized, error: sbResult.error })
     return json(
-      { error: 'Safe Browsing check unavailable — please try again shortly' },
+      { error: 'Safe Browsing check temporarily unavailable — please try again shortly' },
       503,
     )
   }
 
-  if (!safeBrowsingPassed) {
+  if (!sbResult.safe) {
     return json(
       { error: "This URL couldn't be submitted — it may be flagged for safety reasons" },
       422,
@@ -122,7 +142,7 @@ Deno.serve(async (req) => {
     description: typeof description === 'string' ? description : null,
     language: typeof language === 'string' && language ? language : 'en',
     submitted_by: user.id,
-    safe_browsing_passed: safeBrowsingPassed,
+    safe_browsing_passed: true,  // At this point, Safe Browsing has cleared the URL
     status: 'pending',
     ...(categoryHint ? { reviewer_note: categoryHint } : {}),
   })
