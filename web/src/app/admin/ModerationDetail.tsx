@@ -2,11 +2,22 @@
 
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import type { Database } from "@/lib/supabase/types";
 
-type QueueItem = Database["public"]["Tables"]["moderation_queue"]["Row"] & {
-  profile?: { display_name: string; username: string };
-  subcategory?: { label: string };
+type QueueItem = {
+  id: string;
+  url: string;
+  title: string | null;
+  description: string | null;
+  status: "pending" | "approved" | "rejected" | null;
+  created_at: string | null;
+  safe_browsing_passed: boolean | null;
+  submitted_by: string | null;
+  reviewed_at?: string | null;
+  reviewer_note: string | null;
+  reviewed_by: string | null;
+  subcategory_id: string | null;
+  profile?: { display_name: string; username: string } | null;
+  subcategory?: { label: string }[] | null;
 };
 
 interface ModerationDetailProps {
@@ -32,6 +43,7 @@ export default function ModerationDetail({
       : "—";
 
   async function handleDecision(action: "approved" | "rejected") {
+    if (!item) return;
     setStatus("loading");
     try {
       await supabase
@@ -49,7 +61,6 @@ export default function ModerationDetail({
         );
       }
 
-      setDecision(action);
       onUpdate?.();
       setTimeout(() => {
         setStatus("idle");
@@ -62,6 +73,7 @@ export default function ModerationDetail({
   }
 
   async function handleUndo() {
+    if (!item) return;
     setStatus("loading");
     try {
       await supabase
@@ -146,13 +158,13 @@ export default function ModerationDetail({
           )}
 
           {/* Category */}
-          {item.subcategory?.label && (
+          {item.subcategory?.[0]?.label && (
             <div>
               <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
                 Category
               </label>
               <div className="bg-zinc-50 dark:bg-zinc-800 rounded-lg px-4 py-3 text-sm text-zinc-900 dark:text-white">
-                {item.subcategory?.label}
+                {item.subcategory?.[0]?.label}
               </div>
             </div>
           )}
@@ -194,7 +206,7 @@ export default function ModerationDetail({
               Submitted
             </label>
             <div className="bg-zinc-50 dark:bg-zinc-800 rounded-lg px-4 py-3 text-sm text-zinc-900 dark:text-white">
-              {new Date(item.created_at).toLocaleString()}
+              {new Date(item.created_at ?? '').toLocaleString()}
             </div>
           </div>
 
@@ -212,7 +224,7 @@ export default function ModerationDetail({
                     : "bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400"
               }`}
             >
-              {item.status.charAt(0).toUpperCase() + item.status.slice(1)}
+              {(item.status ?? 'pending').charAt(0).toUpperCase() + (item.status ?? 'pending').slice(1)}
             </div>
           </div>
 

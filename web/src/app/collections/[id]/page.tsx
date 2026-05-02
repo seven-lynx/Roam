@@ -66,10 +66,9 @@ export default function CollectionDetailPage() {
 
       setCollection({
         ...col,
-        items: items?.map((item: { id: string; urls: Omit<CollectionItem, 'id'> | null }) => ({
-          id: item.id,
-          ...item.urls,
-        })) || [],
+        items: (items ?? []).flatMap((item: { id: string; urls: { id: string; url: string; title: string; description?: string; og_image_url?: string }[] | null }) =>
+          item.urls?.[0] ? [{ id: item.urls[0].id, url: item.urls[0].url, title: item.urls[0].title, description: item.urls[0].description, og_image_url: item.urls[0].og_image_url }] : []
+        ),
       });
 
       setIsOwner(col.user_id === session?.user.id);

@@ -108,7 +108,7 @@ describe('RLS Policies - Critical Security Tests', () => {
     it('should deny non-admin updates to moderation_queue', () => {
       // RLS policy: UPDATE moderation_queue WHERE auth.role() = 'admin'
       const submission = { id: 'mod1', status: 'pending' }
-      const userRole = 'authenticated' // not admin
+      const userRole: string = 'authenticated' // not admin
       
       const canUpdate = userRole === 'admin'
       expect(canUpdate).toBe(false)
@@ -122,8 +122,7 @@ describe('RLS Policies - Critical Security Tests', () => {
       // Security test: ensure status can only be changed by admin
       const submission = { id: 'mod1', status: 'pending' }
       const currentUserId = 'user123'
-      const userRole = 'authenticated'
-      
+      const userRole: string = 'authenticated'
       const canChangeStatus = userRole === 'admin'
       expect(canChangeStatus).toBe(false)
       

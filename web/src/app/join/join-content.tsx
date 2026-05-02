@@ -43,30 +43,16 @@ export default function JoinPageContent() {
   // Start with the hardcoded fallback; replaced by DB data as soon as it loads.
   const [categories, setCategories] = useState<CategoryItem[]>(FALLBACK_CATEGORIES);
 
-  // Track signup flow with Sentry transaction
+  // Track signup flow entry
   useEffect(() => {
-    // Start a transaction for the entire signup flow
-    const transaction = Sentry.startTransaction({
-      name: 'signup-flow',
-      op: 'pageload',
-      description: 'User sign-up and category selection flow',
-    });
-    
     Sentry.addBreadcrumb({
       category: 'signup',
       message: 'User entered join flow',
       level: 'info',
     });
-
-    // Cleanup: end transaction when component unmounts (e.g., user navigates away)
-    return () => {
-      if (transaction) {
-        transaction.end();
-      }
-    };
   }, []);
 
-  // Track step changes with Sentry breadcrumbs and spans
+  // Track step changes with Sentry breadcrumbs
   useEffect(() => {
     Sentry.addBreadcrumb({
       category: 'signup-step',
@@ -74,25 +60,6 @@ export default function JoinPageContent() {
       level: 'debug',
       data: { step, isSignedIn },
     });
-
-    // Create a child span for this step
-    const transaction = Sentry.getCurrentHub().getScope()?.getTransaction();
-    if (transaction && step === 'categories') {
-      const span = transaction.startChild({
-        op: 'signup.categories',
-        description: 'User selecting favorite categories',
-      });
-      span.setTag('step', step);
-      span.finish();
-    } else if (transaction && step === 'done') {
-      const span = transaction.startChild({
-        op: 'signup.complete',
-        description: 'User completed signup flow',
-      });
-      span.setTag('step', step);
-      span.setTag('signup_status', 'success');
-      span.finish();
-    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step]);
 
@@ -189,11 +156,6 @@ export default function JoinPageContent() {
     setError(null);
     setLoading(true);
 
-    const span = Sentry.startSpan({
-      op: 'signup.email',
-      description: 'Email sign-up attempt',
-    });
-
     try {
       Sentry.addBreadcrumb({
         category: 'signup',
@@ -204,8 +166,6 @@ export default function JoinPageContent() {
       const { error } = await supabase.auth.signUp({ email, password });
       
       if (error) {
-        span?.setStatus('failed');
-        span?.setTag('auth_error', error.message);
         setError(error.message);
         Sentry.addBreadcrumb({
           category: 'signup',
@@ -215,8 +175,6 @@ export default function JoinPageContent() {
         return;
       }
 
-      span?.setStatus('ok');
-      span?.setTag('signup_method', 'email');
       setStep("categories");
       
       Sentry.addBreadcrumb({
@@ -225,25 +183,18 @@ export default function JoinPageContent() {
         level: 'info',
       });
     } catch (err) {
-      span?.setStatus('failed');
       Sentry.captureException(err, {
         tags: { context: 'email-signup', step: 'account' },
       });
       setError(err instanceof Error ? err.message : 'Sign-up failed');
     } finally {
       setLoading(false);
-      span?.end();
     }
   }
 
   async function handleGoogleSignUp() {
     setError(null);
     setLoading(true);
-
-    const span = Sentry.startSpan({
-      op: 'signup.oauth',
-      description: 'Google OAuth sign-up flow',
-    });
 
     try {
       Sentry.addBreadcrumb({
@@ -275,8 +226,6 @@ export default function JoinPageContent() {
       
       if (error) {
         console.error('[roam] OAuth error:', error);
-        span?.setStatus('failed');
-        span?.setTag('oauth_error', error.message);
         setError(error.message || 'Couldn\'t start Google sign-in — please try again.');
         Sentry.addBreadcrumb({
           category: 'signup',
@@ -287,8 +236,6 @@ export default function JoinPageContent() {
         return;
       }
 
-      span?.setStatus('ok');
-      span?.setTag('signup_method', 'google-oauth');
       // If we get here without error, the redirect should happen automatically
       console.log('[roam] OAuth redirect should have occurred');
       Sentry.addBreadcrumb({
@@ -298,14 +245,11 @@ export default function JoinPageContent() {
       });
     } catch (err) {
       console.error('[roam] OAuth exception:', err);
-      span?.setStatus('failed');
       Sentry.captureException(err, {
         tags: { context: 'google-oauth', step: 'account' },
       });
       setError(err instanceof Error ? err.message : 'Sign-in failed — please try again.');
       setLoading(false);
-    } finally {
-      span?.end();
     }
   }
 
@@ -348,11 +292,6 @@ export default function JoinPageContent() {
     setError(null);
     setLoading(true);
 
-    const span = Sentry.startSpan({
-      op: 'signup.categories',
-      description: 'Saving user category preferences',
-    });
-
     try {
       Sentry.addBreadcrumb({
         category: 'signup',
@@ -363,8 +302,6 @@ export default function JoinPageContent() {
 
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) { 
-        span?.setStatus('failed');
-        span?.setTag('auth_error', 'not_signed_in');
         setError("Not signed in — please refresh the page and try again."); 
         Sentry.addBreadcrumb({
           category: 'signup',
@@ -391,8 +328,6 @@ export default function JoinPageContent() {
       
       if (deleteError) { 
         console.error('[roam] Delete failed:', deleteError);
-        span?.setStatus('failed');
-        span?.setTag('db_error', 'delete_failed');
         setError('Couldn\'t save your preferences — please try again.'); 
         Sentry.addBreadcrumb({
           category: 'signup',
@@ -412,8 +347,6 @@ export default function JoinPageContent() {
       
       if (insertError) { 
         console.error('[roam] Insert failed:', insertError);
-        span?.setStatus('failed');
-        span?.setTag('db_error', 'insert_failed');
         setError('Couldn\'t save your preferences — please try again.'); 
         Sentry.addBreadcrumb({
           category: 'signup',
@@ -425,10 +358,6 @@ export default function JoinPageContent() {
       }
       
       console.log('[roam] Categories inserted successfully:', insertData?.length || 0, 'rows');
-      
-      span?.setStatus('ok');
-      span?.setTag('categories_saved', insertData?.length || 0);
-      span?.setTag('signup_method', isAndroid ? 'android' : 'web');
       
       Sentry.addBreadcrumb({
         category: 'signup',
@@ -467,15 +396,12 @@ export default function JoinPageContent() {
       setStep("done");
     } catch (err) {
       console.error('[roam] Unexpected error in handleCategories:', err);
-      span?.setStatus('failed');
       Sentry.captureException(err, {
         tags: { context: 'category-selection', step: 'categories' },
         extra: { selectedCategories: selected.size },
       });
       setError(err instanceof Error ? err.message : 'Something went wrong — please try again.');
       setLoading(false);
-    } finally {
-      span?.end();
     }
   }
 

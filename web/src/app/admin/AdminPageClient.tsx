@@ -4,11 +4,22 @@ import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import ModerationDetail from "./ModerationDetail";
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
-import type { Database } from "@/lib/supabase/types";
 
-type QueueItem = Database["public"]["Tables"]["moderation_queue"]["Row"] & {
-  profile?: { display_name: string; username: string };
-  subcategory?: { label: string };
+type QueueItem = {
+  id: string;
+  url: string;
+  title: string | null;
+  description: string | null;
+  status: "pending" | "approved" | "rejected" | null;
+  created_at: string | null;
+  safe_browsing_passed: boolean | null;
+  submitted_by: string | null;
+  reviewed_at?: string | null;
+  reviewer_note: string | null;
+  reviewed_by: string | null;
+  subcategory_id: string | null;
+  profile?: { display_name: string; username: string } | null;
+  subcategory?: { label: string }[] | null;
 };
 
 type AnalyticsData = {
@@ -123,8 +134,8 @@ export default function AdminPageClient() {
       // Process submissions by category
       const categoryMap: { [key: string]: number } = {};
       queueItems?.forEach((item) => {
-        if (item.subcategory?.label) {
-          const category = item.subcategory.label;
+        if (item.subcategory?.[0]?.label) {
+          const category = item.subcategory[0].label;
           categoryMap[category] = (categoryMap[category] || 0) + 1;
         }
       });
@@ -295,7 +306,7 @@ export default function AdminPageClient() {
                       </span>
                     </div>
                     <span className="text-xs text-zinc-400">
-                      {new Date(item.created_at).toLocaleString()}
+                      {new Date(item.created_at ?? '').toLocaleString()}
                     </span>
                   </button>
                 ))}

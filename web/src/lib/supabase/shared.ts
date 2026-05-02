@@ -18,5 +18,5 @@ export function validateSupabaseEnv() {
     );
   }
 
-  return { url, key };
+  return { url: url as string, key: key as string };
 }

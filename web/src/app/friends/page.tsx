@@ -17,12 +17,12 @@ type User = {
 
 type FollowRecord = {
   follower_id: string;
-  profiles: { id: string; username: string; email: string; bio?: string } | null;
+  profiles: { id: string; username: string; email: string; bio?: string }[] | null;
 };
 
 type FollowingRecord = {
   following_id: string;
-  profiles: { id: string; username: string; email: string; bio?: string } | null;
+  profiles: { id: string; username: string; email: string; bio?: string }[] | null;
 };
 
 export default function FriendsPage() {
@@ -44,12 +44,12 @@ export default function FriendsPage() {
 
       if (!error && data) {
         setFollowers(
-          (data as FollowRecord[])
+          (data as unknown as FollowRecord[])
             .map((f) => ({
-              id: f.profiles?.id ?? '',
-              username: f.profiles?.username ?? '',
-              email: f.profiles?.email ?? '',
-              bio: f.profiles?.bio,
+              id: f.profiles?.[0]?.id ?? '',
+              username: f.profiles?.[0]?.username ?? '',
+              email: f.profiles?.[0]?.email ?? '',
+              bio: f.profiles?.[0]?.bio,
             }))
             .filter((u) => u.id)
         );
@@ -70,12 +70,12 @@ export default function FriendsPage() {
 
       if (!error && data) {
         setFollowing(
-          (data as FollowingRecord[])
+          (data as unknown as FollowingRecord[])
             .map((f) => ({
-              id: f.profiles?.id ?? '',
-              username: f.profiles?.username ?? '',
-              email: f.profiles?.email ?? '',
-              bio: f.profiles?.bio,
+              id: f.profiles?.[0]?.id ?? '',
+              username: f.profiles?.[0]?.username ?? '',
+              email: f.profiles?.[0]?.email ?? '',
+              bio: f.profiles?.[0]?.bio,
             }))
             .filter((u) => u.id)
         );
