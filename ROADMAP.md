@@ -1783,12 +1783,9 @@ These must be completed before any app store submission or launch is possible.
 
 These tasks are not required for launch but should be completed before Roam has significant traffic.
 
-- [ ] **8.1** Add wilson_score floor to `roam()` — add `AND u.wilson_score > -0.1` guard to all candidate-pool branches; stops chronically-downvoted URLs from re-surfacing via TABLESAMPLE while community data accumulates
-  - **Severity:** LOW — quick quality baseline
-  - **Effort:** 30 minutes
-  - **Files:** `supabase/migrations/20260502000003_wilson_score_floor.sql` (new)
-  - **Details:** New migration that DROPs + recreates `roam()` v9 with the floor applied to both the TABLESAMPLE branch and the fallback ORDER BY branch. Also add a `CHECK (wilson_score >= -1)` sanity constraint to `urls` while here.
-  - **Acceptance:** Running `SELECT * FROM urls WHERE approved AND wilson_score < -0.1` returns URLs that are now excluded from discovery
+- [x] **8.1** Add wilson_score floor to `roam()` — add `AND u.wilson_score > -0.1` guard to all candidate-pool branches; stops chronically-downvoted URLs from re-surfacing via TABLESAMPLE while community data accumulates
+
+  📖 **What we did:** Created `supabase/migrations/20260502000003_wilson_score_floor.sql`. Added `AND u.wilson_score > -0.1` to all four candidate-pool WHERE blocks in `roam()` (TABLESAMPLE + ORDER BY fallback in both standard and collection modes). Also added `CHECK (wilson_score >= -1 AND wilson_score <= 1) NOT VALID` constraint to `urls` — `NOT VALID` skips row-by-row validation on the existing 1.69M rows for a fast migration. This is `roam()` v9. Deployed with `supabase db push`.
 
 - [ ] **8.2** Dead link report button — small "Report broken link" action in the URL card's config area near "Send feedback"; one click marks `urls.inactive = true` and immediately skips to the next URL
   - **Severity:** MEDIUM — fastest quality signal; users already see the bad links
