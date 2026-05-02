@@ -22,7 +22,7 @@
 | **[Stage 6](#stage-6--android-app)** — Mobile | ⏳ In Progress | 26/29 | 100h |
 | **[Stage 7](#stage-7--testing--launch-prep)** — QA | ⏳ In Progress | 0/9 | 20h |
 | **[Stage 8](#stage-8--infrastructure--domain)** — Deployment | ✅ Done | 5/5 | 8h |
-| **[Stage 9](#stage-9--pre-submission-quality--security-audit)** — Security Audit | ⏳ In Progress | 25/37 | 60h |
+| **[Stage 9](#stage-9--pre-submission-quality--security-audit)** — Security Audit | ⏳ In Progress | 28/37 | 60h |
 | **[Stage 10](#stage-10--web-app-polish--bug-fixes)** — Polish | ⏳ In Progress | 6/21 | 15h |
 | **[Stage 11](#stage-11--comprehensive-audit-fixes--testing)** — Hardening | ⏳ In Progress | 25/30 | 100h |
 | **[Post-Launch](#post-launch)** — Roadmap | 📋 Planned | 3/22 | 45h |
@@ -71,13 +71,13 @@
 
 ## Project Progress
 
-**Overall Completion: 208 / 296 tasks (70%)**
+**Overall Completion: 213 / 301 tasks (71%)**
 
 | Category | Complete | Total | % |
 |----------|----------|-------|-----|
 | Core Launch (Stages 1–6, 8) | 149 | 177 | 84% |
 | Testing & QA (Stage 7) | 0 | 9 | 0% |
-| Security & Quality (Stage 9) | 25 | 37 | 68% |
+| Security & Quality (Stage 9) | 28 | 37 | 76% |
 | Web Polish & Hardening (Stages 10–11) | 31 | 51 | 61% |
 | Post-Launch Roadmap | 3 | 22 | 14% |
 
@@ -98,7 +98,7 @@
 ### ⏳ In Progress
 - Stage 6 (Android): 26/29 tasks *(Play Store submission: 6.17–6.19)*
 - Stage 7 (Testing): 0/9 tasks
-- Stage 9 (Security Audit): 25/37 tasks
+- Stage 9 (Security Audit): 28/37 tasks
 - Stage 10 (Web Polish): 6/21 tasks
 - Stage 11 (Hardening): 25/30 tasks
 
@@ -974,7 +974,7 @@ Final checks before making the app public.
   - **Files:** `android/gradlew`
   - File already existed — `android/gradlew` is a proper POSIX shell script (`#!/bin/sh`) with full Gradle wrapper logic. CI passes on `ubuntu-latest` (verified via GitHub Actions). Task was a false open.
 
-- [ ] **9.22** Fix `sendFailedUrlBatch` silent failure — currently if the POST to `/log-failed-urls` fails, failed URLs are silently discarded with no retry and no Sentry capture; implement exponential backoff retry and capture the error to Sentry on final failure so moderation data is not lost
+- [x] **9.22** Fix `sendFailedUrlBatch` silent failure — currently if the POST to `/log-failed-urls` fails, failed URLs are silently discarded with no retry and no Sentry capture; implement exponential backoff retry and capture the error to Sentry on final failure so moderation data is not lost
   - **Severity:** HIGH
   - **Files:** `extension/src/lib/queue.ts` (~L307�320)
 
