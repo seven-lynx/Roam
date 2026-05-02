@@ -2,7 +2,7 @@
 
 Complete documentation of all Supabase Edge Functions and PostgreSQL RPC functions used by Roam clients.
 
-**Last Updated:** 2026-05-01  
+**Last Updated:** 2026-05-02  
 **Base URL:** `https://<PROJECT_ID>.supabase.co`  
 **Authentication:** Bearer token in `Authorization: Bearer <JWT>` header (except public endpoints)
 
@@ -19,6 +19,7 @@ Complete documentation of all Supabase Edge Functions and PostgreSQL RPC functio
   - [`follow` — Manage follows](#follow--manage-follows)
   - [`save-url` — Save/unsave URLs](#save-url--saveunsave-urls)
   - [`feedback` — Submit feedback](#feedback--submit-feedback)
+  - [`report-url` — Report broken link](#report-url--report-broken-link)
   - [`log-failed-urls` — Log failed URLs](#log-failed-urls--log-failed-urls)
 - [RPC Functions (Database)](#rpc-functions-database)
   - [`roam()` — Weighted-random URL discovery](#roam--weighted-random-url-discovery)
@@ -497,6 +498,61 @@ await supabase.functions.invoke('feedback', {
 
 ---
 
+### `report-url` — Report broken link
+
+Marks a URL as inactive so it never surfaces in discovery again, and logs the report to the `url_reports` audit table.
+
+**Endpoint:** `POST /functions/v1/report-url`
+
+**Authentication:** Required (Bearer token)
+
+**Request Body:**
+```json
+{
+  "url_id": "uuid"  // Required — ID of the URL to report
+}
+```
+
+**Response (200):**
+```json
+{
+  "ok": true
+}
+```
+
+**Error Responses:**
+- **400** — Invalid or missing `url_id` (must be a valid UUID)
+- **401** — Unauthorized (unauthenticated requests rejected)
+- **429** — Rate limit exceeded (20 reports per 10 minutes per user)
+- **500** — Failed to update URL record
+
+**Details:**
+- Sets `urls.inactive = TRUE` on the target URL; the `roam()` function filters `AND NOT u.inactive` across all candidate branches (v10+)
+- Inserts a row into `url_reports (id, user_id, url_id, reported_at)` for admin audit
+- Only affects URLs where `approved = TRUE` — a safety guard against misuse on unreviewed submissions
+- The INSERT into `url_reports` is best-effort: if it fails, the URL is still marked inactive and 200 is returned
+- Rate limited per `user_id`, not IP, to prevent abuse via proxy rotation
+
+**Example (Extension):**
+```typescript
+// After receiving url_id from CHECK_URL, report and skip to next URL
+const res = await sendToBackground({ type: 'REPORT_URL', url_id: check.data.url_id });
+if (res.ok) {
+  const next = await sendToBackground({ type: 'ROAM' });
+  chrome.tabs.update(tab.id, { url: next.data.url });
+}
+```
+
+**Example (Android):**
+```kotlin
+supabase.functions.invoke("report-url", buildJsonObject {
+    put("url_id", currentUrlId)
+})
+// Then call roam() to skip to the next URL
+```
+
+---
+
 ### `log-failed-urls` — Log failed URLs
 
 Extension/app internal endpoint: batch log failed URLs for moderation review.
@@ -606,6 +662,7 @@ subcategory_label, source, language
 | `follow` | 30 | 1 minute (per authenticated user) |
 | `save-url` | 50 | 1 minute (per authenticated user) |
 | `feedback` | 5 | 10 minutes (per IP address) |
+| `report-url` | 20 | 10 minutes (per authenticated user) |
 
 **Rate limit headers:** Response includes `X-RateLimit-Limit`, `X-RateLimit-Remaining`, and `Retry-After` headers.
 
