@@ -566,11 +566,21 @@ Filling the discovery pool before launch so that the Roam button has something t
 
   📖 **What we did:** Created `scripts/seed-substack.js`. Fetches paginated publication lists for 29 Substack categories (technology, science, culture, art, music, literature, fiction, comics, film-and-tv, humor, fashion, history, philosophy, education, business, finance, news, us-politics, world-politics, travel, international, parenting, food, sports, health, health-politics, faith, climate, design, crypto). Uses `base_url` from each publication object. `fetchOg: false` for speed. Rate: 1000ms delay. Cache: `scripts/.cache/substack.json`. Result: **14,847 items** inserted.
 
+#### Future seeder candidates
+
+- [ ] **4.44** Write the Smithsonian Open Access seeder — `edan.si.edu` open metadata API; museum objects, images, natural history specimens; maps to Science & Nature, History & Ideas, Arts & Culture; no key required; ~500K+ open-access records; effort: 3 hours
+- [ ] **4.45** Write the JSTOR Open Access seeder — `jstor.org/open/` feed; humanities & social science articles; maps to History & Ideas, Science, Mind & Body; no key required; ~50K+ rows; effort: 2 hours
+- [ ] **4.46** Write the Vimeo Staff Picks seeder — `vimeo.com/channels/staffpicks` sitemap or oEmbed API; editorially curated short films; maps to Arts & Culture, Weird & Wonderful; no key required; ~10K videos; effort: 2 hours
+- [ ] **4.47** Write the Mastodon Trending Links seeder — `mastodon.social/api/v1/trends/links`; community-curated links across many topics; maps to all 8 categories; no key required; runs periodically for fresh content; effort: 1 hour
+- [ ] **4.48** Write the PubChem seeder — NCBI PubChem REST API; chemistry compound and assay pages; maps to Science & Nature; no key required; same Entrez pattern as PubMed; effort: 2 hours
+- [ ] **4.49** Write the Spotify Podcasts seeder — `api.spotify.com` podcast search by category; maps to Music, Society, Science subcategories; requires free API key; ~10K podcast episodes; effort: 2-3 hours
+- [ ] **4.50** Write the IGDB seeder — video games (free API key via Twitch); top 5K games by rating; maps to Games & Hobbies; effort: 2 hours
+
 #### Not Recommended (Pre-launch)
 
 - **YouTube** — API quota (10K units/day) too restrictive. 50K videos = 50+ days minimum. Defer to post-launch.
 - **Europeana** — Slow API (1 req/2s). 50K items = 24+ hour seed time. Lower priority vs. Museum APIs.
-- **CORE, DPLA, JSTOR** — Lower unique value or too much overlap with existing seeders.
+- **CORE, DPLA** — Lower unique value or too much overlap with existing seeders.
 
 #### Pre-Launch Essential
 
