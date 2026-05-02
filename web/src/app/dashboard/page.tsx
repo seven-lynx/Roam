@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import * as Sentry from '@sentry/nextjs';
 import { Header } from '@/components/Header';
 import { LoadingPage, Button, Card, Spinner, Toast } from '@/components/UI';
 import { createClient } from '@/lib/supabase/client';
@@ -28,6 +29,37 @@ export default function DashboardPage() {
   const [showSavePanel, setShowSavePanel] = useState(false);
   const [userCollections, setUserCollections] = useState<Array<{ id: string; name: string }>>([]);
   const [error, setError] = useState<string | null>(null);
+  const [urlCount, setUrlCount] = useState(0);
+
+  // Track roam (discovery) flow with Sentry transaction
+  useEffect(() => {
+    const transaction = Sentry.startTransaction({
+      name: 'roam-discovery-flow',
+      op: 'pageload',
+      description: 'User discovering and interacting with URLs',
+    });
+
+    Sentry.addBreadcrumb({
+      category: 'roam',
+      message: 'User entered discovery flow',
+      level: 'info',
+      data: { 
+        selectedCategories: selectedCategories.length,
+      },
+    });
+
+    return () => {
+      if (transaction) {
+        Sentry.addBreadcrumb({
+          category: 'roam',
+          message: `User explored ${urlCount} URLs in this session`,
+          level: 'info',
+          data: { url_count: urlCount },
+        });
+        transaction.end();
+      }
+    };
+  }, []);
 
   useEffect(() => {
     if (isReady) {
@@ -52,7 +84,18 @@ export default function DashboardPage() {
     setVoted(null);
     setSavedToCollection(false);
 
+    const span = Sentry.startSpan({
+      op: 'roam.fetch_url',
+      description: 'Fetching next discovery URL',
+    });
+
     try {
+      Sentry.addBreadcrumb({
+        category: 'roam',
+        message: 'Fetching next URL from discovery',
+        level: 'debug',
+      });
+
       const { data, error } = await supabase.functions.invoke('roam', {
         body: {
           category_filter: selectedCategories.length > 0 ? selectedCategories : undefined,
@@ -61,26 +104,65 @@ export default function DashboardPage() {
 
       if (error) {
         console.error('Roam error:', error);
+        span?.setStatus('failed');
+        span?.setTag('error', error.message);
+        Sentry.addBreadcrumb({
+          category: 'roam',
+          message: `Roam error: ${error.message}`,
+          level: 'error',
+        });
         return;
       }
 
       setCurrentUrl(data);
+      setUrlCount(prev => prev + 1);
+      span?.setStatus('ok');
+      span?.setTag('category_count', selectedCategories.length);
+      
+      Sentry.addBreadcrumb({
+        category: 'roam',
+        message: `Fetched URL: ${data?.title?.substring(0, 50)}`,
+        level: 'debug',
+      });
     } catch (e) {
       console.error('Failed to fetch URL:', e);
+      span?.setStatus('failed');
+      Sentry.captureException(e, {
+        tags: { context: 'fetch-url', op: 'roam' },
+        level: 'warning',
+      });
     } finally {
       setLoading(false);
+      span?.end();
     }
   }
 
   async function handleVote(vote: 1 | -1) {
     if (!currentUrl) return;
 
+    const span = Sentry.startSpan({
+      op: 'roam.vote',
+      description: `User voting ${vote > 0 ? 'up' : 'down'} on URL`,
+    });
+
     try {
       setError(null);
+      const voteLabel = vote === 1 ? 'thumbs up' : 'thumbs down';
+      
+      Sentry.addBreadcrumb({
+        category: 'roam',
+        message: `User voted ${voteLabel}`,
+        level: 'info',
+        data: { vote_value: vote, url_id: currentUrl.id },
+      });
+
       await supabase.functions.invoke('rate', {
         body: { url_id: currentUrl.id, vote },
       });
       setVoted(vote === 1 ? 'up' : 'down');
+      
+      span?.setStatus('ok');
+      span?.setTag('vote_direction', vote === 1 ? 'up' : 'down');
 
       // Auto-advance after 1 second
       setTimeout(() => fetchNextUrl(), 1000);
@@ -88,14 +170,34 @@ export default function DashboardPage() {
       const message = e instanceof Error ? e.message : 'Failed to record vote';
       setError(message);
       console.error('Failed to record vote:', e);
+      span?.setStatus('failed');
+      span?.setTag('error_type', 'vote_failed');
+      Sentry.captureException(e, {
+        tags: { context: 'vote', op: 'roam' },
+      });
+    } finally {
+      span?.end();
     }
   }
 
   async function handleSaveToCollection(collectionId: string) {
     if (!currentUrl) return;
 
+    const span = Sentry.startSpan({
+      op: 'roam.save_collection',
+      description: 'Saving URL to collection',
+    });
+
     try {
       setError(null);
+      
+      Sentry.addBreadcrumb({
+        category: 'roam',
+        message: 'User saving URL to collection',
+        level: 'info',
+        data: { collection_id: collectionId, url_id: currentUrl.id },
+      });
+
       await supabase.functions.invoke('collection', {
         body: {
           action: 'add_item',
@@ -105,11 +207,28 @@ export default function DashboardPage() {
       });
       setSavedToCollection(true);
       setShowSavePanel(false);
+      
+      span?.setStatus('ok');
+      span?.setTag('save_action', 'add_to_collection');
+      
+      Sentry.addBreadcrumb({
+        category: 'roam',
+        message: 'URL successfully saved to collection',
+        level: 'info',
+      });
+
       setTimeout(() => setSavedToCollection(false), 2000);
     } catch (e) {
       const message = e instanceof Error ? e.message : 'Failed to save to collection';
       setError(message);
       console.error('Failed to save to collection:', e);
+      span?.setStatus('failed');
+      span?.setTag('error_type', 'save_collection_failed');
+      Sentry.captureException(e, {
+        tags: { context: 'save-collection', op: 'roam' },
+      });
+    } finally {
+      span?.end();
     }
   }
 
