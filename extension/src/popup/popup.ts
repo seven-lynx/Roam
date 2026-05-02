@@ -66,6 +66,55 @@ function showError(message: string) {
   showState('error');
 }
 
+function showDropdown(
+  anchor: HTMLElement,
+  items: { label: string; onPick: () => void }[],
+  footer?: HTMLElement
+): void {
+  const menu = document.createElement('div');
+  menu.style.cssText = `
+    background: var(--bg-panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    z-index: 1000;
+    max-height: 200px;
+    overflow-y: auto;
+  `;
+  items.forEach(({ label, onPick }) => {
+    const option = document.createElement('button');
+    option.style.cssText = `
+      width: 100%;
+      padding: 8px 10px;
+      border: none;
+      background: transparent;
+      color: var(--text);
+      text-align: left;
+      cursor: pointer;
+      font-size: 13px;
+    `;
+    option.textContent = label;
+    option.addEventListener('click', () => { menu.remove(); onPick(); });
+    option.addEventListener('mouseover', () => { option.style.background = 'var(--bg-hover)'; });
+    option.addEventListener('mouseout', () => { option.style.background = 'transparent'; });
+    menu.appendChild(option);
+  });
+  if (footer) {
+    const divider = document.createElement('div');
+    divider.style.cssText = 'height: 1px; background: var(--border); margin: 4px 0;';
+    menu.appendChild(divider);
+    menu.appendChild(footer);
+  }
+  const rect = anchor.getBoundingClientRect();
+  menu.style.position = 'fixed';
+  menu.style.top = `${rect.bottom + 4}px`;
+  menu.style.left = `${rect.left}px`;
+  menu.style.width = `${rect.width}px`;
+  document.body.appendChild(menu);
+  document.addEventListener('click', (e) => {
+    if (!menu.contains(e.target as Node) && e.target !== anchor) menu.remove();
+  }, { once: true });
+}
+
 // Context for categories screen: 'firsttime' (post sign-in) or 'settings' (from config panel)
 let categoriesContext: 'firsttime' | 'settings' = 'firsttime';
 
@@ -434,68 +483,10 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   el('btn-add-collection').addEventListener('click', async () => {
-    // Load collections and show dropdown
     await loadCollectionsForDropdown();
 
-    // Create a temporary dropdown menu
-    const menu = document.createElement('div');
-    menu.style.cssText = `
-      position: absolute;
-      top: 100%;
-      left: 6px;
-      right: 6px;
-      background: var(--bg-panel);
-      border: 1px solid var(--border);
-      border-radius: var(--radius-sm);
-      margin-top: 4px;
-      z-index: 1000;
-      max-height: 200px;
-      overflow-y: auto;
-    `;
-
-    // Add existing collections
-    loadedCollections.forEach((col) => {
-      const option = document.createElement('button');
-      option.style.cssText = `
-        width: 100%;
-        padding: 8px 10px;
-        border: none;
-        background: transparent;
-        color: var(--text);
-        text-align: left;
-        cursor: pointer;
-        font-size: 13px;
-        border-radius: 0;
-      `;
-      option.textContent = col.name + ' ';
-      const countSpan = document.createElement('span');
-      countSpan.style.color = 'var(--text-muted)';
-      countSpan.style.fontSize = '11px';
-      countSpan.textContent = `(${col.item_count})`;
-      option.appendChild(countSpan);
-      option.addEventListener('click', async () => {
-        const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-        if (!tab?.url) return;
-        const res = await sendToBackground({ type: 'ADD_URL_TO_COLLECTION', url: tab.url, collectionId: col.id });
-        menu.remove();
-        if (res.ok) {
-          window.close();
-        } else {
-          showError(res.error ?? "Couldn't add to collection.");
-        }
-      });
-      option.addEventListener('mouseover', () => option.style.background = 'var(--bg-hover)');
-      option.addEventListener('mouseout', () => option.style.background = 'transparent');
-      menu.appendChild(option);
-    });
-
-    // Add "New collection" option
-    const divider = document.createElement('div');
-    divider.style.cssText = 'height: 1px; background: var(--border); margin: 4px 0;';
-    menu.appendChild(divider);
-
-    const newColOption = document.createElement('button');
-    newColOption.style.cssText = `
+    const newColBtn = document.createElement('button');
+    newColBtn.style.cssText = `
       width: 100%;
       padding: 8px 10px;
       border: none;
@@ -506,40 +497,32 @@ document.addEventListener('DOMContentLoaded', () => {
       font-size: 13px;
       font-weight: 600;
     `;
-    newColOption.textContent = '+ New collection';
-    newColOption.addEventListener('click', async () => {
+    newColBtn.textContent = '+ New collection';
+    newColBtn.addEventListener('click', async () => {
       const name = prompt('Collection name:');
       if (!name) return;
       const res = await sendToBackground<Collection>({ type: 'CREATE_COLLECTION', name });
-      if (!res.ok) { showError(res.error ?? "Couldn't create collection."); menu.remove(); return; }
+      if (!res.ok) { showError(res.error ?? "Couldn't create collection."); return; }
       const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-      if (!tab?.url) { menu.remove(); return; }
+      if (!tab?.url) return;
       const addRes = await sendToBackground({ type: 'ADD_URL_TO_COLLECTION', url: tab.url, collectionId: res.data.id });
-      menu.remove();
-      if (addRes.ok) {
-        window.close();
-      } else {
-        showError(addRes.error ?? "Couldn't add to collection.");
-      }
+      if (addRes.ok) { window.close(); } else { showError(addRes.error ?? "Couldn't add to collection."); }
     });
-    menu.appendChild(newColOption);
 
-    // Position menu relative to button
-    const btn = el<HTMLButtonElement>('btn-add-collection');
-    const btnRect = btn.getBoundingClientRect();
-    menu.style.position = 'fixed';
-    menu.style.top = (btnRect.bottom + 4) + 'px';
-    menu.style.left = (btnRect.left) + 'px';
-    menu.style.width = btnRect.width + 'px';
-
-    document.body.appendChild(menu);
-
-    // Close menu on click outside
-    document.addEventListener('click', (e) => {
-      if (!menu.contains(e.target as Node) && e.target !== btn) {
-        menu.remove();
-      }
-    }, { once: true });
+    const anchor = el<HTMLButtonElement>('btn-add-collection');
+    showDropdown(
+      anchor,
+      loadedCollections.map(col => ({
+        label: `${col.name} (${col.item_count})`,
+        onPick: async () => {
+          const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+          if (!tab?.url) return;
+          const res = await sendToBackground({ type: 'ADD_URL_TO_COLLECTION', url: tab.url, collectionId: col.id });
+          if (res.ok) { window.close(); } else { showError(res.error ?? "Couldn't add to collection."); }
+        },
+      })),
+      newColBtn
+    );
   });
 
   el('btn-save-later').addEventListener('click', async () => {
@@ -580,7 +563,6 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   el('btn-roam-collection').addEventListener('click', async () => {
-    // Load collections and show dropdown
     await loadCollectionsForDropdown();
 
     if (loadedCollections.length === 0) {
@@ -588,68 +570,21 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
-    // Create a temporary dropdown menu
-    const menu = document.createElement('div');
-    menu.style.cssText = `
-      position: absolute;
-      top: 100%;
-      left: 6px;
-      right: 6px;
-      background: var(--bg-panel);
-      border: 1px solid var(--border);
-      border-radius: var(--radius-sm);
-      margin-top: 4px;
-      z-index: 1000;
-      max-height: 200px;
-      overflow-y: auto;
-    `;
-
-    loadedCollections.forEach((col) => {
-      const option = document.createElement('button');
-      option.style.cssText = `
-        width: 100%;
-        padding: 8px 10px;
-        border: none;
-        background: transparent;
-        color: var(--text);
-        text-align: left;
-        cursor: pointer;
-        font-size: 13px;
-      `;
-      option.textContent = `${col.name} (${col.item_count})`;
-      option.addEventListener('click', async () => {
-        const res = await sendToBackground<RoamData>({
-          type: 'ROAM_COLLECTION',
-          collectionId: col.id,
-        });
-        menu.remove();
-        if (!res.ok) { showError(res.error); return; }
-        if (!res.data?.url) { showState('noresults'); return; }
-        const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-        if (tab?.id) chrome.tabs.update(tab.id, { url: res.data.url });
-        window.close();
-      });
-      option.addEventListener('mouseover', () => option.style.background = 'var(--bg-hover)');
-      option.addEventListener('mouseout', () => option.style.background = 'transparent');
-      menu.appendChild(option);
-    });
-
-    // Position menu
-    const btn = el<HTMLButtonElement>('btn-roam-collection');
-    const btnRect = btn.getBoundingClientRect();
-    menu.style.position = 'fixed';
-    menu.style.top = (btnRect.bottom + 4) + 'px';
-    menu.style.left = (btnRect.left) + 'px';
-    menu.style.width = btnRect.width + 'px';
-
-    document.body.appendChild(menu);
-
-    // Close menu on click outside
-    document.addEventListener('click', (e) => {
-      if (!menu.contains(e.target as Node) && e.target !== btn) {
-        menu.remove();
-      }
-    }, { once: true });
+    const anchor = el<HTMLButtonElement>('btn-roam-collection');
+    showDropdown(
+      anchor,
+      loadedCollections.map(col => ({
+        label: `${col.name} (${col.item_count})`,
+        onPick: async () => {
+          const res = await sendToBackground<RoamData>({ type: 'ROAM_COLLECTION', collectionId: col.id });
+          if (!res.ok) { showError(res.error); return; }
+          if (!res.data?.url) { showState('noresults'); return; }
+          const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+          if (tab?.id) chrome.tabs.update(tab.id, { url: res.data.url });
+          window.close();
+        },
+      }))
+    );
   });
 
   el('btn-manage-collections').addEventListener('click', async () => {

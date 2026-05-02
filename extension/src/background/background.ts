@@ -15,6 +15,9 @@ declare const __SUPABASE_URL__: string;
 // Validate env vars at SW startup. Throws (crashing the SW with a clear message) if missing.
 validateEnvironment();
 
+const PREFETCH_KEY = 'prefetch';
+const PREFETCH_TTL = 5 * 60 * 1000; // 5 minutes
+
 // ── URL normaliser ────────────────────────────────────────────────────────────
 function normalizeUrl(raw: string): string | null {
   try {
@@ -50,7 +53,7 @@ self.addEventListener('error', (event) => {
 });
 
 // ── Message router ────────────────────────────────────────────────────────────
-chrome.runtime.onConnect.addListener((_port) => { /* keeps SW alive while popup is open */ });
+chrome.runtime.onConnect.addListener((_port) => { prefetchNext(); });
 
 chrome.runtime.onMessage.addListener(
   (message: Request, _sender, sendResponse: (r: Response) => void) => {
@@ -101,8 +104,6 @@ async function _dispatch(req: Request): Promise<Response> {
     case 'GET_PROFILE':           return getProfile();
     case 'SEND_FEEDBACK':         return sendFeedback(req.message, req.email, req.platform);
     case 'REPORT_URL':            return reportUrl(req.url_id);
-    case 'REFRESH_CATEGORIES':    return setUserCategories(req.categoryIds);
-    case 'GET_QUEUE_STATE':       return { ok: true, data: { hot_count: 0, warming_count: 0, failed_count: 0, category_filter: [] } };
     default:                      return { ok: false, error: 'Something went wrong. Please try again.' };
   }
 }
@@ -202,18 +203,18 @@ async function setUserCategories(categoryIds: string[]): Promise<Response<null>>
 }
 
 // ── Roam ──────────────────────────────────────────────────────────────────────
-async function roam(): Promise<Response<RoamData>> {
+async function callRoamApi(body: Record<string, unknown> = {}): Promise<Response<RoamData>> {
   const storage = await chrome.storage.local.get('lastRoamDomain');
   const excludeDomain = storage.lastRoamDomain ?? null;
   const { data, error } = await getSupabase().functions.invoke('roam', {
-    body: { ...(excludeDomain ? { exclude_domain: excludeDomain } : {}) },
+    body: { ...(excludeDomain ? { exclude_domain: excludeDomain } : {}), ...body },
   });
   if (error) {
     const status = (error as any).context?.status;
     if (status === 404) return { ok: true, data: { url: '' } as RoamData };
     try {
-      const body = await (error as any).context?.json?.();
-      if ((body as any)?.error) return { ok: false, error: (body as any).error };
+      const parsed = await (error as any).context?.json?.();
+      if ((parsed as any)?.error) return { ok: false, error: (parsed as any).error };
     } catch { /* ignore */ }
     return { ok: false, error: error.message };
   }
@@ -221,6 +222,26 @@ async function roam(): Promise<Response<RoamData>> {
   const newDomain = getDomain(data.url);
   if (newDomain) await chrome.storage.local.set({ lastRoamDomain: newDomain });
   return { ok: true, data: data as RoamData };
+}
+
+async function prefetchNext(): Promise<void> {
+  try {
+    const result = await callRoamApi();
+    if (result.ok && result.data.url) {
+      await chrome.storage.session.set({ [PREFETCH_KEY]: { data: result.data, cachedAt: Date.now() } });
+    }
+  } catch { /* fire-and-forget — never block the popup */ }
+}
+
+async function roam(): Promise<Response<RoamData>> {
+  const stored = await chrome.storage.session.get(PREFETCH_KEY);
+  const cached = stored[PREFETCH_KEY] as { data: RoamData; cachedAt: number } | undefined;
+  if (cached && Date.now() - cached.cachedAt < PREFETCH_TTL) {
+    await chrome.storage.session.remove(PREFETCH_KEY);
+    prefetchNext(); // fire-and-forget — restock for next click
+    return { ok: true, data: cached.data };
+  }
+  return callRoamApi(); // cache miss — live call
 }
 
 async function roamCollection(collectionId: string): Promise<Response<RoamData>> {
