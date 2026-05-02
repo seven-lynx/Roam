@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Image from 'next/image';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { Header } from '@/components/Header';
@@ -93,6 +94,7 @@ export default function CollectionDetailPage() {
     if (isReady) {
       loadCollection();
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isReady, collectionId]);
 
   if (!isReady || loading) return <LoadingPage />;
@@ -156,9 +158,12 @@ export default function CollectionDetailPage() {
                     rel="noopener noreferrer"
                     className="flex-shrink-0"
                   >
-                    <img
-                      src={item.og_image_url}
-                      alt={item.title}
+                    <Image
+                      src={item.og_image_url as string}
+                      alt={item.title ?? ''}
+                      width={96}
+                      height={96}
+                      unoptimized
                       className="w-24 h-24 object-cover rounded-lg hover:opacity-80 transition-opacity"
                       onError={(e) => {
                         e.currentTarget.style.display = 'none';

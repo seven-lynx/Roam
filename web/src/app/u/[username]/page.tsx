@@ -127,12 +127,14 @@ export default function UserProfilePage() {
 
   useEffect(() => {
     loadProfile();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [username]);
 
   useEffect(() => {
     if (profile && session?.user.id) {
       checkFollowing();
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [profile, session]);
 
   if (loading) return <LoadingPage />;

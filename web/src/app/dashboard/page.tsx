@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Image from 'next/image';
 import * as Sentry from '@sentry/nextjs';
 import { Header } from '@/components/Header';
 import { LoadingPage, Button, Card, Spinner, Toast } from '@/components/UI';
@@ -59,6 +60,7 @@ export default function DashboardPage() {
         transaction.end();
       }
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function loadCollections() {
@@ -135,6 +137,7 @@ export default function DashboardPage() {
       fetchNextUrl();
       loadCollections();
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isReady]);
 
   async function handleVote(vote: 1 | -1) {
@@ -264,10 +267,12 @@ export default function DashboardPage() {
                   rel="noopener noreferrer"
                   className="relative w-full h-64 bg-zinc-100 dark:bg-zinc-800 rounded-lg overflow-hidden hover:opacity-90 transition-opacity"
                 >
-                  <img
-                    src={currentUrl.og_image_url}
-                    alt={currentUrl.title}
-                    className="w-full h-full object-cover"
+                  <Image
+                    src={currentUrl.og_image_url as string}
+                    alt={currentUrl.title ?? ''}
+                    fill
+                    unoptimized
+                    className="object-cover"
                     onError={(e) => {
                       e.currentTarget.style.display = 'none';
                     }}

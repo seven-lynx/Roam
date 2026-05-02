@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Image from 'next/image';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { Header } from '@/components/Header';
@@ -31,6 +32,7 @@ export default function UrlPage() {
 
   useEffect(() => {
     loadUrl();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [urlId]);
 
   async function loadUrl() {
@@ -125,14 +127,18 @@ export default function UrlPage() {
         {/* URL Preview */}
         <Card>
           {url.og_image_url && (
-            <img
-              src={url.og_image_url}
-              alt={url.title || url.url}
-              className="w-full h-64 object-cover rounded-lg mb-6"
-              onError={(e) => {
-                e.currentTarget.style.display = 'none';
-              }}
-            />
+            <div className="relative w-full h-64 overflow-hidden rounded-lg mb-6">
+              <Image
+                src={url.og_image_url}
+                alt={url.title || url.url}
+                fill
+                unoptimized
+                className="object-cover"
+                onError={(e) => {
+                  e.currentTarget.style.display = 'none';
+                }}
+              />
+            </div>
           )}
 
           <div className="flex flex-col gap-4">

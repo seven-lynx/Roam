@@ -93,6 +93,7 @@ export default function JoinPageContent() {
       span.setTag('signup_status', 'success');
       span.finish();
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step]);
 
   // Fetch categories from DB on mount (replaces hardcoded fallback if successful).

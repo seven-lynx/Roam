@@ -86,12 +86,14 @@ export default function ProfilePage() {
       loadCategories();
       loadStats();
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isReady]);
 
   useEffect(() => {
     if (!profileLoading && profile) {
       loadUserCategories();
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [profile, profileLoading]);
 
   async function handleSaveCategories() {

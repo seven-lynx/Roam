@@ -154,12 +154,14 @@ export default function AdminPageClient() {
 
   useEffect(() => {
     loadQueue();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [statusFilter, searchQuery, sortBy]);
 
   useEffect(() => {
     if (view === "analytics") {
       loadAnalytics();
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [view]);
 
   const statusCounts = {

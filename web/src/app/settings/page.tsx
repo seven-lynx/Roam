@@ -54,6 +54,7 @@ export default function SettingsPage() {
 
     // Load notification settings from user_settings
     loadNotificationSettings();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function handleDarkModeToggle() {

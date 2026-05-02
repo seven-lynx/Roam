@@ -73,6 +73,7 @@ export default function CollectionsPage() {
     if (isReady) {
       loadCollections();
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isReady]);
 
   async function handleCreateCollection(e: React.FormEvent) {
