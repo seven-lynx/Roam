@@ -206,6 +206,19 @@ class RoamRepository {
         supabase.functions.invoke("report-url", body = body)
     }
 
+    /**
+     * Submits user feedback to the feedback edge function.
+     * [message] is required; [email] is optional.
+     */
+    suspend fun sendFeedback(message: String, email: String?) {
+        val body = buildJsonObject {
+            put("message", message)
+            if (!email.isNullOrBlank()) put("email", email)
+            put("platform", "android")
+        }
+        supabase.functions.invoke("feedback", body = body)
+    }
+
     // ── Profile ───────────────────────────────────────────────────────────────
 
     /** Fetches the current user's profile row. Returns null if none exists yet. */

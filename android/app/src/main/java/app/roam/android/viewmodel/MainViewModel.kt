@@ -453,6 +453,13 @@ class MainViewModel(
         }
     }
 
+    fun sendFeedback(message: String, email: String?, onResult: (success: Boolean) -> Unit) {
+        viewModelScope.launch {
+            val result = runCatching { repo.sendFeedback(message, email) }
+            onResult(result.isSuccess)
+        }
+    }
+
     fun openAddToCollection() {
         viewModelScope.launch {
             runCatching { _collections.value = repo.getCollections() }
