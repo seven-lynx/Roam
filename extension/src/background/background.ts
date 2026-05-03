@@ -108,6 +108,7 @@ async function _dispatch(req: Request): Promise<Response> {
     case 'SET_PAYWALL_PREF':      return setPaywallPref(req.skip);
     case 'SET_LANGUAGE_PREF':     return setLanguagePref(req.languages);
     case 'SET_DISCOVERY_MODE':    return setDiscoveryMode(req.mode);
+    case 'SET_AUTO_TRANSLATE':    return setAutoTranslate(req.enabled);
     case 'GET_COLLECTIONS':       return getCollections();
     case 'CREATE_COLLECTION':     return createCollection(req.name);
     case 'ADD_URL_TO_COLLECTION': return addUrlToCollection(req.url, req.collectionId);
@@ -247,7 +248,8 @@ async function callRoamApi(body: Record<string, unknown> = {}): Promise<Response
   if (data?.error) return { ok: false, error: data.error };
   const newDomain = getDomain(data.url);
   if (newDomain) await chrome.storage.local.set({ lastRoamDomain: newDomain });
-  return { ok: true, data: data as RoamData };
+  const translatedUrl = await maybeTranslate(data.url);
+  return { ok: true, data: { ...data, url: translatedUrl } as RoamData };
 }
 
 async function prefetchNext(): Promise<void> {
@@ -292,7 +294,8 @@ async function roamCollection(collectionId: string): Promise<Response<RoamData>>
   if (data?.error) return { ok: false, error: data.error };
   const newDomain = getDomain(data.url);
   if (newDomain) await chrome.storage.local.set({ lastRoamDomain: newDomain });
-  return { ok: true, data: data as RoamData };
+  const translatedUrl = await maybeTranslate(data.url);
+  return { ok: true, data: { ...data, url: translatedUrl } as RoamData };
 }
 
 async function roamCategory(categoryId: string): Promise<Response<RoamData>> {
@@ -301,7 +304,8 @@ async function roamCategory(categoryId: string): Promise<Response<RoamData>> {
   if (data?.error) return { ok: false, error: data.error };
   const newDomain = getDomain(data.url);
   if (newDomain) await chrome.storage.local.set({ lastRoamDomain: newDomain });
-  return { ok: true, data: data as RoamData };
+  const translatedUrl = await maybeTranslate(data.url);
+  return { ok: true, data: { ...data, url: translatedUrl } as RoamData };
 }
 
 // ── Rate / Check / Submit ─────────────────────────────────────────────────────
@@ -369,6 +373,23 @@ async function setDiscoveryMode(mode: 'discovery' | 'deep_dive'): Promise<Respon
   const { error } = await getSupabase().from('user_settings').upsert({ user_id: session.user.id, discovery_mode: mode }, { onConflict: 'user_id' });
   if (error) console.warn('[roam] setDiscoveryMode DB error:', error.message);
   return { ok: true, data: null };
+}
+
+async function setAutoTranslate(enabled: boolean): Promise<Response<null>> {
+  await chrome.storage.local.set({ auto_translate: enabled });
+  return { ok: true, data: null };
+}
+
+// ── Translate URL helper ──────────────────────────────────────────────────────
+// Wraps a URL in Google Translate when auto-translate is enabled and the user
+// has a non-English preferred language. Uses the first non-English language.
+async function maybeTranslate(url: string): Promise<string> {
+  const stored = await chrome.storage.local.get(['auto_translate', 'preferred_languages']);
+  if (!stored.auto_translate) return url;
+  const langs: string[] = stored.preferred_languages ?? ['en'];
+  const targetLang = langs.find((l) => l !== 'en');
+  if (!targetLang) return url; // only English selected — no-op
+  return `https://translate.google.com/translate?sl=auto&tl=${targetLang}&u=${encodeURIComponent(url)}`;
 }
 
 // ── Collections ───────────────────────────────────────────────────────────────

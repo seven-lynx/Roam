@@ -148,10 +148,11 @@ async function checkAndRouteAfterSignIn(): Promise<void> {
   const [cats, allCats, storedPrefs] = await Promise.all([
     sendToBackground<{ categoryIds: string[] }>({ type: 'GET_USER_CATEGORIES' }),
     sendToBackground<CategoryItem[]>({ type: 'GET_CATEGORIES' }),
-    chrome.storage.local.get(['discovery_mode']),
+    chrome.storage.local.get(['discovery_mode', 'auto_translate']),
   ]);
   discoveryMode = (storedPrefs.discovery_mode as 'discovery' | 'deep_dive') ?? 'discovery';
   el<HTMLInputElement>('toggle-discovery').checked = discoveryMode === 'discovery';
+  el<HTMLInputElement>('toggle-translate').checked = storedPrefs.auto_translate === true;
   const selectedIds = cats.ok ? cats.data.categoryIds : [];
   const categoryItems = allCats.ok && allCats.data.length > 0 ? allCats.data : FALLBACK_CATEGORIES;
   loadedCategories = categoryItems;
@@ -766,6 +767,12 @@ document.addEventListener('DOMContentLoaded', () => {
     discoveryMode = checked ? 'discovery' : 'deep_dive';
     void refreshStatus();
     await sendToBackground({ type: 'SET_DISCOVERY_MODE', mode: discoveryMode });
+  });
+
+  // ── Auto-translate toggle ─────────────────────────────────────────────────
+  el<HTMLInputElement>('toggle-translate').addEventListener('change', async (e) => {
+    const checked = (e.target as HTMLInputElement).checked;
+    await sendToBackground({ type: 'SET_AUTO_TRANSLATE', enabled: checked });
   });
 
   // ── Language picker ───────────────────────────────────────────────────────
