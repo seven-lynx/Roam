@@ -387,8 +387,7 @@ async function maybeTranslate(url: string): Promise<string> {
   const stored = await chrome.storage.local.get(['auto_translate', 'preferred_languages']);
   if (!stored.auto_translate) return url;
   const langs: string[] = stored.preferred_languages ?? ['en'];
-  const targetLang = langs.find((l) => l !== 'en');
-  if (!targetLang) return url; // only English selected — no-op
+  const targetLang = langs[0] ?? 'en';
   return `https://translate.google.com/translate?sl=auto&tl=${targetLang}&u=${encodeURIComponent(url)}`;
 }
 

@@ -123,7 +123,7 @@ class MainViewModel(
      */
     private fun maybeTranslate(url: String): String {
         if (!_autoTranslate.value) return url
-        val targetLang = _preferredLanguages.value.firstOrNull { it != "en" } ?: return url
+        val targetLang = _preferredLanguages.value.firstOrNull() ?: "en"
         return "https://translate.google.com/translate?sl=auto&tl=$targetLang&u=${Uri.encode(url)}"
     }
 
