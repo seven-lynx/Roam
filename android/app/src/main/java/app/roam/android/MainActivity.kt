@@ -10,6 +10,7 @@ import androidx.compose.runtime.getValue
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import app.roam.android.data.supabase
+import app.roam.android.ui.screen.CategoryOnboardingScreen
 import app.roam.android.ui.screen.MainScreen
 import app.roam.android.ui.screen.OnboardingScreen
 import app.roam.android.ui.screen.SplashScreen
@@ -35,6 +36,13 @@ class MainActivity : ComponentActivity() {
                 when (authState) {
                     AuthState.Loading -> SplashScreen()
                     AuthState.Unauthenticated -> OnboardingScreen()
+                    AuthState.NeedsOnboarding -> {
+                        val mainVm: MainViewModel = viewModel()
+                        CategoryOnboardingScreen(
+                            vm = mainVm,
+                            onComplete = { authVm.markOnboardingComplete() },
+                        )
+                    }
                     AuthState.Authenticated -> {
                         val mainVm: MainViewModel = viewModel()
                         MainScreen(

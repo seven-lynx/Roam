@@ -4,6 +4,7 @@ import android.app.Application
 import app.roam.android.BuildConfig
 import app.roam.android.data.supabase
 import app.roam.android.util.Env
+import app.roam.android.worker.TokenRefreshWorker
 import io.sentry.android.core.SentryAndroid
 
 class RoamApplication : Application() {
@@ -27,5 +28,8 @@ class RoamApplication : Application() {
                 options.isEnableUserInteractionTracing = false
             }
         }
+
+        // Schedule silent token refresh every 12 h (idempotent — KEEP policy)
+        TokenRefreshWorker.schedule(this)
     }
 }
