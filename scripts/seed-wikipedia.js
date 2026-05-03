@@ -25,6 +25,7 @@ const NO_CACHE   = process.argv.includes('--no-cache');
 const DELAY_MS       = 500;   // between Wikipedia API calls
 const FEATURED_DAYS  = 365;   // how many days of featured articles to pull
 const CATEGORY_LIMIT = 200;   // max articles per Wikipedia category
+const CURATED_LIMIT  = 500;   // max articles per Featured/Good list
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -204,6 +205,67 @@ async function fetchCategoryArticles() {
   return rows;
 }
 
+// ── Part 3: Curated quality lists ────────────────────────────────────────────
+// Wikipedia's Featured Articles and Good Articles are manually vetted to a
+// high editorial standard — the best encyclopaedic content on the site.
+
+async function fetchCuratedLists() {
+  console.log('\n[wikipedia] Fetching Featured Articles and Good Articles lists...');
+  const rows = [];
+
+  const LISTS = [
+    { category: 'Featured_articles', label: 'featured' },
+    { category: 'Good_articles',     label: 'good' },
+  ];
+
+  for (const { category, label } of LISTS) {
+    console.log(`[wikipedia]   ${label} articles (Category:${category})...`);
+    let continueParam = '';
+    let collected = 0;
+
+    while (collected < CURATED_LIMIT) {
+      const url =
+        `https://en.wikipedia.org/w/api.php?action=query&list=categorymembers` +
+        `&cmtitle=Category:${category}&cmtype=page` +
+        `&cmlimit=500&format=json` +
+        (continueParam ? `&cmcontinue=${continueParam}` : '');
+
+      const data = await wikiGet(url);
+      await sleep(DELAY_MS);
+
+      const members = data?.query?.categorymembers ?? [];
+      if (members.length === 0) break;
+
+      for (const member of members) {
+        if (collected >= CURATED_LIMIT) break;
+        const encodedTitle = encodeURIComponent(member.title.replace(/ /g, '_'));
+        const summary = await wikiGet(
+          `https://en.wikipedia.org/api/rest_v1/page/summary/${encodedTitle}`
+        );
+        await sleep(DELAY_MS);
+
+        const row = summaryToRow(summary, CATEGORY.WEIRD_WONDERFUL); // broad default; OG fetch will add context
+        if (row) {
+          row.source = 'wikipedia';
+          rows.push(row);
+          collected++;
+        }
+      }
+
+      process.stdout.write(`\r[wikipedia]     ${label}: ${collected} articles  `);
+
+      const cont = data?.continue?.cmcontinue;
+      if (!cont || collected >= CURATED_LIMIT) break;
+      continueParam = encodeURIComponent(cont);
+    }
+
+    console.log(`\n[wikipedia]     ${label}: ${collected} articles collected`);
+  }
+
+  console.log(`[wikipedia] Curated lists collected: ${rows.length}`);
+  return rows;
+}
+
 // ── Main ──────────────────────────────────────────────────────────────────────
 
 async function main() {
@@ -216,7 +278,8 @@ async function main() {
   } else {
     const featuredRows  = await fetchFeaturedArticles();
     const categoryRows  = await fetchCategoryArticles();
-    all = [...featuredRows, ...categoryRows];
+    const curatedRows   = await fetchCuratedLists();
+    all = [...featuredRows, ...categoryRows, ...curatedRows];
 
     mkdirSync(CACHE_DIR, { recursive: true });
     writeFileSync(CACHE_FILE, JSON.stringify(all));
