@@ -29,8 +29,8 @@ export function UsernamePrompt() {
 
     const { error: err } = await supabase
       .from('profiles')
-      .update({ username: clean })
-      .eq('user_id', session!.user.id);
+      .upsert({ id: session!.user.id, username: clean, display_name: clean })
+      .eq('id', session!.user.id);
 
     setLoading(false);
     if (err) {

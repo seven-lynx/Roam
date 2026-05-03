@@ -27,6 +27,7 @@
 | **[Stage 11](#stage-11--comprehensive-audit-fixes--testing)** — Hardening | ⏳ In Progress | 25/30 | 100h |
 | **[Stage 12](#stage-12--web-app-rebuild)** — Web Rebuild | ✅ Complete | 21/22 | 40h |
 | **[Stage 13](#stage-13--extension-rebuild)** — Extension Rebuild | ✅ Complete | 9/9 | 8h |
+| **[Stage 14](#stage-14--android-rebuild)** — Android Rebuild | ⏳ Planned | 0/11 | 21h |
 | **[Post-Launch](#post-launch)** — Roadmap | 📋 Planned | 3/22 | 45h |
 
 
@@ -42,7 +43,8 @@
 - ⏳ **Stage 6:** Android Play Store submission pending (3 tasks: 6.17–6.19)
 - ⏳ **Stages 7 & 9:** Testing and security hardening (29 tasks remaining)
 - ⏳ **Stages 10, 11 & 12:** Web polish, hardening, and rebuild (42 tasks remaining)
-- ⏳ **Stage 13:** Extension rebuild (7 tasks remaining)
+- ⏳ **Stage 13:** Extension rebuild complete ✅
+- ⏳ **Stage 14:** Android rebuild (12 tasks planned)
 - 📋 **Post-Launch:** Roadmap ready (19 tasks planned)
 
 **Major Milestones (Completed May 1, 2026):**
@@ -56,9 +58,9 @@
 - ✅ 59+ tests across all platforms with 30%+ coverage on critical paths
 
 **Immediate Next Steps:**
-1. Stage 6: Submit Android app to Google Play Store (6.17–6.19)
-2. Stage 7: Finalize end-to-end testing (9 tasks)
-3. Load `extension/dist/` unpacked in Chrome and run manual test flows (TESTING.md)
+1. Stage 14: Android rebuild — fix security issue first (14.11), then bottom nav (14.1)
+2. Stage 6: Submit Android app to Google Play Store (6.17–6.19)
+3. Stage 7: Finalize end-to-end testing (9 tasks)
 
 **Known Issues:** None blocking launch. Pre-launch testing (Stage 7) underway.
 
@@ -74,7 +76,7 @@
 
 ## Project Progress
 
-**Overall Completion: 246 / 332 tasks (74%)**
+**Overall Completion: 246 / 343 tasks (71%)**
 
 | Category | Complete | Total | % |
 |----------|----------|-------|-----|
@@ -83,6 +85,7 @@
 | Security & Quality (Stage 9) | 31 | 37 | 84% |
 | Web Polish & Hardening (Stages 10–12) | 52 | 73 | 71% |
 | Extension Rebuild (Stage 13) | 9 | 9 | 100% |
+| Android Rebuild (Stage 14) | 0 | 11 | 0% |
 | Post-Launch Roadmap | 3 | 22 | 14% |
 
 **Time invested: 400+ hours**
@@ -107,6 +110,7 @@
 - Stage 10 (Web Polish): 6/21 tasks
 - Stage 11 (Hardening): 25/30 tasks
 - Stage 12 (Web Rebuild): 21/22 tasks
+- Stage 14 (Android Rebuild): 0/11 tasks
 
 ### Post-Launch Roadmap
 - Pool quality (8.1–8.3): wilson floor, broken link reporting, dead-link cleanup scripts
@@ -1930,6 +1934,36 @@ Ground-up rebuild of the browser extension. The existing codebase has ~500 lines
   - **Files:** `extension/src/lib/env.ts`, `extension/src/popup/popup.ts`, `extension/src/background/background.ts`
 
   Fixed key-length validation bug, added noresults guard to roam-category, and overhauled prefetch to eliminate the slow-path race condition (May 2, 2026). Cache-hit clicks now navigate in <50 ms; cache-miss clicks await the already-in-flight prefetch instead of doubling the API load.
+
+---
+
+## Stage 14 — Android Rebuild {#stage-14--android-rebuild}
+
+Ground-up polish of the Android app. The existing Compose + MVVM foundation is solid but lacks a proper 4-tab bottom navigation structure, physics-based swipe gestures, prefetch pipelining, polished empty/error states, and several missing screens (Saved, full Profile, Settings). Goal: the fastest and most polished experience across all Roam platforms.
+
+**Design reference:** See `android/README.md` + Stage 13 extension patterns (prefetch, cache-first)
+
+- [ ] **14.1** Replace `BottomBar` action buttons with a proper Material3 `NavigationBar` + `NavHost` with 4 destinations: Discover, Saved, Profile, Settings. Each tab has filled/outlined icon toggle. Back press on any tab returns to Discover.
+
+- [ ] **14.2** Swipe gesture engine using `Animatable` offset + `VelocityTracker` physics. Swipe up = thumbs up + advance, down = skip + advance, left = thumbs down + advance. Spring-back animation below threshold. Haptic feedback (`CONFIRM`/`REJECT`) via `HapticFeedbackManager`. Replaces the drag prototype in `MainScreen`.
+
+- [ ] **14.3** Card UI: `AsyncImage` (Coil) for `og_image_url` with shimmer placeholder, title + description, domain badge + category chip, large "Open" button (Chrome Custom Tab), save-for-later icon. Material3 elevation + rounded corners, dark theme.
+
+- [ ] **14.4** Prefetch pipeline in `MainViewModel`: on app foreground call `/roam` Edge Function, store as `prefetched`. On swipe, consume prefetch and immediately fire next call. `RoamState.Loaded` is always instant — no spinners between cards.
+
+- [ ] **14.5** Saved / Collections screen: two tabs (`LazyColumn` for saved URLs and collections). Swipe-to-delete on saved items. Tap collection → roam that collection. Pull-to-refresh. Empty state CTAs.
+
+- [ ] **14.6** Profile screen: editable avatar (gallery picker), inline username + bio `TextField` with auto-save, category chip grid (saved via `user_categories`), stats row (pages roamed, submitted, join date).
+
+- [ ] **14.7** Settings screen: skip paywalled toggle, language multi-select, dark mode system/on/off, clear cache, sign out (confirmation dialog), app version + privacy link.
+
+- [ ] **14.8** Auth/onboarding polish: keep Chrome Custom Tab for OAuth, add native category picker after deep link callback, skip to Discover if categories already set, silent token refresh via `WorkManager`.
+
+- [ ] **14.9** Error + empty states: shimmer skeletons (no spinners), friendly error messages + retry buttons with Sentry background reporting, `ConnectivityManager` offline banner with queue-then-retry for ratings.
+
+- [ ] **14.10** Performance + polish: R8 full minification, baseline profiles, `WindowInsets` edge-to-edge, `predictiveBackGesture`, all animations use `spring()` physics, `maxLines` + `TextOverflow.Ellipsis` on all text, `Modifier.semantics` for accessibility.
+
+- [ ] **14.11** Tests: `MainViewModelTest` (prefetch, roam, rate flows with MockK), `RoamRepositoryTest` (network layer with fake Supabase), `SwipeGestureTest` (threshold triggers), screenshot tests with Paparazzi for card UI.
 
 ---
 
