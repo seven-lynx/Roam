@@ -47,6 +47,7 @@ fun SettingsScreen(
     val skipPaywalled by vm.skipPaywalled.collectAsState()
     val preferredLanguages by vm.preferredLanguages.collectAsState()
     val webDarkMode by vm.webDarkMode.collectAsState()
+    val discoveryMode by vm.discoveryMode.collectAsState()
     val context = LocalContext.current
     var showSignOutDialog by remember { mutableStateOf(false) }
 
@@ -87,6 +88,12 @@ fun SettingsScreen(
 
             SectionHeader("Discovery")
 
+            SettingsToggleRow(
+                title = "Discovery mode",
+                subtitle = "Explore broadly across all categories (off = stick to your picks)",
+                checked = discoveryMode == "discovery",
+                onCheckedChange = { vm.setDiscoveryMode(if (it) "discovery" else "deep_dive") },
+            )
             SettingsToggleRow(
                 title = "Skip paywalled sites",
                 subtitle = "Hide NYT, WSJ, and similar sites",

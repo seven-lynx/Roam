@@ -76,7 +76,7 @@ class RoamRepository {
         val userId = supabase.auth.currentUserOrNull()?.id ?: return UserSettings()
         val results = supabase.postgrest
             .from("user_settings")
-            .select(Columns.list("preferred_languages", "skip_paywalled")) {
+            .select(Columns.list("preferred_languages", "skip_paywalled", "discovery_mode")) {
                 filter { eq("user_id", userId) }
                 limit(1)
             }
@@ -90,6 +90,7 @@ class RoamRepository {
     suspend fun upsertUserSettings(
         preferredLanguages: List<String>? = null,
         skipPaywalled: Boolean? = null,
+        discoveryMode: String? = null,
     ) {
         val userId = supabase.auth.currentUserOrNull()?.id ?: return
         val current = getUserSettings()
@@ -100,6 +101,7 @@ class RoamRepository {
                     userId = userId,
                     preferredLanguages = preferredLanguages ?: current.preferredLanguages,
                     skipPaywalled = skipPaywalled ?: current.skipPaywalled,
+                    discoveryMode = discoveryMode ?: current.discoveryMode,
                 )
             )
     }

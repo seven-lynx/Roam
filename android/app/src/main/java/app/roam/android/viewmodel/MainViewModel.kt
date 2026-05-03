@@ -94,6 +94,10 @@ class MainViewModel(
     private val _skipPaywalled = MutableStateFlow(false)
     val skipPaywalled: StateFlow<Boolean> = _skipPaywalled.asStateFlow()
 
+    /** User preference: discovery mode ("discovery" = broad, "deep_dive" = personalised) */
+    private val _discoveryMode = MutableStateFlow("discovery")
+    val discoveryMode: StateFlow<String> = _discoveryMode.asStateFlow()
+
     /** User preference: render web pages in dark mode */
     private val _webDarkMode = MutableStateFlow(prefs.getBoolean(WEB_DARK_KEY, true))
     val webDarkMode: StateFlow<Boolean> = _webDarkMode.asStateFlow()
@@ -154,6 +158,7 @@ class MainViewModel(
                 val settings = repo.getUserSettings()
                 _skipPaywalled.value = settings.skipPaywalled
                 _preferredLanguages.value = settings.preferredLanguages.ifEmpty { listOf("en") }
+                _discoveryMode.value = settings.discoveryMode.ifEmpty { "discovery" }
             }
         }
         // Prime the prefetch queue so first roam() is instant
@@ -342,6 +347,13 @@ class MainViewModel(
         _preferredLanguages.value = final
         viewModelScope.launch {
             runCatching { repo.upsertUserSettings(preferredLanguages = final) }
+        }
+    }
+
+    fun setDiscoveryMode(mode: String) {
+        _discoveryMode.value = mode
+        viewModelScope.launch {
+            runCatching { repo.upsertUserSettings(discoveryMode = mode) }
         }
     }
 
