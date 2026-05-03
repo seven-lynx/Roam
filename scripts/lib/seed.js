@@ -397,8 +397,25 @@ export async function upsertUrls(rows, {
         if (meta.canonical) {
           const normCanonical = normaliseUrl(meta.canonical);
           if (normCanonical && normCanonical !== row.url) {
-            log(`[seed]   canonical rewrite: ${row.url} → ${normCanonical}`);
-            row.url = normCanonical;
+            // Guard: skip if canonical is a root/homepage (path is "/" or "")
+            // and it's on a different domain — indicates dead site redirecting to homepage.
+            // Also skip if canonical hostname is a bare IP address (misconfigured tag).
+            let skipRewrite = false;
+            try {
+              const origHost = new URL(row.url).hostname.replace(/^www\./, '');
+              const canHost  = new URL(normCanonical).hostname.replace(/^www\./, '');
+              const canPath  = new URL(normCanonical).pathname;
+              const isIp     = /^\d{1,3}(\.\d{1,3}){3}$/.test(canHost);
+              if (isIp) {
+                skipRewrite = true;
+              } else if (origHost !== canHost && (canPath === '/' || canPath === '')) {
+                skipRewrite = true;
+              }
+            } catch { /* malformed URL — skip rewrite */ skipRewrite = true; }
+            if (!skipRewrite) {
+              log(`[seed]   canonical rewrite: ${row.url} → ${normCanonical}`);
+              row.url = normCanonical;
+            }
           }
         }
       }
