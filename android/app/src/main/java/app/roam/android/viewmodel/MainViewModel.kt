@@ -81,6 +81,9 @@ class MainViewModel(
     private val _categories = MutableStateFlow(CategoryItem.FALLBACK)
     val categories: StateFlow<List<CategoryItem>> = _categories.asStateFlow()
 
+    /** Prefetched next card — consumed instantly on the next roam() call (14.4) */
+    private val _prefetchedUrl = MutableStateFlow<RoamUrl?>(null)
+
     init {
         viewModelScope.launch {
             runCatching { repo.getCategories() }
@@ -93,10 +96,21 @@ class MainViewModel(
                 _preferredLanguages.value = settings.preferredLanguages.ifEmpty { listOf("en") }
             }
         }
+        // Prime the prefetch cache so first roam() is instant
+        launchPrefetch()
     }
 
     fun roam(excludeDomain: String? = null) {
         viewModelScope.launch {
+            // Consume prefetch for an instant transition (14.4)
+            val prefetched = _prefetchedUrl.value.also { _prefetchedUrl.value = null }
+            if (prefetched != null) {
+                _currentUrl.value = prefetched.url
+                _state.value = RoamState.Loaded(prefetched)
+                launchPrefetch(excludeDomain = extractDomain(prefetched.url))
+                return@launch
+            }
+
             _state.value = RoamState.Loading
             runCatching {
                 repo.roam(
@@ -109,9 +123,24 @@ class MainViewModel(
                 } else {
                     _currentUrl.value = result.url
                     _state.value = RoamState.Loaded(result)
+                    launchPrefetch(excludeDomain = extractDomain(result.url))
                 }
             }.onFailure { e ->
                 _state.value = RoamState.Error(e.message ?: "Something went wrong. Please try again.")
+            }
+        }
+    }
+
+    /** Fetches the next card in the background and caches it. Failures are silently ignored. */
+    private fun launchPrefetch(excludeDomain: String? = null) {
+        viewModelScope.launch {
+            runCatching {
+                repo.roam(
+                    collectionId = _activeCollectionId.value,
+                    excludeDomain = excludeDomain,
+                )
+            }.onSuccess { result ->
+                if (result != null) _prefetchedUrl.value = result
             }
         }
     }
@@ -164,6 +193,7 @@ class MainViewModel(
 
     fun setCollectionFilter(collectionId: String?) {
         _activeCollectionId.value = collectionId
+        _prefetchedUrl.value = null  // invalidate cache — filter changed
     }
 
     fun openSubmitSheet() { _showSubmitSheet.value = true }
@@ -261,6 +291,7 @@ class MainViewModel(
         val loaded = _state.value as? RoamState.Loaded
         val subcategoryId = loaded?.roamUrl?.subcategoryId
         _activeCollectionId.value = null  // clear any collection scope
+        _prefetchedUrl.value = null       // invalidate cache — subcategory filter changed
         _showConfigSheet.value = false
         viewModelScope.launch {
             _state.value = RoamState.Loading
