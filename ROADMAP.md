@@ -76,7 +76,7 @@
 
 ## Project Progress
 
-**Overall Completion: 249 / 343 tasks (72%)**
+**Overall Completion: 250 / 343 tasks (72%)**
 
 | Category | Complete | Total | % |
 |----------|----------|-------|-----|
@@ -85,7 +85,7 @@
 | Security & Quality (Stage 9) | 31 | 37 | 84% |
 | Web Polish & Hardening (Stages 10–12) | 52 | 73 | 71% |
 | Extension Rebuild (Stage 13) | 9 | 9 | 100% |
-| Android Rebuild (Stage 14) | 3 | 11 | 27% |
+| Android Rebuild (Stage 14) | 4 | 11 | 36% |
 | Post-Launch Roadmap | 3 | 22 | 14% |
 
 **Time invested: 400+ hours**
@@ -110,7 +110,7 @@
 - Stage 10 (Web Polish): 6/21 tasks
 - Stage 11 (Hardening): 25/30 tasks
 - Stage 12 (Web Rebuild): 21/22 tasks
-- Stage 14 (Android Rebuild): 3/11 tasks
+- Stage 14 (Android Rebuild): 4/11 tasks
 
 ### Post-Launch Roadmap
 - Pool quality (8.1–8.3): wilson floor, broken link reporting, dead-link cleanup scripts
@@ -1949,7 +1949,7 @@ Ground-up polish of the Android app. The existing Compose + MVVM foundation is s
 
 - [x] **14.3** Card UI: `AsyncImage` (Coil) for `og_image_url` with shimmer placeholder, title + description, domain badge + category chip, large "Open" button (Chrome Custom Tab), save-for-later icon. Material3 elevation + rounded corners, dark theme.
 
-- [ ] **14.4** Prefetch pipeline in `MainViewModel`: on app foreground call `/roam` Edge Function, store as `prefetched`. On swipe, consume prefetch and immediately fire next call. `RoamState.Loaded` is always instant — no spinners between cards.
+- [x] **14.4** Prefetch pipeline in `MainViewModel`: on app foreground call `/roam` Edge Function, store as `prefetched`. On swipe, consume prefetch and immediately fire next call. `RoamState.Loaded` is always instant — no spinners between cards.
 
 - [ ] **14.5** Saved / Collections screen: two tabs (`LazyColumn` for saved URLs and collections). Swipe-to-delete on saved items. Tap collection → roam that collection. Pull-to-refresh. Empty state CTAs.
 
