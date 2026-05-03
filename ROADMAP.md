@@ -110,7 +110,7 @@
 - Stage 10 (Web Polish): 6/21 tasks
 - Stage 11 (Hardening): 25/30 tasks
 - Stage 12 (Web Rebuild): 21/22 tasks
-- Stage 14 (Android Rebuild): 9/11 tasks
+- Stage 14 (Android Rebuild): 10/11 tasks
 
 ### Post-Launch Roadmap
 - Pool quality (8.1–8.3): wilson floor, broken link reporting, dead-link cleanup scripts
@@ -1961,7 +1961,7 @@ Ground-up polish of the Android app. The existing Compose + MVVM foundation is s
 
 - [x] **14.9** Error + empty states: shimmer skeletons (no spinners), friendly error messages + retry buttons with Sentry background reporting, `ConnectivityManager` offline banner with queue-then-retry for ratings.
 
-- [ ] **14.10** Performance + polish: R8 full minification, baseline profiles, `WindowInsets` edge-to-edge, `predictiveBackGesture`, all animations use `spring()` physics, `maxLines` + `TextOverflow.Ellipsis` on all text, `Modifier.semantics` for accessibility.
+- [x] **14.10** Performance + polish: R8 full minification, baseline profiles, `WindowInsets` edge-to-edge, `predictiveBackGesture`, all animations use `spring()` physics, `maxLines` + `TextOverflow.Ellipsis` on all text, `Modifier.semantics` for accessibility.
 
 - [ ] **14.11** Tests: `MainViewModelTest` (prefetch, roam, rate flows with MockK), `RoamRepositoryTest` (network layer with fake Supabase), `SwipeGestureTest` (threshold triggers), screenshot tests with Paparazzi for card UI.
 
