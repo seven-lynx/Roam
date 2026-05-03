@@ -41,6 +41,8 @@ import app.roam.android.viewmodel.MainViewModel
 fun SettingsScreen(
     vm: MainViewModel,
     onSignOut: () -> Unit,
+    onNavigateToSaved: () -> Unit = {},
+    onNavigateToProfile: () -> Unit = {},
 ) {
     val skipPaywalled by vm.skipPaywalled.collectAsState()
     val preferredLanguages by vm.preferredLanguages.collectAsState()
@@ -74,6 +76,14 @@ fun SettingsScreen(
                 .verticalScroll(rememberScrollState())
                 .navigationBarsPadding(),
         ) {
+            SectionHeader("Account")
+
+            SettingsActionRow(title = "Profile", subtitle = "Edit your name, avatar and categories", onClick = onNavigateToProfile)
+            SettingsActionRow(title = "Saved pages", subtitle = "Pages you bookmarked", onClick = onNavigateToSaved)
+
+            HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+            Spacer(Modifier.height(8.dp))
+
             SectionHeader("Discovery")
 
             SettingsToggleRow(
@@ -120,7 +130,7 @@ fun SettingsScreen(
             HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
             Spacer(Modifier.height(8.dp))
 
-            SectionHeader("Account")
+            SectionHeader("Sign out")
 
             SettingsActionRow(
                 title = "Sign out",

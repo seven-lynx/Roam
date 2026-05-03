@@ -10,7 +10,7 @@ import io.sentry.Sentry
  * Required BuildConfig values (set in build.gradle.kts):
  * - SUPABASE_URL: Supabase project URL
  * - SUPABASE_ANON_KEY: Supabase anonymous key
- * - SENTRY_DSN_ANDROID: Sentry project DSN
+ * - SENTRY_DSN: Sentry project DSN (optional)
  *
  * Validation runs at app startup (in the Application class).
  * If validation fails, errors are logged and sent to Sentry.
@@ -45,8 +45,10 @@ object Env {
       supabaseKey.isEmpty() -> {
         missingVars.add("SUPABASE_ANON_KEY (BuildConfig)")
       }
-      supabaseKey.length < 50 -> {
-        errors.add("SUPABASE_ANON_KEY looks invalid (too short: ${supabaseKey.length} chars)")
+      // Accept both modern publishable keys (sb_...) and legacy JWT-like anon keys.
+      // Length is not a reliable validity signal and caused false startup crashes.
+      !(supabaseKey.startsWith("sb_") || supabaseKey.startsWith("eyJ")) -> {
+        Log.w(TAG, "SUPABASE_ANON_KEY has an unexpected format; continuing startup")
       }
     }
 

@@ -107,6 +107,7 @@ async function _dispatch(req: Request): Promise<Response> {
     case 'SAVE_LATER':            return saveLater(req.url);
     case 'SET_PAYWALL_PREF':      return setPaywallPref(req.skip);
     case 'SET_LANGUAGE_PREF':     return setLanguagePref(req.languages);
+    case 'SET_DISCOVERY_MODE':    return setDiscoveryMode(req.mode);
     case 'GET_COLLECTIONS':       return getCollections();
     case 'CREATE_COLLECTION':     return createCollection(req.name);
     case 'ADD_URL_TO_COLLECTION': return addUrlToCollection(req.url, req.collectionId);
@@ -122,6 +123,22 @@ async function getState(): Promise<Response<StateData>> {
   const { data: { session }, error } = await getSupabase().auth.getSession();
   if (error) return { ok: false, error: error.message };
   if (!session) return { ok: true, data: { signedIn: false } };
+
+  // With autoRefreshToken disabled, refresh manually when the access token
+  // has expired or is about to (within 60 s). This is the only place refresh
+  // needs to happen — getState() is always the first call the popup makes.
+  const expiresAt = (session as any).expires_at as number | undefined ?? 0;
+  if (expiresAt <= Math.floor(Date.now() / 1000) + 60) {
+    const { data: refreshed, error: rErr } = await getSupabase().auth.refreshSession();
+    if (rErr) {
+      // Refresh token invalid/expired — clear storage and prompt re-auth.
+      await clearAuthStorage();
+      return { ok: true, data: { signedIn: false } };
+    }
+    if (!refreshed.session) return { ok: true, data: { signedIn: false } };
+    return { ok: true, data: { signedIn: true, email: refreshed.session.user.email, userId: refreshed.session.user.id } };
+  }
+
   return { ok: true, data: { signedIn: true, email: session.user.email, userId: session.user.id } };
 }
 
@@ -342,6 +359,15 @@ async function setLanguagePref(languages: string[]): Promise<Response<null>> {
   await chrome.storage.local.set({ preferred_languages: langs });
   const { error } = await getSupabase().from('user_settings').upsert({ user_id: session.user.id, preferred_languages: langs }, { onConflict: 'user_id' });
   if (error) console.warn('[roam] setLanguagePref DB error:', error.message);
+  return { ok: true, data: null };
+}
+
+async function setDiscoveryMode(mode: 'discovery' | 'deep_dive'): Promise<Response<null>> {
+  const session = (await getSupabase().auth.getSession()).data.session;
+  if (!session) return { ok: false, error: "You're not signed in. Please sign in and try again." };
+  await chrome.storage.local.set({ discovery_mode: mode });
+  const { error } = await getSupabase().from('user_settings').upsert({ user_id: session.user.id, discovery_mode: mode }, { onConflict: 'user_id' });
+  if (error) console.warn('[roam] setDiscoveryMode DB error:', error.message);
   return { ok: true, data: null };
 }
 

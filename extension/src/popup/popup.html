@@ -109,6 +109,9 @@
       <button id="btn-config"   class="btn-icon btn-config-toggle" title="Settings" aria-expanded="false">⚙️</button>
     </div>
 
+    <!-- Status bar: category of current page, or transient fetch status -->
+    <div id="status-bar" class="status-bar" hidden></div>
+
     <!-- Submit panel (expands on 👍 for unknown pages) -->
     <div id="panel-submit" class="panel" hidden>
       <p class="panel-label">Add this page to Roam?</p>
@@ -142,6 +145,13 @@
           <span>Skip paywalled sites</span>
           <label class="toggle">
             <input type="checkbox" id="toggle-paywall" />
+            <span class="toggle-track"></span>
+          </label>
+        </div>
+        <div class="panel-row panel-row--toggle">
+          <span>Discovery mode</span>
+          <label class="toggle">
+            <input type="checkbox" id="toggle-discovery" />
             <span class="toggle-track"></span>
           </label>
         </div>

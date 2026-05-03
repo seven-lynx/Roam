@@ -50,7 +50,7 @@ fun DiscoverCard(
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
-    val domain = Uri.parse(roamUrl.url).host?.removePrefix("www:") ?: roamUrl.url
+    val domain = Uri.parse(roamUrl.url).host?.removePrefix("www.") ?: roamUrl.url
 
     Card(
         modifier = modifier

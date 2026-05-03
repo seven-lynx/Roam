@@ -21,6 +21,7 @@ export type Request =
   | { type: 'SAVE_LATER'; url: string }
   | { type: 'SET_PAYWALL_PREF'; skip: boolean }
   | { type: 'SET_LANGUAGE_PREF'; languages: string[] }
+  | { type: 'SET_DISCOVERY_MODE'; mode: 'discovery' | 'deep_dive' }
   | { type: 'GET_COLLECTIONS' }
   | { type: 'CREATE_COLLECTION'; name: string }
   | { type: 'ADD_URL_TO_COLLECTION'; url: string; collectionId: string }

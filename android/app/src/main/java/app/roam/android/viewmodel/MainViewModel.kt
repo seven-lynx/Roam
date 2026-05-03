@@ -1,4 +1,4 @@
-package app.roam.android.viewmodel
+﻿package app.roam.android.viewmodel
 
 import android.app.Application
 import android.content.Context
@@ -41,8 +41,10 @@ data class ProfileStats(val roamed: Int = 0, val submitted: Int = 0)
 
 class MainViewModel(
     application: Application,
-    private val repo: RoamRepository = RoamRepository(),
+    private val repo: RoamRepository,
 ) : AndroidViewModel(application) {
+    /** Single-arg constructor required by AndroidViewModelFactory (reflection). */
+    constructor(application: Application) : this(application, RoamRepository())
 
     private val prefs = application.getSharedPreferences("roam_saved", Context.MODE_PRIVATE)
     private val SAVED_KEY = "saved_urls"
@@ -171,8 +173,11 @@ class MainViewModel(
                     launchPrefetch(excludeDomain = extractDomain(result.url))
                 }
             }.onFailure { e ->
-                val msg = when (e) {
-                    is IOException -> "You appear to be offline. Please check your connection."
+                val isTimeout = e.javaClass.name.contains("Timeout", ignoreCase = true)
+                    || e.message?.contains("timed out", ignoreCase = true) == true
+                val msg = when {
+                    isTimeout -> "Request timed out. Please try again."
+                    e is IOException -> "You appear to be offline. Please check your connection."
                     else -> e.message ?: "Something went wrong. Please try again."
                 }
                 _state.value = RoamState.Error(msg)
@@ -360,9 +365,9 @@ class MainViewModel(
 
     fun roamWithinCategory() {
         val loaded = _state.value as? RoamState.Loaded
-        val subcategoryId = loaded?.roamUrl?.subcategoryId
+        val categoryId = loaded?.roamUrl?.categoryId
         _activeCollectionId.value = null  // clear any collection scope
-        _prefetchedUrl.value = null       // invalidate cache — subcategory filter changed
+        _prefetchedUrl.value = null       // invalidate cache — filter changed
         _showConfigSheet.value = false
         viewModelScope.launch {
             _state.value = RoamState.Loading
@@ -370,7 +375,7 @@ class MainViewModel(
                 repo.roam(
                     collectionId = null,
                     excludeDomain = extractDomain(_currentUrl.value),
-                    subcategoryId = subcategoryId,
+                    categoryId = categoryId,
                 )
             }.onSuccess { result ->
                 if (result == null) _state.value = RoamState.Exhausted

@@ -46,8 +46,12 @@ export function getSupabase(): SupabaseClient {
       auth: {
         storage: chromeStorageAdapter,
         persistSession: true,
-        autoRefreshToken: true,
-        detectSessionInUrl: false, // no URL to detect in a service worker
+        // Disable background auto-refresh: the SW is terminated and restarted
+        // constantly, so a timer-based refresh fires on every cold start and
+        // produces a noisy console.error when the stored refresh token is stale.
+        // Instead, getState() refreshes on-demand before the popup renders.
+        autoRefreshToken: false,
+        detectSessionInUrl: false,
         flowType: 'pkce',
       },
     });

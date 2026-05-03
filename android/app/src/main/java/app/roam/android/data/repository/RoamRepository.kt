@@ -1,4 +1,4 @@
-package app.roam.android.data.repository
+﻿package app.roam.android.data.repository
 
 import app.roam.android.data.supabase
 import app.roam.android.model.CategoryItem
@@ -31,12 +31,12 @@ class RoamRepository {
     suspend fun roam(
         collectionId: String? = null,
         excludeDomain: String? = null,
-        subcategoryId: String? = null,
+        categoryId: String? = null,
     ): RoamUrl? {
         val body = buildJsonObject {
             collectionId?.let { put("collection_id", it) }
             excludeDomain?.let { put("exclude_domain", it) }
-            subcategoryId?.let { put("subcategory_id", it) }
+            categoryId?.let { put("category_id", it) }
         }
         val response = supabase.functions.invoke("roam", body = body)
         if (response.status.value == 404) return null
@@ -60,10 +60,10 @@ class RoamRepository {
      * Calls POST /functions/v1/submit-url.
      * [url] is required; [subcategoryId] is the user-selected category chip.
      */
-    suspend fun submitUrl(url: String, subcategoryId: String? = null) {
+    suspend fun submitUrl(url: String, categoryId: String? = null) {
         val body = buildJsonObject {
             put("url", url)
-            subcategoryId?.let { put("subcategory_id", it) }
+            categoryId?.let { put("category_id", it) }
         }
         supabase.functions.invoke("submit-url", body = body)
     }
@@ -166,7 +166,7 @@ class RoamRepository {
     suspend fun checkUrl(url: String): RoamUrl? {
         val results = supabase.postgrest
             .from("urls")
-            .select(Columns.list("id", "url", "subcategory_id")) {
+            .select(Columns.list("id", "url", "category_id")) {
                 filter { eq("url", url) }
                 limit(1)
             }
@@ -246,11 +246,10 @@ class RoamRepository {
         val userId = supabase.auth.currentUserOrNull()?.id ?: return emptySet()
         return supabase.postgrest
             .from("user_categories")
-            .select(Columns.list("category_id", "subcategory_id")) {
+            .select(Columns.list("category_id")) {
                 filter { eq("user_id", userId) }
             }
             .decodeList<CategoryIdRow>()
-            .filter { it.subcategoryId == null }
             .map { it.categoryId }
             .toSet()
     }

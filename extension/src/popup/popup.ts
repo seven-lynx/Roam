@@ -118,18 +118,47 @@ function showDropdown(
 // Context for categories screen: 'firsttime' (post sign-in) or 'settings' (from config panel)
 let categoriesContext: 'firsttime' | 'settings' = 'firsttime';
 
+// Category list populated on sign-in; used for status bar label lookups
+let loadedCategories: CategoryItem[] = [];
+
+// Discovery mode: 'discovery' (default) shows adjacent content; 'deep_dive' stays focused
+let discoveryMode: 'discovery' | 'deep_dive' = 'discovery';
+
+function setStatus(text: string): void {
+  const bar = el('status-bar');
+  bar.textContent = text;
+  bar.hidden = false;
+}
+
+async function refreshStatus(): Promise<void> {
+  const modeLabel = discoveryMode === 'discovery' ? '🔍 Discover' : '🎯 Deep Dive';
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  const url = tab?.url ?? '';
+  if (!url) { setStatus(modeLabel); return; }
+  const check = await sendToBackground<CheckUrlData>({ type: 'CHECK_URL', url });
+  if (!check.ok || !check.data.category_id) { setStatus(modeLabel); return; }
+  const cat = loadedCategories.find(c => c.id === check.data.category_id);
+  if (!cat) { setStatus(modeLabel); return; }
+  setStatus(`${cat.icon} ${cat.name}  ·  ${modeLabel}`);
+}
+
 // FALLBACK_CATEGORIES imported from ../lib/constants
 
 async function checkAndRouteAfterSignIn(): Promise<void> {
-  const [cats, allCats] = await Promise.all([
+  const [cats, allCats, storedPrefs] = await Promise.all([
     sendToBackground<{ categoryIds: string[] }>({ type: 'GET_USER_CATEGORIES' }),
     sendToBackground<CategoryItem[]>({ type: 'GET_CATEGORIES' }),
+    chrome.storage.local.get(['discovery_mode']),
   ]);
+  discoveryMode = (storedPrefs.discovery_mode as 'discovery' | 'deep_dive') ?? 'discovery';
+  el<HTMLInputElement>('toggle-discovery').checked = discoveryMode === 'discovery';
   const selectedIds = cats.ok ? cats.data.categoryIds : [];
   const categoryItems = allCats.ok && allCats.data.length > 0 ? allCats.data : FALLBACK_CATEGORIES;
+  loadedCategories = categoryItems;
   if (cats.ok && selectedIds.length > 0) {
     populateCategoryChips(selectedIds, categoryItems);
     showState('main');
+    void refreshStatus();
   } else {
     categoriesContext = 'firsttime';
     populateCategoryChips(selectedIds, categoryItems);
@@ -339,6 +368,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     showPanel(null);
     showState('main');
+    void refreshStatus();
   });
 
   // ── Categories: back button ───────────────────────────────────────────────
@@ -346,6 +376,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (categoriesContext === 'settings') {
       showPanel('config');
       showState('main');
+      void refreshStatus();
     }
     // In firsttime mode the button is hidden — nothing to do
   });
@@ -356,6 +387,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const roamBtn = el<HTMLButtonElement>('btn-roam');
     roamBtn.disabled = true;
     roamBtn.textContent = 'Roaming…';
+    setStatus('Finding next page…');
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     const res = await sendToBackground<RoamData>({ type: 'ROAM' });
     console.log('[roam-popup] Roam response:', res);
@@ -397,17 +429,21 @@ document.addEventListener('DOMContentLoaded', () => {
   el('btn-downvote').addEventListener('click', async () => {
     showPanel(null);
     flashButton('btn-downvote', 'down');
+    setStatus('Finding next page…');
 
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     const url = tab?.url ?? '';
 
-    // Fire roam immediately; run the check+rate in parallel to minimise wait time
+    // Fire roam and check+rate fully in parallel — navigate the instant roam resolves,
+    // without blocking on the rating round-trip.
     const roamPromise = sendToBackground<RoamData>({ type: 'ROAM' });
     if (url) {
-      const check = await sendToBackground<CheckUrlData>({ type: 'CHECK_URL', url });
-      if (check.ok && check.data.known && check.data.url_id) {
-        await sendToBackground({ type: 'RATE', url_id: check.data.url_id, vote: -1 });
-      }
+      // Fire-and-forget: rating doesn't need to complete before we navigate away.
+      sendToBackground<CheckUrlData>({ type: 'CHECK_URL', url }).then((check) => {
+        if (check.ok && check.data.known && check.data.url_id) {
+          sendToBackground({ type: 'RATE', url_id: check.data.url_id, vote: -1 });
+        }
+      });
     }
 
     const roamRes = await roamPromise;
@@ -677,6 +713,7 @@ document.addEventListener('DOMContentLoaded', () => {
   el('btn-back-feedback').addEventListener('click', () => {
     showPanel('config');
     showState('main');
+    void refreshStatus();
   });
 
   el('feedback-message').addEventListener('input', () => {
@@ -721,6 +758,14 @@ document.addEventListener('DOMContentLoaded', () => {
   el<HTMLInputElement>('toggle-paywall').addEventListener('change', async (e) => {
     const checked = (e.target as HTMLInputElement).checked;
     await sendToBackground({ type: 'SET_PAYWALL_PREF', skip: checked });
+  });
+
+  // ── Discovery mode toggle ─────────────────────────────────────────────────
+  el<HTMLInputElement>('toggle-discovery').addEventListener('change', async (e) => {
+    const checked = (e.target as HTMLInputElement).checked;
+    discoveryMode = checked ? 'discovery' : 'deep_dive';
+    void refreshStatus();
+    await sendToBackground({ type: 'SET_DISCOVERY_MODE', mode: discoveryMode });
   });
 
   // ── Language picker ───────────────────────────────────────────────────────

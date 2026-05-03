@@ -2,15 +2,16 @@
 
 PLANNING.md
 CONTEXT.md
+ROADMAP.md
 docs/
 android/TESTING.md
+android/REFERENCE.md
+android/DESIGN.md
 extension/TESTING.md
+extension/DESIGN.md
 web/TESTING.md
 web/AGENTS.md
 web/CLAUDE.md
-
-# ── Tracked public roadmap / planning ────────────────────────────────────────
-# ROADMAP.md is tracked and published for contributors
 
 # ── Environment / secrets ────────────────────────────────────────────────────
 .env

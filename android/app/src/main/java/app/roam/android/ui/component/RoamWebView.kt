@@ -24,6 +24,7 @@ fun RoamWebView(
     modifier: Modifier = Modifier,
     onUrlChanged: (String) -> Unit = {},
     onLoadError: () -> Unit = {},
+    onLoadingChanged: (Boolean) -> Unit = {},
 ) {
     var loadError by remember { mutableStateOf(false) }
 
@@ -65,14 +66,21 @@ fun RoamWebView(
                     setSupportZoom(true)
                     builtInZoomControls = true
                     displayZoomControls = false
+                    // Mobile user agent so sites serve responsive layouts
+                    userAgentString = "Mozilla/5.0 (Linux; Android 10; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36"
                     // Security: no file access
                     allowFileAccess = false
                     allowContentAccess = false
                 }
                 webViewClient = object : WebViewClient() {
+                    override fun onPageStarted(view: WebView, url: String, favicon: android.graphics.Bitmap?) {
+                        onLoadingChanged(true)
+                    }
+
                     override fun onPageFinished(view: WebView, loadedUrl: String) {
                         onUrlChanged(loadedUrl)
                         loadError = false
+                        onLoadingChanged(false)
                     }
 
                     override fun onReceivedError(
@@ -82,6 +90,7 @@ fun RoamWebView(
                     ) {
                         if (request.isForMainFrame) {
                             loadError = true
+                            onLoadingChanged(false)
                         }
                     }
                 }
