@@ -1,4 +1,5 @@
 package app.roam.android.ui.component
+import android.os.Build
 import android.os.Bundle
 import android.webkit.WebResourceError
 import android.webkit.WebResourceRequest
@@ -94,6 +95,15 @@ fun RoamWebView(
                     userAgentString = "Mozilla/5.0 (Linux; Android 10; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36"
                     allowFileAccess = false
                     allowContentAccess = false
+                    // Force dark mode on web content — honours prefers-color-scheme and
+                    // applies algorithmic darkening to pages that don't support it natively.
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                        @Suppress("DEPRECATION")
+                        forceDark = android.webkit.WebSettings.FORCE_DARK_ON
+                    }
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                        isAlgorithmicDarkeningAllowed = true
+                    }
                 }
                 webViewClient = object : WebViewClient() {
                     override fun onPageStarted(view: WebView, url: String, favicon: android.graphics.Bitmap?) {
