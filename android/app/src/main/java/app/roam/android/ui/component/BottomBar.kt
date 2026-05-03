@@ -1,97 +1,73 @@
 package app.roam.android.ui.component
 
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Bookmark
+import androidx.compose.material.icons.filled.BookmarkBorder
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.PersonOutline
 import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.ThumbDown
-import androidx.compose.material.icons.filled.ThumbUp
-import androidx.compose.foundation.layout.size
+import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.vectorResource
-import androidx.compose.ui.unit.dp
+import androidx.navigation.NavController
+import androidx.navigation.compose.currentBackStackEntryAsState
 import app.roam.android.R
+
+enum class RoamTab(
+    val route: String,
+    val label: String,
+) {
+    Discover("discover", "Discover"),
+    Saved("saved", "Saved"),
+    Profile("profile", "Profile"),
+    Settings("settings", "Settings"),
+}
 
 @Composable
 fun BottomBar(
-    onRoam: () -> Unit,
-    onThumbsUp: () -> Unit,
-    onThumbsDown: () -> Unit,
-    onConfig: () -> Unit,
+    navController: NavController,
     modifier: Modifier = Modifier,
 ) {
-    Surface(
-        modifier = modifier.fillMaxWidth(),
-        color = MaterialTheme.colorScheme.surface,
-        tonalElevation = 3.dp,
-        shadowElevation = 8.dp,
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(80.dp)
-                .navigationBarsPadding(),
-            horizontalArrangement = Arrangement.SpaceEvenly,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            // Roam button — compass icon
-            IconButton(
-                onClick = onRoam,
-                modifier = Modifier.size(64.dp),
-            ) {
-                Icon(
-                    imageVector = ImageVector.vectorResource(R.drawable.ic_compass),
-                    contentDescription = "Roam",
-                    tint = MaterialTheme.colorScheme.onSurface,
-                    modifier = Modifier.size(32.dp),
-                )
-            }
+    val backStack = navController.currentBackStackEntryAsState()
+    val currentRoute = backStack.value?.destination?.route
 
-            IconButton(
-                onClick = onThumbsUp,
-                modifier = Modifier.size(64.dp),
-            ) {
-                Icon(
-                    imageVector = Icons.Filled.ThumbUp,
-                    contentDescription = "Thumbs up",
-                    tint = MaterialTheme.colorScheme.onSurface,
-                    modifier = Modifier.size(28.dp),
-                )
-            }
-
-            IconButton(
-                onClick = onThumbsDown,
-                modifier = Modifier.size(64.dp),
-            ) {
-                Icon(
-                    imageVector = Icons.Filled.ThumbDown,
-                    contentDescription = "Thumbs down",
-                    tint = MaterialTheme.colorScheme.onSurface,
-                    modifier = Modifier.size(28.dp),
-                )
-            }
-
-            IconButton(
-                onClick = onConfig,
-                modifier = Modifier.size(64.dp),
-            ) {
-                Icon(
-                    imageVector = Icons.Filled.Settings,
-                    contentDescription = "Config",
-                    tint = MaterialTheme.colorScheme.onSurface,
-                    modifier = Modifier.size(28.dp),
-                )
-            }
+    NavigationBar(modifier = modifier) {
+        RoamTab.entries.forEach { tab ->
+            val selected = currentRoute == tab.route
+            NavigationBarItem(
+                selected = selected,
+                onClick = {
+                    if (!selected) {
+                        navController.navigate(tab.route) {
+                            popUpTo(RoamTab.Discover.route) { saveState = true }
+                            launchSingleTop = true
+                            restoreState = true
+                        }
+                    }
+                },
+                icon = {
+                    Icon(
+                        imageVector = tabIcon(tab, selected),
+                        contentDescription = tab.label,
+                    )
+                },
+                label = { Text(tab.label, style = MaterialTheme.typography.labelSmall) },
+            )
         }
     }
+}
+
+@Composable
+private fun tabIcon(tab: RoamTab, selected: Boolean): ImageVector = when (tab) {
+    RoamTab.Discover -> ImageVector.vectorResource(R.drawable.ic_compass)
+    RoamTab.Saved    -> if (selected) Icons.Filled.Bookmark else Icons.Filled.BookmarkBorder
+    RoamTab.Profile  -> if (selected) Icons.Filled.Person   else Icons.Filled.PersonOutline
+    RoamTab.Settings -> if (selected) Icons.Filled.Settings  else Icons.Outlined.Settings
 }
