@@ -161,11 +161,12 @@ async function fetchReposByTopic(topic, categoryId, delay) {
       seen.add(repo.html_url);
 
       repos.push({
-        url:         repo.html_url,
-        title:       repo.full_name,
-        description: repo.description.slice(0, 500),
-        category_id: categoryId,
-        source:      'github',
+        url:          repo.html_url,
+        title:        repo.full_name,
+        description:  repo.description.slice(0, 500),
+        category_id:  categoryId,
+        source:       'github',
+        seeder_score: Math.min((repo.stargazers_count ?? 0) / 10000, 1.0),  // 10000 stars = top-tier repo
       });
     }
 
