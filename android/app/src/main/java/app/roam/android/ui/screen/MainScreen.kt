@@ -3,6 +3,7 @@ package app.roam.android.ui.screen
 import android.content.Intent
 import android.net.Uri
 import androidx.browser.customtabs.CustomTabsIntent
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -35,9 +36,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.navigation.compose.NavHost
-import androidx.navigation.compose.composable
-import androidx.navigation.compose.rememberNavController
 import app.roam.android.MainActivity
 import app.roam.android.ui.component.BottomBar
 import app.roam.android.ui.component.ConfigBottomSheet
@@ -53,18 +51,20 @@ fun MainScreen(
     activity: MainActivity,
     onSignOut: () -> Unit = {},
 ) {
-    val navController = rememberNavController()
-
     val context = LocalContext.current
+
+    // Track the active tab without NavController so DiscoverTab is never destroyed
+    var currentTab by rememberSaveable { mutableStateOf(RoamTab.Roam.route) }
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
         bottomBar = {
             BottomBar(
-                navController = navController,
+                currentRoute = currentTab,
                 onThumbsDown = { vm.thumbsDown(context) },
                 onThumbsUp = { vm.thumbsUp(context) },
                 onRoam = { vm.roam() },
+                onNavigate = { currentTab = it },
             )
         },
     ) { innerPadding ->
@@ -73,40 +73,46 @@ fun MainScreen(
                 .fillMaxSize()
                 .padding(innerPadding),
         ) {
-            NavHost(
-                navController = navController,
-                startDestination = RoamTab.Roam.route,
-                modifier = Modifier.fillMaxSize(),
-                enterTransition = { fadeIn(animationSpec = spring()) },
-                exitTransition = { fadeOut(animationSpec = spring()) },
-                popEnterTransition = { fadeIn(animationSpec = spring()) },
-                popExitTransition = { fadeOut(animationSpec = spring()) },
+            // DiscoverTab is always in the composition tree — WebView is never destroyed
+            DiscoverTab(vm = vm, activity = activity)
+
+            // Other tabs slide in as full-screen overlays on top of the WebView
+            AnimatedVisibility(
+                visible = currentTab == RoamTab.Settings.route,
+                enter = fadeIn(animationSpec = spring()),
+                exit = fadeOut(animationSpec = spring()),
             ) {
-                composable(RoamTab.Roam.route) {
-                    DiscoverTab(vm = vm, activity = activity)
-                }
-                composable(RoamTab.Saved.route) {
-                    SavedScreen(
-                        vm = vm,
-                        onNavigateToDiscover = {
-                            navController.navigate(RoamTab.Roam.route) {
-                                popUpTo(RoamTab.Roam.route) { inclusive = false }
-                                launchSingleTop = true
-                            }
-                        },
-                    )
-                }
-                composable(RoamTab.Profile.route) {
-                    ProfileScreen(vm = vm, onSignOut = onSignOut)
-                }
-                composable(RoamTab.Settings.route) {
-                    SettingsScreen(
-                        vm = vm,
-                        onSignOut = onSignOut,
-                        onNavigateToSaved = { navController.navigate(RoamTab.Saved.route) },
-                        onNavigateToProfile = { navController.navigate(RoamTab.Profile.route) },
-                    )
-                }
+                SettingsScreen(
+                    vm = vm,
+                    onSignOut = {
+                        onSignOut()
+                        currentTab = RoamTab.Roam.route
+                    },
+                    onNavigateToSaved = { currentTab = RoamTab.Saved.route },
+                    onNavigateToProfile = { currentTab = RoamTab.Profile.route },
+                )
+            }
+
+            AnimatedVisibility(
+                visible = currentTab == RoamTab.Saved.route,
+                enter = fadeIn(animationSpec = spring()),
+                exit = fadeOut(animationSpec = spring()),
+            ) {
+                SavedScreen(
+                    vm = vm,
+                    onNavigateToDiscover = { currentTab = RoamTab.Roam.route },
+                )
+            }
+
+            AnimatedVisibility(
+                visible = currentTab == RoamTab.Profile.route,
+                enter = fadeIn(animationSpec = spring()),
+                exit = fadeOut(animationSpec = spring()),
+            ) {
+                ProfileScreen(vm = vm, onSignOut = {
+                    onSignOut()
+                    currentTab = RoamTab.Roam.route
+                })
             }
         }
     }
@@ -132,7 +138,8 @@ private fun DiscoverTab(
     val isOnline by vm.isOnline.collectAsState()
     val webDarkMode by vm.webDarkMode.collectAsState()
 
-    LaunchedEffect(Unit) { vm.roam() }
+    // Only auto-roam on first entry (Idle = fresh app launch).
+    LaunchedEffect(Unit) { if (vm.state.value is RoamState.Idle) vm.roam() }
 
     // True while either the edge function is fetching OR the WebView is loading the page
     var webViewLoading by rememberSaveable { mutableStateOf(false) }
@@ -151,7 +158,6 @@ private fun DiscoverTab(
         if (categoryName != null) lastCategoryName = categoryName
         if (domain != null) lastDomain = domain
     } else {
-        // Clear on new roam so stale info doesn't linger
         lastCategoryName = null
         lastDomain = null
     }
@@ -216,7 +222,6 @@ private fun DiscoverTab(
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                         } else {
-                            // Show category and domain together, separated by " · "
                             val parts = listOfNotNull(displayCategory, displayDomain)
                             Text(
                                 text = if (parts.isEmpty()) "Roam" else parts.joinToString(" · "),
@@ -231,7 +236,7 @@ private fun DiscoverTab(
             }
         }
 
-        // ── WebView (full page, no gesture overlay) ──────────────────────────
+        // ── WebView area ─────────────────────────────────────────────────────
         Box(
             modifier = Modifier
                 .weight(1f)
@@ -245,6 +250,30 @@ private fun DiscoverTab(
                 onLoadError = { vm.roam() },
                 onLoadingChanged = { webViewLoading = it },
             )
+
+            // Loading overlay — shown while fetching a URL or the WebView is rendering it
+            if (currentUrl == null || isRoaming) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(MaterialTheme.colorScheme.background),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(40.dp),
+                            strokeWidth = 3.dp,
+                            color = MaterialTheme.colorScheme.primary,
+                        )
+                        Spacer(Modifier.size(16.dp))
+                        Text(
+                            text = if (currentUrl == null) "Finding something great…" else "Loading…",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+            }
 
             // "Saved!" confirmation snackbar
             if (savedConfirmation) {
@@ -314,4 +343,3 @@ private fun DiscoverTab(
         )
     }
 }
-

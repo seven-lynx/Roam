@@ -13,23 +13,23 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.navigation.NavController
-import androidx.navigation.compose.currentBackStackEntryAsState
+
 enum class RoamTab(val route: String, val label: String) {
     Roam("discover", "Roam"),
     Settings("settings", "Settings"),
     Saved("saved", "Saved"),
     Profile("profile", "Profile"),
 }
+
 @Composable
 fun BottomBar(
-    navController: NavController,
+    currentRoute: String,
     onThumbsDown: () -> Unit,
     onThumbsUp: () -> Unit,
     onRoam: () -> Unit = {},
+    onNavigate: (String) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
-    val currentRoute = navController.currentBackStackEntryAsState().value?.destination?.route
     NavigationBar(modifier = modifier) {
         NavigationBarItem(
             selected = false,
@@ -40,14 +40,8 @@ fun BottomBar(
         NavigationBarItem(
             selected = currentRoute == RoamTab.Roam.route,
             onClick = {
-                if (currentRoute == RoamTab.Roam.route) {
-                    onRoam()
-                } else {
-                    navController.navigate(RoamTab.Roam.route) {
-                        popUpTo(RoamTab.Roam.route) { inclusive = true }
-                        launchSingleTop = true
-                    }
-                }
+                if (currentRoute == RoamTab.Roam.route) onRoam()
+                else onNavigate(RoamTab.Roam.route)
             },
             icon = {
                 Icon(
@@ -60,13 +54,7 @@ fun BottomBar(
         NavigationBarItem(
             selected = currentRoute == RoamTab.Settings.route,
             onClick = {
-                if (currentRoute != RoamTab.Settings.route) {
-                    navController.navigate(RoamTab.Settings.route) {
-                        popUpTo(RoamTab.Roam.route) { saveState = true }
-                        launchSingleTop = true
-                        restoreState = true
-                    }
-                }
+                if (currentRoute != RoamTab.Settings.route) onNavigate(RoamTab.Settings.route)
             },
             icon = {
                 Icon(
