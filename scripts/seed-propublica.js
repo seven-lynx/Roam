@@ -28,6 +28,13 @@ const NO_CACHE   = process.argv.includes('--no-cache');
 const DELAY_MS  = 800;
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
+// Max age for articles. Default 730 days (2 years); override with --max-age-days N
+const MAX_AGE_DAYS = (() => {
+  const i = process.argv.indexOf('--max-age-days');
+  return i >= 0 ? Math.max(1, parseInt(process.argv[i + 1], 10)) : 730;
+})();
+const EARLIEST_YEAR = new Date(Date.now() - MAX_AGE_DAYS * 86_400_000).getFullYear();
+
 const HEADERS = { 'User-Agent': 'Roam-Seeder/1.0 (https://roamtheweb.app)' };
 
 // ── Category detection from article URL slug ──────────────────────────────────
@@ -131,19 +138,33 @@ async function fetchProPublica() {
   // Try sitemap index first for full all-time coverage
   let sitemapUrls = await fetchSitemapIndex();
 
-  // Fallback: day sitemaps for last 365 days
+  // Fallback: day sitemaps for last MAX_AGE_DAYS days
   if (sitemapUrls.length === 0) {
-    console.log('[propublica] Falling back to day-sitemaps for last 365 days...');
-    sitemapUrls = getRecentDaySitemaps(365);
+    console.log(`[propublica] Falling back to day-sitemaps for last ${MAX_AGE_DAYS} days...`);
+    sitemapUrls = getRecentDaySitemaps(MAX_AGE_DAYS);
   }
 
-  console.log(`\n[propublica] Scanning ${sitemapUrls.length} sitemaps...`);
+  // Filter out sitemaps from before EARLIEST_YEAR
+  const filtered = sitemapUrls.filter((u) => {
+    const yearMatch = u.match(/(?:yyyy=|(\d{4})\/\d{2}(?:\/\d{2})?\/)/)
+      ?? u.match(/\/sitemap-(\d{4})/)
+      ?? u.match(/(\d{4})/); // last-resort: first 4-digit year in URL
+    if (!yearMatch) return true; // keep if we can't parse
+    const year = parseInt(yearMatch[1] ?? yearMatch[0], 10);
+    return isNaN(year) || year >= EARLIEST_YEAR;
+  });
+
+  if (filtered.length < sitemapUrls.length) {
+    console.log(`[propublica] Filtered ${sitemapUrls.length - filtered.length} sitemaps older than ${EARLIEST_YEAR}`);
+  }
+
+  console.log(`\n[propublica] Scanning ${filtered.length} sitemaps...`);
 
   const seen    = new Set();
   const allRows = [];
 
-  for (let i = 0; i < sitemapUrls.length; i++) {
-    const sitemapUrl  = sitemapUrls[i];
+  for (let i = 0; i < filtered.length; i++) {
+    const sitemapUrl  = filtered[i];
     const articleUrls = await fetchSitemapUrls(sitemapUrl);
     let added = 0;
 
@@ -162,7 +183,7 @@ async function fetchProPublica() {
     }
 
     if (added > 0) {
-      process.stdout.write(`\r[propublica]   ${i + 1}/${sitemapUrls.length} sitemaps  total=${allRows.length}  `);
+      process.stdout.write(`\r[propublica]   ${i + 1}/${filtered.length} sitemaps  total=${allRows.length}  `);
     }
 
     await sleep(DELAY_MS);

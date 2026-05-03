@@ -26,6 +26,13 @@ const NO_CACHE   = process.argv.includes('--no-cache');
 const DELAY_MS = 1000;
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
+// Max age for articles. Default 365 days; override with --max-age-days N
+const MAX_AGE_DAYS = (() => {
+  const i = process.argv.indexOf('--max-age-days');
+  return i >= 0 ? Math.max(1, parseInt(process.argv[i + 1], 10)) : 365;
+})();
+const cutoffDate = new Date(Date.now() - MAX_AGE_DAYS * 86_400_000);
+
 // ── NPR topic feeds (numeric IDs) → Roam categories ──────────────────────────
 // Full topic list: https://www.npr.org/sections/
 // Note: feeds that return 404 are gracefully skipped by fetchFeed() below.
@@ -91,9 +98,16 @@ function parseRSS(xml) {
     const imgMatch = block.match(/<media:content[^>]+url="([^"]+)"/i)
       ?? block.match(/<media:thumbnail[^>]+url="([^"]+)"/i)
       ?? block.match(/<enclosure[^>]+url="([^"]+)"/i);
+    const pubDateMatch = block.match(/<pubDate[^>]*>([^<]+)<\/pubDate>/i);
 
     const url = linkMatch ? linkMatch[1].trim() : null;
     if (!url || !url.startsWith('http')) continue;
+
+    // Filter by age before any other processing
+    if (pubDateMatch) {
+      const pubDate = new Date(pubDateMatch[1].trim());
+      if (!isNaN(pubDate.getTime()) && pubDate < cutoffDate) continue;
+    }
 
     // Skip non-article NPR URLs (station pages, programme homepages, etc.)
     if (!url.includes('npr.org') || url.match(/npr\.org\/(sections|programs|series|podcasts)\/[^/]+\/?$/)) continue;

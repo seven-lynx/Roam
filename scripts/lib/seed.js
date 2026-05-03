@@ -225,9 +225,15 @@ export async function fetchOgMeta(url) {
     // 'en-US' → 'en', 'zh-Hant' → 'zh', etc.
     const language = rawLang ? rawLang.split(/[-_]/)[0] : null;
 
-    return { image, description, language };
+    // canonical URL — use <link rel="canonical" href="..."> when present
+    const canonicalMatch =
+      html.match(/<link[^>]+rel=["']canonical["'][^>]+href=["']([^"']+)["']/i) ??
+      html.match(/<link[^>]+href=["']([^"']+)["'][^>]+rel=["']canonical["']/i);
+    const canonical = canonicalMatch?.[1]?.trim() ?? null;
+
+    return { image, description, language, canonical };
   } catch {
-    return { image: null, description: null, language: null };
+    return { image: null, description: null, language: null, canonical: null };
   }
 }
 
@@ -387,6 +393,14 @@ export async function upsertUrls(rows, {
         if (!row.description)  row.description  = meta.description;
         // Use language detected from <html lang=""> if not already set
         if (!row.language && meta.language) row.language = meta.language;
+        // 8.17: rewrite URL to canonical if the page declares one
+        if (meta.canonical) {
+          const normCanonical = normaliseUrl(meta.canonical);
+          if (normCanonical && normCanonical !== row.url) {
+            log(`[seed]   canonical rewrite: ${row.url} → ${normCanonical}`);
+            row.url = normCanonical;
+          }
+        }
       }
       if (verbose && (i + 1) % 10 === 0) {
         log(`[seed]   ${i + 1}/${fresh.length} done`);

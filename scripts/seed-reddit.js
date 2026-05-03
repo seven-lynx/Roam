@@ -163,8 +163,9 @@ async function fetchSubreddit(subreddit, limit) {
     for (const { data: post } of posts) {
       const rawUrl = post.url;
       if (!rawUrl || SKIP_DOMAINS.test(rawUrl) || seen.has(rawUrl)) continue;
-      // Skip self-posts
+      // Skip self-posts and low-engagement posts
       if (post.is_self) continue;
+      if ((post.score ?? 0) < 50) continue;
 
       seen.add(rawUrl);
       rows.push({

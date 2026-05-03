@@ -22,7 +22,8 @@ const NO_CACHE   = process.argv.includes('--no-cache');
 
 const PAGES          = 5;    // 5 × 1000 hits = up to 5,000 stories
 const HITS_PER_PAGE  = 1000;
-const MIN_POINTS     = 100;
+const MIN_POINTS     = 200; // raised from 100 — filters low-engagement / bot-inflated stories
+const MIN_COMMENTS   = 10;  // require real discussion
 
 const HN_INTERNAL = /^https?:\/\/(www\.)?news\.ycombinator\.com/i;
 
@@ -38,7 +39,7 @@ async function fetchHNStories() {
       `https://hn.algolia.com/api/v1/search` +
       `?tags=story` +
       `&hitsPerPage=${HITS_PER_PAGE}` +
-      `&numericFilters=points%3E${MIN_POINTS}` +
+      `&numericFilters=points%3E${MIN_POINTS},num_comments%3E${MIN_COMMENTS}` +
       `&page=${page}`;
 
     let data;

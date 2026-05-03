@@ -30,7 +30,20 @@ const PAGE_SIZE         = 200; // Guardian max
 const PAGES_PER_SECTION = 5;   // 200 × 5 = 1,000 articles/section
 const DELAY_MS          = 300; // 12 req/s limit — be polite
 
+// Max age for articles. Default 365 days; override with --max-age-days N
+const MAX_AGE_DAYS = (() => {
+  const i = process.argv.indexOf('--max-age-days');
+  return i >= 0 ? Math.max(1, parseInt(process.argv[i + 1], 10)) : 365;
+})();
+
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+// ISO date string N days ago (YYYY-MM-DD)
+function isoDateDaysAgo(days) {
+  const d = new Date();
+  d.setDate(d.getDate() - days);
+  return d.toISOString().slice(0, 10);
+}
 
 // ── Guardian sections → Roam categories ──────────────────────────────────────
 const SECTION_MAP = [
@@ -63,6 +76,7 @@ async function fetchPage(apiKey, section, page) {
     page:          String(page),
     'show-fields': 'thumbnail,trailText,headline',
     'order-by':    'relevance',
+    'from-date':   isoDateDaysAgo(MAX_AGE_DAYS),
   });
 
   let res;

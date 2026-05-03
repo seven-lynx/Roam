@@ -31,6 +31,9 @@ const NO_CACHE   = process.argv.includes('--no-cache');
 const cache      = createCache('nyt', { noCache: NO_CACHE });
 
 const YEARS_BACK = (() => {
+  // Support both --years N and --max-age-days N (days takes precedence)
+  const di = process.argv.indexOf('--max-age-days');
+  if (di >= 0) return Math.max(1, parseInt(process.argv[di + 1], 10)) / 365;
   const i = process.argv.indexOf('--years');
   return i >= 0 ? Math.max(1, parseInt(process.argv[i + 1], 10)) : 5;
 })();

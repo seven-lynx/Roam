@@ -86,10 +86,11 @@ const QUERIES = [
 // ── Fetch one page of search results ─────────────────────────────────────────
 async function fetchPage(q, offset) {
   const params = new URLSearchParams({
-    query:  q,
-    offset: String(offset),
-    limit:  String(PAGE_SIZE),
-    fields: 'paperId,title,abstract,year,openAccessPdf,externalIds',
+    query:            q,
+    offset:           String(offset),
+    limit:            String(PAGE_SIZE),
+    fields:           'paperId,title,abstract,year,openAccessPdf,externalIds,citationCount',
+    minCitationCount: '5',  // skip zero-citation preprints with no peer engagement
   });
 
   const headers = { 'User-Agent': 'Roam-Seeder/1.0 (https://roamtheweb.app)' };

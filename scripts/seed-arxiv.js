@@ -22,6 +22,7 @@ const NO_CACHE   = process.argv.includes('--no-cache');
 
 const RESULTS_PER_QUERY = 300;   // safe page size (max 2000, but large responses are slow)
 const DELAY_MS           = 3000; // arXiv guidelines: 3s between requests
+const MAX_AGE_YEARS      = 5;    // skip papers not updated in the past 5 years
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -108,10 +109,19 @@ async function fetchSubject({ subject, categoryId }) {
 
   const entries = parseEntries(xml);
   const rows = [];
+  const cutoff = new Date();
+  cutoff.setFullYear(cutoff.getFullYear() - MAX_AGE_YEARS);
 
   for (const entry of entries) {
     const rawId = extractTag(entry, 'id');
     if (!rawId || !rawId.includes('arxiv.org')) continue;
+
+    // Skip papers not updated within the past MAX_AGE_YEARS years
+    const updatedStr = extractTag(entry, 'updated');
+    if (updatedStr) {
+      const updatedDate = new Date(updatedStr);
+      if (!isNaN(updatedDate.getTime()) && updatedDate < cutoff) continue;
+    }
 
     const title   = extractTag(entry, 'title');
     const summary = extractTag(entry, 'summary');
