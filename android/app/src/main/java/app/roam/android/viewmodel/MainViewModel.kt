@@ -19,12 +19,18 @@ import app.roam.android.util.connectivityFlow
 import io.sentry.Sentry
 import java.io.ByteArrayOutputStream
 import java.io.IOException
+import java.net.HttpURLConnection
+import java.net.URL
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 import org.json.JSONArray
 
 sealed interface RoamState {
@@ -95,8 +101,13 @@ class MainViewModel(
     private val _categories = MutableStateFlow(CategoryItem.FALLBACK)
     val categories: StateFlow<List<CategoryItem>> = _categories.asStateFlow()
 
-    /** Prefetched next card — consumed instantly on the next roam() call (14.4) */
-    private val _prefetchedUrl = MutableStateFlow<RoamUrl?>(null)
+    // ── Prefetch queue ────────────────────────────────────────────────────────
+    // Keeps up to PREFETCH_TARGET validated URLs ready so roam() is near-instant.
+
+    private val PREFETCH_TARGET = 3
+    private val prefetchQueue = ArrayDeque<RoamUrl>()
+    private val prefetchMutex = Mutex()
+    private var prefetchJob: Job? = null
 
     /** Current user's profile */
     private val _profile = MutableStateFlow<UserProfile?>(null)
@@ -135,8 +146,8 @@ class MainViewModel(
                 _preferredLanguages.value = settings.preferredLanguages.ifEmpty { listOf("en") }
             }
         }
-        // Prime the prefetch cache so first roam() is instant
-        launchPrefetch()
+        // Prime the prefetch queue so first roam() is instant
+        startPrefillQueue()
 
         // Observe connectivity; flush queued ratings when back online (14.9)
         viewModelScope.launch {
@@ -149,12 +160,14 @@ class MainViewModel(
 
     fun roam(excludeDomain: String? = null) {
         viewModelScope.launch {
-            // Consume prefetch for an instant transition (14.4)
-            val prefetched = _prefetchedUrl.value.also { _prefetchedUrl.value = null }
+            // Pop from the prefetch queue for an instant transition
+            val prefetched = prefetchMutex.withLock {
+                if (prefetchQueue.isNotEmpty()) prefetchQueue.removeFirst() else null
+            }
             if (prefetched != null) {
                 _currentUrl.value = prefetched.url
                 _state.value = RoamState.Loaded(prefetched)
-                launchPrefetch(excludeDomain = extractDomain(prefetched.url))
+                startPrefillQueue(excludeDomain = extractDomain(prefetched.url))
                 return@launch
             }
 
@@ -187,7 +200,7 @@ class MainViewModel(
                 } else {
                     _currentUrl.value = result.url
                     _state.value = RoamState.Loaded(result)
-                    launchPrefetch(excludeDomain = extractDomain(result.url))
+                    startPrefillQueue(excludeDomain = extractDomain(result.url))
                 }
             } else {
                 val e = lastException ?: Exception("Unknown error")
@@ -204,18 +217,61 @@ class MainViewModel(
         }
     }
 
-    /** Fetches the next card in the background and caches it. Failures are silently ignored. */
-    private fun launchPrefetch(excludeDomain: String? = null) {
-        viewModelScope.launch {
-            runCatching {
-                repo.roam(
-                    collectionId = _activeCollectionId.value,
-                    excludeDomain = excludeDomain,
-                )
-            }.onSuccess { result ->
-                if (result != null) _prefetchedUrl.value = result
+    /**
+     * Cancels any running fill job and starts a fresh one. The job keeps fetching and
+     * validating URLs until the queue reaches [PREFETCH_TARGET], then exits. Each candidate
+     * is checked with a HEAD request — unreachable URLs are skipped silently.
+     */
+    private fun startPrefillQueue(excludeDomain: String? = null) {
+        prefetchJob?.cancel()
+        prefetchJob = viewModelScope.launch {
+            var consecutive = 0
+            while (true) {
+                val queueSize = prefetchMutex.withLock { prefetchQueue.size }
+                if (queueSize >= PREFETCH_TARGET) break
+                // Stop hammering the server if we keep hitting failures
+                if (consecutive >= 6) break
+
+                val result = runCatching {
+                    repo.roam(
+                        collectionId = _activeCollectionId.value,
+                        excludeDomain = excludeDomain,
+                    )
+                }.getOrNull()
+
+                if (result == null) {
+                    consecutive++
+                    continue
+                }
+
+                // Validate the URL is actually reachable before queuing it
+                val reachable = isUrlReachable(result.url)
+                if (!reachable) {
+                    consecutive++
+                    continue
+                }
+
+                consecutive = 0
+                prefetchMutex.withLock {
+                    if (prefetchQueue.size < PREFETCH_TARGET) prefetchQueue.addLast(result)
+                }
             }
         }
+    }
+
+    /** HEAD-checks [url] with a short timeout. Returns false on any error or 4xx/5xx. */
+    private suspend fun isUrlReachable(url: String): Boolean = withContext(Dispatchers.IO) {
+        runCatching {
+            val conn = URL(url).openConnection() as HttpURLConnection
+            conn.requestMethod = "HEAD"
+            conn.connectTimeout = 5_000
+            conn.readTimeout = 5_000
+            conn.instanceFollowRedirects = true
+            conn.setRequestProperty("User-Agent", "Mozilla/5.0")
+            val code = conn.responseCode
+            conn.disconnect()
+            code < 400
+        }.getOrDefault(false)
     }
 
     fun thumbsUp(context: Context) {
@@ -281,7 +337,9 @@ class MainViewModel(
 
     fun setCollectionFilter(collectionId: String?) {
         _activeCollectionId.value = collectionId
-        _prefetchedUrl.value = null  // invalidate cache — filter changed
+        prefetchJob?.cancel()
+        viewModelScope.launch { prefetchMutex.withLock { prefetchQueue.clear() } }
+        startPrefillQueue()
     }
 
     fun openSubmitSheet() { _showSubmitSheet.value = true }
@@ -384,8 +442,9 @@ class MainViewModel(
     fun roamWithinCategory() {
         val loaded = _state.value as? RoamState.Loaded
         val categoryId = loaded?.roamUrl?.categoryId
-        _activeCollectionId.value = null  // clear any collection scope
-        _prefetchedUrl.value = null       // invalidate cache — filter changed
+        _activeCollectionId.value = null
+        prefetchJob?.cancel()
+        viewModelScope.launch { prefetchMutex.withLock { prefetchQueue.clear() } }
         _showConfigSheet.value = false
         viewModelScope.launch {
             _state.value = RoamState.Loading
