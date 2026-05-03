@@ -43,28 +43,30 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 // ── Feed definitions ──────────────────────────────────────────────────────────
 const FEEDS = [
   // ── Science ──────────────────────────────────────────────────────────────
-  { url: 'https://nautil.us/feed/',                                   label: 'nautilus',       categoryId: CATEGORY.SCIENCE },
-  { url: 'https://www.quantamagazine.org/feed/',                      label: 'quanta',         categoryId: CATEGORY.SCIENCE },
-  { url: 'https://theconversation.com/us/science/feed',              label: 'conversation-science',    categoryId: CATEGORY.SCIENCE },
-  { url: 'https://theconversation.com/us/environment/feed',           label: 'conversation-env',         categoryId: CATEGORY.SCIENCE },
+  { url: 'https://nautil.us/feed/',                                        label: 'nautilus',                 categoryId: CATEGORY.SCIENCE },
+  { url: 'https://www.quantamagazine.org/feed/',                           label: 'quanta',                   categoryId: CATEGORY.SCIENCE },
+  { url: 'https://theconversation.com/articles.atom',                      label: 'conversation-science',     categoryId: CATEGORY.SCIENCE },
+  { url: 'https://theconversation.com/us/environment.atom',                label: 'conversation-env',         categoryId: CATEGORY.SCIENCE },
+  { url: 'https://theconversation.com/us/technology.atom',                 label: 'conversation-tech',        categoryId: CATEGORY.SCIENCE },
 
   // ── History & Ideas ───────────────────────────────────────────────────────
-  { url: 'https://aeon.co/feed.rss',                                  label: 'aeon',           categoryId: CATEGORY.HISTORY_IDEAS },
-  { url: 'https://www.laphamsquarterly.org/rss.xml',                  label: 'laphams',        categoryId: CATEGORY.HISTORY_IDEAS },
-  { url: 'https://theconversation.com/us/arts/feed',                  label: 'conversation-arts',       categoryId: CATEGORY.HISTORY_IDEAS },
-  { url: 'https://theconversation.com/us/politics/feed',              label: 'conversation-politics',    categoryId: CATEGORY.HISTORY_IDEAS },
+  { url: 'https://aeon.co/feed.rss',                                       label: 'aeon',                     categoryId: CATEGORY.HISTORY_IDEAS },
+  { url: 'https://www.laphamsquarterly.org/rss.xml',                       label: 'laphams',                  categoryId: CATEGORY.HISTORY_IDEAS },
+  { url: 'https://theconversation.com/us/arts.atom',                       label: 'conversation-arts',        categoryId: CATEGORY.HISTORY_IDEAS },
+  { url: 'https://theconversation.com/us/politics.atom',                   label: 'conversation-politics',    categoryId: CATEGORY.HISTORY_IDEAS },
+  { url: 'https://theconversation.com/us/education.atom',                  label: 'conversation-education',   categoryId: CATEGORY.HISTORY_IDEAS },
 
   // ── Mind & Body ───────────────────────────────────────────────────────────
-  { url: 'https://psyche.co/feed',                                    label: 'psyche',         categoryId: CATEGORY.MIND_BODY },
-  { url: 'https://theconversation.com/us/health/feed',               label: 'conversation-health',     categoryId: CATEGORY.MIND_BODY },
+  { url: 'https://psyche.co/feed',                                         label: 'psyche',                   categoryId: CATEGORY.MIND_BODY },
+  { url: 'https://theconversation.com/us/health.atom',                     label: 'conversation-health',      categoryId: CATEGORY.MIND_BODY },
 
   // ── Arts & Culture ────────────────────────────────────────────────────────
-  { url: 'https://lithub.com/feed/',                                  label: 'lithub',         categoryId: CATEGORY.ARTS_CULTURE },
-  { url: 'https://www.themarginalian.org/feed/',                      label: 'marginalian',    categoryId: CATEGORY.ARTS_CULTURE },
+  { url: 'https://lithub.com/feed/',                                       label: 'lithub',                   categoryId: CATEGORY.ARTS_CULTURE },
+  { url: 'https://www.themarginalian.org/feed/',                           label: 'marginalian',              categoryId: CATEGORY.ARTS_CULTURE },
 
   // ── Weird & Wonderful ─────────────────────────────────────────────────────
-  { url: 'https://longreads.com/feed/',                               label: 'longreads',      categoryId: CATEGORY.WEIRD_WONDERFUL },
-  { url: 'https://theconversation.com/us/arts-humanities/feed',      label: 'conversation-humanities', categoryId: CATEGORY.WEIRD_WONDERFUL },
+  { url: 'https://longreads.com/feed/',                                    label: 'longreads',                categoryId: CATEGORY.WEIRD_WONDERFUL },
+  { url: 'https://theconversation.com/us/business.atom',                   label: 'conversation-business',    categoryId: CATEGORY.WEIRD_WONDERFUL },
 ];
 
 // ── RSS parser ────────────────────────────────────────────────────────────────
@@ -116,6 +118,60 @@ function parseRSS(xml, label) {
   return items;
 }
 
+// ── Atom parser ───────────────────────────────────────────────────────────────
+function parseAtom(xml) {
+  const items = [];
+  const entryRe = /<entry[\s>]([\s\S]*?)<\/entry>/gi;
+  let m;
+
+  while ((m = entryRe.exec(xml)) !== null) {
+    const block = m[1];
+
+    // Prefer rel="alternate" link, fall back to any href
+    const altMatch  = block.match(/<link[^>]+rel="alternate"[^>]+href="([^"]+)"/i)
+      ?? block.match(/<link[^>]+href="([^"]+)"[^>]*rel="alternate"/i)
+      ?? block.match(/<link[^>]+href="([^"]+)"/i);
+    const titleMatch = block.match(/<title[^>]*><!\[CDATA\[([\s\S]*?)\]\]><\/title>/i)
+      ?? block.match(/<title[^>]*>([^<]+)<\/title>/i);
+    const summaryMatch = block.match(/<summary[^>]*><!\[CDATA\[([\s\S]*?)\]\]><\/summary>/i)
+      ?? block.match(/<summary[^>]*>([^<]*)<\/summary>/i);
+    const publishedMatch = block.match(/<published[^>]*>([^<]+)<\/published>/i)
+      ?? block.match(/<updated[^>]*>([^<]+)<\/updated>/i);
+
+    const url = altMatch?.[1]?.trim();
+    if (!url || !url.startsWith('http')) continue;
+
+    // Age filter
+    if (publishedMatch) {
+      const pubDate = new Date(publishedMatch[1].trim());
+      if (!isNaN(pubDate.getTime()) && pubDate < cutoffDate) continue;
+    }
+
+    const title = titleMatch
+      ? titleMatch[1].replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&#\d+;/g, '').trim()
+      : null;
+
+    const rawDesc = summaryMatch?.[1] ?? null;
+    const description = rawDesc
+      ? rawDesc.replace(/<[^>]+>/g, '').replace(/&amp;/g, '&').replace(/&nbsp;/g, ' ').replace(/&#\d+;/g, ' ').trim().slice(0, 500)
+      : null;
+
+    const pubDate = publishedMatch
+      ? (() => { const d = new Date(publishedMatch[1].trim()); return isNaN(d.getTime()) ? null : d.toISOString(); })()
+      : null;
+
+    items.push({ url, title, description, ogImage: null, pubDate });
+  }
+
+  return items;
+}
+
+// ── Parse either RSS or Atom ──────────────────────────────────────────────────
+function parseFeed(xml, label) {
+  if (/<feed\b/i.test(xml)) return parseAtom(xml);
+  return parseRSS(xml, label);
+}
+
 // ── Fetch one RSS feed ────────────────────────────────────────────────────────
 async function fetchFeed({ url: feedUrl, label, categoryId }) {
   let res;
@@ -134,7 +190,7 @@ async function fetchFeed({ url: feedUrl, label, categoryId }) {
   }
 
   const xml   = await res.text();
-  const items = parseRSS(xml, label);
+  const items = parseFeed(xml, label);
 
   console.log(`[longform]   ${label}: ${items.length} articles`);
 
