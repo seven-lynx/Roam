@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
   // redirect response. Using cookieStore.set() from next/headers is NOT
   // sufficient here because those cookies don't get propagated to an explicit
   // NextResponse.redirect() object.
-  let response = NextResponse.redirect(new URL(`${origin}/profile`));
+  const response = NextResponse.redirect(new URL(`${origin}/profile`));
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,

@@ -1,8 +1,11 @@
 'use client';
 
-import { createContext, useContext, useEffect, useState, useRef } from 'react';
+import { createContext, useContext, useEffect, useState } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import { createClient } from '@/lib/supabase/client';
+
+// Stable singleton — avoids re-creating the client on every render
+const supabaseClient = createClient();
 export interface Profile {
   id: string;
   username: string | null;
@@ -33,7 +36,7 @@ interface AuthProviderProps {
 }
 
 export function AuthProvider({ initialSession, children }: AuthProviderProps) {
-  const supabase = useRef(createClient()).current;
+  const supabase = supabaseClient;
   const [session, setSession] = useState<Session | null>(initialSession);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(!initialSession);

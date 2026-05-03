@@ -3,7 +3,6 @@
 import { useEffect, useState } from 'react';
 import { createClient } from './supabase/client';
 import { useAuth } from '@/components/AuthProvider';
-import type { Session } from '@supabase/supabase-js';
 
 export type { Profile } from '@/components/AuthProvider';
 
