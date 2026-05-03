@@ -5,6 +5,7 @@ import io.github.jan.supabase.auth.Auth
 import io.github.jan.supabase.createSupabaseClient
 import io.github.jan.supabase.functions.Functions
 import io.github.jan.supabase.postgrest.Postgrest
+import io.github.jan.supabase.storage.Storage
 import io.ktor.client.engine.android.Android
 
 /**
@@ -18,5 +19,6 @@ val supabase = createSupabaseClient(
     install(Auth)
     install(Functions)
     install(Postgrest)
+    install(Storage)
     httpEngine = Android.create()
 }

@@ -84,7 +84,7 @@ fun MainScreen(
                 )
             }
             composable(RoamTab.Profile.route) {
-                ProfileScreen(onSignOut = onSignOut)
+                ProfileScreen(vm = vm, onSignOut = onSignOut)
             }
             composable(RoamTab.Settings.route) {
                 SettingsScreen(vm = vm, onSignOut = onSignOut)

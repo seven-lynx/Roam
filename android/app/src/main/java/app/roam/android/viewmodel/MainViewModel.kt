@@ -2,6 +2,9 @@ package app.roam.android.viewmodel
 
 import android.app.Application
 import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.net.Uri
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
@@ -11,6 +14,10 @@ import app.roam.android.data.repository.RoamRepository
 import app.roam.android.model.CategoryItem
 import app.roam.android.model.Collection
 import app.roam.android.model.RoamUrl
+import app.roam.android.model.UserProfile
+import java.io.ByteArrayOutputStream
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -26,6 +33,8 @@ sealed interface RoamState {
 }
 
 data class SavedUrl(val url: String, val title: String)
+
+data class ProfileStats(val roamed: Int = 0, val submitted: Int = 0)
 
 class MainViewModel(
     application: Application,
@@ -83,6 +92,21 @@ class MainViewModel(
 
     /** Prefetched next card — consumed instantly on the next roam() call (14.4) */
     private val _prefetchedUrl = MutableStateFlow<RoamUrl?>(null)
+
+    /** Current user's profile */
+    private val _profile = MutableStateFlow<UserProfile?>(null)
+    val profile: StateFlow<UserProfile?> = _profile.asStateFlow()
+
+    /** IDs of categories the user has selected (whole-category, no subcategory filter) */
+    private val _userCategoryIds = MutableStateFlow<Set<String>>(emptySet())
+    val userCategoryIds: StateFlow<Set<String>> = _userCategoryIds.asStateFlow()
+
+    /** Counts of pages roamed and submitted by the current user */
+    private val _profileStats = MutableStateFlow(ProfileStats())
+    val profileStats: StateFlow<ProfileStats> = _profileStats.asStateFlow()
+
+    /** Debounce job for profile auto-save */
+    private var profileSaveJob: Job? = null
 
     init {
         viewModelScope.launch {
@@ -321,6 +345,88 @@ class MainViewModel(
         _showConfigSheet.value = false
         roam()
     }
+
+    // ── Profile (14.6) ────────────────────────────────────────────────────────
+
+    /** Loads profile, user categories, and stats in parallel. */
+    fun loadProfile() {
+        viewModelScope.launch {
+            runCatching { _profile.value = repo.getProfile() }
+        }
+        viewModelScope.launch {
+            runCatching { _userCategoryIds.value = repo.getUserCategoryIds() }
+        }
+        viewModelScope.launch {
+            runCatching {
+                val (roamed, submitted) = repo.getProfileStats()
+                _profileStats.value = ProfileStats(roamed = roamed, submitted = submitted)
+            }
+        }
+    }
+
+    /**
+     * Called on every keystroke in the profile edit fields.
+     * Debounces 800 ms then persists to Supabase.
+     */
+    fun onProfileFieldChanged(username: String, displayName: String, bio: String?) {
+        _profile.value = _profile.value?.copy(
+            username = username,
+            displayName = displayName,
+            bio = bio,
+        )
+        profileSaveJob?.cancel()
+        profileSaveJob = viewModelScope.launch {
+            delay(800)
+            runCatching { repo.updateProfile(username, displayName, bio) }
+        }
+    }
+
+    /**
+     * Reads the image from [uri], compresses it to ≤ 600 px JPEG, uploads to Supabase Storage,
+     * then updates the profile's avatar_url.
+     */
+    fun onAvatarPicked(uri: Uri) {
+        viewModelScope.launch {
+            runCatching {
+                val contentResolver = getApplication<android.app.Application>().contentResolver
+                val raw = contentResolver.openInputStream(uri)?.use { it.readBytes() }
+                    ?: return@runCatching
+                val compressed = compressJpeg(raw)
+                val avatarUrl = repo.uploadAvatar(compressed)
+                _profile.value = _profile.value?.copy(avatarUrl = avatarUrl)
+            }
+        }
+    }
+
+    /** Optimistically toggles a category, then syncs to Supabase. */
+    fun toggleCategory(categoryId: String, selected: Boolean) {
+        _userCategoryIds.value = if (selected) {
+            _userCategoryIds.value + categoryId
+        } else {
+            _userCategoryIds.value - categoryId
+        }
+        viewModelScope.launch {
+            runCatching { repo.setUserCategory(categoryId, selected) }
+        }
+    }
+
+    private fun compressJpeg(input: ByteArray, maxDim: Int = 600): ByteArray {
+        val bitmap = BitmapFactory.decodeByteArray(input, 0, input.size) ?: return input
+        val scaled = if (bitmap.width > maxDim || bitmap.height > maxDim) {
+            val scale = maxDim.toFloat() / maxOf(bitmap.width, bitmap.height)
+            Bitmap.createScaledBitmap(
+                bitmap,
+                (bitmap.width * scale).toInt(),
+                (bitmap.height * scale).toInt(),
+                true,
+            )
+        } else bitmap
+        val out = ByteArrayOutputStream()
+        scaled.compress(Bitmap.CompressFormat.JPEG, 85, out)
+        return out.toByteArray()
+    }
+
+    // ── Local persistence ─────────────────────────────────────────────────────
 
     private fun loadSavedUrls(): List<SavedUrl> {
         val json = prefs.getString(SAVED_KEY, null) ?: return emptyList()

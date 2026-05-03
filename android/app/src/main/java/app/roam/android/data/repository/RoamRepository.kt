@@ -4,13 +4,17 @@ import app.roam.android.data.supabase
 import app.roam.android.model.CategoryItem
 import app.roam.android.model.Collection
 import app.roam.android.model.RoamUrl
+import app.roam.android.model.UserProfile
 import app.roam.android.model.UserSettings
 import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.functions.functions
 import io.github.jan.supabase.postgrest.postgrest
 import io.github.jan.supabase.postgrest.query.Columns
 import io.github.jan.supabase.postgrest.query.Order
+import io.github.jan.supabase.storage.storage
 import io.ktor.client.call.body
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
@@ -199,4 +203,117 @@ class RoamRepository {
         }
         supabase.functions.invoke("report-url", body = body)
     }
+
+    // ── Profile ───────────────────────────────────────────────────────────────
+
+    /** Fetches the current user's profile row. Returns null if none exists yet. */
+    suspend fun getProfile(): UserProfile? {
+        val userId = supabase.auth.currentUserOrNull()?.id ?: return null
+        return supabase.postgrest
+            .from("profiles")
+            .select {
+                filter { eq("id", userId) }
+                limit(1)
+            }
+            .decodeList<UserProfile>()
+            .firstOrNull()
+    }
+
+    /** Upserts the user's profile (username, display_name, bio). */
+    suspend fun updateProfile(username: String, displayName: String, bio: String?) {
+        val userId = supabase.auth.currentUserOrNull()?.id ?: return
+        supabase.postgrest
+            .from("profiles")
+            .upsert(ProfileUpdateRow(id = userId, username = username, displayName = displayName, bio = bio))
+    }
+
+    /**
+     * Uploads [bytes] to the `avatars` storage bucket under `{userId}/avatar.jpg` (upsert).
+     * Returns the public URL of the uploaded file.
+     */
+    suspend fun uploadAvatar(bytes: ByteArray): String {
+        val userId = supabase.auth.currentUserOrNull()?.id ?: error("Not authenticated")
+        val path = "$userId/avatar.jpg"
+        supabase.storage.from("avatars").upload(path, bytes) { upsert = true }
+        return supabase.storage.from("avatars").publicUrl(path)
+    }
+
+    /**
+     * Returns the set of category IDs the user has selected (whole-category rows where
+     * subcategory_id IS NULL). Fetches all user_categories rows and filters in-memory.
+     */
+    suspend fun getUserCategoryIds(): Set<String> {
+        val userId = supabase.auth.currentUserOrNull()?.id ?: return emptySet()
+        return supabase.postgrest
+            .from("user_categories")
+            .select(Columns.list("category_id", "subcategory_id")) {
+                filter { eq("user_id", userId) }
+            }
+            .decodeList<CategoryIdRow>()
+            .filter { it.subcategoryId == null }
+            .map { it.categoryId }
+            .toSet()
+    }
+
+    /** Adds or removes a whole-category selection for the current user. */
+    suspend fun setUserCategory(categoryId: String, selected: Boolean) {
+        val userId = supabase.auth.currentUserOrNull()?.id ?: return
+        if (selected) {
+            supabase.postgrest.from("user_categories").upsert(
+                UserCategoryInsertRow(userId = userId, categoryId = categoryId),
+            ) { ignoreDuplicates = true }
+        } else {
+            // Delete all rows for this category (whole-category + any subcategory refinements)
+            supabase.postgrest.from("user_categories").delete {
+                filter {
+                    eq("user_id", userId)
+                    eq("category_id", categoryId)
+                }
+            }
+        }
+    }
+
+    /**
+     * Returns (pagesRoamed, pagesSubmitted) counts for the current user.
+     * Both default to 0 on error.
+     */
+    suspend fun getProfileStats(): Pair<Int, Int> {
+        val userId = supabase.auth.currentUserOrNull()?.id ?: return 0 to 0
+        val roamed = runCatching {
+            supabase.postgrest.from("ratings")
+                .select(Columns.list("id")) { filter { eq("user_id", userId) } }
+                .decodeList<IdRow>().size
+        }.getOrDefault(0)
+        val submitted = runCatching {
+            supabase.postgrest.from("urls")
+                .select(Columns.list("id")) { filter { eq("submitted_by", userId) } }
+                .decodeList<IdRow>().size
+        }.getOrDefault(0)
+        return roamed to submitted
+    }
+
+    // ── Private helpers ───────────────────────────────────────────────────────
+
+    @Serializable
+    private data class ProfileUpdateRow(
+        val id: String,
+        val username: String,
+        @SerialName("display_name") val displayName: String,
+        val bio: String?,
+    )
+
+    @Serializable
+    private data class CategoryIdRow(
+        @SerialName("category_id") val categoryId: String,
+        @SerialName("subcategory_id") val subcategoryId: String? = null,
+    )
+
+    @Serializable
+    private data class UserCategoryInsertRow(
+        @SerialName("user_id") val userId: String,
+        @SerialName("category_id") val categoryId: String,
+    )
+
+    @Serializable
+    private data class IdRow(val id: String)
 }
