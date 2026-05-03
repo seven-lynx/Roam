@@ -44,6 +44,7 @@ android {
     buildTypes {
         release {
             isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
@@ -104,6 +105,9 @@ dependencies {
 
     // Error tracking
     implementation("io.sentry:sentry-android:7.22.1")
+
+    // Baseline profiles — install AOT-compiled profile on first launch
+    implementation("androidx.profileinstaller:profileinstaller:1.3.1")
 
     // Test
     testImplementation("junit:junit:4.13.2")

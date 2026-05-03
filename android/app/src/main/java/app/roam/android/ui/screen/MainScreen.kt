@@ -5,6 +5,8 @@ import android.net.Uri
 import androidx.browser.customtabs.CustomTabsIntent
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Arrangement
@@ -15,7 +17,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -30,6 +31,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.navigation.compose.NavHost
@@ -68,6 +72,10 @@ fun MainScreen(
             navController = navController,
             startDestination = RoamTab.Discover.route,
             modifier = Modifier.padding(innerPadding),
+            enterTransition = { fadeIn(animationSpec = spring()) },
+            exitTransition = { fadeOut(animationSpec = spring()) },
+            popEnterTransition = { fadeIn(animationSpec = spring()) },
+            popExitTransition = { fadeOut(animationSpec = spring()) },
         ) {
             composable(RoamTab.Discover.route) {
                 DiscoverTab(vm = vm, activity = activity)
@@ -160,6 +168,7 @@ private fun DiscoverTab(
         Box(
             modifier = Modifier
                 .fillMaxSize()
+                .semantics { contentDescription = "Swipe down to discover, right to like, left to skip" }
                 .pointerInput(Unit) {
                     detectDragGestures(
                         onDrag = { change, dragAmount ->
@@ -199,13 +208,6 @@ private fun DiscoverTab(
                 },
         )
 
-        // Loading indicator
-        if (state is RoamState.Loading) {
-            LinearProgressIndicator(
-                modifier = Modifier.fillMaxWidth().align(Alignment.TopCenter),
-            )
-        }
-
         // Offline banner (14.9)
         if (!isOnline) {
             Row(
@@ -220,6 +222,8 @@ private fun DiscoverTab(
                     text = "You're offline — ratings will be sent when you reconnect.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onTertiaryContainer,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f),
                 )
             }
@@ -240,6 +244,8 @@ private fun DiscoverTab(
                     text = errorMsg,
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onErrorContainer,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f),
                 )
                 TextButton(onClick = { vm.roam() }) {
