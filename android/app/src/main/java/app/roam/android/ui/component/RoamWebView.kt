@@ -27,6 +27,7 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 fun RoamWebView(
     url: String?,
     modifier: Modifier = Modifier,
+    darkMode: Boolean = true,
     onUrlChanged: (String) -> Unit = {},
     onLoadError: () -> Unit = {},
     onLoadingChanged: (Boolean) -> Unit = {},
@@ -95,14 +96,13 @@ fun RoamWebView(
                     userAgentString = "Mozilla/5.0 (Linux; Android 10; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36"
                     allowFileAccess = false
                     allowContentAccess = false
-                    // Force dark mode on web content — honours prefers-color-scheme and
-                    // applies algorithmic darkening to pages that don't support it natively.
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                         @Suppress("DEPRECATION")
-                        forceDark = android.webkit.WebSettings.FORCE_DARK_ON
+                        forceDark = if (darkMode) android.webkit.WebSettings.FORCE_DARK_ON
+                                    else android.webkit.WebSettings.FORCE_DARK_OFF
                     }
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                        isAlgorithmicDarkeningAllowed = true
+                        isAlgorithmicDarkeningAllowed = darkMode
                     }
                 }
                 webViewClient = object : WebViewClient() {

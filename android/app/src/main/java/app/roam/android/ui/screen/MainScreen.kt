@@ -130,6 +130,7 @@ private fun DiscoverTab(
     val categories by vm.categories.collectAsState()
     val savedUrls by vm.savedUrls.collectAsState()
     val isOnline by vm.isOnline.collectAsState()
+    val webDarkMode by vm.webDarkMode.collectAsState()
 
     LaunchedEffect(Unit) { vm.roam() }
 
@@ -239,6 +240,7 @@ private fun DiscoverTab(
             RoamWebView(
                 url = currentUrl,
                 modifier = Modifier.fillMaxSize(),
+                darkMode = webDarkMode,
                 onUrlChanged = { vm.onWebViewUrlChanged(it) },
                 onLoadError = { vm.roam() },
                 onLoadingChanged = { webViewLoading = it },

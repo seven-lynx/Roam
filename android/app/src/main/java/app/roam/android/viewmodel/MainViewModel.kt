@@ -54,6 +54,7 @@ class MainViewModel(
 
     private val prefs = application.getSharedPreferences("roam_saved", Context.MODE_PRIVATE)
     private val SAVED_KEY = "saved_urls"
+    private val WEB_DARK_KEY = "web_dark_mode"
 
     private val _state = MutableStateFlow<RoamState>(RoamState.Idle)
     val state: StateFlow<RoamState> = _state.asStateFlow()
@@ -92,6 +93,15 @@ class MainViewModel(
     /** User preference: skip paywalled sites */
     private val _skipPaywalled = MutableStateFlow(false)
     val skipPaywalled: StateFlow<Boolean> = _skipPaywalled.asStateFlow()
+
+    /** User preference: render web pages in dark mode */
+    private val _webDarkMode = MutableStateFlow(prefs.getBoolean(WEB_DARK_KEY, true))
+    val webDarkMode: StateFlow<Boolean> = _webDarkMode.asStateFlow()
+
+    fun setWebDarkMode(enabled: Boolean) {
+        _webDarkMode.value = enabled
+        prefs.edit().putBoolean(WEB_DARK_KEY, enabled).apply()
+    }
 
     /** User preference: list of language codes to include (e.g. ["en", "fr"]) */
     private val _preferredLanguages = MutableStateFlow(listOf("en"))

@@ -46,6 +46,7 @@ fun SettingsScreen(
 ) {
     val skipPaywalled by vm.skipPaywalled.collectAsState()
     val preferredLanguages by vm.preferredLanguages.collectAsState()
+    val webDarkMode by vm.webDarkMode.collectAsState()
     val context = LocalContext.current
     var showSignOutDialog by remember { mutableStateOf(false) }
 
@@ -91,6 +92,12 @@ fun SettingsScreen(
                 subtitle = "Hide NYT, WSJ, and similar sites",
                 checked = skipPaywalled,
                 onCheckedChange = { vm.setSkipPaywalled(it) },
+            )
+            SettingsToggleRow(
+                title = "Dark mode for web pages",
+                subtitle = "Darken sites that don't support dark mode natively",
+                checked = webDarkMode,
+                onCheckedChange = { vm.setWebDarkMode(it) },
             )
 
             HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
