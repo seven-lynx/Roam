@@ -6,7 +6,9 @@ import app.roam.android.data.repository.RoamRepository
 import app.roam.android.model.RoamUrl
 import app.roam.android.model.UserSettings
 import io.mockk.coEvery
+import io.mockk.coVerify
 import io.mockk.mockk
+import java.io.IOException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
@@ -47,6 +49,8 @@ class MainViewModelTest {
         repo = mockk(relaxed = true)
         coEvery { repo.getCategories() } returns emptyList()
         coEvery { repo.getUserSettings() } returns UserSettings()
+        // Prevent init's launchPrefetch from populating _prefetchedUrl with a relaxed mock
+        coEvery { repo.roam(any(), any(), any()) } returns null
         vm = MainViewModel(app, repo)
     }
 
@@ -183,5 +187,106 @@ class MainViewModelTest {
     fun `onWebViewUrlChanged updates currentUrl`() {
         vm.onWebViewUrlChanged("https://new-page.com")
         assertEquals("https://new-page.com", vm.currentUrl.value)
+    }
+
+    // ─── IOException → offline error message ──────────────────────────────────
+
+    @Test
+    fun `roam shows offline message when IOException is thrown`() = runTest {
+        coEvery { repo.roam(any(), any(), any()) } throws IOException("timeout")
+        vm.roam()
+        val state = vm.state.value
+        assertTrue("Expected Error state", state is RoamState.Error)
+        assertTrue(
+            "Expected offline message, got: ${(state as RoamState.Error).message}",
+            state.message.contains("offline", ignoreCase = true),
+        )
+    }
+
+    // ─── Prefetch ──────────────────────────────────────────────────────────────
+
+    @Test
+    fun `roam uses prefetch cache and does not re-enter Loading state`() = runTest {
+        // Use an isolated repo so setUp's call counts don't affect coVerify(exactly = 2)
+        val freshRepo = mockk<RoamRepository>(relaxed = true)
+        coEvery { freshRepo.getCategories() } returns emptyList()
+        coEvery { freshRepo.getUserSettings() } returns UserSettings()
+        coEvery { freshRepo.roam(any(), any(), any()) } returns mockUrl
+
+        val freshVm = MainViewModel(app, freshRepo)
+        // After init, launchPrefetch() has run (call #1) → _prefetchedUrl = mockUrl
+
+        // roam() consumes prefetch (no extra repo.roam() call itself) then re-triggers launchPrefetch (call #2)
+        freshVm.roam()
+        assertEquals(RoamState.Loaded(mockUrl), freshVm.state.value)
+        coVerify(exactly = 2) { freshRepo.roam(any(), any(), any()) }
+    }
+
+    // ─── thumbsUp / thumbsDown ─────────────────────────────────────────────────
+
+    @Test
+    fun `thumbsUp sends positive rating when state is Loaded`() = runTest {
+        coEvery { repo.roam(any(), any(), any()) } returns mockUrl
+        vm.roam()
+        assertEquals(RoamState.Loaded(mockUrl), vm.state.value)
+
+        vm.thumbsUp(app)
+
+        coVerify { repo.rate("url-123", 1) }
+    }
+
+    @Test
+    fun `thumbsDown sends negative rating when state is Loaded`() = runTest {
+        coEvery { repo.roam(any(), any(), any()) } returns mockUrl
+        vm.roam()
+        assertEquals(RoamState.Loaded(mockUrl), vm.state.value)
+
+        vm.thumbsDown(app)
+
+        coVerify { repo.rate("url-123", -1) }
+    }
+
+    @Test
+    fun `thumbsUp opens submit sheet when state is not Loaded`() = runTest {
+        // State is Idle — no URL loaded
+        assertEquals(RoamState.Idle, vm.state.value)
+        vm.thumbsUp(app)
+        assertTrue(vm.showSubmitSheet.value)
+    }
+
+    // ─── saveForLater ──────────────────────────────────────────────────────────
+
+    @Test
+    fun `saveForLater adds url to savedUrls`() = runTest {
+        coEvery { repo.roam(any(), any(), any()) } returns mockUrl
+        vm.roam()
+        vm.onWebViewUrlChanged(mockUrl.url)
+
+        vm.saveForLater()
+
+        assertTrue(vm.savedUrls.value.any { it.url == mockUrl.url })
+    }
+
+    @Test
+    fun `saveForLater shows savedConfirmation`() = runTest {
+        coEvery { repo.roam(any(), any(), any()) } returns mockUrl
+        vm.roam()
+        vm.onWebViewUrlChanged(mockUrl.url)
+
+        vm.saveForLater()
+
+        assertTrue(vm.savedConfirmation.value)
+    }
+
+    @Test
+    fun `removeSavedUrl removes the entry from savedUrls`() = runTest {
+        coEvery { repo.roam(any(), any(), any()) } returns mockUrl
+        vm.roam()
+        vm.onWebViewUrlChanged(mockUrl.url)
+        vm.saveForLater()
+
+        vm.removeSavedUrl(mockUrl.url)
+
+        assertFalse(vm.savedUrls.value.any { it.url == mockUrl.url })
     }
 }

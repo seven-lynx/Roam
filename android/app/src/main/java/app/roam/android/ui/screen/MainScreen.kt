@@ -49,11 +49,11 @@ import app.roam.android.ui.component.RoamWebView
 import app.roam.android.ui.component.SubmitBottomSheet
 import app.roam.android.viewmodel.MainViewModel
 import app.roam.android.viewmodel.RoamState
+import app.roam.android.util.resolveSwipeAction
 import kotlinx.coroutines.launch
 import kotlin.math.abs
 import kotlin.math.roundToInt
-/** Drag distance (px) that triggers a swipe action */
-private const val SWIPE_THRESHOLD = 120f
+/** No local constant needed — threshold lives in util/SwipeDirection.kt */
 
 @Composable
 fun MainScreen(
@@ -181,12 +181,7 @@ private fun DiscoverTab(
                         onDragEnd = {
                             val dx = offsetX.value
                             val dy = offsetY.value
-                            val action = when {
-                                dy > SWIPE_THRESHOLD && abs(dy) > abs(dx) -> "roam"
-                                dx > SWIPE_THRESHOLD && abs(dx) > abs(dy) -> "up"
-                                dx < -SWIPE_THRESHOLD && abs(dx) > abs(dy) -> "down"
-                                else -> null
-                            }
+                            val action = resolveSwipeAction(dx, dy)
                             scope.launch {
                                 // Spring back to zero regardless
                                 launch { offsetX.animateTo(0f, spring()) }
@@ -194,8 +189,8 @@ private fun DiscoverTab(
                             }
                             when (action) {
                                 "roam" -> vm.roam()
-                                "up"   -> vm.thumbsUp(context)
-                                "down" -> vm.thumbsDown(context)
+                                "like" -> vm.thumbsUp(context)
+                                "skip" -> vm.thumbsDown(context)
                             }
                         },
                         onDragCancel = {
