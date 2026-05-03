@@ -110,7 +110,7 @@
 - Stage 10 (Web Polish): 6/21 tasks
 - Stage 11 (Hardening): 25/30 tasks
 - Stage 12 (Web Rebuild): 21/22 tasks
-- Stage 14 (Android Rebuild): 7/11 tasks
+- Stage 14 (Android Rebuild): 8/11 tasks
 
 ### Post-Launch Roadmap
 - Pool quality (8.1–8.3): wilson floor, broken link reporting, dead-link cleanup scripts
@@ -1957,7 +1957,7 @@ Ground-up polish of the Android app. The existing Compose + MVVM foundation is s
 
 - [x] **14.7** Settings screen: skip paywalled toggle, language multi-select, sign out (confirmation dialog), app version + privacy link.
 
-- [ ] **14.8** Auth/onboarding polish: keep Chrome Custom Tab for OAuth, add native category picker after deep link callback, skip to Discover if categories already set, silent token refresh via `WorkManager`.
+- [x] **14.8** Auth/onboarding polish: keep Chrome Custom Tab for OAuth, add native category picker after deep link callback, skip to Discover if categories already set, silent token refresh via `WorkManager`.
 
 - [ ] **14.9** Error + empty states: shimmer skeletons (no spinners), friendly error messages + retry buttons with Sentry background reporting, `ConnectivityManager` offline banner with queue-then-retry for ratings.
 
