@@ -74,20 +74,18 @@ function tagsToCategory(tags) {
 function buildQuery(offset) {
   return JSON.stringify({
     query: `
-      query TopPosts($offset: Int!) {
+      {
         posts(input: {
           terms: {
             view: "top",
             limit: ${PAGE_SIZE},
-            offset: $offset,
-            karmaThreshold: ${MIN_KARMA}
+            offset: ${offset}
           }
         }) {
           results {
             _id
             title
             pageUrl
-            excerpt
             baseScore
             tags { name }
             postedAt
@@ -95,7 +93,6 @@ function buildQuery(offset) {
         }
       }
     `,
-    variables: { offset },
   });
 }
 
