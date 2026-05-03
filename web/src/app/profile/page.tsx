@@ -12,7 +12,7 @@ export default async function ProfilePage() {
   if (!user) redirect('/join?mode=signin');
 
   const [profileResult, categoriesResult, userCategoriesResult] = await Promise.all([
-    supabase.from('profiles').select('*').eq('user_id', user.id).single(),
+    supabase.from('profiles').select('*').eq('id', user.id).single(),
     supabase.from('categories').select('id, name, icon, sort_order').order('sort_order'),
     supabase.from('user_categories').select('category_id').eq('user_id', user.id),
   ]);

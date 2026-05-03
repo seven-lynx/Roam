@@ -50,7 +50,7 @@ export default function EditProfilePage() {
           bio: bio.trim(),
           updated_at: new Date().toISOString(),
         })
-        .eq('user_id', session?.user.id);
+        .eq('id', session?.user.id);
 
       if (err) {
         setError(err.message);

@@ -6,7 +6,7 @@ import { UsernamePrompt } from '@/components/UsernamePrompt';
 
 type Category = { id: string; label: string; emoji: string };
 type Profile = {
-  user_id: string;
+  id: string;
   username: string | null;
   email: string;
   bio?: string | null;
@@ -39,7 +39,7 @@ export function ProfileClient({ userId, email, profile, allCategories, initialCa
 
   async function saveBio() {
     setBioLoading(true);
-    const { error: err } = await supabase.from('profiles').update({ bio }).eq('user_id', userId);
+    const { error: err } = await supabase.from('profiles').update({ bio }).eq('id', userId);
     setBioLoading(false);
     if (err) { setError(err.message); return; }
     setEditingBio(false);

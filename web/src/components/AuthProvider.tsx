@@ -4,8 +4,7 @@ import { createContext, useContext, useEffect, useState, useRef } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import { createClient } from '@/lib/supabase/client';
 export interface Profile {
-  user_id: string;
-  id?: string;
+  id: string;
   username: string | null;
   email: string;
   bio?: string;
@@ -45,7 +44,7 @@ export function AuthProvider({ initialSession, children }: AuthProviderProps) {
       const { data } = await supabase
         .from('profiles')
         .select('*')
-        .eq('user_id', userId)
+        .eq('id', userId)
         .single();
       setProfile(data ?? null);
     }
