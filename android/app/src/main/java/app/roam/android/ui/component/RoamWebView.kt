@@ -1,6 +1,8 @@
 package app.roam.android.ui.component
+import android.content.res.Configuration
 import android.os.Build
 import android.os.Bundle
+import android.view.ContextThemeWrapper
 import android.webkit.WebResourceError
 import android.webkit.WebResourceRequest
 import android.webkit.WebView
@@ -86,7 +88,17 @@ fun RoamWebView(
     AndroidView(
         modifier = modifier.fillMaxSize(),
         factory = { context ->
-            WebView(context).apply {
+            // Wrap context in night mode so the WebView renderer treats the app as dark,
+            // which is required for isAlgorithmicDarkeningAllowed to activate on API 33+.
+            val webContext = if (darkMode) {
+                ContextThemeWrapper(context, 0).also { wrapper ->
+                    val nightConfig = Configuration(context.resources.configuration)
+                    nightConfig.uiMode = (nightConfig.uiMode and Configuration.UI_MODE_NIGHT_MASK.inv()) or
+                                         Configuration.UI_MODE_NIGHT_YES
+                    wrapper.applyOverrideConfiguration(nightConfig)
+                }
+            } else context
+            WebView(webContext).apply {
                 settings.apply {
                     javaScriptEnabled = true
                     domStorageEnabled = true
