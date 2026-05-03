@@ -129,9 +129,16 @@ cd android
 
 ### Prefetch Queue
 
-On init, `MainViewModel` pre-fills a queue of **3 validated URLs** in the background. Each candidate URL is HEAD-checked (5 s timeout) before being queued — unreachable pages are silently skipped. When the user taps Roam, the front of the queue is served instantly; the queue refills immediately after.
+`MainViewModel` maintains two queues so the app is always ahead of the user:
 
-If the queue is empty (first launch, filter change, offline recovery), the app falls back to a live fetch with up to 3 retries.
+| Queue | Size | What it holds |
+|---|---|---|
+| **Hot** | 3 | HEAD-validated URLs — served instantly on tap |
+| **Warm** | 5 | Fetched from the API but not yet validated — promoted to hot as slots open |
+
+On each Roam tap, a URL pops off the hot queue instantly. The hot queue immediately refills by pulling from warm and HEAD-checking each entry (5 s timeout). Warm refills in parallel with fresh API calls. This keeps 8 URLs buffered at all times and means hot-queue replenishment is ~5 s (just a HEAD check) rather than ~API + HEAD.
+
+If both queues are empty (first launch, filter change, offline recovery), the app falls back to a live fetch with up to 3 retries.
 
 ### Discovery Flow
 

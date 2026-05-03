@@ -115,11 +115,14 @@ class MainViewModel(
     private val _categories = MutableStateFlow(CategoryItem.FALLBACK)
     val categories: StateFlow<List<CategoryItem>> = _categories.asStateFlow()
 
-    // ── Prefetch queue ────────────────────────────────────────────────────────
-    // Keeps up to PREFETCH_TARGET validated URLs ready so roam() is near-instant.
+    // ── Prefetch queues ───────────────────────────────────────────────────────
+    // Hot queue  (HOT_TARGET = 3): HEAD-validated URLs served instantly on tap.
+    // Warm queue (WARM_TARGET = 5): fetched from the API but not yet validated.
 
-    private val PREFETCH_TARGET = 3
-    private val prefetchQueue = ArrayDeque<RoamUrl>()
+    private val HOT_TARGET  = 3
+    private val WARM_TARGET = 5
+    private val hotQueue    = ArrayDeque<RoamUrl>()
+    private val warmQueue   = ArrayDeque<RoamUrl>()
     private val prefetchMutex = Mutex()
     private var prefetchJob: Job? = null
 
@@ -175,9 +178,9 @@ class MainViewModel(
 
     fun roam(excludeDomain: String? = null) {
         viewModelScope.launch {
-            // Pop from the prefetch queue for an instant transition
+            // Pop from the hot queue for an instant transition
             val prefetched = prefetchMutex.withLock {
-                if (prefetchQueue.isNotEmpty()) prefetchQueue.removeFirst() else null
+                if (hotQueue.isNotEmpty()) hotQueue.removeFirst() else null
             }
             if (prefetched != null) {
                 _currentUrl.value = prefetched.url
@@ -233,42 +236,66 @@ class MainViewModel(
     }
 
     /**
-     * Cancels any running fill job and starts a fresh one. The job keeps fetching and
-     * validating URLs until the queue reaches [PREFETCH_TARGET], then exits. Each candidate
-     * is checked with a HEAD request — unreachable URLs are skipped silently.
+     * Cancels any running fill job and starts a fresh one.
+     *
+     * Phase 1 — warm fill: fetch URLs from the API (no HEAD check) until the warm
+     *   queue reaches [WARM_TARGET]. Fast — just network calls to our own edge function.
+     *
+     * Phase 2 — hot promotion: pull from the front of warm, HEAD-check the URL,
+     *   and move it to the hot queue until hot reaches [HOT_TARGET].
+     *
+     * Both phases run concurrently inside the same coroutine so warm keeps filling
+     * while hot is being topped up.
      */
     private fun startPrefillQueue(excludeDomain: String? = null) {
         prefetchJob?.cancel()
         prefetchJob = viewModelScope.launch {
-            var consecutive = 0
+            var warmFails = 0
+            var hotFails  = 0
+
             while (true) {
-                val queueSize = prefetchMutex.withLock { prefetchQueue.size }
-                if (queueSize >= PREFETCH_TARGET) break
-                // Stop hammering the server if we keep hitting failures
-                if (consecutive >= 6) break
+                val (hotSize, warmSize) = prefetchMutex.withLock { hotQueue.size to warmQueue.size }
 
-                val result = runCatching {
-                    repo.roam(
-                        collectionId = _activeCollectionId.value,
-                        excludeDomain = excludeDomain,
-                    )
-                }.getOrNull()
+                val hotDone  = hotSize  >= HOT_TARGET
+                val warmDone = warmSize >= WARM_TARGET
 
-                if (result == null) {
-                    consecutive++
-                    continue
+                if (hotDone && warmDone) break
+                if (warmFails >= 8 && warmSize == 0) break   // server returning nothing
+
+                // Phase 1: keep warm topped up (cheap — no HEAD check)
+                if (!warmDone && warmFails < 8) {
+                    val candidate = runCatching {
+                        repo.roam(
+                            collectionId  = _activeCollectionId.value,
+                            excludeDomain = excludeDomain,
+                        )
+                    }.getOrNull()
+
+                    if (candidate == null) {
+                        warmFails++
+                    } else {
+                        prefetchMutex.withLock {
+                            if (warmQueue.size < WARM_TARGET) warmQueue.addLast(candidate)
+                        }
+                        warmFails = 0
+                    }
                 }
 
-                // Validate the URL is actually reachable before queuing it
-                val reachable = isUrlReachable(result.url)
-                if (!reachable) {
-                    consecutive++
-                    continue
-                }
-
-                consecutive = 0
-                prefetchMutex.withLock {
-                    if (prefetchQueue.size < PREFETCH_TARGET) prefetchQueue.addLast(result)
+                // Phase 2: promote warm → hot (HEAD-validate one entry per loop tick)
+                if (!hotDone) {
+                    val next = prefetchMutex.withLock {
+                        if (warmQueue.isNotEmpty()) warmQueue.removeFirst() else null
+                    }
+                    if (next != null) {
+                        if (isUrlReachable(next.url)) {
+                            prefetchMutex.withLock {
+                                if (hotQueue.size < HOT_TARGET) hotQueue.addLast(next)
+                            }
+                            hotFails = 0
+                        } else {
+                            hotFails++
+                        }
+                    }
                 }
             }
         }
@@ -360,7 +387,7 @@ class MainViewModel(
     fun setCollectionFilter(collectionId: String?) {
         _activeCollectionId.value = collectionId
         prefetchJob?.cancel()
-        viewModelScope.launch { prefetchMutex.withLock { prefetchQueue.clear() } }
+        viewModelScope.launch { prefetchMutex.withLock { hotQueue.clear(); warmQueue.clear() } }
         startPrefillQueue()
     }
 
@@ -466,7 +493,7 @@ class MainViewModel(
         val categoryId = loaded?.roamUrl?.categoryId
         _activeCollectionId.value = null
         prefetchJob?.cancel()
-        viewModelScope.launch { prefetchMutex.withLock { prefetchQueue.clear() } }
+        viewModelScope.launch { prefetchMutex.withLock { hotQueue.clear(); warmQueue.clear() } }
         _showConfigSheet.value = false
         viewModelScope.launch {
             _state.value = RoamState.Loading
