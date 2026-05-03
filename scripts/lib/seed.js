@@ -219,14 +219,32 @@ export async function fetchOgMeta(url) {
     const rawDesc = ogDescMatch?.[1]?.trim() ?? metaDescMatch?.[1]?.trim() ?? null;
     const description = rawDesc ? rawDesc.slice(0, 500) : null;
 
-    return { image, description };
+    // language — from <html lang="..."> attribute; normalise BCP-47 to base code
+    const langMatch = html.match(/<html[^>]+lang=["']([^"']+)["']/i);
+    const rawLang = langMatch?.[1]?.trim().toLowerCase() ?? null;
+    // 'en-US' → 'en', 'zh-Hant' → 'zh', etc.
+    const language = rawLang ? rawLang.split(/[-_]/)[0] : null;
+
+    return { image, description, language };
   } catch {
-    return { image: null, description: null };
+    return { image: null, description: null, language: null };
   }
 }
 
 // ── Main export: upsert a batch of URL records ────────────────────────────────
 const BATCH_SIZE = 50;
+
+// Known CATEGORY UUIDs for validation
+const VALID_CATEGORY_IDS = new Set([
+  'c1000000-0000-0000-0000-000000000001',
+  'c1000000-0000-0000-0000-000000000002',
+  'c1000000-0000-0000-0000-000000000003',
+  'c1000000-0000-0000-0000-000000000004',
+  'c1000000-0000-0000-0000-000000000005',
+  'c1000000-0000-0000-0000-000000000006',
+  'c1000000-0000-0000-0000-000000000007',
+  'c1000000-0000-0000-0000-000000000008',
+]);
 
 /**
  * @param {Array<{
@@ -237,10 +255,30 @@ const BATCH_SIZE = 50;
  *   subcategory_id?: string,
  *   source?: string,
  *   og_image_url?: string,
+ *   language?: string,
  * }>} rows
- * @param {{ fetchOg?: boolean, verbose?: boolean }} opts
+ * @param {{
+ *   fetchOg?: boolean,
+ *   verbose?: boolean,
+ *   checkLive?: boolean,
+ *   requireTitle?: boolean,
+ *   maxPerDomain?: number,
+ * }} opts
+ *
+ * Options:
+ *   fetchOg       — fetch og:image + description for rows missing them (default true)
+ *   verbose       — log progress (default true)
+ *   checkLive     — HEAD-check each URL before inserting; skip non-2xx (default false)
+ *   requireTitle  — skip rows that still have no title after OG fetch (default true)
+ *   maxPerDomain  — cap insertions per hostname; undefined = unlimited (default undefined)
  */
-export async function upsertUrls(rows, { fetchOg = true, verbose = true } = {}) {
+export async function upsertUrls(rows, {
+  fetchOg       = true,
+  verbose       = true,
+  checkLive     = false,
+  requireTitle  = true,
+  maxPerDomain  = undefined,
+} = {}) {
   const log = verbose ? console.log : () => {};
 
   // 1. Normalise URLs and drop anything unparseable
@@ -252,20 +290,93 @@ export async function upsertUrls(rows, { fetchOg = true, verbose = true } = {}) 
     log(`[seed] Dropped ${rows.length - normalised.length} unparseable URLs`);
   }
 
+  // 1a. Validate category_id values (warn only — don't drop, some seeders pass null)
+  const badCategory = normalised.filter(
+    (r) => r.category_id && !VALID_CATEGORY_IDS.has(r.category_id),
+  );
+  if (badCategory.length > 0) {
+    console.warn(`[seed] Warning: ${badCategory.length} rows have unrecognised category_id values`);
+  }
+
+  // 1b. Per-domain cap — applied before DB dedup to keep sampling deterministic
+  let capped = normalised;
+  if (maxPerDomain !== undefined) {
+    const byDomain = new Map();
+    for (const r of normalised) {
+      let host;
+      try { host = new URL(r.url).hostname; } catch { host = '__invalid__'; }
+      if (!byDomain.has(host)) byDomain.set(host, []);
+      byDomain.get(host).push(r);
+    }
+    capped = [];
+    for (const [, group] of byDomain) {
+      if (group.length <= maxPerDomain) {
+        capped.push(...group);
+      } else {
+        // Deterministic shuffle via sort-by-hash so re-runs are stable
+        const sampled = group
+          .map((r) => ({ r, k: Math.random() }))
+          .sort((a, b) => a.k - b.k)
+          .slice(0, maxPerDomain)
+          .map(({ r }) => r);
+        capped.push(...sampled);
+      }
+    }
+    if (capped.length < normalised.length) {
+      log(`[seed] Per-domain cap (${maxPerDomain}): kept ${capped.length}/${normalised.length} rows`);
+    }
+  }
+
   // 2. Check which normalised URLs are already in the DB
-  const urls = normalised.map((r) => r.url);
+  const urls = capped.map((r) => r.url);
   const { data: existing } = await supabase
     .from('urls')
     .select('url')
     .in('url', urls);
 
   const existingSet = new Set((existing ?? []).map((r) => r.url));
-  const fresh = normalised.filter((r) => !existingSet.has(r.url));
+  let fresh = capped.filter((r) => !existingSet.has(r.url));
 
-  log(`[seed] ${fresh.length} new / ${existingSet.size} already exist (${normalised.length} total)`);
+  log(`[seed] ${fresh.length} new / ${existingSet.size} already exist (${capped.length} total after cap)`);
   if (fresh.length === 0) return { inserted: 0, skipped: existingSet.size };
 
-  // 3. Fetch og:image + og:description for rows that don't have them
+  // 3. Optional liveness check — HEAD request each URL, skip non-2xx
+  if (checkLive) {
+    log(`[seed] Liveness check for ${fresh.length} URLs...`);
+    const LIVE_TIMEOUT_MS = 8000;
+    const alive = [];
+    let dead = 0;
+    for (let i = 0; i < fresh.length; i++) {
+      const row = fresh[i];
+      try {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), LIVE_TIMEOUT_MS);
+        const res = await fetch(row.url, {
+          method:  'HEAD',
+          signal:  controller.signal,
+          headers: { 'User-Agent': 'Roam-Seeder/1.0 (+https://roamtheweb.app)' },
+          redirect: 'follow',
+        });
+        clearTimeout(timer);
+        // 403/405 = alive but blocked — keep. Treat all others < 400 as alive.
+        if (res.status < 400 || res.status === 403 || res.status === 405) {
+          alive.push(row);
+        } else {
+          dead++;
+        }
+      } catch {
+        dead++;
+      }
+      if (verbose && (i + 1) % 50 === 0) {
+        log(`[seed]   liveness ${i + 1}/${fresh.length}  dead=${dead}`);
+      }
+    }
+    log(`[seed] Liveness: ${alive.length} alive, ${dead} dead/unreachable — skipping dead`);
+    fresh = alive;
+    if (fresh.length === 0) return { inserted: 0, skipped: existingSet.size };
+  }
+
+  // 4. Fetch og:image + og:description for rows that don't have them
   if (fetchOg) {
     log(`[seed] Fetching OG metadata for ${fresh.length} URLs...`);
     for (let i = 0; i < fresh.length; i++) {
@@ -274,6 +385,8 @@ export async function upsertUrls(rows, { fetchOg = true, verbose = true } = {}) 
         const meta = await fetchOgMeta(row.url);
         if (!row.og_image_url) row.og_image_url = meta.image;
         if (!row.description)  row.description  = meta.description;
+        // Use language detected from <html lang=""> if not already set
+        if (!row.language && meta.language) row.language = meta.language;
       }
       if (verbose && (i + 1) % 10 === 0) {
         log(`[seed]   ${i + 1}/${fresh.length} done`);
@@ -281,7 +394,18 @@ export async function upsertUrls(rows, { fetchOg = true, verbose = true } = {}) 
     }
   }
 
-  // 4. Batch upsert
+  // 5. Minimum metadata quality gate — skip rows with no title
+  if (requireTitle) {
+    const before = fresh.length;
+    fresh = fresh.filter((r) => r.title && r.title.trim().length > 0);
+    const skippedNoTitle = before - fresh.length;
+    if (skippedNoTitle > 0) {
+      log(`[seed] Skipped ${skippedNoTitle} rows: missing title`);
+    }
+    if (fresh.length === 0) return { inserted: 0, skipped: existingSet.size };
+  }
+
+  // 6. Batch upsert
   let inserted = 0;
   for (let i = 0; i < fresh.length; i += BATCH_SIZE) {
     const batch = fresh.slice(i, i + BATCH_SIZE).map((r) => ({
