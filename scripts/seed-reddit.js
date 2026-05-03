@@ -175,7 +175,7 @@ async function fetchSubreddit(subreddit, limit) {
         og_image_url: null,
         category_id:  null,   // set by caller
         source:       'reddit',
-        seeder_score: Math.min((post.score ?? 0) / 5000, 1.0),
+        seeder_score: Math.min((post.score ?? 0) / 2000, 1.0),  // 2000 = strong Reddit post; was 5000
         published_at: post.created_utc
                         ? new Date(post.created_utc * 1000).toISOString()
                         : null,

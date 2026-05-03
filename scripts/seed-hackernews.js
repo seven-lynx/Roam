@@ -70,7 +70,7 @@ async function fetchHNStories() {
         og_image_url: null,
         category_id:  CATEGORY.TECHNOLOGY,
         source:       'hackernews',
-        seeder_score: Math.min((hit.points ?? 0) / 3000, 1.0),
+        seeder_score: Math.min((hit.points ?? 0) / 1500, 1.0),  // 1500 = strong HN post; was 3000
         published_at: hit.created_at ?? null,  // ISO 8601 from Algolia
       });
     }

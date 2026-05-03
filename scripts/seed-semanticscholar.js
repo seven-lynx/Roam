@@ -133,7 +133,7 @@ function paperToRow(paper, categoryId) {
     og_image_url: null,
     category_id:  categoryId,
     source:       'semanticscholar',
-    seeder_score: Math.min((paper.citationCount ?? 0) / 1000, 1.0),
+    seeder_score: Math.min((paper.citationCount ?? 0) / 500, 1.0),  // 500 = highly cited; was 1000
     published_at: paper.year ? `${paper.year}-01-01T00:00:00Z` : null,
   };
 }
