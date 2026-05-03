@@ -1,6 +1,6 @@
-# Roam Android App
+# Roam Android
 
-Native Android application built with Kotlin and Jetpack Compose. Provides mobile-optimized discovery interface with swipe gestures, offline support, and push notifications.
+Native Android app — Kotlin + Jetpack Compose. Physics-based swipe gestures, offline-queued ratings, shimmer skeletons, Supabase backend.
 
 ## Tech Stack
 
