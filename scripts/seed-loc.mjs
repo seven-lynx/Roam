@@ -62,15 +62,17 @@ const QUERIES = [
 
 // ── Fetch one page of results ─────────────────────────────────────────────────
 async function fetchPage(q, fa, page) {
+  // Build base params without `fa` — URLSearchParams encodes `:` and `+` in facet
+  // values (e.g. "online-format:web+page") which breaks the LOC API filter.
   const params = new URLSearchParams({
     q,
-    fo:  'json',
-    c:   String(PAGE_SIZE),
-    sp:  String(page),
-    ...(fa ? { fa } : {}),
+    fo: 'json',
+    c:  String(PAGE_SIZE),
+    sp: String(page),
   });
 
-  const url = `https://www.loc.gov/search/?${params}`;
+  // Append `fa` raw so LOC receives e.g. fa=online-format:web+page unmodified.
+  const url = `https://www.loc.gov/search/?${params}${fa ? `&fa=${fa}` : ''}`;
   const res = await fetchWithRetry(url, {
     headers: { 'User-Agent': 'Roam-Seeder/1.0 (+https://roamtheweb.app)' },
   });

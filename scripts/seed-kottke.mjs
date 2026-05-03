@@ -37,10 +37,9 @@ const cutoffDate = new Date(Date.now() - MAX_AGE_DAYS * 86_400_000);
 const DELAY_MS = 1000;
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-// Kottke uses multiple RSS feeds; the main feed + archive pages
+// Kottke uses an Atom feed at feeds.kottke.org
 const FEEDS = [
   'https://feeds.kottke.org/main',
-  'https://kottke.org/feed',
 ];
 
 // ── Keyword → Roam category ───────────────────────────────────────────────────
@@ -125,6 +124,58 @@ function parseRSS(xml) {
   return items;
 }
 
+// ── Atom parser ───────────────────────────────────────────────────────────────
+function parseAtom(xml) {
+  const items = [];
+  const entryRe = /<entry[\s>]([\s\S]*?)<\/entry>/gi;
+  let m;
+
+  while ((m = entryRe.exec(xml)) !== null) {
+    const block = m[1];
+
+    // <link rel="alternate" href="..."/> or <link href="..."/>
+    const linkMatch = block.match(/<link[^>]+href="([^"]+)"/i);
+    const titleMatch = block.match(/<title[^>]*><!\[CDATA\[([\s\S]*?)\]\]><\/title>/i)
+      ?? block.match(/<title[^>]*>([^<]+)<\/title>/i);
+    const publishedMatch = block.match(/<published[^>]*>([^<]+)<\/published>/i)
+      ?? block.match(/<updated[^>]*>([^<]+)<\/updated>/i);
+    const contentMatch = block.match(/<content[^>]*><!\[CDATA\[([\s\S]*?)\]\]><\/content>/i)
+      ?? block.match(/<summary[^>]*><!\[CDATA\[([\s\S]*?)\]\]><\/summary>/i);
+
+    const kottkePermalink = linkMatch?.[1]?.trim();
+    if (!kottkePermalink || !kottkePermalink.startsWith('http')) continue;
+
+    // Age filter
+    if (publishedMatch) {
+      const pubDate = new Date(publishedMatch[1].trim());
+      if (!isNaN(pubDate.getTime()) && pubDate < cutoffDate) continue;
+    }
+
+    const bodyHtml = contentMatch?.[1] ?? '';
+    const externalUrl = extractExternalLink(bodyHtml, kottkePermalink);
+    const url = externalUrl ?? kottkePermalink;
+
+    const title = titleMatch
+      ? titleMatch[1].replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&#\d+;/g, '').trim()
+      : null;
+
+    const description = bodyHtml
+      ? bodyHtml.replace(/<[^>]+>/g, '').replace(/&amp;/g, '&').replace(/&nbsp;/g, ' ').replace(/&#\d+;/g, ' ').trim().slice(0, 500)
+      : null;
+
+    items.push({ url, title, description });
+  }
+
+  return items;
+}
+
+// ── Parse either RSS or Atom ──────────────────────────────────────────────────
+function parseFeed(xml) {
+  // Atom feeds have <feed> root; RSS feeds have <rss> or <channel>/<item>
+  if (/<feed\b/i.test(xml)) return parseAtom(xml);
+  return parseRSS(xml);
+}
+
 // ── Fetch RSS feeds ───────────────────────────────────────────────────────────
 async function fetchKottke() {
   const all = [];
@@ -147,7 +198,7 @@ async function fetchKottke() {
     }
 
     const xml   = await res.text();
-    const items = parseRSS(xml);
+    const items = parseFeed(xml);
 
     for (const { url, title, description } of items) {
       if (!seen.has(url)) {
