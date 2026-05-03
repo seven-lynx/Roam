@@ -47,6 +47,7 @@ fun SettingsScreen(
 ) {
     val skipPaywalled by vm.skipPaywalled.collectAsState()
     val preferredLanguages by vm.preferredLanguages.collectAsState()
+    val autoTranslate by vm.autoTranslate.collectAsState()
     val currentUrl by vm.currentUrl.collectAsState()
     val context = LocalContext.current
     var showSignOutDialog by remember { mutableStateOf(false) }
@@ -191,6 +192,13 @@ fun SettingsScreen(
                 subtitle = "Hide NYT, WSJ, and similar sites",
                 checked = skipPaywalled,
                 onCheckedChange = { vm.setSkipPaywalled(it) },
+            )
+
+            SettingsToggleRow(
+                title = "Auto-translate pages",
+                subtitle = "Translate to your preferred language",
+                checked = autoTranslate,
+                onCheckedChange = { vm.setAutoTranslate(it) },
             )
 
             HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))

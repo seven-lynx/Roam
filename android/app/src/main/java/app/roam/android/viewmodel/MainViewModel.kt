@@ -55,6 +55,7 @@ class MainViewModel(
     private val prefs = application.getSharedPreferences("roam_saved", Context.MODE_PRIVATE)
     private val SAVED_KEY = "saved_urls"
     private val WEB_DARK_KEY = "web_dark_mode"
+    private val AUTO_TRANSLATE_KEY = "auto_translate"
 
     private val _state = MutableStateFlow<RoamState>(RoamState.Idle)
     val state: StateFlow<RoamState> = _state.asStateFlow()
@@ -105,6 +106,25 @@ class MainViewModel(
     fun setWebDarkMode(enabled: Boolean) {
         _webDarkMode.value = enabled
         prefs.edit().putBoolean(WEB_DARK_KEY, enabled).apply()
+    }
+
+    /** User preference: auto-translate pages through Google Translate */
+    private val _autoTranslate = MutableStateFlow(prefs.getBoolean(AUTO_TRANSLATE_KEY, false))
+    val autoTranslate: StateFlow<Boolean> = _autoTranslate.asStateFlow()
+
+    fun setAutoTranslate(enabled: Boolean) {
+        _autoTranslate.value = enabled
+        prefs.edit().putBoolean(AUTO_TRANSLATE_KEY, enabled).apply()
+    }
+
+    /**
+     * Wraps [url] through Google Translate when auto-translate is on and the user
+     * has at least one non-English preferred language. Uses the first non-English language.
+     */
+    private fun maybeTranslate(url: String): String {
+        if (!_autoTranslate.value) return url
+        val targetLang = _preferredLanguages.value.firstOrNull { it != "en" } ?: return url
+        return "https://translate.google.com/translate?sl=auto&tl=$targetLang&u=${Uri.encode(url)}"
     }
 
     /** User preference: list of language codes to include (e.g. ["en", "fr"]) */
@@ -183,8 +203,9 @@ class MainViewModel(
                 if (hotQueue.isNotEmpty()) hotQueue.removeFirst() else null
             }
             if (prefetched != null) {
-                _currentUrl.value = prefetched.url
-                _state.value = RoamState.Loaded(prefetched)
+                val served = prefetched.copy(url = maybeTranslate(prefetched.url))
+                _currentUrl.value = served.url
+                _state.value = RoamState.Loaded(served)
                 startPrefillQueue(excludeDomain = extractDomain(prefetched.url))
                 return@launch
             }
@@ -216,8 +237,9 @@ class MainViewModel(
                 if (result == null) {
                     _state.value = RoamState.Exhausted
                 } else {
-                    _currentUrl.value = result.url
-                    _state.value = RoamState.Loaded(result)
+                    val served = result.copy(url = maybeTranslate(result.url))
+                    _currentUrl.value = served.url
+                    _state.value = RoamState.Loaded(served)
                     startPrefillQueue(excludeDomain = extractDomain(result.url))
                 }
             } else {
