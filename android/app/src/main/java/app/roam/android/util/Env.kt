@@ -50,15 +50,10 @@ object Env {
       }
     }
 
-    // Check SENTRY_DSN_ANDROID
-    val sentryDsn = getStringFromBuildConfig("SENTRY_DSN_ANDROID")
-    when {
-      sentryDsn.isEmpty() -> {
-        missingVars.add("SENTRY_DSN_ANDROID (BuildConfig)")
-      }
-      !sentryDsn.startsWith("https://") -> {
-        errors.add("SENTRY_DSN_ANDROID must be HTTPS (received: $sentryDsn)")
-      }
+    // Check SENTRY_DSN (optional — app works without it, Sentry just becomes a no-op)
+    val sentryDsn = getStringFromBuildConfig("SENTRY_DSN")
+    if (sentryDsn.isNotEmpty() && !sentryDsn.startsWith("https://")) {
+      errors.add("SENTRY_DSN must be HTTPS (received: $sentryDsn)")
     }
 
     // Report errors
