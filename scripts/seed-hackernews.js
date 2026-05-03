@@ -64,12 +64,14 @@ async function fetchHNStories() {
       seen.add(rawUrl);
 
       rows.push({
-        url:         rawUrl,
-        title:       hit.title ?? null,
-        description: null,   // HN API has no description; OG fetch would be slow
+        url:          rawUrl,
+        title:        hit.title ?? null,
+        description:  null,   // HN API has no description; OG fetch would be slow
         og_image_url: null,
-        category_id: CATEGORY.TECHNOLOGY,
-        source:      'hackernews',
+        category_id:  CATEGORY.TECHNOLOGY,
+        source:       'hackernews',
+        seeder_score: Math.min((hit.points ?? 0) / 3000, 1.0),
+        published_at: hit.created_at ?? null,  // ISO 8601 from Algolia
       });
     }
 

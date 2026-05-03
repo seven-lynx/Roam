@@ -106,8 +106,11 @@ function parseRSS(xml, label) {
       : null;
 
     const ogImage = imgMatch?.[1]?.trim() ?? null;
+    const pubDate = pubDateMatch
+      ? (() => { const d = new Date(pubDateMatch[1].trim()); return isNaN(d.getTime()) ? null : d.toISOString(); })()
+      : null;
 
-    items.push({ url, title, description, ogImage });
+    items.push({ url, title, description, ogImage, pubDate });
   }
 
   return items;
@@ -142,6 +145,7 @@ async function fetchFeed({ url: feedUrl, label, categoryId }) {
     og_image_url: item.ogImage,
     category_id:  categoryId,
     source:       'longform',
+    published_at: item.pubDate ?? null,
   }));
 }
 

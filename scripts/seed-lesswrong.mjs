@@ -153,6 +153,8 @@ async function main() {
           og_image_url: null,
           category_id:  tagsToCategory(post.tags),
           source:       'lesswrong',
+          seeder_score: Math.min((post.baseScore ?? 0) / 1000, 1.0),
+          published_at: post.postedAt ?? null,  // ISO 8601 from GraphQL
         });
       }
 

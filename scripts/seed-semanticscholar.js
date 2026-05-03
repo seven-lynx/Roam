@@ -128,11 +128,13 @@ function paperToRow(paper, categoryId) {
 
   return {
     url,
-    title:       paper.title.trim(),
+    title:        paper.title.trim(),
     description,
     og_image_url: null,
-    category_id: categoryId,
-    source:      'semanticscholar',
+    category_id:  categoryId,
+    source:       'semanticscholar',
+    seeder_score: Math.min((paper.citationCount ?? 0) / 1000, 1.0),
+    published_at: paper.year ? `${paper.year}-01-01T00:00:00Z` : null,
   };
 }
 

@@ -97,12 +97,13 @@ async function fetchPage(apiKey, section, page) {
   return results
     .filter((r) => r.webUrl)
     .map((r) => ({
-      url:         r.webUrl,
-      title:       r.fields?.headline ?? r.webTitle ?? null,
-      description: r.fields?.trailText
+      url:          r.webUrl,
+      title:        r.fields?.headline ?? r.webTitle ?? null,
+      description:  r.fields?.trailText
         ? r.fields.trailText.replace(/<[^>]+>/g, '').trim().slice(0, 500)
         : null,
-      ogImage: r.fields?.thumbnail ?? null,
+      ogImage:      r.fields?.thumbnail ?? null,
+      published_at: r.webPublicationDate ?? null,  // ISO 8601; always present in API response
     }));
 }
 
@@ -122,7 +123,7 @@ async function fetchGuardian() {
     for (let page = 1; page <= totalPages; page++) {
       const articles = await fetchPage(apiKey, section, page);
 
-      for (const { url, title, description, ogImage } of articles) {
+      for (const { url, title, description, ogImage, published_at } of articles) {
         if (!url || seen.has(url)) continue;
         seen.add(url);
         allRows.push({
@@ -132,6 +133,7 @@ async function fetchGuardian() {
           og_image_url: ogImage,
           category_id:  categoryId,
           source:       'guardian',
+          published_at,
         });
         added++;
       }

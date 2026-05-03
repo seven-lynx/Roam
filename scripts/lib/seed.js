@@ -277,6 +277,10 @@ const VALID_CATEGORY_IDS = new Set([
  *   checkLive     — HEAD-check each URL before inserting; skip non-2xx (default false)
  *   requireTitle  — skip rows that still have no title after OG fetch (default true)
  *   maxPerDomain  — cap insertions per hostname; undefined = unlimited (default undefined)
+ *
+ * Row fields accepted (in addition to url/title/description/etc.):
+ *   published_at  — ISO 8601 string or Date (optional, null = unknown)
+ *   seeder_score  — float 0.0–1.0 (optional, defaults to 0.0 in DB)
  */
 export async function upsertUrls(rows, {
   fetchOg       = true,
@@ -406,9 +410,15 @@ export async function upsertUrls(rows, {
               const canHost  = new URL(normCanonical).hostname.replace(/^www\./, '');
               const canPath  = new URL(normCanonical).pathname;
               const isIp     = /^\d{1,3}(\.\d{1,3}){3}$/.test(canHost);
-              if (isIp) {
+              // No-dot hostname: "undefined", "null", "localhost", "blog", "api", etc.
+              const noDot    = !canHost.includes('.');
+              if (isIp || noDot) {
                 skipRewrite = true;
               } else if (origHost !== canHost && (canPath === '/' || canPath === '')) {
+                // Cross-domain rewrite to homepage → squatter/dead site redirect
+                skipRewrite = true;
+              } else if (origHost === canHost && (canPath === '/' || canPath === '')) {
+                // Same-domain rewrite to homepage → article content replaced
                 skipRewrite = true;
               }
             } catch { /* malformed URL — skip rewrite */ skipRewrite = true; }
@@ -449,6 +459,10 @@ export async function upsertUrls(rows, {
       subcategory_id: r.subcategory_id ?? null,
       source:         r.source       ?? 'manual',
       language:       r.language     ?? 'en',
+      published_at:   r.published_at  ?? null,
+      seeder_score:   typeof r.seeder_score === 'number'
+                        ? Math.min(Math.max(r.seeder_score, 0), 1)
+                        : 0,
       approved:       true,
       wilson_score:   0,
       upvotes:        0,

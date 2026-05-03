@@ -127,12 +127,13 @@ async function fetchSubject({ subject, categoryId }) {
     const summary = extractTag(entry, 'summary');
 
     rows.push({
-      url:         arxivUrl(rawId),
-      title:       title ?? null,
-      description: summary ? summary.slice(0, 500) : null,
+      url:          arxivUrl(rawId),
+      title:        title ?? null,
+      description:  summary ? summary.slice(0, 500) : null,
       og_image_url: null,  // papers don't have OG images; skip the fetch
-      category_id: categoryId,
-      source:      'arxiv',
+      category_id:  categoryId,
+      source:       'arxiv',
+      published_at: updatedStr ?? null,
     });
   }
 
