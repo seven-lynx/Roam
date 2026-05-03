@@ -68,13 +68,14 @@ const QUERIES = [
 async function fetchPage(apiKey, q, qf, start) {
   const params = new URLSearchParams({
     query:        q,
-    qf,
     start:        String(start),
     rows:         String(PAGE_SIZE),
     profile:      'standard',
     reusability:  'open',
     wskey:        apiKey,
   });
+  params.append('qf', qf);           // TYPE filter (IMAGE/TEXT/etc.)
+  params.append('qf', 'LANGUAGE:en'); // English-language items only
   const url = `https://api.europeana.eu/record/v2/search.json?${params}`;
 
   let res;

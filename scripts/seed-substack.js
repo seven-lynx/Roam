@@ -64,7 +64,6 @@ const CATEGORIES = [
 
   // People & Places
   { id: 109,   slug: 'travel',         category: CATEGORY.PEOPLE_PLACES },
-  { id: 51282, slug: 'international',  category: CATEGORY.PEOPLE_PLACES },
   { id: 1796,  slug: 'parenting',      category: CATEGORY.PEOPLE_PLACES },
   { id: 13645, slug: 'food',           category: CATEGORY.PEOPLE_PLACES },
 

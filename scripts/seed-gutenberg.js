@@ -137,7 +137,7 @@ async function fetchGutenbergBooks() {
   while (hasMore && pageNum <= 16) {
     try {
       console.log(`[gutenberg] Fetching page ${pageNum}...`);
-      const response = await fetch(`${GUTENDEX_API}?page=${pageNum}`);
+      const response = await fetch(`${GUTENDEX_API}?page=${pageNum}&languages=en`);
 
       if (!response.ok) {
         console.error(`[gutenberg] HTTP ${response.status} on page ${pageNum}`);
@@ -179,6 +179,7 @@ async function fetchGutenbergBooks() {
           og_image_url: coverUrl,
           category_id: mapGutenbergCategory(book.shelves),
           source: 'gutenberg',
+          language: 'en',
         });
       }
 

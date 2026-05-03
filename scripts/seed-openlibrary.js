@@ -176,6 +176,7 @@ async function fetchSubject(subject, categoryId) {
       og_image_url: ogImage,
       category_id: categoryId,
       source:      'openlibrary',
+      language:    'en',
     });
   }
 
