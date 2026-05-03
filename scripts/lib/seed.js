@@ -469,13 +469,24 @@ export async function upsertUrls(rows, {
       downvotes:      0,
     }));
 
-    const { error, count } = await supabase
+    let { error, count } = await supabase
       .from('urls')
       .upsert(batch, { onConflict: 'url', ignoreDuplicates: true })
       .select('id', { count: 'exact', head: true });
 
+    // Graceful degradation: if new columns don't exist yet in the DB schema
+    // (migration not yet applied), retry the batch without them.
+    if (error?.message?.includes('published_at') || error?.message?.includes('seeder_score')) {
+      console.warn(`[seed] Schema missing new columns — retrying without published_at/seeder_score (run migration 20260503000004)`);
+      const batchCompat = batch.map(({ published_at, seeder_score, ...rest }) => rest);
+      ({ error, count } = await supabase
+        .from('urls')
+        .upsert(batchCompat, { onConflict: 'url', ignoreDuplicates: true })
+        .select('id', { count: 'exact', head: true }));
+    }
+
     if (error) {
-      console.error(`[seed] Upsert error on batch ${i / BATCH_SIZE + 1}:`, error.message);
+      console.error(`[seed] Upsert error on batch ${Math.floor(i / BATCH_SIZE) + 1}:`, error.message);
     } else {
       inserted += count ?? batch.length;
       log(`[seed] Batch ${Math.floor(i / BATCH_SIZE) + 1}: upserted ${batch.length} rows`);
