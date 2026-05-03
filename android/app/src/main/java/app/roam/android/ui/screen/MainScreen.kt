@@ -39,6 +39,7 @@ import app.roam.android.MainActivity
 import app.roam.android.ui.component.BottomBar
 import app.roam.android.ui.component.ConfigBottomSheet
 import app.roam.android.ui.component.DiscoverCard
+import app.roam.android.ui.component.DiscoverCardSkeleton
 import app.roam.android.ui.component.RoamTab
 import app.roam.android.ui.component.RoamWebView
 import app.roam.android.ui.component.SubmitBottomSheet
@@ -47,7 +48,6 @@ import app.roam.android.viewmodel.RoamState
 import kotlinx.coroutines.launch
 import kotlin.math.abs
 import kotlin.math.roundToInt
-
 /** Drag distance (px) that triggers a swipe action */
 private const val SWIPE_THRESHOLD = 120f
 
@@ -111,6 +111,7 @@ private fun DiscoverTab(
     val collections by vm.collections.collectAsState()
     val categories by vm.categories.collectAsState()
     val savedUrls by vm.savedUrls.collectAsState()
+    val isOnline by vm.isOnline.collectAsState()
 
     // Physics-based drag state for swipe gesture feedback (14.2)
     val offsetX = remember { Animatable(0f) }
@@ -119,9 +120,11 @@ private fun DiscoverTab(
     LaunchedEffect(Unit) { vm.roam() }
 
     Box(modifier = Modifier.fillMaxSize()) {
-        // ── Content layer: card when loaded, WebView otherwise ──────────────
+        // ── Content layer: card when loaded, skeleton when loading, WebView otherwise ──
         val loaded = state as? RoamState.Loaded
-        if (loaded != null) {
+        if (state is RoamState.Loading) {
+            DiscoverCardSkeleton()
+        } else if (loaded != null) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -201,6 +204,25 @@ private fun DiscoverTab(
             LinearProgressIndicator(
                 modifier = Modifier.fillMaxWidth().align(Alignment.TopCenter),
             )
+        }
+
+        // Offline banner (14.9)
+        if (!isOnline) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .align(Alignment.TopCenter)
+                    .background(MaterialTheme.colorScheme.tertiaryContainer)
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = "You're offline — ratings will be sent when you reconnect.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onTertiaryContainer,
+                    modifier = Modifier.weight(1f),
+                )
+            }
         }
 
         // Persistent error banner

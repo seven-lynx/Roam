@@ -15,7 +15,10 @@ import app.roam.android.model.CategoryItem
 import app.roam.android.model.Collection
 import app.roam.android.model.RoamUrl
 import app.roam.android.model.UserProfile
+import app.roam.android.util.connectivityFlow
+import io.sentry.Sentry
 import java.io.ByteArrayOutputStream
+import java.io.IOException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -108,6 +111,16 @@ class MainViewModel(
     /** Debounce job for profile auto-save */
     private var profileSaveJob: Job? = null
 
+    // ── Connectivity + offline queue (14.9) ───────────────────────────────────
+
+    /** True when the device has an active internet connection */
+    private val _isOnline = MutableStateFlow(true)
+    val isOnline: StateFlow<Boolean> = _isOnline.asStateFlow()
+
+    /** Ratings that failed to send because the device was offline */
+    private data class PendingRating(val urlId: String, val value: Int)
+    private val pendingRatings = ArrayDeque<PendingRating>()
+
     init {
         viewModelScope.launch {
             runCatching { repo.getCategories() }
@@ -122,6 +135,14 @@ class MainViewModel(
         }
         // Prime the prefetch cache so first roam() is instant
         launchPrefetch()
+
+        // Observe connectivity; flush queued ratings when back online (14.9)
+        viewModelScope.launch {
+            connectivityFlow(application).collect { online ->
+                _isOnline.value = online
+                if (online) flushPendingRatings()
+            }
+        }
     }
 
     fun roam(excludeDomain: String? = null) {
@@ -150,7 +171,12 @@ class MainViewModel(
                     launchPrefetch(excludeDomain = extractDomain(result.url))
                 }
             }.onFailure { e ->
-                _state.value = RoamState.Error(e.message ?: "Something went wrong. Please try again.")
+                val msg = when (e) {
+                    is IOException -> "You appear to be offline. Please check your connection."
+                    else -> e.message ?: "Something went wrong. Please try again."
+                }
+                _state.value = RoamState.Error(msg)
+                Sentry.captureException(e)
             }
         }
     }
@@ -177,7 +203,15 @@ class MainViewModel(
         }
         viewModelScope.launch {
             haptic(context)
-            runCatching { repo.rate(loaded.roamUrl.id, 1) }
+            val result = runCatching { repo.rate(loaded.roamUrl.id, 1) }
+            if (result.isFailure) {
+                // Queue for retry if offline; report unexpected errors
+                if (result.exceptionOrNull() is IOException) {
+                    pendingRatings.addLast(PendingRating(loaded.roamUrl.id, 1))
+                } else {
+                    result.exceptionOrNull()?.let { Sentry.captureException(it) }
+                }
+            }
             roam(excludeDomain = extractDomain(_currentUrl.value))
         }
     }
@@ -187,7 +221,14 @@ class MainViewModel(
         viewModelScope.launch {
             haptic(context)
             if (loaded != null) {
-                runCatching { repo.rate(loaded.roamUrl.id, -1) }
+                val result = runCatching { repo.rate(loaded.roamUrl.id, -1) }
+                if (result.isFailure) {
+                    if (result.exceptionOrNull() is IOException) {
+                        pendingRatings.addLast(PendingRating(loaded.roamUrl.id, -1))
+                    } else {
+                        result.exceptionOrNull()?.let { Sentry.captureException(it) }
+                    }
+                }
             }
             roam(excludeDomain = extractDomain(_currentUrl.value))
         }
@@ -424,6 +465,24 @@ class MainViewModel(
         val out = ByteArrayOutputStream()
         scaled.compress(Bitmap.CompressFormat.JPEG, 85, out)
         return out.toByteArray()
+    }
+
+    // ── Pending ratings flush (14.9) ──────────────────────────────────────────
+
+    private fun flushPendingRatings() {
+        if (pendingRatings.isEmpty()) return
+        viewModelScope.launch {
+            val snapshot = pendingRatings.toList()
+            pendingRatings.clear()
+            snapshot.forEach { pending ->
+                runCatching { repo.rate(pending.urlId, pending.value) }
+                    .onFailure { e ->
+                        // Re-queue only if still offline; drop other errors
+                        if (e is IOException) pendingRatings.addLast(pending)
+                        else Sentry.captureException(e)
+                    }
+            }
+        }
     }
 
     // ── Local persistence ─────────────────────────────────────────────────────
