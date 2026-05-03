@@ -19,7 +19,7 @@ import fetch from 'node-fetch';
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, resolve } from 'path';
-import { upsertUrls, CATEGORY } from './lib/seed.js';
+import { upsertUrls, CATEGORY, fetchWithRetry } from './lib/seed.js';
 
 const __dirname  = dirname(fileURLToPath(import.meta.url));
 const CACHE_DIR  = resolve(__dirname, '.cache');
@@ -66,28 +66,13 @@ async function fetchPage(apiKey, section, page) {
   });
 
   let res;
-  let attempts = 0;
-  while (attempts < 3) {
-    try {
-      res = await fetch(`https://content.guardianapis.com/search?${params}`, {
-        headers: { 'User-Agent': 'Roam-Seeder/1.0 (https://roamtheweb.app)' },
-      });
-      if (res.status === 429) {
-        attempts++;
-        console.warn(`[guardian]   Rate limited — waiting 30s...`);
-        await sleep(30000);
-        continue;
-      }
-      if (!res.ok) {
-        console.warn(`[guardian]   ${section} p${page}: HTTP ${res.status}`);
-        return [];
-      }
-      break;
-    } catch (err) {
-      attempts++;
-      console.warn(`[guardian]   Fetch error: ${err.message} — retry ${attempts}/3`);
-      await sleep(5000 * attempts);
-    }
+  try {
+    res = await fetchWithRetry(`https://content.guardianapis.com/search?${params}`, {
+      headers: { 'User-Agent': 'Roam-Seeder/1.0 (https://roamtheweb.app)' },
+    });
+  } catch (err) {
+    console.warn(`[guardian]   Fetch error: ${err.message}`);
+    return [];
   }
 
   if (!res?.ok) return [];

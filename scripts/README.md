@@ -26,10 +26,10 @@ All sources are free public APIs or datasets — no scraping, no paywalled conte
 | `seed-wiby.js` | wiby.me Directory | none | 1,747 | ✅ Live |
 | `seed-lobsters.js` | Lobsters JSON API | none | ~1,000 | ✅ Live |
 | `seed-semanticscholar.js` | Semantic Scholar API | optional | ~50,000 | ✅ Live |
-| `seed-nyt.js` | NYT Article Search | `NYT_API_KEY` | 339 | ✅ Live |
+| `seed-nyt.js` | NYT Archive API (5 yrs) | `NYT_API_KEY` | ~50,000 | ✅ Live |
 | `seed-guardian.js` | Guardian Content API | `GUARDIAN_API_KEY` | 18,000 | ✅ Live |
-| `seed-propublica.js` | ProPublica Sitemaps | none | 106 | ✅ Live |
-| `seed-npr.js` | NPR RSS Feeds | none | 152 | ✅ Live |
+| `seed-propublica.js` | ProPublica Sitemaps (all-time) | none | ~5,000 | ✅ Live |
+| `seed-npr.js` | NPR RSS Feeds (33 feeds) | none | ~660 | ✅ Live |
 | `seed-wikivoyage.js` | MediaWiki API | none | 67,660 | ✅ Live |
 | `seed-internetarchive.js` | Internet Archive API | none | 50,966 | ✅ Live |
 | `seed-curlie.js` | Curlie Directory | none | 2,732,344 | ✅ Complete |
@@ -38,14 +38,21 @@ All sources are free public APIs or datasets — no scraping, no paywalled conte
 | `seed-reddit.js` | Reddit JSON API | none | 1,549 | ✅ Live |
 | `seed-ted.js` | TED Talks Sitemap | none | ~7,492 | ✅ Complete |
 | `seed-metmuseum.js` | Met Museum / Wikidata | none | 73,211 | ✅ Complete |
-| `seed-boardgamegeek.js` | BoardGameGeek API | Bearer token | – | ⚠️ Blocked |
+| `seed-boardgamegeek.js` | BoardGameGeek XML API (search-based) | none | ~5,000 | ✅ Live |
 | `seed-librivox.js` | LibriVox API | none | 18,752 | ✅ Complete |
 | `seed-github.js` | GitHub Search API | optional `GITHUB_TOKEN` | 5,806 | ✅ Live |
 | `seed-itchio.js` | Itch.io Browse API | none | 13,329 | ✅ Complete |
 | `seed-bandcamp.js` | Bandcamp Internal API | none | 9,634 | ✅ Complete |
 | `seed-substack.js` | Substack Category API | none | 14,847 | ✅ Complete |
 
-**Total: ~3.04M+ URLs across all sources**
+| `seed-pinboard.mjs` | Pinboard popular bookmarks | none | ~3,000 | ✅ Live |
+| `seed-kagisweb.mjs` | Kagi Small Web | none | ~5,000 | ✅ Live |
+| `seed-smithsonian.mjs` | Smithsonian Open Access | `SMITHSONIAN_API_KEY` | ~9,000 | ✅ Live |
+| `seed-podcastindex.mjs` | Podcast Index | `PODCAST_INDEX_API_KEY` + `PODCAST_INDEX_API_SECRET` | ~20,000 | ✅ Live |
+| `seed-europeana.mjs` | Europeana cultural heritage | `EUROPEANA_API_KEY` | ~18,000 | ✅ Live |
+| `seed-marginalia.mjs` | Marginalia Search (indie web) | none | ~5,000 | ✅ Live |
+
+**Total: ~3.1M+ URLs across all sources**
 
 ## Setup
 
@@ -68,6 +75,12 @@ NYT_API_KEY=your_nyt_api_key
 GUARDIAN_API_KEY=your_guardian_api_key
 GITHUB_TOKEN=your_github_token
 SEMANTIC_SCHOLAR_API_KEY=your_semantic_scholar_key
+
+# New sources (2026):
+SMITHSONIAN_API_KEY=your_smithsonian_key
+PODCAST_INDEX_API_KEY=your_podcast_index_key
+PODCAST_INDEX_API_SECRET=your_podcast_index_secret
+EUROPEANA_API_KEY=your_europeana_key
 ```
 
 Get API keys from:
@@ -76,6 +89,9 @@ Get API keys from:
 - **Guardian**: https://open-platform.theguardian.com/
 - **GitHub**: https://github.com/settings/tokens
 - **Semantic Scholar**: https://www.semanticscholar.org/product/api
+- **Smithsonian**: https://api.si.edu/openaccess/api/v1.0/auth
+- **Podcast Index**: https://api.podcastindex.org/
+- **Europeana**: https://pro.europeana.eu/pages/get-api
 
 ### Install Dependencies
 
@@ -114,6 +130,67 @@ Most seeders support a `--dry-run` flag to preview what would be inserted:
 node seed-wikipedia.js --dry-run
 ```
 
+## Shared Utilities (`lib/`)
+
+All seeders import from `scripts/lib/` instead of reimplementing common patterns.
+
+### `lib/seed.js` — core seeding utilities
+
+| Export | Purpose |
+|--------|---------|
+| `upsertUrls(rows, opts)` | Normalise → dedup → optional OG fetch → batch upsert |
+| `normaliseUrl(raw)` | HTTPS, strip www, strip tracking params, remove fragment |
+| `fetchOgImage(url)` | Fetch `og:image` / `twitter:image` from a page |
+| `fetchOgMeta(url)` | Fetch both `og:image` and `og:description` |
+| `fetchWithRetry(url, opts, retryOpts)` | `fetch()` with exponential backoff and `Retry-After` support |
+| `createThrottle(opts)` | AutoThrottle — adapts inter-request delay based on server latency |
+| `CATEGORY` | Frozen object mapping category names to Supabase UUIDs |
+| `getSubcategoryId(name)` | DB lookup for a subcategory UUID by name |
+
+**`fetchWithRetry` options:**
+```javascript
+import { fetchWithRetry } from './lib/seed.js';
+
+const res = await fetchWithRetry(url, fetchOptions, {
+  retries: 3,    // max retry attempts (default 3)
+  base: 2000,    // base delay ms for exponential backoff (default 2000)
+});
+// Handles 429 with Retry-After header automatically
+```
+
+**`createThrottle` options:**
+```javascript
+import { createThrottle } from './lib/seed.js';
+
+const throttle = createThrottle({ target: 500, min: 100, max: 15_000 });
+const t0 = Date.now();
+const res = await fetchWithRetry(url);
+await throttle(Date.now() - t0); // adapts and waits
+```
+
+---
+
+### `lib/cache.js` — per-page TTL cache with partial resume
+
+Replaces the all-or-nothing `JSON.stringify(allRows)` dump pattern. Persists individual entries so an interrupted seeder resumes mid-run rather than restarting entirely.
+
+```javascript
+import { createCache } from './lib/cache.js';
+
+const cache = createCache('nyt', { noCache: process.argv.includes('--no-cache') });
+// TTL defaults to 7 days. Pass { ttl: ms } to override.
+
+const cached = cache.get('2024-03');        // null if missing or expired
+cache.set('2024-03', articles);             // persists immediately
+cache.clear();                              // wipe all entries
+console.log(cache.active);                 // false when --no-cache was passed
+console.log(cache.size);                   // count of live (non-expired) entries
+```
+
+Cache files live at `scripts/.cache/<name>.json` (gitignored).
+
+---
+
 ## Seeder Structure
 
 Each seeder follows the same pattern:
@@ -139,6 +216,19 @@ const { data: inserted, error } = await supabase
 ```
 
 ## Common Patterns
+
+### Retrying Failed Requests
+Use `fetchWithRetry` from `lib/seed.js` — do not write bespoke retry loops:
+
+```javascript
+import { fetchWithRetry } from './lib/seed.js';
+
+const res = await fetchWithRetry(url, { headers }, { retries: 3, base: 2000 });
+if (!res.ok) return [];
+const data = await res.json();
+```
+
+Handles 429 (with `Retry-After`), network errors, and exponential backoff automatically.
 
 ### Fetching with Pagination
 ```javascript

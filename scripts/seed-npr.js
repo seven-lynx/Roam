@@ -28,34 +28,49 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 // ── NPR topic feeds (numeric IDs) → Roam categories ──────────────────────────
 // Full topic list: https://www.npr.org/sections/
-// Note: IDs 349 (environment), 1067 (animals), 1043 (health-shots), 1021 (mental-health)
-// returned HTTP 404 and have been removed. ID 1006 used for business only (removing economy duplicate).
+// Note: feeds that return 404 are gracefully skipped by fetchFeed() below.
 const FEEDS = [
-  // Science & Nature
-  { url: 'https://feeds.npr.org/1007/rss.xml',  label: 'science',         categoryId: CATEGORY.SCIENCE },
-  { url: 'https://feeds.npr.org/1057/rss.xml',  label: 'climate',         categoryId: CATEGORY.SCIENCE },
-  // Technology
-  { url: 'https://feeds.npr.org/1019/rss.xml',  label: 'technology',      categoryId: CATEGORY.TECHNOLOGY },
-  { url: 'https://feeds.npr.org/1006/rss.xml',  label: 'business',        categoryId: CATEGORY.TECHNOLOGY },
-  // Arts & Culture
-  { url: 'https://feeds.npr.org/1008/rss.xml',  label: 'arts-culture',    categoryId: CATEGORY.ARTS_CULTURE },
-  { url: 'https://feeds.npr.org/1045/rss.xml',  label: 'pop-culture',     categoryId: CATEGORY.ARTS_CULTURE },
-  { url: 'https://feeds.npr.org/1030/rss.xml',  label: 'books',           categoryId: CATEGORY.ARTS_CULTURE },
-  { url: 'https://feeds.npr.org/1025/rss.xml',  label: 'music-features',  categoryId: CATEGORY.ARTS_CULTURE },
-  { url: 'https://feeds.npr.org/1004/rss.xml',  label: 'movies',          categoryId: CATEGORY.ARTS_CULTURE },
-  // History & Ideas
-  { url: 'https://feeds.npr.org/1003/rss.xml',  label: 'politics',        categoryId: CATEGORY.HISTORY_IDEAS },
-  { url: 'https://feeds.npr.org/1016/rss.xml',  label: 'world',           categoryId: CATEGORY.HISTORY_IDEAS },
-  { url: 'https://feeds.npr.org/1018/rss.xml',  label: 'history',         categoryId: CATEGORY.HISTORY_IDEAS },
-  // Mind & Body
-  { url: 'https://feeds.npr.org/1026/rss.xml',  label: 'life-kit',        categoryId: CATEGORY.MIND_BODY },
-  // People & Places
-  { url: 'https://feeds.npr.org/1017/rss.xml',  label: 'race',            categoryId: CATEGORY.PEOPLE_PLACES },
-  { url: 'https://feeds.npr.org/1015/rss.xml',  label: 'education',       categoryId: CATEGORY.PEOPLE_PLACES },
-  // Games & Hobbies
-  { url: 'https://feeds.npr.org/1048/rss.xml',  label: 'food',            categoryId: CATEGORY.GAMES_HOBBIES },
-  // Weird & Wonderful
-  { url: 'https://feeds.npr.org/2/rss.xml',     label: 'top-stories',     categoryId: CATEGORY.WEIRD_WONDERFUL },
+  // ── Science ────────────────────────────────────────────────────────────────
+  { url: 'https://feeds.npr.org/1007/rss.xml',  label: 'science',           categoryId: CATEGORY.SCIENCE },
+  { url: 'https://feeds.npr.org/1057/rss.xml',  label: 'climate',           categoryId: CATEGORY.SCIENCE },
+  { url: 'https://feeds.npr.org/1067/rss.xml',  label: 'environment',       categoryId: CATEGORY.SCIENCE },
+  { url: 'https://feeds.npr.org/1091/rss.xml',  label: 'goats-soda',        categoryId: CATEGORY.SCIENCE },
+  // ── Technology ─────────────────────────────────────────────────────────────
+  { url: 'https://feeds.npr.org/1019/rss.xml',  label: 'technology',        categoryId: CATEGORY.TECHNOLOGY },
+  { url: 'https://feeds.npr.org/1006/rss.xml',  label: 'business',          categoryId: CATEGORY.TECHNOLOGY },
+  { url: 'https://feeds.npr.org/1068/rss.xml',  label: 'economy',           categoryId: CATEGORY.TECHNOLOGY },
+  // ── Arts & Culture ─────────────────────────────────────────────────────────
+  { url: 'https://feeds.npr.org/1008/rss.xml',  label: 'arts-culture',      categoryId: CATEGORY.ARTS_CULTURE },
+  { url: 'https://feeds.npr.org/1045/rss.xml',  label: 'pop-culture',       categoryId: CATEGORY.ARTS_CULTURE },
+  { url: 'https://feeds.npr.org/1030/rss.xml',  label: 'books',             categoryId: CATEGORY.ARTS_CULTURE },
+  { url: 'https://feeds.npr.org/1025/rss.xml',  label: 'music-features',    categoryId: CATEGORY.ARTS_CULTURE },
+  { url: 'https://feeds.npr.org/1004/rss.xml',  label: 'movies',            categoryId: CATEGORY.ARTS_CULTURE },
+  { url: 'https://feeds.npr.org/1044/rss.xml',  label: 'arts-life',         categoryId: CATEGORY.ARTS_CULTURE },
+  { url: 'https://feeds.npr.org/1032/rss.xml',  label: 'national',          categoryId: CATEGORY.ARTS_CULTURE },
+  // ── History & Ideas ────────────────────────────────────────────────────────
+  { url: 'https://feeds.npr.org/1003/rss.xml',  label: 'politics',          categoryId: CATEGORY.HISTORY_IDEAS },
+  { url: 'https://feeds.npr.org/1016/rss.xml',  label: 'world',             categoryId: CATEGORY.HISTORY_IDEAS },
+  { url: 'https://feeds.npr.org/1018/rss.xml',  label: 'history',           categoryId: CATEGORY.HISTORY_IDEAS },
+  { url: 'https://feeds.npr.org/1049/rss.xml',  label: 'investigations',    categoryId: CATEGORY.HISTORY_IDEAS },
+  { url: 'https://feeds.npr.org/1014/rss.xml',  label: 'law',               categoryId: CATEGORY.HISTORY_IDEAS },
+  // ── Mind & Body ────────────────────────────────────────────────────────────
+  { url: 'https://feeds.npr.org/1026/rss.xml',  label: 'life-kit',          categoryId: CATEGORY.MIND_BODY },
+  { url: 'https://feeds.npr.org/1042/rss.xml',  label: 'shots-health',      categoryId: CATEGORY.MIND_BODY },
+  { url: 'https://feeds.npr.org/1050/rss.xml',  label: 'mental-health',     categoryId: CATEGORY.MIND_BODY },
+  // ── People & Places ────────────────────────────────────────────────────────
+  { url: 'https://feeds.npr.org/1017/rss.xml',  label: 'race',              categoryId: CATEGORY.PEOPLE_PLACES },
+  { url: 'https://feeds.npr.org/1015/rss.xml',  label: 'education',         categoryId: CATEGORY.PEOPLE_PLACES },
+  { url: 'https://feeds.npr.org/1022/rss.xml',  label: 'religion',          categoryId: CATEGORY.PEOPLE_PLACES },
+  { url: 'https://feeds.npr.org/1040/rss.xml',  label: 'identity',          categoryId: CATEGORY.PEOPLE_PLACES },
+  { url: 'https://feeds.npr.org/1085/rss.xml',  label: 'immigration',       categoryId: CATEGORY.PEOPLE_PLACES },
+  // ── Games & Hobbies ────────────────────────────────────────────────────────
+  { url: 'https://feeds.npr.org/1048/rss.xml',  label: 'food',              categoryId: CATEGORY.GAMES_HOBBIES },
+  { url: 'https://feeds.npr.org/1046/rss.xml',  label: 'sports',            categoryId: CATEGORY.GAMES_HOBBIES },
+  { url: 'https://feeds.npr.org/1013/rss.xml',  label: 'travel',            categoryId: CATEGORY.GAMES_HOBBIES },
+  // ── Weird & Wonderful ──────────────────────────────────────────────────────
+  { url: 'https://feeds.npr.org/2/rss.xml',     label: 'top-stories',       categoryId: CATEGORY.WEIRD_WONDERFUL },
+  { url: 'https://feeds.npr.org/1038/rss.xml',  label: 'picture-show',      categoryId: CATEGORY.WEIRD_WONDERFUL },
+  { url: 'https://feeds.npr.org/1092/rss.xml',  label: 'money',             categoryId: CATEGORY.WEIRD_WONDERFUL },
 ];
 
 // ── Simple RSS parser (shared pattern with ProPublica seeder) ─────────────────

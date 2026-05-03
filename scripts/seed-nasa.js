@@ -15,7 +15,7 @@ import fetch from 'node-fetch';
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, resolve } from 'path';
-import { upsertUrls, CATEGORY } from './lib/seed.js';
+import { upsertUrls, CATEGORY, fetchWithRetry } from './lib/seed.js';
 
 const __dirname  = dirname(fileURLToPath(import.meta.url));
 const CACHE_DIR  = resolve(__dirname, '.cache');
@@ -73,32 +73,21 @@ async function fetchApod() {
       `&thumbs=true`;
 
     let data;
-    let attempts = 0;
-    while (attempts < 3) {
-      try {
-        const res = await fetch(url, {
-          headers: { 'User-Agent': 'Roam-Seeder/1.0 (https://roamtheweb.app; seeder bot)' },
-        });
-        if (res.status === 429 || res.status >= 500) {
-          attempts++;
-          console.warn(`[nasa]   ${start_date}→${end_date}: HTTP ${res.status} — retry ${attempts}/3`);
-          await sleep(RETRY_DELAY * attempts);
-          continue;
-        }
-        if (!res.ok) {
-          console.warn(`[nasa]   ${start_date}→${end_date}: HTTP ${res.status} — skipping`);
-          break;
-        }
-        data = await res.json();
-        break;
-      } catch (err) {
-        attempts++;
-        console.warn(`[nasa]   ${start_date}→${end_date}: error — ${err.message} — retry ${attempts}/3`);
-        await sleep(RETRY_DELAY * attempts);
-      }
+    let res;
+    try {
+      res = await fetchWithRetry(url, {
+        headers: { 'User-Agent': 'Roam-Seeder/1.0 (https://roamtheweb.app; seeder bot)' },
+      });
+    } catch (err) {
+      console.warn(`[nasa]   ${start_date}→${end_date}: error — ${err.message} — skipping`);
+      continue;
     }
-    if (!data) continue;
+    if (!res.ok) {
+      console.warn(`[nasa]   ${start_date}→${end_date}: HTTP ${res.status} — skipping`);
+      continue;
+    }
 
+    data = await res.json();
     if (!Array.isArray(data)) continue;
 
     for (const entry of data) {

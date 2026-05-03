@@ -1,14 +1,12 @@
 /**
- * seed-nyt.js — New York Times seeder
+ * seed-nyt.js — New York Times seeder (Archive API)
  *
- * Pulls article metadata from the NYT Top Stories API.
+ * Pulls full-month article metadata via the NYT Archive API.
+ * One request per month returns every article published that month.
+ * This yields thousands of articles vs. the ~500 the Top Stories API gives.
+ *
  * Note: NYT articles are paywalled. Users with "Skip paywalled sites" enabled
- * will not see these URLs. Subscribers and those who want to browse NYT can opt in.
- *
- * Uses the Top Stories API (v2) — one request per section, returns current
- * top ~20–40 stories per section. The Article Search API's fq section filter
- * is broken on the free tier (always returns 0 results), so Top Stories is
- * the reliable alternative.
+ * will not see these URLs. Subscribers can opt in.
  *
  * Requires: NYT_API_KEY in root .env
  *   Get one free at https://developer.nytimes.com/ (instant)
@@ -17,89 +15,119 @@
  * Rate limits: 10 req/min, 4000 req/day
  *
  * Run from repo root:
- *   node scripts/seed-nyt.js
- *   node scripts/seed-nyt.js --no-cache
+ *   node scripts/seed-nyt.js              # resume / use cache
+ *   node scripts/seed-nyt.js --no-cache   # re-fetch from API
+ *   node scripts/seed-nyt.js --years 3    # how many years back (default: 5)
  */
 
 import fetch from 'node-fetch';
-import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, resolve } from 'path';
-import { upsertUrls, CATEGORY } from './lib/seed.js';
+import { upsertUrls, CATEGORY, fetchWithRetry } from './lib/seed.js';
+import { createCache } from './lib/cache.js';
 
 const __dirname  = dirname(fileURLToPath(import.meta.url));
-const CACHE_DIR  = resolve(__dirname, '.cache');
-const CACHE_FILE = resolve(CACHE_DIR, 'nyt.json');
 const NO_CACHE   = process.argv.includes('--no-cache');
+const cache      = createCache('nyt', { noCache: NO_CACHE });
+
+const YEARS_BACK = (() => {
+  const i = process.argv.indexOf('--years');
+  return i >= 0 ? Math.max(1, parseInt(process.argv[i + 1], 10)) : 5;
+})();
 
 const DELAY_MS = 6500; // 10 req/min — add buffer
-
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-// ── NYT Top Stories sections → Roam categories ────────────────────────────────
-// Section slugs must match the Top Stories API path exactly (lowercase)
-const SECTION_MAP = [
-  { section: 'science',    categoryId: CATEGORY.SCIENCE },
-  { section: 'health',     categoryId: CATEGORY.MIND_BODY },
-  { section: 'technology', categoryId: CATEGORY.TECHNOLOGY },
-  { section: 'arts',       categoryId: CATEGORY.ARTS_CULTURE },
-  { section: 'books',      categoryId: CATEGORY.ARTS_CULTURE },
-  { section: 'movies',     categoryId: CATEGORY.ARTS_CULTURE },
-  { section: 'travel',     categoryId: CATEGORY.PEOPLE_PLACES },
-  { section: 'world',      categoryId: CATEGORY.HISTORY_IDEAS },
-  { section: 'business',   categoryId: CATEGORY.HISTORY_IDEAS },
-  { section: 'opinion',    categoryId: CATEGORY.HISTORY_IDEAS },
-  { section: 'us',         categoryId: CATEGORY.HISTORY_IDEAS },
-  { section: 'sports',     categoryId: CATEGORY.GAMES_HOBBIES },
-  { section: 'food',       categoryId: CATEGORY.GAMES_HOBBIES },
-  { section: 'magazine',   categoryId: CATEGORY.WEIRD_WONDERFUL },
-];
+// ── section_name / news_desk → Roam category ─────────────────────────────────
+const SECTION_CATEGORY = {
+  science:      CATEGORY.SCIENCE,
+  health:       CATEGORY.MIND_BODY,
+  well:         CATEGORY.MIND_BODY,
+  technology:   CATEGORY.TECHNOLOGY,
+  business:     CATEGORY.TECHNOLOGY,
+  arts:         CATEGORY.ARTS_CULTURE,
+  books:        CATEGORY.ARTS_CULTURE,
+  'books/review': CATEGORY.ARTS_CULTURE,
+  movies:       CATEGORY.ARTS_CULTURE,
+  theater:      CATEGORY.ARTS_CULTURE,
+  music:        CATEGORY.ARTS_CULTURE,
+  dance:        CATEGORY.ARTS_CULTURE,
+  fashion:      CATEGORY.ARTS_CULTURE,
+  style:        CATEGORY.ARTS_CULTURE,
+  travel:       CATEGORY.PEOPLE_PLACES,
+  nyregion:     CATEGORY.PEOPLE_PLACES,
+  world:        CATEGORY.HISTORY_IDEAS,
+  opinion:      CATEGORY.HISTORY_IDEAS,
+  us:           CATEGORY.HISTORY_IDEAS,
+  politics:     CATEGORY.HISTORY_IDEAS,
+  sports:       CATEGORY.GAMES_HOBBIES,
+  food:         CATEGORY.GAMES_HOBBIES,
+  dining:       CATEGORY.GAMES_HOBBIES,
+  home:         CATEGORY.GAMES_HOBBIES,
+  realestate:   CATEGORY.PEOPLE_PLACES,
+  obituaries:   CATEGORY.HISTORY_IDEAS,
+  magazine:     CATEGORY.WEIRD_WONDERFUL,
+  t:            CATEGORY.WEIRD_WONDERFUL,
+};
 
-// ── Fetch one section ─────────────────────────────────────────────────────────
-async function fetchSection(apiKey, section) {
+function mapSection(sectionName, newsDesk) {
+  const s = (sectionName ?? '').toLowerCase().replace(/ /g, '');
+  const d = (newsDesk ?? '').toLowerCase().replace(/ /g, '');
+  return SECTION_CATEGORY[s] ?? SECTION_CATEGORY[d] ?? CATEGORY.HISTORY_IDEAS;
+}
+
+// ── Fetch one month from the Archive API ──────────────────────────────────────
+async function fetchMonth(apiKey, year, month) {
   let res;
-  let attempts = 0;
-  while (attempts < 3) {
-    try {
-      res = await fetch(
-        `https://api.nytimes.com/svc/topstories/v2/${section}.json?api-key=${apiKey}`,
-        { headers: { 'User-Agent': 'Roam-Seeder/1.0 (https://roamtheweb.app)' } },
-      );
-      if (res.status === 429) {
-        attempts++;
-        console.warn(`[nyt]   Rate limited — waiting 60s...`);
-        await sleep(60000);
-        continue;
-      }
-      if (!res.ok) {
-        console.warn(`[nyt]   ${section}: HTTP ${res.status}`);
-        return [];
-      }
-      break;
-    } catch (err) {
-      attempts++;
-      console.warn(`[nyt]   Fetch error: ${err.message} — retry ${attempts}/3`);
-      await sleep(10000 * attempts);
-    }
+  try {
+    res = await fetchWithRetry(
+      `https://api.nytimes.com/svc/archive/v1/${year}/${month}.json?api-key=${apiKey}`,
+      { headers: { 'User-Agent': 'Roam-Seeder/1.0 (https://roamtheweb.app)' } },
+      { retries: 3, base: 65000 },
+    );
+  } catch (err) {
+    console.warn(`[nyt]   ${year}/${month}: ${err.message}`);
+    return [];
   }
+  if (!res.ok) {
+    console.warn(`[nyt]   ${year}/${month}: HTTP ${res.status}`);
+    return [];
+  }
+  const json = await res.json();
+  const docs = json?.response?.docs ?? [];
 
-  if (!res?.ok) return [];
-
-  const json    = await res.json();
-  const results = json?.results ?? [];
-
-  return results
-    .filter((r) => r.url && !r.url.includes('://www.nytimes.com/video/'))
-    .map((r) => {
-      const media   = r.multimedia ?? [];
-      const imgItem = media.find((m) => m.format === 'mediumThreeByTwo210' || m.format === 'Normal');
+  return docs
+    .filter((d) =>
+      d.web_url &&
+      !d.web_url.includes('/video/') &&
+      !d.web_url.includes('/interactive/') &&
+      d.document_type === 'article',
+    )
+    .map((d) => {
+      const multimedia = d.multimedia ?? [];
+      const img = multimedia.find(
+        (m) => m.subtype === 'mediumThreeByTwo210' || m.subtype === 'xlarge',
+      );
       return {
-        url:         r.url,
-        title:       r.title ?? null,
-        description: r.abstract ? r.abstract.trim().slice(0, 500) : null,
-        ogImage:     imgItem?.url ?? null,
+        url:         d.web_url,
+        title:       d.headline?.main ?? null,
+        description: d.abstract ? d.abstract.trim().slice(0, 500) : null,
+        ogImage:     img ? `https://static01.nyt.com/${img.url}` : null,
+        sectionName: d.section_name ?? null,
+        newsDesk:    d.news_desk ?? null,
       };
     });
+}
+
+// ── Build list of (year, month) pairs going back YEARS_BACK years ─────────────
+function getMonths(yearsBack) {
+  const months = [];
+  const now    = new Date();
+  for (let i = 0; i < yearsBack * 12; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    months.push({ year: d.getFullYear(), month: d.getMonth() + 1 });
+  }
+  return months;
 }
 
 // ── Main fetch loop ───────────────────────────────────────────────────────────
@@ -107,15 +135,23 @@ async function fetchNYT() {
   const apiKey = process.env.NYT_API_KEY;
   if (!apiKey) throw new Error('NYT_API_KEY is not set in .env');
 
-  console.log(`\n[nyt] Fetching ${SECTION_MAP.length} sections (Top Stories API)...`);
+  const months = getMonths(YEARS_BACK);
+  console.log(`\n[nyt] Fetching ${months.length} months (${YEARS_BACK} years) via Archive API...`);
+
   const allRows = [];
   const seen    = new Set();
+  let monthsDone = 0;
 
-  for (const { section, categoryId } of SECTION_MAP) {
-    const articles = await fetchSection(apiKey, section);
+  for (const { year, month } of months) {
+    const key = `${year}-${String(month).padStart(2, '0')}`;
+    let docs = cache.get(key);
+    if (!docs) {
+      docs = await fetchMonth(apiKey, year, month);
+      cache.set(key, docs);
+    }
     let added = 0;
 
-    for (const { url, title, description, ogImage } of articles) {
+    for (const { url, title, description, ogImage, sectionName, newsDesk } of docs) {
       if (!url || seen.has(url)) continue;
       seen.add(url);
       allRows.push({
@@ -123,35 +159,28 @@ async function fetchNYT() {
         title,
         description,
         og_image_url: ogImage,
-        category_id:  categoryId,
+        category_id:  mapSection(sectionName, newsDesk),
         source:       'nyt',
       });
       added++;
     }
 
-    console.log(`[nyt]   ${section}: ${added} articles`);
+    monthsDone++;
+    process.stdout.write(
+      `\r[nyt]   ${year}/${String(month).padStart(2, '0')}: ${added} articles  (total ${allRows.length})  `,
+    );
     await sleep(DELAY_MS);
   }
 
-  console.log(`\n[nyt] Total unique articles collected: ${allRows.length}`);
+  console.log(`\n\n[nyt] Total unique articles: ${allRows.length}`);
   return allRows;
 }
 
 // ── Main ──────────────────────────────────────────────────────────────────────
 async function main() {
-  console.log('=== NYT seeder ===');
+  console.log('=== NYT seeder (Archive API) ===');
 
-  let rows;
-  if (!NO_CACHE && existsSync(CACHE_FILE)) {
-    rows = JSON.parse(readFileSync(CACHE_FILE, 'utf8'));
-    console.log(`[nyt] Loaded ${rows.length} rows from cache (use --no-cache to re-fetch)`);
-  } else {
-    rows = await fetchNYT();
-    mkdirSync(CACHE_DIR, { recursive: true });
-    writeFileSync(CACHE_FILE, JSON.stringify(rows));
-    console.log(`[nyt] Cached ${rows.length} rows to ${CACHE_FILE}`);
-  }
-
+  const rows = await fetchNYT();
   console.log(`\n[nyt] Total: ${rows.length} — upserting...`);
   const result = await upsertUrls(rows, { fetchOg: false, verbose: true });
   console.log(`\n=== Done: inserted ${result.inserted}, skipped ${result.skipped} ===`);

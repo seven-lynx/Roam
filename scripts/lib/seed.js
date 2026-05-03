@@ -41,6 +41,64 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY,
 );
 
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+// ── fetchWithRetry — unified fetch with exponential back-off ─────────────────
+/**
+ * Drop-in replacement for `fetch()` that retries on network errors and 429s.
+ *
+ * @param {string} url
+ * @param {object} options   — passed straight through to fetch()
+ * @param {{ retries?: number, base?: number }} retryOpts
+ *   retries  max number of retry attempts (default 3)
+ *   base     base delay in ms for exponential backoff (default 2000)
+ *
+ * Respects the `Retry-After` response header on 429.
+ * Re-throws on the final attempt. All other non-2xx responses are returned
+ * as-is so the caller can inspect the status code.
+ */
+export async function fetchWithRetry(url, options = {}, { retries = 3, base = 2000 } = {}) {
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      const res = await fetch(url, options);
+      if (res.status === 429) {
+        const retryAfter = parseInt(res.headers.get('retry-after') ?? '0', 10);
+        const wait = retryAfter > 0 ? retryAfter * 1000 : base * 2 ** attempt;
+        if (attempt < retries) { await sleep(wait); continue; }
+      }
+      return res;
+    } catch (err) {
+      if (attempt === retries) throw err;
+      await sleep(base * 2 ** attempt);
+    }
+  }
+}
+
+// ── createThrottle — AutoThrottle-style adaptive rate limiter ─────────────────
+/**
+ * Returns a throttle function that adapts the inter-request delay based on
+ * actual server response latency, similar to Scrapy's AutoThrottle extension.
+ *
+ * @param {{ target?: number, min?: number, max?: number }} opts
+ *   target  target server latency in ms to aim for (default 500)
+ *   min     minimum delay in ms (default 100)
+ *   max     maximum delay in ms (default 15000)
+ *
+ * Usage:
+ *   const throttle = createThrottle();
+ *   const t0 = Date.now();
+ *   const res = await fetchWithRetry(url);
+ *   await throttle(Date.now() - t0);   // adapts delay and waits
+ */
+export function createThrottle({ target = 500, min = 100, max = 15_000 } = {}) {
+  let delay = 1000;
+  return async function throttle(responseMs) {
+    // Proportional adjustment: if server was slow → back off, if fast → speed up
+    delay = Math.min(max, Math.max(min, delay * (responseMs / target)));
+    await sleep(delay);
+  };
+}
+
 // ── Tracking / noise query params to strip ───────────────────────────────────
 const TRACKING_PARAMS = new Set([
   'utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content',

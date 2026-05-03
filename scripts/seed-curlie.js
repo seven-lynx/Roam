@@ -292,6 +292,49 @@ async function extractAndParseTsv() {
       Object.entries(filenameToMeta).map(([k, v]) => [k, v.category])
     );
 
+    // Files whose file-level language tag is 'en' but which actually contain
+    // non-English content (Top/World/, Top/Regional/ etc.).  For these we
+    // apply TLD-based language detection per URL to get a more accurate tag.
+    const MIXED_LANGUAGE_FILES = new Set([
+      'rdf-World-c.tsv',
+      'rdf-Europe-c.tsv',
+      'rdf-Regional-c.tsv',
+      'rdf-Top-c.tsv',
+    ]);
+
+    // Map country-code TLDs to BCP-47 language codes.
+    // Deliberately conservative: only TLDs with a single dominant language.
+    const TLD_LANGUAGE = {
+      de: 'de', at: 'de',
+      fr: 'fr',
+      es: 'es', mx: 'es', ar: 'es',
+      it: 'it',
+      nl: 'nl',
+      pl: 'pl',
+      ru: 'ru',
+      jp: 'ja',
+      cn: 'zh', tw: 'zh',
+      kr: 'ko',
+      pt: 'pt', br: 'pt',
+      se: 'sv',
+      no: 'no',
+      dk: 'da',
+      fi: 'fi',
+      cz: 'cs',
+      hu: 'hu',
+      ro: 'ro',
+      gr: 'el',
+      tr: 'tr',
+    };
+
+    function detectLanguageFromTld(url) {
+      try {
+        const hostname = new URL(url).hostname.toLowerCase();
+        const tld = hostname.split('.').pop();
+        return TLD_LANGUAGE[tld] ?? null;
+      } catch { return null; }
+    }
+
     for (const file of contentFiles) {
       const categoryId = filenameToCategory[file];
       if (!categoryId) {
@@ -336,7 +379,11 @@ async function extractAndParseTsv() {
           title,
           description,
           category_id: categoryId,
-          language,
+          // For mixed-language files tagged 'en', attempt TLD detection so
+          // non-English sites are served to the right audience.
+          language: (language === 'en' && MIXED_LANGUAGE_FILES.has(file))
+            ? (detectLanguageFromTld(cleanUrl) ?? 'en')
+            : language,
           source: 'curlie',
         };
 

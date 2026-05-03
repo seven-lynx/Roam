@@ -2,11 +2,11 @@
  * seed-propublica.js — ProPublica seeder
  *
  * Pulls investigative journalism articles from ProPublica's sitemap index.
- * ProPublica only has one public RSS feed (main); topic feeds were removed.
- * Instead, we crawl the per-day XML sitemaps for recent articles.
+ * Parses the top-level sitemap to discover all year/month sub-sitemaps,
+ * then extracts every article URL — covering the full archive back to ~2008.
  *
  * Sitemap index: https://www.propublica.org/sitemap.xml
- * Day sitemaps:  https://www.propublica.org/sitemap.xml?yyyy=YYYY&mm=MM&dd=DD
+ * Sub-sitemaps:  listed inside the index with <loc> tags
  *
  * Run from repo root:
  *   node scripts/seed-propublica.js
@@ -25,7 +25,6 @@ const CACHE_FILE = resolve(CACHE_DIR, 'propublica.json');
 const NO_CACHE   = process.argv.includes('--no-cache');
 
 // Fetch articles published in the last N calendar days
-const DAYS_BACK = 90;
 const DELAY_MS  = 800;
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -74,7 +73,45 @@ async function fetchSitemapUrls(sitemapUrl) {
   return urls;
 }
 
+// ── Parse sitemap index to get all sub-sitemap URLs ──────────────────────────
+async function fetchSitemapIndex() {
+  console.log('\n[propublica] Fetching sitemap index...');
+  let res;
+  try {
+    res = await fetch('https://www.propublica.org/sitemap.xml', { headers: HEADERS });
+  } catch (err) {
+    console.error('[propublica] Failed to fetch sitemap index:', err.message);
+    return [];
+  }
+  if (!res.ok) {
+    console.error('[propublica] Sitemap index HTTP', res.status);
+    return [];
+  }
+  const xml = await res.text();
+
+  // Extract <loc> from <sitemap> blocks (not <url> blocks)
+  const sitemapRe = /<sitemap>[\s\S]*?<loc>([^<]+)<\/loc>[\s\S]*?<\/sitemap>/g;
+  const urls = [];
+  let m;
+  while ((m = sitemapRe.exec(xml)) !== null) {
+    urls.push(m[1].trim());
+  }
+
+  // If the index uses flat <loc> (some ProPublica sitemap variants)
+  if (urls.length === 0) {
+    const locRe = /<loc>([^<]+)<\/loc>/g;
+    while ((m = locRe.exec(xml)) !== null) {
+      const u = m[1].trim();
+      if (u.includes('sitemap') || u.includes('.xml')) urls.push(u);
+    }
+  }
+
+  console.log(`[propublica] Found ${urls.length} sub-sitemaps`);
+  return urls;
+}
+
 // ── Build list of day sitemap URLs for last DAYS_BACK days ───────────────────
+// (kept as fallback if sitemap index is empty or unreachable)
 function getRecentDaySitemaps(daysBack) {
   const urls = [];
   const now  = new Date();
@@ -91,13 +128,22 @@ function getRecentDaySitemaps(daysBack) {
 
 // ── Main fetch routine ────────────────────────────────────────────────────────
 async function fetchProPublica() {
-  const daySitemaps = getRecentDaySitemaps(DAYS_BACK);
-  console.log(`\n[propublica] Scanning ${daySitemaps.length} daily sitemaps (last ${DAYS_BACK} days)...`);
+  // Try sitemap index first for full all-time coverage
+  let sitemapUrls = await fetchSitemapIndex();
+
+  // Fallback: day sitemaps for last 365 days
+  if (sitemapUrls.length === 0) {
+    console.log('[propublica] Falling back to day-sitemaps for last 365 days...');
+    sitemapUrls = getRecentDaySitemaps(365);
+  }
+
+  console.log(`\n[propublica] Scanning ${sitemapUrls.length} sitemaps...`);
 
   const seen    = new Set();
   const allRows = [];
 
-  for (const sitemapUrl of daySitemaps) {
+  for (let i = 0; i < sitemapUrls.length; i++) {
+    const sitemapUrl  = sitemapUrls[i];
     const articleUrls = await fetchSitemapUrls(sitemapUrl);
     let added = 0;
 
@@ -116,14 +162,13 @@ async function fetchProPublica() {
     }
 
     if (added > 0) {
-      const dateStr = sitemapUrl.split('?')[1];
-      console.log(`[propublica]   ${dateStr}: ${added} articles`);
+      process.stdout.write(`\r[propublica]   ${i + 1}/${sitemapUrls.length} sitemaps  total=${allRows.length}  `);
     }
 
     await sleep(DELAY_MS);
   }
 
-  console.log(`\n[propublica] Total unique articles: ${allRows.length}`);
+  console.log(`\n\n[propublica] Total unique articles: ${allRows.length}`);
   return allRows;
 }
 
