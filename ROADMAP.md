@@ -110,7 +110,7 @@
 - Stage 10 (Web Polish): 6/21 tasks
 - Stage 11 (Hardening): 25/30 tasks
 - Stage 12 (Web Rebuild): 21/22 tasks
-- Stage 14 (Android Rebuild): 6/11 tasks
+- Stage 14 (Android Rebuild): 7/11 tasks
 
 ### Post-Launch Roadmap
 - Pool quality (8.1–8.3): wilson floor, broken link reporting, dead-link cleanup scripts
@@ -1953,7 +1953,7 @@ Ground-up polish of the Android app. The existing Compose + MVVM foundation is s
 
 - [x] **14.5** Saved / Collections screen: two tabs (`LazyColumn` for saved URLs and collections). Swipe-to-delete on saved items. Tap collection → roam that collection. Empty state CTAs.
 
-- [ ] **14.6** Profile screen: editable avatar (gallery picker), inline username + bio `TextField` with auto-save, category chip grid (saved via `user_categories`), stats row (pages roamed, submitted, join date).
+- [x] **14.6** Profile screen: editable avatar (gallery picker), inline username + bio `TextField` with auto-save, category chip grid (saved via `user_categories`), stats row (pages roamed, submitted, join date).
 
 - [x] **14.7** Settings screen: skip paywalled toggle, language multi-select, sign out (confirmation dialog), app version + privacy link.
 
