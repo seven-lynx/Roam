@@ -20,6 +20,8 @@
  *   --concurrency <n>  Parallel request slots (default: 20)
  *   --re-export        Re-download URL list even if cache exists
  *   --reset            Delete checkpoint and result files; re-run phase 2 from scratch
+ *   --strict-403       Treat HTTP 403 as dead (default: alive — many sites block HEAD scraping)
+ *   --fix-redirects    Also update same-domain redirect paths in DB (default: off — mark-inactive only)
  */
 
 import { fileURLToPath } from 'url';
@@ -44,6 +46,8 @@ dotenvConfig({ path: resolve(__dirname, '../.env') });
 const COMMIT      = process.argv.includes('--commit');
 const RE_EXPORT   = process.argv.includes('--re-export');
 const RESET       = process.argv.includes('--reset');
+const STRICT_403  = process.argv.includes('--strict-403');
+const FIX_REDIRECTS = process.argv.includes('--fix-redirects');
 
 const SOURCE_ARG = (() => {
   const i = process.argv.indexOf('--source');
@@ -249,7 +253,11 @@ async function checkUrl(urlId, url) {
 
     // ── Client errors ──────────────────────────────────────────────────────
     if (response.status === 403 || response.status === 405) {
-      // Blocked HEAD — site is alive, just won't serve HEAD requests
+      // 405: HEAD not allowed — server is alive
+      // 403: site blocks scrapers — treat as alive unless --strict-403 is set
+      if (response.status === 403 && STRICT_403) {
+        return { urlId, status: response.status, dead: true, reason: 'http-403' };
+      }
       return { urlId, status: response.status, dead: false, redirect: false };
     }
     if (response.status === 429) {
@@ -351,10 +359,19 @@ async function commitResults() {
     .filter(Boolean);
 
   const deadIds     = results.filter((r) => r.dead).map((r) => r.urlId);
-  const redirectFixes = results.filter((r) => !r.dead && r.redirect && r.newUrl);
+  const redirectFixes = FIX_REDIRECTS
+    ? results.filter((r) => !r.dead && r.redirect && r.newUrl)
+    : [];
 
   console.log(`[commit] Dead URLs: ${deadIds.length.toLocaleString()}`);
-  console.log(`[commit] Redirect path updates: ${redirectFixes.length.toLocaleString()}`);
+  if (FIX_REDIRECTS) {
+    console.log(`[commit] Redirect path updates: ${redirectFixes.length.toLocaleString()}`);
+  } else {
+    const redirectCount = results.filter((r) => !r.dead && r.redirect && r.newUrl).length;
+    if (redirectCount > 0) {
+      console.log(`[commit] Same-domain redirects detected: ${redirectCount.toLocaleString()} (skipped — pass --fix-redirects to update)`);
+    }
+  }
 
   if (!COMMIT) {
     console.log('\n[commit] Dry-run complete.  Results file:', RESULTS_FILE);
@@ -411,6 +428,8 @@ async function main() {
   console.log('  Roam Dead-Link Checker');
   if (SOURCE_ARG) console.log(`  Source filter: ${SOURCE_ARG}`);
   if (LIMIT_ARG)  console.log(`  Limit: ${LIMIT_ARG.toLocaleString()} URLs`);
+  if (STRICT_403) console.log('  --strict-403: 403 treated as dead');
+  if (FIX_REDIRECTS) console.log('  --fix-redirects: same-domain redirect paths will be updated');
   console.log(divider + '\n');
 
   await exportUrls();
