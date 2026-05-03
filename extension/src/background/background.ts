@@ -271,7 +271,8 @@ async function roam(): Promise<Response<RoamData>> {
   if (cached && Date.now() - cached.cachedAt < PREFETCH_TTL) {
     await chrome.storage.session.remove(PREFETCH_KEY);
     prefetchNext(); // fire-and-forget — restock for next click
-    return { ok: true, data: cached.data };
+    const translatedUrl = await maybeTranslate(cached.data.url);
+    return { ok: true, data: { ...cached.data, url: translatedUrl } };
   }
   // Cache miss — if a prefetch is already in flight, await it rather than
   // issuing a second parallel API call (happens when user clicks Roam fast).
@@ -282,10 +283,17 @@ async function roam(): Promise<Response<RoamData>> {
     if (cached2 && Date.now() - cached2.cachedAt < PREFETCH_TTL) {
       await chrome.storage.session.remove(PREFETCH_KEY);
       prefetchNext();
-      return { ok: true, data: cached2.data };
+      const translatedUrl2 = await maybeTranslate(cached2.data.url);
+      return { ok: true, data: { ...cached2.data, url: translatedUrl2 } };
     }
   }
-  return callRoamApi(); // true cache miss — live call
+  // True cache miss — live call; translate at serve time so setting changes take effect immediately
+  const live = await callRoamApi();
+  if (live.ok && live.data.url) {
+    const translatedUrl = await maybeTranslate(live.data.url);
+    return { ok: true, data: { ...live.data, url: translatedUrl } };
+  }
+  return live;
 }
 
 async function roamCollection(collectionId: string): Promise<Response<RoamData>> {
