@@ -6,6 +6,8 @@ import androidx.browser.customtabs.CustomTabsIntent
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -36,6 +38,7 @@ import androidx.navigation.compose.rememberNavController
 import app.roam.android.MainActivity
 import app.roam.android.ui.component.BottomBar
 import app.roam.android.ui.component.ConfigBottomSheet
+import app.roam.android.ui.component.DiscoverCard
 import app.roam.android.ui.component.RoamTab
 import app.roam.android.ui.component.RoamWebView
 import app.roam.android.ui.component.SubmitBottomSheet
@@ -44,7 +47,6 @@ import app.roam.android.viewmodel.RoamState
 import kotlinx.coroutines.launch
 import kotlin.math.abs
 import kotlin.math.roundToInt
-import androidx.compose.foundation.gestures.detectDragGestures
 
 /** Drag distance (px) that triggers a swipe action */
 private const val SWIPE_THRESHOLD = 120f
@@ -109,22 +111,41 @@ private fun DiscoverTab(
     LaunchedEffect(Unit) { vm.roam() }
 
     Box(modifier = Modifier.fillMaxSize()) {
-        // WebView with animated drag offset for gesture feedback
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .offset { IntOffset(offsetX.value.roundToInt(), offsetY.value.roundToInt()) }
-        ) {
-            RoamWebView(
-                url = currentUrl,
-                modifier = Modifier.fillMaxSize(),
-                onUrlChanged = { vm.onWebViewUrlChanged(it) },
-                onLoadError = { vm.roam() },
-            )
+        // ── Content layer: card when loaded, WebView otherwise ──────────────
+        val loaded = state as? RoamState.Loaded
+        if (loaded != null) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .offset { IntOffset(offsetX.value.roundToInt(), offsetY.value.roundToInt()) },
+            ) {
+                DiscoverCard(
+                    roamUrl = loaded.roamUrl,
+                    onThumbsUp = { vm.thumbsUp(context) },
+                    onThumbsDown = { vm.thumbsDown(context) },
+                    onOpen = {
+                        CustomTabsIntent.Builder().build()
+                            .launchUrl(activity, Uri.parse(loaded.roamUrl.url))
+                    },
+                )
+            }
+        } else {
+            // Idle / Loading — keep WebView so the previous page stays visible
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .offset { IntOffset(offsetX.value.roundToInt(), offsetY.value.roundToInt()) },
+            ) {
+                RoamWebView(
+                    url = currentUrl,
+                    modifier = Modifier.fillMaxSize(),
+                    onUrlChanged = { vm.onWebViewUrlChanged(it) },
+                    onLoadError = { vm.roam() },
+                )
+            }
         }
 
-        // Gesture layer — captures drags, triggers actions at threshold,
-        // springs back if below threshold (14.2)
+        // ── Gesture overlay (14.2) ───────────────────────────────────────────
         Box(
             modifier = Modifier
                 .fillMaxSize()

@@ -96,6 +96,10 @@ dependencies {
     // Serialization
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")
 
+    // Image loading (Coil 3 — Compose-native, supports async + crossfade)
+    implementation("io.coil-kt.coil3:coil-compose:3.1.0")
+    implementation("io.coil-kt.coil3:coil-network-okhttp:3.1.0")
+
     // Error tracking
     implementation("io.sentry:sentry-android:7.22.1")
 
