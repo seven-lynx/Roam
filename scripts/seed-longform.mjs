@@ -45,18 +45,18 @@ const FEEDS = [
   // ── Science ──────────────────────────────────────────────────────────────
   { url: 'https://nautil.us/feed/',                                   label: 'nautilus',       categoryId: CATEGORY.SCIENCE },
   { url: 'https://www.quantamagazine.org/feed/',                      label: 'quanta',         categoryId: CATEGORY.SCIENCE },
-  { url: 'https://theconversation.com/science/feed',                  label: 'conversation-science', categoryId: CATEGORY.SCIENCE },
-  { url: 'https://theconversation.com/environment/feed',              label: 'conversation-env',     categoryId: CATEGORY.SCIENCE },
+  { url: 'https://theconversation.com/us/science/feed',              label: 'conversation-science',    categoryId: CATEGORY.SCIENCE },
+  { url: 'https://theconversation.com/us/environment/feed',           label: 'conversation-env',         categoryId: CATEGORY.SCIENCE },
 
   // ── History & Ideas ───────────────────────────────────────────────────────
   { url: 'https://aeon.co/feed.rss',                                  label: 'aeon',           categoryId: CATEGORY.HISTORY_IDEAS },
   { url: 'https://www.laphamsquarterly.org/rss.xml',                  label: 'laphams',        categoryId: CATEGORY.HISTORY_IDEAS },
-  { url: 'https://theconversation.com/arts/feed',                     label: 'conversation-arts', categoryId: CATEGORY.HISTORY_IDEAS },
-  { url: 'https://theconversation.com/politics/feed',                 label: 'conversation-politics', categoryId: CATEGORY.HISTORY_IDEAS },
+  { url: 'https://theconversation.com/us/arts/feed',                  label: 'conversation-arts',       categoryId: CATEGORY.HISTORY_IDEAS },
+  { url: 'https://theconversation.com/us/politics/feed',              label: 'conversation-politics',    categoryId: CATEGORY.HISTORY_IDEAS },
 
   // ── Mind & Body ───────────────────────────────────────────────────────────
   { url: 'https://psyche.co/feed',                                    label: 'psyche',         categoryId: CATEGORY.MIND_BODY },
-  { url: 'https://theconversation.com/health/feed',                   label: 'conversation-health', categoryId: CATEGORY.MIND_BODY },
+  { url: 'https://theconversation.com/us/health/feed',               label: 'conversation-health',     categoryId: CATEGORY.MIND_BODY },
 
   // ── Arts & Culture ────────────────────────────────────────────────────────
   { url: 'https://lithub.com/feed/',                                  label: 'lithub',         categoryId: CATEGORY.ARTS_CULTURE },
@@ -64,7 +64,7 @@ const FEEDS = [
 
   // ── Weird & Wonderful ─────────────────────────────────────────────────────
   { url: 'https://longreads.com/feed/',                               label: 'longreads',      categoryId: CATEGORY.WEIRD_WONDERFUL },
-  { url: 'https://theconversation.com/arts-humanities/feed',          label: 'conversation-humanities', categoryId: CATEGORY.WEIRD_WONDERFUL },
+  { url: 'https://theconversation.com/us/arts-humanities/feed',      label: 'conversation-humanities', categoryId: CATEGORY.WEIRD_WONDERFUL },
 ];
 
 // ── RSS parser ────────────────────────────────────────────────────────────────
