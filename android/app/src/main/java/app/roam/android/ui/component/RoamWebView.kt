@@ -1,12 +1,12 @@
 package app.roam.android.ui.component
 import android.content.res.Configuration
-import android.os.Build
 import android.os.Bundle
-import android.view.ContextThemeWrapper
 import android.webkit.WebResourceError
 import android.webkit.WebResourceRequest
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import androidx.webkit.WebSettingsCompat
+import androidx.webkit.WebViewFeature
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
@@ -88,15 +88,13 @@ fun RoamWebView(
     AndroidView(
         modifier = modifier.fillMaxSize(),
         factory = { context ->
-            // Wrap context in night mode so the WebView renderer treats the app as dark,
-            // which is required for isAlgorithmicDarkeningAllowed to activate on API 33+.
+            // createConfigurationContext with UI_MODE_NIGHT_YES makes the WebView renderer
+            // treat this as a dark-mode app, activating algorithmic darkening on all API levels.
             val webContext = if (darkMode) {
-                ContextThemeWrapper(context, 0).also { wrapper ->
-                    val nightConfig = Configuration(context.resources.configuration)
-                    nightConfig.uiMode = (nightConfig.uiMode and Configuration.UI_MODE_NIGHT_MASK.inv()) or
-                                         Configuration.UI_MODE_NIGHT_YES
-                    wrapper.applyOverrideConfiguration(nightConfig)
-                }
+                val nightConfig = Configuration(context.resources.configuration)
+                nightConfig.uiMode = (nightConfig.uiMode and Configuration.UI_MODE_NIGHT_MASK.inv()) or
+                                      Configuration.UI_MODE_NIGHT_YES
+                context.createConfigurationContext(nightConfig)
             } else context
             WebView(webContext).apply {
                 settings.apply {
@@ -108,13 +106,14 @@ fun RoamWebView(
                     userAgentString = "Mozilla/5.0 (Linux; Android 10; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36"
                     allowFileAccess = false
                     allowContentAccess = false
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                }
+                // androidx.webkit covers all API levels cleanly
+                if (darkMode) {
+                    if (WebViewFeature.isFeatureSupported(WebViewFeature.ALGORITHMIC_DARKENING)) {
+                        WebSettingsCompat.setAlgorithmicDarkeningAllowed(settings, true)
+                    } else if (WebViewFeature.isFeatureSupported(WebViewFeature.FORCE_DARK)) {
                         @Suppress("DEPRECATION")
-                        forceDark = if (darkMode) android.webkit.WebSettings.FORCE_DARK_ON
-                                    else android.webkit.WebSettings.FORCE_DARK_OFF
-                    }
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                        isAlgorithmicDarkeningAllowed = darkMode
+                        WebSettingsCompat.setForceDark(settings, WebSettingsCompat.FORCE_DARK_ON)
                     }
                 }
                 webViewClient = object : WebViewClient() {
