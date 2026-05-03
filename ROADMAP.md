@@ -76,7 +76,7 @@
 
 ## Project Progress
 
-**Overall Completion: 246 / 343 tasks (71%)**
+**Overall Completion: 248 / 343 tasks (72%)**
 
 | Category | Complete | Total | % |
 |----------|----------|-------|-----|
@@ -85,7 +85,7 @@
 | Security & Quality (Stage 9) | 31 | 37 | 84% |
 | Web Polish & Hardening (Stages 10–12) | 52 | 73 | 71% |
 | Extension Rebuild (Stage 13) | 9 | 9 | 100% |
-| Android Rebuild (Stage 14) | 0 | 11 | 0% |
+| Android Rebuild (Stage 14) | 2 | 11 | 18% |
 | Post-Launch Roadmap | 3 | 22 | 14% |
 
 **Time invested: 400+ hours**
@@ -110,7 +110,7 @@
 - Stage 10 (Web Polish): 6/21 tasks
 - Stage 11 (Hardening): 25/30 tasks
 - Stage 12 (Web Rebuild): 21/22 tasks
-- Stage 14 (Android Rebuild): 0/11 tasks
+- Stage 14 (Android Rebuild): 2/11 tasks
 
 ### Post-Launch Roadmap
 - Pool quality (8.1–8.3): wilson floor, broken link reporting, dead-link cleanup scripts
@@ -1943,9 +1943,9 @@ Ground-up polish of the Android app. The existing Compose + MVVM foundation is s
 
 **Design reference:** See `android/README.md` + Stage 13 extension patterns (prefetch, cache-first)
 
-- [ ] **14.1** Replace `BottomBar` action buttons with a proper Material3 `NavigationBar` + `NavHost` with 4 destinations: Discover, Saved, Profile, Settings. Each tab has filled/outlined icon toggle. Back press on any tab returns to Discover.
+- [x] **14.1** Replace `BottomBar` action buttons with a proper Material3 `NavigationBar` + `NavHost` with 4 destinations: Discover, Saved, Profile, Settings. Each tab has filled/outlined icon toggle. Back press on any tab returns to Discover.
 
-- [ ] **14.2** Swipe gesture engine using `Animatable` offset + `VelocityTracker` physics. Swipe up = thumbs up + advance, down = skip + advance, left = thumbs down + advance. Spring-back animation below threshold. Haptic feedback (`CONFIRM`/`REJECT`) via `HapticFeedbackManager`. Replaces the drag prototype in `MainScreen`.
+- [x] **14.2** Swipe gesture engine using `Animatable` offset + `VelocityTracker` physics. Swipe up = thumbs up + advance, down = skip + advance, left = thumbs down + advance. Spring-back animation below threshold. Haptic feedback (`CONFIRM`/`REJECT`) via `HapticFeedbackManager`. Replaces the drag prototype in `MainScreen`.
 
 - [ ] **14.3** Card UI: `AsyncImage` (Coil) for `og_image_url` with shimmer placeholder, title + description, domain badge + category chip, large "Open" button (Chrome Custom Tab), save-for-later icon. Material3 elevation + rounded corners, dark theme.
 
