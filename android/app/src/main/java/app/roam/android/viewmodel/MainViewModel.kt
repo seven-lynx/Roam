@@ -266,6 +266,12 @@ class MainViewModel(
     }
     fun closeAddToCollection() { _showAddToCollection.value = false }
 
+    fun loadCollections() {
+        viewModelScope.launch {
+            runCatching { _collections.value = repo.getCollections() }
+        }
+    }
+
     fun addCurrentUrlToCollection(collectionId: String) {
         val loaded = _state.value as? RoamState.Loaded ?: return
         viewModelScope.launch {

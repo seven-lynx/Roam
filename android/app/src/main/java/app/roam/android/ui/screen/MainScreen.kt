@@ -73,13 +73,21 @@ fun MainScreen(
                 DiscoverTab(vm = vm, activity = activity)
             }
             composable(RoamTab.Saved.route) {
-                SavedScreen(vm = vm)
+                SavedScreen(
+                    vm = vm,
+                    onNavigateToDiscover = {
+                        navController.navigate(RoamTab.Discover.route) {
+                            popUpTo(RoamTab.Discover.route) { inclusive = false }
+                            launchSingleTop = true
+                        }
+                    },
+                )
             }
             composable(RoamTab.Profile.route) {
                 ProfileScreen(onSignOut = onSignOut)
             }
             composable(RoamTab.Settings.route) {
-                SettingsScreen(vm = vm)
+                SettingsScreen(vm = vm, onSignOut = onSignOut)
             }
         }
     }
