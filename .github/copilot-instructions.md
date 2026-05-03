@@ -43,6 +43,13 @@ pnpm dev            # esbuild --watch
 # Seeders (from scripts/)
 node seed-<name>.js             # run seeder
 node seed-<name>.js --no-cache  # bypass local cache
+
+# Supabase — always use the scoop binary with --workdir; npx/PATH don't work reliably
+# Push migrations to remote:
+C:\Users\Seito\scoop\shims\supabase.exe db push --workdir C:\Users\Seito\Github\roam --yes
+
+# Deploy an Edge Function:
+C:\Users\Seito\scoop\shims\supabase.exe functions deploy <name> --project-ref yrhckctwtdjowulfuaqc --workdir C:\Users\Seito\Github\roam
 ```
 
 Load the unpacked extension from `extension/dist/` in Chrome, or `extension/dist-firefox/` in Firefox. See `extension/TESTING.md` for the full manual testing guide.

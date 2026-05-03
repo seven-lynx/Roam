@@ -159,12 +159,29 @@ class MainViewModel(
             }
 
             _state.value = RoamState.Loading
-            runCatching {
-                repo.roam(
-                    collectionId = _activeCollectionId.value,
-                    excludeDomain = excludeDomain,
-                )
-            }.onSuccess { result ->
+            var lastException: Throwable? = null
+            var result: RoamUrl? = null
+            var success = false
+            // Retry up to 3 times with increasing delays to handle transient auth/network issues
+            for (attempt in 0 until 3) {
+                if (attempt > 0) delay(500L * attempt)
+                val outcome = runCatching {
+                    repo.roam(
+                        collectionId = _activeCollectionId.value,
+                        excludeDomain = excludeDomain,
+                    )
+                }
+                if (outcome.isSuccess) {
+                    result = outcome.getOrNull()
+                    success = true
+                    break
+                }
+                lastException = outcome.exceptionOrNull()
+                // Don't retry offline errors — they won't resolve with retries
+                if (lastException is IOException) break
+            }
+
+            if (success) {
                 if (result == null) {
                     _state.value = RoamState.Exhausted
                 } else {
@@ -172,7 +189,8 @@ class MainViewModel(
                     _state.value = RoamState.Loaded(result)
                     launchPrefetch(excludeDomain = extractDomain(result.url))
                 }
-            }.onFailure { e ->
+            } else {
+                val e = lastException ?: Exception("Unknown error")
                 val isTimeout = e.javaClass.name.contains("Timeout", ignoreCase = true)
                     || e.message?.contains("timed out", ignoreCase = true) == true
                 val msg = when {
