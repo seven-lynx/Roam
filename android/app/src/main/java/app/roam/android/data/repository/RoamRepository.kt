@@ -7,6 +7,7 @@ import app.roam.android.model.RoamUrl
 import app.roam.android.model.UserProfile
 import app.roam.android.model.UserSettings
 import io.github.jan.supabase.auth.auth
+import io.github.jan.supabase.exceptions.UnauthorizedRestException
 import io.github.jan.supabase.functions.functions
 import io.github.jan.supabase.postgrest.postgrest
 import io.github.jan.supabase.postgrest.query.Columns
@@ -27,6 +28,7 @@ class RoamRepository {
      * Calls POST /functions/v1/roam.
      * Optionally restricts to a specific collection or subcategory.
      * Returns null on 404 (pool exhausted).
+     * Automatically refreshes the session once if a 401/JWT error is returned.
      */
     suspend fun roam(
         collectionId: String? = null,
@@ -38,8 +40,22 @@ class RoamRepository {
             excludeDomain?.let { put("exclude_domain", it) }
             categoryId?.let { put("category_id", it) }
         }
+        return try {
+            invokeRoam(body)
+        } catch (e: UnauthorizedRestException) {
+            // JWT expired or malformed — refresh the session and retry once.
+            // If refresh fails, the exception propagates to the ViewModel.
+            supabase.auth.refreshCurrentSession()
+            invokeRoam(body)
+        }
+    }
+
+    private suspend fun invokeRoam(body: kotlinx.serialization.json.JsonObject): RoamUrl? {
         val response = supabase.functions.invoke("roam", body = body)
         if (response.status.value == 404) return null
+        if (response.status.value == 500 || response.status.value == 503) {
+            throw Exception("roam() function returned ${response.status.value} — server error. Will retry.")
+        }
         return json.decodeFromString(response.body())
     }
 

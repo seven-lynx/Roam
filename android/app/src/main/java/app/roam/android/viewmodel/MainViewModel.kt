@@ -16,6 +16,7 @@ import app.roam.android.model.Collection
 import app.roam.android.model.RoamUrl
 import app.roam.android.model.UserProfile
 import app.roam.android.util.connectivityFlow
+import io.github.jan.supabase.exceptions.UnauthorizedRestException
 import io.sentry.Sentry
 import java.io.ByteArrayOutputStream
 import java.io.IOException
@@ -231,6 +232,9 @@ class MainViewModel(
                 lastException = outcome.exceptionOrNull()
                 // Don't retry offline errors — they won't resolve with retries
                 if (lastException is IOException) break
+                // UnauthorizedRestException: repository already attempted one session refresh.
+                // A second attempt won't help; break early so we don't burn retry budget.
+                if (lastException is UnauthorizedRestException) break
             }
 
             if (success) {
@@ -248,6 +252,7 @@ class MainViewModel(
                     || e.message?.contains("timed out", ignoreCase = true) == true
                 val msg = when {
                     isTimeout -> "Request timed out. Please try again."
+                    e is UnauthorizedRestException -> "Session expired. Please sign in again."
                     e is IOException -> "You appear to be offline. Please check your connection."
                     else -> e.message ?: "Something went wrong. Please try again."
                 }

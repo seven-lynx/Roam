@@ -38,9 +38,13 @@ val supabase = createSupabaseClient(
     }
     httpEngine = OkHttp.create {
         config {
-            callTimeout(30, TimeUnit.SECONDS)
+            // callTimeout is intentionally omitted — it conflicts with Ktor's
+            // requestTimeoutMillis plugin. Setting both causes OkHttp to fire
+            // at 30 s while Ktor expects 60 s, producing duplicate timeout
+            // exceptions (ROAM-ANDROID-6 vs ROAM-ANDROID-4). Ktor's plugin
+            // is the single source of truth for request-level timeouts.
             connectTimeout(15, TimeUnit.SECONDS)
-            readTimeout(30, TimeUnit.SECONDS)
+            readTimeout(60, TimeUnit.SECONDS)
             writeTimeout(30, TimeUnit.SECONDS)
         }
     }

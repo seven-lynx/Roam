@@ -36,6 +36,11 @@ Deno.serve(async (req) => {
   const { data, error } = await supabase.rpc('roam', rpcParams)
   if (error) {
     console.error('roam RPC error', error.code, error.message)
+    // PostgreSQL statement_timeout (57014) or query_canceled (57P01) — transient,
+    // safe to retry. Return 503 so clients know not to treat this as a hard failure.
+    if (error.code === '57014' || error.code === '57P01') {
+      return json({ error: 'Discovery timed out. Please try again.' }, 503)
+    }
     return json({ error: 'Discovery failed. Please try again.' }, 500)
   }
   const row = Array.isArray(data) ? data[0] : null
