@@ -13,7 +13,7 @@ import fetch from 'node-fetch';
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, resolve } from 'path';
-import { upsertUrls, CATEGORY } from './lib/seed.js';
+import { upsertUrls, CATEGORY, SUBCATEGORY } from './lib/seed.js';
 
 const __dirname  = dirname(fileURLToPath(import.meta.url));
 const CACHE_DIR  = resolve(__dirname, '.cache');
@@ -29,32 +29,32 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 // ── arXiv subject category → Roam category ───────────────────────────────────
 const SUBJECT_MAP = [
   // Technology
-  { subject: 'cs.AI',          categoryId: CATEGORY.TECHNOLOGY }, // Artificial Intelligence
-  { subject: 'cs.LG',          categoryId: CATEGORY.TECHNOLOGY }, // Machine Learning
-  { subject: 'cs.CL',          categoryId: CATEGORY.TECHNOLOGY }, // Computation & Language (NLP)
-  { subject: 'cs.CV',          categoryId: CATEGORY.TECHNOLOGY }, // Computer Vision
-  { subject: 'cs.CR',          categoryId: CATEGORY.TECHNOLOGY }, // Cryptography & Security
-  { subject: 'cs.SE',          categoryId: CATEGORY.TECHNOLOGY }, // Software Engineering
-  { subject: 'cs.NI',          categoryId: CATEGORY.TECHNOLOGY }, // Networking & Internet
-  { subject: 'cs.RO',          categoryId: CATEGORY.TECHNOLOGY }, // Robotics
-  { subject: 'cs.HC',          categoryId: CATEGORY.TECHNOLOGY }, // Human-Computer Interaction
-  { subject: 'eess.SP',        categoryId: CATEGORY.TECHNOLOGY }, // Signal Processing
+  { subject: 'cs.AI',          categoryId: CATEGORY.TECHNOLOGY, subcategoryId: SUBCATEGORY.AI_MACHINE_LEARNING },   // Artificial Intelligence
+  { subject: 'cs.LG',          categoryId: CATEGORY.TECHNOLOGY, subcategoryId: SUBCATEGORY.AI_MACHINE_LEARNING },   // Machine Learning
+  { subject: 'cs.CL',          categoryId: CATEGORY.TECHNOLOGY, subcategoryId: SUBCATEGORY.AI_MACHINE_LEARNING },   // Computation & Language (NLP)
+  { subject: 'cs.CV',          categoryId: CATEGORY.TECHNOLOGY, subcategoryId: SUBCATEGORY.AI_MACHINE_LEARNING },   // Computer Vision
+  { subject: 'cs.CR',          categoryId: CATEGORY.TECHNOLOGY, subcategoryId: SUBCATEGORY.CYBERSECURITY_PRIVACY }, // Cryptography & Security
+  { subject: 'cs.SE',          categoryId: CATEGORY.TECHNOLOGY, subcategoryId: SUBCATEGORY.PROGRAMMING_SOFTWARE },  // Software Engineering
+  { subject: 'cs.NI',          categoryId: CATEGORY.TECHNOLOGY, subcategoryId: SUBCATEGORY.INTERNET_CULTURE },      // Networking & Internet
+  { subject: 'cs.RO',          categoryId: CATEGORY.TECHNOLOGY, subcategoryId: SUBCATEGORY.ROBOTICS_AUTOMATION },   // Robotics
+  { subject: 'cs.HC',          categoryId: CATEGORY.TECHNOLOGY, subcategoryId: SUBCATEGORY.DESIGN_UX },             // Human-Computer Interaction
+  { subject: 'eess.SP',        categoryId: CATEGORY.TECHNOLOGY, subcategoryId: SUBCATEGORY.HARDWARE_ELECTRONICS },  // Signal Processing
 
   // Science
-  { subject: 'astro-ph.GA',    categoryId: CATEGORY.SCIENCE },    // Galaxies
-  { subject: 'astro-ph.EP',    categoryId: CATEGORY.SCIENCE },    // Earth & Planetary Science
-  { subject: 'astro-ph.SR',    categoryId: CATEGORY.SCIENCE },    // Solar & Stellar Astrophysics
-  { subject: 'quant-ph',       categoryId: CATEGORY.SCIENCE },    // Quantum Physics
-  { subject: 'cond-mat.mtrl-sci', categoryId: CATEGORY.SCIENCE }, // Materials Science
-  { subject: 'physics.bio-ph', categoryId: CATEGORY.SCIENCE },    // Biological Physics
-  { subject: 'physics.chem-ph',categoryId: CATEGORY.SCIENCE },    // Chemical Physics
-  { subject: 'math.NT',        categoryId: CATEGORY.SCIENCE },    // Number Theory
-  { subject: 'math.CO',        categoryId: CATEGORY.SCIENCE },    // Combinatorics
-  { subject: 'q-bio.GN',       categoryId: CATEGORY.SCIENCE },    // Genomics
+  { subject: 'astro-ph.GA',    categoryId: CATEGORY.SCIENCE,    subcategoryId: SUBCATEGORY.SPACE_ASTRONOMY },        // Galaxies
+  { subject: 'astro-ph.EP',    categoryId: CATEGORY.SCIENCE,    subcategoryId: SUBCATEGORY.SPACE_ASTRONOMY },        // Earth & Planetary Science
+  { subject: 'astro-ph.SR',    categoryId: CATEGORY.SCIENCE,    subcategoryId: SUBCATEGORY.SPACE_ASTRONOMY },        // Solar & Stellar Astrophysics
+  { subject: 'quant-ph',       categoryId: CATEGORY.SCIENCE,    subcategoryId: SUBCATEGORY.PHYSICS_CHEMISTRY },      // Quantum Physics
+  { subject: 'cond-mat.mtrl-sci', categoryId: CATEGORY.SCIENCE, subcategoryId: SUBCATEGORY.PHYSICS_CHEMISTRY },      // Materials Science
+  { subject: 'physics.bio-ph', categoryId: CATEGORY.SCIENCE,    subcategoryId: SUBCATEGORY.BIOLOGY_EVOLUTION },      // Biological Physics
+  { subject: 'physics.chem-ph',categoryId: CATEGORY.SCIENCE,    subcategoryId: SUBCATEGORY.PHYSICS_CHEMISTRY },      // Chemical Physics
+  { subject: 'math.NT',        categoryId: CATEGORY.SCIENCE,    subcategoryId: SUBCATEGORY.MATHEMATICS_LOGIC },      // Number Theory
+  { subject: 'math.CO',        categoryId: CATEGORY.SCIENCE,    subcategoryId: SUBCATEGORY.MATHEMATICS_LOGIC },      // Combinatorics
+  { subject: 'q-bio.GN',       categoryId: CATEGORY.SCIENCE,    subcategoryId: SUBCATEGORY.BIOLOGY_EVOLUTION },      // Genomics
 
   // Health & Wellness → Mind & Body
-  { subject: 'q-bio.NC',       categoryId: CATEGORY.MIND_BODY }, // Neurons & Cognition
-  { subject: 'q-bio.PE',       categoryId: CATEGORY.MIND_BODY }, // Populations & Evolution
+  { subject: 'q-bio.NC',       categoryId: CATEGORY.MIND_BODY,  subcategoryId: SUBCATEGORY.NEUROSCIENCE },           // Neurons & Cognition
+  { subject: 'q-bio.PE',       categoryId: CATEGORY.SCIENCE,    subcategoryId: SUBCATEGORY.BIOLOGY_EVOLUTION },      // Populations & Evolution
 ];
 
 // ── XML helpers ───────────────────────────────────────────────────────────────
@@ -85,7 +85,7 @@ function arxivUrl(rawId) {
 
 // ── Fetch from arXiv API ──────────────────────────────────────────────────────
 
-async function fetchSubject({ subject, categoryId }) {
+async function fetchSubject({ subject, categoryId, subcategoryId }) {
   const url =
     `https://export.arxiv.org/api/query` +
     `?search_query=cat:${encodeURIComponent(subject)}` +
@@ -131,7 +131,8 @@ async function fetchSubject({ subject, categoryId }) {
       title:        title ?? null,
       description:  summary ? summary.slice(0, 500) : null,
       og_image_url: null,  // papers don't have OG images; skip the fetch
-      category_id:  categoryId,
+      category_id:    categoryId,
+      subcategory_id: subcategoryId ?? null,
       source:       'arxiv',
       published_at: updatedStr ?? null,
     });

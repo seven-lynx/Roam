@@ -32,7 +32,7 @@ import { pipeline } from 'stream/promises';
 import { extract } from 'tar';
 import { config as dotenvConfig } from 'dotenv';
 import { createClient } from '@supabase/supabase-js';
-import { upsertUrls, CATEGORY } from './lib/seed.js';
+import { upsertUrls, CATEGORY, SUBCATEGORY } from './lib/seed.js';
 
 const __dirname  = dirname(fileURLToPath(import.meta.url));
 const CACHE_DIR  = resolve(__dirname, '.cache');
@@ -58,52 +58,109 @@ const BATCH_SIZE = 50;
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 // ── Curlie category → Roam category mapping ──────────────────────────────────
-// Strategy: Curlie uses a hierarchical category structure (e.g., "Top/Computers/Software")
-// We map top-level and second-level categories to Roam's 8 pillars.
-// Format: { curliePathPrefix, roamCategoryId }
+// Strategy: match the longest prefix first (most specific → least specific).
+// Format: { prefix, roamCategoryId, roamSubcategoryId }
+// Entries are ordered longest-first within each pillar so the loop short-circuits
+// at the right level. mapCurlieCategory() iterates in order and returns on first match.
 
 const CATEGORY_MAP = [
   // ─────────────────────────────────────────────────────────────────────────
-  // SCIENCE
+  // SCIENCE — second-level paths first
   // ─────────────────────────────────────────────────────────────────────────
-  { prefix: 'Top/Science',                            roamCategoryId: CATEGORY.SCIENCE },
+  { prefix: 'Top/Science/Astronomy',        roamCategoryId: CATEGORY.SCIENCE, roamSubcategoryId: SUBCATEGORY.SPACE_ASTRONOMY },
+  { prefix: 'Top/Science/Biology',          roamCategoryId: CATEGORY.SCIENCE, roamSubcategoryId: SUBCATEGORY.BIOLOGY_EVOLUTION },
+  { prefix: 'Top/Science/Evolution',        roamCategoryId: CATEGORY.SCIENCE, roamSubcategoryId: SUBCATEGORY.BIOLOGY_EVOLUTION },
+  { prefix: 'Top/Science/Physics',          roamCategoryId: CATEGORY.SCIENCE, roamSubcategoryId: SUBCATEGORY.PHYSICS_CHEMISTRY },
+  { prefix: 'Top/Science/Chemistry',        roamCategoryId: CATEGORY.SCIENCE, roamSubcategoryId: SUBCATEGORY.PHYSICS_CHEMISTRY },
+  { prefix: 'Top/Science/Earth_Sciences',   roamCategoryId: CATEGORY.SCIENCE, roamSubcategoryId: SUBCATEGORY.GEOLOGY_EARTH_SCIENCE },
+  { prefix: 'Top/Science/Environment',      roamCategoryId: CATEGORY.SCIENCE, roamSubcategoryId: SUBCATEGORY.ENVIRONMENT_CLIMATE },
+  { prefix: 'Top/Science/Math',             roamCategoryId: CATEGORY.SCIENCE, roamSubcategoryId: SUBCATEGORY.MATHEMATICS_LOGIC },
+  { prefix: 'Top/Science/Math_and_Statistics', roamCategoryId: CATEGORY.SCIENCE, roamSubcategoryId: SUBCATEGORY.MATHEMATICS_LOGIC },
+  { prefix: 'Top/Science/Medicine',         roamCategoryId: CATEGORY.SCIENCE, roamSubcategoryId: SUBCATEGORY.MEDICINE_HEALTH_SCIENCE },
+  { prefix: 'Top/Science/Paleontology',     roamCategoryId: CATEGORY.SCIENCE, roamSubcategoryId: SUBCATEGORY.PALEONTOLOGY_NATURAL_HISTORY },
+  { prefix: 'Top/Science/Oceans',           roamCategoryId: CATEGORY.SCIENCE, roamSubcategoryId: SUBCATEGORY.OCEANOGRAPHY_MARINE_LIFE },
+  // Top-level Science fallback
+  { prefix: 'Top/Science',                  roamCategoryId: CATEGORY.SCIENCE, roamSubcategoryId: null },
 
   // ─────────────────────────────────────────────────────────────────────────
-  // TECHNOLOGY / COMPUTERS
+  // TECHNOLOGY — second-level paths first
   // ─────────────────────────────────────────────────────────────────────────
-  { prefix: 'Top/Computers',                          roamCategoryId: CATEGORY.TECHNOLOGY },
+  { prefix: 'Top/Computers/Artificial_Intelligence', roamCategoryId: CATEGORY.TECHNOLOGY, roamSubcategoryId: SUBCATEGORY.AI_MACHINE_LEARNING },
+  { prefix: 'Top/Computers/Security',                roamCategoryId: CATEGORY.TECHNOLOGY, roamSubcategoryId: SUBCATEGORY.CYBERSECURITY_PRIVACY },
+  { prefix: 'Top/Computers/Programming',             roamCategoryId: CATEGORY.TECHNOLOGY, roamSubcategoryId: SUBCATEGORY.PROGRAMMING_SOFTWARE },
+  { prefix: 'Top/Computers/Software',                roamCategoryId: CATEGORY.TECHNOLOGY, roamSubcategoryId: SUBCATEGORY.PROGRAMMING_SOFTWARE },
+  { prefix: 'Top/Computers/Open_Source',             roamCategoryId: CATEGORY.TECHNOLOGY, roamSubcategoryId: SUBCATEGORY.OPEN_SOURCE },
+  { prefix: 'Top/Computers/Robotics',                roamCategoryId: CATEGORY.TECHNOLOGY, roamSubcategoryId: SUBCATEGORY.ROBOTICS_AUTOMATION },
+  { prefix: 'Top/Computers/Hardware',                roamCategoryId: CATEGORY.TECHNOLOGY, roamSubcategoryId: SUBCATEGORY.HARDWARE_ELECTRONICS },
+  { prefix: 'Top/Computers/Internet',                roamCategoryId: CATEGORY.TECHNOLOGY, roamSubcategoryId: SUBCATEGORY.INTERNET_CULTURE },
+  { prefix: 'Top/Computers/Graphics',                roamCategoryId: CATEGORY.TECHNOLOGY, roamSubcategoryId: SUBCATEGORY.DESIGN_UX },
+  // Top-level Computers fallback
+  { prefix: 'Top/Computers',                         roamCategoryId: CATEGORY.TECHNOLOGY, roamSubcategoryId: null },
 
   // ─────────────────────────────────────────────────────────────────────────
-  // ARTS & CULTURE
+  // ARTS & CULTURE — second-level paths first
   // ─────────────────────────────────────────────────────────────────────────
-  { prefix: 'Top/Arts',                               roamCategoryId: CATEGORY.ARTS_CULTURE },
+  { prefix: 'Top/Arts/Music',              roamCategoryId: CATEGORY.ARTS_CULTURE, roamSubcategoryId: SUBCATEGORY.MUSIC },
+  { prefix: 'Top/Arts/Movies',             roamCategoryId: CATEGORY.ARTS_CULTURE, roamSubcategoryId: SUBCATEGORY.FILM_TELEVISION },
+  { prefix: 'Top/Arts/Television',         roamCategoryId: CATEGORY.ARTS_CULTURE, roamSubcategoryId: SUBCATEGORY.FILM_TELEVISION },
+  { prefix: 'Top/Arts/Visual_Arts',        roamCategoryId: CATEGORY.ARTS_CULTURE, roamSubcategoryId: SUBCATEGORY.VISUAL_ART },
+  { prefix: 'Top/Arts/Photography',        roamCategoryId: CATEGORY.ARTS_CULTURE, roamSubcategoryId: SUBCATEGORY.PHOTOGRAPHY },
+  { prefix: 'Top/Arts/Comics',             roamCategoryId: CATEGORY.ARTS_CULTURE, roamSubcategoryId: SUBCATEGORY.COMICS_ILLUSTRATION },
+  { prefix: 'Top/Arts/Animation',          roamCategoryId: CATEGORY.ARTS_CULTURE, roamSubcategoryId: SUBCATEGORY.FILM_TELEVISION },
+  { prefix: 'Top/Arts/Literature',         roamCategoryId: CATEGORY.ARTS_CULTURE, roamSubcategoryId: SUBCATEGORY.LITERATURE_WRITING },
+  { prefix: 'Top/Arts/Writers_Resources',  roamCategoryId: CATEGORY.ARTS_CULTURE, roamSubcategoryId: SUBCATEGORY.LITERATURE_WRITING },
+  { prefix: 'Top/Arts/Architecture',       roamCategoryId: CATEGORY.ARTS_CULTURE, roamSubcategoryId: SUBCATEGORY.ARCHITECTURE_URBAN },
+  { prefix: 'Top/Arts/Performing_Arts',    roamCategoryId: CATEGORY.ARTS_CULTURE, roamSubcategoryId: SUBCATEGORY.THEATRE_PERFORMANCE },
+  { prefix: 'Top/Arts/Fashion',            roamCategoryId: CATEGORY.ARTS_CULTURE, roamSubcategoryId: SUBCATEGORY.FASHION_TEXTILES },
+  // Top-level Arts fallback
+  { prefix: 'Top/Arts',                    roamCategoryId: CATEGORY.ARTS_CULTURE, roamSubcategoryId: null },
 
   // ─────────────────────────────────────────────────────────────────────────
-  // HISTORY & IDEAS / SOCIETY
+  // HISTORY & IDEAS — from Society
   // ─────────────────────────────────────────────────────────────────────────
-  { prefix: 'Top/Society',                            roamCategoryId: CATEGORY.HISTORY_IDEAS },
+  { prefix: 'Top/Society/History',         roamCategoryId: CATEGORY.HISTORY_IDEAS, roamSubcategoryId: SUBCATEGORY.MODERN_HISTORY },
+  { prefix: 'Top/Society/Philosophy',      roamCategoryId: CATEGORY.HISTORY_IDEAS, roamSubcategoryId: SUBCATEGORY.PHILOSOPHY_ETHICS },
+  { prefix: 'Top/Society/Religion',        roamCategoryId: CATEGORY.HISTORY_IDEAS, roamSubcategoryId: SUBCATEGORY.RELIGION_MYTHOLOGY },
+  { prefix: 'Top/Society/Politics',        roamCategoryId: CATEGORY.HISTORY_IDEAS, roamSubcategoryId: SUBCATEGORY.POLITICS_GEOPOLITICS },
+  { prefix: 'Top/Society/Economics',       roamCategoryId: CATEGORY.HISTORY_IDEAS, roamSubcategoryId: SUBCATEGORY.ECONOMICS_HISTORY },
+  { prefix: 'Top/Society/Archaeology',     roamCategoryId: CATEGORY.HISTORY_IDEAS, roamSubcategoryId: SUBCATEGORY.ANTHROPOLOGY_ARCHAEOLOGY },
+  { prefix: 'Top/Society/Military',        roamCategoryId: CATEGORY.HISTORY_IDEAS, roamSubcategoryId: SUBCATEGORY.MILITARY_HISTORY },
+  // Top-level Society fallback
+  { prefix: 'Top/Society',                 roamCategoryId: CATEGORY.HISTORY_IDEAS, roamSubcategoryId: null },
 
   // ─────────────────────────────────────────────────────────────────────────
-  // GAMES & HOBBIES / RECREATION
+  // GAMES & HOBBIES — from Recreation + Sports
   // ─────────────────────────────────────────────────────────────────────────
-  { prefix: 'Top/Recreation',                         roamCategoryId: CATEGORY.GAMES_HOBBIES },
-  { prefix: 'Top/Sports',                             roamCategoryId: CATEGORY.GAMES_HOBBIES },
+  { prefix: 'Top/Recreation/Games',        roamCategoryId: CATEGORY.GAMES_HOBBIES, roamSubcategoryId: SUBCATEGORY.VIDEO_GAMES },
+  { prefix: 'Top/Recreation/Video_Games',  roamCategoryId: CATEGORY.GAMES_HOBBIES, roamSubcategoryId: SUBCATEGORY.VIDEO_GAMES },
+  { prefix: 'Top/Recreation/Board_Games',  roamCategoryId: CATEGORY.GAMES_HOBBIES, roamSubcategoryId: SUBCATEGORY.BOARD_GAMES_TABLETOP },
+  { prefix: 'Top/Recreation/Food',         roamCategoryId: CATEGORY.GAMES_HOBBIES, roamSubcategoryId: SUBCATEGORY.COOKING_FOOD },
+  { prefix: 'Top/Recreation/Crafts',       roamCategoryId: CATEGORY.GAMES_HOBBIES, roamSubcategoryId: SUBCATEGORY.CRAFTS_DIY_MAKING },
+  { prefix: 'Top/Recreation/Collecting',   roamCategoryId: CATEGORY.GAMES_HOBBIES, roamSubcategoryId: SUBCATEGORY.COLLECTING },
+  { prefix: 'Top/Recreation/Outdoors',     roamCategoryId: CATEGORY.GAMES_HOBBIES, roamSubcategoryId: SUBCATEGORY.OUTDOOR_ADVENTURE },
+  { prefix: 'Top/Recreation/Gardening',    roamCategoryId: CATEGORY.GAMES_HOBBIES, roamSubcategoryId: SUBCATEGORY.GARDENING_HORTICULTURE },
+  { prefix: 'Top/Recreation/Puzzles',      roamCategoryId: CATEGORY.GAMES_HOBBIES, roamSubcategoryId: SUBCATEGORY.PUZZLES_BRAIN_TEASERS },
+  { prefix: 'Top/Recreation',              roamCategoryId: CATEGORY.GAMES_HOBBIES, roamSubcategoryId: null },
+  { prefix: 'Top/Sports',                  roamCategoryId: CATEGORY.GAMES_HOBBIES, roamSubcategoryId: SUBCATEGORY.SPORTS_ATHLETICS },
 
   // ─────────────────────────────────────────────────────────────────────────
   // WEIRD & WONDERFUL (News, crime, paranormal themes)
   // ─────────────────────────────────────────────────────────────────────────
-  { prefix: 'Top/News',                               roamCategoryId: CATEGORY.WEIRD_WONDERFUL },
+  { prefix: 'Top/News',                    roamCategoryId: CATEGORY.WEIRD_WONDERFUL, roamSubcategoryId: null },
 
   // ─────────────────────────────────────────────────────────────────────────
-  // PEOPLE & PLACES / REGIONAL
+  // PEOPLE & PLACES — from Regional
   // ─────────────────────────────────────────────────────────────────────────
-  { prefix: 'Top/Regional',                           roamCategoryId: CATEGORY.PEOPLE_PLACES },
+  { prefix: 'Top/Regional',                roamCategoryId: CATEGORY.PEOPLE_PLACES, roamSubcategoryId: null },
 
   // ─────────────────────────────────────────────────────────────────────────
-  // MIND & BODY / HEALTH
+  // MIND & BODY — from Health + Home
   // ─────────────────────────────────────────────────────────────────────────
-  { prefix: 'Top/Health',                             roamCategoryId: CATEGORY.MIND_BODY },
-  { prefix: 'Top/Home',                               roamCategoryId: CATEGORY.MIND_BODY },
+  { prefix: 'Top/Health/Mental_Health',    roamCategoryId: CATEGORY.MIND_BODY, roamSubcategoryId: SUBCATEGORY.MENTAL_HEALTH },
+  { prefix: 'Top/Health/Fitness',          roamCategoryId: CATEGORY.MIND_BODY, roamSubcategoryId: SUBCATEGORY.FITNESS_MOVEMENT },
+  { prefix: 'Top/Health/Nutrition',        roamCategoryId: CATEGORY.MIND_BODY, roamSubcategoryId: SUBCATEGORY.NUTRITION_HEALTH },
+  { prefix: 'Top/Health',                  roamCategoryId: CATEGORY.MIND_BODY, roamSubcategoryId: null },
+  { prefix: 'Top/Home',                    roamCategoryId: CATEGORY.MIND_BODY, roamSubcategoryId: null },
 ];
 
 // ── Progress checkpoint functions ───────────────────────────────────────────
@@ -153,9 +210,9 @@ function saveProgress(data) {
 function mapCurlieCategory(curliePathFull) {
   if (!curliePathFull) return null;
 
-  for (const { prefix, roamCategoryId } of CATEGORY_MAP) {
+  for (const { prefix, roamCategoryId, roamSubcategoryId } of CATEGORY_MAP) {
     if (curliePathFull === prefix || curliePathFull.startsWith(prefix + '/')) {
-      return roamCategoryId;
+      return { categoryId: roamCategoryId, subcategoryId: roamSubcategoryId ?? null };
     }
   }
 
@@ -370,15 +427,23 @@ async function extractAndParseTsv() {
 
         const title = cleanString(parts[1]) || null;
         const description = cleanString(parts[2]) || null;
+        const curliePath = cleanString(parts[3]) || null;
         const cleanUrl = cleanString(url);
 
         if (!cleanUrl) continue;  // Skip if URL becomes empty after cleaning
+
+        // Attempt fine-grained mapping using the per-row Curlie path (parts[3]).
+        // Fall back to the file-level categoryId when the path is absent or unmapped.
+        const pathMapping = curliePath ? mapCurlieCategory(curliePath) : null;
+        const rowCategoryId    = pathMapping?.categoryId    ?? categoryId;
+        const rowSubcategoryId = pathMapping?.subcategoryId ?? null;
 
         const row = {
           url: cleanUrl,
           title,
           description,
-          category_id: categoryId,
+          category_id:    rowCategoryId,
+          subcategory_id: rowSubcategoryId,
           // For mixed-language files tagged 'en', attempt TLD detection so
           // non-English sites are served to the right audience.
           language: (language === 'en' && MIXED_LANGUAGE_FILES.has(file))

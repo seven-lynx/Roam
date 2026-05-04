@@ -17,7 +17,7 @@ import { fileURLToPath } from 'url';
 import { dirname, resolve } from 'path';
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'fs';
 import { config as dotenvConfig } from 'dotenv';
-import { upsertUrls, CATEGORY, fetchWithRetry } from './lib/seed.js';
+import { upsertUrls, CATEGORY, SUBCATEGORY, fetchWithRetry } from './lib/seed.js';
 
 const __dirname  = dirname(fileURLToPath(import.meta.url));
 dotenvConfig({ path: resolve(__dirname, '../.env') });
@@ -31,33 +31,33 @@ const PAGE_SIZE  = 100;  // max per request
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 // ── Collections to query ──────────────────────────────────────────────────────
-// Each entry specifies a search query + format filter + Roam category.
+// Each entry specifies a search query + format filter + Roam category + subcategory.
 // LoC format values: photo, map, manuscript, newspaper, audio, video, web page
 const QUERIES = [
   // ── History & Ideas ────────────────────────────────────────────────────────
-  { q: 'american history',       fa: 'online-format:web+page',        pages: 5, categoryId: CATEGORY.HISTORY_IDEAS },
-  { q: 'civil war',              fa: 'online-format:web+page',        pages: 3, categoryId: CATEGORY.HISTORY_IDEAS },
-  { q: 'world war',              fa: 'online-format:web+page',        pages: 3, categoryId: CATEGORY.HISTORY_IDEAS },
-  { q: 'suffrage women rights',  fa: 'online-format:web+page',        pages: 2, categoryId: CATEGORY.HISTORY_IDEAS },
-  { q: 'constitution democracy', fa: 'online-format:web+page',        pages: 2, categoryId: CATEGORY.HISTORY_IDEAS },
+  { q: 'american history',       fa: 'online-format:web+page',        pages: 5, categoryId: CATEGORY.HISTORY_IDEAS, subcategoryId: SUBCATEGORY.MODERN_HISTORY },
+  { q: 'civil war',              fa: 'online-format:web+page',        pages: 3, categoryId: CATEGORY.HISTORY_IDEAS, subcategoryId: SUBCATEGORY.MILITARY_HISTORY },
+  { q: 'world war',              fa: 'online-format:web+page',        pages: 3, categoryId: CATEGORY.HISTORY_IDEAS, subcategoryId: SUBCATEGORY.MILITARY_HISTORY },
+  { q: 'suffrage women rights',  fa: 'online-format:web+page',        pages: 2, categoryId: CATEGORY.HISTORY_IDEAS, subcategoryId: SUBCATEGORY.SOCIAL_HISTORY },
+  { q: 'constitution democracy', fa: 'online-format:web+page',        pages: 2, categoryId: CATEGORY.HISTORY_IDEAS, subcategoryId: SUBCATEGORY.POLITICS_GEOPOLITICS },
 
   // ── Science ────────────────────────────────────────────────────────────────
-  { q: 'science invention',      fa: 'online-format:web+page',        pages: 3, categoryId: CATEGORY.SCIENCE },
-  { q: 'astronomy space',        fa: 'online-format:web+page',        pages: 2, categoryId: CATEGORY.SCIENCE },
-  { q: 'nature wildlife',        fa: 'online-format:web+page',        pages: 2, categoryId: CATEGORY.SCIENCE },
+  { q: 'science invention',      fa: 'online-format:web+page',        pages: 3, categoryId: CATEGORY.SCIENCE,       subcategoryId: null },
+  { q: 'astronomy space',        fa: 'online-format:web+page',        pages: 2, categoryId: CATEGORY.SCIENCE,       subcategoryId: SUBCATEGORY.SPACE_ASTRONOMY },
+  { q: 'nature wildlife',        fa: 'online-format:web+page',        pages: 2, categoryId: CATEGORY.SCIENCE,       subcategoryId: SUBCATEGORY.BIOLOGY_EVOLUTION },
 
   // ── Arts & Culture ─────────────────────────────────────────────────────────
-  { q: 'music american',         fa: 'online-format:web+page',        pages: 3, categoryId: CATEGORY.ARTS_CULTURE },
-  { q: 'folk art craft',         fa: 'online-format:web+page',        pages: 2, categoryId: CATEGORY.ARTS_CULTURE },
-  { q: 'literature poetry',      fa: 'online-format:web+page',        pages: 2, categoryId: CATEGORY.ARTS_CULTURE },
-  { q: 'architecture buildings', fa: 'online-format:web+page',        pages: 2, categoryId: CATEGORY.ARTS_CULTURE },
+  { q: 'music american',         fa: 'online-format:web+page',        pages: 3, categoryId: CATEGORY.ARTS_CULTURE,  subcategoryId: SUBCATEGORY.MUSIC },
+  { q: 'folk art craft',         fa: 'online-format:web+page',        pages: 2, categoryId: CATEGORY.ARTS_CULTURE,  subcategoryId: SUBCATEGORY.VISUAL_ART },
+  { q: 'literature poetry',      fa: 'online-format:web+page',        pages: 2, categoryId: CATEGORY.ARTS_CULTURE,  subcategoryId: SUBCATEGORY.LITERATURE_WRITING },
+  { q: 'architecture buildings', fa: 'online-format:web+page',        pages: 2, categoryId: CATEGORY.ARTS_CULTURE,  subcategoryId: SUBCATEGORY.ARCHITECTURE_URBAN },
 
   // ── People & Places ────────────────────────────────────────────────────────
-  { q: 'immigration culture',    fa: 'online-format:web+page',        pages: 3, categoryId: CATEGORY.PEOPLE_PLACES },
-  { q: 'maps geography',         fa: 'online-format:web+page',        pages: 3, categoryId: CATEGORY.PEOPLE_PLACES },
+  { q: 'immigration culture',    fa: 'online-format:web+page',        pages: 3, categoryId: CATEGORY.PEOPLE_PLACES, subcategoryId: SUBCATEGORY.MIGRATION_DIASPORA },
+  { q: 'maps geography',         fa: 'online-format:web+page',        pages: 3, categoryId: CATEGORY.PEOPLE_PLACES, subcategoryId: SUBCATEGORY.MAPS_CARTOGRAPHY },
 
   // ── Weird & Wonderful ──────────────────────────────────────────────────────
-  { q: 'curiosities unusual rare', fa: 'online-format:web+page',      pages: 2, categoryId: CATEGORY.WEIRD_WONDERFUL },
+  { q: 'curiosities unusual rare', fa: 'online-format:web+page',      pages: 2, categoryId: CATEGORY.WEIRD_WONDERFUL, subcategoryId: SUBCATEGORY.ODDITIES_CURIOSITIES },
 ];
 
 // ── Fetch one page of results ─────────────────────────────────────────────────
@@ -135,7 +135,7 @@ async function main() {
     all = [];
     const seen = new Set();
 
-    for (const { q, fa, pages, categoryId } of QUERIES) {
+    for (const { q, fa, pages, categoryId, subcategoryId } of QUERIES) {
       console.log(`[loc] Query: "${q}"  (${pages} pages)`);
 
       for (let page = 1; page <= pages; page++) {
@@ -147,7 +147,7 @@ async function main() {
           break;
         }
 
-        const rows = extractRows(data, categoryId);
+        const rows = extractRows(data, categoryId, subcategoryId ?? null);
         let added = 0;
         for (const row of rows) {
           if (!seen.has(row.url)) {

@@ -23,7 +23,7 @@ import { fileURLToPath } from 'url';
 import { dirname, resolve } from 'path';
 import { config as dotenvConfig } from 'dotenv';
 import { createClient } from '@supabase/supabase-js';
-import { upsertUrls, CATEGORY } from './lib/seed.js';
+import { upsertUrls, CATEGORY, SUBCATEGORY } from './lib/seed.js';
 
 const __dirname  = dirname(fileURLToPath(import.meta.url));
 const CACHE_DIR  = resolve(__dirname, '.cache');
@@ -46,38 +46,39 @@ const BATCH_SIZE = 50;
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 // ── MeSH terms mapped to categories ────────────────────────────────────────
-// Each term maps to one or more categories it best fits
+// Each term maps to one or more categories it best fits, plus a subcategory
+// for the primary (first) category.
 
 const MESH_TERMS = [
   // Neuroscience & Psychology → MIND_BODY
-  { term: 'Neuroscience', categories: ['MIND_BODY', 'SCIENCE'] },
-  { term: 'Psychiatry', categories: ['MIND_BODY'] },
-  { term: 'Psychology', categories: ['MIND_BODY'] },
-  { term: 'Neurotransmitters', categories: ['MIND_BODY', 'SCIENCE'] },
-  { term: 'Brain', categories: ['MIND_BODY', 'SCIENCE'] },
-  { term: 'Cognition', categories: ['MIND_BODY'] },
-  { term: 'Learning', categories: ['MIND_BODY'] },
-  { term: 'Memory', categories: ['MIND_BODY'] },
-  { term: 'Sleep', categories: ['MIND_BODY'] },
-  { term: 'Mental Health', categories: ['MIND_BODY'] },
-  { term: 'Stress', categories: ['MIND_BODY'] },
-  { term: 'Anxiety', categories: ['MIND_BODY'] },
-  { term: 'Depression', categories: ['MIND_BODY'] },
-  
+  { term: 'Neuroscience',    categories: ['MIND_BODY', 'SCIENCE'], subcategory: SUBCATEGORY.NEUROSCIENCE },
+  { term: 'Psychiatry',      categories: ['MIND_BODY'],            subcategory: SUBCATEGORY.MENTAL_HEALTH },
+  { term: 'Psychology',      categories: ['MIND_BODY'],            subcategory: SUBCATEGORY.PSYCHOLOGY_BEHAVIOUR },
+  { term: 'Neurotransmitters', categories: ['MIND_BODY', 'SCIENCE'], subcategory: SUBCATEGORY.NEUROSCIENCE },
+  { term: 'Brain',           categories: ['MIND_BODY', 'SCIENCE'], subcategory: SUBCATEGORY.NEUROSCIENCE },
+  { term: 'Cognition',       categories: ['MIND_BODY'],            subcategory: SUBCATEGORY.PSYCHOLOGY_BEHAVIOUR },
+  { term: 'Learning',        categories: ['MIND_BODY'],            subcategory: SUBCATEGORY.PSYCHOLOGY_BEHAVIOUR },
+  { term: 'Memory',          categories: ['MIND_BODY'],            subcategory: SUBCATEGORY.PSYCHOLOGY_BEHAVIOUR },
+  { term: 'Sleep',           categories: ['MIND_BODY'],            subcategory: SUBCATEGORY.SLEEP_RECOVERY },
+  { term: 'Mental Health',   categories: ['MIND_BODY'],            subcategory: SUBCATEGORY.MENTAL_HEALTH },
+  { term: 'Stress',          categories: ['MIND_BODY'],            subcategory: SUBCATEGORY.MENTAL_HEALTH },
+  { term: 'Anxiety',         categories: ['MIND_BODY'],            subcategory: SUBCATEGORY.MENTAL_HEALTH },
+  { term: 'Depression',      categories: ['MIND_BODY'],            subcategory: SUBCATEGORY.MENTAL_HEALTH },
+
   // Health & Wellness → MIND_BODY
-  { term: 'Nutrition', categories: ['MIND_BODY'] },
-  { term: 'Health', categories: ['MIND_BODY'] },
-  { term: 'Exercise', categories: ['MIND_BODY'] },
-  { term: 'Diet', categories: ['MIND_BODY'] },
-  
+  { term: 'Nutrition',  categories: ['MIND_BODY'], subcategory: SUBCATEGORY.NUTRITION_HEALTH },
+  { term: 'Health',     categories: ['MIND_BODY'], subcategory: SUBCATEGORY.NUTRITION_HEALTH },
+  { term: 'Exercise',   categories: ['MIND_BODY'], subcategory: SUBCATEGORY.FITNESS_MOVEMENT },
+  { term: 'Diet',       categories: ['MIND_BODY'], subcategory: SUBCATEGORY.NUTRITION_HEALTH },
+
   // Biomedical sciences → SCIENCE + MIND_BODY
-  { term: 'Pharmacology', categories: ['MIND_BODY', 'SCIENCE'] },
-  { term: 'Immunology', categories: ['SCIENCE'] },
-  { term: 'Genetics', categories: ['SCIENCE'] },
-  { term: 'Cell Biology', categories: ['SCIENCE'] },
-  { term: 'Physiology', categories: ['SCIENCE', 'MIND_BODY'] },
-  { term: 'Medicine', categories: ['MIND_BODY'] },
-  { term: 'Disease', categories: ['MIND_BODY'] },
+  { term: 'Pharmacology',  categories: ['MIND_BODY', 'SCIENCE'], subcategory: SUBCATEGORY.MEDICINE_HEALTH_SCIENCE },
+  { term: 'Immunology',    categories: ['SCIENCE'],              subcategory: SUBCATEGORY.BIOLOGY_EVOLUTION },
+  { term: 'Genetics',      categories: ['SCIENCE'],              subcategory: SUBCATEGORY.BIOLOGY_EVOLUTION },
+  { term: 'Cell Biology',  categories: ['SCIENCE'],              subcategory: SUBCATEGORY.BIOLOGY_EVOLUTION },
+  { term: 'Physiology',    categories: ['SCIENCE', 'MIND_BODY'], subcategory: SUBCATEGORY.BIOLOGY_EVOLUTION },
+  { term: 'Medicine',      categories: ['MIND_BODY'],            subcategory: SUBCATEGORY.MEDICINE_HEALTH_SCIENCE },
+  { term: 'Disease',       categories: ['MIND_BODY'],            subcategory: SUBCATEGORY.MEDICINE_HEALTH_SCIENCE },
 ];
 
 // ── Progress checkpoint functions ─────────────────────────────────────────
@@ -283,7 +284,7 @@ async function seedPubMed() {
       : -1;
 
     for (let i = startIndex + 1; i < MESH_TERMS.length; i++) {
-      const { term, categories } = MESH_TERMS[i];
+      const { term, categories, subcategory } = MESH_TERMS[i];
       console.log(`\n[pubmed] Searching for "${term}"...`);
 
       const ids = await searchPubMed(term);
@@ -291,9 +292,10 @@ async function seedPubMed() {
       // Track which papers came from which term (for multi-category mapping)
       for (const id of ids) {
         if (!papersById[id]) {
-          papersById[id] = { foundByTerms: [] };
+          papersById[id] = { foundByTerms: [], foundBySubcategory: [] };
         }
         papersById[id].foundByTerms.push(categories);
+        if (subcategory) papersById[id].foundBySubcategory.push(subcategory);
       }
 
       progress.papersById = papersById;
@@ -351,13 +353,15 @@ async function seedPubMed() {
     const rows = [];
     for (const [id, paper] of Object.entries(progress.papersById)) {
       if (paper.url && paper.title) {
-        const categoryId = mapTermsToCategory(paper.foundByTerms);
+        const categoryId    = mapTermsToCategory(paper.foundByTerms);
+        const subcategoryId = paper.foundBySubcategory?.[0] ?? null;
         rows.push({
           url: paper.url,
           original_url: paper.url,
           title: paper.title,
           description: paper.description || null,
-          category_id: categoryId,
+          category_id:    categoryId,
+          subcategory_id: subcategoryId,
           source: 'pubmed',
         });
       }

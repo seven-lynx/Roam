@@ -42,7 +42,7 @@ const supabase = createClient(
 );
 
 // Import category constants
-import { CATEGORY } from './lib/seed.js';
+import { CATEGORY, SUBCATEGORY } from './lib/seed.js';
 
 const GUTENDEX_API = 'https://gutendex.com/books';
 const BATCH_SIZE = 50;
@@ -88,29 +88,49 @@ function saveProgress(data) {
 }
 
 // ── Category mapping ───────────────────────────────────────────────────────
+// Returns { categoryId, subcategoryId } based on Gutenberg shelf tags.
 
 function mapGutenbergCategory(shelves) {
-  if (!shelves || shelves.length === 0) return CATEGORY.LITERATURE;
+  if (!shelves || shelves.length === 0) {
+    return { categoryId: CATEGORY.ARTS_CULTURE, subcategoryId: SUBCATEGORY.LITERATURE_WRITING };
+  }
 
   const shelvesLower = shelves.map((s) => s.toLowerCase());
 
-  // Check for literature/writing keywords
-  if (shelvesLower.some((s) => s.includes('fiction') || s.includes('novel') || s.includes('poetry') || s.includes('drama'))) {
-    return CATEGORY.LITERATURE;
+  if (shelvesLower.some((s) => s.includes('fiction') || s.includes('novel') || s.includes('drama'))) {
+    return { categoryId: CATEGORY.ARTS_CULTURE, subcategoryId: SUBCATEGORY.LITERATURE_WRITING };
   }
 
-  // Check for history keywords
-  if (shelvesLower.some((s) => s.includes('history') || s.includes('biography') || s.includes('historical'))) {
-    return CATEGORY.HISTORY_IDEAS;
+  if (shelvesLower.some((s) => s.includes('poetry'))) {
+    return { categoryId: CATEGORY.ARTS_CULTURE, subcategoryId: SUBCATEGORY.LITERATURE_WRITING };
   }
 
-  // Check for science/philosophy keywords
-  if (shelvesLower.some((s) => s.includes('science') || s.includes('philosophy') || s.includes('psychology'))) {
-    return CATEGORY.SCIENCE;
+  if (shelvesLower.some((s) => s.includes('biography') || s.includes('autobiography'))) {
+    return { categoryId: CATEGORY.PEOPLE_PLACES, subcategoryId: SUBCATEGORY.BIOGRAPHIES_PROFILES };
   }
 
-  // Default to literature for most ebooks
-  return CATEGORY.LITERATURE;
+  if (shelvesLower.some((s) => s.includes('history'))) {
+    return { categoryId: CATEGORY.HISTORY_IDEAS, subcategoryId: SUBCATEGORY.MODERN_HISTORY };
+  }
+
+  if (shelvesLower.some((s) => s.includes('philosophy') || s.includes('ethics'))) {
+    return { categoryId: CATEGORY.HISTORY_IDEAS, subcategoryId: SUBCATEGORY.PHILOSOPHY_ETHICS };
+  }
+
+  if (shelvesLower.some((s) => s.includes('psychology'))) {
+    return { categoryId: CATEGORY.MIND_BODY, subcategoryId: SUBCATEGORY.PSYCHOLOGY_BEHAVIOUR };
+  }
+
+  if (shelvesLower.some((s) => s.includes('science') || s.includes('biology') || s.includes('chemistry') || s.includes('physics'))) {
+    return { categoryId: CATEGORY.SCIENCE, subcategoryId: null };
+  }
+
+  if (shelvesLower.some((s) => s.includes('travel') || s.includes('geography'))) {
+    return { categoryId: CATEGORY.PEOPLE_PLACES, subcategoryId: SUBCATEGORY.TRAVEL_EXPLORATION };
+  }
+
+  // Default: general literature
+  return { categoryId: CATEGORY.ARTS_CULTURE, subcategoryId: SUBCATEGORY.LITERATURE_WRITING };
 }
 
 // ── Fetch from Gutendex API ───────────────────────────────────────────────
@@ -177,7 +197,7 @@ async function fetchGutenbergBooks() {
           title: book.title || null,
           description: book.author_name ? `By ${book.author_name.join(', ')}` : null,
           og_image_url: coverUrl,
-          category_id: mapGutenbergCategory(book.shelves),
+          ...mapGutenbergCategory(book.shelves),
           source: 'gutenberg',
           language: 'en',
         });
