@@ -74,6 +74,8 @@ jobs:
 
     steps:
       - name: Notify Slack
+        if: ${{ secrets.SLACK_WEBHOOK_URL != '' }}
+        continue-on-error: true
         uses: slackapi/slack-github-action@v1.24.0
         with:
           webhook-url: ${{ secrets.SLACK_WEBHOOK_URL }}

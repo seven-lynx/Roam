@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import ModerationDetail from "./ModerationDetail";
 
@@ -215,6 +216,12 @@ export default function AdminPageClient() {
           >
             Analytics
           </button>
+          <Link
+            href="/admin/dashboard"
+            className="px-4 py-2 rounded-lg text-sm font-medium transition-colors bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700"
+          >
+            System Dashboard
+          </Link>
         </div>
 
         {/* Queue View */}
