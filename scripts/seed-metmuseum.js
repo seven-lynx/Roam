@@ -22,7 +22,7 @@ import fetch from 'node-fetch';
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, resolve } from 'path';
-import { upsertUrls, CATEGORY } from './lib/seed.js';
+import { upsertUrls, CATEGORY, SUBCATEGORY } from './lib/seed.js';
 
 const __dirname      = dirname(fileURLToPath(import.meta.url));
 const CACHE_DIR      = resolve(__dirname, '.cache');
@@ -30,6 +30,30 @@ const PROGRESS_FILE  = resolve(CACHE_DIR, 'metmuseum-progress.json');
 const RESET          = process.argv.includes('--reset');
 
 const SPARQL_ENDPOINT = 'https://query.wikidata.org/sparql';
+
+// ── Wikidata P31 (instance of) QID → subcategory ─────────────────────────────
+const QID_SUBCATEGORY = {
+  Q3305213:  SUBCATEGORY.VISUAL_ART,           // painting
+  Q860861:   SUBCATEGORY.VISUAL_ART,           // sculpture
+  Q93184:    SUBCATEGORY.VISUAL_ART,           // drawing
+  Q11060274: SUBCATEGORY.VISUAL_ART,           // print
+  Q15727816: SUBCATEGORY.VISUAL_ART,           // woodblock print
+  Q79218:    SUBCATEGORY.VISUAL_ART,           // fresco
+  Q17537576: SUBCATEGORY.VISUAL_ART,           // creative work (generic)
+  Q838948:   SUBCATEGORY.VISUAL_ART,           // work of art (generic)
+  Q125191:   SUBCATEGORY.PHOTOGRAPHY,          // photograph
+  Q68077:    SUBCATEGORY.PHOTOGRAPHY,          // photographic print
+  Q12519:    SUBCATEGORY.MUSIC,                // musical instrument
+  Q11635:    SUBCATEGORY.FASHION_TEXTILES,     // textile
+  Q2811:     SUBCATEGORY.FASHION_TEXTILES,     // clothing
+  Q16743958: SUBCATEGORY.FASHION_TEXTILES,     // fashion accessory
+  Q131521:   SUBCATEGORY.FASHION_TEXTILES,     // costume
+  Q571:      SUBCATEGORY.LITERATURE_WRITING,   // book
+  Q7283:     SUBCATEGORY.LITERATURE_WRITING,   // manuscript
+  Q11723795: SUBCATEGORY.LITERATURE_WRITING,   // illuminated manuscript
+  Q811979:   SUBCATEGORY.ARCHITECTURE_URBAN,   // architectural structure
+  Q4989906:  SUBCATEGORY.ARCHITECTURE_URBAN,   // monument
+};
 const PAGE_SIZE       = 5000;
 const UPSERT_BATCH    = 500;
 const DELAY_MS        = 2000; // 2s between SPARQL pages — be polite to Wikidata
@@ -48,9 +72,10 @@ function wikimediaThumb(wikidataImageUrl) {
 }
 
 // ── SPARQL query (paginated) ──────────────────────────────────────────────────
+// Uses GROUP BY to guarantee one row per metId even with multi-valued P31/P170.
 function buildQuery(offset) {
   return `
-SELECT DISTINCT ?metId ?title ?image ?artistName ?date WHERE {
+SELECT ?metId (SAMPLE(?title) AS ?title) (SAMPLE(?image) AS ?image) (SAMPLE(?artistName) AS ?artistName) (SAMPLE(?date) AS ?date) (SAMPLE(?typeEntity) AS ?typeEntity) WHERE {
   ?item wdt:P3634 ?metId .
   ?item rdfs:label ?title FILTER(LANG(?title) = "en") .
   OPTIONAL { ?item wdt:P18 ?image }
@@ -59,7 +84,9 @@ SELECT DISTINCT ?metId ?title ?image ?artistName ?date WHERE {
     ?artist rdfs:label ?artistName FILTER(LANG(?artistName) = "en")
   }
   OPTIONAL { ?item wdt:P571 ?date }
+  OPTIONAL { ?item wdt:P31 ?typeEntity }
 }
+GROUP BY ?metId
 LIMIT ${PAGE_SIZE}
 OFFSET ${offset}
 `.trim();
@@ -90,6 +117,13 @@ async function runSparql(offset, attempt = 0) {
   return data.results.bindings;
 }
 
+// ── Extract Wikidata QID from entity URI ─────────────────────────────────────
+function qidFromUri(uri) {
+  if (!uri) return null;
+  const m = uri.match(/entity\/(Q\d+)$/);
+  return m ? m[1] : null;
+}
+
 // ── Convert a Wikidata SPARQL binding row → Roam row ─────────────────────────
 function bindingToRow(b) {
   const metId = b.metId?.value;
@@ -107,13 +141,17 @@ function bindingToRow(b) {
   }
   const description = parts.join(' · ').slice(0, 500) || null;
 
+  const qid = qidFromUri(b.typeEntity?.value);
+  const subcategory_id = (qid && QID_SUBCATEGORY[qid]) ?? SUBCATEGORY.VISUAL_ART;
+
   return {
-    url:          `https://www.metmuseum.org/art/collection/search/${metId}`,
+    url:            `https://www.metmuseum.org/art/collection/search/${metId}`,
     title,
     description,
-    og_image_url: wikimediaThumb(b.image?.value),
-    category_id:  CATEGORY.ARTS_CULTURE,
-    source:       'metmuseum',
+    og_image_url:   wikimediaThumb(b.image?.value),
+    category_id:    CATEGORY.ARTS_CULTURE,
+    subcategory_id,
+    source:         'metmuseum',
   };
 }
 

@@ -14,3 +14,7 @@ captures/
 
 # Sentry Config File
 sentry.properties
+
+# Local skills / personal notes
+skills/
+

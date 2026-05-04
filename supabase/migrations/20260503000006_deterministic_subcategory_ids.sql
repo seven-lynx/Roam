@@ -10,6 +10,9 @@
 
 BEGIN;
 
+-- Override the CLI's 8-second statement timeout for this transaction.
+SET LOCAL statement_timeout = 0;
+
 -- Null out any FK references so the DELETE below won't fail or cascade wrongly.
 UPDATE public.urls             SET subcategory_id = NULL WHERE subcategory_id IS NOT NULL;
 UPDATE public.user_categories  SET subcategory_id = NULL WHERE subcategory_id IS NOT NULL;
