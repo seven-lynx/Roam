@@ -24,6 +24,9 @@ class RoamRepository {
 
     private val json = Json { ignoreUnknownKeys = true }
 
+    /** Returns true if a session is already loaded in memory (i.e. returning user). */
+    fun hasSession(): Boolean = supabase.auth.currentSessionOrNull() != null
+
     /**
      * Calls POST /functions/v1/roam.
      * Optionally restricts to a specific collection or subcategory.

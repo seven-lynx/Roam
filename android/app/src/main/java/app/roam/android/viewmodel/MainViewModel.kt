@@ -185,8 +185,12 @@ class MainViewModel(
                 _discoveryMode.value = settings.discoveryMode.ifEmpty { "discovery" }
             }
         }
-        // Prime the prefetch queue so first roam() is instant
-        startPrefillQueue()
+        // Prime the prefetch queue so first roam() is instant.
+        // Only do this when a session is already in memory (returning user).
+        // On first launch the session isn't loaded yet and the call would hit
+        // /functions/v1/roam with the anon key, causing a 401 (ROAM-ANDROID-5).
+        // MainScreen's LaunchedEffect fires vm.roam() after auth is established.
+        if (repo.hasSession()) startPrefillQueue()
 
         // Observe connectivity; flush queued ratings when back online (14.9)
         viewModelScope.launch {
