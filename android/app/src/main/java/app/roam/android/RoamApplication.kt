@@ -26,15 +26,6 @@ class RoamApplication : Application() {
                 options.environment = if (BuildConfig.DEBUG) "development" else "production"
                 options.tracesSampleRate = if (BuildConfig.DEBUG) 1.0 else 0.1
                 options.isEnableUserInteractionTracing = false
-                // Drop HTTP 500s auto-captured by the OkHttp integration (ROAM-ANDROID-7).
-                // These are server-side crashes in the edge function — noise on the client.
-                // Real app-thrown exceptions still reach Sentry via Sentry.captureException().
-                options.beforeSend = io.sentry.SentryOptions.BeforeSendCallback { event, _ ->
-                    val isOkHttpCapture = event.exceptions
-                        ?.firstOrNull()
-                        ?.type == "SentryHttpClientException"
-                    if (isOkHttpCapture) null else event
-                }
             }
         }
 
