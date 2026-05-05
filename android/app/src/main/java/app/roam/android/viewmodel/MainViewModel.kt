@@ -285,6 +285,15 @@ class MainViewModel(
             var hotFails  = 0
 
             while (true) {
+                // Wait for a valid session before hitting the edge function.
+                // supabase-kt restores the persisted session asynchronously after
+                // app start; calling functions.invoke() before restoration sends
+                // the anon key as Bearer, causing UNAUTHORIZED_INVALID_JWT_FORMAT (ROAM-ANDROID-5).
+                if (!repo.hasSession()) {
+                    delay(500)
+                    continue
+                }
+
                 val (hotSize, warmSize) = prefetchMutex.withLock { hotQueue.size to warmQueue.size }
 
                 val hotDone  = hotSize  >= HOT_TARGET
@@ -294,7 +303,10 @@ class MainViewModel(
                 if (warmFails >= 8 && warmSize == 0) break   // server returning nothing
 
                 // Phase 1: keep warm topped up (cheap — no HEAD check)
+                // Small delay between calls reduces cold-start hammering on the
+                // edge function, which helps avoid 60s timeouts (ROAM-ANDROID-4).
                 if (!warmDone && warmFails < 8) {
+                    delay(300)
                     val candidate = runCatching {
                         repo.roam(
                             collectionId  = _activeCollectionId.value,
