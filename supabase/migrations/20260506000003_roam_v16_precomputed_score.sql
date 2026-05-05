@@ -1,110 +1,35 @@
 -- =============================================================================
--- roam() v16 — pre-computed roam_score_static + paywalled_domains array pre-load
+-- roam() v16 — paywalled_domains array pre-load (Fix 7)
 -- =============================================================================
 --
--- Fix 6: Pre-computed static score column
---   Problem:
---     roam() v15 computes (wilson_score + 0.3 * seeder_score) at runtime in
---     four scoring blocks against ~787k TABLESAMPLE rows and again in two
---     Phase 2 ORDER BY clauses. This static component never changes between
---     calls — it only changes when a vote is cast (which also updates
---     wilson_score). Computing it per-row per-call is pure waste.
+-- Problem:
+--   Four NOT EXISTS correlated subqueries scan paywalled_domains per URL
+--   candidate for users with skip_paywalled = TRUE:
+--     NOT EXISTS (SELECT 1 FROM paywalled_domains pd
+--                 WHERE pd.domain = u.domain
+--                    OR u.domain LIKE ('%.' || pd.domain))
+--   paywalled_domains is a small, rarely-changing table (O(hundreds) rows).
+--   Scanning it inside the TABLESAMPLE loop over ~787k rows wastes I/O.
 --
---   Fix:
---     Add roam_score_static DOUBLE PRECISION to public.urls.
---     A BEFORE INSERT OR UPDATE trigger keeps it in sync with wilson_score
---     and seeder_score at write time. A backfill UPDATE populates all
---     existing rows. A partial DESC index on approved rows replaces the old
---     idx_urls_fallback_sort expression index.
+-- Fix:
+--   Load the table once into v_paywalled_domains TEXT[] only when
+--   v_skip_paywall is TRUE. Replace all four NOT EXISTS blocks with:
+--     (NOT v_skip_paywall
+--      OR v_paywalled_domains IS NULL
+--      OR u.domain != ALL(v_paywalled_domains))
+--   NULL guard: if paywalled_domains is empty, array_agg returns NULL and the
+--   OR clause passes all rows through (correct: nothing is paywalled).
+--   The subdomain LIKE check is intentionally dropped: the domain column in
+--   urls stores the registered (root) domain, so exact-match is sufficient.
 --
---     In roam() v16 the scoring expression changes from:
---       (u.wilson_score + 0.3 * u.seeder_score + ...)
---     to:
---       (COALESCE(u.roam_score_static, u.wilson_score + 0.3 * u.seeder_score) + ...)
---     COALESCE is a safety net for any row inserted between ALTER TABLE and
---     the backfill completing; in steady state it is a no-op.
---
---     Phase 2 ORDER BY changes from:
---       ORDER BY (u.wilson_score + 0.3 * u.seeder_score) DESC
---     to:
---       ORDER BY u.roam_score_static DESC
---     allowing PostgreSQL to use idx_urls_roam_score_static directly
---     without a filesort on the full candidate set.
---
--- Fix 7: Pre-load paywalled_domains as array (same pattern as Fix 1)
---   Problem:
---     Four NOT EXISTS correlated subqueries scan paywalled_domains per URL
---     candidate for users with skip_paywalled = TRUE:
---       NOT EXISTS (SELECT 1 FROM paywalled_domains pd
---                   WHERE pd.domain = u.domain
---                      OR u.domain LIKE ('%.' || pd.domain))
---     paywalled_domains is a small, rarely-changing table (O(hundreds) rows).
---     Scanning it inside the TABLESAMPLE loop wastes I/O.
---
---   Fix:
---     Load the table once into v_paywalled_domains TEXT[] only when
---     v_skip_paywall is TRUE. Replace all four NOT EXISTS blocks with:
---       (NOT v_skip_paywall
---        OR v_paywalled_domains IS NULL
---        OR u.domain != ALL(v_paywalled_domains))
---     The subdomain LIKE check is intentionally dropped: the domain column
---     in urls stores the registered (root) domain, so exact-match is correct
---     and subdomain variants do not appear in practice.
---
--- Expected improvement (additive to Tier 1):
---   - ~15% reduction in per-call CPU at the DB layer (Fix 6)
---   - Eliminates O(|paywalled_domains|) sequential scans per TABLESAMPLE row
---     for skip_paywall users (Fix 7) — most benefit felt by power users
--- =============================================================================
-
--- ── 1. Add pre-computed column ───────────────────────────────────────────────
-ALTER TABLE public.urls
-  ADD COLUMN IF NOT EXISTS roam_score_static DOUBLE PRECISION;
-
--- ── 2. Trigger function ──────────────────────────────────────────────────────
-CREATE OR REPLACE FUNCTION public.update_roam_score_static()
-RETURNS TRIGGER AS $$
-BEGIN
-  NEW.roam_score_static := NEW.wilson_score + 0.3 * NEW.seeder_score;
-  RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-
--- ── 3. Attach trigger ────────────────────────────────────────────────────────
-DROP TRIGGER IF EXISTS trg_urls_roam_score_static ON public.urls;
-CREATE TRIGGER trg_urls_roam_score_static
-  BEFORE INSERT OR UPDATE OF wilson_score, seeder_score
-  ON public.urls
-  FOR EACH ROW EXECUTE FUNCTION public.update_roam_score_static();
-
--- ── 4. Backfill note ────────────────────────────────────────────────────────
--- The backfill UPDATE is intentionally omitted here. Migrating 3.15M rows
--- within a single statement exceeds Supabase's statement_timeout, and
--- SET LOCAL cannot be used outside a transaction block.
---
--- roam() v16 uses COALESCE(roam_score_static, wilson_score + 0.3*seeder_score)
--- in all scoring expressions, so NULL rows degrade gracefully to runtime
--- computation until the column is populated. The trigger populates new/updated
--- rows automatically.
---
--- Run the backfill manually in Supabase Studio (no timeout applies):
---   UPDATE public.urls
---     SET roam_score_static = wilson_score + 0.3 * seeder_score
---   WHERE roam_score_static IS NULL;
-
-
--- ── 5. Index for Phase 2 ORDER BY and general scoring filter ─────────────────
-CREATE INDEX IF NOT EXISTS idx_urls_roam_score_static
-  ON public.urls (roam_score_static DESC)
-  WHERE approved = TRUE;
-
--- ── 6. Keep idx_urls_fallback_sort ──────────────────────────────────────────
--- idx_urls_fallback_sort is retained as a fallback for Phase 2 ORDER BY
--- COALESCE(...) until the roam_score_static backfill is complete.
--- Drop it manually after the backfill via Supabase Studio.
-
--- =============================================================================
---  roam() v16
+-- Note — roam_score_static column (Fix 6):
+--   Adding a DOUBLE PRECISION column to the 3.15M-row urls table requires
+--   ALTER TABLE, which blocks on AccessExclusiveLock contention from concurrent
+--   roam() SELECT queries and exceeds Supabase's session statement_timeout.
+--   The column, trigger, backfill, and index are applied in migration
+--   20260506000005_roam_score_static.sql using SET statement_timeout = '0'.
+--   roam() will be updated to use COALESCE(roam_score_static, ...) in v17
+--   once the column exists.
 -- =============================================================================
 
 DROP FUNCTION IF EXISTS public.roam(UUID, UUID, TEXT, UUID, UUID) CASCADE;
@@ -194,9 +119,7 @@ BEGIN
   FROM   user_interest_scores
   WHERE  user_id = p_user_id;
 
-  -- ── Pre-load paywalled domains once (only relevant when skip_paywall) ─────
-  -- NULL guard: if paywalled_domains is empty, array_agg returns NULL and
-  -- the (v_paywalled_domains IS NULL OR ...) clause passes all rows through.
+  -- ── Pre-load paywalled domains once (only when skip_paywall is active) ────
   IF v_skip_paywall THEN
     SELECT array_agg(domain)
     INTO   v_paywalled_domains
@@ -282,11 +205,12 @@ BEGIN
   -- ═══════════════════════════════════════════════════════════════════════════
   IF p_collection_id IS NOT NULL THEN
 
-    -- Phase 1: TABLESAMPLE BERNOULLI(25) — wider sample reduces Phase 2 fallback rate
+    -- Phase 1: TABLESAMPLE BERNOULLI(25)
     SELECT c.id INTO v_url_id
     FROM (
       SELECT u.id,
-             (COALESCE(u.roam_score_static, u.wilson_score + 0.3 * u.seeder_score)
+             (u.wilson_score
+               + 0.3  * u.seeder_score
                + CASE WHEN (u.upvotes + u.downvotes) = 0 THEN 0.15 ELSE 0 END)
                * LEAST(GREATEST(COALESCE(
                    v_score_weights[array_position(v_score_subcats, u.subcategory_id)],
@@ -318,7 +242,8 @@ BEGIN
       SELECT c.id INTO v_url_id
       FROM (
         SELECT u.id,
-               (COALESCE(u.roam_score_static, u.wilson_score + 0.3 * u.seeder_score)
+               (u.wilson_score
+                 + 0.3  * u.seeder_score
                  + CASE WHEN (u.upvotes + u.downvotes) = 0 THEN 0.15 ELSE 0 END)
                  * LEAST(GREATEST(COALESCE(
                      v_score_weights[array_position(v_score_subcats, u.subcategory_id)],
@@ -341,7 +266,7 @@ BEGIN
           AND  (v_suppressed_domains IS NULL OR u.domain != ALL(v_suppressed_domains))
           AND  (NOT v_skip_paywall OR v_paywalled_domains IS NULL OR u.domain != ALL(v_paywalled_domains))
           AND  (v_seen_ids IS NULL OR u.id != ALL(v_seen_ids))
-        ORDER  BY COALESCE(u.roam_score_static, u.wilson_score + 0.3 * u.seeder_score) DESC
+        ORDER  BY (u.wilson_score + 0.3 * u.seeder_score) DESC
         LIMIT  50
       ) c
       ORDER BY (c.eff_score + 0.1) * random() DESC
@@ -357,7 +282,8 @@ BEGIN
     SELECT c.id INTO v_url_id
     FROM (
       SELECT u.id,
-             (COALESCE(u.roam_score_static, u.wilson_score + 0.3 * u.seeder_score)
+             (u.wilson_score
+               + 0.3  * u.seeder_score
                + CASE WHEN (u.upvotes + u.downvotes) = 0 THEN 0.15 ELSE 0 END)
                * LEAST(GREATEST(COALESCE(
                    v_score_weights[array_position(v_score_subcats, u.subcategory_id)],
@@ -406,7 +332,8 @@ BEGIN
       SELECT c.id INTO v_url_id
       FROM (
         SELECT u.id,
-               (COALESCE(u.roam_score_static, u.wilson_score + 0.3 * u.seeder_score)
+               (u.wilson_score
+                 + 0.3  * u.seeder_score
                  + CASE WHEN (u.upvotes + u.downvotes) = 0 THEN 0.15 ELSE 0 END)
                  * LEAST(GREATEST(COALESCE(
                      v_score_weights[array_position(v_score_subcats, u.subcategory_id)],
@@ -446,7 +373,7 @@ BEGIN
                  OR (u.subcategory_id IS NULL AND v_has_categories)
                )
           AND  (v_seen_ids IS NULL OR u.id != ALL(v_seen_ids))
-        ORDER  BY COALESCE(u.roam_score_static, u.wilson_score + 0.3 * u.seeder_score) DESC
+        ORDER  BY (u.wilson_score + 0.3 * u.seeder_score) DESC
         LIMIT  100
       ) c
       ORDER BY (c.eff_score + 0.1) * random() DESC
@@ -479,3 +406,4 @@ BEGIN
   WHERE  u.id = v_url_id;
 END;
 $$;
+
