@@ -12,50 +12,60 @@ Deno.serve(async (req) => {
   if (req.method !== 'POST') {
     return json({ error: 'Method not allowed' }, 405)
   }
-  const supabase = createClient(
-    SUPABASE_URL,
-    SUPABASE_ANON_KEY,
-    { global: { headers: { Authorization: req.headers.get('Authorization') ?? '' } } },
-  )
-  const { data: { user }, error: authError } = await supabase.auth.getUser()
-  if (authError || !user) return json({ error: 'Unauthorized' }, 401)
-  let body: Record<string, unknown> = {}
   try {
-    const text = await req.text()
-    if (text) body = JSON.parse(text)
-  } catch {
-    return json({ error: 'Invalid JSON' }, 400)
-  }
-  const collectionId  = typeof body.collection_id  === 'string' ? body.collection_id  : null
-  const excludeDomain = typeof body.exclude_domain  === 'string' ? body.exclude_domain : null
-  const categoryId    = typeof body.category_id     === 'string' ? body.category_id    : null
-  const rpcParams: Record<string, unknown> = { p_user_id: user.id }
-  if (collectionId)  rpcParams.p_collection_id  = collectionId
-  if (excludeDomain) rpcParams.p_exclude_domain = excludeDomain
-  if (categoryId)    rpcParams.p_category_id    = categoryId
-  const { data, error } = await supabase.rpc('roam', rpcParams)
-  if (error) {
-    console.error('roam RPC error', error.code, error.message)
-    // PostgreSQL statement_timeout (57014) or query_canceled (57P01) — transient,
-    // safe to retry. Return 503 so clients know not to treat this as a hard failure.
-    if (error.code === '57014' || error.code === '57P01') {
-      return json({ error: 'Discovery timed out. Please try again.' }, 503)
+    const supabase = createClient(
+      SUPABASE_URL,
+      SUPABASE_ANON_KEY,
+      { global: { headers: { Authorization: req.headers.get('Authorization') ?? '' } } },
+    )
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    if (authError || !user) return json({ error: 'Unauthorized' }, 401)
+    let body: Record<string, unknown> = {}
+    try {
+      const text = await req.text()
+      if (text) body = JSON.parse(text)
+    } catch {
+      return json({ error: 'Invalid JSON' }, 400)
     }
+    const collectionId  = typeof body.collection_id  === 'string' ? body.collection_id  : null
+    const excludeDomain = typeof body.exclude_domain  === 'string' ? body.exclude_domain : null
+    const categoryId    = typeof body.category_id     === 'string' ? body.category_id    : null
+    const rpcParams: Record<string, unknown> = { p_user_id: user.id }
+    if (collectionId)  rpcParams.p_collection_id  = collectionId
+    if (excludeDomain) rpcParams.p_exclude_domain = excludeDomain
+    if (categoryId)    rpcParams.p_category_id    = categoryId
+    const { data, error } = await supabase.rpc('roam', rpcParams)
+    if (error) {
+      console.error('roam RPC error', error.code, error.message)
+      // PostgreSQL statement_timeout (57014) or query_canceled (57P01).
+      // Also check message text as a fallback — supabase-js sometimes omits code
+      // for connection-level timeouts coming through the PostgREST proxy.
+      const isTimeout = error.code === '57014' || error.code === '57P01'
+        || error.message?.toLowerCase().includes('timeout')
+        || error.message?.toLowerCase().includes('canceling statement')
+        || error.message?.toLowerCase().includes('query_canceled')
+      if (isTimeout) {
+        return json({ error: 'Discovery timed out. Please try again.' }, 503)
+      }
+      return json({ error: 'Discovery failed. Please try again.' }, 500)
+    }
+    const row = Array.isArray(data) ? data[0] : null
+    if (!row) {
+      return json({ error: 'No more URLs to discover' }, 404)
+    }
+    return json({
+      id:           row.id,
+      url:          row.url,
+      title:        row.title,
+      description:  row.description,
+      og_image_url: row.og_image_url,
+      category_id:  row.category_id ?? row.subcategory_id ?? null,
+      wilson_score: row.wilson_score,
+    })
+  } catch (e) {
+    console.error('roam handler uncaught error', e)
     return json({ error: 'Discovery failed. Please try again.' }, 500)
   }
-  const row = Array.isArray(data) ? data[0] : null
-  if (!row) {
-    return json({ error: 'No more URLs to discover' }, 404)
-  }
-  return json({
-    id:           row.id,
-    url:          row.url,
-    title:        row.title,
-    description:  row.description,
-    og_image_url: row.og_image_url,
-    category_id:  row.category_id ?? row.subcategory_id ?? null,
-    wilson_score: row.wilson_score,
-  })
 })
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
