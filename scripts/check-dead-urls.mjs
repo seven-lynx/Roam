@@ -116,6 +116,18 @@ function isRootOnly(url) {
   } catch { return false; }
 }
 
+// ── ETA formatter ───────────────────────────────────────────────────────────
+function fmtEta(doneCount, totalCount, startMs) {
+  if (doneCount === 0) return '?';
+  const elapsed = Date.now() - startMs;
+  const rate = doneCount / elapsed;           // URLs per ms
+  const remaining = (totalCount - doneCount) / rate;
+  const s = Math.round(remaining / 1000);
+  if (s < 60)  return `${s}s`;
+  if (s < 3600) return `${Math.floor(s / 60)}m${String(s % 60).padStart(2, '0')}s`;
+  return `${Math.floor(s / 3600)}h${String(Math.floor((s % 3600) / 60)).padStart(2, '0')}m`;
+}
+
 // Per-domain rate limiter (shared across concurrent requests)
 const domainLastRequest = new Map();
 async function withDomainRateLimit(url, fn) {
@@ -337,6 +349,7 @@ async function runChecks() {
   let done = 0;
   let deadCount = 0;
   let redirectCount = 0;
+  const checkStart = Date.now();
 
   // Process rows in chunks of CONCURRENCY
   for (let i = 0; i < rows.length; i += CONCURRENCY) {
@@ -353,12 +366,12 @@ async function runChecks() {
     progress.checkedCount = startIdx + done;
     writeFileSync(PROGRESS_FILE, JSON.stringify(progress));
 
-    if (done % 500 === 0 || done === totalToCheck) {
-      process.stdout.write(
-        `\r[check] ${done.toLocaleString()}/${totalToCheck.toLocaleString()}` +
-        `  dead=${deadCount.toLocaleString()}  redirects=${redirectCount.toLocaleString()}  `
-      );
-    }
+    const pct = Math.floor(done / totalToCheck * 100);
+    process.stdout.write(
+      `\r[check] ${done.toLocaleString()}/${totalToCheck.toLocaleString()} (${pct}%)` +
+      `  dead=${deadCount.toLocaleString()}  redirects=${redirectCount.toLocaleString()}` +
+      `  eta=${fmtEta(done, totalToCheck, checkStart)}  `
+    );
   }
 
   console.log(`\n\n[check] Complete:  ${deadCount.toLocaleString()} dead,  ${redirectCount.toLocaleString()} redirects.\n`);
@@ -475,6 +488,7 @@ async function runLanguageCheck() {
   let done = 0;
   let detectedCount = 0;
   let changedCount = 0;
+  const langStart = Date.now();
 
   for (let i = 0; i < rows.length; i += CONCURRENCY) {
     const chunk = rows.slice(i, i + CONCURRENCY);
@@ -493,12 +507,12 @@ async function runLanguageCheck() {
     progress.checkedCount = startIdx + done;
     writeFileSync(LANGUAGE_PROGRESS_FILE, JSON.stringify(progress));
 
-    if (done % 500 === 0 || done === rows.length) {
-      process.stdout.write(
-        `\r[language] ${done.toLocaleString()}/${rows.length.toLocaleString()}` +
-        `  detected=${detectedCount.toLocaleString()}  to-update=${changedCount.toLocaleString()}  `
-      );
-    }
+    const pct = Math.floor(done / rows.length * 100);
+    process.stdout.write(
+      `\r[language] ${done.toLocaleString()}/${rows.length.toLocaleString()} (${pct}%)` +
+      `  detected=${detectedCount.toLocaleString()}  to-update=${changedCount.toLocaleString()}` +
+      `  eta=${fmtEta(done, rows.length, langStart)}  `
+    );
   }
 
   console.log(`\n\n[language] Complete:  ${detectedCount.toLocaleString()} lang attrs found,  ${changedCount.toLocaleString()} changes to apply.\n`);
