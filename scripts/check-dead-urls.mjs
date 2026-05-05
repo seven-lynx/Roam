@@ -1,27 +1,32 @@
 /**
- * check-dead-urls.mjs — Batch dead-link and redirect checker
+ * check-dead-urls.mjs — Batch dead-link, redirect, and language checker
  *
- * Workflow (3 phases):
- *   Phase 1 – Export   SELECT id, url, source FROM urls WHERE approved=TRUE AND inactive=FALSE
+ * Workflow (4 phases):
+ *   Phase 1 – Export   SELECT id, url, source, language FROM urls WHERE approved=TRUE AND inactive=FALSE
  *                       Streams to .cache/dead-links-export.jsonl  (skipped if cache exists)
  *   Phase 2 – Check    HEAD each URL; follow redirects manually; classify alive/dead/redirect
  *                       Appends to .cache/dead-links-results.jsonl  (resumable via checkpoint)
- *   Phase 3 – Commit   Batch UPDATE inactive=TRUE for dead URLs; UPDATE url for same-domain
- *                       redirects.  Only runs when --commit is passed.
+ *   Phase 3 – Language GET first 16KB of each alive URL; parse <html lang="...">; detect language
+ *                       Appends to .cache/language-results.jsonl  (resumable via checkpoint)
+ *                       Skipped when --skip-language is passed.
+ *   Phase 4 – Commit   Batch UPDATE inactive=TRUE for dead URLs; UPDATE url for content-move
+ *                       redirects (same- or cross-domain); UPDATE language where changed.
+ *                       Only runs when --commit is passed.
  *
  * Usage:
  *   node scripts/check-dead-urls.mjs [options]
  *
  * Options:
- *   --dry-run          (default) Export + check only; no DB writes
+ *   --dry-run          (default) Export + check + language detect; no DB writes
  *   --commit           Write results to Supabase
  *   --source <name>    Scope export to one source (e.g. --source reddit)
  *   --limit <n>        Check only first N URLs from export (testing)
  *   --concurrency <n>  Parallel request slots (default: 20)
  *   --re-export        Re-download URL list even if cache exists
- *   --reset            Delete checkpoint and result files; re-run phase 2 from scratch
+ *   --reset            Delete checkpoint and result files; re-run phases 2-3 from scratch
  *   --strict-403       Treat HTTP 403 as dead (default: alive — many sites block HEAD scraping)
- *   --fix-redirects    Also update same-domain redirect paths in DB (default: off — mark-inactive only)
+ *   --fix-redirects    Update DB url for content-move redirects (same- or cross-domain non-root)
+ *   --skip-language    Skip Phase 3 language detection entirely
  */
 
 import { fileURLToPath } from 'url';
@@ -36,18 +41,21 @@ import { createClient } from '@supabase/supabase-js';
 
 const __dirname  = dirname(fileURLToPath(import.meta.url));
 const CACHE_DIR  = resolve(__dirname, '.cache');
-const EXPORT_FILE    = resolve(CACHE_DIR, 'dead-links-export.jsonl');
-const RESULTS_FILE   = resolve(CACHE_DIR, 'dead-links-results.jsonl');
-const PROGRESS_FILE  = resolve(CACHE_DIR, 'dead-links-progress.json');
+const EXPORT_FILE            = resolve(CACHE_DIR, 'dead-links-export.jsonl');
+const RESULTS_FILE           = resolve(CACHE_DIR, 'dead-links-results.jsonl');
+const PROGRESS_FILE          = resolve(CACHE_DIR, 'dead-links-progress.json');
+const LANGUAGE_RESULTS_FILE  = resolve(CACHE_DIR, 'language-results.jsonl');
+const LANGUAGE_PROGRESS_FILE = resolve(CACHE_DIR, 'language-progress.json');
 
 dotenvConfig({ path: resolve(__dirname, '../.env') });
 
 // ── CLI flags ────────────────────────────────────────────────────────────────
-const COMMIT      = process.argv.includes('--commit');
-const RE_EXPORT   = process.argv.includes('--re-export');
-const RESET       = process.argv.includes('--reset');
-const STRICT_403  = process.argv.includes('--strict-403');
+const COMMIT        = process.argv.includes('--commit');
+const RE_EXPORT     = process.argv.includes('--re-export');
+const RESET         = process.argv.includes('--reset');
+const STRICT_403    = process.argv.includes('--strict-403');
 const FIX_REDIRECTS = process.argv.includes('--fix-redirects');
+const SKIP_LANGUAGE = process.argv.includes('--skip-language');
 
 const SOURCE_ARG = (() => {
   const i = process.argv.indexOf('--source');
@@ -137,7 +145,7 @@ async function exportUrls() {
   while (true) {
     let query = supabase
       .from('urls')
-      .select('id, url, source')
+      .select('id, url, source, language')
       .eq('approved', true)
       .eq('inactive', false)
       .order('id')
@@ -247,8 +255,11 @@ async function checkUrl(urlId, url) {
         // Path change on same domain — update the stored URL
         return { urlId, status: response.status, dead: false, redirect: true, newUrl: finalNorm };
       }
-      // Domain change or redirected to homepage — treat as retired content
-      return { urlId, status: response.status, dead: true, redirect: true, reason: 'redirect-domain-change' };
+      // Cross-domain redirect — content move if destination is real content, retired if root-only
+      if (isRootOnly(currentUrl)) {
+        return { urlId, status: response.status, dead: true, redirect: true, reason: 'redirect-to-homepage' };
+      }
+      return { urlId, status: response.status, dead: false, redirect: true, newUrl: finalNorm };
     }
 
     // ── Client errors ──────────────────────────────────────────────────────
@@ -284,9 +295,11 @@ async function checkUrl(urlId, url) {
 
 async function runChecks() {
   if (RESET) {
-    if (existsSync(RESULTS_FILE))  unlinkSync(RESULTS_FILE);
-    if (existsSync(PROGRESS_FILE)) unlinkSync(PROGRESS_FILE);
-    console.log('[check] Reset: cleared previous results.\n');
+    if (existsSync(RESULTS_FILE))          unlinkSync(RESULTS_FILE);
+    if (existsSync(PROGRESS_FILE))         unlinkSync(PROGRESS_FILE);
+    if (existsSync(LANGUAGE_RESULTS_FILE)) unlinkSync(LANGUAGE_RESULTS_FILE);
+    if (existsSync(LANGUAGE_PROGRESS_FILE)) unlinkSync(LANGUAGE_PROGRESS_FILE);
+    console.log('[check] Reset: cleared previous results (phases 2–3).\n');
   }
 
   // Load all rows from export
@@ -351,35 +364,187 @@ async function runChecks() {
   console.log(`\n\n[check] Complete:  ${deadCount.toLocaleString()} dead,  ${redirectCount.toLocaleString()} redirects.\n`);
 }
 
-// ── Phase 3: Commit ────────────────────────────────────────────────────────────
+// ── Phase 3: Language Detection ───────────────────────────────────────────────
+
+/**
+ * Fetch the first 16KB of a URL and extract the BCP-47 base language tag
+ * from the <html lang="..."> attribute.  Returns null if not found or on error.
+ */
+async function detectLanguage(url) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 6_000);
+  try {
+    let response;
+    try {
+      response = await withDomainRateLimit(url, () =>
+        fetch(url, {
+          method: 'GET',
+          signal: controller.signal,
+          headers: {
+            'User-Agent': 'Roam-LinkChecker/1.0 (+https://roamtheweb.app/about)',
+            'Range': 'bytes=0-16383',
+            'Accept': 'text/html',
+          },
+        })
+      );
+    } catch {
+      return null;
+    }
+
+    if (response.status !== 200 && response.status !== 206) return null;
+
+    const MAX_BYTES = 16_384;
+    const chunks = [];
+    let received = 0;
+
+    try {
+      for await (const chunk of response.body) {
+        chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+        received += chunk.length;
+        if (received >= MAX_BYTES) break;
+      }
+    } catch {
+      // stream interrupted (AbortController or partial read) — use what we have
+    }
+
+    if (chunks.length === 0) return null;
+
+    const html = Buffer.concat(chunks).toString('utf-8', 0, MAX_BYTES);
+    const match = html.match(/<html[^>]*\slang="([^"]+)"/i);
+    if (!match) return null;
+
+    const lang = match[1].split(/[-_]/)[0].toLowerCase();
+    return lang || null;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function runLanguageCheck() {
+  if (SKIP_LANGUAGE) {
+    console.log('[language] Skipped (--skip-language).\n');
+    return;
+  }
+
+  if (!existsSync(EXPORT_FILE) || !existsSync(RESULTS_FILE)) {
+    console.log('[language] Skipping — export or check results not found.\n');
+    return;
+  }
+
+  // Build id → { url, language } map from Phase 1 export
+  const exportLines = readFileSync(EXPORT_FILE, 'utf-8').split('\n').filter(Boolean);
+  const urlMap = new Map();
+  for (const line of exportLines) {
+    try {
+      const row = JSON.parse(line);
+      urlMap.set(row.id, { url: row.url, language: row.language ?? 'en' });
+    } catch {}
+  }
+
+  // Collect alive URLs from Phase 2 results
+  const resultLines = readFileSync(RESULTS_FILE, 'utf-8').split('\n').filter(Boolean);
+  const aliveRows = resultLines
+    .map((l) => { try { return JSON.parse(l); } catch { return null; } })
+    .filter((r) => r && !r.dead)
+    .map((r) => {
+      const meta = urlMap.get(r.urlId);
+      return meta ? { urlId: r.urlId, url: meta.url, language: meta.language } : null;
+    })
+    .filter(Boolean);
+
+  // Load checkpoint
+  let progress = { checkedCount: 0 };
+  if (existsSync(LANGUAGE_PROGRESS_FILE) && !RESET) {
+    try { progress = JSON.parse(readFileSync(LANGUAGE_PROGRESS_FILE, 'utf-8')); } catch {}
+  }
+
+  const startIdx = progress.checkedCount;
+  const rows = aliveRows.slice(startIdx);
+
+  if (rows.length === 0) {
+    console.log('[language] Nothing left to check (all alive URLs already processed).\n');
+    return;
+  }
+
+  console.log(`[language] ${aliveRows.length.toLocaleString()} alive URLs to language-check.`);
+  if (startIdx > 0) console.log(`[language] Resuming from index ${startIdx.toLocaleString()}.`);
+  console.log(`[language] Detecting via partial GET  (concurrency=${CONCURRENCY}, timeout=6s)\n`);
+
+  if (!existsSync(LANGUAGE_RESULTS_FILE)) writeFileSync(LANGUAGE_RESULTS_FILE, '');
+
+  let done = 0;
+  let detectedCount = 0;
+  let changedCount = 0;
+
+  for (let i = 0; i < rows.length; i += CONCURRENCY) {
+    const chunk = rows.slice(i, i + CONCURRENCY);
+    const langResults = await Promise.all(chunk.map(async (row) => {
+      const detectedLanguage = await detectLanguage(row.url);
+      return { urlId: row.urlId, currentLanguage: row.language, detectedLanguage };
+    }));
+
+    for (const result of langResults) {
+      appendFileSync(LANGUAGE_RESULTS_FILE, JSON.stringify(result) + '\n');
+      if (result.detectedLanguage !== null) detectedCount++;
+      if (result.detectedLanguage !== null && result.detectedLanguage !== result.currentLanguage) changedCount++;
+    }
+
+    done += chunk.length;
+    progress.checkedCount = startIdx + done;
+    writeFileSync(LANGUAGE_PROGRESS_FILE, JSON.stringify(progress));
+
+    if (done % 500 === 0 || done === rows.length) {
+      process.stdout.write(
+        `\r[language] ${done.toLocaleString()}/${rows.length.toLocaleString()}` +
+        `  detected=${detectedCount.toLocaleString()}  to-update=${changedCount.toLocaleString()}  `
+      );
+    }
+  }
+
+  console.log(`\n\n[language] Complete:  ${detectedCount.toLocaleString()} lang attrs found,  ${changedCount.toLocaleString()} changes to apply.\n`);
+}
+
+// ── Phase 4: Commit ────────────────────────────────────────────────────────────
 async function commitResults() {
   const lines = readFileSync(RESULTS_FILE, 'utf-8').split('\n').filter(Boolean);
   const results = lines
     .map((l) => { try { return JSON.parse(l); } catch { return null; } })
     .filter(Boolean);
 
-  const deadIds     = results.filter((r) => r.dead).map((r) => r.urlId);
+  const deadIds = results.filter((r) => r.dead).map((r) => r.urlId);
   const redirectFixes = FIX_REDIRECTS
     ? results.filter((r) => !r.dead && r.redirect && r.newUrl)
     : [];
 
-  console.log(`[commit] Dead URLs: ${deadIds.length.toLocaleString()}`);
+  // Load language results if available
+  let langUpdates = [];
+  if (!SKIP_LANGUAGE && existsSync(LANGUAGE_RESULTS_FILE)) {
+    const langLines = readFileSync(LANGUAGE_RESULTS_FILE, 'utf-8').split('\n').filter(Boolean);
+    langUpdates = langLines
+      .map((l) => { try { return JSON.parse(l); } catch { return null; } })
+      .filter((r) => r && r.detectedLanguage !== null && r.detectedLanguage !== r.currentLanguage);
+  }
+
+  // ── Summary (always shown, even in dry-run) ───────────────────────────────
+  console.log(`[commit] Dead URLs to retire:    ${deadIds.length.toLocaleString()}`);
   if (FIX_REDIRECTS) {
-    console.log(`[commit] Redirect path updates: ${redirectFixes.length.toLocaleString()}`);
+    console.log(`[commit] Redirect URL updates:   ${redirectFixes.length.toLocaleString()}`);
   } else {
     const redirectCount = results.filter((r) => !r.dead && r.redirect && r.newUrl).length;
     if (redirectCount > 0) {
-      console.log(`[commit] Same-domain redirects detected: ${redirectCount.toLocaleString()} (skipped — pass --fix-redirects to update)`);
+      console.log(`[commit] Content-move redirects: ${redirectCount.toLocaleString()} detected (pass --fix-redirects to update)`);
     }
+  }
+  if (!SKIP_LANGUAGE) {
+    console.log(`[commit] Language corrections:   ${langUpdates.length.toLocaleString()}`);
   }
 
   if (!COMMIT) {
-    console.log('\n[commit] Dry-run complete.  Results file:', RESULTS_FILE);
-    console.log('[commit] Re-run with --commit to apply changes to Supabase.\n');
+    console.log('\n[commit] Dry-run complete.  Pass --commit to apply changes to Supabase.\n');
     return;
   }
 
-  // Mark dead URLs as inactive
+  // ── Mark dead URLs as inactive ────────────────────────────────────────────
   if (deadIds.length > 0) {
     console.log('\n[commit] Writing inactive=TRUE for dead URLs...');
     let retired = 0;
@@ -399,18 +564,51 @@ async function commitResults() {
     console.log(`\n[commit] Retired ${retired.toLocaleString()} dead URLs.\n`);
   }
 
-  // Apply same-domain redirect corrections
+  // ── Apply redirect URL corrections ────────────────────────────────────────
   if (redirectFixes.length > 0) {
-    console.log('[commit] Applying redirect path corrections...');
+    console.log('[commit] Applying redirect URL corrections...');
     let updated = 0;
+    let conflicted = 0;
     for (const r of redirectFixes) {
       const { error } = await supabase
         .from('urls')
         .update({ url: r.newUrl, original_url: r.newUrl })
         .eq('id', r.urlId);
-      if (!error) updated++;
+      if (!error) {
+        updated++;
+      } else if (error.code === '23505') {
+        // New URL already exists in DB — mark original as inactive instead
+        await supabase.from('urls').update({ inactive: true }).eq('id', r.urlId);
+        conflicted++;
+      }
     }
-    console.log(`[commit] Updated ${updated.toLocaleString()} redirect paths.\n`);
+    console.log(`[commit] Updated ${updated.toLocaleString()} redirect URLs,  ${conflicted.toLocaleString()} conflicts \u2192 marked inactive.\n`);
+  }
+
+  // ── Apply language corrections ────────────────────────────────────────────
+  if (langUpdates.length > 0) {
+    console.log('[commit] Applying language corrections...');
+    // Group by detected language for efficient batch updates
+    const byLang = new Map();
+    for (const r of langUpdates) {
+      if (!byLang.has(r.detectedLanguage)) byLang.set(r.detectedLanguage, []);
+      byLang.get(r.detectedLanguage).push(r.urlId);
+    }
+    let updated = 0;
+    for (const [lang, ids] of byLang) {
+      for (let i = 0; i < ids.length; i += DB_BATCH_SIZE) {
+        const batch = ids.slice(i, i + DB_BATCH_SIZE);
+        const { error } = await supabase
+          .from('urls')
+          .update({ language: lang })
+          .in('id', batch);
+        if (!error) {
+          updated += batch.length;
+          process.stdout.write(`\r[commit] Language updated ${updated.toLocaleString()}/${langUpdates.length.toLocaleString()}  `);
+        }
+      }
+    }
+    console.log(`\n[commit] Updated ${updated.toLocaleString()} language tags.\n`);
   }
 
   console.log('[commit] Done.\n');
@@ -425,15 +623,41 @@ async function main() {
 
   const divider = '─'.repeat(58);
   console.log(divider);
-  console.log('  Roam Dead-Link Checker');
-  if (SOURCE_ARG) console.log(`  Source filter: ${SOURCE_ARG}`);
-  if (LIMIT_ARG)  console.log(`  Limit: ${LIMIT_ARG.toLocaleString()} URLs`);
-  if (STRICT_403) console.log('  --strict-403: 403 treated as dead');
-  if (FIX_REDIRECTS) console.log('  --fix-redirects: same-domain redirect paths will be updated');
+  console.log('  Roam Dead-Link & Language Checker');
+  if (SOURCE_ARG)    console.log(`  Source filter:  ${SOURCE_ARG}`);
+  if (LIMIT_ARG)     console.log(`  Limit:          ${LIMIT_ARG.toLocaleString()} URLs`);
+  if (STRICT_403)    console.log('  --strict-403:   403 treated as dead');
+  if (FIX_REDIRECTS) console.log('  --fix-redirects: content-move redirects will be updated in DB');
+  if (SKIP_LANGUAGE) console.log('  --skip-language: language detection skipped');
+
+  // Show resume state for each phase
+  const resumeLines = [];
+  if (existsSync(EXPORT_FILE)) {
+    const exportCount = readFileSync(EXPORT_FILE, 'utf-8').split('\n').filter(Boolean).length;
+    resumeLines.push(`  Phase 1 export:    ${exportCount.toLocaleString()} URLs cached`);
+  }
+  if (existsSync(PROGRESS_FILE)) {
+    try {
+      const p = JSON.parse(readFileSync(PROGRESS_FILE, 'utf-8'));
+      resumeLines.push(`  Phase 2 checked:   ${p.checkedCount.toLocaleString()} done`);
+    } catch {}
+  }
+  if (existsSync(LANGUAGE_PROGRESS_FILE)) {
+    try {
+      const p = JSON.parse(readFileSync(LANGUAGE_PROGRESS_FILE, 'utf-8'));
+      resumeLines.push(`  Phase 3 language:  ${p.checkedCount.toLocaleString()} done`);
+    } catch {}
+  }
+  if (resumeLines.length > 0) {
+    console.log('  Resume state:');
+    resumeLines.forEach((l) => console.log(l));
+  }
+
   console.log(divider + '\n');
 
   await exportUrls();
   await runChecks();
+  await runLanguageCheck();
   await commitResults();
 }
 
