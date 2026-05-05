@@ -67,7 +67,14 @@ class RoamRepository {
             }
             // For real JWT errors: refresh the session using the stored refresh token
             // (works even when currentSessionOrNull() is null — the refresh token persists).
-            supabase.auth.refreshCurrentSession()
+            // If there is no refresh token at all (signed out / corrupted session),
+            // supabase-kt throws IllegalStateException("No refresh token found").
+            // Rethrow as UnauthorizedRestException so the ViewModel routes to sign-in.
+            try {
+                supabase.auth.refreshCurrentSession()
+            } catch (ise: IllegalStateException) {
+                throw e  // original UnauthorizedRestException → ViewModel shows sign-in
+            }
             invokeRoam(body)
         }
     }

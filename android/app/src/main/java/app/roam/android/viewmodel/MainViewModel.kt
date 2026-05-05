@@ -239,6 +239,8 @@ class MainViewModel(
                 // UnauthorizedRestException: repository already attempted one session refresh.
                 // A second attempt won't help; break early so we don't burn retry budget.
                 if (lastException is UnauthorizedRestException) break
+                // IllegalStateException: no refresh token — session is gone entirely.
+                if (lastException is IllegalStateException) break
             }
 
             if (success) {
@@ -257,11 +259,20 @@ class MainViewModel(
                 val msg = when {
                     isTimeout -> "Request timed out. Please try again."
                     e is UnauthorizedRestException -> "Session expired. Please sign in again."
+                    e is IllegalStateException -> "Session expired. Please sign in again."
                     e is IOException -> "You appear to be offline. Please check your connection."
                     else -> e.message ?: "Something went wrong. Please try again."
                 }
                 _state.value = RoamState.Error(msg)
-                Sentry.captureException(e)
+                // Don't forward our own server-side error messages to Sentry — they are already
+                // logged by the edge function's console.error and captured server-side.
+                // IllegalStateException (no refresh token) is also not worth capturing — it just
+                // means the user's session has fully expired; sign-in will recover it.
+                val isKnownServerMessage = e.message == "Discovery failed. Please try again."
+                    || e.message == "Discovery timed out. Please try again."
+                if (!isKnownServerMessage && e !is IllegalStateException) {
+                    Sentry.captureException(e)
+                }
             }
         }
     }
