@@ -56,8 +56,17 @@ class RoamRepository {
                 it.contains("jwt", ignoreCase = true) ||
                 it.contains("unauthorized", ignoreCase = true)
             } ?: false
-            if (!isAuthError) throw Exception(e.message ?: "Server error. Please try again.")
-            if (supabase.auth.currentSessionOrNull() == null) throw e
+            if (!isAuthError) {
+                // Extract the human-readable message from the JSON body if present,
+                // e.g. {"error":"Discovery failed. Please try again."} → that string.
+                val msg = e.message
+                    ?.let { Regex("\"error\"\\s*:\\s*\"([^\"]+)\"").find(it)?.groupValues?.get(1) }
+                    ?: e.message
+                    ?: "Server error. Please try again."
+                throw Exception(msg)
+            }
+            // For real JWT errors: refresh the session using the stored refresh token
+            // (works even when currentSessionOrNull() is null — the refresh token persists).
             supabase.auth.refreshCurrentSession()
             invokeRoam(body)
         }
