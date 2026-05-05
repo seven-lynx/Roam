@@ -270,7 +270,11 @@ class MainViewModel(
                 // means the user's session has fully expired; sign-in will recover it.
                 val isKnownServerMessage = e.message == "Discovery failed. Please try again."
                     || e.message == "Discovery timed out. Please try again."
-                if (!isKnownServerMessage && e !is IllegalStateException) {
+                // UnauthorizedRestException: repo already attempted a refresh — if it still
+                // fails here the session is gone (no refresh token). Not a bug, just sign-in needed.
+                // IllegalStateException: no refresh token at all — same outcome.
+                val isExpiredSession = e is UnauthorizedRestException || e is IllegalStateException
+                if (!isKnownServerMessage && !isExpiredSession) {
                     Sentry.captureException(e)
                 }
             }
