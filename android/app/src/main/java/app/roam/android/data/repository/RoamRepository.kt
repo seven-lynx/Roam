@@ -7,6 +7,7 @@ import app.roam.android.model.RoamUrl
 import app.roam.android.model.UserProfile
 import app.roam.android.model.UserSettings
 import io.github.jan.supabase.auth.auth
+import io.github.jan.supabase.exceptions.NotFoundRestException
 import io.github.jan.supabase.exceptions.UnauthorizedRestException
 import io.github.jan.supabase.functions.functions
 import io.github.jan.supabase.postgrest.postgrest
@@ -46,20 +47,32 @@ class RoamRepository {
         return try {
             invokeRoam(body)
         } catch (e: UnauthorizedRestException) {
-            // JWT expired or malformed — refresh the session and retry once.
-            // If refresh fails, the exception propagates to the ViewModel.
+            // supabase-kt 3.0.2 bug: parseErrorResponse's else-branch throws
+            // UnauthorizedRestException for ALL non-2xx responses from functions.invoke(),
+            // including 500 and 503. Only attempt a session refresh for actual JWT/auth
+            // errors; for server errors, rethrow as a plain Exception so the ViewModel
+            // retries without treating it as an auth failure.
+            val isAuthError = e.message?.let {
+                it.contains("jwt", ignoreCase = true) ||
+                it.contains("unauthorized", ignoreCase = true)
+            } ?: false
+            if (!isAuthError) throw Exception(e.message ?: "Server error. Please try again.")
+            if (supabase.auth.currentSessionOrNull() == null) throw e
             supabase.auth.refreshCurrentSession()
             invokeRoam(body)
         }
     }
 
     private suspend fun invokeRoam(body: kotlinx.serialization.json.JsonObject): RoamUrl? {
-        val response = supabase.functions.invoke("roam", body = body)
-        if (response.status.value == 404) return null
-        if (response.status.value == 500 || response.status.value == 503) {
-            throw Exception("roam() function returned ${response.status.value} — server error. Will retry.")
+        // Note: supabase-kt 3.0.2 throws for ALL non-2xx responses before returning.
+        // NotFoundRestException = 404 (pool exhausted → return null).
+        // All other errors propagate up to roam() for handling.
+        return try {
+            val response = supabase.functions.invoke("roam", body = body)
+            json.decodeFromString(response.body())
+        } catch (e: NotFoundRestException) {
+            null
         }
-        return json.decodeFromString(response.body())
     }
 
     /**
