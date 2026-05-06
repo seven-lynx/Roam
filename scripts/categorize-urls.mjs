@@ -260,7 +260,26 @@ const GUARDIAN_SECTION_MAP = {
   'sport':        SC.SPORTS_ATHLETICS,
   'food':         SC.COOKING_FOOD,
   'games':        SC.VIDEO_GAMES,
-  // 'culture' omitted — too broad
+  'culture':      SC.VISUAL_ART_PAINTING,   // broad; arts/culture catch-all
+  'stage':        SC.THEATRE_PERFORMANCE,
+  'music/features': SC.MUSIC,
+  'education':    SC.SOCIAL_HISTORY,
+  'media':        SC.INTERNET_CULTURE,
+  'commentisfree': SC.POLITICS_GEOPOLITICS,
+  'law':          SC.POLITICS_GEOPOLITICS,
+  'money':        SC.ECONOMICS,
+  'inequality':   SC.SOCIAL_HISTORY,
+  'healthcare-network': SC.MEDICINE_HEALTH_SCIENCE,
+  'global-development': SC.POLITICS_GEOPOLITICS,
+  'uk-news':      SC.POLITICS_GEOPOLITICS,
+  'us-news':      SC.POLITICS_GEOPOLITICS,
+  'australia-news': SC.POLITICS_GEOPOLITICS,
+  'global':       SC.POLITICS_GEOPOLITICS,
+  'news':         SC.POLITICS_GEOPOLITICS,
+  'uk':           SC.POLITICS_GEOPOLITICS,
+  'theobserver':  SC.POLITICS_GEOPOLITICS,
+  'tv-and-radio': SC.FILM_TELEVISION,
+  'football':     SC.SPORTS_ATHLETICS,
 };
 
 // ── Smithsonian: infer subcategory from existing category_id ─────────────────
