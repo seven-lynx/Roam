@@ -152,29 +152,47 @@ async function exportUrls() {
 
   const stream = createWriteStream(EXPORT_FILE);
   let total = 0;
-  let page = 0;
+  let lastId = '00000000-0000-0000-0000-000000000000';  // keyset cursor
+  const MAX_PAGE_RETRIES = 5;
 
   while (true) {
-    let query = supabase
-      .from('urls')
-      .select('id, url, source, language')
-      .eq('approved', true)
-      .eq('inactive', false)
-      .order('id')
-      .range(page * EXPORT_PAGE_SIZE, (page + 1) * EXPORT_PAGE_SIZE - 1);
+    let data = null;
+    let lastError = null;
 
-    if (SOURCE_ARG) query = query.eq('source', SOURCE_ARG);
+    for (let attempt = 0; attempt < MAX_PAGE_RETRIES; attempt++) {
+      let query = supabase
+        .from('urls')
+        .select('id, url, source, language')
+        .eq('approved', true)
+        .eq('inactive', false)
+        .gt('id', lastId)            // keyset pagination — avoids OFFSET scan
+        .order('id')
+        .limit(EXPORT_PAGE_SIZE);
 
-    const { data, error } = await query;
-    if (error) {
-      console.error('[export] Query error:', error.message);
+      if (SOURCE_ARG) query = query.eq('source', SOURCE_ARG);
+
+      const result = await query;
+      if (!result.error) {
+        data = result.data;
+        lastError = null;
+        break;
+      }
+      lastError = result.error;
+      if (attempt < MAX_PAGE_RETRIES - 1) {
+        process.stdout.write(`\r[export] timeout on page after ${total.toLocaleString()}, retrying (${attempt + 1})...`);
+        await sleep(2000 * (attempt + 1));
+      }
+    }
+
+    if (lastError) {
+      console.error(`\n[export] Failed after ${MAX_PAGE_RETRIES} retries: ${lastError.message}`);
       break;
     }
     if (!data || data.length === 0) break;
 
     for (const row of data) stream.write(JSON.stringify(row) + '\n');
     total += data.length;
-    page++;
+    lastId = data[data.length - 1].id;
     process.stdout.write(`\r[export] ${total.toLocaleString()} URLs...`);
     if (data.length < EXPORT_PAGE_SIZE) break;
   }

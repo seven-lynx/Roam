@@ -64,6 +64,8 @@ const supabase = createClient(
 const EXPORT_PAGE_SIZE = 1_000;
 const DB_BATCH_SIZE    = 500;
 
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
 // ── Subcategory UUID constants ───────────────────────────────────────────────
 const SC = {
   // Science & Nature
@@ -343,37 +345,51 @@ async function exportUrls() {
 
   const stream = createWriteStream(EXPORT_FILE);
   let total = 0;
-  let page = 0;
+  let lastId = '00000000-0000-0000-0000-000000000000';  // keyset cursor
+  const MAX_PAGE_RETRIES = 5;
 
   while (true) {
-    let query = supabase
-      .from('urls')
-      .select('id, url, source, category_id, subcategory_id')
-      .eq('approved', true)
-      .eq('inactive', false)
-      .order('source')   // source is likely indexed; avoids full-table sort on id
-      .order('id')
-      .range(page * EXPORT_PAGE_SIZE, (page + 1) * EXPORT_PAGE_SIZE - 1);
+    let data = null;
+    let lastError = null;
 
-    if (SOURCE_ARG) {
-      // Source filter is selective — no IS NULL needed; already-categorised rows
-      // are skipped in the classify phase.
-      query = query.eq('source', SOURCE_ARG);
-    } else {
-      // Full export: filter IS NULL so we don't load millions of already-done rows.
-      query = query.is('subcategory_id', null);
+    for (let attempt = 0; attempt < MAX_PAGE_RETRIES; attempt++) {
+      let query = supabase
+        .from('urls')
+        .select('id, url, source, category_id, subcategory_id')
+        .eq('approved', true)
+        .eq('inactive', false)
+        .gt('id', lastId)            // keyset pagination — avoids OFFSET scan
+        .order('id')
+        .limit(EXPORT_PAGE_SIZE);
+
+      if (SOURCE_ARG) {
+        query = query.eq('source', SOURCE_ARG);
+      } else {
+        query = query.is('subcategory_id', null);
+      }
+
+      const result = await query;
+      if (!result.error) {
+        data = result.data;
+        lastError = null;
+        break;
+      }
+      lastError = result.error;
+      if (attempt < MAX_PAGE_RETRIES - 1) {
+        process.stdout.write(`\r[export] timeout after ${total.toLocaleString()}, retrying (${attempt + 1})...`);
+        await sleep(2000 * (attempt + 1));
+      }
     }
 
-    const { data, error } = await query;
-    if (error) {
-      console.error('[export] Query error:', error.message);
+    if (lastError) {
+      console.error(`\n[export] Failed after ${MAX_PAGE_RETRIES} retries: ${lastError.message}`);
       process.exit(1);
     }
     if (!data || data.length === 0) break;
 
     for (const row of data) stream.write(JSON.stringify(row) + '\n');
     total += data.length;
-    page++;
+    lastId = data[data.length - 1].id;
     process.stdout.write(`\r[export] ${total.toLocaleString()} URLs...`);
     if (data.length < EXPORT_PAGE_SIZE) break;
   }
