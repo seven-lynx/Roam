@@ -329,14 +329,21 @@ async function exportUrls() {
   while (true) {
     let query = supabase
       .from('urls')
-      .select('id, url, source, category_id')
-      .is('subcategory_id', null)
+      .select('id, url, source, category_id, subcategory_id')
       .eq('approved', true)
       .eq('inactive', false)
+      .order('source')   // source is likely indexed; avoids full-table sort on id
       .order('id')
       .range(page * EXPORT_PAGE_SIZE, (page + 1) * EXPORT_PAGE_SIZE - 1);
 
-    if (SOURCE_ARG) query = query.eq('source', SOURCE_ARG);
+    if (SOURCE_ARG) {
+      // Source filter is selective — no IS NULL needed; already-categorised rows
+      // are skipped in the classify phase.
+      query = query.eq('source', SOURCE_ARG);
+    } else {
+      // Full export: filter IS NULL so we don't load millions of already-done rows.
+      query = query.is('subcategory_id', null);
+    }
 
     const { data, error } = await query;
     if (error) {
@@ -362,7 +369,8 @@ function runClassify() {
   const rows = readFileSync(EXPORT_FILE, 'utf-8')
     .split('\n')
     .filter(Boolean)
-    .map((line) => JSON.parse(line));
+    .map((line) => JSON.parse(line))
+    .filter((r) => !r.subcategory_id);  // skip already-categorised rows (source-scoped exports)
 
   const limit = LIMIT_ARG ?? rows.length;
   const scoped = rows.slice(0, limit);
