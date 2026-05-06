@@ -30,6 +30,13 @@ const BATCH_SIZE  = 50;
 const SLEEP_MS    = 2000;  // 2s between subreddit requests — respectful rate limiting
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const fmtEta = (done, total, startMs) => {
+  if (done === 0) return '?';
+  const s = Math.round(((Date.now() - startMs) / done) * (total - done) / 1000);
+  if (s < 60)   return `${s}s`;
+  if (s < 3600) return `${Math.floor(s / 60)}m${String(s % 60).padStart(2, '0')}s`;
+  return `${Math.floor(s / 3600)}h${String(Math.floor((s % 3600) / 60)).padStart(2, '0')}m`;
+};
 
 // ── Subreddit list with category mapping ──────────────────────────────────────
 // Each entry: [subreddit, category_id, limit]
@@ -211,6 +218,10 @@ async function seedReddit() {
   }
 
   // Fetch subreddits not yet complete
+  const remaining    = SUBREDDITS.filter(([s]) => !progress.subredditsComplete.includes(s));
+  const startMs      = Date.now();
+  let fetchedThisRun = 0;
+
   for (const [subreddit, categoryId, limit] of SUBREDDITS) {
     if (progress.subredditsComplete.includes(subreddit)) {
       console.log(`[reddit] Skipping r/${subreddit} (already done)`);
@@ -223,7 +234,8 @@ async function seedReddit() {
     // Attach category
     const tagged = rows.map((r) => ({ ...r, category_id: categoryId }));
     allRows.push(...tagged);
-    console.log(`[reddit]   r/${subreddit}: ${rows.length} URLs collected`);
+    fetchedThisRun++;
+    console.log(`[reddit]   r/${subreddit}: ${rows.length} URLs  (${progress.subredditsComplete.length + 1}/${SUBREDDITS.length}, eta=${fmtEta(fetchedThisRun, remaining.length, startMs)})`);
 
     // Save checkpoint after each subreddit
     progress.subredditsComplete.push(subreddit);

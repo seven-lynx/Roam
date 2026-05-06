@@ -32,6 +32,13 @@ const DELAY_MS = 1200;
 const BASE     = 'https://api.si.edu/openaccess/api/v1.0';
 const HEADERS  = { 'User-Agent': 'Roam-Seeder/1.0 (+https://roamtheweb.app)' };
 const sleep    = (ms) => new Promise((r) => setTimeout(r, ms));
+const fmtEta   = (done, total, startMs) => {
+  if (done === 0) return '?';
+  const s = Math.round(((Date.now() - startMs) / done) * (total - done) / 1000);
+  if (s < 60)   return `${s}s`;
+  if (s < 3600) return `${Math.floor(s / 60)}m${String(s % 60).padStart(2, '0')}s`;
+  return `${Math.floor(s / 3600)}h${String(Math.floor((s % 3600) / 60)).padStart(2, '0')}m`;
+};
 
 // ── Phase 1: category-endpoint passes (sort=random, 1000 rows each) ───────────
 // The SI API exposes 3 native categories. rows=1000 is the API maximum per
@@ -162,23 +169,25 @@ async function main() {
 
   // Phase 1: category passes (random sort — fresh objects every run)
   console.log('\n[smithsonian] Phase 1: category passes (sort=random, 1000 per category)...');
+  const phase1Start = Date.now();
   for (let i = 0; i < CAT_PASSES.length; i++) {
     const { cat, roamCat } = CAT_PASSES[i];
     process.stdout.write(`\r  [${i + 1}/${CAT_PASSES.length}] ${cat}...`);
     const items = await fetchCategoryPage(apiKey, cat);
     addRows(items, roamCat);
-    process.stdout.write(`  ${items.length} fetched  total=${allRows.length}   `);
+    process.stdout.write(`  ${items.length} fetched  total=${allRows.length}  eta=${fmtEta(i + 1, CAT_PASSES.length, phase1Start)}  `);
     if (i < CAT_PASSES.length - 1) await sleep(DELAY_MS);
   }
 
   // Phase 2: supplemental topic queries (cached, fills coverage gaps)
   console.log('\n\n[smithsonian] Phase 2: supplemental topic queries...');
+  const phase2Start = Date.now();
   for (let i = 0; i < SUPPLEMENTAL.length; i++) {
     const { q, rows, cat } = SUPPLEMENTAL[i];
     process.stdout.write(`\r  [${i + 1}/${SUPPLEMENTAL.length}] "${q}"...`);
     const items = await fetchSearchPages(apiKey, q, rows);
     addRows(items, cat);
-    process.stdout.write(`  ${items.length} fetched  total=${allRows.length}   `);
+    process.stdout.write(`  ${items.length} fetched  total=${allRows.length}  eta=${fmtEta(i + 1, SUPPLEMENTAL.length, phase2Start)}  `);
     if (i < SUPPLEMENTAL.length - 1) await sleep(DELAY_MS);
   }
 

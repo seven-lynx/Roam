@@ -27,6 +27,13 @@ const NO_CACHE   = process.argv.includes('--no-cache');
 // Fetch articles published in the last N calendar days
 const DELAY_MS  = 800;
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const fmtEta = (done, total, startMs) => {
+  if (done === 0) return '?';
+  const s = Math.round(((Date.now() - startMs) / done) * (total - done) / 1000);
+  if (s < 60)   return `${s}s`;
+  if (s < 3600) return `${Math.floor(s / 60)}m${String(s % 60).padStart(2, '0')}s`;
+  return `${Math.floor(s / 3600)}h${String(Math.floor((s % 3600) / 60)).padStart(2, '0')}m`;
+};
 
 // Max age for articles. Default 730 days (2 years); override with --max-age-days N
 const MAX_AGE_DAYS = (() => {
@@ -162,6 +169,7 @@ async function fetchProPublica() {
 
   const seen    = new Set();
   const allRows = [];
+  const startMs = Date.now();
 
   for (let i = 0; i < filtered.length; i++) {
     const sitemapUrl  = filtered[i];
@@ -183,7 +191,7 @@ async function fetchProPublica() {
     }
 
     if (added > 0) {
-      process.stdout.write(`\r[propublica]   ${i + 1}/${filtered.length} sitemaps  total=${allRows.length}  `);
+      process.stdout.write(`\r[propublica]   ${i + 1}/${filtered.length} sitemaps  total=${allRows.length}  eta=${fmtEta(i + 1, filtered.length, startMs)}  `);
     }
 
     await sleep(DELAY_MS);

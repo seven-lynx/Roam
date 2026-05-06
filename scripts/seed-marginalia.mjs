@@ -29,7 +29,14 @@ const NO_CACHE   = process.argv.includes('--no-cache');
 
 const DELAY_MS  = 2000;  // Very polite — single-person project
 const COUNT     = 100;   // Results per query (Marginalia's max)
-const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const sleep  = (ms) => new Promise((r) => setTimeout(r, ms));
+const fmtEta = (done, total, startMs) => {
+  if (done === 0) return '?';
+  const s = Math.round(((Date.now() - startMs) / done) * (total - done) / 1000);
+  if (s < 60)   return `${s}s`;
+  if (s < 3600) return `${Math.floor(s / 60)}m${String(s % 60).padStart(2, '0')}s`;
+  return `${Math.floor(s / 3600)}h${String(Math.floor((s % 3600) / 60)).padStart(2, '0')}m`;
+};
 
 // ── Search terms → Roam categories ───────────────────────────────────────────
 const QUERIES = [
@@ -128,6 +135,7 @@ async function fetchQuery(q, index = 0) {
 async function fetchMarginalia() {
   const allRows = [];
   const seen    = new Set();
+  const startMs = Date.now();
 
   for (let i = 0; i < QUERIES.length; i++) {
     const { q, cat } = QUERIES[i];
@@ -139,7 +147,7 @@ async function fetchMarginalia() {
       allRows.push({ ...r, category_id: cat, source: 'marginalia' });
     }
 
-    process.stdout.write(`\r[marginalia] ${i + 1}/${QUERIES.length} queries  total=${allRows.length}  `);
+    process.stdout.write(`\r[marginalia] ${i + 1}/${QUERIES.length} queries  total=${allRows.length}  eta=${fmtEta(i + 1, QUERIES.length, startMs)}  `);
     await sleep(DELAY_MS);
   }
 

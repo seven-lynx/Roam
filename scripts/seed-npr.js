@@ -25,6 +25,13 @@ const NO_CACHE   = process.argv.includes('--no-cache');
 
 const DELAY_MS = 1000;
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const fmtEta = (done, total, startMs) => {
+  if (done === 0) return '?';
+  const s = Math.round(((Date.now() - startMs) / done) * (total - done) / 1000);
+  if (s < 60)   return `${s}s`;
+  if (s < 3600) return `${Math.floor(s / 60)}m${String(s % 60).padStart(2, '0')}s`;
+  return `${Math.floor(s / 3600)}h${String(Math.floor((s % 3600) / 60)).padStart(2, '0')}m`;
+};
 
 // Max age for articles. Default 365 days; override with --max-age-days N
 const MAX_AGE_DAYS = (() => {
@@ -164,6 +171,8 @@ async function fetchNPR() {
   console.log(`\n[npr] Fetching ${FEEDS.length} RSS feeds...`);
   const allRows = [];
   const seen    = new Set();
+  const startMs = Date.now();
+  let feedIdx   = 0;
 
   for (const { url: feedUrl, label, categoryId } of FEEDS) {
     const rows = await fetchFeed(feedUrl, label, categoryId);
@@ -176,7 +185,8 @@ async function fetchNPR() {
       added++;
     }
 
-    console.log(`[npr]   ${label}: ${added} articles`);
+    feedIdx++;
+    console.log(`[npr]   ${feedIdx}/${FEEDS.length}  ${label}: ${added} articles  (total=${allRows.length}, eta=${fmtEta(feedIdx, FEEDS.length, startMs)})`);
     await sleep(DELAY_MS);
   }
 

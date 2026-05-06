@@ -27,12 +27,21 @@ const MIN_COMMENTS   = 10;  // require real discussion
 
 const HN_INTERNAL = /^https?:\/\/(www\.)?news\.ycombinator\.com/i;
 
+const fmtEta = (done, total, startMs) => {
+  if (done === 0) return '?';
+  const s = Math.round(((Date.now() - startMs) / done) * (total - done) / 1000);
+  if (s < 60)   return `${s}s`;
+  if (s < 3600) return `${Math.floor(s / 60)}m${String(s % 60).padStart(2, '0')}s`;
+  return `${Math.floor(s / 3600)}h${String(Math.floor((s % 3600) / 60)).padStart(2, '0')}m`;
+};
+
 // ── Fetch from Algolia HN API ─────────────────────────────────────────────────
 
 async function fetchHNStories() {
   console.log(`\n[hackernews] Fetching top stories (points > ${MIN_POINTS}, ${PAGES} pages)...`);
   const rows = [];
   const seen = new Set();
+  const startMs = Date.now();
 
   for (let page = 0; page < PAGES; page++) {
     const url =
@@ -55,7 +64,7 @@ async function fetchHNStories() {
     }
 
     const hits = data?.hits ?? [];
-    console.log(`[hackernews]   page ${page}: ${hits.length} hits`);
+    console.log(`[hackernews]   page ${page + 1}/${PAGES}: ${hits.length} hits  (total=${rows.length}, eta=${fmtEta(page + 1, PAGES, startMs)})`);
 
     for (const hit of hits) {
       // Skip Ask HN / Show HN with no external URL, and HN-internal links

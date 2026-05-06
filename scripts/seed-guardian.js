@@ -37,6 +37,13 @@ const MAX_AGE_DAYS = (() => {
 })();
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const fmtEta = (done, total, startMs) => {
+  if (done === 0) return '?';
+  const s = Math.round(((Date.now() - startMs) / done) * (total - done) / 1000);
+  if (s < 60)   return `${s}s`;
+  if (s < 3600) return `${Math.floor(s / 60)}m${String(s % 60).padStart(2, '0')}s`;
+  return `${Math.floor(s / 3600)}h${String(Math.floor((s % 3600) / 60)).padStart(2, '0')}m`;
+};
 
 // ISO date string N days ago (YYYY-MM-DD)
 function isoDateDaysAgo(days) {

@@ -35,7 +35,14 @@ const NO_CACHE   = process.argv.includes('--no-cache');
 
 const DELAY_MS  = 500;   // Podcast Index is generous; 2 req/s is safe
 const PAGE_MAX  = 1000;  // Items per category query (their max is 1000)
-const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const sleep  = (ms) => new Promise((r) => setTimeout(r, ms));
+const fmtEta = (done, total, startMs) => {
+  if (done === 0) return '?';
+  const s = Math.round(((Date.now() - startMs) / done) * (total - done) / 1000);
+  if (s < 60)   return `${s}s`;
+  if (s < 3600) return `${Math.floor(s / 60)}m${String(s % 60).padStart(2, '0')}s`;
+  return `${Math.floor(s / 3600)}h${String(Math.floor((s % 3600) / 60)).padStart(2, '0')}m`;
+};
 
 // ── Auth header builder ───────────────────────────────────────────────────────
 function buildAuthHeaders(apiKey, apiSecret) {
@@ -125,6 +132,7 @@ async function fetchPodcastIndex() {
 
   const allRows = [];
   const seen    = new Set();
+  const startMs = Date.now();
 
   for (let i = 0; i < CATEGORY_MAP.length; i++) {
     const { piCat, rows: max, cat } = CATEGORY_MAP[i];
@@ -136,7 +144,7 @@ async function fetchPodcastIndex() {
       allRows.push({ ...item, category_id: cat });
     }
 
-    process.stdout.write(`\r[podcastindex] ${i + 1}/${CATEGORY_MAP.length} categories  total=${allRows.length}  `);
+    process.stdout.write(`\r[podcastindex] ${i + 1}/${CATEGORY_MAP.length} categories  total=${allRows.length}  eta=${fmtEta(i + 1, CATEGORY_MAP.length, startMs)}  `);
     await sleep(DELAY_MS);
   }
 

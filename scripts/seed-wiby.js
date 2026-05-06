@@ -29,6 +29,13 @@ const PAGES_PER_QUERY = 3;   // wiby returns ~10 results/page; 3 pages = ~30 per
 const DELAY_MS        = 2000; // be very polite to this small indie search engine
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const fmtEta = (done, total, startMs) => {
+  if (done === 0) return '?';
+  const s = Math.round(((Date.now() - startMs) / done) * (total - done) / 1000);
+  if (s < 60)   return `${s}s`;
+  if (s < 3600) return `${Math.floor(s / 60)}m${String(s % 60).padStart(2, '0')}s`;
+  return `${Math.floor(s / 3600)}h${String(Math.floor((s % 3600) / 60)).padStart(2, '0')}m`;
+};
 
 // ── Search terms → Roam categories ───────────────────────────────────────────
 const QUERIES = [
@@ -158,6 +165,8 @@ async function fetchWiby() {
   console.log(`\n[wiby] Searching ${QUERIES.length} queries × ${PAGES_PER_QUERY} pages...`);
   const allRows = [];
   const seen    = new Set();
+  const startMs = Date.now();
+  let queryIdx  = 0;
 
   for (const { q, categoryId } of QUERIES) {
     let added = 0;
@@ -185,7 +194,8 @@ async function fetchWiby() {
       await sleep(DELAY_MS);
     }
 
-    console.log(`[wiby]   "${q}": ${added} URLs`);
+    queryIdx++;
+    console.log(`[wiby]   ${queryIdx}/${QUERIES.length}  "${q}": ${added} URLs  (total=${allRows.length}, eta=${fmtEta(queryIdx, QUERIES.length, startMs)})`);
   }
 
   console.log(`\n[wiby] Total unique URLs collected: ${allRows.length}`);

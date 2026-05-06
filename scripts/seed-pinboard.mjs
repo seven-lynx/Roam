@@ -28,7 +28,14 @@ const CACHE_DIR  = resolve(__dirname, '.cache');
 const CACHE_FILE = resolve(CACHE_DIR, 'pinboard.json');
 const NO_CACHE   = process.argv.includes('--no-cache');
 const DELAY_MS   = 1500;   // Pinboard asks for respectful rate limiting
-const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const sleep  = (ms) => new Promise((r) => setTimeout(r, ms));
+const fmtEta = (done, total, startMs) => {
+  if (done === 0) return '?';
+  const s = Math.round(((Date.now() - startMs) / done) * (total - done) / 1000);
+  if (s < 60)   return `${s}s`;
+  if (s < 3600) return `${Math.floor(s / 60)}m${String(s % 60).padStart(2, '0')}s`;
+  return `${Math.floor(s / 3600)}h${String(Math.floor((s % 3600) / 60)).padStart(2, '0')}m`;
+};
 
 // ── Curated tag feeds → Roam categories ──────────────────────────────────────
 // Tag endpoint: https://feeds.pinboard.in/json/t:TAG  (public tag feed)
@@ -164,11 +171,12 @@ async function fetchPinboard() {
 
   // Tag feeds
   console.log(`[pinboard] Fetching ${TAG_FEEDS.length} tag feeds...`);
+  const tagStartMs = Date.now();
   for (let i = 0; i < TAG_FEEDS.length; i++) {
     const { tag, categoryId } = TAG_FEEDS[i];
     const rows = await fetchFeed(`https://feeds.pinboard.in/json/t:${tag}`, categoryId);
     addRows(rows);
-    process.stdout.write(`\r[pinboard]   ${i + 1}/${TAG_FEEDS.length} tags  total=${allRows.length}  `);
+    process.stdout.write(`\r[pinboard]   ${i + 1}/${TAG_FEEDS.length} tags  total=${allRows.length}  eta=${fmtEta(i + 1, TAG_FEEDS.length, tagStartMs)}  `);
     await sleep(DELAY_MS);
   }
 

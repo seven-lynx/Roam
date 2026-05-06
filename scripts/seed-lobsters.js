@@ -26,6 +26,13 @@ const PAGES    = 40;  // 40 × 25 = up to 1,000 stories
 const DELAY_MS = 1000; // be polite — lobste.rs is a small community server
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const fmtEta = (done, total, startMs) => {
+  if (done === 0) return '?';
+  const s = Math.round(((Date.now() - startMs) / done) * (total - done) / 1000);
+  if (s < 60)   return `${s}s`;
+  if (s < 3600) return `${Math.floor(s / 60)}m${String(s % 60).padStart(2, '0')}s`;
+  return `${Math.floor(s / 3600)}h${String(Math.floor((s % 3600) / 60)).padStart(2, '0')}m`;
+};
 
 // Lobsters tag → Roam category (anything unmapped falls back to TECHNOLOGY)
 const TAG_CATEGORY = {
@@ -62,6 +69,7 @@ async function fetchLobsters() {
   console.log(`\n[lobsters] Fetching ${PAGES} pages of hottest stories...`);
   const rows = [];
   const seen = new Set();
+  const startMs = Date.now();
 
   for (let page = 1; page <= PAGES; page++) {
     let data;
@@ -99,7 +107,7 @@ async function fetchLobsters() {
       });
     }
 
-    console.log(`[lobsters]   page ${page}: ${data.length} stories`);
+    console.log(`[lobsters]   page ${page}/${PAGES}: ${data.length} stories  (total=${rows.length}, eta=${fmtEta(page, PAGES, startMs)})`);
     await sleep(DELAY_MS);
   }
 
