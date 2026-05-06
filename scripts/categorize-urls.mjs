@@ -66,6 +66,17 @@ const DB_BATCH_SIZE    = 500;
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
+function fmtEta(done, total, startMs) {
+  if (done === 0) return '?';
+  const elapsed = Date.now() - startMs;
+  const rate = done / elapsed;
+  const remaining = (total - done) / rate;
+  const s = Math.round(remaining / 1000);
+  if (s < 60)   return `${s}s`;
+  if (s < 3600) return `${Math.floor(s / 60)}m${String(s % 60).padStart(2, '0')}s`;
+  return `${Math.floor(s / 3600)}h${String(Math.floor((s % 3600) / 60)).padStart(2, '0')}m`;
+}
+
 // ── Subcategory UUID constants ───────────────────────────────────────────────
 const SC = {
   // Science & Nature
@@ -347,6 +358,7 @@ async function exportUrls() {
   let total = 0;
   let lastId = '00000000-0000-0000-0000-000000000000';  // keyset cursor
   const MAX_PAGE_RETRIES = 5;
+  const exportStart = Date.now();
 
   while (true) {
     let data = null;
@@ -390,7 +402,9 @@ async function exportUrls() {
     for (const row of data) stream.write(JSON.stringify(row) + '\n');
     total += data.length;
     lastId = data[data.length - 1].id;
-    process.stdout.write(`\r[export] ${total.toLocaleString()} URLs...`);
+    const elapsedS = ((Date.now() - exportStart) / 1000).toFixed(1);
+    const rate = (total / ((Date.now() - exportStart) / 1000)).toFixed(0);
+    process.stdout.write(`\r[export] ${total.toLocaleString()} URLs  (${rate}/s, ${elapsedS}s elapsed)...`);
     if (data.length < EXPORT_PAGE_SIZE) break;
   }
 
@@ -476,6 +490,7 @@ async function commitResults(results) {
   }
 
   let totalUpdated = 0;
+  const commitStart = Date.now();
   for (const [subcategoryId, ids] of bySubcat) {
     // Chunk into batches of DB_BATCH_SIZE
     for (let i = 0; i < ids.length; i += DB_BATCH_SIZE) {
@@ -491,7 +506,7 @@ async function commitResults(results) {
       }
 
       totalUpdated += batch.length;
-      process.stdout.write(`\r[commit] ${totalUpdated.toLocaleString()} / ${results.length.toLocaleString()} updated...`);
+      process.stdout.write(`\r[commit] ${totalUpdated.toLocaleString()} / ${results.length.toLocaleString()}  eta=${fmtEta(totalUpdated, results.length, commitStart)}  `);
     }
   }
 

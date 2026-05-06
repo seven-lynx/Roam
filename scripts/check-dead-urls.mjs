@@ -154,6 +154,7 @@ async function exportUrls() {
   let total = 0;
   let lastId = '00000000-0000-0000-0000-000000000000';  // keyset cursor
   const MAX_PAGE_RETRIES = 5;
+  const exportStart = Date.now();
 
   while (true) {
     let data = null;
@@ -193,7 +194,9 @@ async function exportUrls() {
     for (const row of data) stream.write(JSON.stringify(row) + '\n');
     total += data.length;
     lastId = data[data.length - 1].id;
-    process.stdout.write(`\r[export] ${total.toLocaleString()} URLs...`);
+    const elapsedS = ((Date.now() - exportStart) / 1000).toFixed(1);
+    const rate = (total / ((Date.now() - exportStart) / 1000)).toFixed(0);
+    process.stdout.write(`\r[export] ${total.toLocaleString()} URLs  (${rate}/s, ${elapsedS}s elapsed)...`);
     if (data.length < EXPORT_PAGE_SIZE) break;
   }
 
@@ -580,6 +583,7 @@ async function commitResults() {
   if (deadIds.length > 0) {
     console.log('\n[commit] Writing inactive=TRUE for dead URLs...');
     let retired = 0;
+    const retireStart = Date.now();
     for (let i = 0; i < deadIds.length; i += DB_BATCH_SIZE) {
       const batch = deadIds.slice(i, i + DB_BATCH_SIZE);
       const { error } = await supabase
@@ -590,7 +594,7 @@ async function commitResults() {
         console.error(`[commit] Update error (batch ${Math.floor(i / DB_BATCH_SIZE) + 1}):`, error.message);
       } else {
         retired += batch.length;
-        process.stdout.write(`\r[commit] Retired ${retired.toLocaleString()}/${deadIds.length.toLocaleString()}  `);
+        process.stdout.write(`\r[commit] Retired ${retired.toLocaleString()}/${deadIds.length.toLocaleString()}  eta=${fmtEta(retired, deadIds.length, retireStart)}  `);
       }
     }
     console.log(`\n[commit] Retired ${retired.toLocaleString()} dead URLs.\n`);
@@ -627,6 +631,7 @@ async function commitResults() {
       byLang.get(r.detectedLanguage).push(r.urlId);
     }
     let updated = 0;
+    const langCommitStart = Date.now();
     for (const [lang, ids] of byLang) {
       for (let i = 0; i < ids.length; i += DB_BATCH_SIZE) {
         const batch = ids.slice(i, i + DB_BATCH_SIZE);
@@ -636,7 +641,7 @@ async function commitResults() {
           .in('id', batch);
         if (!error) {
           updated += batch.length;
-          process.stdout.write(`\r[commit] Language updated ${updated.toLocaleString()}/${langUpdates.length.toLocaleString()}  `);
+          process.stdout.write(`\r[commit] Language updated ${updated.toLocaleString()}/${langUpdates.length.toLocaleString()}  eta=${fmtEta(updated, langUpdates.length, langCommitStart)}  `);
         }
       }
     }
