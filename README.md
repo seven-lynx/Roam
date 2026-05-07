@@ -21,21 +21,15 @@ Press the button and land on a real page, curated by real users, matched to what
 
 ## How the algorithm works
 
-The discovery function runs directly in PostgreSQL as a `plpgsql` RPC. When you press the button:
+The discovery function runs directly in PostgreSQL. When you press the button, it balances four signals to pick a page you'll likely enjoy:
 
-1. A random **25% sample** of the URL table is drawn with `TABLESAMPLE BERNOULLI(25)`
-2. Each candidate is scored: `E = (W + 0.3·S + 0.15·[n=0]) · C · F`
-   - **W** — Wilson score lower bound at 95% confidence (community quality)
-   - **S** — seeder score (editorial signal: HN points, citation counts, Reddit score, etc.)
-   - **C** — your calibration for this topic (how often you upvote in it, clamped [0.4, 2.0])
-   - **F** — freshness (`exp(-0.001·t)`, floor 0.2; `NULL` published_at gets 0.7)
-   - **[n=0]** — +0.15 exploration bonus for URLs with no community votes yet
-3. Final pick: `ORDER BY (E + 0.1) * random() DESC LIMIT 1`
-4. If the sample finds nothing eligible (rare; mainly affects tiny collections), a fallback scans the top 100 rows by `roam_score_static`
+- **Community quality** — statistically-correct ranking that handles small vote counts fairly
+- **Editorial signal** — source reputation (HN score, citation count, Reddit karma, etc.)
+- **Your taste** — topics you upvote more often surface more; topics you downvote dial back
+- **Freshness** — recently published pages get a mild boost; very old ones fade gradually
 
-`roam_score_static` is a precomputed column (`W + 0.3·S`) kept current by a trigger on every vote, so the hot path avoids per-row arithmetic across hundreds of thousands of sampled rows.
+There's also a small bonus for pages nobody has rated yet, to keep fresh content circulating rather than the same well-worn URLs.
 
-Full details: [docs/ALGORITHM.md](docs/ALGORITHM.md)
 
 ---
 
@@ -86,7 +80,6 @@ Deliberately non-intrusive. Click, roam, rate, close — nothing is injected int
 
 ### Web
 
-- Full discovery interface with advanced filters
 - Account management, collections, URL submission
 - Admin moderation and analytics dashboards
 - Next.js 15 / TypeScript / Tailwind CSS, deployed on Vercel
