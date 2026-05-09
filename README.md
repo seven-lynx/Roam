@@ -90,9 +90,9 @@ Deliberately non-intrusive. Click, roam, rate, close — nothing is injected int
 
 ### Backend — Supabase (PostgreSQL)
 
-The database does the heavy lifting. Discovery runs as a `plpgsql` RPC (`roam()`) called directly from clients — no extra network hop through a separate compute layer. Row-Level Security enforces all access control at the database level.
+The database does the heavy lifting. Discovery runs as a `plpgsql` RPC (`roam()`) invoked via a Deno Edge Function. Row-Level Security enforces all access control at the database level.
 
-Edge Functions (Deno) handle operations that need more than a simple query: `rate`, `submit-url`, `collection`, `follow`, `profile`, `log-failed-urls`, `feedback`, `report-url`, `save-url`, `delete-user`, `export-user`.
+Edge Functions (Deno) handle operations that need more than a simple query: `roam`, `rate`, `submit-url`, `save-url`, `collection`, `follow`, `profile`, `feedback`, `report-url`, `log-failed-urls`, `delete-user`, `export-user`.
 
 **Key tables:**
 
@@ -304,5 +304,5 @@ MIT — see [LICENSE](LICENSE). Free to use, modify, and distribute, including c
 
 Built with Supabase, Next.js, Jetpack Compose, esbuild, Tailwind CSS, and TypeScript.
 
-Made by Seito. Questions? [Open an issue](https://github.com/seven-lynx/Roam/issues).
+Made by 7 Lynx. Questions? [Open an issue](https://github.com/seven-lynx/Roam/issues).
 
