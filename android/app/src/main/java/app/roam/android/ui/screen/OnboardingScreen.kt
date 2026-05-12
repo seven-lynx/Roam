@@ -125,6 +125,7 @@ fun OnboardingScreen() {
             onClick = {
                 scope.launch {
                     runCatching { supabase.auth.signInWith(Google) }
+                        .onFailure { e -> errorMessage = e.message ?: "Google sign in failed" }
                 }
             },
             modifier = Modifier.fillMaxWidth().height(52.dp),

@@ -50,7 +50,8 @@ const LANGUAGE_PROGRESS_FILE = resolve(CACHE_DIR, 'language-progress.json');
 dotenvConfig({ path: resolve(__dirname, '../.env') });
 
 // ── CLI flags ────────────────────────────────────────────────────────────────
-const COMMIT        = process.argv.includes('--commit');
+const COMMIT_ONLY   = process.argv.includes('--commit-only'); // skip phases 1-3, go straight to commit
+const COMMIT        = process.argv.includes('--commit') || COMMIT_ONLY;
 const RE_EXPORT     = process.argv.includes('--re-export');
 const RESET         = process.argv.includes('--reset');
 const STRICT_403    = process.argv.includes('--strict-403');
@@ -692,10 +693,14 @@ async function main() {
 
   console.log(divider + '\n');
 
-  await exportUrls();
-  await runChecks();
-  await runLanguageCheck();
-  await commitResults();
+  if (COMMIT_ONLY) {
+    await commitResults();
+  } else {
+    await exportUrls();
+    await runChecks();
+    await runLanguageCheck();
+    await commitResults();
+  }
 }
 
 main().catch((err) => { console.error(err); process.exit(1); });
