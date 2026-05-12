@@ -2,6 +2,7 @@
 
 import React, { ReactNode } from 'react';
 import Link from 'next/link';
+import { logError } from '@/lib/logger';
 
 interface Props {
   children: ReactNode;
@@ -27,8 +28,10 @@ export class ErrorBoundary extends React.Component<Props, State> {
   }
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-    // Log error details for debugging
-    console.error('ErrorBoundary caught:', error, errorInfo);
+    logError('ErrorBoundary', 'Unhandled render error', {
+      route: typeof window !== 'undefined' ? window.location.pathname : 'unknown',
+      componentStack: errorInfo.componentStack?.slice(0, 500),
+    }, error);
   }
 
   handleReset = () => {
