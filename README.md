@@ -15,7 +15,7 @@ Press the button and land on a real page, curated by real users, matched to what
 | Supabase backend | ✅ Live |
 | Web app | ✅ Live |
 | Browser extension (Chrome + Firefox) | ✅ Live |
-| Android app | 🔨 In development |
+| Android app | ⏳ Play Store submission pending |
 
 ---
 
@@ -76,7 +76,7 @@ Deliberately non-intrusive. Click, roam, rate, close — nothing is injected int
 - In-app browser so you don't have to leave
 - Offline reading queue
 - Material Design 3 / Jetpack Compose
-- Android 8.0+ (SDK 26), target SDK 34
+- Android 8.0+ (SDK 26), target SDK 35
 
 ### Web
 
