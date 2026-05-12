@@ -15,6 +15,9 @@ import io.github.jan.supabase.postgrest.query.Columns
 import io.github.jan.supabase.postgrest.query.Order
 import io.github.jan.supabase.storage.storage
 import io.ktor.client.call.body
+import io.sentry.Breadcrumb
+import io.sentry.Sentry
+import io.sentry.SentryLevel
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
@@ -57,6 +60,19 @@ class RoamRepository {
                 it.contains("unauthorized", ignoreCase = true)
             } ?: false
             if (!isAuthError) {
+                // Capture a breadcrumb with the raw server response for ROAM-ANDROID-7 diagnosis.
+                // The Sentry OkHttp interceptor records the 500 as SentryHttpClientException but
+                // strips the body. This breadcrumb attaches the actual error text to that event.
+                val rawBody = e.message?.take(500) ?: "(no message)"
+                Sentry.addBreadcrumb(Breadcrumb().apply {
+                    type = "http"
+                    category = "roam.invoke"
+                    level = SentryLevel.ERROR
+                    message = "roam Edge Function returned non-2xx (supabase-kt wraps as UnauthorizedRestException)"
+                    setData("raw_body", rawBody)
+                    setData("has_collection_id", (body["collection_id"] != null).toString())
+                    setData("has_category_id", (body["category_id"] != null).toString())
+                })
                 // Extract the human-readable message from the JSON body if present,
                 // e.g. {"error":"Discovery failed. Please try again."} → that string.
                 val msg = e.message

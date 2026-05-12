@@ -211,9 +211,11 @@ class MainViewModel(
             var lastException: Throwable? = null
             var result: RoamUrl? = null
             var success = false
-            // Retry up to 3 times with increasing delays to handle transient auth/network issues
+            // Retry up to 3 times with exponential backoff (1s, 2s, 4s).
+            // IOExceptions (DNS/network) are retried — they are often transient on mobile (ROAM-ANDROID-6).
+            // Auth and session errors break immediately since retrying won't help.
             for (attempt in 0 until 3) {
-                if (attempt > 0) delay(500L * attempt)
+                if (attempt > 0) delay(1_000L * (1 shl (attempt - 1)))  // 1s, 2s
                 val outcome = runCatching {
                     repo.roam(
                         collectionId = _activeCollectionId.value,
@@ -226,13 +228,12 @@ class MainViewModel(
                     break
                 }
                 lastException = outcome.exceptionOrNull()
-                // Don't retry offline errors — they won't resolve with retries
-                if (lastException is IOException) break
                 // UnauthorizedRestException: repository already attempted one session refresh.
                 // A second attempt won't help; break early so we don't burn retry budget.
                 if (lastException is UnauthorizedRestException) break
                 // IllegalStateException: no refresh token — session is gone entirely.
                 if (lastException is IllegalStateException) break
+                // IOExceptions (DNS failure, socket reset) ARE retried — fall through to next attempt.
             }
 
             if (success) {
@@ -256,6 +257,15 @@ class MainViewModel(
                     else -> e.message ?: "Something went wrong. Please try again."
                 }
                 _state.value = RoamState.Error(msg)
+                // Classify the error type and attach as Sentry tags so ROAM-ANDROID-7/6/4
+                // can be filtered by type in the Sentry dashboard.
+                val errorType = when {
+                    isTimeout -> "timeout"
+                    e is IOException -> "dns_or_network"
+                    e is UnauthorizedRestException -> "auth_expired"
+                    e is IllegalStateException -> "no_refresh_token"
+                    else -> "server_error"
+                }
                 // Don't forward our own server-side error messages to Sentry — they are already
                 // logged by the edge function's console.error and captured server-side.
                 // IllegalStateException (no refresh token) is also not worth capturing — it just
@@ -267,7 +277,11 @@ class MainViewModel(
                 // IllegalStateException: no refresh token at all — same outcome.
                 val isExpiredSession = e is UnauthorizedRestException || e is IllegalStateException
                 if (!isKnownServerMessage && !isExpiredSession) {
-                    Sentry.captureException(e)
+                    Sentry.withScope { scope ->
+                        scope.setTag("error_type", errorType)
+                        scope.setTag("call_site", "invokeRoam")
+                        Sentry.captureException(e)
+                    }
                 }
             }
         }

@@ -31,20 +31,22 @@ val supabase = createSupabaseClient(
     @OptIn(SupabaseInternal::class)
     httpConfig {
         install(HttpTimeout) {
-            requestTimeoutMillis = 60_000
+            // 15 s is ample for the roam() RPC (p99 < 2 s after v15 optimizations).
+            // 60 s was producing ROAM-ANDROID-4: users waiting a full minute before
+            // seeing an error. Reducing here gives a faster failure and retry.
+            requestTimeoutMillis = 15_000
             connectTimeoutMillis = 15_000
-            socketTimeoutMillis = 60_000
+            socketTimeoutMillis  = 15_000
         }
     }
     httpEngine = OkHttp.create {
         config {
             // callTimeout is intentionally omitted — it conflicts with Ktor's
             // requestTimeoutMillis plugin. Setting both causes OkHttp to fire
-            // at 30 s while Ktor expects 60 s, producing duplicate timeout
-            // exceptions (ROAM-ANDROID-6 vs ROAM-ANDROID-4). Ktor's plugin
-            // is the single source of truth for request-level timeouts.
+            // before Ktor, producing duplicate timeout exceptions.
+            // Ktor's plugin is the single source of truth for request-level timeouts.
             connectTimeout(15, TimeUnit.SECONDS)
-            readTimeout(60, TimeUnit.SECONDS)
+            readTimeout(15, TimeUnit.SECONDS)
             writeTimeout(30, TimeUnit.SECONDS)
         }
     }
