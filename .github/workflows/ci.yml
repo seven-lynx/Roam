@@ -81,17 +81,23 @@ jobs:
           SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL || 'https://ci-build-placeholder.supabase.co' }}
           SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'ci-build-placeholder-anon-key-for-bundling-only' }}
 
+      - name: Test extension
+        working-directory: ./extension
+        run: pnpm test
+
       # Scripts layer
       - name: Lint scripts
         working-directory: ./scripts
         run: pnpm lint || echo "No linter configured yet"
 
       # Supabase layer
-      - name: Lint Supabase functions
-        run: |
-          # Verify Edge Functions are syntactically valid (Deno check)
-          echo "Deno type checking would run here (requires deno CLI)"
-          echo "Skipped for now - verify manually or add deno to CI"
+      - name: Setup Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      - name: Type-check Edge Functions
+        run: deno check supabase/functions/**/*.ts
 
       # Android layer
       - name: Set up JDK 17
