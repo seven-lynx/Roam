@@ -7,7 +7,6 @@ import app.roam.android.model.RoamUrl
 import app.roam.android.model.UserProfile
 import app.roam.android.model.UserSettings
 import io.github.jan.supabase.auth.auth
-import io.github.jan.supabase.exceptions.NotFoundRestException
 import io.github.jan.supabase.exceptions.UnauthorizedRestException
 import io.github.jan.supabase.functions.functions
 import io.github.jan.supabase.postgrest.postgrest
@@ -15,9 +14,6 @@ import io.github.jan.supabase.postgrest.query.Columns
 import io.github.jan.supabase.postgrest.query.Order
 import io.github.jan.supabase.storage.storage
 import io.ktor.client.call.body
-import io.sentry.Breadcrumb
-import io.sentry.Sentry
-import io.sentry.SentryLevel
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
@@ -50,61 +46,36 @@ class RoamRepository {
         return try {
             invokeRoam(body)
         } catch (e: UnauthorizedRestException) {
-            // supabase-kt 3.0.2 bug: parseErrorResponse's else-branch throws
-            // UnauthorizedRestException for ALL non-2xx responses from functions.invoke(),
-            // including 500 and 503. Only attempt a session refresh for actual JWT/auth
-            // errors; for server errors, rethrow as a plain Exception so the ViewModel
-            // retries without treating it as an auth failure.
-            val isAuthError = e.message?.let {
-                it.contains("jwt", ignoreCase = true) ||
-                it.contains("unauthorized", ignoreCase = true)
-            } ?: false
-            if (!isAuthError) {
-                // Capture a breadcrumb with the raw server response for ROAM-ANDROID-7 diagnosis.
-                // The Sentry OkHttp interceptor records the 500 as SentryHttpClientException but
-                // strips the body. This breadcrumb attaches the actual error text to that event.
-                val rawBody = e.message?.take(500) ?: "(no message)"
-                Sentry.addBreadcrumb(Breadcrumb().apply {
-                    type = "http"
-                    category = "roam.invoke"
-                    level = SentryLevel.ERROR
-                    message = "roam Edge Function returned non-2xx (supabase-kt wraps as UnauthorizedRestException)"
-                    setData("raw_body", rawBody)
-                    setData("has_collection_id", (body["collection_id"] != null).toString())
-                    setData("has_category_id", (body["category_id"] != null).toString())
-                })
-                // Extract the human-readable message from the JSON body if present,
-                // e.g. {"error":"Discovery failed. Please try again."} → that string.
-                val msg = e.message
-                    ?.let { Regex("\"error\"\\s*:\\s*\"([^\"]+)\"").find(it)?.groupValues?.get(1) }
-                    ?: e.message
-                    ?: "Server error. Please try again."
-                throw Exception(msg)
-            }
-            // For real JWT errors: refresh the session using the stored refresh token
-            // (works even when currentSessionOrNull() is null — the refresh token persists).
-            // If there is no refresh token at all (signed out / corrupted session),
-            // supabase-kt throws IllegalStateException("No refresh token found").
-            // Rethrow as UnauthorizedRestException so the ViewModel routes to sign-in.
+            // PostgREST returns 401 only for real JWT errors (expired/invalid).
+            // SQL-level errors (auth check, timeouts) come back as 400/500 and
+            // throw RestException or BadRequestRestException — not caught here.
             try {
                 supabase.auth.refreshCurrentSession()
             } catch (ise: IllegalStateException) {
-                throw e  // original UnauthorizedRestException → ViewModel shows sign-in
+                throw e  // no refresh token → ViewModel routes to sign-in
             }
             invokeRoam(body)
         }
     }
 
     private suspend fun invokeRoam(body: kotlinx.serialization.json.JsonObject): RoamUrl? {
-        // Note: supabase-kt 3.0.2 throws for ALL non-2xx responses before returning.
-        // NotFoundRestException = 404 (pool exhausted → return null).
-        // All other errors propagate up to roam() for handling.
-        return try {
-            val response = supabase.functions.invoke("roam", body = body)
-            json.decodeFromString(response.body())
-        } catch (e: NotFoundRestException) {
-            null
+        // Call PostgREST RPC directly instead of the Deno Edge Function.
+        // PostgREST is a persistent Go process with zero cold-start latency.
+        // The Edge Function had 15–30 s Deno cold starts that exceeded the
+        // Android request timeout, causing ROAM-ANDROID-4.
+        // The roam() SQL function validates auth.uid() == p_user_id internally.
+        val userId = supabase.auth.currentUserOrNull()?.id
+            ?: throw IllegalStateException("No active session")
+        val params = buildJsonObject {
+            put("p_user_id", userId)
+            body["collection_id"]?.let { put("p_collection_id", it) }
+            body["exclude_domain"]?.let { put("p_exclude_domain", it) }
+            body["category_id"]?.let  { put("p_category_id",  it) }
         }
+        return supabase.postgrest
+            .rpc("roam", params)
+            .decodeList<RoamUrl>()
+            .firstOrNull()
     }
 
     /**
