@@ -58,10 +58,10 @@ Deno.serve(async (req) => {
     case 'create': {
       const { name, slug, is_public } = body
       
-      const nameValidation = validateName(name)
+      const nameValidation = validateName(name as string)
       if (!nameValidation.valid) return json({ error: nameValidation.error }, 400)
       
-      const slugValidation = validateSlug(slug)
+      const slugValidation = validateSlug(slug as string)
       if (!slugValidation.valid) return json({ error: slugValidation.error }, 400)
       
       const { data, error } = await supabase
@@ -84,13 +84,13 @@ Deno.serve(async (req) => {
       const patch: Record<string, unknown> = {}
       
       if (name !== undefined) {
-        const nameValidation = validateName(name)
+        const nameValidation = validateName(name as string)
         if (!nameValidation.valid) return json({ error: nameValidation.error }, 400)
         patch.name = name
       }
       
       if (slug !== undefined) {
-        const slugValidation = validateSlug(slug)
+        const slugValidation = validateSlug(slug as string)
         if (!slugValidation.valid) return json({ error: slugValidation.error }, 400)
         patch.slug = slug
       }

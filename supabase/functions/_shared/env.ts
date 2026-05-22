@@ -34,7 +34,7 @@ export interface EdgeFunctionEnv {
 export function validateRequired(requiredVars: string[]): EdgeFunctionEnv {
   const missingVars: string[] = [];
   const errors: string[] = [];
-  const result: EdgeFunctionEnv = {};
+  const result = {} as EdgeFunctionEnv;
 
   for (const varName of requiredVars) {
     const value = Deno.env.get(varName);

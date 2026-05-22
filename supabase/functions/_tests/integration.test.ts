@@ -19,13 +19,15 @@ interface MockSupabaseResponse<T> {
 
 interface MockSupabaseClient {
   auth: {
-    getUser: () => Promise<MockSupabaseResponse<{ user: { id: string } }>>
+    // deno-lint-ignore no-explicit-any
+    getUser: () => Promise<any>
   }
   rpc: (name: string, params: unknown) => Promise<MockSupabaseResponse<unknown[]>>
   from: (table: string) => {
     select: (cols: string, opts?: unknown) => {
       eq: (col: string, val: unknown) => {
         single: () => Promise<MockSupabaseResponse<unknown>>
+        gte: (col: string, val: unknown) => Promise<MockSupabaseResponse<unknown>>
       }
       gte: (col: string, val: unknown) => Promise<MockSupabaseResponse<unknown>>
     }
@@ -51,7 +53,7 @@ function createMockSupabaseClient(): MockSupabaseClient {
     auth: {
       getUser: async () => {
         if (!mockSupabaseState.authenticated) {
-          return { data: null, error: { message: "Unauthorized" } }
+          return { data: { user: null }, error: { message: "Unauthorized" } }
         }
         return {
           data: { user: { id: mockSupabaseState.userId } },
@@ -86,6 +88,9 @@ function createMockSupabaseClient(): MockSupabaseClient {
           return {
             eq: (col: string, val: unknown) => {
               return {
+                gte: async (_col: string, _val: unknown) => {
+                  return { data: [], error: null }
+                },
                 single: async () => {
                   // Mock profile lookup
                   if (table === "profiles" && col === "id") {
@@ -218,12 +223,10 @@ Deno.test("rate - Accepts POST with url_id and value (1 or -1)", async () => {
 })
 
 Deno.test("rate - Validates value is 1 or -1", () => {
-  // Valid cases
-  assertEquals(typeof 1 === "number" && (1 === 1 || 1 === -1), true)
-  assertEquals(typeof -1 === "number" && (-1 === 1 || -1 === -1), true)
-
-  // Invalid case
-  assertEquals(typeof 2 === "number" && (2 === 1 || 2 === -1), false)
+  function isValidRating(v: number) { return v === 1 || v === -1 }
+  assertEquals(isValidRating(1), true)
+  assertEquals(isValidRating(-1), true)
+  assertEquals(isValidRating(2), false)
 })
 
 Deno.test("rate - Validates url_id is a string", () => {
@@ -280,8 +283,8 @@ Deno.test("submit-url - Requires url parameter", () => {
   const bodyWithUrl = { url: "https://example.com", title: "Example" }
   const bodyWithoutUrl = { title: "Example" }
 
-  assertEquals(typeof bodyWithUrl.url === "string" && bodyWithUrl.url, true)
-  assertEquals(typeof (bodyWithoutUrl as any).url === "string" && (bodyWithoutUrl as any).url, false)
+  assertEquals(Boolean(typeof bodyWithUrl.url === "string" && bodyWithUrl.url), true)
+  assertEquals(Boolean(typeof (bodyWithoutUrl as any).url === "string" && (bodyWithoutUrl as any).url), false)
 })
 
 Deno.test("submit-url - Validates url is not empty", () => {
@@ -289,9 +292,9 @@ Deno.test("submit-url - Validates url is not empty", () => {
   const emptyUrl = ""
   const nullUrl = null
 
-  assertEquals(typeof validUrl === "string" && validUrl, true)
-  assertEquals(typeof emptyUrl === "string" && emptyUrl, false)
-  assertEquals(typeof nullUrl === "string" && nullUrl, false)
+  assertEquals(Boolean(typeof validUrl === "string" && validUrl), true)
+  assertEquals(Boolean(typeof emptyUrl === "string" && emptyUrl), false)
+  assertEquals(Boolean(typeof nullUrl === "string" && nullUrl), false)
 })
 
 Deno.test("submit-url - Rate limit: rejects after 10 submissions per hour", () => {
@@ -447,7 +450,7 @@ Deno.test("Integration: User can discover, rate, and submit URLs", async () => {
   assertEquals(Array.isArray(rpcData) && rpcData.length > 0, true)
 
   // Step 3: Rate the URL
-  const url = rpcData![0]
+  const url = rpcData![0] as { id: string }
   const { data: rateData, error: rateError } = await supabase
     .from("ratings")
     .upsert({ user_id: user.id, url_id: url.id, value: 1 })

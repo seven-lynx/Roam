@@ -90,10 +90,12 @@ async function testSafeBrowsingAPI() {
 
 // Run tests
 if (import.meta.main) {
-  try {
-    await testSafeBrowsingAPI()
-  } catch (err) {
-    console.error('Test failed:', err.message)
-    Deno.exit(1)
-  }
+  ;(async () => {
+    try {
+      await testSafeBrowsingAPI()
+    } catch (err) {
+      console.error('Test failed:', (err as Error).message)
+      Deno.exit(1)
+    }
+  })()
 }

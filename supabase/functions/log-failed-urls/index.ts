@@ -36,7 +36,7 @@ Deno.serve(async (req: Request) => {
     // Use INSERT ... ON CONFLICT DO NOTHING to skip duplicates
     const { error: insertError } = await supabase
       .from("moderation_queue")
-      .insert(queueEntries, { onConflict: "url" });
+      .upsert(queueEntries, { onConflict: "url", ignoreDuplicates: true });
 
     if (insertError) {
       console.error("Failed to insert into moderation_queue:", insertError);
