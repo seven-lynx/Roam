@@ -51,7 +51,7 @@ Deno.test('Rate Limiter - Retry-After Header Value', () => {
   assertEquals(result.retryAfterSec <= 11, true)
 })
 
-Deno.test('Rate Limiter - Window Expiration', () => {
+Deno.test('Rate Limiter - Window Expiration', async () => {
   _resetBucketsForTesting()
 
   const key = 'test:192.168.1.3'

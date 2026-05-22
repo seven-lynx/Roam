@@ -170,8 +170,8 @@ Deno.test("roam - Returns a single URL when discovery pool has items", async () 
   assertEquals(rpcError, null)
   assertEquals(Array.isArray(rpcData), true)
   assertEquals(rpcData!.length, 1)
-  assert(rpcData![0].id)
-  assert(rpcData![0].url)
+  assert((rpcData![0] as Record<string, unknown>).id)
+  assert((rpcData![0] as Record<string, unknown>).url)
 })
 
 Deno.test("roam - Returns 401 when not authenticated", async () => {
