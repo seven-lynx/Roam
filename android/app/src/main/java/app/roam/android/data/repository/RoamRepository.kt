@@ -7,7 +7,6 @@ import app.roam.android.model.RoamUrl
 import app.roam.android.model.UserProfile
 import app.roam.android.model.UserSettings
 import io.github.jan.supabase.auth.auth
-import io.github.jan.supabase.exceptions.UnauthorizedRestException
 import io.github.jan.supabase.functions.functions
 import io.github.jan.supabase.postgrest.postgrest
 import io.github.jan.supabase.postgrest.query.Columns
@@ -24,58 +23,22 @@ class RoamRepository {
 
     private val json = Json { ignoreUnknownKeys = true }
 
-    /** Returns true if a session is already loaded in memory (i.e. returning user). */
-    fun hasSession(): Boolean = supabase.auth.currentSessionOrNull() != null
-
     /**
      * Calls POST /functions/v1/roam.
      * Optionally restricts to a specific collection or subcategory.
      * Returns null on 404 (pool exhausted).
-     * Automatically refreshes the session once if a 401/JWT error is returned.
      */
     suspend fun roam(
         collectionId: String? = null,
         excludeDomain: String? = null,
-        categoryId: String? = null,
     ): RoamUrl? {
         val body = buildJsonObject {
             collectionId?.let { put("collection_id", it) }
             excludeDomain?.let { put("exclude_domain", it) }
-            categoryId?.let { put("category_id", it) }
         }
-        return try {
-            invokeRoam(body)
-        } catch (e: UnauthorizedRestException) {
-            // PostgREST returns 401 only for real JWT errors (expired/invalid).
-            // SQL-level errors (auth check, timeouts) come back as 400/500 and
-            // throw RestException or BadRequestRestException — not caught here.
-            try {
-                supabase.auth.refreshCurrentSession()
-            } catch (ise: IllegalStateException) {
-                throw e  // no refresh token → ViewModel routes to sign-in
-            }
-            invokeRoam(body)
-        }
-    }
-
-    private suspend fun invokeRoam(body: kotlinx.serialization.json.JsonObject): RoamUrl? {
-        // Call PostgREST RPC directly instead of the Deno Edge Function.
-        // PostgREST is a persistent Go process with zero cold-start latency.
-        // The Edge Function had 15–30 s Deno cold starts that exceeded the
-        // Android request timeout, causing ROAM-ANDROID-4.
-        // The roam() SQL function validates auth.uid() == p_user_id internally.
-        val userId = supabase.auth.currentUserOrNull()?.id
-            ?: throw IllegalStateException("No active session")
-        val params = buildJsonObject {
-            put("p_user_id", userId)
-            body["collection_id"]?.let { put("p_collection_id", it) }
-            body["exclude_domain"]?.let { put("p_exclude_domain", it) }
-            body["category_id"]?.let  { put("p_category_id",  it) }
-        }
-        return supabase.postgrest
-            .rpc("roam", params)
-            .decodeList<RoamUrl>()
-            .firstOrNull()
+        val response = supabase.functions.invoke("roam", body = body)
+        if (response.status.value == 404) return null
+        return json.decodeFromString(response.body())
     }
 
     /**
@@ -111,7 +74,7 @@ class RoamRepository {
         val userId = supabase.auth.currentUserOrNull()?.id ?: return UserSettings()
         val results = supabase.postgrest
             .from("user_settings")
-            .select(Columns.list("preferred_languages", "skip_paywalled", "discovery_mode")) {
+            .select(Columns.list("preferred_languages", "skip_paywalled")) {
                 filter { eq("user_id", userId) }
                 limit(1)
             }
@@ -125,7 +88,6 @@ class RoamRepository {
     suspend fun upsertUserSettings(
         preferredLanguages: List<String>? = null,
         skipPaywalled: Boolean? = null,
-        discoveryMode: String? = null,
     ) {
         val userId = supabase.auth.currentUserOrNull()?.id ?: return
         val current = getUserSettings()
@@ -136,14 +98,36 @@ class RoamRepository {
                     userId = userId,
                     preferredLanguages = preferredLanguages ?: current.preferredLanguages,
                     skipPaywalled = skipPaywalled ?: current.skipPaywalled,
-                    discoveryMode = discoveryMode ?: current.discoveryMode,
                 )
             )
     }
 
     /**
-     * Returns all categories, ordered by sort_order.
+     * Returns all subcategories as a map of subcategoryId → categoryId.
+     * Used to resolve the top-level category for a given URL.
      */
+    suspend fun getSubcategoryMap(): Map<String, String> {
+        return supabase.postgrest
+            .from("subcategories")
+            .select(Columns.list("id", "category_id"))
+            .decodeList<SubcategoryRow>()
+            .associate { it.id to it.categoryId }
+    }
+
+    /**
+     * Returns the category_id for a given url id.
+     * Used when the roam edge function doesn't return category_id directly.
+     */
+    suspend fun getCategoryIdForUrl(urlId: String): String? {
+        return supabase.postgrest
+            .from("urls")
+            .select(Columns.list("category_id")) {
+                filter { eq("id", urlId) }
+                limit(1)
+            }
+            .decodeList<UrlCategoryRow>()
+            .firstOrNull()?.categoryId
+    }
     suspend fun getCategories(): List<CategoryItem> {
         return supabase.postgrest
             .from("categories")
@@ -198,7 +182,7 @@ class RoamRepository {
     }
 
     /**
-     * Looks up the URL record for [url] — returns its ID and subcategory_id if known.
+     * Looks up the URL record for [url] — returns its ID and category_id if known.
      */
     suspend fun checkUrl(url: String): RoamUrl? {
         val results = supabase.postgrest
@@ -241,19 +225,6 @@ class RoamRepository {
         supabase.functions.invoke("report-url", body = body)
     }
 
-    /**
-     * Submits user feedback to the feedback edge function.
-     * [message] is required; [email] is optional.
-     */
-    suspend fun sendFeedback(message: String, email: String?) {
-        val body = buildJsonObject {
-            put("message", message)
-            if (!email.isNullOrBlank()) put("email", email)
-            put("platform", "android")
-        }
-        supabase.functions.invoke("feedback", body = body)
-    }
-
     // ── Profile ───────────────────────────────────────────────────────────────
 
     /** Fetches the current user's profile row. Returns null if none exists yet. */
@@ -289,8 +260,7 @@ class RoamRepository {
     }
 
     /**
-     * Returns the set of category IDs the user has selected (whole-category rows where
-     * subcategory_id IS NULL). Fetches all user_categories rows and filters in-memory.
+     * Returns the set of category IDs the user has selected.
      */
     suspend fun getUserCategoryIds(): Set<String> {
         val userId = supabase.auth.currentUserOrNull()?.id ?: return emptySet()
@@ -344,6 +314,17 @@ class RoamRepository {
     // ── Private helpers ───────────────────────────────────────────────────────
 
     @Serializable
+    private data class UrlCategoryRow(
+        @SerialName("category_id") val categoryId: String? = null,
+    )
+
+    @Serializable
+    private data class SubcategoryRow(
+        val id: String,
+        @SerialName("category_id") val categoryId: String,
+    )
+
+    @Serializable
     private data class ProfileUpdateRow(
         val id: String,
         val username: String,
@@ -354,7 +335,6 @@ class RoamRepository {
     @Serializable
     private data class CategoryIdRow(
         @SerialName("category_id") val categoryId: String,
-        @SerialName("subcategory_id") val subcategoryId: String? = null,
     )
 
     @Serializable

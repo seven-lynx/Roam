@@ -1,4 +1,5 @@
 ﻿package app.roam.android.ui.component
+
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Explore
 import androidx.compose.material.icons.filled.Settings
@@ -13,35 +14,49 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.navigation.NavController
+import androidx.navigation.compose.currentBackStackEntryAsState
 
 enum class RoamTab(val route: String, val label: String) {
     Roam("discover", "Roam"),
     Settings("settings", "Settings"),
+    // Accessible via Settings, not bottom bar
     Saved("saved", "Saved"),
     Profile("profile", "Profile"),
 }
 
 @Composable
 fun BottomBar(
-    currentRoute: String,
+    navController: NavController,
     onThumbsDown: () -> Unit,
     onThumbsUp: () -> Unit,
     onRoam: () -> Unit = {},
-    onNavigate: (String) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
+    val currentRoute = navController.currentBackStackEntryAsState().value?.destination?.route
+
     NavigationBar(modifier = modifier) {
+        // Thumbs Down
         NavigationBarItem(
             selected = false,
             onClick = onThumbsDown,
             icon = { Icon(Icons.Filled.ThumbDown, contentDescription = "Skip", tint = MaterialTheme.colorScheme.onSurfaceVariant) },
             label = { Text("Skip", style = MaterialTheme.typography.labelSmall) },
         )
+
+        // Roam
         NavigationBarItem(
             selected = currentRoute == RoamTab.Roam.route,
             onClick = {
-                if (currentRoute == RoamTab.Roam.route) onRoam()
-                else onNavigate(RoamTab.Roam.route)
+                if (currentRoute == RoamTab.Roam.route) {
+                    // Already on Roam tab — load a new URL
+                    onRoam()
+                } else {
+                    navController.navigate(RoamTab.Roam.route) {
+                        popUpTo(RoamTab.Roam.route) { inclusive = true }
+                        launchSingleTop = true
+                    }
+                }
             },
             icon = {
                 Icon(
@@ -51,10 +66,18 @@ fun BottomBar(
             },
             label = { Text("Roam", style = MaterialTheme.typography.labelSmall) },
         )
+
+        // Settings
         NavigationBarItem(
             selected = currentRoute == RoamTab.Settings.route,
             onClick = {
-                if (currentRoute != RoamTab.Settings.route) onNavigate(RoamTab.Settings.route)
+                if (currentRoute != RoamTab.Settings.route) {
+                    navController.navigate(RoamTab.Settings.route) {
+                        popUpTo(RoamTab.Roam.route) { saveState = true }
+                        launchSingleTop = true
+                        restoreState = true
+                    }
+                }
             },
             icon = {
                 Icon(
@@ -64,6 +87,8 @@ fun BottomBar(
             },
             label = { Text("Settings", style = MaterialTheme.typography.labelSmall) },
         )
+
+        // Thumbs Up
         NavigationBarItem(
             selected = false,
             onClick = onThumbsUp,

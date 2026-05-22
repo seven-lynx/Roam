@@ -38,12 +38,15 @@ class AuthViewModel(
     init {
         viewModelScope.launch {
             supabase.auth.sessionStatus.collect { status ->
-                _authState.value = when (status) {
+                Log.d(TAG, "SessionStatus = $status")
+                val next = when (status) {
                     is SessionStatus.Authenticated -> checkOnboarding()
                     is SessionStatus.NotAuthenticated -> AuthState.Unauthenticated
                     SessionStatus.Initializing -> AuthState.Loading
                     is SessionStatus.RefreshFailure -> AuthState.Unauthenticated
                 }
+                Log.d(TAG, "→ AuthState = $next")
+                _authState.value = next
             }
         }
     }
@@ -57,8 +60,11 @@ class AuthViewModel(
         repeat(4) { attempt ->
             val categoriesResult = runCatching { repo.getUserCategoryIds() }
             val categories = categoriesResult.getOrNull()
+            Log.d(TAG, "checkOnboarding attempt ${attempt + 1}: categories=$categories, error=${categoriesResult.exceptionOrNull()?.message}")
             if (categories != null) {
-                return if (categories.isEmpty()) AuthState.NeedsOnboarding else AuthState.Authenticated
+                val state = if (categories.isEmpty()) AuthState.NeedsOnboarding else AuthState.Authenticated
+                Log.d(TAG, "checkOnboarding resolved → $state (${categories.size} categories)")
+                return state
             }
 
             Log.w(TAG, "Onboarding check attempt ${attempt + 1} failed; retrying", categoriesResult.exceptionOrNull())

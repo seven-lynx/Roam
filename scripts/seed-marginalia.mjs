@@ -105,7 +105,8 @@ const QUERIES = [
 
 // ── Fetch one search query ────────────────────────────────────────────────────
 async function fetchQuery(q, index = 0) {
-  const url = `https://search.marginalia.nu/api/search?query=${encodeURIComponent(q)}&index=${index}&count=${COUNT}`;
+  const page = index + 1; // API uses 1-based page numbers
+  const url = `https://api.marginalia.nu/public/search/${encodeURIComponent(q)}?count=${COUNT}&page=${page}`;
 
   let res;
   try {

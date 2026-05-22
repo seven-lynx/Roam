@@ -1,6 +1,8 @@
 ﻿package app.roam.android.model
+
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+
 /** Response shape from POST /functions/v1/roam */
 @Serializable
 data class RoamUrl(
@@ -12,3 +14,4 @@ data class RoamUrl(
     @SerialName("category_id") val categoryId: String? = null,
     @SerialName("wilson_score") val wilsonScore: Double? = null,
 )
+

@@ -1,6 +1,6 @@
 # Roam Android
 
-Native Android app built with Kotlin 2.2.10 and Jetpack Compose. Users tap Roam to instantly load a random, interest-matched URL from the discovery pool. Ratings are queued offline and flushed when connectivity returns.
+Native Android app built with Kotlin and Jetpack Compose. Users tap Roam to instantly load a random, interest-matched URL from the discovery pool. Ratings are queued offline and flushed when connectivity returns.
 
 ## Tech Stack
 
@@ -11,7 +11,7 @@ Native Android app built with Kotlin 2.2.10 and Jetpack Compose. Users tap Roam 
 | Jetpack Navigation | Fragment-less nav |
 | Supabase Kotlin SDK `3.0.2` | Auth + DB + Storage + Edge Functions |
 | Ktor OkHttp engine | HTTP client |
-| AndroidX WebKit | WebView dark mode |
+| AndroidX WebKit `1.12.1` | WebView dark mode |
 | Coil 3 | Async image loading |
 | Sentry Android `7.22.1` | Crash + error reporting |
 | WorkManager | Background token refresh |
@@ -136,7 +136,7 @@ cd android
 | **Hot** | 3 | HEAD-validated URLs — served instantly on tap |
 | **Warm** | 5 | Fetched from the API but not yet validated — promoted to hot as slots open |
 
-On each Roam tap, a URL pops off the hot queue instantly. `startPrefillQueue()` immediately refills hot by HEAD-checking entries from warm (5 s timeout) while simultaneously refilling warm with fresh API calls. This keeps up to 8 URLs buffered at all times.
+On each Roam tap, a URL pops off the hot queue instantly. The hot queue immediately refills by pulling from warm and HEAD-checking each entry (5 s timeout). Warm refills in parallel with fresh API calls. This keeps 8 URLs buffered at all times and means hot-queue replenishment is ~5 s (just a HEAD check) rather than ~API + HEAD.
 
 If both queues are empty (first launch, filter change, offline recovery), the app falls back to a live fetch with up to 3 retries.
 
@@ -155,7 +155,7 @@ Ratings that fail due to no connectivity are pushed onto `pendingRatings`. `conn
 
 ### WebView Dark Mode
 
-`RoamWebView` creates the WebView with a `UI_MODE_NIGHT_YES` configuration context, then calls `WebSettingsCompat.setAlgorithmicDarkeningAllowed(true)` (API 33+) or `WebSettingsCompat.setForceDark(FORCE_DARK_ON)` (API 29–32). This forces dark rendering regardless of the system theme setting. Controlled by the `webDarkMode` ViewModel state (on by default, persisted to SharedPreferences); there is currently no settings UI toggle.
+`RoamWebView` creates the WebView with a `UI_MODE_NIGHT_YES` configuration context, then calls `WebSettingsCompat.setAlgorithmicDarkeningAllowed(true)` (API 33+) or `WebSettingsCompat.setForceDark(FORCE_DARK_ON)` (API 29–32). This forces dark rendering regardless of the system theme setting. Controlled by **Settings → Dark mode for web pages** (on by default, persisted to SharedPreferences).
 
 ### WebView State Persistence
 
@@ -166,7 +166,7 @@ Ratings that fail due to no connectivity are pushed onto `pendingRatings`. `conn
 | Setting | Default | Storage |
 |---|---|---|
 | Skip paywalled sites | Off | Supabase `user_settings` |
-| Dark mode for web pages | On | SharedPreferences (no UI toggle — always on) |
+| Dark mode for web pages | On | SharedPreferences |
 | Preferred languages | `["en"]` | Supabase `user_settings` |
 | Interest categories | (onboarding) | Supabase `user_categories` |
 

@@ -8,12 +8,14 @@ import android.webkit.WebViewClient
 import androidx.webkit.WebSettingsCompat
 import androidx.webkit.WebViewFeature
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -25,6 +27,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
+
 @Composable
 fun RoamWebView(
     url: String?,
@@ -39,14 +42,27 @@ fun RoamWebView(
     val savedState = rememberSaveable { Bundle() }
     // Hold a stable reference so lifecycle observer can reach it
     val webViewRef = remember { mutableStateOf<WebView?>(null) }
-    // Pause / resume the WebView with the activity lifecycle to prevent blank screen
+    // Keep a stable url reference for use inside the lifecycle observer
+    val urlRef = remember { mutableStateOf(url) }
+    LaunchedEffect(url) { urlRef.value = url }
+
     val lifecycleOwner = LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             when (event) {
                 Lifecycle.Event.ON_RESUME -> {
-                    webViewRef.value?.onResume()
-                    webViewRef.value?.resumeTimers()
+                    val wv = webViewRef.value ?: return@LifecycleEventObserver
+                    wv.onResume()
+                    wv.resumeTimers()
+                    // If the renderer was killed while backgrounded, the WebView url is null.
+                    // Restore saved state first; fall back to reloading the current url.
+                    if (wv.url.isNullOrEmpty()) {
+                        if (!savedState.isEmpty) {
+                            wv.restoreState(savedState)
+                        } else {
+                            urlRef.value?.let { wv.loadUrl(it) }
+                        }
+                    }
                 }
                 Lifecycle.Event.ON_PAUSE -> {
                     webViewRef.value?.let {
@@ -61,18 +77,20 @@ fun RoamWebView(
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
+
+    // url == null means we're waiting for the first roam — keep the WebView out of the
+    // tree until we have something to load. The loading overlay is handled by DiscoverTab.
     if (url == null) {
         Box(modifier = modifier.fillMaxSize())
         return
     }
+
     if (loadError) {
         Box(
             modifier = modifier.fillMaxSize(),
             contentAlignment = Alignment.Center,
         ) {
-            androidx.compose.foundation.layout.Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-            ) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(
                     text = "This page couldn't load.",
                     style = MaterialTheme.typography.titleMedium,
@@ -85,6 +103,7 @@ fun RoamWebView(
         }
         return
     }
+
     AndroidView(
         modifier = modifier.fillMaxSize(),
         factory = { context ->
@@ -107,7 +126,6 @@ fun RoamWebView(
                     allowFileAccess = false
                     allowContentAccess = false
                 }
-                // androidx.webkit covers all API levels cleanly
                 if (darkMode) {
                     if (WebViewFeature.isFeatureSupported(WebViewFeature.ALGORITHMIC_DARKENING)) {
                         WebSettingsCompat.setAlgorithmicDarkeningAllowed(settings, true)
@@ -147,9 +165,7 @@ fun RoamWebView(
         },
         update = { webView ->
             webViewRef.value = webView
-            // Save state on every update so onPause always has the latest
             webView.saveState(savedState)
-            // Reload only when the ViewModel has moved to a genuinely new URL
             if (webView.url != url) {
                 loadError = false
                 webView.loadUrl(url)

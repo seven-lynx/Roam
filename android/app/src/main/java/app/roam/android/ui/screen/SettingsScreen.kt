@@ -1,5 +1,6 @@
 package app.roam.android.ui.screen
 
+import android.content.Intent
 import android.net.Uri
 import androidx.browser.customtabs.CustomTabsIntent
 import androidx.compose.foundation.clickable
@@ -17,7 +18,6 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -47,16 +47,9 @@ fun SettingsScreen(
 ) {
     val skipPaywalled by vm.skipPaywalled.collectAsState()
     val preferredLanguages by vm.preferredLanguages.collectAsState()
-    val autoTranslate by vm.autoTranslate.collectAsState()
     val currentUrl by vm.currentUrl.collectAsState()
     val context = LocalContext.current
     var showSignOutDialog by remember { mutableStateOf(false) }
-    var showFeedbackDialog by remember { mutableStateOf(false) }
-    var feedbackMessage by remember { mutableStateOf("") }
-    var feedbackEmail by remember { mutableStateOf("") }
-    var feedbackSending by remember { mutableStateOf(false) }
-    var feedbackSent by remember { mutableStateOf(false) }
-    var feedbackError by remember { mutableStateOf("") }
 
     if (showSignOutDialog) {
         AlertDialog(
@@ -71,98 +64,6 @@ fun SettingsScreen(
             },
             dismissButton = {
                 TextButton(onClick = { showSignOutDialog = false }) { Text("Cancel") }
-            },
-        )
-    }
-
-    if (showFeedbackDialog) {
-        AlertDialog(
-            onDismissRequest = {
-                if (!feedbackSending) {
-                    showFeedbackDialog = false
-                    feedbackMessage = ""
-                    feedbackEmail = ""
-                    feedbackSent = false
-                    feedbackError = ""
-                }
-            },
-            title = { Text(if (feedbackSent) "Thanks!" else "Send feedback") },
-            text = {
-                if (feedbackSent) {
-                    Text("Your feedback has been sent.")
-                } else {
-                    Column {
-                        if (feedbackError.isNotEmpty()) {
-                            Text(
-                                feedbackError,
-                                color = MaterialTheme.colorScheme.error,
-                                style = MaterialTheme.typography.bodySmall,
-                                modifier = Modifier.padding(bottom = 8.dp),
-                            )
-                        }
-                        OutlinedTextField(
-                            value = feedbackMessage,
-                            onValueChange = { feedbackMessage = it },
-                            label = { Text("Message") },
-                            placeholder = { Text("Bug, suggestion, or just saying hi — we read everything.") },
-                            minLines = 3,
-                            maxLines = 6,
-                            modifier = Modifier.fillMaxWidth(),
-                            enabled = !feedbackSending,
-                        )
-                        Spacer(Modifier.height(8.dp))
-                        OutlinedTextField(
-                            value = feedbackEmail,
-                            onValueChange = { feedbackEmail = it },
-                            label = { Text("Email (optional)") },
-                            singleLine = true,
-                            modifier = Modifier.fillMaxWidth(),
-                            enabled = !feedbackSending,
-                        )
-                    }
-                }
-            },
-            confirmButton = {
-                if (feedbackSent) {
-                    TextButton(onClick = {
-                        showFeedbackDialog = false
-                        feedbackMessage = ""
-                        feedbackEmail = ""
-                        feedbackSent = false
-                    }) { Text("Close") }
-                } else {
-                    TextButton(
-                        enabled = feedbackMessage.isNotBlank() && !feedbackSending,
-                        onClick = {
-                            feedbackSending = true
-                            feedbackError = ""
-                            vm.sendFeedback(
-                                message = feedbackMessage.trim(),
-                                email = feedbackEmail.trim().ifBlank { null },
-                            ) { success ->
-                                feedbackSending = false
-                                if (success) {
-                                    feedbackSent = true
-                                } else {
-                                    feedbackError = "Couldn't send your feedback. Please try again."
-                                }
-                            }
-                        },
-                    ) { Text(if (feedbackSending) "Sending…" else "Send") }
-                }
-            },
-            dismissButton = {
-                if (!feedbackSent) {
-                    TextButton(
-                        enabled = !feedbackSending,
-                        onClick = {
-                            showFeedbackDialog = false
-                            feedbackMessage = ""
-                            feedbackEmail = ""
-                            feedbackError = ""
-                        },
-                    ) { Text("Cancel") }
-                }
             },
         )
     }
@@ -192,13 +93,6 @@ fun SettingsScreen(
                 subtitle = "Hide NYT, WSJ, and similar sites",
                 checked = skipPaywalled,
                 onCheckedChange = { vm.setSkipPaywalled(it) },
-            )
-
-            SettingsToggleRow(
-                title = "Auto-translate pages",
-                subtitle = "Translate to your preferred language",
-                checked = autoTranslate,
-                onCheckedChange = { vm.setAutoTranslate(it) },
             )
 
             HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
@@ -242,21 +136,28 @@ fun SettingsScreen(
 
             SettingsActionRow(
                 title = "Send feedback",
-                subtitle = "Bug, suggestion, or just saying hi",
+                subtitle = "Tell us what you think",
                 onClick = {
-                    feedbackMessage = ""
-                    feedbackEmail = ""
-                    feedbackSent = false
-                    feedbackError = ""
-                    feedbackSending = false
-                    showFeedbackDialog = true
+                    val intent = Intent(Intent.ACTION_SENDTO).apply {
+                        data = Uri.parse("mailto:hello@roamtheweb.app")
+                        putExtra(Intent.EXTRA_SUBJECT, "Roam feedback")
+                    }
+                    context.startActivity(Intent.createChooser(intent, "Send feedback"))
                 },
             )
 
             SettingsActionRow(
                 title = "Report dead link",
                 subtitle = currentUrl ?: "No page loaded",
-                onClick = { vm.reportBrokenLink() },
+                onClick = {
+                    val body = "Dead link: ${currentUrl ?: "unknown"}"
+                    val intent = Intent(Intent.ACTION_SENDTO).apply {
+                        data = Uri.parse("mailto:hello@roamtheweb.app")
+                        putExtra(Intent.EXTRA_SUBJECT, "Dead link report")
+                        putExtra(Intent.EXTRA_TEXT, body)
+                    }
+                    context.startActivity(Intent.createChooser(intent, "Report dead link"))
+                },
             )
 
             HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))

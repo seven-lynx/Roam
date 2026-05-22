@@ -20,6 +20,9 @@ import io.github.jan.supabase.exceptions.UnauthorizedRestException
 import io.sentry.Sentry
 import java.io.ByteArrayOutputStream
 import java.io.IOException
+import java.net.HttpURLConnection
+import java.net.URL
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -28,6 +31,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 import org.json.JSONArray
 
 sealed interface RoamState {
@@ -133,10 +137,14 @@ class MainViewModel(
     val categories: StateFlow<List<CategoryItem>> = _categories.asStateFlow()
 
     // ── Prefetch queues ───────────────────────────────────────────────────────
-    // Prefetch queue (PREFETCH_TARGET = 3): fetched from the API, served instantly on tap.
-    private val PREFETCH_TARGET = 3
-    private val prefetchQueue   = ArrayDeque<RoamUrl>()
-    private val prefetchMutex   = Mutex()
+    // Hot queue  (HOT_TARGET = 3): HEAD-validated URLs served instantly on tap.
+    // Warm queue (WARM_TARGET = 5): fetched from the API but not yet validated.
+
+    private val HOT_TARGET  = 3
+    private val WARM_TARGET = 5
+    private val hotQueue    = ArrayDeque<RoamUrl>()
+    private val warmQueue   = ArrayDeque<RoamUrl>()
+    private val prefetchMutex = Mutex()
     private var prefetchJob: Job? = null
 
     /** Current user's profile */
@@ -195,9 +203,9 @@ class MainViewModel(
 
     fun roam(excludeDomain: String? = null) {
         viewModelScope.launch {
-            // Pop from the prefetch queue for an instant transition
+            // Pop from the hot queue for an instant transition
             val prefetched = prefetchMutex.withLock {
-                if (prefetchQueue.isNotEmpty()) prefetchQueue.removeFirst() else null
+                if (hotQueue.isNotEmpty()) hotQueue.removeFirst() else null
             }
             if (prefetched != null) {
                 val served = prefetched.copy(url = maybeTranslate(prefetched.url))
@@ -211,11 +219,9 @@ class MainViewModel(
             var lastException: Throwable? = null
             var result: RoamUrl? = null
             var success = false
-            // Retry up to 3 times with exponential backoff (1s, 2s, 4s).
-            // IOExceptions (DNS/network) are retried — they are often transient on mobile (ROAM-ANDROID-6).
-            // Auth and session errors break immediately since retrying won't help.
+            // Retry up to 3 times with increasing delays to handle transient auth/network issues
             for (attempt in 0 until 3) {
-                if (attempt > 0) delay(1_000L * (1 shl (attempt - 1)))  // 1s, 2s
+                if (attempt > 0) delay(500L * attempt)
                 val outcome = runCatching {
                     repo.roam(
                         collectionId = _activeCollectionId.value,
@@ -228,12 +234,13 @@ class MainViewModel(
                     break
                 }
                 lastException = outcome.exceptionOrNull()
+                // Don't retry offline errors — they won't resolve with retries
+                if (lastException is IOException) break
                 // UnauthorizedRestException: repository already attempted one session refresh.
                 // A second attempt won't help; break early so we don't burn retry budget.
                 if (lastException is UnauthorizedRestException) break
                 // IllegalStateException: no refresh token — session is gone entirely.
                 if (lastException is IllegalStateException) break
-                // IOExceptions (DNS failure, socket reset) ARE retried — fall through to next attempt.
             }
 
             if (success) {
@@ -257,15 +264,6 @@ class MainViewModel(
                     else -> e.message ?: "Something went wrong. Please try again."
                 }
                 _state.value = RoamState.Error(msg)
-                // Classify the error type and attach as Sentry tags so ROAM-ANDROID-7/6/4
-                // can be filtered by type in the Sentry dashboard.
-                val errorType = when {
-                    isTimeout -> "timeout"
-                    e is IOException -> "dns_or_network"
-                    e is UnauthorizedRestException -> "auth_expired"
-                    e is IllegalStateException -> "no_refresh_token"
-                    else -> "server_error"
-                }
                 // Don't forward our own server-side error messages to Sentry — they are already
                 // logged by the edge function's console.error and captured server-side.
                 // IllegalStateException (no refresh token) is also not worth capturing — it just
@@ -277,11 +275,7 @@ class MainViewModel(
                 // IllegalStateException: no refresh token at all — same outcome.
                 val isExpiredSession = e is UnauthorizedRestException || e is IllegalStateException
                 if (!isKnownServerMessage && !isExpiredSession) {
-                    Sentry.withScope { scope ->
-                        scope.setTag("error_type", errorType)
-                        scope.setTag("call_site", "invokeRoam")
-                        Sentry.captureException(e)
-                    }
+                    Sentry.captureException(e)
                 }
             }
         }
@@ -290,14 +284,22 @@ class MainViewModel(
     /**
      * Cancels any running fill job and starts a fresh one.
      *
-     * Fetches URLs from the API until [prefetchQueue] reaches [PREFETCH_TARGET].
-     * URLs are served directly from the queue on tap — no HEAD validation needed
-     * since the DB contains approved, seeded content with a broken-link report path.
+     * Phase 1 — warm fill: fetch URLs from the API (no HEAD check) until the warm
+     *   queue reaches [WARM_TARGET]. Fast — just network calls to our own edge function.
+     *
+     * Phase 2 — hot promotion: pull from the front of warm, HEAD-check the URL,
+     *   and move it to the hot queue until hot reaches [HOT_TARGET].
+     *
+     * Both phases run concurrently inside the same coroutine so warm keeps filling
+     * while hot is being topped up.
      */
     private fun startPrefillQueue(excludeDomain: String? = null) {
         prefetchJob?.cancel()
-        prefetchJob = viewModelScope.launch {
-            var fails = 0
+        // Run entirely on IO — OkHttp network calls must not touch the main thread.
+        // Running on Main caused foreground & background ANRs (ROAM-ANDROID-D/E/F/G).
+        prefetchJob = viewModelScope.launch(Dispatchers.IO) {
+            var warmFails = 0
+            var hotFails  = 0
 
             while (true) {
                 // Wait for a valid session before hitting the edge function.
@@ -309,28 +311,69 @@ class MainViewModel(
                     continue
                 }
 
-                val queueSize = prefetchMutex.withLock { prefetchQueue.size }
+                val (hotSize, warmSize) = prefetchMutex.withLock { hotQueue.size to warmQueue.size }
 
-                if (queueSize >= PREFETCH_TARGET) break
-                if (fails >= 8 && queueSize == 0) break   // server returning nothing
+                val hotDone  = hotSize  >= HOT_TARGET
+                val warmDone = warmSize >= WARM_TARGET
 
-                val candidate = runCatching {
-                    repo.roam(
-                        collectionId  = _activeCollectionId.value,
-                        excludeDomain = excludeDomain,
-                    )
-                }.getOrNull()
+                if (hotDone && warmDone) break
+                if (warmFails >= 8 && warmSize == 0) break   // server returning nothing
 
-                if (candidate == null) {
-                    fails++
-                } else {
-                    prefetchMutex.withLock {
-                        if (prefetchQueue.size < PREFETCH_TARGET) prefetchQueue.addLast(candidate)
+                // Phase 1: keep warm topped up (cheap — no HEAD check)
+                // Small delay between calls reduces cold-start hammering on the
+                // edge function, which helps avoid 60s timeouts (ROAM-ANDROID-4).
+                if (!warmDone && warmFails < 8) {
+                    delay(300)
+                    val candidate = runCatching {
+                        repo.roam(
+                            collectionId  = _activeCollectionId.value,
+                            excludeDomain = excludeDomain,
+                        )
+                    }.getOrNull()
+
+                    if (candidate == null) {
+                        warmFails++
+                    } else {
+                        prefetchMutex.withLock {
+                            if (warmQueue.size < WARM_TARGET) warmQueue.addLast(candidate)
+                        }
+                        warmFails = 0
                     }
-                    fails = 0
+                }
+
+                // Phase 2: promote warm → hot (HEAD-validate one entry per loop tick)
+                if (!hotDone) {
+                    val next = prefetchMutex.withLock {
+                        if (warmQueue.isNotEmpty()) warmQueue.removeFirst() else null
+                    }
+                    if (next != null) {
+                        if (isUrlReachable(next.url)) {
+                            prefetchMutex.withLock {
+                                if (hotQueue.size < HOT_TARGET) hotQueue.addLast(next)
+                            }
+                            hotFails = 0
+                        } else {
+                            hotFails++
+                        }
+                    }
                 }
             }
         }
+    }
+
+    /** HEAD-checks [url] with a short timeout. Returns false on any error or 4xx/5xx. */
+    private suspend fun isUrlReachable(url: String): Boolean = withContext(Dispatchers.IO) {
+        runCatching {
+            val conn = URL(url).openConnection() as HttpURLConnection
+            conn.requestMethod = "HEAD"
+            conn.connectTimeout = 5_000
+            conn.readTimeout = 5_000
+            conn.instanceFollowRedirects = true
+            conn.setRequestProperty("User-Agent", "Mozilla/5.0")
+            val code = conn.responseCode
+            conn.disconnect()
+            code < 400
+        }.getOrDefault(false)
     }
 
     fun thumbsUp(context: Context) {
@@ -350,7 +393,7 @@ class MainViewModel(
                     result.exceptionOrNull()?.let { Sentry.captureException(it) }
                 }
             }
-            roam(excludeDomain = extractDomain(_currentUrl.value))
+            // Thumbs up just records the rating — no navigation, user may still be reading
         }
     }
 
@@ -404,7 +447,7 @@ class MainViewModel(
     fun setCollectionFilter(collectionId: String?) {
         _activeCollectionId.value = collectionId
         prefetchJob?.cancel()
-        viewModelScope.launch { prefetchMutex.withLock { prefetchQueue.clear() } }
+        viewModelScope.launch { prefetchMutex.withLock { hotQueue.clear(); warmQueue.clear() } }
         startPrefillQueue()
     }
 
@@ -517,7 +560,7 @@ class MainViewModel(
         val categoryId = loaded?.roamUrl?.categoryId
         _activeCollectionId.value = null
         prefetchJob?.cancel()
-        viewModelScope.launch { prefetchMutex.withLock { prefetchQueue.clear() } }
+        viewModelScope.launch { prefetchMutex.withLock { hotQueue.clear(); warmQueue.clear() } }
         _showConfigSheet.value = false
         viewModelScope.launch {
             _state.value = RoamState.Loading
