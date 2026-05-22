@@ -52,7 +52,7 @@ export default async function PublicProfilePage({ params }: Props) {
     .eq('user_id', profile.id);
 
   const interests = (userCategories ?? [])
-    .flatMap(r => r.categories ? [r.categories as { name: string; icon: string }] : []);
+    .flatMap(r => r.categories ? [r.categories as unknown as { name: string; icon: string }] : []);
 
   const initial = (profile.display_name || profile.username || '?')[0].toUpperCase();
 

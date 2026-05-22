@@ -20,7 +20,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     .single();
 
   if (!data) return { title: 'Collection not found' };
-  const owner = (data.profiles as { username: string } | null)?.username;
+  const owner = (data.profiles as unknown as { username: string } | null)?.username;
   return {
     title: data.name,
     description: owner ? `A collection by ${owner} on Roam` : 'A collection on Roam',
@@ -46,7 +46,7 @@ export default async function CollectionPage({ params }: Props) {
     .eq('collection_id', collection.id)
     .order('added_at', { ascending: false });
 
-  const owner = collection.profiles as { username: string; display_name: string } | null;
+  const owner = collection.profiles as unknown as { username: string; display_name: string } | null;
 
   return (
     <div className="min-h-[calc(100vh-8rem)] bg-white dark:bg-zinc-950">
@@ -72,7 +72,7 @@ export default async function CollectionPage({ params }: Props) {
         {items && items.length > 0 ? (
           <ul className="flex flex-col gap-3">
             {items.map(item => {
-              const url = item.urls as { id: string; title: string | null; original_url: string; description: string | null } | null;
+              const url = item.urls as unknown as { id: string; title: string | null; original_url: string; description: string | null } | null;
               if (!url) return null;
               const domain = (() => {
                 try { return new URL(url.original_url).hostname.replace(/^www\./, ''); }
