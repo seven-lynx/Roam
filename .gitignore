@@ -10,8 +10,6 @@ android/DESIGN.md
 extension/TESTING.md
 extension/DESIGN.md
 web/TESTING.md
-web/AGENTS.md
-web/CLAUDE.md
 
 # ── Environment / secrets ────────────────────────────────────────────────────
 .env

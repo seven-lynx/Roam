@@ -91,9 +91,10 @@ async function fetchKagiFeed() {
   return [];
 }
 
-// ── Source 2: Kagi Small Web RSS feed ────────────────────────────────────────
+// ── Source 2: Kagi Small Web Atom/RSS feed ───────────────────────────────────
 async function fetchKagiRSS() {
   const RSS_URLS = [
+    'https://kagi.com/api/v1/smallweb/feed',  // Atom feed (current)
     'https://kagi.com/rss/smallweb.xml',
     'https://kagi.com/api/smallweb/rss',
   ];
@@ -108,18 +109,20 @@ async function fetchKagiRSS() {
     const xml = await res.text();
 
     const items = [];
-    const itemRe = /<item[\s>]([\s\S]*?)<\/item>/gi;
+
+    // Atom format (<entry> with <link href="..."> and <summary>)
+    const entryRe = /<entry[\s>]([\s\S]*?)<\/entry>/gi;
     let m;
-    while ((m = itemRe.exec(xml)) !== null) {
+    while ((m = entryRe.exec(xml)) !== null) {
       const block = m[1];
-      const linkM  = block.match(/<link[^>]*>([^<]+)<\/link>/i);
+      const linkM  = block.match(/<link[^>]+href="([^"]+)"/i);
       const titleM = block.match(/<title[^>]*>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/title>/i);
-      const descM  = block.match(/<description[^>]*>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/description>/i);
+      const descM  = block.match(/<summary[^>]*>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/summary>/i);
       if (!linkM) continue;
-      const itemUrl  = linkM[1].trim();
+      const itemUrl = linkM[1].trim();
       if (!itemUrl.startsWith('http')) continue;
-      const title    = titleM ? titleM[1].replace(/<[^>]+>/g, '').trim() : null;
-      const rawDesc  = descM ? descM[1].replace(/<[^>]+>/g, '').trim().slice(0, 500) : null;
+      const title   = titleM ? titleM[1].replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/<[^>]+>/g, '').trim() : null;
+      const rawDesc = descM ? descM[1].replace(/<[^>]+>/g, '').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&#34;/g, '"').trim().slice(0, 500) : null;
       items.push({
         url: itemUrl, title, description: rawDesc, og_image_url: null,
         category_id: inferCategoryFromText(`${title} ${rawDesc}`),
@@ -127,8 +130,29 @@ async function fetchKagiRSS() {
       });
     }
 
+    // RSS format (<item> with <link> and <description>)
+    if (items.length === 0) {
+      const itemRe = /<item[\s>]([\s\S]*?)<\/item>/gi;
+      while ((m = itemRe.exec(xml)) !== null) {
+        const block = m[1];
+        const linkM  = block.match(/<link[^>]*>([^<]+)<\/link>/i);
+        const titleM = block.match(/<title[^>]*>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/title>/i);
+        const descM  = block.match(/<description[^>]*>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/description>/i);
+        if (!linkM) continue;
+        const itemUrl  = linkM[1].trim();
+        if (!itemUrl.startsWith('http')) continue;
+        const title    = titleM ? titleM[1].replace(/<[^>]+>/g, '').trim() : null;
+        const rawDesc  = descM ? descM[1].replace(/<[^>]+>/g, '').trim().slice(0, 500) : null;
+        items.push({
+          url: itemUrl, title, description: rawDesc, og_image_url: null,
+          category_id: inferCategoryFromText(`${title} ${rawDesc}`),
+          source: 'kagisweb',
+        });
+      }
+    }
+
     if (items.length > 0) {
-      console.log(`[kagisweb] RSS: ${items.length} items from ${url}`);
+      console.log(`[kagisweb] Feed: ${items.length} items from ${url}`);
       return items;
     }
   }

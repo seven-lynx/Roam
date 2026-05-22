@@ -94,6 +94,14 @@ export function ProfileClient({ userId, email, profile, allCategories, initialCa
               {profile?.username ?? email}
             </h1>
             <p className="text-sm text-zinc-500 dark:text-zinc-400">{email}</p>
+            {profile?.username && (
+              <Link
+                href={`/u/${profile.username}`}
+                className="text-xs text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors"
+              >
+                roam.the.web/u/{profile.username} ↗
+              </Link>
+            )}
           </div>
           <Link
             href="/submit"
@@ -188,6 +196,41 @@ export function ProfileClient({ userId, email, profile, allCategories, initialCa
           {categorySaved && (
             <p className="text-sm text-green-600 dark:text-green-400 mt-2">✓ Interests saved</p>
           )}
+        </section>
+
+        {/* Get the app */}
+        <section className="rounded-2xl border border-zinc-200 dark:border-zinc-800 p-6">
+          <h2 className="text-base font-semibold text-zinc-900 dark:text-white mb-1">Start exploring</h2>
+          <p className="text-sm text-zinc-500 dark:text-zinc-400 mb-5">
+            Install Roam on your browser or phone to start discovering the web.
+          </p>
+          <div className="grid sm:grid-cols-2 gap-4">
+            <div className="flex flex-col gap-2">
+              <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wide">Browser extension</p>
+              <div className="flex gap-3">
+                <a
+                  href="https://chromewebstore.google.com/detail/ojgphkdgkefokhjnojkddhalnlbajfpc"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-sm font-semibold text-blue-600 hover:underline"
+                >
+                  Chrome →
+                </a>
+                <a
+                  href="https://addons.mozilla.org/firefox/addon/roam-the-web/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-sm font-semibold text-blue-600 hover:underline"
+                >
+                  Firefox →
+                </a>
+              </div>
+            </div>
+            <div className="flex flex-col gap-2">
+              <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wide">Android app</p>
+              <span className="text-sm text-zinc-400 dark:text-zinc-500">Coming soon to Google Play</span>
+            </div>
+          </div>
         </section>
 
         {/* Error */}

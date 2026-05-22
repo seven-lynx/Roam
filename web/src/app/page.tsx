@@ -78,14 +78,7 @@ export default async function Home() {
               Swipe to discover. Tap to save. Read offline. The full Roam experience in your pocket.
             </p>
             <div className="flex gap-2 mt-auto">
-              <a
-                href="https://play.google.com/store/apps/details?id=com.roam"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-blue-600 hover:underline text-sm font-semibold"
-              >
-                Google Play →
-              </a>
+              <span className="text-sm text-zinc-400 font-semibold">Coming soon to Google Play</span>
             </div>
           </div>
         </div>
