@@ -14,8 +14,6 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.navigation.NavController
-import androidx.navigation.compose.currentBackStackEntryAsState
 
 enum class RoamTab(val route: String, val label: String) {
     Roam("discover", "Roam"),
@@ -27,14 +25,13 @@ enum class RoamTab(val route: String, val label: String) {
 
 @Composable
 fun BottomBar(
-    navController: NavController,
+    currentRoute: String,
     onThumbsDown: () -> Unit,
     onThumbsUp: () -> Unit,
     onRoam: () -> Unit = {},
+    onNavigate: (String) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
-    val currentRoute = navController.currentBackStackEntryAsState().value?.destination?.route
-
     NavigationBar(modifier = modifier) {
         // Thumbs Down
         NavigationBarItem(
@@ -52,10 +49,7 @@ fun BottomBar(
                     // Already on Roam tab — load a new URL
                     onRoam()
                 } else {
-                    navController.navigate(RoamTab.Roam.route) {
-                        popUpTo(RoamTab.Roam.route) { inclusive = true }
-                        launchSingleTop = true
-                    }
+                    onNavigate(RoamTab.Roam.route)
                 }
             },
             icon = {
@@ -72,11 +66,7 @@ fun BottomBar(
             selected = currentRoute == RoamTab.Settings.route,
             onClick = {
                 if (currentRoute != RoamTab.Settings.route) {
-                    navController.navigate(RoamTab.Settings.route) {
-                        popUpTo(RoamTab.Roam.route) { saveState = true }
-                        launchSingleTop = true
-                        restoreState = true
-                    }
+                    onNavigate(RoamTab.Settings.route)
                 }
             },
             icon = {

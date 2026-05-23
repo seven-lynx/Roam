@@ -1,7 +1,9 @@
 package app.roam.android.data
 
 import app.roam.android.BuildConfig
+import io.github.jan.supabase.annotations.SupabaseInternal
 import io.github.jan.supabase.auth.Auth
+import io.github.jan.supabase.auth.ExternalAuthAction
 import io.github.jan.supabase.auth.FlowType
 import io.github.jan.supabase.createSupabaseClient
 import io.github.jan.supabase.functions.Functions
@@ -23,6 +25,9 @@ val supabase = createSupabaseClient(
         flowType = FlowType.PKCE
         scheme = "app.roam.android"
         host = "callback"
+        // Open the OAuth URL in a Chrome Custom Tab.
+        // Without this, signInWith(Google) generates a URL but never opens the browser.
+        defaultExternalAuthAction = ExternalAuthAction.CustomTabs()
     }
     install(Functions)
     install(Postgrest)
@@ -36,6 +41,7 @@ val supabase = createSupabaseClient(
         }
     }
     // Override the Supabase-kt default 10 s internal request timeout
+    @OptIn(SupabaseInternal::class)
     httpConfig {
         install(HttpTimeout) {
             requestTimeoutMillis = 60_000
@@ -44,3 +50,5 @@ val supabase = createSupabaseClient(
         }
     }
 }
+
+

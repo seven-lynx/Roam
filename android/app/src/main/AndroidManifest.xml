@@ -28,13 +28,13 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
 
-            <!-- Deep link for Supabase auth callback after web onboarding -->
+            <!-- Deep link for Supabase auth callback (OAuth PKCE redirect) -->
+            <!-- Redirect URL registered in Supabase Dashboard: app.roam.android://callback -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="app.roam.android" />
-                <data android:scheme="android" android:host="oauth" />
+                <data android:scheme="app.roam.android" android:host="callback" />
             </intent-filter>
 
         </activity>

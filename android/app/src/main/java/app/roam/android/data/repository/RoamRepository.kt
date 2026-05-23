@@ -23,18 +23,23 @@ class RoamRepository {
 
     private val json = Json { ignoreUnknownKeys = true }
 
+    /** Returns true if a user session is currently active. */
+    fun hasSession(): Boolean = supabase.auth.currentUserOrNull() != null
+
     /**
      * Calls POST /functions/v1/roam.
-     * Optionally restricts to a specific collection or subcategory.
+     * Optionally restricts to a specific collection, subcategory, or category.
      * Returns null on 404 (pool exhausted).
      */
     suspend fun roam(
         collectionId: String? = null,
         excludeDomain: String? = null,
+        categoryId: String? = null,
     ): RoamUrl? {
         val body = buildJsonObject {
             collectionId?.let { put("collection_id", it) }
             excludeDomain?.let { put("exclude_domain", it) }
+            categoryId?.let { put("category_id", it) }
         }
         val response = supabase.functions.invoke("roam", body = body)
         if (response.status.value == 404) return null
@@ -88,6 +93,7 @@ class RoamRepository {
     suspend fun upsertUserSettings(
         preferredLanguages: List<String>? = null,
         skipPaywalled: Boolean? = null,
+        discoveryMode: String? = null,
     ) {
         val userId = supabase.auth.currentUserOrNull()?.id ?: return
         val current = getUserSettings()
@@ -98,6 +104,7 @@ class RoamRepository {
                     userId = userId,
                     preferredLanguages = preferredLanguages ?: current.preferredLanguages,
                     skipPaywalled = skipPaywalled ?: current.skipPaywalled,
+                    discoveryMode = discoveryMode ?: current.discoveryMode,
                 )
             )
     }
@@ -223,6 +230,17 @@ class RoamRepository {
             put("url_id", urlId)
         }
         supabase.functions.invoke("report-url", body = body)
+    }
+
+    /**
+     * Sends user feedback via a Supabase edge function.
+     */
+    suspend fun sendFeedback(message: String, email: String?) {
+        val body = buildJsonObject {
+            put("message", message)
+            email?.let { put("email", it) }
+        }
+        supabase.functions.invoke("send-feedback", body = body)
     }
 
     // ── Profile ───────────────────────────────────────────────────────────────
