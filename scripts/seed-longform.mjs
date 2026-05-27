@@ -11,6 +11,10 @@
  *   • Lapham's Quarterly   — history in primary sources
  *   • Literary Hub         — books, writing, culture
  *   • Brain Pickings (The Marginalian) — cross-disciplinary essays
+ *   • Futility Closet      — historical curiosities & puzzles
+ *   • Damn Interesting     — overlooked history & science
+ *   • This Is Colossal     — art, design & visual culture
+ *   • JSTOR Daily          — accessible academic writing
  *
  * No API key required. All content freely readable.
  *
@@ -67,6 +71,14 @@ const FEEDS = [
   // ── Weird & Wonderful ─────────────────────────────────────────────────────
   { url: 'https://longreads.com/feed/',                                    label: 'longreads',                categoryId: CATEGORY.WEIRD_WONDERFUL },
   { url: 'https://theconversation.com/us/business.atom',                   label: 'conversation-business',    categoryId: CATEGORY.WEIRD_WONDERFUL },
+  { url: 'https://www.futilitycloset.com/feed/',                           label: 'futilitycloset',           categoryId: CATEGORY.WEIRD_WONDERFUL },
+  { url: 'https://www.damninteresting.com/feed/',                          label: 'damninteresting',          categoryId: CATEGORY.WEIRD_WONDERFUL },
+
+  // ── Arts & Culture (additional) ───────────────────────────────────────────
+  { url: 'https://www.thisiscolossal.com/feed/',                           label: 'colossal',                 categoryId: CATEGORY.ARTS_CULTURE },
+
+  // ── History & Ideas (additional) ─────────────────────────────────────────
+  { url: 'https://daily.jstor.org/feed/',                                  label: 'jstordaily',               categoryId: CATEGORY.HISTORY_IDEAS },
 ];
 
 // ── RSS parser ────────────────────────────────────────────────────────────────
