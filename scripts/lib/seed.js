@@ -338,13 +338,17 @@ export async function upsertUrls(rows, {
   }
 
   // 2. Check which normalised URLs are already in the DB
+  // Batch the .in() query to avoid PostgREST query-size limits (hits at ~1k+ items)
   const urls = capped.map((r) => r.url);
-  const { data: existing } = await supabase
-    .from('urls')
-    .select('url')
-    .in('url', urls);
+  const EXIST_BATCH = 500;
+  const existingAll = [];
+  for (let i = 0; i < urls.length; i += EXIST_BATCH) {
+    const chunk = urls.slice(i, i + EXIST_BATCH);
+    const { data } = await supabase.from('urls').select('url').in('url', chunk);
+    if (data) existingAll.push(...data);
+  }
 
-  const existingSet = new Set((existing ?? []).map((r) => r.url));
+  const existingSet = new Set(existingAll.map((r) => r.url));
   let fresh = capped.filter((r) => !existingSet.has(r.url));
 
   log(`[seed] ${fresh.length} new / ${existingSet.size} already exist (${capped.length} total after cap)`);
