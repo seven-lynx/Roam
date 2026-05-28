@@ -51,6 +51,7 @@ fun SettingsScreen(
     val preferredLanguages by vm.preferredLanguages.collectAsState()
     val currentUrl by vm.currentUrl.collectAsState()
     val savedConfirmation by vm.savedConfirmation.collectAsState()
+    val jsEnabled by vm.jsEnabled.collectAsState()
     val context = LocalContext.current
     var showSignOutDialog by remember { mutableStateOf(false) }
 
@@ -108,6 +109,35 @@ fun SettingsScreen(
             }
 
             Spacer(Modifier.height(8.dp))
+            HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+            Spacer(Modifier.height(8.dp))
+
+            SectionHeader("Browser")
+
+            SettingsToggleRow(
+                title = "JavaScript",
+                subtitle = "Disable to reduce tracking on sites you browse",
+                checked = jsEnabled,
+                onCheckedChange = { vm.setJsEnabled(it) },
+            )
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("Delete cookies", style = MaterialTheme.typography.bodyLarge)
+                    Text(
+                        "Clear all cookies and site data",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                    )
+                }
+                OutlinedButton(onClick = { vm.clearCookies() }) { Text("Clear") }
+            }
+
             HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
             Spacer(Modifier.height(8.dp))
 

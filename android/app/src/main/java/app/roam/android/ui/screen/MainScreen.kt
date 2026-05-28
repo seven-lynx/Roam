@@ -137,6 +137,7 @@ private fun DiscoverTab(
     val savedUrls by vm.savedUrls.collectAsState()
     val isOnline by vm.isOnline.collectAsState()
     val webDarkMode by vm.webDarkMode.collectAsState()
+    val jsEnabled by vm.jsEnabled.collectAsState()
 
     // Only auto-roam on first entry (Idle = fresh app launch).
     LaunchedEffect(Unit) { if (vm.state.value is RoamState.Idle) vm.roam() }
@@ -246,10 +247,12 @@ private fun DiscoverTab(
                 url = currentUrl,
                 modifier = Modifier.fillMaxSize(),
                 darkMode = webDarkMode,
+                jsEnabled = jsEnabled,
                 onUrlChanged = { vm.onWebViewUrlChanged(it) },
                 onLoadError = { vm.roam() },
                 onLoadingChanged = { webViewLoading = it },
                 navCommandsFlow = vm.webNavFlow,
+                clearCookiesFlow = vm.clearCookiesFlow,
             )
 
             // Loading overlay — shown while fetching a URL or the WebView is rendering it

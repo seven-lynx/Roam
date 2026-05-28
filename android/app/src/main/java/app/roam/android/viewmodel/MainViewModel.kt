@@ -65,6 +65,7 @@ class MainViewModel(
     private val SAVED_KEY = "saved_urls"
     private val WEB_DARK_KEY = "web_dark_mode"
     private val AUTO_TRANSLATE_KEY = "auto_translate"
+    private val JS_ENABLED_KEY = "js_enabled"
 
     private val _state = MutableStateFlow<RoamState>(RoamState.Idle)
     val state: StateFlow<RoamState> = _state.asStateFlow()
@@ -132,6 +133,20 @@ class MainViewModel(
         _autoTranslate.value = enabled
         prefs.edit().putBoolean(AUTO_TRANSLATE_KEY, enabled).apply()
     }
+
+    /** User preference: enable JavaScript in the WebView (default on) */
+    private val _jsEnabled = MutableStateFlow(prefs.getBoolean(JS_ENABLED_KEY, true))
+    val jsEnabled: StateFlow<Boolean> = _jsEnabled.asStateFlow()
+
+    fun setJsEnabled(enabled: Boolean) {
+        _jsEnabled.value = enabled
+        prefs.edit().putBoolean(JS_ENABLED_KEY, enabled).apply()
+    }
+
+    private val _clearCookiesChannel = Channel<Unit>(Channel.CONFLATED)
+    val clearCookiesFlow = _clearCookiesChannel.receiveAsFlow()
+
+    fun clearCookies() { _clearCookiesChannel.trySend(Unit) }
 
     /**
      * Wraps [url] through Google Translate when auto-translate is on and the user

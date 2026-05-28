@@ -1,8 +1,10 @@
 package app.roam.android.ui.component
 import android.content.res.Configuration
 import android.os.Bundle
+import android.webkit.CookieManager
 import android.webkit.WebResourceError
 import android.webkit.WebResourceRequest
+import android.webkit.WebStorage
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.webkit.WebSettingsCompat
@@ -35,10 +37,12 @@ fun RoamWebView(
     url: String?,
     modifier: Modifier = Modifier,
     darkMode: Boolean = true,
+    jsEnabled: Boolean = true,
     onUrlChanged: (String) -> Unit = {},
     onLoadError: () -> Unit = {},
     onLoadingChanged: (Boolean) -> Unit = {},
     navCommandsFlow: Flow<WebNavCommand>? = null,
+    clearCookiesFlow: Flow<Unit>? = null,
 ) {
     var loadError by remember { mutableStateOf(false) }
     // Persists WebView back/forward history + current URL across process death
@@ -57,6 +61,15 @@ fun RoamWebView(
                 WebNavCommand.Forward -> wv.goForward()
                 WebNavCommand.Reload  -> wv.reload()
             }
+        }
+    }
+
+    LaunchedEffect(clearCookiesFlow) {
+        clearCookiesFlow?.collect {
+            CookieManager.getInstance().removeAllCookies(null)
+            CookieManager.getInstance().flush()
+            WebStorage.getInstance().deleteAllData()
+            webViewRef.value?.reload()
         }
     }
 
@@ -131,8 +144,8 @@ fun RoamWebView(
             } else context
             WebView(webContext).apply {
                 settings.apply {
-                    javaScriptEnabled = true
-                    domStorageEnabled = true
+                    javaScriptEnabled = jsEnabled
+                    domStorageEnabled = jsEnabled
                     setSupportZoom(true)
                     builtInZoomControls = true
                     displayZoomControls = false
@@ -180,7 +193,11 @@ fun RoamWebView(
         update = { webView ->
             webViewRef.value = webView
             webView.saveState(savedState)
-            if (webView.url != url) {
+            if (webView.settings.javaScriptEnabled != jsEnabled) {
+                webView.settings.javaScriptEnabled = jsEnabled
+                webView.settings.domStorageEnabled = jsEnabled
+                webView.reload()
+            } else if (webView.url != url) {
                 loadError = false
                 webView.loadUrl(url)
             }
