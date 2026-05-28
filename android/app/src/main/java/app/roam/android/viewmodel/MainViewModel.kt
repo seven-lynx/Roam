@@ -66,6 +66,7 @@ class MainViewModel(
     private val WEB_DARK_KEY = "web_dark_mode"
     private val AUTO_TRANSLATE_KEY = "auto_translate"
     private val JS_ENABLED_KEY = "js_enabled"
+    private val TRANSLATE_LANG_KEY = "translate_language"
 
     private val _state = MutableStateFlow<RoamState>(RoamState.Idle)
     val state: StateFlow<RoamState> = _state.asStateFlow()
@@ -148,14 +149,19 @@ class MainViewModel(
 
     fun clearCookies() { _clearCookiesChannel.trySend(Unit) }
 
-    /**
-     * Wraps [url] through Google Translate when auto-translate is on and the user
-     * has at least one non-English preferred language. Uses the first non-English language.
-     */
+    /** User preference: target language for Google Translate (default: English) */
+    private val _translateLanguage = MutableStateFlow(prefs.getString(TRANSLATE_LANG_KEY, "en") ?: "en")
+    val translateLanguage: StateFlow<String> = _translateLanguage.asStateFlow()
+
+    fun setTranslateLanguage(lang: String) {
+        _translateLanguage.value = lang
+        prefs.edit().putString(TRANSLATE_LANG_KEY, lang).apply()
+    }
+
+    /** Wraps [url] through Google Translate when auto-translate is on. */
     private fun maybeTranslate(url: String): String {
         if (!_autoTranslate.value) return url
-        val targetLang = _preferredLanguages.value.firstOrNull() ?: "en"
-        return "https://translate.google.com/translate?sl=auto&tl=$targetLang&u=${Uri.encode(url)}"
+        return "https://translate.google.com/translate?sl=auto&tl=${_translateLanguage.value}&u=${Uri.encode(url)}"
     }
 
     /** User preference: list of language codes to include (e.g. ["en", "fr"]) */

@@ -4,6 +4,7 @@ import android.content.Intent
 import android.net.Uri
 import androidx.browser.customtabs.CustomTabsIntent
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -16,6 +17,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
@@ -48,12 +51,22 @@ fun SettingsScreen(
     onNavigateToProfile: () -> Unit = {},
 ) {
     val skipPaywalled by vm.skipPaywalled.collectAsState()
-    val preferredLanguages by vm.preferredLanguages.collectAsState()
+    val webDarkMode by vm.webDarkMode.collectAsState()
+    val autoTranslate by vm.autoTranslate.collectAsState()
+    val translateLanguage by vm.translateLanguage.collectAsState()
     val currentUrl by vm.currentUrl.collectAsState()
     val savedConfirmation by vm.savedConfirmation.collectAsState()
     val jsEnabled by vm.jsEnabled.collectAsState()
     val context = LocalContext.current
     var showSignOutDialog by remember { mutableStateOf(false) }
+    var translateDropdownExpanded by remember { mutableStateOf(false) }
+    val translateLanguages = listOf(
+        "en" to "English", "fr" to "Français", "de" to "Deutsch",
+        "it" to "Italiano", "es" to "Español", "pt" to "Português",
+        "nl" to "Nederlands", "pl" to "Polski", "ja" to "日本語",
+        "zh" to "中文", "ru" to "Русский", "ko" to "한국어",
+    )
+    val translateLanguageLabel = translateLanguages.firstOrNull { it.first == translateLanguage }?.second ?: "English"
 
     if (showSignOutDialog) {
         AlertDialog(
@@ -115,6 +128,48 @@ fun SettingsScreen(
             SectionHeader("Browser")
 
             SettingsToggleRow(
+                title = "Dark mode",
+                subtitle = "Apply dark theme to web pages",
+                checked = webDarkMode,
+                onCheckedChange = { vm.setWebDarkMode(it) },
+            )
+
+            SettingsToggleRow(
+                title = "Auto-translate",
+                subtitle = "Translate pages via Google Translate",
+                checked = autoTranslate,
+                onCheckedChange = { vm.setAutoTranslate(it) },
+            )
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text("Translate to", style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
+                Box {
+                    OutlinedButton(onClick = { translateDropdownExpanded = !translateDropdownExpanded }) {
+                        Text(translateLanguageLabel)
+                    }
+                    DropdownMenu(
+                        expanded = translateDropdownExpanded,
+                        onDismissRequest = { translateDropdownExpanded = false },
+                    ) {
+                        translateLanguages.forEach { (code, label) ->
+                            DropdownMenuItem(
+                                text = { Text(label) },
+                                onClick = {
+                                    vm.setTranslateLanguage(code)
+                                    translateDropdownExpanded = false
+                                },
+                            )
+                        }
+                    }
+                }
+            }
+
+            SettingsToggleRow(
                 title = "JavaScript",
                 subtitle = "Disable to reduce tracking on sites you browse",
                 checked = jsEnabled,
@@ -149,40 +204,6 @@ fun SettingsScreen(
                 checked = skipPaywalled,
                 onCheckedChange = { vm.setSkipPaywalled(it) },
             )
-
-            HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
-            Spacer(Modifier.height(8.dp))
-
-            SectionHeader("Languages")
-
-            val allLanguages = listOf(
-                "en" to "English",
-                "fr" to "Français",
-                "de" to "Deutsch",
-                "it" to "Italiano",
-                "es" to "Español",
-                "pt" to "Português",
-                "nl" to "Nederlands",
-                "pl" to "Polski",
-                "ja" to "日本語",
-                "zh" to "中文",
-                "ru" to "Русский",
-                "ko" to "한국어",
-            )
-
-            allLanguages.forEach { (code, label) ->
-                val selected = code in preferredLanguages
-                SettingsToggleRow(
-                    title = label,
-                    subtitle = null,
-                    checked = selected,
-                    onCheckedChange = { checked ->
-                        val updated = if (checked) preferredLanguages + code
-                                      else preferredLanguages - code
-                        vm.setPreferredLanguages(updated.ifEmpty { listOf("en") })
-                    },
-                )
-            }
 
             HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
             Spacer(Modifier.height(8.dp))
