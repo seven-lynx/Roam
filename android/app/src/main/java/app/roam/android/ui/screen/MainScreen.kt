@@ -249,6 +249,7 @@ private fun DiscoverTab(
                 onUrlChanged = { vm.onWebViewUrlChanged(it) },
                 onLoadError = { vm.roam() },
                 onLoadingChanged = { webViewLoading = it },
+                navCommandsFlow = vm.webNavFlow,
             )
 
             // Loading overlay — shown while fetching a URL or the WebView is rendering it

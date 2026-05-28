@@ -27,6 +27,8 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import app.roam.android.viewmodel.WebNavCommand
+import kotlinx.coroutines.flow.Flow
 
 @Composable
 fun RoamWebView(
@@ -36,6 +38,7 @@ fun RoamWebView(
     onUrlChanged: (String) -> Unit = {},
     onLoadError: () -> Unit = {},
     onLoadingChanged: (Boolean) -> Unit = {},
+    navCommandsFlow: Flow<WebNavCommand>? = null,
 ) {
     var loadError by remember { mutableStateOf(false) }
     // Persists WebView back/forward history + current URL across process death
@@ -45,6 +48,17 @@ fun RoamWebView(
     // Keep a stable url reference for use inside the lifecycle observer
     val urlRef = remember { mutableStateOf(url) }
     LaunchedEffect(url) { urlRef.value = url }
+
+    LaunchedEffect(navCommandsFlow) {
+        navCommandsFlow?.collect { cmd ->
+            val wv = webViewRef.value ?: return@collect
+            when (cmd) {
+                WebNavCommand.Back    -> wv.goBack()
+                WebNavCommand.Forward -> wv.goForward()
+                WebNavCommand.Reload  -> wv.reload()
+            }
+        }
+    }
 
     val lifecycleOwner = LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner) {

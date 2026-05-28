@@ -24,15 +24,23 @@ import java.net.HttpURLConnection
 import java.net.URL
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
+
+sealed interface WebNavCommand {
+    object Back : WebNavCommand
+    object Forward : WebNavCommand
+    object Reload : WebNavCommand
+}
 
 sealed interface RoamState {
     data object Idle : RoamState
@@ -79,6 +87,13 @@ class MainViewModel(
     /** The URL currently loaded in the WebView (may differ from state while loading next) */
     private val _currentUrl = MutableStateFlow<String?>(null)
     val currentUrl: StateFlow<String?> = _currentUrl.asStateFlow()
+
+    private val _webNavChannel = Channel<WebNavCommand>(Channel.CONFLATED)
+    val webNavFlow = _webNavChannel.receiveAsFlow()
+
+    fun webNavBack()    { _webNavChannel.trySend(WebNavCommand.Back) }
+    fun webNavForward() { _webNavChannel.trySend(WebNavCommand.Forward) }
+    fun webNavReload()  { _webNavChannel.trySend(WebNavCommand.Reload) }
 
     /** Active collection filter (null = global discovery) */
     private val _activeCollectionId = MutableStateFlow<String?>(null)

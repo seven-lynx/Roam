@@ -4,6 +4,7 @@ import android.content.Intent
 import android.net.Uri
 import androidx.browser.customtabs.CustomTabsIntent
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -19,6 +20,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -48,6 +50,7 @@ fun SettingsScreen(
     val skipPaywalled by vm.skipPaywalled.collectAsState()
     val preferredLanguages by vm.preferredLanguages.collectAsState()
     val currentUrl by vm.currentUrl.collectAsState()
+    val savedConfirmation by vm.savedConfirmation.collectAsState()
     val context = LocalContext.current
     var showSignOutDialog by remember { mutableStateOf(false) }
 
@@ -82,7 +85,29 @@ fun SettingsScreen(
 
             SettingsActionRow(title = "Profile", subtitle = "Edit your name, avatar and categories", onClick = onNavigateToProfile)
             SettingsActionRow(title = "Saved pages", subtitle = "Pages you bookmarked", onClick = onNavigateToSaved)
+            SettingsActionRow(
+                title = "Bookmark this page",
+                subtitle = if (savedConfirmation) "Saved!" else currentUrl ?: "No page loaded",
+                onClick = { vm.saveForLater() },
+            )
 
+            HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+            Spacer(Modifier.height(8.dp))
+
+            SectionHeader("Navigation")
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 4.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                OutlinedButton(onClick = { vm.webNavBack() },    modifier = Modifier.weight(1f)) { Text("← Back") }
+                OutlinedButton(onClick = { vm.webNavForward() }, modifier = Modifier.weight(1f)) { Text("Forward →") }
+                OutlinedButton(onClick = { vm.webNavReload() },  modifier = Modifier.weight(1f)) { Text("↻ Reload") }
+            }
+
+            Spacer(Modifier.height(8.dp))
             HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
             Spacer(Modifier.height(8.dp))
 
