@@ -1,7 +1,10 @@
 package app.roam.android.ui.component
 import android.content.res.Configuration
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.webkit.CookieManager
+import android.webkit.RenderProcessGoneDetail
 import android.webkit.WebResourceError
 import android.webkit.WebResourceRequest
 import android.webkit.WebStorage
@@ -19,6 +22,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -52,6 +56,8 @@ fun RoamWebView(
     // Keep a stable url reference for use inside the lifecycle observer
     val urlRef = remember { mutableStateOf(url) }
     LaunchedEffect(url) { urlRef.value = url }
+    // Scroll position saved on pause, restored after the page reloads
+    val savedScrollY = rememberSaveable { mutableIntStateOf(0) }
 
     LaunchedEffect(navCommandsFlow) {
         navCommandsFlow?.collect { cmd ->
@@ -93,6 +99,7 @@ fun RoamWebView(
                 }
                 Lifecycle.Event.ON_PAUSE -> {
                     webViewRef.value?.let {
+                        savedScrollY.intValue = it.scrollY
                         it.saveState(savedState)
                         it.onPause()
                         it.pauseTimers()
@@ -169,6 +176,11 @@ fun RoamWebView(
                         onUrlChanged(loadedUrl)
                         loadError = false
                         onLoadingChanged(false)
+                        val sy = savedScrollY.intValue
+                        if (sy > 0) {
+                            view.post { view.scrollTo(0, sy) }
+                            savedScrollY.intValue = 0
+                        }
                     }
                     override fun onReceivedError(
                         view: WebView,
@@ -179,6 +191,18 @@ fun RoamWebView(
                             loadError = true
                             onLoadingChanged(false)
                         }
+                    }
+                    // The renderer process was killed (screen lock + memory pressure is the
+                    // common trigger). Return true to prevent a crash; reload immediately.
+                    override fun onRenderProcessGone(view: WebView, detail: RenderProcessGoneDetail): Boolean {
+                        Handler(Looper.getMainLooper()).post {
+                            if (!savedState.isEmpty) {
+                                view.restoreState(savedState)
+                            } else {
+                                urlRef.value?.let { view.loadUrl(it) }
+                            }
+                        }
+                        return true
                     }
                 }
                 // Restore saved session (back/forward stack + scroll) or load fresh
