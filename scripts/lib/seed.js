@@ -108,6 +108,21 @@ const TRACKING_PARAMS = new Set([
   'yclid', 's_cid', 'ncid', 'nr_email_referer',
 ]);
 
+// ── Local-business / retail storefront filter ───────────────────────────────
+// Hostnames that exclusively serve retail storefronts or local-business ordering
+// pages — never editorial or interest-worthy content.
+const LOCAL_BUSINESS_HOST_RE = [
+  /\.myshopify\.com$/,   // Shopify storefronts
+  /\.square\.site$/,     // Square hosted commerce sites
+  /^toasttab\.com$/,     // Toast restaurant ordering
+];
+
+export function isLocalBusiness(url) {
+  let host;
+  try { host = new URL(url).hostname.replace(/^www\./, ''); } catch { return false; }
+  return LOCAL_BUSINESS_HOST_RE.some((re) => re.test(host));
+}
+
 // ── URL normalisation ─────────────────────────────────────────────────────────
 // NOTE: The canonical URL normalisation logic is in
 // supabase/functions/_shared/normalise.ts (Deno/TypeScript).
@@ -300,19 +315,25 @@ export async function upsertUrls(rows, {
     log(`[seed] Dropped ${rows.length - normalised.length} unparseable URLs`);
   }
 
-  // 1a. Validate category_id values (warn only — don't drop, some seeders pass null)
-  const badCategory = normalised.filter(
+  // 1a. Drop local-business / retail storefront URLs
+  const filtered = normalised.filter((r) => !isLocalBusiness(r.url));
+  if (filtered.length < normalised.length) {
+    log(`[seed] Dropped ${normalised.length - filtered.length} local-business / retail URLs`);
+  }
+
+  // 1b. Validate category_id values (warn only — don't drop, some seeders pass null)
+  const badCategory = filtered.filter(
     (r) => r.category_id && !VALID_CATEGORY_IDS.has(r.category_id),
   );
   if (badCategory.length > 0) {
     console.warn(`[seed] Warning: ${badCategory.length} rows have unrecognised category_id values`);
   }
 
-  // 1b. Per-domain cap — applied before DB dedup to keep sampling deterministic
-  let capped = normalised;
+  // 1c. Per-domain cap — applied before DB dedup to keep sampling deterministic
+  let capped = filtered;
   if (maxPerDomain !== undefined) {
     const byDomain = new Map();
-    for (const r of normalised) {
+    for (const r of filtered) {
       let host;
       try { host = new URL(r.url).hostname; } catch { host = '__invalid__'; }
       if (!byDomain.has(host)) byDomain.set(host, []);
@@ -332,8 +353,8 @@ export async function upsertUrls(rows, {
         capped.push(...sampled);
       }
     }
-    if (capped.length < normalised.length) {
-      log(`[seed] Per-domain cap (${maxPerDomain}): kept ${capped.length}/${normalised.length} rows`);
+    if (capped.length < filtered.length) {
+      log(`[seed] Per-domain cap (${maxPerDomain}): kept ${capped.length}/${filtered.length} rows`);
     }
   }
 
