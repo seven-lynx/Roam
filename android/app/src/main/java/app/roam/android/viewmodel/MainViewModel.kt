@@ -218,9 +218,22 @@ class MainViewModel(
 
     fun roam(excludeDomain: String? = null) {
         viewModelScope.launch {
-            // Pop from the hot queue for an instant transition
+            // Pop from the hot queue for an instant transition, skipping any entry from
+            // the excluded domain or matching the current URL (avoids re-serving the same
+            // page after a thumbs-down when the prefetch queue was built before the skip).
             val prefetched = prefetchMutex.withLock {
-                if (hotQueue.isNotEmpty()) hotQueue.removeFirst() else null
+                var result: RoamUrl? = null
+                while (hotQueue.isNotEmpty()) {
+                    val candidate = hotQueue.removeFirst()
+                    val sameDomain = excludeDomain != null &&
+                        extractDomain(candidate.url) == excludeDomain
+                    val sameUrl = candidate.url == _currentUrl.value
+                    if (!sameDomain && !sameUrl) {
+                        result = candidate
+                        break
+                    }
+                }
+                result
             }
             if (prefetched != null) {
                 val served = prefetched.copy(url = maybeTranslate(prefetched.url))
