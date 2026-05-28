@@ -29,6 +29,15 @@ type AnalyticsData = {
   topUrls: { url: string; title: string; wilson_score: number; upvotes: number; downvotes: number }[];
 };
 
+type ReportedLink = {
+  url_id: string;
+  reported_at: string;
+  report_count: number;
+  url: string;
+  title: string | null;
+  inactive: boolean;
+};
+
 export default function AdminPageClient() {
   const supabase = createClient();
 
@@ -38,13 +47,16 @@ export default function AdminPageClient() {
   const [statusFilter, setStatusFilter] = useState<"all" | "pending" | "approved" | "rejected">("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [sortBy, setSortBy] = useState<"newest" | "oldest">("newest");
-  const [view, setView] = useState<"queue" | "analytics">("queue");
+  const [view, setView] = useState<"queue" | "analytics" | "reports">("queue");
   const [analyticsData, setAnalyticsData] = useState<AnalyticsData>({
     submissionsByDate: [],
     submissionsByCategory: [],
     topUrls: [],
   });
   const [analyticsLoading, setAnalyticsLoading] = useState(true);
+  const [reportedLinks, setReportedLinks] = useState<ReportedLink[]>([]);
+  const [reportsLoading, setReportsLoading] = useState(false);
+  const [restoringId, setRestoringId] = useState<string | null>(null);
 
   async function loadQueue() {
     try {
@@ -164,6 +176,62 @@ export default function AdminPageClient() {
     }
   }
 
+  async function loadReports() {
+    setReportsLoading(true);
+    try {
+      // Aggregate report counts per URL, then join with urls for details
+      const { data, error } = await supabase
+        .from("url_reports")
+        .select("url_id, reported_at, url:urls(url, title, inactive)")
+        .order("reported_at", { ascending: false });
+
+      if (error) throw error;
+
+      // Group by url_id, keep the most recent reported_at and count reports
+      const grouped = new Map<string, ReportedLink>();
+      for (const row of data ?? []) {
+        const urlData = Array.isArray(row.url) ? row.url[0] : row.url;
+        if (!row.url_id || !urlData) continue;
+        const existing = grouped.get(row.url_id);
+        if (!existing) {
+          grouped.set(row.url_id, {
+            url_id: row.url_id,
+            reported_at: row.reported_at,
+            report_count: 1,
+            url: urlData.url,
+            title: urlData.title,
+            inactive: urlData.inactive ?? false,
+          });
+        } else {
+          existing.report_count += 1;
+          if (row.reported_at > existing.reported_at) {
+            existing.reported_at = row.reported_at;
+          }
+        }
+      }
+
+      setReportedLinks(
+        [...grouped.values()].sort((a, b) => b.report_count - a.report_count)
+      );
+    } catch (err) {
+      console.error("Failed to load dead link reports:", err);
+    } finally {
+      setReportsLoading(false);
+    }
+  }
+
+  async function restoreLink(urlId: string) {
+    setRestoringId(urlId);
+    try {
+      await supabase.from("urls").update({ inactive: false }).eq("id", urlId);
+      setReportedLinks((prev) =>
+        prev.map((r) => r.url_id === urlId ? { ...r, inactive: false } : r)
+      );
+    } finally {
+      setRestoringId(null);
+    }
+  }
+
   useEffect(() => {
     loadQueue();
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -172,6 +240,9 @@ export default function AdminPageClient() {
   useEffect(() => {
     if (view === "analytics") {
       loadAnalytics();
+    }
+    if (view === "reports") {
+      loadReports();
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [view]);
@@ -215,6 +286,16 @@ export default function AdminPageClient() {
             }`}
           >
             Analytics
+          </button>
+          <button
+            onClick={() => setView("reports")}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+              view === "reports"
+                ? "bg-red-600 text-white"
+                : "bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700"
+            }`}
+          >
+            Dead Links
           </button>
           <Link
             href="/admin/dashboard"
@@ -438,6 +519,80 @@ export default function AdminPageClient() {
                   )}
                 </div>
               </>
+            )}
+          </div>
+        )}
+        {/* Dead Links View */}
+        {view === "reports" && (
+          <div className="flex flex-col gap-4">
+            {reportsLoading ? (
+              <div className="text-center text-zinc-500">Loading...</div>
+            ) : reportedLinks.length === 0 ? (
+              <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 p-8 text-center text-zinc-400 text-sm">
+                No dead link reports yet.
+              </div>
+            ) : (
+              <div className="overflow-x-auto rounded-xl border border-zinc-200 dark:border-zinc-800">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900">
+                      <th className="text-left py-3 px-4 font-semibold text-zinc-700 dark:text-zinc-300">URL</th>
+                      <th className="text-center py-3 px-4 font-semibold text-zinc-700 dark:text-zinc-300 w-20">Reports</th>
+                      <th className="text-left py-3 px-4 font-semibold text-zinc-700 dark:text-zinc-300 w-36">Last reported</th>
+                      <th className="text-center py-3 px-4 font-semibold text-zinc-700 dark:text-zinc-300 w-24">Status</th>
+                      <th className="py-3 px-4 w-24"></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {reportedLinks.map((r) => (
+                      <tr
+                        key={r.url_id}
+                        className="border-b border-zinc-100 dark:border-zinc-800 last:border-0"
+                      >
+                        <td className="py-3 px-4">
+                          <a
+                            href={r.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-blue-600 dark:text-blue-400 hover:underline break-all text-xs"
+                          >
+                            {r.url}
+                          </a>
+                          {r.title && (
+                            <p className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">{r.title}</p>
+                          )}
+                        </td>
+                        <td className="text-center py-3 px-4 font-semibold text-zinc-900 dark:text-white">
+                          {r.report_count}
+                        </td>
+                        <td className="py-3 px-4 text-xs text-zinc-500 whitespace-nowrap">
+                          {new Date(r.reported_at).toLocaleDateString()}
+                        </td>
+                        <td className="text-center py-3 px-4">
+                          <span className={`text-xs font-medium px-2 py-1 rounded ${
+                            r.inactive
+                              ? "bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400"
+                              : "bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400"
+                          }`}>
+                            {r.inactive ? "Inactive" : "Active"}
+                          </span>
+                        </td>
+                        <td className="py-3 px-4 text-center">
+                          {r.inactive && (
+                            <button
+                              onClick={() => restoreLink(r.url_id)}
+                              disabled={restoringId === r.url_id}
+                              className="text-xs px-3 py-1.5 rounded-lg bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700 disabled:opacity-50 transition-colors"
+                            >
+                              {restoringId === r.url_id ? "…" : "Restore"}
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             )}
           </div>
         )}

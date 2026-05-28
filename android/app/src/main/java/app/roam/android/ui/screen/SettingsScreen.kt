@@ -174,15 +174,7 @@ fun SettingsScreen(
             SettingsActionRow(
                 title = "Report dead link",
                 subtitle = currentUrl ?: "No page loaded",
-                onClick = {
-                    val body = "Dead link: ${currentUrl ?: "unknown"}"
-                    val intent = Intent(Intent.ACTION_SENDTO).apply {
-                        data = Uri.parse("mailto:hello@roamtheweb.app")
-                        putExtra(Intent.EXTRA_SUBJECT, "Dead link report")
-                        putExtra(Intent.EXTRA_TEXT, body)
-                    }
-                    context.startActivity(Intent.createChooser(intent, "Report dead link"))
-                },
+                onClick = { vm.reportBrokenLink() },
             )
 
             HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
