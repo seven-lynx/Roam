@@ -114,5 +114,6 @@ INSERT INTO paywalled_domains (domain) VALUES
   ('newstatesman.com'),
   ('newrepublic.com'),
   ('slate.com'),
-  ('medium.com')
+  ('medium.com'),
+  ('nationalgeographic.com')
 ON CONFLICT (domain) DO NOTHING;
