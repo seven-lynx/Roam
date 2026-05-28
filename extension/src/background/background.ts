@@ -389,13 +389,11 @@ async function setAutoTranslate(enabled: boolean): Promise<Response<null>> {
 }
 
 // ── Translate URL helper ──────────────────────────────────────────────────────
-// Wraps a URL in Google Translate when auto-translate is enabled and the user
-// has a non-English preferred language. Uses the first non-English language.
+// Wraps a URL in Google Translate when auto-translate is enabled.
 async function maybeTranslate(url: string): Promise<string> {
-  const stored = await chrome.storage.local.get(['auto_translate', 'preferred_languages']);
+  const stored = await chrome.storage.local.get(['auto_translate', 'translate_language']);
   if (!stored.auto_translate) return url;
-  const langs: string[] = stored.preferred_languages ?? ['en'];
-  const targetLang = langs[0] ?? 'en';
+  const targetLang = (stored.translate_language as string) ?? 'en';
   return `https://translate.google.com/translate?sl=auto&tl=${targetLang}&u=${encodeURIComponent(url)}`;
 }
 

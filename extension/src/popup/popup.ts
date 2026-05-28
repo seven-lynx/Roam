@@ -775,57 +775,19 @@ document.addEventListener('DOMContentLoaded', () => {
     await sendToBackground({ type: 'SET_AUTO_TRANSLATE', enabled: checked });
   });
 
-  // ── Language picker ───────────────────────────────────────────────────────
-  const btnLangs    = el<HTMLButtonElement>('btn-languages');
-  const panelLangs  = el<HTMLDivElement>('panel-languages');
-  const langBoxes   = Array.from(
-    panelLangs.querySelectorAll<HTMLInputElement>('input[type="checkbox"]')
-  );
-
-  // Names for summary label
-  const LANG_NAMES: Record<string, string> = {
-    en: 'English', fr: 'Français', de: 'Deutsch', it: 'Italiano',
-    es: 'Español', pt: 'Português', nl: 'Nederlands', pl: 'Polski',
-    ja: '日本語', zh: '中文', ru: 'Русский', ko: '한국어',
-  };
-
-  function updateLangSummary() {
-    const selected = langBoxes.filter((c) => c.checked).map((c) => LANG_NAMES[c.value] ?? c.value);
-    btnLangs.textContent = selected.length === 0 ? 'English' : selected.join(', ');
-  }
-
+  // ── Translate language picker ─────────────────────────────────────────────
   // Load saved preferences from storage
-  chrome.storage.local.get(['skip_paywalled', 'preferred_languages'], (stored) => {
+  chrome.storage.local.get(['skip_paywalled', 'translate_language'], (stored) => {
     if (stored.skip_paywalled) {
       el<HTMLInputElement>('toggle-paywall').checked = true;
     }
-    if (Array.isArray(stored.preferred_languages)) {
-      langBoxes.forEach((cb) => {
-        cb.checked = stored.preferred_languages.includes(cb.value);
-      });
-      updateLangSummary();
-    }
+    const lang = (stored.translate_language as string) ?? 'en';
+    el<HTMLSelectElement>('select-translate-lang').value = lang;
   });
 
-  // Toggle picker open/closed
-  btnLangs.addEventListener('click', () => {
-    const open = !panelLangs.hidden;
-    panelLangs.hidden = open;
-    btnLangs.setAttribute('aria-expanded', String(!open));
-  });
-
-  // On each checkbox change: enforce at least one selected, save, update label
-  langBoxes.forEach((cb) => {
-    cb.addEventListener('change', async () => {
-      const selected = langBoxes.filter((c) => c.checked).map((c) => c.value);
-      // Ensure at least English is always included
-      if (selected.length === 0) {
-        langBoxes.find((c) => c.value === 'en')!.checked = true;
-      }
-      const final = langBoxes.filter((c) => c.checked).map((c) => c.value);
-      updateLangSummary();
-      await sendToBackground({ type: 'SET_LANGUAGE_PREF', languages: final });
-    });
+  el<HTMLSelectElement>('select-translate-lang').addEventListener('change', async (e) => {
+    const lang = (e.target as HTMLSelectElement).value;
+    await chrome.storage.local.set({ translate_language: lang });
   });
 });
 
