@@ -1,8 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
 import { useTheme } from 'next-themes';
 import { createClient } from '@/lib/supabase/client';
 import * as Sentry from '@sentry/nextjs';
@@ -119,33 +118,11 @@ export function SettingsClient({
   const [passwordSuccess, setPasswordSuccess] = useState<string | null>(null);
   const [passwordFormError, setPasswordFormError] = useState<string | null>(null);
 
-  // Bookmark a site
-  const [bookmarkUrl, setBookmarkUrl] = useState('');
-  const [bookmarkLoading, setBookmarkLoading] = useState(false);
-  const [bookmarkStatus, setBookmarkStatus] = useState<'idle' | 'success' | 'error'>('idle');
-  const [bookmarkMessage, setBookmarkMessage] = useState<string | null>(null);
-  const [bookmarksCollectionSlug, setBookmarksCollectionSlug] = useState<string | null>(null);
-
   // Export / delete
   const [exportLoading, setExportLoading] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [globalError, setGlobalError] = useState<string | null>(null);
-
-  // Load existing Bookmarks collection slug on mount so the "View Bookmarks" link
-  // is visible immediately if the collection already exists.
-  useEffect(() => {
-    supabase
-      .from('collections')
-      .select('slug')
-      .eq('user_id', userId)
-      .eq('title', 'Bookmarks')
-      .maybeSingle()
-      .then(({ data }) => {
-        if (data?.slug) setBookmarksCollectionSlug(data.slug);
-      });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [userId]);
 
   // ── Handlers ───────────────────────────────────────────────────────────
   async function handleNotificationsToggle() {
@@ -238,84 +215,6 @@ export function SettingsClient({
     }
   }
 
-  async function handleBookmark(e: React.FormEvent) {
-    e.preventDefault();
-    let raw = bookmarkUrl.trim();
-    if (!raw) return;
-    if (!raw.startsWith('http')) raw = 'https://' + raw;
-
-    setBookmarkLoading(true);
-    setBookmarkStatus('idle');
-    setBookmarkMessage(null);
-
-    try {
-      // 1. Look up the URL in the catalog
-      const { data: urlRow } = await supabase
-        .from('urls')
-        .select('id')
-        .eq('url', raw)
-        .maybeSingle();
-
-      if (!urlRow) {
-        setBookmarkStatus('error');
-        setBookmarkMessage("This URL isn't in Roam's catalog. Submit it first via the Submit page.");
-        return;
-      }
-
-      // 2. Find or create the user's Bookmarks collection
-      const { data: existing } = await supabase
-        .from('collections')
-        .select('id, slug')
-        .eq('user_id', userId)
-        .eq('title', 'Bookmarks')
-        .maybeSingle();
-
-      let collectionId: string | undefined = existing?.id;
-      let slug: string | undefined = existing?.slug;
-
-      if (!collectionId) {
-        // Try progressively unique slugs to avoid global slug conflicts
-        const candidates = ['bookmarks', 'my-bookmarks', `bookmarks-${userId.slice(0, 8)}`];
-        for (const candidate of candidates) {
-          const { data: created, error: createErr } = await supabase.functions.invoke('collection', {
-            body: { action: 'create', title: 'Bookmarks', slug: candidate, is_public: false },
-          });
-          if (!createErr && created?.id) {
-            collectionId = created.id;
-            slug = candidate;
-            break;
-          }
-          // 409 = slug taken globally — try the next candidate
-          if (!createErr || !(createErr as { message?: string }).message?.includes('409')) break;
-        }
-      }
-
-      if (!collectionId) {
-        setBookmarkStatus('error');
-        setBookmarkMessage('Could not create Bookmarks collection. Please try again.');
-        return;
-      }
-
-      // 3. Add the URL to the collection
-      const { error: addErr } = await supabase.functions.invoke('collection', {
-        body: { action: 'add_item', id: collectionId, url_id: urlRow.id },
-      });
-
-      if (addErr) throw addErr;
-
-      setBookmarkStatus('success');
-      setBookmarkMessage('Bookmarked!');
-      setBookmarkUrl('');
-      if (slug) setBookmarksCollectionSlug(slug);
-    } catch (err) {
-      Sentry.captureException(err, { tags: { context: 'bookmark' } });
-      setBookmarkStatus('error');
-      setBookmarkMessage(err instanceof Error ? err.message : 'Something went wrong. Please try again.');
-    } finally {
-      setBookmarkLoading(false);
-    }
-  }
-
   async function handleDeleteAccount() {
     setDeleteLoading(true);
     try {
@@ -361,34 +260,6 @@ export function SettingsClient({
         {globalError && (
           <p className="text-sm text-red-600 bg-red-50 dark:bg-red-950/40 rounded-lg px-4 py-2">{globalError}</p>
         )}
-
-        {/* Navigation */}
-        <Section title="Navigation">
-          <p className="text-sm text-zinc-500 dark:text-zinc-400 mb-4">Browser navigation shortcuts.</p>
-          <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={() => router.back()}
-              className="flex-1 rounded-lg border border-zinc-300 dark:border-zinc-700 py-2 text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors"
-            >
-              ← Back
-            </button>
-            <button
-              type="button"
-              onClick={() => window.history.forward()}
-              className="flex-1 rounded-lg border border-zinc-300 dark:border-zinc-700 py-2 text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors"
-            >
-              Forward →
-            </button>
-            <button
-              type="button"
-              onClick={() => router.refresh()}
-              className="flex-1 rounded-lg border border-zinc-300 dark:border-zinc-700 py-2 text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors"
-            >
-              ↻ Refresh
-            </button>
-          </div>
-        </Section>
 
         {/* Account */}
         <Section title="Account">
@@ -457,45 +328,6 @@ export function SettingsClient({
               </button>
             ))}
           </div>
-        </Section>
-
-        {/* Bookmark a site */}
-        <Section title="Bookmark a site">
-          <p className="text-sm text-zinc-500 dark:text-zinc-400 mb-4">
-            Save any URL from Roam&apos;s catalog to your Bookmarks collection.
-          </p>
-          <form onSubmit={handleBookmark} className="flex flex-col gap-3">
-            <input
-              type="url"
-              value={bookmarkUrl}
-              onChange={e => { setBookmarkUrl(e.target.value); setBookmarkStatus('idle'); }}
-              placeholder="https://…"
-              className="w-full rounded-lg border border-zinc-300 dark:border-zinc-700 px-4 py-2.5 text-sm bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:focus:ring-white"
-            />
-            {bookmarkStatus === 'success' && (
-              <p className="text-sm text-green-600 dark:text-green-400">{bookmarkMessage}</p>
-            )}
-            {bookmarkStatus === 'error' && (
-              <p className="text-sm text-red-600">{bookmarkMessage}</p>
-            )}
-            <div className="flex items-center gap-3">
-              <button
-                type="submit"
-                disabled={bookmarkLoading || !bookmarkUrl.trim()}
-                className="rounded-lg bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 px-5 py-2.5 text-sm font-semibold hover:opacity-90 disabled:opacity-40 transition-opacity"
-              >
-                {bookmarkLoading ? 'Saving…' : 'Bookmark'}
-              </button>
-              {bookmarksCollectionSlug && (
-                <Link
-                  href={`/c/${bookmarksCollectionSlug}`}
-                  className="text-sm text-zinc-500 hover:text-zinc-900 dark:hover:text-white transition-colors"
-                >
-                  View Bookmarks →
-                </Link>
-              )}
-            </div>
-          </form>
         </Section>
 
         {/* Notifications */}
