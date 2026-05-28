@@ -235,7 +235,7 @@ class MainViewModel(
                 }
                 lastException = outcome.exceptionOrNull()
                 // Don't retry offline errors — they won't resolve with retries
-                if (lastException is IOException) break
+                if (lastException != null && isOfflineError(lastException!!)) break
                 // UnauthorizedRestException: repository already attempted one session refresh.
                 // A second attempt won't help; break early so we don't burn retry budget.
                 if (lastException is UnauthorizedRestException) break
@@ -254,13 +254,14 @@ class MainViewModel(
                 }
             } else {
                 val e = lastException ?: Exception("Unknown error")
+                val isOffline = isOfflineError(e)
                 val isTimeout = e.javaClass.name.contains("Timeout", ignoreCase = true)
                     || e.message?.contains("timed out", ignoreCase = true) == true
                 val msg = when {
                     isTimeout -> "Request timed out. Please try again."
                     e is UnauthorizedRestException -> "Session expired. Please sign in again."
                     e is IllegalStateException -> "Session expired. Please sign in again."
-                    e is IOException -> "You appear to be offline. Please check your connection."
+                    isOffline -> "You appear to be offline. Please check your connection."
                     else -> e.message ?: "Something went wrong. Please try again."
                 }
                 _state.value = RoamState.Error(msg)
@@ -274,7 +275,7 @@ class MainViewModel(
                 // fails here the session is gone (no refresh token). Not a bug, just sign-in needed.
                 // IllegalStateException: no refresh token at all — same outcome.
                 val isExpiredSession = e is UnauthorizedRestException || e is IllegalStateException
-                if (!isKnownServerMessage && !isExpiredSession) {
+                if (!isKnownServerMessage && !isExpiredSession && !isOffline) {
                     Sentry.captureException(e)
                 }
             }
@@ -712,6 +713,21 @@ class MainViewModel(
         return runCatching {
             android.net.Uri.parse(url).host?.removePrefix("www.")
         }.getOrNull()
+    }
+
+    /**
+     * Returns true if [e] or any exception in its cause chain is an [IOException].
+     * Ktor wraps [java.net.UnknownHostException] (DNS failure / no network) inside
+     * its own HttpRequestException, which does not itself extend IOException, so a
+     * plain `e is IOException` check misses these offline errors.
+     */
+    private fun isOfflineError(e: Throwable): Boolean {
+        var t: Throwable? = e
+        while (t != null) {
+            if (t is IOException) return true
+            t = t.cause
+        }
+        return false
     }
 }
 
