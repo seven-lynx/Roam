@@ -211,7 +211,12 @@ class MainViewModel(
         viewModelScope.launch {
             connectivityFlow(application).collect { online ->
                 _isOnline.value = online
-                if (online) flushPendingRatings()
+                if (online) {
+                    flushPendingRatings()
+                    // If a roam failed while offline, auto-retry now that we're back online
+                    // so the status bar clears the error instead of staying stuck.
+                    if (_state.value is RoamState.Error) roam()
+                }
             }
         }
     }
