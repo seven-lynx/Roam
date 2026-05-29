@@ -80,7 +80,12 @@ export default function AdminPageClient() {
         `)
         .order("created_at", { ascending: sortBy === "oldest" });
 
-      setItems(data ?? []);
+      setItems(
+        (data ?? []).map((item) => ({
+          ...item,
+          profile: Array.isArray(item.profile) ? item.profile[0] ?? null : item.profile,
+        }))
+      );
     } catch (err) {
       console.error("Failed to load moderation queue:", err);
     } finally {
