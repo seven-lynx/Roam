@@ -529,9 +529,9 @@ class MainViewModel(
         }
     }
 
-    fun submitUrl(url: String, categoryId: String) {
+    fun submitUrl(url: String, categoryId: String, subcategoryId: String? = null) {
         viewModelScope.launch {
-            runCatching { repo.submitUrl(url, categoryId) }
+            runCatching { repo.submitUrl(url, categoryId, subcategoryId) }
             _showSubmitSheet.value = false
         }
     }

@@ -66,10 +66,11 @@ class RoamRepository {
      * Calls POST /functions/v1/submit-url.
      * [url] is required; [subcategoryId] is the user-selected category chip.
      */
-    suspend fun submitUrl(url: String, categoryId: String? = null) {
+    suspend fun submitUrl(url: String, categoryId: String? = null, subcategoryId: String? = null) {
         val body = buildJsonObject {
             put("url", url)
             categoryId?.let { put("category_id", it) }
+            subcategoryId?.let { put("subcategory_id", it) }
         }
         supabase.functions.invoke("submit-url", body = body)
     }

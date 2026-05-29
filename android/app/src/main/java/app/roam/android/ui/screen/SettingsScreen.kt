@@ -22,6 +22,7 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Switch
@@ -65,6 +66,7 @@ fun SettingsScreen(
     val focusSubcategoryId by vm.focusSubcategoryId.collectAsState()
     val context = LocalContext.current
     var showSignOutDialog by remember { mutableStateOf(false) }
+    var showSubmitUrlDialog by remember { mutableStateOf(false) }
     var translateDropdownExpanded by remember { mutableStateOf(false) }
     var focusCategoryDropdownExpanded by remember { mutableStateOf(false) }
     var focusSubcategoryDropdownExpanded by remember { mutableStateOf(false) }
@@ -90,6 +92,18 @@ fun SettingsScreen(
             dismissButton = {
                 TextButton(onClick = { showSignOutDialog = false }) { Text("Cancel") }
             },
+        )
+    }
+
+    if (showSubmitUrlDialog) {
+        SubmitUrlDialog(
+            categories = categories,
+            subcategories = subcategories,
+            onSubmit = { url, categoryId, subcategoryId ->
+                vm.submitUrl(url, categoryId, subcategoryId)
+                showSubmitUrlDialog = false
+            },
+            onDismiss = { showSubmitUrlDialog = false },
         )
     }
 
@@ -306,6 +320,12 @@ fun SettingsScreen(
             SectionHeader("Feedback")
 
             SettingsActionRow(
+                title = "Submit a URL",
+                subtitle = "Suggest a page to add to Roam",
+                onClick = { showSubmitUrlDialog = true },
+            )
+
+            SettingsActionRow(
                 title = "Send feedback",
                 subtitle = "Tell us what you think",
                 onClick = {
@@ -371,6 +391,133 @@ fun SettingsScreen(
         }
     }
 }
+
+@Composable
+private fun SubmitUrlDialog(
+    categories: List<app.roam.android.model.CategoryItem>,
+    subcategories: List<SubcategoryItem>,
+    onSubmit: (url: String, categoryId: String, subcategoryId: String?) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var url by remember { mutableStateOf("") }
+    var selectedCategoryId by remember { mutableStateOf<String?>(null) }
+    var selectedSubcategoryId by remember { mutableStateOf<String?>(null) }
+    var categoryDropdownExpanded by remember { mutableStateOf(false) }
+    var subcategoryDropdownExpanded by remember { mutableStateOf(false) }
+
+    val selectedCategory = categories.firstOrNull { it.id == selectedCategoryId }
+    val filteredSubcats = subcategories.filter { it.categoryId == selectedCategoryId }
+    val selectedSubcat = filteredSubcats.firstOrNull { it.id == selectedSubcategoryId }
+    val canSubmit = url.isNotBlank() && selectedCategoryId != null
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Submit a URL") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                OutlinedTextField(
+                    value = url,
+                    onValueChange = { url = it },
+                    label = { Text("URL") },
+                    placeholder = { Text("https://example.com/article") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+
+                // Category picker
+                Column {
+                    Text(
+                        "Category",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                    )
+                    Spacer(Modifier.height(4.dp))
+                    Box {
+                        OutlinedButton(
+                            onClick = { categoryDropdownExpanded = true },
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            Text(
+                                selectedCategory?.let { "${it.icon} ${it.name}" } ?: "Pick a category…",
+                                modifier = Modifier.weight(1f),
+                            )
+                        }
+                        DropdownMenu(
+                            expanded = categoryDropdownExpanded,
+                            onDismissRequest = { categoryDropdownExpanded = false },
+                        ) {
+                            categories.forEach { cat ->
+                                DropdownMenuItem(
+                                    text = { Text("${cat.icon} ${cat.name}") },
+                                    onClick = {
+                                        selectedCategoryId = cat.id
+                                        selectedSubcategoryId = null  // reset subcategory on category change
+                                        categoryDropdownExpanded = false
+                                    },
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // Subcategory picker — only shown once a category is selected
+                if (selectedCategoryId != null && filteredSubcats.isNotEmpty()) {
+                    Column {
+                        Text(
+                            "Topic (optional)",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                        )
+                        Spacer(Modifier.height(4.dp))
+                        Box {
+                            OutlinedButton(
+                                onClick = { subcategoryDropdownExpanded = true },
+                                modifier = Modifier.fillMaxWidth(),
+                            ) {
+                                Text(
+                                    selectedSubcat?.name ?: "Any topic",
+                                    modifier = Modifier.weight(1f),
+                                )
+                            }
+                            DropdownMenu(
+                                expanded = subcategoryDropdownExpanded,
+                                onDismissRequest = { subcategoryDropdownExpanded = false },
+                            ) {
+                                DropdownMenuItem(
+                                    text = { Text("Any topic") },
+                                    onClick = {
+                                        selectedSubcategoryId = null
+                                        subcategoryDropdownExpanded = false
+                                    },
+                                )
+                                filteredSubcats.forEach { sub ->
+                                    DropdownMenuItem(
+                                        text = { Text(sub.name) },
+                                        onClick = {
+                                            selectedSubcategoryId = sub.id
+                                            subcategoryDropdownExpanded = false
+                                        },
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = { onSubmit(url.trim(), selectedCategoryId!!, selectedSubcategoryId) },
+                enabled = canSubmit,
+            ) { Text("Submit") }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Cancel") }
+        },
+    )
+}
+
+
 
 @Composable
 private fun SectionHeader(title: String) {
