@@ -51,7 +51,7 @@ export function validateRequired(requiredVars: string[]): EdgeFunctionEnv {
       errors.push(`${varName} must be HTTPS (received: ${value})`);
     }
 
-    if (varName.includes('KEY') && value.length < 50) {
+    if (varName.includes('KEY') && value.length < 20) {
       errors.push(`${varName} looks invalid (too short: ${value.length} chars)`);
     }
 
