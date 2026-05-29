@@ -606,20 +606,43 @@ async function commitResults() {
     console.log('[commit] Applying redirect URL corrections...');
     let updated = 0;
     let conflicted = 0;
-    for (const r of redirectFixes) {
-      const { error } = await supabase
-        .from('urls')
-        .update({ url: r.newUrl, original_url: r.newUrl })
-        .eq('id', r.urlId);
-      if (!error) {
-        updated++;
-      } else if (error.code === '23505') {
-        // New URL already exists in DB — mark original as inactive instead
-        await supabase.from('urls').update({ inactive: true }).eq('id', r.urlId);
-        conflicted++;
+    const redirectStart = Date.now();
+    const REDIRECT_CONCURRENCY = 20;
+    const conflictIds = [];
+
+    // Process in parallel with a concurrency cap — each row gets a unique URL
+    // so we can't batch with .in(); parallelism is the next best thing.
+    for (let i = 0; i < redirectFixes.length; i += REDIRECT_CONCURRENCY) {
+      const chunk = redirectFixes.slice(i, i + REDIRECT_CONCURRENCY);
+      const results = await Promise.all(
+        chunk.map((r) =>
+          supabase
+            .from('urls')
+            .update({ url: r.newUrl, original_url: r.newUrl })
+            .eq('id', r.urlId)
+            .then(({ error }) => ({ r, error }))
+        )
+      );
+      for (const { r, error } of results) {
+        if (!error) {
+          updated++;
+        } else if (error.code === '23505') {
+          conflictIds.push(r.urlId);
+        }
+      }
+      process.stdout.write(`\r[commit] Redirects updated ${(updated + conflictIds.length).toLocaleString()}/${redirectFixes.length.toLocaleString()}  eta=${fmtEta(updated + conflictIds.length, redirectFixes.length, redirectStart)}  `);
+    }
+
+    // Batch-retire conflict IDs (new URL already exists in DB)
+    if (conflictIds.length > 0) {
+      for (let i = 0; i < conflictIds.length; i += DB_BATCH_SIZE) {
+        const batch = conflictIds.slice(i, i + DB_BATCH_SIZE);
+        await supabase.from('urls').update({ inactive: true }).in('id', batch);
+        conflicted += batch.length;
       }
     }
-    console.log(`[commit] Updated ${updated.toLocaleString()} redirect URLs,  ${conflicted.toLocaleString()} conflicts \u2192 marked inactive.\n`);
+
+    console.log(`\n[commit] Updated ${updated.toLocaleString()} redirect URLs,  ${conflicted.toLocaleString()} conflicts → marked inactive.\n`);
   }
 
   // ── Apply language corrections ────────────────────────────────────────────

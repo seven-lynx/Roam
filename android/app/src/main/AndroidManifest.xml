@@ -42,9 +42,11 @@
     <!--
         Sentry is initialised programmatically in RoamApplication.onCreate() using the
         SENTRY_DSN BuildConfig field from local.properties (never committed to source control).
-        Do NOT add io.sentry.dsn meta-data here — it would expose the DSN in the compiled APK
-        and cause Sentry to auto-init a second time (before our custom beforeSend filter is set).
+        Disable the Sentry Gradle plugin's auto-init ContentProvider so it does not run before
+        RoamApplication.onCreate() — without a DSN in the manifest it would crash immediately.
     -->
+        <meta-data android:name="io.sentry.auto-init" android:value="false" />
+
 </application>
 
 </manifest>
