@@ -17,7 +17,7 @@ import fetch from 'node-fetch';
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, resolve } from 'path';
-import { upsertUrls, CATEGORY } from './lib/seed.js';
+import { upsertUrls, CATEGORY, SUBCATEGORY } from './lib/seed.js';
 
 const __dirname  = dirname(fileURLToPath(import.meta.url));
 const CACHE_DIR  = resolve(__dirname, '.cache');
@@ -38,45 +38,45 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 const SOURCES = [
   // ── Games & Hobbies ─────────────────────────────────────────────────────────
-  { path: 'genre-action',           category: CATEGORY.GAMES_HOBBIES },
-  { path: 'genre-adventure',        category: CATEGORY.GAMES_HOBBIES },
-  { path: 'genre-platformer',       category: CATEGORY.GAMES_HOBBIES },
-  { path: 'genre-puzzle',           category: CATEGORY.GAMES_HOBBIES },
-  { path: 'genre-rpg',              category: CATEGORY.GAMES_HOBBIES },
-  { path: 'genre-strategy',         category: CATEGORY.GAMES_HOBBIES },
-  { path: 'genre-simulation',       category: CATEGORY.GAMES_HOBBIES },
-  { path: 'genre-shooter',          category: CATEGORY.GAMES_HOBBIES },
-  { path: 'genre-survival',         category: CATEGORY.GAMES_HOBBIES },
-  { path: 'genre-card-game',        category: CATEGORY.GAMES_HOBBIES },
-  { path: 'genre-fighting',         category: CATEGORY.GAMES_HOBBIES },
-  { path: 'genre-racing',           category: CATEGORY.GAMES_HOBBIES },
-  { path: 'genre-sports',           category: CATEGORY.GAMES_HOBBIES },
-  { path: 'tag-multiplayer',        category: CATEGORY.GAMES_HOBBIES },
-  { path: 'tag-roguelike',          category: CATEGORY.GAMES_HOBBIES },
-  { path: 'tag-metroidvania',       category: CATEGORY.GAMES_HOBBIES },
-  { path: 'tag-2d',                 category: CATEGORY.GAMES_HOBBIES },
-  { path: 'tag-pixel-art',          category: CATEGORY.GAMES_HOBBIES },
-  { path: 'tag-open-world',         category: CATEGORY.GAMES_HOBBIES },
+  { path: 'genre-action',           category: CATEGORY.GAMES_HOBBIES,    subcategory: SUBCATEGORY.VIDEO_GAMES },
+  { path: 'genre-adventure',        category: CATEGORY.GAMES_HOBBIES,    subcategory: SUBCATEGORY.VIDEO_GAMES },
+  { path: 'genre-platformer',       category: CATEGORY.GAMES_HOBBIES,    subcategory: SUBCATEGORY.VIDEO_GAMES },
+  { path: 'genre-puzzle',           category: CATEGORY.GAMES_HOBBIES,    subcategory: SUBCATEGORY.VIDEO_GAMES },
+  { path: 'genre-rpg',              category: CATEGORY.GAMES_HOBBIES,    subcategory: SUBCATEGORY.VIDEO_GAMES },
+  { path: 'genre-strategy',         category: CATEGORY.GAMES_HOBBIES,    subcategory: SUBCATEGORY.VIDEO_GAMES },
+  { path: 'genre-simulation',       category: CATEGORY.GAMES_HOBBIES,    subcategory: SUBCATEGORY.VIDEO_GAMES },
+  { path: 'genre-shooter',          category: CATEGORY.GAMES_HOBBIES,    subcategory: SUBCATEGORY.VIDEO_GAMES },
+  { path: 'genre-survival',         category: CATEGORY.GAMES_HOBBIES,    subcategory: SUBCATEGORY.VIDEO_GAMES },
+  { path: 'genre-card-game',        category: CATEGORY.GAMES_HOBBIES,    subcategory: SUBCATEGORY.VIDEO_GAMES },
+  { path: 'genre-fighting',         category: CATEGORY.GAMES_HOBBIES,    subcategory: SUBCATEGORY.VIDEO_GAMES },
+  { path: 'genre-racing',           category: CATEGORY.GAMES_HOBBIES,    subcategory: SUBCATEGORY.VIDEO_GAMES },
+  { path: 'genre-sports',           category: CATEGORY.GAMES_HOBBIES,    subcategory: SUBCATEGORY.VIDEO_GAMES },
+  { path: 'tag-multiplayer',        category: CATEGORY.GAMES_HOBBIES,    subcategory: SUBCATEGORY.VIDEO_GAMES },
+  { path: 'tag-roguelike',          category: CATEGORY.GAMES_HOBBIES,    subcategory: SUBCATEGORY.VIDEO_GAMES },
+  { path: 'tag-metroidvania',       category: CATEGORY.GAMES_HOBBIES,    subcategory: SUBCATEGORY.VIDEO_GAMES },
+  { path: 'tag-2d',                 category: CATEGORY.GAMES_HOBBIES,    subcategory: SUBCATEGORY.VIDEO_GAMES },
+  { path: 'tag-pixel-art',          category: CATEGORY.GAMES_HOBBIES,    subcategory: SUBCATEGORY.VIDEO_GAMES },
+  { path: 'tag-open-world',         category: CATEGORY.GAMES_HOBBIES,    subcategory: SUBCATEGORY.VIDEO_GAMES },
 
   // ── Arts & Culture ──────────────────────────────────────────────────────────
-  { path: 'genre-visual-novel',          category: CATEGORY.ARTS_CULTURE },
-  { path: 'genre-interactive-fiction',   category: CATEGORY.ARTS_CULTURE },
-  { path: 'genre-rhythm',               category: CATEGORY.ARTS_CULTURE },
-  { path: 'tag-story-rich',             category: CATEGORY.ARTS_CULTURE },
-  { path: 'tag-narrative',              category: CATEGORY.ARTS_CULTURE },
+  { path: 'genre-visual-novel',          category: CATEGORY.ARTS_CULTURE,    subcategory: SUBCATEGORY.LITERATURE_WRITING },
+  { path: 'genre-interactive-fiction',   category: CATEGORY.ARTS_CULTURE,    subcategory: SUBCATEGORY.LITERATURE_WRITING },
+  { path: 'genre-rhythm',               category: CATEGORY.ARTS_CULTURE,    subcategory: SUBCATEGORY.MUSIC },
+  { path: 'tag-story-rich',             category: CATEGORY.ARTS_CULTURE,    subcategory: SUBCATEGORY.LITERATURE_WRITING },
+  { path: 'tag-narrative',              category: CATEGORY.ARTS_CULTURE,    subcategory: SUBCATEGORY.LITERATURE_WRITING },
 
   // ── Weird & Wonderful ───────────────────────────────────────────────────────
-  { path: 'tag-horror',                 category: CATEGORY.WEIRD_WONDERFUL },
-  { path: 'tag-experimental',           category: CATEGORY.WEIRD_WONDERFUL },
-  { path: 'tag-surreal',                category: CATEGORY.WEIRD_WONDERFUL },
-  { path: 'tag-procedural-generation',  category: CATEGORY.WEIRD_WONDERFUL },
-  { path: 'tag-generative',             category: CATEGORY.WEIRD_WONDERFUL },
-  { path: 'tag-psychological-horror',   category: CATEGORY.WEIRD_WONDERFUL },
+  { path: 'tag-horror',                 category: CATEGORY.WEIRD_WONDERFUL,  subcategory: SUBCATEGORY.PARANORMAL_UNEXPLAINED },
+  { path: 'tag-experimental',           category: CATEGORY.WEIRD_WONDERFUL,  subcategory: SUBCATEGORY.ABSURDIST_HUMOUR },
+  { path: 'tag-surreal',                category: CATEGORY.WEIRD_WONDERFUL,  subcategory: SUBCATEGORY.ABSURDIST_HUMOUR },
+  { path: 'tag-procedural-generation',  category: CATEGORY.WEIRD_WONDERFUL,  subcategory: SUBCATEGORY.INTERNET_CULTURE },
+  { path: 'tag-generative',             category: CATEGORY.WEIRD_WONDERFUL,  subcategory: SUBCATEGORY.INTERNET_CULTURE },
+  { path: 'tag-psychological-horror',   category: CATEGORY.WEIRD_WONDERFUL,  subcategory: SUBCATEGORY.PARANORMAL_UNEXPLAINED },
 
   // ── History & Ideas ─────────────────────────────────────────────────────────
-  { path: 'genre-educational',          category: CATEGORY.HISTORY_IDEAS },
-  { path: 'tag-historical',             category: CATEGORY.HISTORY_IDEAS },
-  { path: 'tag-lore',                   category: CATEGORY.HISTORY_IDEAS },
+  { path: 'genre-educational',          category: CATEGORY.HISTORY_IDEAS,    subcategory: SUBCATEGORY.MODERN_HISTORY },
+  { path: 'tag-historical',             category: CATEGORY.HISTORY_IDEAS,    subcategory: SUBCATEGORY.MODERN_HISTORY },
+  { path: 'tag-lore',                   category: CATEGORY.HISTORY_IDEAS,    subcategory: SUBCATEGORY.MODERN_HISTORY },
 ];
 
 // ── HTML parsing ─────────────────────────────────────────────────────────────
@@ -134,7 +134,7 @@ function decodeHtml(str) {
 
 // ── Fetcher ───────────────────────────────────────────────────────────────────
 
-async function fetchSource(path, categoryId) {
+async function fetchSource(path, categoryId, subcategoryId) {
   const entries = [];
 
   for (let page = 1; page <= PAGES_PER_SOURCE; page++) {
@@ -171,11 +171,12 @@ async function fetchSource(path, categoryId) {
     const games = parseGames(content);
     for (const g of games) {
       entries.push({
-        url:         g.url,
-        title:       g.title.slice(0, 300),
-        description: g.description.slice(0, 500),
-        category_id: categoryId,
-        source:      'itchio',
+        url:            g.url,
+        title:          g.title.slice(0, 300),
+        description:    g.description.slice(0, 500),
+        category_id:    categoryId,
+        subcategory_id: subcategoryId,
+        source:         'itchio',
       });
     }
 
@@ -213,8 +214,8 @@ async function main() {
     allGames = [];
     const globalSeen = new Set();
 
-    for (const { path, category } of SOURCES) {
-      const entries = await fetchSource(path, category);
+    for (const { path, category, subcategory } of SOURCES) {
+      const entries = await fetchSource(path, category, subcategory);
       let added = 0;
       for (const entry of entries) {
         if (!globalSeen.has(entry.url)) {

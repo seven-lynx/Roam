@@ -25,7 +25,7 @@ import { dirname, resolve } from 'path';
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'fs';
 import { gunzipSync } from 'zlib';
 import { config as dotenvConfig } from 'dotenv';
-import { upsertUrls, CATEGORY, fetchWithRetry } from './lib/seed.js';
+import { upsertUrls, CATEGORY, SUBCATEGORY, fetchWithRetry } from './lib/seed.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 dotenvConfig({ path: resolve(__dirname, '../.env') });
@@ -46,17 +46,20 @@ const sleep    = (ms) => new Promise((r) => setTimeout(r, ms));
 const CONTENT_TYPES = [
   {
     pattern:    /\/places\//,
-    categoryId: CATEGORY.PEOPLE_PLACES,
+    categoryId:    CATEGORY.PEOPLE_PLACES,
+    subcategoryId: SUBCATEGORY.UNUSUAL_PLACES,
     source:     'atlas-obscura-places',
   },
   {
     pattern:    /\/articles\//,
-    categoryId: CATEGORY.WEIRD_WONDERFUL,
+    categoryId:    CATEGORY.WEIRD_WONDERFUL,
+    subcategoryId: SUBCATEGORY.ODDITIES_CURIOSITIES,
     source:     'atlas-obscura-articles',
   },
   {
     pattern:    /\/foods\//,
-    categoryId: CATEGORY.GAMES_HOBBIES,
+    categoryId:    CATEGORY.GAMES_HOBBIES,
+    subcategoryId: SUBCATEGORY.COOKING_FOOD,
     source:     'atlas-obscura-foods',
   },
 ];
@@ -232,8 +235,9 @@ async function collectFromSitemaps() {
       rows.push({
         url,
         title,
-        category_id: cat.categoryId,
-        source:      cat.source,
+        category_id:    cat.categoryId,
+        subcategory_id: cat.subcategoryId,
+        source:         cat.source,
       });
       added++;
     }

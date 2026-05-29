@@ -18,7 +18,7 @@ import fetch from 'node-fetch';
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, resolve } from 'path';
-import { upsertUrls, CATEGORY } from './lib/seed.js';
+import { upsertUrls, CATEGORY, SUBCATEGORY } from './lib/seed.js';
 
 const __dirname       = dirname(fileURLToPath(import.meta.url));
 const CACHE_DIR       = resolve(__dirname, '.cache');
@@ -120,8 +120,9 @@ function bookToRow(book) {
     url,
     title:       book.title || `LibriVox #${book.id}`,
     description,
-    category_id: textToCategory(book.title, rawDesc),
-    source:      'librivox',
+    category_id:    textToCategory(book.title, rawDesc),
+    subcategory_id: SUBCATEGORY.LITERATURE_WRITING,
+    source:         'librivox',
   };
 }
 

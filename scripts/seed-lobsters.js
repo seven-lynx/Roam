@@ -13,7 +13,7 @@ import fetch from 'node-fetch';
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, resolve } from 'path';
-import { upsertUrls, CATEGORY } from './lib/seed.js';
+import { upsertUrls, CATEGORY, SUBCATEGORY } from './lib/seed.js';
 
 const __dirname  = dirname(fileURLToPath(import.meta.url));
 const CACHE_DIR  = resolve(__dirname, '.cache');
@@ -56,11 +56,35 @@ const TAG_CATEGORY = {
   'film':           CATEGORY.ARTS_CULTURE,
 };
 
+const TAG_SUBCATEGORY = {
+  'science':        SUBCATEGORY.PHYSICS_CHEMISTRY,
+  'physics':        SUBCATEGORY.PHYSICS_CHEMISTRY,
+  'biology':        SUBCATEGORY.BIOLOGY_EVOLUTION,
+  'chemistry':      SUBCATEGORY.PHYSICS_CHEMISTRY,
+  'mathematics':    SUBCATEGORY.MATHEMATICS_LOGIC,
+  'space':          SUBCATEGORY.SPACE_ASTRONOMY,
+  'health':         SUBCATEGORY.NUTRITION_HEALTH,
+  'cogsci':         SUBCATEGORY.NEUROSCIENCE,
+  'art':            SUBCATEGORY.VISUAL_ART,
+  'design':         SUBCATEGORY.DESIGN_UX,
+  'typography':     SUBCATEGORY.DESIGN_UX,
+  'games':          SUBCATEGORY.VIDEO_GAMES,
+  'gamedev':        SUBCATEGORY.VIDEO_GAMES,
+  'film':           SUBCATEGORY.FILM_TELEVISION,
+};
+
 function tagsToCategory(tags) {
   for (const tag of tags) {
     if (TAG_CATEGORY[tag]) return TAG_CATEGORY[tag];
   }
   return CATEGORY.TECHNOLOGY;
+}
+
+function tagsToSubcategory(tags) {
+  for (const tag of tags) {
+    if (TAG_SUBCATEGORY[tag]) return TAG_SUBCATEGORY[tag];
+  }
+  return SUBCATEGORY.PROGRAMMING_SOFTWARE;
 }
 
 // ── Fetch from Lobsters ───────────────────────────────────────────────────────
@@ -102,8 +126,9 @@ async function fetchLobsters() {
         title:        story.title ?? null,
         description:  story.description_plain ?? null,
         og_image_url: null,
-        category_id:  tagsToCategory(story.tags ?? []),
-        source:       'lobsters',
+        category_id:   tagsToCategory(story.tags ?? []),
+        subcategory_id: tagsToSubcategory(story.tags ?? []),
+        source:        'lobsters',
       });
     }
 

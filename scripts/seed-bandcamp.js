@@ -23,7 +23,7 @@ import fetch from 'node-fetch';
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, resolve } from 'path';
-import { upsertUrls, CATEGORY } from './lib/seed.js';
+import { upsertUrls, CATEGORY, SUBCATEGORY } from './lib/seed.js';
 
 const __dirname  = dirname(fileURLToPath(import.meta.url));
 const CACHE_DIR  = resolve(__dirname, '.cache');
@@ -208,8 +208,9 @@ async function fetchTag(tag, categoryId) {
         url:         url.startsWith('http') ? url : `https:${url}`,
         title:       title.slice(0, 300),
         description,
-        category_id: categoryId,
-        source:      'bandcamp',
+        category_id:    categoryId,
+        subcategory_id: SUBCATEGORY.MUSIC,
+        source:         'bandcamp',
       });
     }
 

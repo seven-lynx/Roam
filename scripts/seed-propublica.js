@@ -17,7 +17,7 @@ import fetch from 'node-fetch';
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, resolve } from 'path';
-import { upsertUrls, CATEGORY } from './lib/seed.js';
+import { upsertUrls, CATEGORY, SUBCATEGORY } from './lib/seed.js';
 
 const __dirname  = dirname(fileURLToPath(import.meta.url));
 const CACHE_DIR  = resolve(__dirname, '.cache');
@@ -61,6 +61,23 @@ function getCategoryFromUrl(url) {
   }
   // Default: politics, business, criminal justice, education, etc.
   return CATEGORY.HISTORY_IDEAS;
+}
+
+function getSubcategoryFromUrl(url) {
+  const slug = url.toLowerCase();
+  if (/environment|climate|energy|epa|pollution|air.quality|water|fossil|oil|gas|pipeline|solar|wildfire|flood|drought|species|endangered/.test(slug)) {
+    return SUBCATEGORY.ENVIRONMENT_CLIMATE;
+  }
+  if (/health|medical|hospital|drug|medicine|mental|covid|vaccine|disease|cancer|patient|nursing|medicaid|medicare/.test(slug)) {
+    return SUBCATEGORY.NUTRITION_HEALTH;
+  }
+  if (/technolog|cyber|data|software|internet|surveillance|algorithm|ai\b|artificial.intelligen|facebook|google|amazon/.test(slug)) {
+    return SUBCATEGORY.CYBERSECURITY_PRIVACY;
+  }
+  if (/immigra|border|migrant|refugee|visa|asylum|deport/.test(slug)) {
+    return SUBCATEGORY.MIGRATION_DIASPORA;
+  }
+  return SUBCATEGORY.POLITICS_GEOPOLITICS;
 }
 
 // ── Fetch and parse a single sitemap XML ─────────────────────────────────────
@@ -184,8 +201,9 @@ async function fetchProPublica() {
         title:        null,  // filled by OG fetch at upsert time
         description:  null,
         og_image_url: null,
-        category_id:  getCategoryFromUrl(url),
-        source:       'propublica',
+        category_id:   getCategoryFromUrl(url),
+        subcategory_id: getSubcategoryFromUrl(url),
+        source:        'propublica',
       });
       added++;
     }

@@ -18,7 +18,7 @@ import { fileURLToPath } from 'url';
 import { dirname, resolve } from 'path';
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'fs';
 import { config as dotenvConfig } from 'dotenv';
-import { upsertUrls, CATEGORY, fetchWithRetry } from './lib/seed.js';
+import { upsertUrls, CATEGORY, SUBCATEGORY, fetchWithRetry } from './lib/seed.js';
 
 const __dirname  = dirname(fileURLToPath(import.meta.url));
 dotenvConfig({ path: resolve(__dirname, '../.env') });
@@ -62,12 +62,41 @@ const TAG_CATEGORY = {
   'Politics':                CATEGORY.HISTORY_IDEAS,
 };
 
+const TAG_SUBCATEGORY = {
+  'AI':                      SUBCATEGORY.AI_MACHINE_LEARNING,
+  'Machine Learning':        SUBCATEGORY.AI_MACHINE_LEARNING,
+  'Computer Science':        SUBCATEGORY.PROGRAMMING_SOFTWARE,
+  'Programming':             SUBCATEGORY.PROGRAMMING_SOFTWARE,
+  'Forecasting & Prediction':SUBCATEGORY.MATHEMATICS_LOGIC,
+  'Math':                    SUBCATEGORY.MATHEMATICS_LOGIC,
+  'Statistics':              SUBCATEGORY.MATHEMATICS_LOGIC,
+  'Physics':                 SUBCATEGORY.PHYSICS_CHEMISTRY,
+  'Biology':                 SUBCATEGORY.BIOLOGY_EVOLUTION,
+  'Neuroscience':            SUBCATEGORY.NEUROSCIENCE,
+  'Psychology':              SUBCATEGORY.PSYCHOLOGY_BEHAVIOUR,
+  'Mental Health':           SUBCATEGORY.MENTAL_HEALTH,
+  'Productivity':            SUBCATEGORY.PERSONAL_DEVELOPMENT,
+  'Philosophy':              SUBCATEGORY.PHILOSOPHY_ETHICS,
+  'Ethics':                  SUBCATEGORY.PHILOSOPHY_ETHICS,
+  'History':                 SUBCATEGORY.MODERN_HISTORY,
+  'Economics':               SUBCATEGORY.ECONOMICS_HISTORY,
+  'Politics':                SUBCATEGORY.POLITICS_GEOPOLITICS,
+};
+
 function tagsToCategory(tags) {
   for (const tag of (tags ?? [])) {
     const cat = TAG_CATEGORY[tag.name];
     if (cat) return cat;
   }
   return CATEGORY.HISTORY_IDEAS; // rationality/philosophy default
+}
+
+function tagsToSubcategory(tags) {
+  for (const tag of (tags ?? [])) {
+    const sub = TAG_SUBCATEGORY[tag.name];
+    if (sub) return sub;
+  }
+  return SUBCATEGORY.PHILOSOPHY_ETHICS; // rationality/philosophy default
 }
 
 // ── GraphQL query ─────────────────────────────────────────────────────────────
@@ -148,8 +177,9 @@ async function main() {
           title:        post.title ?? null,
           description:  post.excerpt ? post.excerpt.slice(0, 500) : null,
           og_image_url: null,
-          category_id:  tagsToCategory(post.tags),
-          source:       'lesswrong',
+          category_id:   tagsToCategory(post.tags),
+          subcategory_id: tagsToSubcategory(post.tags),
+          source:        'lesswrong',
           seeder_score: Math.min((post.baseScore ?? 0) / 500, 1.0),  // 500 = top LW post; was 1000
           published_at: post.postedAt ?? null,  // ISO 8601 from GraphQL
         });

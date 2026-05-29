@@ -15,7 +15,7 @@ import fetch from 'node-fetch';
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, resolve } from 'path';
-import { upsertUrls, CATEGORY } from './lib/seed.js';
+import { upsertUrls, CATEGORY, SUBCATEGORY } from './lib/seed.js';
 
 const __dirname  = dirname(fileURLToPath(import.meta.url));
 const CACHE_DIR  = resolve(__dirname, '.cache');
@@ -31,94 +31,94 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 // Open Library subjects use underscores for spaces (e.g. "science_fiction")
 const SUBJECT_MAP = [
   // Science
-  { subject: 'science',            categoryId: CATEGORY.SCIENCE },
-  { subject: 'physics',            categoryId: CATEGORY.SCIENCE },
-  { subject: 'chemistry',          categoryId: CATEGORY.SCIENCE },
-  { subject: 'biology',            categoryId: CATEGORY.SCIENCE },
-  { subject: 'astronomy',          categoryId: CATEGORY.SCIENCE },
-  { subject: 'mathematics',        categoryId: CATEGORY.SCIENCE },
-  { subject: 'ecology',            categoryId: CATEGORY.SCIENCE },
-  { subject: 'geology',            categoryId: CATEGORY.SCIENCE },
-  { subject: 'evolution',          categoryId: CATEGORY.SCIENCE },
-  { subject: 'neuroscience',       categoryId: CATEGORY.SCIENCE },
+  { subject: 'science',            categoryId: CATEGORY.SCIENCE,         subcategoryId: SUBCATEGORY.PHYSICS_CHEMISTRY },
+  { subject: 'physics',            categoryId: CATEGORY.SCIENCE,         subcategoryId: SUBCATEGORY.PHYSICS_CHEMISTRY },
+  { subject: 'chemistry',          categoryId: CATEGORY.SCIENCE,         subcategoryId: SUBCATEGORY.PHYSICS_CHEMISTRY },
+  { subject: 'biology',            categoryId: CATEGORY.SCIENCE,         subcategoryId: SUBCATEGORY.BIOLOGY_EVOLUTION },
+  { subject: 'astronomy',          categoryId: CATEGORY.SCIENCE,         subcategoryId: SUBCATEGORY.SPACE_ASTRONOMY },
+  { subject: 'mathematics',        categoryId: CATEGORY.SCIENCE,         subcategoryId: SUBCATEGORY.MATHEMATICS_LOGIC },
+  { subject: 'ecology',            categoryId: CATEGORY.SCIENCE,         subcategoryId: SUBCATEGORY.BIOLOGY_EVOLUTION },
+  { subject: 'geology',            categoryId: CATEGORY.SCIENCE,         subcategoryId: SUBCATEGORY.GEOLOGY_EARTH_SCIENCE },
+  { subject: 'evolution',          categoryId: CATEGORY.SCIENCE,         subcategoryId: SUBCATEGORY.BIOLOGY_EVOLUTION },
+  { subject: 'neuroscience',       categoryId: CATEGORY.SCIENCE,         subcategoryId: SUBCATEGORY.BIOLOGY_EVOLUTION },
 
   // Technology
-  { subject: 'technology',         categoryId: CATEGORY.TECHNOLOGY },
-  { subject: 'computers',          categoryId: CATEGORY.TECHNOLOGY },
-  { subject: 'engineering',        categoryId: CATEGORY.TECHNOLOGY },
-  { subject: 'robotics',           categoryId: CATEGORY.TECHNOLOGY },
-  { subject: 'internet',           categoryId: CATEGORY.TECHNOLOGY },
-  { subject: 'artificial_intelligence', categoryId: CATEGORY.TECHNOLOGY },
-  { subject: 'cryptography',       categoryId: CATEGORY.TECHNOLOGY },
-  { subject: 'electronics',        categoryId: CATEGORY.TECHNOLOGY },
+  { subject: 'technology',         categoryId: CATEGORY.TECHNOLOGY,      subcategoryId: SUBCATEGORY.EMERGING_TECHNOLOGY },
+  { subject: 'computers',          categoryId: CATEGORY.TECHNOLOGY,      subcategoryId: SUBCATEGORY.PROGRAMMING_SOFTWARE },
+  { subject: 'engineering',        categoryId: CATEGORY.TECHNOLOGY,      subcategoryId: SUBCATEGORY.HARDWARE_ELECTRONICS },
+  { subject: 'robotics',           categoryId: CATEGORY.TECHNOLOGY,      subcategoryId: SUBCATEGORY.ROBOTICS_AUTOMATION },
+  { subject: 'internet',           categoryId: CATEGORY.TECHNOLOGY,      subcategoryId: SUBCATEGORY.INTERNET_CULTURE },
+  { subject: 'artificial_intelligence', categoryId: CATEGORY.TECHNOLOGY,  subcategoryId: SUBCATEGORY.AI_MACHINE_LEARNING },
+  { subject: 'cryptography',       categoryId: CATEGORY.TECHNOLOGY,      subcategoryId: SUBCATEGORY.CYBERSECURITY_PRIVACY },
+  { subject: 'electronics',        categoryId: CATEGORY.TECHNOLOGY,      subcategoryId: SUBCATEGORY.HARDWARE_ELECTRONICS },
 
   // Arts & Culture
-  { subject: 'art',                categoryId: CATEGORY.ARTS_CULTURE },
-  { subject: 'music',              categoryId: CATEGORY.ARTS_CULTURE },
-  { subject: 'architecture',       categoryId: CATEGORY.ARTS_CULTURE },
-  { subject: 'film',               categoryId: CATEGORY.ARTS_CULTURE },
-  { subject: 'photography',        categoryId: CATEGORY.ARTS_CULTURE },
-  { subject: 'poetry',             categoryId: CATEGORY.ARTS_CULTURE },
-  { subject: 'theater',            categoryId: CATEGORY.ARTS_CULTURE },
-  { subject: 'literature',         categoryId: CATEGORY.ARTS_CULTURE },
-  { subject: 'comics',             categoryId: CATEGORY.ARTS_CULTURE },
-  { subject: 'dance',              categoryId: CATEGORY.ARTS_CULTURE },
+  { subject: 'art',                categoryId: CATEGORY.ARTS_CULTURE,    subcategoryId: SUBCATEGORY.VISUAL_ART },
+  { subject: 'music',              categoryId: CATEGORY.ARTS_CULTURE,    subcategoryId: SUBCATEGORY.MUSIC },
+  { subject: 'architecture',       categoryId: CATEGORY.ARTS_CULTURE,    subcategoryId: SUBCATEGORY.ARCHITECTURE_URBAN },
+  { subject: 'film',               categoryId: CATEGORY.ARTS_CULTURE,    subcategoryId: SUBCATEGORY.FILM_TELEVISION },
+  { subject: 'photography',        categoryId: CATEGORY.ARTS_CULTURE,    subcategoryId: SUBCATEGORY.PHOTOGRAPHY },
+  { subject: 'poetry',             categoryId: CATEGORY.ARTS_CULTURE,    subcategoryId: SUBCATEGORY.LITERATURE_WRITING },
+  { subject: 'theater',            categoryId: CATEGORY.ARTS_CULTURE,    subcategoryId: SUBCATEGORY.THEATRE_PERFORMANCE },
+  { subject: 'literature',         categoryId: CATEGORY.ARTS_CULTURE,    subcategoryId: SUBCATEGORY.LITERATURE_WRITING },
+  { subject: 'comics',             categoryId: CATEGORY.ARTS_CULTURE,    subcategoryId: SUBCATEGORY.COMICS_ILLUSTRATION },
+  { subject: 'dance',              categoryId: CATEGORY.ARTS_CULTURE,    subcategoryId: SUBCATEGORY.THEATRE_PERFORMANCE },
+  { subject: 'science_fiction',    categoryId: CATEGORY.ARTS_CULTURE,    subcategoryId: SUBCATEGORY.SCIFI_FANTASY },
+  { subject: 'fantasy',            categoryId: CATEGORY.ARTS_CULTURE,    subcategoryId: SUBCATEGORY.SCIFI_FANTASY },
 
   // History & Ideas
-  { subject: 'history',            categoryId: CATEGORY.HISTORY_IDEAS },
-  { subject: 'philosophy',         categoryId: CATEGORY.HISTORY_IDEAS },
-  { subject: 'economics',          categoryId: CATEGORY.HISTORY_IDEAS },
-  { subject: 'political_science',  categoryId: CATEGORY.HISTORY_IDEAS },
-  { subject: 'ancient_history',    categoryId: CATEGORY.HISTORY_IDEAS },
-  { subject: 'world_war_ii',       categoryId: CATEGORY.HISTORY_IDEAS },
-  { subject: 'biography',          categoryId: CATEGORY.HISTORY_IDEAS },
-  { subject: 'religion',           categoryId: CATEGORY.HISTORY_IDEAS },
-  { subject: 'anthropology',       categoryId: CATEGORY.HISTORY_IDEAS },
-  { subject: 'linguistics',        categoryId: CATEGORY.HISTORY_IDEAS },
+  { subject: 'history',            categoryId: CATEGORY.HISTORY_IDEAS,   subcategoryId: SUBCATEGORY.MODERN_HISTORY },
+  { subject: 'philosophy',         categoryId: CATEGORY.HISTORY_IDEAS,   subcategoryId: SUBCATEGORY.PHILOSOPHY_ETHICS },
+  { subject: 'economics',          categoryId: CATEGORY.HISTORY_IDEAS,   subcategoryId: SUBCATEGORY.ECONOMICS_HISTORY },
+  { subject: 'political_science',  categoryId: CATEGORY.HISTORY_IDEAS,   subcategoryId: SUBCATEGORY.POLITICS_GEOPOLITICS },
+  { subject: 'ancient_history',    categoryId: CATEGORY.HISTORY_IDEAS,   subcategoryId: SUBCATEGORY.ANCIENT_MEDIEVAL_HISTORY },
+  { subject: 'world_war_ii',       categoryId: CATEGORY.HISTORY_IDEAS,   subcategoryId: SUBCATEGORY.MILITARY_HISTORY },
+  { subject: 'biography',          categoryId: CATEGORY.HISTORY_IDEAS,   subcategoryId: SUBCATEGORY.BIOGRAPHIES_PROFILES },
+  { subject: 'religion',           categoryId: CATEGORY.HISTORY_IDEAS,   subcategoryId: SUBCATEGORY.RELIGION_MYTHOLOGY },
+  { subject: 'anthropology',       categoryId: CATEGORY.HISTORY_IDEAS,   subcategoryId: SUBCATEGORY.ANTHROPOLOGY_ARCHAEOLOGY },
+  { subject: 'linguistics',        categoryId: CATEGORY.HISTORY_IDEAS,   subcategoryId: SUBCATEGORY.LANGUAGES_LINGUISTICS },
 
   // Games & Hobbies
-  { subject: 'games',              categoryId: CATEGORY.GAMES_HOBBIES },
-  { subject: 'chess',              categoryId: CATEGORY.GAMES_HOBBIES },
-  { subject: 'cooking',            categoryId: CATEGORY.GAMES_HOBBIES },
-  { subject: 'gardening',          categoryId: CATEGORY.GAMES_HOBBIES },
-  { subject: 'crafts',             categoryId: CATEGORY.GAMES_HOBBIES },
-  { subject: 'sports',             categoryId: CATEGORY.GAMES_HOBBIES },
-  { subject: 'fishing',            categoryId: CATEGORY.GAMES_HOBBIES },
-  { subject: 'science_fiction',    categoryId: CATEGORY.GAMES_HOBBIES },
-  { subject: 'fantasy',            categoryId: CATEGORY.GAMES_HOBBIES },
+  { subject: 'games',              categoryId: CATEGORY.GAMES_HOBBIES,   subcategoryId: SUBCATEGORY.BOARD_GAMES_TABLETOP },
+  { subject: 'chess',              categoryId: CATEGORY.GAMES_HOBBIES,   subcategoryId: SUBCATEGORY.BOARD_GAMES_TABLETOP },
+  { subject: 'cooking',            categoryId: CATEGORY.GAMES_HOBBIES,   subcategoryId: SUBCATEGORY.COOKING_FOOD },
+  { subject: 'gardening',          categoryId: CATEGORY.GAMES_HOBBIES,   subcategoryId: SUBCATEGORY.GARDENING_HORTICULTURE },
+  { subject: 'crafts',             categoryId: CATEGORY.GAMES_HOBBIES,   subcategoryId: SUBCATEGORY.CRAFTS_DIY_MAKING },
+  { subject: 'sports',             categoryId: CATEGORY.GAMES_HOBBIES,   subcategoryId: SUBCATEGORY.SPORTS_ATHLETICS },
+  { subject: 'fishing',            categoryId: CATEGORY.GAMES_HOBBIES,   subcategoryId: null },
 
   // Weird & Wonderful
-  { subject: 'mythology',          categoryId: CATEGORY.WEIRD_WONDERFUL },
-  { subject: 'folklore',           categoryId: CATEGORY.WEIRD_WONDERFUL },
-  { subject: 'magic',              categoryId: CATEGORY.WEIRD_WONDERFUL },
-  { subject: 'occult',             categoryId: CATEGORY.WEIRD_WONDERFUL },
-  { subject: 'cryptozoology',      categoryId: CATEGORY.WEIRD_WONDERFUL },
-  { subject: 'ufos',               categoryId: CATEGORY.WEIRD_WONDERFUL },
-  { subject: 'curiosities_and_wonders', categoryId: CATEGORY.WEIRD_WONDERFUL },
+  { subject: 'mythology',          categoryId: CATEGORY.WEIRD_WONDERFUL,  subcategoryId: SUBCATEGORY.URBAN_LEGENDS_FOLKLORE },
+  { subject: 'folklore',           categoryId: CATEGORY.WEIRD_WONDERFUL,  subcategoryId: SUBCATEGORY.URBAN_LEGENDS_FOLKLORE },
+  { subject: 'magic',              categoryId: CATEGORY.WEIRD_WONDERFUL,  subcategoryId: SUBCATEGORY.PARANORMAL_UNEXPLAINED },
+  { subject: 'occult',             categoryId: CATEGORY.WEIRD_WONDERFUL,  subcategoryId: SUBCATEGORY.PARANORMAL_UNEXPLAINED },
+  { subject: 'cryptozoology',      categoryId: CATEGORY.WEIRD_WONDERFUL,  subcategoryId: SUBCATEGORY.PARANORMAL_UNEXPLAINED },
+  { subject: 'ufos',               categoryId: CATEGORY.WEIRD_WONDERFUL,  subcategoryId: SUBCATEGORY.PARANORMAL_UNEXPLAINED },
+  { subject: 'curiosities_and_wonders', categoryId: CATEGORY.WEIRD_WONDERFUL, subcategoryId: SUBCATEGORY.ODDITIES_CURIOSITIES },
 
   // People & Places
-  { subject: 'travel',             categoryId: CATEGORY.PEOPLE_PLACES },
-  { subject: 'geography',          categoryId: CATEGORY.PEOPLE_PLACES },
-  { subject: 'africa',             categoryId: CATEGORY.PEOPLE_PLACES },
-  { subject: 'asia',               categoryId: CATEGORY.PEOPLE_PLACES },
-  { subject: 'europe',             categoryId: CATEGORY.PEOPLE_PLACES },
-  { subject: 'latin_america',      categoryId: CATEGORY.PEOPLE_PLACES },
-  { subject: 'indigenous_peoples', categoryId: CATEGORY.PEOPLE_PLACES },
-  { subject: 'explorers',          categoryId: CATEGORY.PEOPLE_PLACES },
+  { subject: 'travel',             categoryId: CATEGORY.PEOPLE_PLACES,   subcategoryId: SUBCATEGORY.TRAVEL_EXPLORATION },
+  { subject: 'geography',          categoryId: CATEGORY.PEOPLE_PLACES,   subcategoryId: SUBCATEGORY.MAPS_CARTOGRAPHY },
+  { subject: 'africa',             categoryId: CATEGORY.PEOPLE_PLACES,   subcategoryId: null },
+  { subject: 'asia',               categoryId: CATEGORY.PEOPLE_PLACES,   subcategoryId: null },
+  { subject: 'europe',             categoryId: CATEGORY.PEOPLE_PLACES,   subcategoryId: null },
+  { subject: 'latin_america',      categoryId: CATEGORY.PEOPLE_PLACES,   subcategoryId: null },
+  { subject: 'indigenous_peoples', categoryId: CATEGORY.PEOPLE_PLACES,   subcategoryId: SUBCATEGORY.INDIGENOUS_CULTURES },
+  { subject: 'explorers',          categoryId: CATEGORY.PEOPLE_PLACES,   subcategoryId: SUBCATEGORY.TRAVEL_EXPLORATION },
 
   // Mind & Body
-  { subject: 'psychology',         categoryId: CATEGORY.MIND_BODY },
-  { subject: 'meditation',         categoryId: CATEGORY.MIND_BODY },
-  { subject: 'yoga',               categoryId: CATEGORY.MIND_BODY },
-  { subject: 'nutrition',          categoryId: CATEGORY.MIND_BODY },
-  { subject: 'mental_health',      categoryId: CATEGORY.MIND_BODY },
-  { subject: 'self-help',          categoryId: CATEGORY.MIND_BODY },
-  { subject: 'medicine',           categoryId: CATEGORY.MIND_BODY },
-  { subject: 'sleep',              categoryId: CATEGORY.MIND_BODY },
+  { subject: 'psychology',         categoryId: CATEGORY.MIND_BODY,       subcategoryId: SUBCATEGORY.PSYCHOLOGY_BEHAVIOUR },
+  { subject: 'meditation',         categoryId: CATEGORY.MIND_BODY,       subcategoryId: SUBCATEGORY.MINDFULNESS_MEDITATION },
+  { subject: 'yoga',               categoryId: CATEGORY.MIND_BODY,       subcategoryId: SUBCATEGORY.FITNESS_MOVEMENT },
+  { subject: 'nutrition',          categoryId: CATEGORY.MIND_BODY,       subcategoryId: SUBCATEGORY.NUTRITION_HEALTH },
+  { subject: 'mental_health',      categoryId: CATEGORY.MIND_BODY,       subcategoryId: SUBCATEGORY.MENTAL_HEALTH },
+  { subject: 'self-help',          categoryId: CATEGORY.MIND_BODY,       subcategoryId: SUBCATEGORY.PERSONAL_DEVELOPMENT },
+  { subject: 'medicine',           categoryId: CATEGORY.MIND_BODY,       subcategoryId: SUBCATEGORY.NUTRITION_HEALTH },
+  { subject: 'sleep',              categoryId: CATEGORY.MIND_BODY,       subcategoryId: SUBCATEGORY.SLEEP_RECOVERY },
 ];
 
 // ── Fetch one subject page ─────────────────────────────────────────────────────
-async function fetchSubject(subject, categoryId) {
+async function fetchSubject(subject, categoryId, subcategoryId) {
   const url = `https://openlibrary.org/subjects/${subject}.json?limit=${LIMIT}&details=false`;
 
   let res;
@@ -174,7 +174,8 @@ async function fetchSubject(subject, categoryId) {
       title,
       description,
       og_image_url: ogImage,
-      category_id: categoryId,
+      category_id:  categoryId,
+      subcategory_id: subcategoryId ?? null,
       source:      'openlibrary',
       language:    'en',
     });
@@ -190,8 +191,8 @@ async function fetchOpenLibrary() {
   const allRows = [];
   const seen = new Set();
 
-  for (const { subject, categoryId } of SUBJECT_MAP) {
-    const rows = await fetchSubject(subject, categoryId);
+  for (const { subject, categoryId, subcategoryId } of SUBJECT_MAP) {
+    const rows = await fetchSubject(subject, categoryId, subcategoryId);
 
     for (const row of rows) {
       if (!seen.has(row.url)) {

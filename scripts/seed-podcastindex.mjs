@@ -24,7 +24,7 @@ import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, resolve } from 'path';
 import { config as dotenvConfig } from 'dotenv';
-import { upsertUrls, CATEGORY, fetchWithRetry } from './lib/seed.js';
+import { upsertUrls, CATEGORY, SUBCATEGORY, fetchWithRetry } from './lib/seed.js';
 
 const __dirname  = dirname(fileURLToPath(import.meta.url));
 dotenvConfig({ path: resolve(__dirname, '../.env') });
@@ -61,37 +61,37 @@ function buildAuthHeaders(apiKey, apiSecret) {
 // These are the podcast category IDs from Apple/standard taxonomy
 const CATEGORY_MAP = [
   // Science
-  { piCat: 'Science',                        rows: PAGE_MAX, cat: CATEGORY.SCIENCE },
-  { piCat: 'Science%3ANature',               rows: PAGE_MAX, cat: CATEGORY.SCIENCE },
-  { piCat: 'Science%3AAstronomy',            rows: PAGE_MAX, cat: CATEGORY.SCIENCE },
-  { piCat: 'Science%3AEarth+Sciences',       rows: PAGE_MAX, cat: CATEGORY.SCIENCE },
+  { piCat: 'Science',                        rows: PAGE_MAX, cat: CATEGORY.SCIENCE,        subcat: SUBCATEGORY.PHYSICS_CHEMISTRY },
+  { piCat: 'Science%3ANature',               rows: PAGE_MAX, cat: CATEGORY.SCIENCE,        subcat: SUBCATEGORY.BIOLOGY_EVOLUTION },
+  { piCat: 'Science%3AAstronomy',            rows: PAGE_MAX, cat: CATEGORY.SCIENCE,        subcat: SUBCATEGORY.SPACE_ASTRONOMY },
+  { piCat: 'Science%3AEarth+Sciences',       rows: PAGE_MAX, cat: CATEGORY.SCIENCE,        subcat: SUBCATEGORY.GEOLOGY_EARTH_SCIENCE },
   // Technology
-  { piCat: 'Technology',                     rows: PAGE_MAX, cat: CATEGORY.TECHNOLOGY },
+  { piCat: 'Technology',                     rows: PAGE_MAX, cat: CATEGORY.TECHNOLOGY,     subcat: SUBCATEGORY.PROGRAMMING_SOFTWARE },
   // Arts & Culture
-  { piCat: 'Arts',                           rows: PAGE_MAX, cat: CATEGORY.ARTS_CULTURE },
-  { piCat: 'Arts%3ABooks',                   rows: PAGE_MAX, cat: CATEGORY.ARTS_CULTURE },
-  { piCat: 'Music',                          rows: PAGE_MAX, cat: CATEGORY.ARTS_CULTURE },
-  { piCat: 'Arts%3AVisual+Arts',             rows: PAGE_MAX, cat: CATEGORY.ARTS_CULTURE },
+  { piCat: 'Arts',                           rows: PAGE_MAX, cat: CATEGORY.ARTS_CULTURE,   subcat: SUBCATEGORY.VISUAL_ART },
+  { piCat: 'Arts%3ABooks',                   rows: PAGE_MAX, cat: CATEGORY.ARTS_CULTURE,   subcat: SUBCATEGORY.LITERATURE_WRITING },
+  { piCat: 'Music',                          rows: PAGE_MAX, cat: CATEGORY.ARTS_CULTURE,   subcat: SUBCATEGORY.MUSIC },
+  { piCat: 'Arts%3AVisual+Arts',             rows: PAGE_MAX, cat: CATEGORY.ARTS_CULTURE,   subcat: SUBCATEGORY.VISUAL_ART },
   // History & Ideas
-  { piCat: 'History',                        rows: PAGE_MAX, cat: CATEGORY.HISTORY_IDEAS },
-  { piCat: 'Society+%26+Culture%3AHistory',  rows: PAGE_MAX, cat: CATEGORY.HISTORY_IDEAS },
-  { piCat: 'Philosophy',                     rows: PAGE_MAX, cat: CATEGORY.HISTORY_IDEAS },
-  { piCat: 'News',                           rows: PAGE_MAX, cat: CATEGORY.HISTORY_IDEAS },
+  { piCat: 'History',                        rows: PAGE_MAX, cat: CATEGORY.HISTORY_IDEAS,  subcat: SUBCATEGORY.MODERN_HISTORY },
+  { piCat: 'Society+%26+Culture%3AHistory',  rows: PAGE_MAX, cat: CATEGORY.HISTORY_IDEAS,  subcat: SUBCATEGORY.MODERN_HISTORY },
+  { piCat: 'Philosophy',                     rows: PAGE_MAX, cat: CATEGORY.HISTORY_IDEAS,  subcat: SUBCATEGORY.PHILOSOPHY_ETHICS },
+  { piCat: 'News',                           rows: PAGE_MAX, cat: CATEGORY.HISTORY_IDEAS,  subcat: SUBCATEGORY.POLITICS_GEOPOLITICS },
   // Mind & Body
-  { piCat: 'Health+%26+Fitness',             rows: PAGE_MAX, cat: CATEGORY.MIND_BODY },
-  { piCat: 'Health+%26+Fitness%3AMental+Health', rows: PAGE_MAX, cat: CATEGORY.MIND_BODY },
+  { piCat: 'Health+%26+Fitness',             rows: PAGE_MAX, cat: CATEGORY.MIND_BODY,      subcat: SUBCATEGORY.NUTRITION_HEALTH },
+  { piCat: 'Health+%26+Fitness%3AMental+Health', rows: PAGE_MAX, cat: CATEGORY.MIND_BODY,  subcat: SUBCATEGORY.MENTAL_HEALTH },
   // Games & Hobbies
-  { piCat: 'Sports',                         rows: PAGE_MAX, cat: CATEGORY.GAMES_HOBBIES },
-  { piCat: 'Leisure%3AGames',                rows: PAGE_MAX, cat: CATEGORY.GAMES_HOBBIES },
-  { piCat: 'Leisure%3AFood',                 rows: PAGE_MAX, cat: CATEGORY.GAMES_HOBBIES },
-  { piCat: 'Leisure%3AHobbies',              rows: PAGE_MAX, cat: CATEGORY.GAMES_HOBBIES },
+  { piCat: 'Sports',                         rows: PAGE_MAX, cat: CATEGORY.GAMES_HOBBIES,  subcat: SUBCATEGORY.SPORTS_ATHLETICS },
+  { piCat: 'Leisure%3AGames',                rows: PAGE_MAX, cat: CATEGORY.GAMES_HOBBIES,  subcat: SUBCATEGORY.VIDEO_GAMES },
+  { piCat: 'Leisure%3AFood',                 rows: PAGE_MAX, cat: CATEGORY.GAMES_HOBBIES,  subcat: SUBCATEGORY.COOKING_FOOD },
+  { piCat: 'Leisure%3AHobbies',              rows: PAGE_MAX, cat: CATEGORY.GAMES_HOBBIES,  subcat: null },
   // People & Places
-  { piCat: 'Society+%26+Culture%3APlaces+%26+Travel', rows: PAGE_MAX, cat: CATEGORY.PEOPLE_PLACES },
-  { piCat: 'Education',                      rows: PAGE_MAX, cat: CATEGORY.PEOPLE_PLACES },
+  { piCat: 'Society+%26+Culture%3APlaces+%26+Travel', rows: PAGE_MAX, cat: CATEGORY.PEOPLE_PLACES, subcat: SUBCATEGORY.TRAVEL_EXPLORATION },
+  { piCat: 'Education',                      rows: PAGE_MAX, cat: CATEGORY.PEOPLE_PLACES,  subcat: null },
   // Weird & Wonderful
-  { piCat: 'Comedy',                         rows: PAGE_MAX, cat: CATEGORY.WEIRD_WONDERFUL },
-  { piCat: 'True+Crime',                     rows: PAGE_MAX, cat: CATEGORY.WEIRD_WONDERFUL },
-  { piCat: 'Society+%26+Culture',            rows: PAGE_MAX, cat: CATEGORY.WEIRD_WONDERFUL },
+  { piCat: 'Comedy',                         rows: PAGE_MAX, cat: CATEGORY.WEIRD_WONDERFUL, subcat: SUBCATEGORY.ABSURDIST_HUMOUR },
+  { piCat: 'True+Crime',                     rows: PAGE_MAX, cat: CATEGORY.WEIRD_WONDERFUL, subcat: SUBCATEGORY.TRUE_CRIME_MYSTERIES },
+  { piCat: 'Society+%26+Culture',            rows: PAGE_MAX, cat: CATEGORY.WEIRD_WONDERFUL, subcat: null },
 ];
 
 // ── Fetch one category ────────────────────────────────────────────────────────
@@ -135,13 +135,13 @@ async function fetchPodcastIndex() {
   const startMs = Date.now();
 
   for (let i = 0; i < CATEGORY_MAP.length; i++) {
-    const { piCat, rows: max, cat } = CATEGORY_MAP[i];
+    const { piCat, rows: max, cat, subcat } = CATEGORY_MAP[i];
     const items = await fetchCategory(apiKey, apiSecret, piCat, max);
 
     for (const item of items) {
       if (seen.has(item.url)) continue;
       seen.add(item.url);
-      allRows.push({ ...item, category_id: cat });
+      allRows.push({ ...item, category_id: cat, subcategory_id: subcat ?? null });
     }
 
     process.stdout.write(`\r[podcastindex] ${i + 1}/${CATEGORY_MAP.length} categories  total=${allRows.length}  eta=${fmtEta(i + 1, CATEGORY_MAP.length, startMs)}  `);

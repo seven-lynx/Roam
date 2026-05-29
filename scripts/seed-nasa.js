@@ -15,7 +15,7 @@ import fetch from 'node-fetch';
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, resolve } from 'path';
-import { upsertUrls, CATEGORY, fetchWithRetry } from './lib/seed.js';
+import { upsertUrls, CATEGORY, SUBCATEGORY, fetchWithRetry } from './lib/seed.js';
 
 const __dirname  = dirname(fileURLToPath(import.meta.url));
 const CACHE_DIR  = resolve(__dirname, '.cache');
@@ -101,8 +101,9 @@ async function fetchApod() {
         title:       entry.title ?? null,
         description: entry.explanation ? entry.explanation.slice(0, 500) : null,
         og_image_url: image,
-        category_id: CATEGORY.SCIENCE,
-        source:      'nasa',
+        category_id:    CATEGORY.SCIENCE,
+        subcategory_id: SUBCATEGORY.SPACE_ASTRONOMY,
+        source:         'nasa',
       });
     }
 

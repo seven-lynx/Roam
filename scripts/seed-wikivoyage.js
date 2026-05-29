@@ -15,7 +15,7 @@ import fetch from 'node-fetch';
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, resolve } from 'path';
-import { upsertUrls, CATEGORY } from './lib/seed.js';
+import { upsertUrls, CATEGORY, SUBCATEGORY } from './lib/seed.js';
 
 const __dirname  = dirname(fileURLToPath(import.meta.url));
 const CACHE_DIR  = resolve(__dirname, '.cache');
@@ -123,8 +123,9 @@ async function fetchWikivoyage() {
         title:        page.title,
         description:  page.extract ? page.extract.trim().slice(0, 500) : null,
         og_image_url: page.thumbnail?.source ?? null,
-        category_id:  CATEGORY.PEOPLE_PLACES,
-        source:       'wikivoyage',
+        category_id:    CATEGORY.PEOPLE_PLACES,
+        subcategory_id: SUBCATEGORY.TRAVEL_EXPLORATION,
+        source:         'wikivoyage',
       });
     }
 

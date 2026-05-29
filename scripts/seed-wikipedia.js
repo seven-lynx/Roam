@@ -63,7 +63,7 @@ const CATEGORY_MAP = [
   { wiki: 'Television',              categoryId: CATEGORY.ARTS_CULTURE,  subcategoryId: SUBCATEGORY.FILM_TELEVISION },
   { wiki: 'Video_games',             categoryId: CATEGORY.GAMES_HOBBIES, subcategoryId: SUBCATEGORY.VIDEO_GAMES },
   { wiki: 'Comics',                  categoryId: CATEGORY.ARTS_CULTURE,  subcategoryId: SUBCATEGORY.COMICS_ILLUSTRATION },
-  { wiki: 'Anime_and_manga',         categoryId: CATEGORY.GAMES_HOBBIES, subcategoryId: SUBCATEGORY.COLLECTING },
+  { wiki: 'Anime_and_manga',         categoryId: CATEGORY.ARTS_CULTURE,  subcategoryId: SUBCATEGORY.ANIME_MANGA },
 
   // Sports & Outdoors → People & Places / Games & Hobbies
   { wiki: 'Sports',                  categoryId: CATEGORY.GAMES_HOBBIES, subcategoryId: SUBCATEGORY.SPORTS_ATHLETICS },

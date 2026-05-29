@@ -276,7 +276,7 @@ async function upsertBooksWithProgress(books, progress) {
       description:    b.description ?? null,
       og_image_url:   b.og_image_url ?? null,
       category_id:    b.category_id,
-      subcategory_id: null,
+      subcategory_id: b.subcategory_id,
       source:         b.source,
       approved:       true,
       wilson_score:   0,

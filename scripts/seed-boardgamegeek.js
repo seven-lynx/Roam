@@ -22,7 +22,7 @@ import fetch from 'node-fetch';
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, resolve } from 'path';
-import { upsertUrls, CATEGORY, fetchWithRetry } from './lib/seed.js';
+import { upsertUrls, CATEGORY, SUBCATEGORY, fetchWithRetry } from './lib/seed.js';
 
 const __dirname  = dirname(fileURLToPath(import.meta.url));
 const CACHE_DIR  = resolve(__dirname, '.cache');
@@ -194,8 +194,9 @@ async function fetchThings(ids) {
         title,
         description,
         og_image_url: image,
-        category_id:  CATEGORY.GAMES_HOBBIES,
-        source:       'boardgamegeek',
+        category_id:    CATEGORY.GAMES_HOBBIES,
+        subcategory_id: SUBCATEGORY.BOARD_GAMES_TABLETOP,
+        source:         'boardgamegeek',
       });
     }
 
