@@ -184,15 +184,33 @@ const CAT = {
 
 // ── Tier 1: Whole-source mappings ─────────────────────────────────────────────
 const WHOLE_SOURCE_MAP = {
-  nasa:          SC.SPACE_ASTRONOMY,
-  bandcamp:      SC.MUSIC,
-  boardgamegeek: SC.BOARD_GAMES,
-  itchio:        SC.VIDEO_GAMES,
-  librivox:      SC.LITERATURE_WRITING,
-  gutenberg:     SC.LITERATURE_WRITING,
-  wikivoyage:    SC.TRAVEL_EXPLORATION,
-  lobsters:      SC.PROGRAMMING_SOFTWARE_DEV,
-  openlibrary:   SC.LITERATURE_WRITING,
+  // Science
+  nasa:             SC.SPACE_ASTRONOMY,
+  // Arts & Culture
+  bandcamp:         SC.MUSIC,
+  metmuseum:        SC.VISUAL_ART_PAINTING,
+  // Games & Hobbies
+  boardgamegeek:    SC.BOARD_GAMES,
+  itchio:           SC.VIDEO_GAMES,
+  // Literature
+  librivox:         SC.LITERATURE_WRITING,
+  gutenberg:        SC.LITERATURE_WRITING,
+  openlibrary:      SC.LITERATURE_WRITING,
+  longform:         SC.LITERATURE_WRITING,
+  // Technology
+  lobsters:         SC.PROGRAMMING_SOFTWARE_DEV,
+  github:           SC.OPEN_SOURCE_DEV,
+  awesome:          SC.PROGRAMMING_SOFTWARE_DEV,
+  hackernews:       SC.PROGRAMMING_SOFTWARE_DEV,
+  // People & Places
+  wikivoyage:       SC.TRAVEL_EXPLORATION,
+  // Weird & Wonderful — Atlas Obscura subsources
+  'atlas-obscura-places':   SC.UNUSUAL_PLACES,
+  'atlas-obscura-articles': SC.ODDITIES_CURIOSITIES,
+  'atlas-obscura-foods':    SC.COOKING_FOOD,
+  // History & Ideas
+  lesswrong:        SC.PHILOSOPHY_ETHICS,
+  kottke:           SC.INTERNET_CULTURE,
 };
 
 // ── Reddit subreddit → subcategory ───────────────────────────────────────────
@@ -297,11 +315,35 @@ const GUARDIAN_SECTION_MAP = {
   'football':     SC.SPORTS_ATHLETICS,
 };
 
+// ── Propublica: URL path → subcategory ──────────────────────────────────────
+function classifyPropublica(url) {
+  const path = url.toLowerCase();
+  if (/\/(environment|climate)/.test(path))         return SC.ENVIRONMENT_CLIMATE;
+  if (/\/(health|medical|mental|pharma)/.test(path)) return SC.NUTRITION_HEALTH;
+  if (/\/(tech|cyber|surveillance)/.test(path))     return SC.CYBERSECURITY_PRIVACY;
+  if (/\/(immigration|migra)/.test(path))           return SC.MIGRATION_DIASPORA;
+  return SC.POLITICS_GEOPOLITICS;
+}
+
 // ── Smithsonian: infer subcategory from existing category_id ─────────────────
 const SMITHSONIAN_CATEGORY_MAP = {
   [CAT.ARTS_CULTURE]:  SC.VISUAL_ART_PAINTING,
   [CAT.HISTORY_IDEAS]: SC.ANTHROPOLOGY_ARCHAEOLOGY,
   [CAT.SCIENCE_NATURE]: SC.PALEONTOLOGY,
+};
+
+// ── Category → default subcategory fallback ──────────────────────────────────
+// Used as last resort when no source-specific rule matches.
+// Picks the most representative subcategory for each top-level category.
+const CATEGORY_FALLBACK_MAP = {
+  [CAT.SCIENCE_NATURE]: SC.BIOLOGY_EVOLUTION,
+  [CAT.TECHNOLOGY]:     SC.PROGRAMMING_SOFTWARE_DEV,
+  [CAT.ARTS_CULTURE]:   SC.VISUAL_ART_PAINTING,
+  [CAT.HISTORY_IDEAS]:  SC.MODERN_HISTORY,
+  [CAT.GAMES_HOBBIES]:  SC.VIDEO_GAMES,
+  [CAT.WEIRD]:          SC.ODDITIES_CURIOSITIES,
+  [CAT.PEOPLE_PLACES]:  SC.TRAVEL_EXPLORATION,
+  [CAT.MIND_BODY]:      SC.NUTRITION_HEALTH,
 };
 
 // ── Classification logic ─────────────────────────────────────────────────────
@@ -337,9 +379,19 @@ function classify(row) {
     }
   }
 
-  // Smithsonian — infer from existing category_id
-  if (source === 'smithsonian') {
+  // Propublica — URL-path rules
+  if (source === 'propublica') {
+    return classifyPropublica(url);
+  }
+
+  // Smithsonian — infer from existing category_id (covers smithsonian-news, smithsonian-science, etc.)
+  if (source.startsWith('smithsonian')) {
     return SMITHSONIAN_CATEGORY_MAP[category_id] ?? null;
+  }
+
+  // Last resort — infer a default subcategory from the category already on the record
+  if (category_id && CATEGORY_FALLBACK_MAP[category_id]) {
+    return CATEGORY_FALLBACK_MAP[category_id];
   }
 
   return null;
