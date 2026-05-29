@@ -8,15 +8,9 @@ import app.roam.android.worker.TokenRefreshWorker
 import io.sentry.android.core.SentryAndroid
 
 class RoamApplication : Application() {
-    companion object {
-        /** Application-level context safe to use for launching intents from non-Activity code. */
-        lateinit var appContext: RoamApplication
-            private set
-    }
 
     override fun onCreate() {
         super.onCreate()
-        appContext = this
         // Validate environment variables first, before any other initialization
         Env.validateAtStartup()
 

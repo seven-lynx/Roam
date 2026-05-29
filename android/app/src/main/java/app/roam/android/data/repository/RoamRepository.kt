@@ -79,7 +79,7 @@ class RoamRepository {
         val userId = supabase.auth.currentUserOrNull()?.id ?: return UserSettings()
         val results = supabase.postgrest
             .from("user_settings")
-            .select(Columns.list("preferred_languages", "skip_paywalled")) {
+            .select(Columns.list("preferred_languages", "skip_paywalled", "discovery_mode")) {
                 filter { eq("user_id", userId) }
                 limit(1)
             }

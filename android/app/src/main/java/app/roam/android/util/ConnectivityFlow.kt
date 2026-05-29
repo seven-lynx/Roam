@@ -24,7 +24,12 @@ fun connectivityFlow(context: Context): Flow<Boolean> = callbackFlow {
             network: Network,
             caps: NetworkCapabilities,
         ) {
-            trySend(caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET))
+            // NET_CAPABILITY_INTERNET = link is up; NET_CAPABILITY_VALIDATED = internet
+            // traffic actually reaches the internet (rules out captive portals).
+            trySend(
+                caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) &&
+                    caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
+            )
         }
     }
 
@@ -41,5 +46,6 @@ fun connectivityFlow(context: Context): Flow<Boolean> = callbackFlow {
 
 private fun ConnectivityManager.isCurrentlyOnline(): Boolean {
     val caps = getNetworkCapabilities(activeNetwork) ?: return false
-    return caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+    return caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) &&
+        caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
 }

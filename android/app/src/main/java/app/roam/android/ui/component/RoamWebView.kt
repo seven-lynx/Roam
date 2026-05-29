@@ -20,6 +20,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.key
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -58,6 +59,8 @@ fun RoamWebView(
     LaunchedEffect(url) { urlRef.value = url }
     // Scroll position saved on pause, restored after the page reloads
     val savedScrollY = rememberSaveable { mutableIntStateOf(0) }
+    // Bumped to force AndroidView to recreate the WebView after renderer process death.
+    var webViewKey by remember { mutableIntStateOf(0) }
 
     LaunchedEffect(navCommandsFlow) {
         navCommandsFlow?.collect { cmd ->
@@ -138,6 +141,10 @@ fun RoamWebView(
         return
     }
 
+    // key(webViewKey) forces Compose to destroy and recreate AndroidView when the
+    // WebView renderer is killed (onRenderProcessGone). The saved Bundle is preserved
+    // across recreation so navigation history is restored.
+    key(webViewKey) {
     AndroidView(
         modifier = modifier.fillMaxSize(),
         factory = { context ->
@@ -227,4 +234,5 @@ fun RoamWebView(
             }
         },
     )
+    } // end key(webViewKey)
 }

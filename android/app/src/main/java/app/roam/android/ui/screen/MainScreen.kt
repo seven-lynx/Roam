@@ -74,7 +74,10 @@ fun MainScreen(
                 .padding(innerPadding),
         ) {
             // DiscoverTab is always in the composition tree — WebView is never destroyed
-            DiscoverTab(vm = vm, activity = activity)
+            DiscoverTab(vm = vm, activity = activity, onSignOut = {
+                onSignOut()
+                currentTab = RoamTab.Roam.route
+            })
 
             // Other tabs slide in as full-screen overlays on top of the WebView
             AnimatedVisibility(
@@ -124,6 +127,7 @@ fun MainScreen(
 private fun DiscoverTab(
     vm: MainViewModel,
     activity: MainActivity,
+    onSignOut: () -> Unit = {},
 ) {
     val context = LocalContext.current
 
@@ -343,7 +347,10 @@ private fun DiscoverTab(
             onLanguagesChange = { vm.setPreferredLanguages(it) },
             onRemoveSavedUrl = { url -> vm.removeSavedUrl(url) },
             onReportBrokenLink = { vm.reportBrokenLink() },
-            onSignOut = { vm.closeConfigSheet() },
+            onSignOut = {
+                vm.closeConfigSheet()
+                onSignOut()
+            },
         )
     }
 }

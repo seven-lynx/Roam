@@ -12,6 +12,13 @@ android {
     namespace = "app.roam.android"
     compileSdk = 35
 
+    // Load local.properties once — used in both defaultConfig and buildTypes
+    val localProperties = Properties()
+    val localPropertiesFile = rootProject.file("local.properties")
+    if (localPropertiesFile.exists()) {
+        localPropertiesFile.inputStream().use { localProperties.load(it) }
+    }
+
     defaultConfig {
         applicationId = "app.roam.android"
         minSdk = 26
@@ -22,11 +29,6 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
         // Supabase credentials from local.properties (never committed)
-        val localProperties = Properties()
-        val localPropertiesFile = rootProject.file("local.properties")
-        if (localPropertiesFile.exists()) {
-            localPropertiesFile.inputStream().use { localProperties.load(it) }
-        }
         buildConfigField(
             "String", "SUPABASE_URL",
             "\"${localProperties["SUPABASE_URL"] ?: ""}\""
@@ -49,6 +51,20 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            // Sign with the keystore declared in local.properties when the keys are present.
+            // On CI / Play Store pipeline, set these four values in local.properties or env vars.
+            val storeFile     = localProperties["RELEASE_STORE_FILE"]?.toString()
+            val storePassword = localProperties["RELEASE_STORE_PASSWORD"]?.toString()
+            val keyAlias      = localProperties["RELEASE_KEY_ALIAS"]?.toString()
+            val keyPassword   = localProperties["RELEASE_KEY_PASSWORD"]?.toString()
+            if (storeFile != null && storePassword != null && keyAlias != null && keyPassword != null) {
+                signingConfig = signingConfigs.create("release").also { cfg ->
+                    cfg.storeFile     = file(storeFile)
+                    cfg.storePassword = storePassword
+                    cfg.keyAlias      = keyAlias
+                    cfg.keyPassword   = keyPassword
+                }
+            }
         }
     }
 
@@ -86,7 +102,6 @@ dependencies {
     implementation("androidx.activity:activity-compose:1.9.3")
     implementation("androidx.browser:browser:1.8.0")
     implementation("androidx.webkit:webkit:1.12.1")
-    implementation("androidx.navigation:navigation-compose:2.8.4")
     implementation("androidx.work:work-runtime-ktx:2.9.1")
 
     // Supabase

@@ -717,6 +717,9 @@ class MainViewModel(
         } else bitmap
         val out = ByteArrayOutputStream()
         scaled.compress(Bitmap.CompressFormat.JPEG, 85, out)
+        // Recycle intermediate bitmaps to release native memory immediately.
+        if (scaled !== bitmap) scaled.recycle()
+        bitmap.recycle()
         return out.toByteArray()
     }
 

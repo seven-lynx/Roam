@@ -4,3 +4,10 @@
 SUPABASE_URL=https://your-project-ref.supabase.co
 SUPABASE_ANON_KEY=your-anon-key-here
 SENTRY_DSN=https://your-sentry-dsn@oNNNNNN.ingest.sentry.io/NNNNNNN
+
+# Release signing (required for Play Store AAB builds)
+# RELEASE_STORE_FILE=/absolute/path/to/roam.keystore
+# RELEASE_STORE_PASSWORD=your-keystore-password
+# RELEASE_KEY_ALIAS=roam
+# RELEASE_KEY_PASSWORD=your-key-password
+

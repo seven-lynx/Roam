@@ -168,7 +168,7 @@ fun OnboardingScreen() {
                             .weight(1f)
                             .height(52.dp),
                     ) {
-                        Text("Create Account")
+                        Text(if (isLoading) "Creating…" else "Create Account")
                     }
                     Button(
                         onClick = {

@@ -23,7 +23,12 @@ class TokenRefreshWorker(
         runCatching { supabase.auth.refreshCurrentSession() }
             .fold(
                 onSuccess = { Result.success() },
-                onFailure = { Result.retry() },
+                onFailure = { e ->
+                    // IllegalStateException means no refresh token — session gone, nothing to retry.
+                    // Returning retry() here causes WorkManager to loop indefinitely. Instead, treat
+                    // a missing session as success (the user will re-auth when they open the app).
+                    if (e is IllegalStateException) Result.success() else Result.retry()
+                },
             )
 
     companion object {
