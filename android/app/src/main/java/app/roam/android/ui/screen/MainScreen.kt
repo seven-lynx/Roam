@@ -55,6 +55,7 @@ fun MainScreen(
 
     // Track the active tab without NavController so DiscoverTab is never destroyed
     var currentTab by rememberSaveable { mutableStateOf(RoamTab.Roam.route) }
+    val focusModeEnabled by vm.focusModeEnabled.collectAsState()
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
@@ -65,6 +66,7 @@ fun MainScreen(
                 onThumbsUp = { vm.thumbsUp(context) },
                 onRoam = { vm.roam() },
                 onNavigate = { currentTab = it },
+                focusModeEnabled = focusModeEnabled,
             )
         },
     ) { innerPadding ->

@@ -40,6 +40,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import app.roam.android.BuildConfig
+import app.roam.android.model.SubcategoryItem
 import app.roam.android.viewmodel.MainViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -57,9 +58,16 @@ fun SettingsScreen(
     val currentUrl by vm.currentUrl.collectAsState()
     val savedConfirmation by vm.savedConfirmation.collectAsState()
     val jsEnabled by vm.jsEnabled.collectAsState()
+    val categories by vm.categories.collectAsState()
+    val subcategories by vm.subcategories.collectAsState()
+    val focusModeEnabled by vm.focusModeEnabled.collectAsState()
+    val focusCategoryId by vm.focusCategoryId.collectAsState()
+    val focusSubcategoryId by vm.focusSubcategoryId.collectAsState()
     val context = LocalContext.current
     var showSignOutDialog by remember { mutableStateOf(false) }
     var translateDropdownExpanded by remember { mutableStateOf(false) }
+    var focusCategoryDropdownExpanded by remember { mutableStateOf(false) }
+    var focusSubcategoryDropdownExpanded by remember { mutableStateOf(false) }
     val translateLanguages = listOf(
         "en" to "English", "fr" to "Français", "de" to "Deutsch",
         "it" to "Italiano", "es" to "Español", "pt" to "Português",
@@ -197,6 +205,93 @@ fun SettingsScreen(
             Spacer(Modifier.height(8.dp))
 
             SectionHeader("Discovery")
+
+            SettingsToggleRow(
+                title = "Focus mode",
+                subtitle = "Roam within a specific topic",
+                checked = focusModeEnabled,
+                onCheckedChange = { vm.setFocusMode(it) },
+            )
+
+            if (focusModeEnabled) {
+                // Category picker
+                val focusCategory = categories.firstOrNull { it.id == focusCategoryId }
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        "Category",
+                        style = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier.weight(1f),
+                    )
+                    Box {
+                        OutlinedButton(onClick = { focusCategoryDropdownExpanded = true }) {
+                            Text(focusCategory?.let { "${it.icon} ${it.name}" } ?: "Pick one…")
+                        }
+                        DropdownMenu(
+                            expanded = focusCategoryDropdownExpanded,
+                            onDismissRequest = { focusCategoryDropdownExpanded = false },
+                        ) {
+                            categories.forEach { cat ->
+                                DropdownMenuItem(
+                                    text = { Text("${cat.icon} ${cat.name}") },
+                                    onClick = {
+                                        vm.setFocusCategory(cat.id)
+                                        focusCategoryDropdownExpanded = false
+                                    },
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // Subcategory picker — only shown once a category is chosen
+                if (focusCategoryId != null) {
+                    val filteredSubcats = subcategories.filter { it.categoryId == focusCategoryId }
+                    val focusSubcat = filteredSubcats.firstOrNull { it.id == focusSubcategoryId }
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            "Topic",
+                            style = MaterialTheme.typography.bodyMedium,
+                            modifier = Modifier.weight(1f),
+                        )
+                        Box {
+                            OutlinedButton(onClick = { focusSubcategoryDropdownExpanded = true }) {
+                                Text(focusSubcat?.name ?: "All")
+                            }
+                            DropdownMenu(
+                                expanded = focusSubcategoryDropdownExpanded,
+                                onDismissRequest = { focusSubcategoryDropdownExpanded = false },
+                            ) {
+                                DropdownMenuItem(
+                                    text = { Text("All") },
+                                    onClick = {
+                                        vm.setFocusSubcategory(null)
+                                        focusSubcategoryDropdownExpanded = false
+                                    },
+                                )
+                                filteredSubcats.forEach { sub ->
+                                    DropdownMenuItem(
+                                        text = { Text(sub.name) },
+                                        onClick = {
+                                            vm.setFocusSubcategory(sub.id)
+                                            focusSubcategoryDropdownExpanded = false
+                                        },
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
 
             SettingsToggleRow(
                 title = "Skip paywalled sites",

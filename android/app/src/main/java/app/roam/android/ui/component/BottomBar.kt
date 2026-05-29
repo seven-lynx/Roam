@@ -30,6 +30,7 @@ fun BottomBar(
     onThumbsUp: () -> Unit,
     onRoam: () -> Unit = {},
     onNavigate: (String) -> Unit = {},
+    focusModeEnabled: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
     NavigationBar(modifier = modifier) {
@@ -56,9 +57,18 @@ fun BottomBar(
                 Icon(
                     if (currentRoute == RoamTab.Roam.route) Icons.Filled.Explore else Icons.Outlined.Explore,
                     contentDescription = "Roam",
+                    tint = if (focusModeEnabled) MaterialTheme.colorScheme.tertiary
+                           else MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             },
-            label = { Text("Roam", style = MaterialTheme.typography.labelSmall) },
+            label = {
+                Text(
+                    if (focusModeEnabled) "Focus" else "Roam",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = if (focusModeEnabled) MaterialTheme.colorScheme.tertiary
+                            else MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            },
         )
 
         // Settings

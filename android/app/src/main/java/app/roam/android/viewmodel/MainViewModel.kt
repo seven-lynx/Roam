@@ -12,6 +12,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import app.roam.android.data.repository.RoamRepository
 import app.roam.android.model.CategoryItem
+import app.roam.android.model.SubcategoryItem
 import app.roam.android.model.Collection
 import app.roam.android.model.RoamUrl
 import app.roam.android.model.UserProfile
@@ -174,6 +175,52 @@ class MainViewModel(
     private val _categories = MutableStateFlow(CategoryItem.FALLBACK)
     val categories: StateFlow<List<CategoryItem>> = _categories.asStateFlow()
 
+    /** All subcategories (loaded on init, filtered in UI by categoryId) */
+    private val _subcategories = MutableStateFlow<List<SubcategoryItem>>(emptyList())
+    val subcategories: StateFlow<List<SubcategoryItem>> = _subcategories.asStateFlow()
+
+    // ── Focus Mode ────────────────────────────────────────────────────────────
+    // Ephemeral — resets to off on every app launch. No SharedPreferences.
+
+    private val _focusModeEnabled = MutableStateFlow(false)
+    val focusModeEnabled: StateFlow<Boolean> = _focusModeEnabled.asStateFlow()
+
+    private val _focusCategoryId = MutableStateFlow<String?>(null)
+    val focusCategoryId: StateFlow<String?> = _focusCategoryId.asStateFlow()
+
+    private val _focusSubcategoryId = MutableStateFlow<String?>(null)
+    val focusSubcategoryId: StateFlow<String?> = _focusSubcategoryId.asStateFlow()
+
+    fun setFocusMode(enabled: Boolean) {
+        _focusModeEnabled.value = enabled
+        if (!enabled) {
+            _focusCategoryId.value = null
+            _focusSubcategoryId.value = null
+        }
+        prefetchJob?.cancel()
+        viewModelScope.launch { prefetchMutex.withLock { hotQueue.clear(); warmQueue.clear() } }
+        if (enabled && _focusCategoryId.value != null) startPrefillQueue()
+    }
+
+    fun setFocusCategory(categoryId: String?) {
+        _focusCategoryId.value = categoryId
+        _focusSubcategoryId.value = null  // reset subcategory when category changes
+        if (_focusModeEnabled.value) {
+            prefetchJob?.cancel()
+            viewModelScope.launch { prefetchMutex.withLock { hotQueue.clear(); warmQueue.clear() } }
+            if (categoryId != null) startPrefillQueue()
+        }
+    }
+
+    fun setFocusSubcategory(subcategoryId: String?) {
+        _focusSubcategoryId.value = subcategoryId
+        if (_focusModeEnabled.value && _focusCategoryId.value != null) {
+            prefetchJob?.cancel()
+            viewModelScope.launch { prefetchMutex.withLock { hotQueue.clear(); warmQueue.clear() } }
+            startPrefillQueue()
+        }
+    }
+
     // ── Prefetch queues ───────────────────────────────────────────────────────
     // Hot queue  (HOT_TARGET = 3): HEAD-validated URLs served instantly on tap.
     // Warm queue (WARM_TARGET = 5): fetched from the API but not yet validated.
@@ -214,6 +261,10 @@ class MainViewModel(
         viewModelScope.launch {
             runCatching { repo.getCategories() }
                 .onSuccess { if (it.isNotEmpty()) _categories.value = it }
+        }
+        viewModelScope.launch {
+            runCatching { repo.getSubcategories() }
+                .onSuccess { if (it.isNotEmpty()) _subcategories.value = it }
         }
         viewModelScope.launch {
             runCatching {
@@ -283,6 +334,8 @@ class MainViewModel(
                     repo.roam(
                         collectionId = _activeCollectionId.value,
                         excludeDomain = excludeDomain,
+                        categoryId = if (_focusModeEnabled.value) _focusCategoryId.value else null,
+                        subcategoryId = if (_focusModeEnabled.value) _focusSubcategoryId.value else null,
                     )
                 }
                 if (outcome.isSuccess) {
@@ -387,6 +440,8 @@ class MainViewModel(
                         repo.roam(
                             collectionId  = _activeCollectionId.value,
                             excludeDomain = excludeDomain,
+                            categoryId = if (_focusModeEnabled.value) _focusCategoryId.value else null,
+                            subcategoryId = if (_focusModeEnabled.value) _focusSubcategoryId.value else null,
                         )
                     }.getOrNull()
 

@@ -4,6 +4,7 @@ import app.roam.android.data.supabase
 import app.roam.android.model.CategoryItem
 import app.roam.android.model.Collection
 import app.roam.android.model.RoamUrl
+import app.roam.android.model.SubcategoryItem
 import app.roam.android.model.UserProfile
 import app.roam.android.model.UserSettings
 import io.github.jan.supabase.auth.auth
@@ -35,11 +36,13 @@ class RoamRepository {
         collectionId: String? = null,
         excludeDomain: String? = null,
         categoryId: String? = null,
+        subcategoryId: String? = null,
     ): RoamUrl? {
         val body = buildJsonObject {
             collectionId?.let { put("collection_id", it) }
             excludeDomain?.let { put("exclude_domain", it) }
             categoryId?.let { put("category_id", it) }
+            subcategoryId?.let { put("subcategory_id", it) }
         }
         val response = supabase.functions.invoke("roam", body = body)
         if (response.status.value == 404) return null
@@ -139,6 +142,15 @@ class RoamRepository {
         return supabase.postgrest
             .from("categories")
             .select(Columns.list("id", "name", "icon", "sort_order")) {
+                order("sort_order", Order.ASCENDING)
+            }
+            .decodeList()
+    }
+
+    suspend fun getSubcategories(): List<SubcategoryItem> {
+        return supabase.postgrest
+            .from("subcategories")
+            .select(Columns.list("id", "name", "category_id", "sort_order")) {
                 order("sort_order", Order.ASCENDING)
             }
             .decodeList()
