@@ -133,6 +133,7 @@ private fun DiscoverTab(
 
     val state by vm.state.collectAsState()
     val currentUrl by vm.currentUrl.collectAsState()
+    val rawUrl by vm.rawUrl.collectAsState()
     val showSubmitSheet by vm.showSubmitSheet.collectAsState()
     val showConfigSheet by vm.showConfigSheet.collectAsState()
     val savedConfirmation by vm.savedConfirmation.collectAsState()
@@ -154,7 +155,7 @@ private fun DiscoverTab(
     val loaded = state as? RoamState.Loaded
     val categoryName: String? = loaded?.roamUrl?.categoryId
         ?.let { catId -> categories.firstOrNull { it.id == catId }?.let { "${it.icon} ${it.name}" } }
-    val domain: String? = currentUrl?.let { Uri.parse(it).host?.removePrefix("www.") }
+    val domain: String? = rawUrl?.let { Uri.parse(it).host?.removePrefix("www.") }
 
     // Persist last-known values so they stay visible between roams
     var lastCategoryName by remember { mutableStateOf<String?>(null) }
@@ -260,7 +261,7 @@ private fun DiscoverTab(
             )
 
             // Loading overlay — shown while fetching a URL or the WebView is rendering it
-            if (currentUrl == null || isRoaming) {
+            if (rawUrl == null || isRoaming) {
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
@@ -275,7 +276,7 @@ private fun DiscoverTab(
                         )
                         Spacer(Modifier.size(16.dp))
                         Text(
-                            text = if (currentUrl == null) "Finding something great…" else "Loading…",
+                            text = if (rawUrl == null) "Finding something great…" else "Loading…",
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )

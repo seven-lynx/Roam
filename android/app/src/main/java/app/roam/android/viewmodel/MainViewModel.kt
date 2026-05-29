@@ -64,7 +64,6 @@ class MainViewModel(
     private val prefs = application.getSharedPreferences("roam_saved", Context.MODE_PRIVATE)
     private val SAVED_KEY = "saved_urls"
     private val WEB_DARK_KEY = "web_dark_mode"
-    private val AUTO_TRANSLATE_KEY = "auto_translate"
     private val JS_ENABLED_KEY = "js_enabled"
     private val TRANSLATE_LANG_KEY = "translate_language"
 
@@ -89,6 +88,10 @@ class MainViewModel(
     /** The URL currently loaded in the WebView (may differ from state while loading next) */
     private val _currentUrl = MutableStateFlow<String?>(null)
     val currentUrl: StateFlow<String?> = _currentUrl.asStateFlow()
+
+    /** The canonical (un-translated) URL from the discovery API — never a Google Translate wrapper */
+    private val _rawUrl = MutableStateFlow<String?>(null)
+    val rawUrl: StateFlow<String?> = _rawUrl.asStateFlow()
 
     private val _webNavChannel = Channel<WebNavCommand>(Channel.CONFLATED)
     val webNavFlow = _webNavChannel.receiveAsFlow()
@@ -126,13 +129,14 @@ class MainViewModel(
         prefs.edit().putBoolean(WEB_DARK_KEY, enabled).apply()
     }
 
-    /** User preference: auto-translate pages through Google Translate */
-    private val _autoTranslate = MutableStateFlow(prefs.getBoolean(AUTO_TRANSLATE_KEY, false))
+    /** Auto-translate is ephemeral (per-page) — always starts off, resets on each roam */
+    private val _autoTranslate = MutableStateFlow(false)
     val autoTranslate: StateFlow<Boolean> = _autoTranslate.asStateFlow()
 
     fun setAutoTranslate(enabled: Boolean) {
         _autoTranslate.value = enabled
-        prefs.edit().putBoolean(AUTO_TRANSLATE_KEY, enabled).apply()
+        val raw = _rawUrl.value ?: return
+        _currentUrl.value = if (enabled) translateUrl(raw) else raw
     }
 
     /** User preference: enable JavaScript in the WebView (default on) */
@@ -158,11 +162,9 @@ class MainViewModel(
         prefs.edit().putString(TRANSLATE_LANG_KEY, lang).apply()
     }
 
-    /** Wraps [url] through Google Translate when auto-translate is on. */
-    private fun maybeTranslate(url: String): String {
-        if (!_autoTranslate.value) return url
-        return "https://translate.google.com/translate?sl=auto&tl=${_translateLanguage.value}&u=${Uri.encode(url)}"
-    }
+    /** Wraps [url] through Google Translate. */
+    fun translateUrl(url: String): String =
+        "https://translate.google.com/translate?sl=auto&tl=${_translateLanguage.value}&u=${Uri.encode(url)}"
 
     /** User preference: list of language codes to include (e.g. ["en", "fr"]) */
     private val _preferredLanguages = MutableStateFlow(listOf("en"))
@@ -253,7 +255,7 @@ class MainViewModel(
                     val candidate = hotQueue.removeFirst()
                     val sameDomain = excludeDomain != null &&
                         extractDomain(candidate.url) == excludeDomain
-                    val sameUrl = candidate.url == _currentUrl.value
+                    val sameUrl = candidate.url == _rawUrl.value
                     if (!sameDomain && !sameUrl) {
                         result = candidate
                         break
@@ -262,9 +264,10 @@ class MainViewModel(
                 result
             }
             if (prefetched != null) {
-                val served = prefetched.copy(url = maybeTranslate(prefetched.url))
-                _currentUrl.value = served.url
-                _state.value = RoamState.Loaded(served)
+                _rawUrl.value = prefetched.url
+                _currentUrl.value = prefetched.url
+                _autoTranslate.value = false
+                _state.value = RoamState.Loaded(prefetched)
                 startPrefillQueue(excludeDomain = extractDomain(prefetched.url))
                 return@launch
             }
@@ -301,9 +304,10 @@ class MainViewModel(
                 if (result == null) {
                     _state.value = RoamState.Exhausted
                 } else {
-                    val served = result.copy(url = maybeTranslate(result.url))
-                    _currentUrl.value = served.url
-                    _state.value = RoamState.Loaded(served)
+                    _rawUrl.value = result.url
+                    _currentUrl.value = result.url
+                    _autoTranslate.value = false
+                    _state.value = RoamState.Loaded(result)
                     startPrefillQueue(excludeDomain = extractDomain(result.url))
                 }
             } else {
@@ -466,7 +470,7 @@ class MainViewModel(
                     }
                 }
             }
-            roam(excludeDomain = extractDomain(_currentUrl.value))
+            roam(excludeDomain = extractDomain(_rawUrl.value))
         }
     }
 
@@ -527,7 +531,7 @@ class MainViewModel(
     }
 
     fun saveForLater() {
-        val url = _currentUrl.value ?: return
+        val url = _rawUrl.value ?: return
         val title = ((_state.value as? RoamState.Loaded)?.roamUrl?.title ?: url)
             .take(200)  // Guard against huge titles
         val urlId = (_state.value as? RoamState.Loaded)?.roamUrl?.id
@@ -564,7 +568,7 @@ class MainViewModel(
         _showConfigSheet.value = false
         viewModelScope.launch {
             runCatching { repo.reportUrl(urlId) }
-            roam(excludeDomain = extractDomain(_currentUrl.value))
+            roam(excludeDomain = extractDomain(_rawUrl.value))
         }
     }
 
@@ -622,12 +626,17 @@ class MainViewModel(
             runCatching {
                 repo.roam(
                     collectionId = null,
-                    excludeDomain = extractDomain(_currentUrl.value),
+                    excludeDomain = extractDomain(_rawUrl.value),
                     categoryId = categoryId,
                 )
             }.onSuccess { result ->
                 if (result == null) _state.value = RoamState.Exhausted
-                else { _currentUrl.value = result.url; _state.value = RoamState.Loaded(result) }
+                else {
+                    _rawUrl.value = result.url
+                    _currentUrl.value = result.url
+                    _autoTranslate.value = false
+                    _state.value = RoamState.Loaded(result)
+                }
             }.onFailure { e ->
                 _state.value = RoamState.Error(e.message ?: "Something went wrong. Please try again.")
             }
