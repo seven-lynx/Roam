@@ -3,7 +3,7 @@
 import '../lib/sentry'; // must be first — initialises Sentry if SENTRY_DSN is set
 import { Sentry } from '../lib/sentry';
 import { sendToBackground } from '../lib/messages';
-import type { StateData, RoamData, CheckUrlData, Collection, CategoryItem, ProfileData } from '../lib/messages';
+import type { StateData, RoamData, CheckUrlData, Collection, CategoryItem, ProfileData, SubcategoryItem } from '../lib/messages';
 import { FALLBACK_CATEGORIES } from '../lib/constants';
 
 // ── Global error capture ───────────────────────────────────────────────────
@@ -124,6 +124,12 @@ let loadedCategories: CategoryItem[] = [];
 // Discovery mode: 'discovery' (default) shows adjacent content; 'deep_dive' stays focused
 let discoveryMode: 'discovery' | 'deep_dive' = 'discovery';
 
+// Focus mode — ephemeral, resets on popup close
+let focusModeEnabled = false;
+let focusCategoryId: string | null = null;
+let focusSubcategoryId: string | null = null;
+let focusSubcategoryName: string | null = null;
+
 function setStatus(text: string): void {
   const bar = el('status-bar');
   bar.textContent = text;
@@ -131,7 +137,13 @@ function setStatus(text: string): void {
 }
 
 async function refreshStatus(): Promise<void> {
-  const modeLabel = discoveryMode === 'discovery' ? '🔍 Discover' : '🎯 Deep Dive';
+  let modeLabel: string;
+  if (focusModeEnabled) {
+    const catName = loadedCategories.find(c => c.id === focusCategoryId)?.name ?? 'Focus';
+    modeLabel = focusSubcategoryName ? `🎯 ${catName} · ${focusSubcategoryName}` : `🎯 ${catName}`;
+  } else {
+    modeLabel = discoveryMode === 'discovery' ? '🔍 Discover' : '🎯 Deep Dive';
+  }
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
   const url = tab?.url ?? '';
   if (!url) { setStatus(modeLabel); return; }
@@ -145,14 +157,15 @@ async function refreshStatus(): Promise<void> {
 // FALLBACK_CATEGORIES imported from ../lib/constants
 
 async function checkAndRouteAfterSignIn(): Promise<void> {
-  const [cats, allCats, storedPrefs] = await Promise.all([
+  const [cats, allCats, storedPrefs, sessionPrefs] = await Promise.all([
     sendToBackground<{ categoryIds: string[] }>({ type: 'GET_USER_CATEGORIES' }),
     sendToBackground<CategoryItem[]>({ type: 'GET_CATEGORIES' }),
-    chrome.storage.local.get(['discovery_mode', 'auto_translate']),
+    chrome.storage.local.get(['discovery_mode']),
+    chrome.storage.session.get(['auto_translate']),
   ]);
   discoveryMode = (storedPrefs.discovery_mode as 'discovery' | 'deep_dive') ?? 'discovery';
   el<HTMLInputElement>('toggle-discovery').checked = discoveryMode === 'discovery';
-  el<HTMLInputElement>('toggle-translate').checked = storedPrefs.auto_translate === true;
+  el<HTMLInputElement>('toggle-translate').checked = sessionPrefs.auto_translate === true;
   const selectedIds = cats.ok ? cats.data.categoryIds : [];
   const categoryItems = allCats.ok && allCats.data.length > 0 ? allCats.data : FALLBACK_CATEGORIES;
   loadedCategories = categoryItems;
@@ -390,12 +403,18 @@ document.addEventListener('DOMContentLoaded', () => {
     roamBtn.textContent = 'Roaming…';
     setStatus('Finding next page…');
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    const res = await sendToBackground<RoamData>({ type: 'ROAM' });
+    const res = await sendToBackground<RoamData>({
+      type: 'ROAM',
+      ...(focusModeEnabled && focusCategoryId ? { categoryId: focusCategoryId } : {}),
+      ...(focusModeEnabled && focusSubcategoryId ? { subcategoryId: focusSubcategoryId } : {}),
+    });
     console.log('[roam-popup] Roam response:', res);
     roamBtn.disabled = false;
     roamBtn.textContent = 'Roam';
     if (!res.ok) { showError(res.error); return; }
     if (!res.data?.url) { showState('noresults'); return; }
+    // Background has already reset auto_translate; sync the UI toggle
+    el<HTMLInputElement>('toggle-translate').checked = false;
     if (tab?.id) chrome.tabs.update(tab.id, { url: res.data.url });
     window.close();
   });
@@ -437,7 +456,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Fire roam and check+rate fully in parallel — navigate the instant roam resolves,
     // without blocking on the rating round-trip.
-    const roamPromise = sendToBackground<RoamData>({ type: 'ROAM' });
+    const roamPromise = sendToBackground<RoamData>({
+      type: 'ROAM',
+      ...(focusModeEnabled && focusCategoryId ? { categoryId: focusCategoryId } : {}),
+      ...(focusModeEnabled && focusSubcategoryId ? { subcategoryId: focusSubcategoryId } : {}),
+    });
     if (url) {
       // Fire-and-forget: rating doesn't need to complete before we navigate away.
       sendToBackground<CheckUrlData>({ type: 'CHECK_URL', url }).then((check) => {
@@ -773,8 +796,95 @@ document.addEventListener('DOMContentLoaded', () => {
   el<HTMLInputElement>('toggle-translate').addEventListener('change', async (e) => {
     const checked = (e.target as HTMLInputElement).checked;
     await sendToBackground({ type: 'SET_AUTO_TRANSLATE', enabled: checked });
+    // Immediately translate or un-translate the current tab
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (!tab?.id || !tab.url) return;
+
+    if (checked) {
+      // Don't double-wrap a page that's already going through Translate
+      if (!tab.url.startsWith('https://translate.google.com/translate')) {
+        const lang = el<HTMLSelectElement>('select-translate-lang').value;
+        const translated = `https://translate.google.com/translate?sl=auto&tl=${encodeURIComponent(lang)}&u=${encodeURIComponent(tab.url)}`;
+        chrome.tabs.update(tab.id, { url: translated });
+        window.close();
+      }
+    } else {
+      // Strip the Translate wrapper and navigate back to the raw URL
+      if (tab.url.startsWith('https://translate.google.com/translate')) {
+        try {
+          const raw = new URL(tab.url).searchParams.get('u');
+          if (raw) {
+            chrome.tabs.update(tab.id, { url: raw });
+            window.close();
+          }
+        } catch { /* ignore malformed URL */ }
+      }
+    }  });
+  // ── Focus mode ──────────────────────────────────────────────────────────────────
+  el<HTMLInputElement>('toggle-focus').addEventListener('change', (e) => {
+    focusModeEnabled = (e.target as HTMLInputElement).checked;
+    el('focus-pickers').hidden = !focusModeEnabled;
+    if (!focusModeEnabled) {
+      focusCategoryId = null;
+      focusSubcategoryId = null;
+      focusSubcategoryName = null;
+      el('btn-focus-category').textContent = 'Category: Any';
+      el('btn-focus-subcategory').hidden = true;
+      el('btn-focus-subcategory').textContent = 'Topic: All';
+    }
+    void refreshStatus();
   });
 
+  el('btn-focus-category').addEventListener('click', () => {
+    if (loadedCategories.length === 0) return;
+    showDropdown(
+      el<HTMLButtonElement>('btn-focus-category'),
+      loadedCategories.map(cat => ({
+        label: `${cat.icon} ${cat.name}`,
+        onPick: () => {
+          focusCategoryId = cat.id;
+          focusSubcategoryId = null;
+          focusSubcategoryName = null;
+          el('btn-focus-category').textContent = `${cat.icon} ${cat.name}`;
+          el('btn-focus-subcategory').hidden = false;
+          el('btn-focus-subcategory').textContent = 'Topic: All';
+          void refreshStatus();
+        },
+      }))
+    );
+  });
+
+  el('btn-focus-subcategory').addEventListener('click', async () => {
+    if (!focusCategoryId) return;
+    const res = await sendToBackground<SubcategoryItem[]>({
+      type: 'GET_SUBCATEGORIES',
+      categoryId: focusCategoryId,
+    });
+    const subs = res.ok ? res.data : [];
+    showDropdown(
+      el<HTMLButtonElement>('btn-focus-subcategory'),
+      [
+        {
+          label: 'All topics',
+          onPick: () => {
+            focusSubcategoryId = null;
+            focusSubcategoryName = null;
+            el('btn-focus-subcategory').textContent = 'Topic: All';
+            void refreshStatus();
+          },
+        },
+        ...subs.map(sub => ({
+          label: sub.name,
+          onPick: () => {
+            focusSubcategoryId = sub.id;
+            focusSubcategoryName = sub.name;
+            el('btn-focus-subcategory').textContent = sub.name;
+            void refreshStatus();
+          },
+        })),
+      ]
+    );
+  });
   // ── Translate language picker ─────────────────────────────────────────────
   // Load saved preferences from storage
   chrome.storage.local.get(['skip_paywalled', 'translate_language'], (stored) => {

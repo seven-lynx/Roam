@@ -137,6 +137,17 @@
         <button id="btn-roam-category"   class="panel-row">Roam within this category</button>
         <button id="btn-roam-collection" class="panel-row">Roam a collection…</button>
         <button id="btn-manage-collections" class="panel-row">Manage collections ↗</button>
+        <div class="panel-row panel-row--toggle">
+          <span>Focus mode</span>
+          <label class="toggle">
+            <input type="checkbox" id="toggle-focus" />
+            <span class="toggle-track"></span>
+          </label>
+        </div>
+        <div id="focus-pickers" hidden>
+          <button id="btn-focus-category" class="panel-row">Category: Any</button>
+          <button id="btn-focus-subcategory" class="panel-row" hidden>Topic: All</button>
+        </div>
       </section>
 
       <section class="panel-section">

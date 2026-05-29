@@ -6,7 +6,7 @@
 
 import { Sentry } from '../lib/sentry';
 import { validateEnvironment } from '../lib/env';
-import type { Request, Response, StateData, RoamData, CheckUrlData, Collection, CategoryItem, ProfileData } from '../lib/messages';
+import type { Request, Response, StateData, RoamData, CheckUrlData, Collection, CategoryItem, ProfileData, SubcategoryItem } from '../lib/messages';
 import { getSupabase, clearAuthStorage } from '../lib/supabase';
 import { FALLBACK_CATEGORIES } from '../lib/constants';
 
@@ -98,7 +98,7 @@ async function _dispatch(req: Request): Promise<Response> {
     case 'GET_CATEGORIES':        return getCategories();
     case 'GET_USER_CATEGORIES':   return getUserCategories();
     case 'SET_USER_CATEGORIES':   return setUserCategories(req.categoryIds);
-    case 'ROAM':                  return roam();
+    case 'ROAM':                  return roam(req.categoryId, req.subcategoryId);
     case 'ROAM_COLLECTION':       return roamCollection(req.collectionId);
     case 'ROAM_CATEGORY':         return roamCategory(req.categoryId);
     case 'RATE':                  return rate(req.url_id, req.vote);
@@ -115,6 +115,7 @@ async function _dispatch(req: Request): Promise<Response> {
     case 'GET_PROFILE':           return getProfile();
     case 'SEND_FEEDBACK':         return sendFeedback(req.message, req.email, req.platform);
     case 'REPORT_URL':            return reportUrl(req.url_id);
+    case 'GET_SUBCATEGORIES':     return getSubcategories(req.categoryId);
     default:                      return { ok: false, error: 'Something went wrong. Please try again.' };
   }
 }
@@ -248,8 +249,7 @@ async function callRoamApi(body: Record<string, unknown> = {}): Promise<Response
   if (data?.error) return { ok: false, error: data.error };
   const newDomain = getDomain(data.url);
   if (newDomain) await chrome.storage.local.set({ lastRoamDomain: newDomain });
-  const translatedUrl = await maybeTranslate(data.url);
-  return { ok: true, data: { ...data, url: translatedUrl } as RoamData };
+  return { ok: true, data: data as RoamData };
 }
 
 async function prefetchNext(): Promise<void> {
@@ -265,32 +265,43 @@ async function prefetchNext(): Promise<void> {
   })();
 }
 
-async function roam(): Promise<Response<RoamData>> {
-  const stored = await chrome.storage.session.get(PREFETCH_KEY);
-  const cached = stored[PREFETCH_KEY] as { data: RoamData; cachedAt: number } | undefined;
-  if (cached && Date.now() - cached.cachedAt < PREFETCH_TTL) {
-    await chrome.storage.session.remove(PREFETCH_KEY);
-    prefetchNext(); // fire-and-forget — restock for next click
-    const translatedUrl = await maybeTranslate(cached.data.url);
-    return { ok: true, data: { ...cached.data, url: translatedUrl } };
-  }
-  // Cache miss — if a prefetch is already in flight, await it rather than
-  // issuing a second parallel API call (happens when user clicks Roam fast).
-  if (prefetchInFlight) {
-    await prefetchInFlight;
-    const stored2 = await chrome.storage.session.get(PREFETCH_KEY);
-    const cached2 = stored2[PREFETCH_KEY] as { data: RoamData; cachedAt: number } | undefined;
-    if (cached2 && Date.now() - cached2.cachedAt < PREFETCH_TTL) {
+async function roam(categoryId?: string, subcategoryId?: string): Promise<Response<RoamData>> {
+  const hasFocus = categoryId || subcategoryId;
+
+  if (!hasFocus) {
+    const stored = await chrome.storage.session.get(PREFETCH_KEY);
+    const cached = stored[PREFETCH_KEY] as { data: RoamData; cachedAt: number } | undefined;
+    if (cached && Date.now() - cached.cachedAt < PREFETCH_TTL) {
       await chrome.storage.session.remove(PREFETCH_KEY);
-      prefetchNext();
-      const translatedUrl2 = await maybeTranslate(cached2.data.url);
-      return { ok: true, data: { ...cached2.data, url: translatedUrl2 } };
+      prefetchNext(); // fire-and-forget — restock for next click
+      const translatedUrl = await maybeTranslate(cached.data.url);
+      await chrome.storage.session.set({ auto_translate: false });
+      return { ok: true, data: { ...cached.data, url: translatedUrl } };
+    }
+    // Cache miss — if a prefetch is already in flight, await it rather than
+    // issuing a second parallel API call (happens when user clicks Roam fast).
+    if (prefetchInFlight) {
+      await prefetchInFlight;
+      const stored2 = await chrome.storage.session.get(PREFETCH_KEY);
+      const cached2 = stored2[PREFETCH_KEY] as { data: RoamData; cachedAt: number } | undefined;
+      if (cached2 && Date.now() - cached2.cachedAt < PREFETCH_TTL) {
+        await chrome.storage.session.remove(PREFETCH_KEY);
+        prefetchNext();
+        const translatedUrl2 = await maybeTranslate(cached2.data.url);
+        await chrome.storage.session.set({ auto_translate: false });
+        return { ok: true, data: { ...cached2.data, url: translatedUrl2 } };
+      }
     }
   }
-  // True cache miss — live call; translate at serve time so setting changes take effect immediately
-  const live = await callRoamApi();
+
+  const body: Record<string, unknown> = {};
+  if (categoryId) body.category_id = categoryId;
+  if (subcategoryId) body.subcategory_id = subcategoryId;
+
+  const live = await callRoamApi(body);
   if (live.ok && live.data.url) {
     const translatedUrl = await maybeTranslate(live.data.url);
+    await chrome.storage.session.set({ auto_translate: false });
     return { ok: true, data: { ...live.data, url: translatedUrl } };
   }
   return live;
@@ -384,16 +395,20 @@ async function setDiscoveryMode(mode: 'discovery' | 'deep_dive'): Promise<Respon
 }
 
 async function setAutoTranslate(enabled: boolean): Promise<Response<null>> {
-  await chrome.storage.local.set({ auto_translate: enabled });
+  await chrome.storage.session.set({ auto_translate: enabled });
   return { ok: true, data: null };
 }
 
 // ── Translate URL helper ──────────────────────────────────────────────────────
 // Wraps a URL in Google Translate when auto-translate is enabled.
+// Toggle state is session-scoped (ephemeral); language preference is persistent.
 async function maybeTranslate(url: string): Promise<string> {
-  const stored = await chrome.storage.local.get(['auto_translate', 'translate_language']);
-  if (!stored.auto_translate) return url;
-  const targetLang = (stored.translate_language as string) ?? 'en';
+  const [session, local] = await Promise.all([
+    chrome.storage.session.get('auto_translate'),
+    chrome.storage.local.get('translate_language'),
+  ]);
+  if (!session.auto_translate) return url;
+  const targetLang = (local.translate_language as string) ?? 'en';
   return `https://translate.google.com/translate?sl=auto&tl=${targetLang}&u=${encodeURIComponent(url)}`;
 }
 
@@ -433,6 +448,17 @@ async function addUrlToCollection(url: string, collectionId: string): Promise<Re
     return { ok: false, error: "Couldn't add to collection. Please try again." };
   }
   return { ok: true, data: null };
+}
+
+// ── Subcategories ─────────────────────────────────────────────────────────────
+async function getSubcategories(categoryId: string): Promise<Response<SubcategoryItem[]>> {
+  const { data, error } = await getSupabase()
+    .from('subcategories')
+    .select('id, name, category_id, sort_order')
+    .eq('category_id', categoryId)
+    .order('sort_order');
+  if (error) return { ok: false, error: error.message };
+  return { ok: true, data: (data ?? []) as SubcategoryItem[] };
 }
 
 // ── Profile ───────────────────────────────────────────────────────────────────

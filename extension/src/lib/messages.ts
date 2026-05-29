@@ -12,7 +12,8 @@ export type Request =
   | { type: 'GET_USER_CATEGORIES' }
   | { type: 'SET_USER_CATEGORIES'; categoryIds: string[] }
   | { type: 'SIGN_OUT' }
-  | { type: 'ROAM'; collectionId?: string }
+  | { type: 'ROAM'; categoryId?: string; subcategoryId?: string }
+  | { type: 'GET_SUBCATEGORIES'; categoryId: string }
   | { type: 'ROAM_COLLECTION'; collectionId: string }
   | { type: 'ROAM_CATEGORY'; categoryId: string }
   | { type: 'RATE'; url_id: string; vote: 1 | -1 }
@@ -81,6 +82,13 @@ export interface Collection {
 
 export interface ProfileData {
   username: string;
+}
+
+export interface SubcategoryItem {
+  id: string;
+  name: string;
+  category_id: string;
+  sort_order: number;
 }
 
 /** Type-safe wrapper around chrome.runtime.sendMessage.
