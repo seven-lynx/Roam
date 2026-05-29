@@ -17,7 +17,7 @@ type QueueItem = {
   reviewed_by: string | null;
   subcategory_id: string | null;
   profile?: { display_name: string; username: string } | null;
-  subcategory?: { label: string }[] | null;
+  subcategory?: { name: string }[] | null;
 };
 
 interface ModerationDetailProps {
@@ -56,7 +56,13 @@ export default function ModerationDetail({
 
       if (action === "approved") {
         await supabase.from("urls").upsert(
-          { url: item.url, approved: true },
+          {
+            url: item.url,
+            approved: true,
+            title: item.title,
+            description: item.description,
+            subcategory_id: item.subcategory_id,
+          },
           { onConflict: "url" }
         );
       }
@@ -158,13 +164,13 @@ export default function ModerationDetail({
           )}
 
           {/* Category */}
-          {item.subcategory?.[0]?.label && (
+          {item.subcategory?.[0]?.name && (
             <div>
               <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
                 Category
               </label>
               <div className="bg-zinc-50 dark:bg-zinc-800 rounded-lg px-4 py-3 text-sm text-zinc-900 dark:text-white">
-                {item.subcategory?.[0]?.label}
+                {item.subcategory?.[0]?.name}
               </div>
             </div>
           )}

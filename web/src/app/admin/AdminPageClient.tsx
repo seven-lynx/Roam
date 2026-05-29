@@ -20,7 +20,7 @@ type QueueItem = {
   reviewed_by: string | null;
   subcategory_id: string | null;
   profile?: { display_name: string; username: string } | null;
-  subcategory?: { label: string }[] | null;
+  subcategory?: { name: string }[] | null;
 };
 
 type AnalyticsData = {
@@ -60,7 +60,7 @@ export default function AdminPageClient() {
 
   async function loadQueue() {
     try {
-      let query = supabase
+      const { data } = await supabase
         .from("moderation_queue")
         .select(`
           id,
@@ -75,30 +75,12 @@ export default function AdminPageClient() {
           reviewer_note,
           reviewed_by,
           subcategory_id,
-          subcategory:subcategories(label)
-        `);
+          profile:profiles!submitted_by(display_name, username),
+          subcategory:subcategories(name)
+        `)
+        .order("created_at", { ascending: sortBy === "oldest" });
 
-      if (statusFilter !== "all") {
-        query = query.eq("status", statusFilter);
-      }
-
-      const { data } = await query.order("created_at", {
-        ascending: sortBy === "oldest",
-      });
-
-      let filtered = data ?? [];
-
-      if (searchQuery) {
-        const query_lower = searchQuery.toLowerCase();
-        filtered = filtered.filter(
-          (item) =>
-            item.url.toLowerCase().includes(query_lower) ||
-            item.title?.toLowerCase().includes(query_lower) ||
-            item.description?.toLowerCase().includes(query_lower)
-        );
-      }
-
-      setItems(filtered);
+      setItems(data ?? []);
     } catch (err) {
       console.error("Failed to load moderation queue:", err);
     } finally {
@@ -115,7 +97,7 @@ export default function AdminPageClient() {
         .select(`
           created_at,
           subcategory_id,
-          subcategory:subcategories(label),
+          subcategory:subcategories(name),
           status
         `);
 
@@ -147,8 +129,8 @@ export default function AdminPageClient() {
       // Process submissions by category
       const categoryMap: { [key: string]: number } = {};
       queueItems?.forEach((item) => {
-        if (item.subcategory?.[0]?.label) {
-          const category = item.subcategory[0].label;
+        if (item.subcategory?.[0]?.name) {
+          const category = item.subcategory[0].name;
           categoryMap[category] = (categoryMap[category] || 0) + 1;
         }
       });
@@ -235,7 +217,7 @@ export default function AdminPageClient() {
   useEffect(() => {
     loadQueue();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [statusFilter, searchQuery, sortBy]);
+  }, [sortBy]);
 
   useEffect(() => {
     if (view === "analytics") {
@@ -253,6 +235,19 @@ export default function AdminPageClient() {
     approved: items.filter((i) => i.status === "approved").length,
     rejected: items.filter((i) => i.status === "rejected").length,
   };
+
+  const filteredItems = items.filter((item) => {
+    if (statusFilter !== "all" && item.status !== statusFilter) return false;
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      return (
+        item.url.toLowerCase().includes(q) ||
+        item.title?.toLowerCase().includes(q) ||
+        item.description?.toLowerCase().includes(q)
+      );
+    }
+    return true;
+  });
 
   return (
     <main className="min-h-screen bg-white dark:bg-zinc-950 px-6 py-16">
@@ -352,13 +347,13 @@ export default function AdminPageClient() {
             {/* Queue Items */}
             {isLoading ? (
               <div className="text-center text-zinc-500">Loading...</div>
-            ) : items.length === 0 ? (
+            ) : filteredItems.length === 0 ? (
               <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 p-8 text-center text-zinc-400 text-sm">
                 No submissions found.
               </div>
             ) : (
               <div className="flex flex-col gap-3">
-                {items.map((item) => (
+                {filteredItems.map((item) => (
                   <button
                     key={item.id}
                     onClick={() => setSelectedItem(item)}
