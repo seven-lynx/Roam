@@ -139,6 +139,7 @@ private fun DiscoverTab(
     val showSubmitSheet by vm.showSubmitSheet.collectAsState()
     val showConfigSheet by vm.showConfigSheet.collectAsState()
     val savedConfirmation by vm.savedConfirmation.collectAsState()
+    val submitToast by vm.submitToast.collectAsState()
     val collections by vm.collections.collectAsState()
     val categories by vm.categories.collectAsState()
     val savedUrls by vm.savedUrls.collectAsState()
@@ -303,14 +304,37 @@ private fun DiscoverTab(
                     )
                 }
             }
+
+            // Submit result toast
+            submitToast?.let { msg ->
+                val isError = msg.startsWith("Couldn't")
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .align(Alignment.BottomCenter)
+                        .background(
+                            if (isError) MaterialTheme.colorScheme.errorContainer
+                            else MaterialTheme.colorScheme.secondaryContainer
+                        )
+                        .padding(horizontal = 16.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        msg,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = if (isError) MaterialTheme.colorScheme.onErrorContainer
+                                else MaterialTheme.colorScheme.onSecondaryContainer,
+                    )
+                }
+            }
         }
     }
 
     if (showSubmitSheet) {
         SubmitBottomSheet(
-            url = currentUrl,
+            url = rawUrl ?: currentUrl,
             categories = categories,
-            onSubmit = { categoryId -> vm.submitUrl(currentUrl ?: "", categoryId) },
+            onSubmit = { submittedUrl, categoryId -> vm.submitUrl(submittedUrl, categoryId) },
             onDismiss = { vm.closeSubmitSheet() },
         )
     }

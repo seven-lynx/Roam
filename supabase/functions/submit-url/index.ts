@@ -80,10 +80,10 @@ Deno.serve(async (req) => {
   const { data: { user }, error: authError } = await supabase.auth.getUser()
   if (authError || !user) return json({ error: 'Unauthorized' }, 401)
 
-  let body: { url?: unknown; title?: unknown; description?: unknown; category_id?: unknown; language?: unknown }
+  let body: { url?: unknown; title?: unknown; description?: unknown; category_id?: unknown; subcategory_id?: unknown }
   try { body = await req.json() } catch { return json({ error: 'Invalid JSON' }, 400) }
 
-  const { url: rawUrl, title, description, category_id, language } = body
+  const { url: rawUrl, title, description, category_id, subcategory_id } = body
   if (typeof rawUrl !== 'string' || !rawUrl) {
     return json({ error: 'url is required' }, 400)
   }
@@ -136,13 +136,15 @@ Deno.serve(async (req) => {
     ? `category_hint:${category_id}`
     : null
 
+  const validSubcategoryId = typeof subcategory_id === 'string' && subcategory_id ? subcategory_id : null
+
   const { error: insertError } = await supabase.from('moderation_queue').insert({
     url: normalized,
     title: typeof title === 'string' ? title : null,
     description: typeof description === 'string' ? description : null,
-    language: typeof language === 'string' && language ? language : 'en',
+    subcategory_id: validSubcategoryId,
     submitted_by: user.id,
-    safe_browsing_passed: true,  // At this point, Safe Browsing has cleared the URL
+    safe_browsing_passed: true,
     status: 'pending',
     ...(categoryHint ? { reviewer_note: categoryHint } : {}),
   })

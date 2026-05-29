@@ -78,6 +78,10 @@ class MainViewModel(
     private val _savedConfirmation = MutableStateFlow(false)
     val savedConfirmation: StateFlow<Boolean> = _savedConfirmation.asStateFlow()
 
+    /** One-shot message shown after a submit-url attempt (null = nothing to show) */
+    private val _submitToast = MutableStateFlow<String?>(null)
+    val submitToast: StateFlow<String?> = _submitToast.asStateFlow()
+
     /** User's collections (lazy-loaded when config sheet opens) */
     private val _collections = MutableStateFlow<List<Collection>>(emptyList())
     val collections: StateFlow<List<Collection>> = _collections.asStateFlow()
@@ -531,8 +535,19 @@ class MainViewModel(
 
     fun submitUrl(url: String, categoryId: String, subcategoryId: String? = null) {
         viewModelScope.launch {
-            runCatching { repo.submitUrl(url, categoryId, subcategoryId) }
+            val result = runCatching { repo.submitUrl(url, categoryId, subcategoryId) }
             _showSubmitSheet.value = false
+            if (result.isSuccess) {
+                _submitToast.value = "Submitted for review — thanks!"
+            } else {
+                val err = result.exceptionOrNull()
+                err?.let { Sentry.captureException(it) }
+                _submitToast.value = "Couldn't submit: ${err?.message ?: "unknown error"}"
+            }
+            viewModelScope.launch {
+                delay(4000)
+                _submitToast.value = null
+            }
         }
     }
 
