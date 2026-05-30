@@ -93,9 +93,11 @@ export default function ModerationDetail({
 
     const finalSubcategoryId = selectedSubcategoryId ?? item.subcategory_id;
 
+    const { data: { user } } = await supabase.auth.getUser();
+
     const { error: updateError } = await supabase
       .from("moderation_queue")
-      .update({ status: action, subcategory_id: finalSubcategoryId })
+      .update({ status: action, subcategory_id: finalSubcategoryId, reviewed_by: user?.id ?? null })
       .eq("id", item.id);
 
     if (updateError) {
