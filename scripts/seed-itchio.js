@@ -58,6 +58,14 @@ const SOURCES = [
   { path: 'tag-pixel-art',          category: CATEGORY.GAMES_HOBBIES,    subcategory: SUBCATEGORY.VIDEO_GAMES },
   { path: 'tag-open-world',         category: CATEGORY.GAMES_HOBBIES,    subcategory: SUBCATEGORY.VIDEO_GAMES },
 
+  // ── Interactive & Browser Experiences ───────────────────────────────────────
+  // Playable directly in the browser — no install required.
+  { path: 'tag-browser',            category: CATEGORY.GAMES_HOBBIES,    subcategory: SUBCATEGORY.BROWSER_INTERACTIVE },
+  { path: 'tag-html5',              category: CATEGORY.GAMES_HOBBIES,    subcategory: SUBCATEGORY.BROWSER_INTERACTIVE },
+  { path: 'tag-web',                category: CATEGORY.GAMES_HOBBIES,    subcategory: SUBCATEGORY.BROWSER_INTERACTIVE },
+  { path: 'tag-webgl',              category: CATEGORY.GAMES_HOBBIES,    subcategory: SUBCATEGORY.BROWSER_INTERACTIVE },
+  { path: 'tag-interactive-art',    category: CATEGORY.GAMES_HOBBIES,    subcategory: SUBCATEGORY.BROWSER_INTERACTIVE },
+
   // ── Arts & Culture ──────────────────────────────────────────────────────────
   { path: 'genre-visual-novel',          category: CATEGORY.ARTS_CULTURE,    subcategory: SUBCATEGORY.LITERATURE_WRITING },
   { path: 'genre-interactive-fiction',   category: CATEGORY.ARTS_CULTURE,    subcategory: SUBCATEGORY.LITERATURE_WRITING },
