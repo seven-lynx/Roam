@@ -88,7 +88,9 @@ class MainActivity : ComponentActivity() {
                         io.sentry.Sentry.captureException(e)
                     }
                 // Consume the deep link so activity recreation doesn't replay the same callback.
+                // Clear the guard so a future sign-out + sign-in with the same URI isn't dropped.
                 intent.data = null
+                lastHandledAuthUri = null
             }
         }
     }

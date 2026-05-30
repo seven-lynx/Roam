@@ -200,15 +200,11 @@ fun RoamWebView(
                         }
                     }
                     // The renderer process was killed (screen lock + memory pressure is the
-                    // common trigger). Return true to prevent a crash; reload immediately.
+                    // common trigger). Return true to prevent a crash. Bump webViewKey so
+                    // Compose tears down this AndroidView and rebuilds a fresh WebView;
+                    // the factory block will restore state from savedState on the new instance.
                     override fun onRenderProcessGone(view: WebView, detail: RenderProcessGoneDetail): Boolean {
-                        Handler(Looper.getMainLooper()).post {
-                            if (!savedState.isEmpty) {
-                                view.restoreState(savedState)
-                            } else {
-                                urlRef.value?.let { view.loadUrl(it) }
-                            }
-                        }
+                        Handler(Looper.getMainLooper()).post { webViewKey++ }
                         return true
                     }
                 }

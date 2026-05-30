@@ -35,7 +35,9 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
-import org.json.JSONArray
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 
 sealed interface WebNavCommand {
     object Back : WebNavCommand
@@ -51,6 +53,7 @@ sealed interface RoamState {
     data class Error(val message: String) : RoamState
 }
 
+@Serializable
 data class SavedUrl(val url: String, val title: String)
 
 data class ProfileStats(val roamed: Int = 0, val submitted: Int = 0)
@@ -544,10 +547,10 @@ class MainViewModel(
                 err?.let { Sentry.captureException(it) }
                 _submitToast.value = "Couldn't submit: ${err?.message ?: "unknown error"}"
             }
-            viewModelScope.launch {
-                delay(4000)
-                _submitToast.value = null
-            }
+        }
+        viewModelScope.launch {
+            delay(4000)
+            _submitToast.value = null
         }
     }
 
@@ -822,26 +825,16 @@ class MainViewModel(
 
     // ── Local persistence ─────────────────────────────────────────────────────
 
+    private val savedUrlsJson = Json { ignoreUnknownKeys = true }
+
     private fun loadSavedUrls(): List<SavedUrl> {
-        val json = prefs.getString(SAVED_KEY, null) ?: return emptyList()
-        return runCatching {
-            val arr = JSONArray(json)
-            (0 until arr.length()).map { i ->
-                val obj = arr.getJSONObject(i)
-                SavedUrl(url = obj.getString("url"), title = obj.getString("title"))
-            }
-        }.getOrDefault(emptyList())
+        val raw = prefs.getString(SAVED_KEY, null) ?: return emptyList()
+        return runCatching { savedUrlsJson.decodeFromString<List<SavedUrl>>(raw) }
+            .getOrDefault(emptyList())
     }
 
     private fun persistSavedUrls(list: List<SavedUrl>) {
-        val arr = JSONArray()
-        list.forEach { saved ->
-            arr.put(org.json.JSONObject().apply {
-                put("url", saved.url)
-                put("title", saved.title)
-            })
-        }
-        prefs.edit().putString(SAVED_KEY, arr.toString()).apply()
+        prefs.edit().putString(SAVED_KEY, savedUrlsJson.encodeToString(list)).apply()
     }
 
     private fun extractDomain(url: String?): String? {
