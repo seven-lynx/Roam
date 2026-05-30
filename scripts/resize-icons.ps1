@@ -15,11 +15,11 @@ $targets = @(
     @{ size = 180;  dest = "web\public\apple-touch-icon.png"; src = $logo2 },
     @{ size = 512;  dest = "web\public\icon-512.png";         src = $logo2 },
     # Extension — roam_logo2, tight-cropped to content bounds (no whitespace)
-    # Crop rect measured from image: content at (30,88)-(448,431), square centered = (24,45,429,429)
-    @{ size = 16;   dest = "extension\icons\icon-16.png";     src = $logo2; crop = @(24,45,429,429) },
-    @{ size = 32;   dest = "extension\icons\icon-32.png";     src = $logo2; crop = @(24,45,429,429) },
-    @{ size = 48;   dest = "extension\icons\icon-48.png";     src = $logo2; crop = @(24,45,429,429) },
-    @{ size = 128;  dest = "extension\icons\icon-128.png";    src = $logo2; crop = @(24,45,429,429) },
+    # Content at (30,88)-(448,431) = 419w x 344h; square = 344x344 centered horizontally → x=67,y=88
+    @{ size = 16;   dest = "extension\icons\icon-16.png";     src = $logo2; crop = @(67,88,344,344) },
+    @{ size = 32;   dest = "extension\icons\icon-32.png";     src = $logo2; crop = @(67,88,344,344) },
+    @{ size = 48;   dest = "extension\icons\icon-48.png";     src = $logo2; crop = @(67,88,344,344) },
+    @{ size = 128;  dest = "extension\icons\icon-128.png";    src = $logo2; crop = @(67,88,344,344) },
     # Android / Play Store  (roam_logo — do not change)
     @{ size = 48;   dest = "android\res\icon-48.png";         src = $logo1 },
     @{ size = 72;   dest = "android\res\icon-72.png";         src = $logo1 },
