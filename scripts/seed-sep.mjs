@@ -1,13 +1,13 @@
 /**
  * seed-sep.mjs — Stanford Encyclopedia of Philosophy seeder
  *
- * Crawls the SEP sitemap to discover all published article entries, then
- * upserts each entry URL into Roam. The SEP is one of the most rigorously
- * peer-reviewed, openly accessible references in philosophy — covering every
- * major topic from analytic philosophy to Eastern traditions.
+ * Parses the SEP contents page to discover all published article entries,
+ * then upserts each entry URL into Roam. The SEP is one of the most
+ * rigorously peer-reviewed, openly accessible references in philosophy —
+ * covering every major topic from analytic philosophy to Eastern traditions.
  *
  * ~1 800 articles as of 2025. No API key required.
- * Sitemap: https://plato.stanford.edu/sitemap.xml
+ * Contents: https://plato.stanford.edu/contents.html
  *
  * Run from repo root:
  *   node scripts/seed-sep.mjs
@@ -30,9 +30,10 @@ const NO_CACHE   = process.argv.includes('--no-cache');
 const DELAY_MS = 300; // SEP is a small academic server — be polite
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-const SITEMAP_URL = 'https://plato.stanford.edu/sitemap.xml';
-// Only seed article entries — skip metadata/static pages
-const ENTRY_RE = /^https:\/\/plato\.stanford\.edu\/entries\/([^/]+)\/?$/;
+const CONTENTS_URL = 'https://plato.stanford.edu/contents.html';
+const BASE_URL     = 'https://plato.stanford.edu/';
+// Relative href pattern on the contents page: entries/<slug>/
+const ENTRY_HREF_RE = /^entries\/([^/"]+)\/?$/;
 
 // ── Keyword → subcategory heuristics ─────────────────────────────────────────
 // Broad buckets; OG fetch will extract descriptions on upsert.
@@ -75,14 +76,19 @@ function inferSubcategory(slug) {
   return SUBCATEGORY.PHILOSOPHY_ETHICS;
 }
 
-// ── Parse sitemap XML ─────────────────────────────────────────────────────────
-function parseSitemap(xml) {
+// ── Parse contents.html ───────────────────────────────────────────────────────
+function parseContents(html) {
+  const seen = new Set();
   const urls = [];
-  const locRe = /<loc>([^<]+)<\/loc>/gi;
+  const hrefRe = /href="(entries\/[^"]+)"/gi;
   let m;
-  while ((m = locRe.exec(xml)) !== null) {
-    const url = m[1].trim();
-    if (ENTRY_RE.test(url)) urls.push(url);
+  while ((m = hrefRe.exec(html)) !== null) {
+    const href = m[1].replace(/\/$/, ''); // strip trailing slash for dedup
+    if (!ENTRY_HREF_RE.test(href + '/')) continue;
+    const slug = href.replace(/^entries\//, '');
+    if (seen.has(slug)) continue;
+    seen.add(slug);
+    urls.push(`${BASE_URL}${href}/`);
   }
   return urls;
 }
@@ -106,25 +112,24 @@ async function main() {
     rows = JSON.parse(readFileSync(CACHE_FILE, 'utf8'));
     console.log(`[sep] Loaded ${rows.length} entries from cache (use --no-cache to re-fetch)`);
   } else {
-    console.log('[sep] Fetching sitemap...');
-    let xml;
+    console.log('[sep] Fetching contents page...');
+    let html;
     try {
-      const res = await fetchWithRetry(SITEMAP_URL, {
+      const res = await fetchWithRetry(CONTENTS_URL, {
         headers: { 'User-Agent': 'Roam-Seeder/1.0 (+https://roamtheweb.app)' },
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      xml = await res.text();
+      html = await res.text();
     } catch (err) {
-      console.error(`[sep] Failed to fetch sitemap: ${err.message}`);
+      console.error(`[sep] Failed to fetch contents page: ${err.message}`);
       process.exit(1);
     }
 
-    const entryUrls = parseSitemap(xml);
+    const entryUrls = parseContents(html);
     console.log(`[sep] Found ${entryUrls.length} article entries`);
 
     rows = entryUrls.map((url) => {
-      const slugMatch = ENTRY_RE.exec(url);
-      const slug = slugMatch ? slugMatch[1] : url;
+      const slug = url.replace(BASE_URL + 'entries/', '').replace(/\/$/, '');
       return {
         url,
         title:        slugToTitle(slug),
