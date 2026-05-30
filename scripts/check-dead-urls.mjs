@@ -46,6 +46,7 @@ const RESULTS_FILE           = resolve(CACHE_DIR, 'dead-links-results.jsonl');
 const PROGRESS_FILE          = resolve(CACHE_DIR, 'dead-links-progress.json');
 const LANGUAGE_RESULTS_FILE  = resolve(CACHE_DIR, 'language-results.jsonl');
 const LANGUAGE_PROGRESS_FILE = resolve(CACHE_DIR, 'language-progress.json');
+const COMMIT_PROGRESS_FILE   = resolve(CACHE_DIR, 'dead-links-commit-progress.json');
 
 dotenvConfig({ path: resolve(__dirname, '../.env') });
 
@@ -329,10 +330,11 @@ async function checkUrl(urlId, url) {
 
 async function runChecks() {
   if (RESET) {
-    if (existsSync(RESULTS_FILE))          unlinkSync(RESULTS_FILE);
-    if (existsSync(PROGRESS_FILE))         unlinkSync(PROGRESS_FILE);
-    if (existsSync(LANGUAGE_RESULTS_FILE)) unlinkSync(LANGUAGE_RESULTS_FILE);
+    if (existsSync(RESULTS_FILE))           unlinkSync(RESULTS_FILE);
+    if (existsSync(PROGRESS_FILE))          unlinkSync(PROGRESS_FILE);
+    if (existsSync(LANGUAGE_RESULTS_FILE))  unlinkSync(LANGUAGE_RESULTS_FILE);
     if (existsSync(LANGUAGE_PROGRESS_FILE)) unlinkSync(LANGUAGE_PROGRESS_FILE);
+    if (existsSync(COMMIT_PROGRESS_FILE))   unlinkSync(COMMIT_PROGRESS_FILE);
     console.log('[check] Reset: cleared previous results (phases 2–3).\n');
   }
 
@@ -542,8 +544,15 @@ async function runLanguageCheck() {
 
 // ── Phase 4: Commit ────────────────────────────────────────────────────────────
 async function commitResults() {
-  const lines = readFileSync(RESULTS_FILE, 'utf-8').split('\n').filter(Boolean);
-  const results = lines
+  // Load commit progress so we only process lines not yet committed
+  let commitProgress = { resultsOffset: 0, langOffset: 0 };
+  if (existsSync(COMMIT_PROGRESS_FILE)) {
+    try { commitProgress = JSON.parse(readFileSync(COMMIT_PROGRESS_FILE, 'utf-8')); } catch {}
+  }
+
+  const allResultLines = readFileSync(RESULTS_FILE, 'utf-8').split('\n').filter(Boolean);
+  const newResultLines = allResultLines.slice(commitProgress.resultsOffset);
+  const results = newResultLines
     .map((l) => { try { return JSON.parse(l); } catch { return null; } })
     .filter(Boolean);
 
@@ -554,14 +563,25 @@ async function commitResults() {
 
   // Load language results if available
   let langUpdates = [];
+  let allLangLines = [];
   if (!SKIP_LANGUAGE && existsSync(LANGUAGE_RESULTS_FILE)) {
-    const langLines = readFileSync(LANGUAGE_RESULTS_FILE, 'utf-8').split('\n').filter(Boolean);
-    langUpdates = langLines
+    allLangLines = readFileSync(LANGUAGE_RESULTS_FILE, 'utf-8').split('\n').filter(Boolean);
+    const newLangLines = allLangLines.slice(commitProgress.langOffset);
+    langUpdates = newLangLines
       .map((l) => { try { return JSON.parse(l); } catch { return null; } })
       .filter((r) => r && r.detectedLanguage !== null && r.detectedLanguage !== r.currentLanguage);
   }
 
   // ── Summary (always shown, even in dry-run) ───────────────────────────────
+  const newResultsCount = newResultLines.length;
+  const newLangCount = allLangLines.slice(commitProgress.langOffset).length;
+  if (newResultsCount === 0 && newLangCount === 0) {
+    console.log('[commit] Nothing new to commit (all results already committed).\n');
+    return;
+  }
+  if (commitProgress.resultsOffset > 0 || commitProgress.langOffset > 0) {
+    console.log(`[commit] Resuming from offset: results=${commitProgress.resultsOffset.toLocaleString()}, lang=${commitProgress.langOffset.toLocaleString()}`);
+  }
   console.log(`[commit] Dead URLs to retire:    ${deadIds.length.toLocaleString()}`);
   if (FIX_REDIRECTS) {
     console.log(`[commit] Redirect URL updates:   ${redirectFixes.length.toLocaleString()}`);
@@ -599,6 +619,8 @@ async function commitResults() {
       }
     }
     console.log(`\n[commit] Retired ${retired.toLocaleString()} dead URLs.\n`);
+    commitProgress.resultsOffset = allResultLines.length;
+    writeFileSync(COMMIT_PROGRESS_FILE, JSON.stringify(commitProgress));
   }
 
   // ── Apply redirect URL corrections ────────────────────────────────────────
@@ -643,6 +665,8 @@ async function commitResults() {
     }
 
     console.log(`\n[commit] Updated ${updated.toLocaleString()} redirect URLs,  ${conflicted.toLocaleString()} conflicts → marked inactive.\n`);
+    commitProgress.resultsOffset = allResultLines.length;
+    writeFileSync(COMMIT_PROGRESS_FILE, JSON.stringify(commitProgress));
   }
 
   // ── Apply language corrections ────────────────────────────────────────────
@@ -670,6 +694,15 @@ async function commitResults() {
       }
     }
     console.log(`\n[commit] Updated ${updated.toLocaleString()} language tags.\n`);
+    commitProgress.langOffset = allLangLines.length;
+    writeFileSync(COMMIT_PROGRESS_FILE, JSON.stringify(commitProgress));
+  }
+
+  // Advance results offset even when there were no dead/redirect rows to write
+  // (e.g. all new results were alive-only). This prevents re-scanning them next run.
+  if (newResultLines.length > 0 && commitProgress.resultsOffset < allResultLines.length) {
+    commitProgress.resultsOffset = allResultLines.length;
+    writeFileSync(COMMIT_PROGRESS_FILE, JSON.stringify(commitProgress));
   }
 
   console.log('[commit] Done.\n');
