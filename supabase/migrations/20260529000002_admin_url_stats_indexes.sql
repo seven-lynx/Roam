@@ -13,8 +13,9 @@ CREATE INDEX IF NOT EXISTS idx_urls_approved_partial
 CREATE INDEX IF NOT EXISTS idx_urls_inactive_partial
   ON public.urls (id) WHERE inactive = true;
 
--- Rewrite admin_url_stats to use four separate subqueries so the planner
--- can use the partial indexes above instead of a single full-table scan.
+-- admin_url_stats uses pg_class.reltuples for the three heavy table-wide counts
+-- (instant, unaffected by visibility map or write load) and exact COUNT only for
+-- recent_urls which is a small bounded set.
 CREATE OR REPLACE FUNCTION public.admin_url_stats(since_date timestamptz)
 RETURNS TABLE (
   total_urls    bigint,
@@ -27,8 +28,8 @@ SECURITY DEFINER
 SET statement_timeout = '30s'
 AS $$
   SELECT
-    (SELECT COUNT(*) FROM public.urls)::bigint,
-    (SELECT COUNT(*) FROM public.urls WHERE approved = true)::bigint,
-    (SELECT COUNT(*) FROM public.urls WHERE inactive = true)::bigint,
-    (SELECT COUNT(*) FROM public.urls WHERE created_at >= since_date)::bigint;
+    (SELECT reltuples::bigint FROM pg_class WHERE oid = 'public.urls'::regclass),
+    (SELECT reltuples::bigint FROM pg_class WHERE oid = 'idx_urls_approved_partial'::regclass),
+    (SELECT reltuples::bigint FROM pg_class WHERE oid = 'idx_urls_inactive_partial'::regclass),
+    (SELECT COUNT(*) FROM public.urls WHERE created_at >= since_date);
 $$;
