@@ -1,6 +1,8 @@
 name: Deploy
 
 on:
+  push:
+    branches: [main]
   workflow_dispatch:
 
 env:
@@ -8,9 +10,16 @@ env:
   PNPM_VERSION: '10'
 
 jobs:
+  check:
+    name: Check
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "ok"
+
   deploy-supabase:
     name: Deploy Supabase Migrations & Functions
     runs-on: ubuntu-latest
+    if: contains(github.event.head_commit.message, '[deploy]') || github.event_name == 'workflow_dispatch'
 
     steps:
       - name: Checkout code
@@ -50,6 +59,7 @@ jobs:
   deploy-web:
     name: Deploy Web to Vercel
     runs-on: ubuntu-latest
+    if: contains(github.event.head_commit.message, '[deploy]') || github.event_name == 'workflow_dispatch'
 
     steps:
       - name: Checkout code
