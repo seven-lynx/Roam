@@ -104,7 +104,7 @@ export async function getAdminQueue(
     .order("created_at", { ascending: sortBy === "oldest" });
 
   if (error) return { data: null, error: error.message };
-  return { data: data as AdminQueueItem[], error: null };
+  return { data: data as unknown as AdminQueueItem[], error: null };
 }
 
 // ─── Admin reports ────────────────────────────────────────────────────────────
