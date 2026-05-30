@@ -1,7 +1,19 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { getSubmitterEmail } from "./actions";
+
+type Category = {
+  id: string;
+  name: string;
+};
+
+type Subcategory = {
+  id: string;
+  name: string;
+  category_id: string;
+};
 
 type QueueItem = {
   id: string;
@@ -17,23 +29,54 @@ type QueueItem = {
   reviewed_by: string | null;
   subcategory_id: string | null;
   profile?: { display_name: string; username: string } | null;
-  subcategory?: { name: string }[] | null;
+  subcategory?: { id: string; name: string; category_id: string; category?: { id: string; name: string }[] | null }[] | null;
 };
 
 interface ModerationDetailProps {
   item: QueueItem | null;
   onClose: () => void;
   onUpdate?: () => void;
+  categories: Category[];
+  allSubcategories: Subcategory[];
 }
 
 export default function ModerationDetail({
   item,
   onClose,
   onUpdate,
+  categories,
+  allSubcategories,
 }: ModerationDetailProps) {
   const supabase = createClient();
   const [status, setStatus] = useState<"idle" | "loading">("idle");
   const [actionError, setActionError] = useState<string | null>(null);
+  const [submitterEmail, setSubmitterEmail] = useState<string | null>(null);
+  const [emailLoading, setEmailLoading] = useState(false);
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
+  const [selectedSubcategoryId, setSelectedSubcategoryId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!item) return;
+    // Initialise category/subcategory from item data
+    const sub = item.subcategory?.[0];
+    const catId = sub?.category_id ?? sub?.category?.[0]?.id ?? null;
+    setSelectedCategoryId(catId);
+    setSelectedSubcategoryId(item.subcategory_id ?? null);
+    // Fetch submitter email
+    if (item.submitted_by) {
+      setEmailLoading(true);
+      setSubmitterEmail(null);
+      getSubmitterEmail(item.submitted_by)
+        .then((email) => setSubmitterEmail(email))
+        .finally(() => setEmailLoading(false));
+    } else {
+      setSubmitterEmail(null);
+    }
+  }, [item?.id]);
+
+  const filteredSubcategories = selectedCategoryId
+    ? allSubcategories.filter((s) => s.category_id === selectedCategoryId)
+    : allSubcategories;
 
   if (!item) return null;
 
@@ -48,9 +91,11 @@ export default function ModerationDetail({
     setStatus("loading");
     setActionError(null);
 
+    const finalSubcategoryId = selectedSubcategoryId ?? item.subcategory_id;
+
     const { error: updateError } = await supabase
       .from("moderation_queue")
-      .update({ status: action })
+      .update({ status: action, subcategory_id: finalSubcategoryId })
       .eq("id", item.id);
 
     if (updateError) {
@@ -68,7 +113,7 @@ export default function ModerationDetail({
           approved: true,
           title: item.title,
           description: item.description,
-          subcategory_id: item.subcategory_id,
+          subcategory_id: finalSubcategoryId,
         },
         { onConflict: "url" }
       );
@@ -168,17 +213,37 @@ export default function ModerationDetail({
             </div>
           )}
 
-          {/* Category */}
-          {item.subcategory?.[0]?.name && (
-            <div>
-              <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
-                Category
-              </label>
-              <div className="bg-zinc-50 dark:bg-zinc-800 rounded-lg px-4 py-3 text-sm text-zinc-900 dark:text-white">
-                {item.subcategory?.[0]?.name}
-              </div>
+          {/* Classification — category + subcategory assignment */}
+          <div>
+            <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
+              Classification
+            </label>
+            <div className="flex gap-2">
+              <select
+                value={selectedCategoryId ?? ""}
+                onChange={(e) => {
+                  setSelectedCategoryId(e.target.value || null);
+                  setSelectedSubcategoryId(null);
+                }}
+                className="flex-1 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-900 dark:text-white"
+              >
+                <option value="">— Category —</option>
+                {categories.map((cat) => (
+                  <option key={cat.id} value={cat.id}>{cat.name}</option>
+                ))}
+              </select>
+              <select
+                value={selectedSubcategoryId ?? ""}
+                onChange={(e) => setSelectedSubcategoryId(e.target.value || null)}
+                className="flex-1 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-900 dark:text-white"
+              >
+                <option value="">— Subcategory —</option>
+                {filteredSubcategories.map((sub) => (
+                  <option key={sub.id} value={sub.id}>{sub.name}</option>
+                ))}
+              </select>
             </div>
-          )}
+          </div>
 
           {/* Safe Browsing Result */}
           <div>
@@ -204,10 +269,9 @@ export default function ModerationDetail({
               Submitted by
             </label>
             <div className="bg-zinc-50 dark:bg-zinc-800 rounded-lg px-4 py-3 text-sm text-zinc-900 dark:text-white">
-              {item.profile?.display_name ||
-                item.profile?.username ||
-                item.submitted_by ||
-                "Unknown"}
+              {emailLoading
+                ? "Loading…"
+                : submitterEmail ?? item.profile?.username ?? item.submitted_by ?? "Unknown"}
             </div>
           </div>
 
@@ -239,17 +303,6 @@ export default function ModerationDetail({
             </div>
           </div>
 
-          {/* Reviewer Note */}
-          {item.reviewer_note && (
-            <div>
-              <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
-                Reviewer Note
-              </label>
-              <div className="bg-zinc-50 dark:bg-zinc-800 rounded-lg px-4 py-3 text-sm text-zinc-900 dark:text-white">
-                {item.reviewer_note}
-              </div>
-            </div>
-          )}
         </div>
 
         {/* Footer Actions */}

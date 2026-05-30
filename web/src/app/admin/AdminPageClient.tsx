@@ -6,6 +6,17 @@ import { createClient } from "@/lib/supabase/client";
 import ModerationDetail from "./ModerationDetail";
 
 
+type Category = {
+  id: string;
+  name: string;
+};
+
+type Subcategory = {
+  id: string;
+  name: string;
+  category_id: string;
+};
+
 type QueueItem = {
   id: string;
   url: string;
@@ -20,7 +31,7 @@ type QueueItem = {
   reviewed_by: string | null;
   subcategory_id: string | null;
   profile?: { display_name: string; username: string } | null;
-  subcategory?: { name: string }[] | null;
+  subcategory?: { id: string; name: string; category_id: string; category?: { id: string; name: string }[] | null }[] | null;
 };
 
 type AnalyticsData = {
@@ -57,6 +68,19 @@ export default function AdminPageClient() {
   const [reportedLinks, setReportedLinks] = useState<ReportedLink[]>([]);
   const [reportsLoading, setReportsLoading] = useState(false);
   const [restoringId, setRestoringId] = useState<string | null>(null);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [allSubcategories, setAllSubcategories] = useState<Subcategory[]>([]);
+
+  async function loadCategories() {
+    try {
+      const { data: cats } = await supabase.from("categories").select("id, name").order("name");
+      const { data: subs } = await supabase.from("subcategories").select("id, name, category_id").order("name");
+      if (cats) setCategories(cats);
+      if (subs) setAllSubcategories(subs);
+    } catch (err) {
+      console.error("Failed to load categories:", err);
+    }
+  }
 
   async function loadQueue() {
     try {
@@ -76,7 +100,7 @@ export default function AdminPageClient() {
           reviewed_by,
           subcategory_id,
           profile:profiles!submitted_by(display_name, username),
-          subcategory:subcategories(name)
+          subcategory:subcategories(id, name, category_id, category:categories(id, name))
         `)
         .order("created_at", { ascending: sortBy === "oldest" });
 
@@ -228,6 +252,11 @@ export default function AdminPageClient() {
     loadQueue();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sortBy]);
+
+  useEffect(() => {
+    loadCategories();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     if (view === "analytics") {
@@ -609,6 +638,8 @@ export default function AdminPageClient() {
           item={selectedItem}
           onClose={() => setSelectedItem(null)}
           onUpdate={loadQueue}
+          categories={categories}
+          allSubcategories={allSubcategories}
         />
       )}
     </main>
