@@ -17,51 +17,51 @@ All sources are free public APIs or datasets — no scraping, no paywalled conte
 
 | Script | Source | API Key | Rows | Status |
 |--------|--------|---------|------|--------|
-| `seed-wikipedia.js` | Wikipedia REST API | none | 2,593 | ✅ Live |
-| `seed-hackernews.js` | Algolia HN Search | none | 948 | ✅ Live |
+| `seed-wikipedia.js` | Wikipedia REST API | none | 2,559 | ✅ Live |
+| `seed-hackernews.js` | Algolia HN Search | none | 1,058 | ✅ Live |
 | `seed-nasa.js` | NASA APOD API | `NASA_API_KEY` | 9,123 | ✅ Live |
 | `seed-openlibrary.js` | Open Library Subjects | none | 59,514 | ✅ Live |
-| `seed-arxiv.js` | arXiv Atom Feed | none | 6,600 | ✅ Live |
-| `seed-awesome.js` | GitHub Awesome Lists | none | 9,824 | ✅ Live |
-| `seed-wiby.js` | wiby.me Directory | none | 1,747 | ✅ Live |
+| `seed-arxiv.js` | arXiv Atom Feed | none | 5,872 | ✅ Live |
+| `seed-awesome.js` | GitHub Awesome Lists | none | 9,610 | ✅ Live |
+| `seed-wiby.js` | wiby.me Directory | none | 1,827 | ✅ Live |
 | `seed-lobsters.js` | Lobsters JSON API | none | ~1,000 | ✅ Live |
-| `seed-semanticscholar.js` | Semantic Scholar API | optional | ~50,000 | ✅ Live |
-| `seed-nyt.js` | NYT Archive API (5 yrs) | `NYT_API_KEY` | ~50,000 | ✅ Live |
-| `seed-guardian.js` | Guardian Content API | `GUARDIAN_API_KEY` | 18,000 | ✅ Live |
-| `seed-propublica.js` | ProPublica Sitemaps (all-time) | none | ~5,000 | ✅ Live |
-| `seed-npr.js` | NPR RSS Feeds (33 feeds) | none | ~660 | ✅ Live |
-| `seed-wikivoyage.js` | MediaWiki API | none | 67,660 | ✅ Live |
+| `seed-semanticscholar.js` | Semantic Scholar API | optional | 1,114 | ✅ Live |
+| `seed-nyt.js` | NYT Archive API (5 yrs) | `NYT_API_KEY` | 590 | ✅ Live |
+| `seed-guardian.js` | Guardian Content API | `GUARDIAN_API_KEY` | 32,794 | ✅ Live |
+| `seed-propublica.js` | ProPublica Sitemaps (all-time) | none | 126 | ✅ Live |
+| `seed-npr.js` | NPR RSS Feeds (33 feeds) | none | 152 | ✅ Live |
+| `seed-wikivoyage.js` | MediaWiki API | none | 67,657 | ✅ Live |
 | `seed-internetarchive.js` | Internet Archive API | none | 50,966 | ✅ Live |
-| `seed-curlie.js` | Curlie Directory | none | 2,732,344 | ✅ Complete |
+| `seed-curlie.js` | Curlie Directory | none | 2,744,100 | ✅ Complete |
 | `seed-gutenberg.js` | Gutendex (Project Gutenberg) | none | 510 | ✅ Live |
 | `seed-pubmed.js` | NCBI Entrez API | none | 40,154 | ✅ Live |
-| `seed-reddit.js` | Reddit JSON API | none | 1,549 | ✅ Live |
-| `seed-ted.js` | TED Talks Sitemap | none | ~7,492 | ✅ Complete |
-| `seed-metmuseum.js` | Met Museum / Wikidata | none | 73,211 | ✅ Complete |
+| `seed-reddit.js` | Reddit JSON API | none | ~1,500 | ✅ Live |
+| `seed-ted.js` | TED Talks Sitemap | none | 1 | ⚠️ Needs re-run |
+| `seed-metmuseum.js` | Met Museum / Wikidata | none | 55,346 | ✅ Complete |
 | `seed-boardgamegeek.js` | BoardGameGeek XML API (search-based) | none | ~5,000 | ✅ Live |
-| `seed-librivox.js` | LibriVox API | none | 18,752 | ✅ Complete |
-| `seed-github.js` | GitHub Search API | optional `GITHUB_TOKEN` | 5,806 | ✅ Live |
-| `seed-itchio.js` | Itch.io Browse API | none | 13,329 | ✅ Complete |
+| `seed-librivox.js` | LibriVox API | none | 18,747 | ✅ Complete |
+| `seed-github.js` | GitHub Search API | optional `GITHUB_TOKEN` | 5,802 | ✅ Live |
+| `seed-itchio.js` | Itch.io Browse API | none | 13,328 | ✅ Complete |
 | `seed-bandcamp.js` | Bandcamp Internal API | none | 9,634 | ✅ Complete |
 | `seed-substack.js` | Substack Category API | none | 14,847 | ✅ Complete |
 
-| `seed-pinboard.mjs` | Pinboard popular bookmarks | none | ~3,000 | ✅ Live |
-| `seed-kagisweb.mjs` | Kagi Small Web | none | ~5,000 | ✅ Live |
-| `seed-smithsonian.mjs` | Smithsonian Open Access | `SMITHSONIAN_API_KEY` | ~9,000 | ✅ Live |
+| `seed-pinboard.mjs` | Pinboard popular bookmarks | none | 69 | ✅ Live |
+| `seed-kagisweb.mjs` | Kagi Small Web | none | 179 | ✅ Live |
+| `seed-smithsonian.mjs` | Smithsonian Open Access | `SMITHSONIAN_API_KEY` | 350 | ✅ Live |
 | `seed-podcastindex.mjs` | Podcast Index | `PODCAST_INDEX_API_KEY` + `PODCAST_INDEX_API_SECRET` | ~20,000 | ✅ Live |
 | `seed-europeana.mjs` | Europeana cultural heritage | `EUROPEANA_API_KEY` | ~18,000 | ✅ Live |
-| `seed-marginalia.mjs` | Marginalia Search (indie web) | none | ~5,000 | ✅ Live |
-| `seed-loc.mjs` | Library of Congress public API | none | ~1,500 | ✅ Live |
-| `seed-kottke.mjs` | Kottke.org RSS (linked articles) | none | ~300 | ⬜ Not run |
-| `seed-lesswrong.mjs` | LessWrong GraphQL API | none | ~1,000 | ⬜ Not run |
-| `seed-mastodon.mjs` | Mastodon trending links (3 instances) | none | ~120 | ⬜ Not run |
-| `seed-longform.mjs` | Long-form publications RSS (Aeon, Quanta, etc.) | none | ~500 | ⬜ Not run |
+| `seed-marginalia.mjs` | Marginalia Search (indie web) | none | 4,916 | ✅ Live |
+| `seed-loc.mjs` | Library of Congress public API | none | 3,351 | ✅ Live |
+| `seed-kottke.mjs` | Kottke.org RSS (linked articles) | none | 60 | ✅ Live |
+| `seed-lesswrong.mjs` | LessWrong GraphQL API | none | 1,000 | ✅ Live |
+| `seed-mastodon.mjs` | Mastodon trending links (3 instances) | none | 79 | ✅ Live |
+| `seed-longform.mjs` | Long-form publications RSS (Aeon, Quanta, etc.) | none | 766 | ✅ Live |
 | `seed-sep.mjs` | Stanford Encyclopedia of Philosophy (sitemap) | none | ~1,800 | ⬜ Not run |
 | `seed-hn-discussions.mjs` | Ask HN threads (points > 200, comments > 100) | none | ~500 | ⬜ Not run |
 | `seed-atlantic-newyorker.mjs` | The Atlantic + The New Yorker RSS | none | ~300 | ⬜ Not run |
 | `seed-flickr-commons.mjs` | Flickr: The Commons (public-domain institutional photos) | none | ~440 | ⬜ Not run |
 
-**Total: ~3.1M+ URLs across all sources**
+**Total: ~3.2M URLs across 34+ active sources** *(as of May 2026)*
 
 ## Setup
 
