@@ -129,6 +129,7 @@
         <h3 class="panel-section-title">Current page</h3>
         <button id="btn-add-collection" class="panel-row">Add to collection…</button>
         <button id="btn-save-later"     class="panel-row">Save for later</button>
+        <button id="btn-saved-pages"    class="panel-row">Saved pages</button>
         <button id="btn-share"          class="panel-row">Copy link</button>
       </section>
 
@@ -217,6 +218,17 @@
       <p id="feedback-error" class="auth-error" hidden></p>
       <p id="feedback-success" class="feedback-success" hidden>Thanks! We got your feedback.</p>
       <button id="btn-feedback-submit" class="btn-primary" disabled>Send</button>
+    </div>
+  </div>
+
+  <div id="state-saved" class="state" hidden>
+    <div class="saved-body">
+      <div class="saved-header">
+        <button id="btn-back-saved" class="btn-back">← Back</button>
+        <p class="saved-title">Saved pages</p>
+      </div>
+      <div id="saved-list" class="saved-list"></div>
+      <p id="saved-empty" class="saved-empty" hidden>No saved pages yet. Use the browser extension to bookmark pages while browsing.</p>
     </div>
   </div>
 

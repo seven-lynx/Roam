@@ -3,7 +3,7 @@
 import '../lib/sentry'; // must be first — initialises Sentry if SENTRY_DSN is set
 import { Sentry } from '../lib/sentry';
 import { sendToBackground } from '../lib/messages';
-import type { StateData, RoamData, CheckUrlData, Collection, CategoryItem, ProfileData, SubcategoryItem } from '../lib/messages';
+import type { StateData, RoamData, CheckUrlData, Collection, CategoryItem, ProfileData, SubcategoryItem, SavedUrlItem } from '../lib/messages';
 import { FALLBACK_CATEGORIES } from '../lib/constants';
 
 // ── Global error capture ───────────────────────────────────────────────────
@@ -27,10 +27,10 @@ function el<T extends HTMLElement>(id: string): T {
   return e as T;
 }
 
-type AppState = 'signedout' | 'auth' | 'email-auth' | 'categories' | 'error' | 'noresults' | 'main' | 'feedback';
+type AppState = 'signedout' | 'auth' | 'email-auth' | 'categories' | 'error' | 'noresults' | 'main' | 'feedback' | 'saved';
 
 function showState(name: AppState) {
-  for (const s of ['signedout', 'auth', 'email-auth', 'categories', 'error', 'noresults', 'main', 'feedback'] as const) {
+  for (const s of ['signedout', 'auth', 'email-auth', 'categories', 'error', 'noresults', 'main', 'feedback', 'saved'] as const) {
     el(`state-${s}`).hidden = s !== name;
   }
 }
@@ -585,11 +585,70 @@ document.addEventListener('DOMContentLoaded', () => {
   el('btn-save-later').addEventListener('click', async () => {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     if (!tab?.url) return;
-    const res = await sendToBackground({ type: 'SAVE_LATER', url: tab.url });
+    const res = await sendToBackground({ type: 'SAVE_LATER', url: tab.url, title: tab.title });
     if (res.ok) {
       window.close();
     }
   });
+
+  el('btn-saved-pages').addEventListener('click', async () => {
+    const res = await sendToBackground<SavedUrlItem[]>({ type: 'GET_SAVED_URLS' });
+    const list = el('saved-list');
+    const empty = el('saved-empty');
+    list.textContent = '';
+    const items = res.ok ? res.data : [];
+    if (items.length === 0) {
+      empty.hidden = false;
+    } else {
+      empty.hidden = true;
+      for (const item of items) {
+        const row = document.createElement('div');
+        row.className = 'saved-item';
+        row.dataset.id = item.id;
+
+        const link = document.createElement('a');
+        link.href = item.url;
+        link.target = '_blank';
+        link.rel = 'noopener noreferrer';
+        link.className = 'saved-item-link';
+
+        const title = document.createElement('span');
+        title.className = 'saved-item-title';
+        title.textContent = item.title || item.url;
+
+        const domain = document.createElement('span');
+        domain.className = 'saved-item-domain';
+        try { domain.textContent = new URL(item.url).hostname; } catch { domain.textContent = ''; }
+
+        link.appendChild(title);
+        link.appendChild(domain);
+
+        const remove = document.createElement('button');
+        remove.className = 'saved-item-remove';
+        remove.textContent = '✕';
+        remove.title = 'Remove';
+        remove.dataset.id = item.id;
+
+        row.appendChild(link);
+        row.appendChild(remove);
+        list.appendChild(row);
+      }
+      list.addEventListener('click', async (e) => {
+        const btn = (e.target as HTMLElement).closest('.saved-item-remove') as HTMLElement | null;
+        if (!btn?.dataset.id) return;
+        const id = btn.dataset.id;
+        const res2 = await sendToBackground<null>({ type: 'REMOVE_SAVED_URL', savedUrlId: id });
+        if (res2.ok) {
+          const row = list.querySelector(`[data-id="${id}"]`) as HTMLElement | null;
+          if (row) row.remove();
+          if (!list.children.length) empty.hidden = false;
+        }
+      });
+    }
+    showState('saved');
+  });
+
+  el('btn-back-saved').addEventListener('click', () => showState('main'));
 
   el('btn-share').addEventListener('click', async () => {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
@@ -645,12 +704,8 @@ document.addEventListener('DOMContentLoaded', () => {
     );
   });
 
-  el('btn-manage-collections').addEventListener('click', async () => {
-    const res = await sendToBackground<ProfileData>({ type: 'GET_PROFILE' });
-    const url = res.ok
-      ? `https://roamtheweb.app/u/${res.data.username}`
-      : 'https://roamtheweb.app';
-    chrome.tabs.create({ url });
+  el('btn-manage-collections').addEventListener('click', () => {
+    chrome.tabs.create({ url: 'https://roamtheweb.app/profile' });
     window.close();
   });
 

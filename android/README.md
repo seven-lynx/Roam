@@ -30,7 +30,8 @@ MainActivity
 
 MainViewModel  ←──────────────────  RoamRepository
   ├─ RoamState (Idle/Loading/Loaded/Exhausted/Error)
-  ├─ prefetchQueue (ArrayDeque<RoamUrl>, target = 3)
+  ├─ hotQueue (ArrayDeque<RoamUrl>, target = 3, HEAD-validated)
+  ├─ warmQueue (ArrayDeque<RoamUrl>, target = 5, API-fetched)
   ├─ savedUrls (SharedPreferences)
   ├─ webDarkMode (SharedPreferences)
   ├─ skipPaywalled + preferredLanguages (Supabase user_settings)
@@ -145,8 +146,8 @@ If both queues are empty (first launch, filter change, offline recovery), the ap
 1. User taps **Roam** → `MainViewModel.roam()` pops from prefetch queue or fetches live
 2. URL loaded in `RoamWebView` (full-screen, lifecycle-aware, state-saved across backgrounding)
 3. Status bar shows `Category · domain` once page loads
-4. **Like** (thumbs up) → rates +1, navigates to next URL
-5. **Skip** (thumbs down) → rates -1, navigates to next URL
+4. **Like** (thumbs up) → rates +1, stays on the page (you may still be reading)
+5. **Skip** (thumbs down) → rates -1, navigates to the next URL
 6. Long-press config sheet → save for later, share, add to collection, report broken link, roam within category
 
 ### Offline Ratings
@@ -198,7 +199,7 @@ Ratings that fail due to no connectivity are pushed onto `pendingRatings`. `conn
 ```
 
 **App crashes on startup**
-- Check `local.properties` has all three keys (`SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SENTRY_DSN`)
+- Check `local.properties` has both required keys (`SUPABASE_URL`, `SUPABASE_ANON_KEY`). `SENTRY_DSN` is optional — without it, Sentry is a no-op.
 - Check Logcat for `FATAL EXCEPTION`
 
 **"Discovery failed" on roam**

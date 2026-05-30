@@ -19,7 +19,9 @@ export type Request =
   | { type: 'RATE'; url_id: string; vote: 1 | -1 }
   | { type: 'CHECK_URL'; url: string }
   | { type: 'SUBMIT_URL'; url: string; categoryId: string }
-  | { type: 'SAVE_LATER'; url: string }
+  | { type: 'SAVE_LATER'; url: string; title?: string }
+  | { type: 'GET_SAVED_URLS' }
+  | { type: 'REMOVE_SAVED_URL'; savedUrlId: string }
   | { type: 'SET_PAYWALL_PREF'; skip: boolean }
   | { type: 'SET_LANGUAGE_PREF'; languages: string[] }
   | { type: 'SET_DISCOVERY_MODE'; mode: 'discovery' | 'deep_dive' }
@@ -78,6 +80,13 @@ export interface Collection {
   slug: string;
   is_public: boolean;
   item_count: number;
+}
+
+export interface SavedUrlItem {
+  id: string;
+  url: string;
+  title: string;
+  saved_at: string;
 }
 
 export interface ProfileData {

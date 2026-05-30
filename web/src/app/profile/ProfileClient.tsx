@@ -4,6 +4,10 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import { UsernamePrompt } from '@/components/UsernamePrompt';
+import { CollectionsManager } from './CollectionsManager';
+import type { CollectionRow } from './CollectionsManager';
+import { SavedUrlsManager } from './SavedUrlsManager';
+import type { SavedUrlRow } from './SavedUrlsManager';
 
 type Category = { id: string; label: string; emoji: string };
 type Profile = {
@@ -20,9 +24,11 @@ interface ProfileClientProps {
   profile: Profile;
   allCategories: Category[];
   initialCategoryIds: string[];
+  initialCollections: CollectionRow[];
+  initialSavedUrls: SavedUrlRow[];
 }
 
-export function ProfileClient({ userId, email, profile, allCategories, initialCategoryIds }: ProfileClientProps) {
+export function ProfileClient({ userId, email, profile, allCategories, initialCategoryIds, initialCollections, initialSavedUrls }: ProfileClientProps) {
   const supabase = createClient();
 
   // Bio editing
@@ -197,6 +203,12 @@ export function ProfileClient({ userId, email, profile, allCategories, initialCa
             <p className="text-sm text-green-600 dark:text-green-400 mt-2">✓ Interests saved</p>
           )}
         </section>
+
+        {/* Collections */}
+        <CollectionsManager userId={userId} initialCollections={initialCollections} />
+
+        {/* Saved for later */}
+        <SavedUrlsManager userId={userId} initialSavedUrls={initialSavedUrls} />
 
         {/* Get the app */}
         <section className="rounded-2xl border border-zinc-200 dark:border-zinc-800 p-6">

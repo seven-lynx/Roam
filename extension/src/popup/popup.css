@@ -500,3 +500,77 @@ body {
   text-align: center;
   padding: 4px 0;
 }
+
+/* ── Saved pages state ───────────────────────────────────────────────────── */
+.saved-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+}
+.saved-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.saved-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+}
+.saved-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 320px;
+  overflow-y: auto;
+}
+.saved-item {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 6px;
+  padding: 6px 8px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+}
+.saved-item-link {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+  text-decoration: none;
+}
+.saved-item-title {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.saved-item-link:hover .saved-item-title { text-decoration: underline; }
+.saved-item-domain {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+.saved-item-remove {
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 12px;
+  padding: 2px 4px;
+  border-radius: 4px;
+  line-height: 1;
+}
+.saved-item-remove:hover { color: var(--text); background: var(--bg-hover); }
+.saved-empty {
+  font-size: 12px;
+  color: var(--text-muted);
+  text-align: center;
+  padding: 16px 0;
+}

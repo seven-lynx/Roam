@@ -11,7 +11,6 @@ import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.functions.functions
 import io.github.jan.supabase.postgrest.postgrest
 import io.github.jan.supabase.postgrest.query.Columns
-import io.github.jan.supabase.postgrest.query.Count
 import io.github.jan.supabase.postgrest.query.Order
 import io.github.jan.supabase.storage.storage
 import io.ktor.client.call.body
@@ -325,25 +324,29 @@ class RoamRepository {
 
     /**
      * Returns (pagesRoamed, pagesSubmitted) counts for the current user.
-     * Uses server-side COUNT to avoid fetching full row sets.
+     * Fetches only the `id` column and counts client-side — supabase-kt BOM 3.0.2
+     * does not expose Columns.NONE or a `count` parameter on select().
      * Both default to 0 on error.
      */
     suspend fun getProfileStats(): Pair<Int, Int> {
         val userId = supabase.auth.currentUserOrNull()?.id ?: return 0 to 0
         val roamed = runCatching {
             supabase.postgrest.from("ratings")
-                .select(Columns.NONE, count = Count.EXACT) { filter { eq("user_id", userId) } }
-                .countOrNull() ?: 0
+                .select(Columns.list("id")) { filter { eq("user_id", userId) } }
+                .decodeList<IdRow>().size
         }.getOrDefault(0)
         val submitted = runCatching {
             supabase.postgrest.from("urls")
-                .select(Columns.NONE, count = Count.EXACT) { filter { eq("submitted_by", userId) } }
-                .countOrNull() ?: 0
+                .select(Columns.list("id")) { filter { eq("submitted_by", userId) } }
+                .decodeList<IdRow>().size
         }.getOrDefault(0)
-        return roamed.toInt() to submitted.toInt()
+        return roamed to submitted
     }
 
     // ── Private helpers ───────────────────────────────────────────────────────
+
+    @Serializable
+    private data class IdRow(val id: String)
 
     @Serializable
     private data class UrlCategoryRow(

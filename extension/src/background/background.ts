@@ -6,7 +6,7 @@
 
 import { Sentry } from '../lib/sentry';
 import { validateEnvironment } from '../lib/env';
-import type { Request, Response, StateData, RoamData, CheckUrlData, Collection, CategoryItem, ProfileData, SubcategoryItem } from '../lib/messages';
+import type { Request, Response, StateData, RoamData, CheckUrlData, Collection, CategoryItem, ProfileData, SubcategoryItem, SavedUrlItem } from '../lib/messages';
 import { getSupabase, clearAuthStorage } from '../lib/supabase';
 import { FALLBACK_CATEGORIES } from '../lib/constants';
 
@@ -104,7 +104,9 @@ async function _dispatch(req: Request): Promise<Response> {
     case 'RATE':                  return rate(req.url_id, req.vote);
     case 'CHECK_URL':             return checkUrl(req.url);
     case 'SUBMIT_URL':            return submitUrl(req.url, req.categoryId);
-    case 'SAVE_LATER':            return saveLater(req.url);
+    case 'SAVE_LATER':            return saveLater(req.url, req.title);
+    case 'GET_SAVED_URLS':         return getSavedUrls();
+    case 'REMOVE_SAVED_URL':       return removeSavedUrl(req.savedUrlId);
     case 'SET_PAYWALL_PREF':      return setPaywallPref(req.skip);
     case 'SET_LANGUAGE_PREF':     return setLanguagePref(req.languages);
     case 'SET_DISCOVERY_MODE':    return setDiscoveryMode(req.mode);
@@ -358,10 +360,49 @@ async function submitUrl(url: string, categoryId: string): Promise<Response<null
 }
 
 // ── Save for later ────────────────────────────────────────────────────────────
-async function saveLater(url: string): Promise<Response<null>> {
+async function saveLater(url: string, title?: string): Promise<Response<null>> {
+  const session = (await getSupabase().auth.getSession()).data.session;
+  if (session) {
+    const { error } = await getSupabase()
+      .from('saved_urls')
+      .upsert(
+        { user_id: session.user.id, url, title: title ?? '' },
+        { onConflict: 'user_id,url' }
+      );
+    if (!error) return { ok: true, data: null };
+    // Fall through to local storage on DB error
+  }
+  // Fallback: local storage (unsigned-in or DB error)
   const storage = await chrome.storage.local.get('saved_urls');
   const saved = (storage.saved_urls || []) as string[];
   if (!saved.includes(url)) { saved.push(url); await chrome.storage.local.set({ saved_urls: saved }); }
+  return { ok: true, data: null };
+}
+
+async function getSavedUrls(): Promise<Response<SavedUrlItem[]>> {
+  const session = (await getSupabase().auth.getSession()).data.session;
+  if (!session) return { ok: true, data: [] };
+  const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+  const { data, error } = await getSupabase()
+    .from('saved_urls')
+    .select('id, url, title, saved_at')
+    .eq('user_id', session.user.id)
+    .gt('saved_at', since)
+    .order('saved_at', { ascending: false })
+    .limit(50);
+  if (error) return { ok: false, error: error.message };
+  return { ok: true, data: (data ?? []) as SavedUrlItem[] };
+}
+
+async function removeSavedUrl(savedUrlId: string): Promise<Response<null>> {
+  const session = (await getSupabase().auth.getSession()).data.session;
+  if (!session) return { ok: false, error: 'Not signed in.' };
+  const { error } = await getSupabase()
+    .from('saved_urls')
+    .delete()
+    .eq('id', savedUrlId)
+    .eq('user_id', session.user.id);
+  if (error) return { ok: false, error: error.message };
   return { ok: true, data: null };
 }
 
