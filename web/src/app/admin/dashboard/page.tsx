@@ -118,7 +118,8 @@ async function fetchSupabaseStats(): Promise<SupabaseStats | null> {
     if (error) {
       const msg = error.message ?? "unknown error";
       console.error("[dashboard] admin_url_stats failed:", error.code, msg);
-      queryErrors.push(`urls stats: ${msg}`);
+      // Throw so unstable_cache does not store this failed result.
+      throw new Error(`admin_url_stats: ${msg}`);
     } else if (data && data.length > 0) {
       const row = data[0];
       totalUrls    = Number(row.total_urls)    || 0;
@@ -129,7 +130,8 @@ async function fetchSupabaseStats(): Promise<SupabaseStats | null> {
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     console.error("[dashboard] admin_url_stats threw:", msg);
-    queryErrors.push(`urls stats: ${msg}`);
+    // Re-throw so unstable_cache does not store this failed result.
+    throw err;
   }
 
   return {
@@ -146,11 +148,12 @@ async function fetchSupabaseStats(): Promise<SupabaseStats | null> {
   };
 }
 
-// Cached indefinitely; only refreshes when the Refresh button calls revalidateTag("admin-dashboard-stats").
+// Cached for 1 hour; also refreshes when the Refresh button calls revalidateTag("admin-dashboard-stats").
+// unstable_cache does not cache thrown errors, so transient DB failures won't persist as stale zeros.
 const getSupabaseStats = unstable_cache(
   fetchSupabaseStats,
   ["admin-dashboard-stats"],
-  { tags: ["admin-dashboard-stats"] },
+  { tags: ["admin-dashboard-stats"], revalidate: 3600 },
 );
 
 async function getSentryIssues(): Promise<SentryIssue[] | null> {
@@ -246,7 +249,10 @@ export default async function AdminDashboardPage() {
   if (!user || user.app_metadata?.role !== "admin") redirect("/");
 
   const [stats, sentryIssues, vercelDeps] = await Promise.all([
-    getSupabaseStats(),
+    getSupabaseStats().catch((err: unknown) => {
+      console.error("[dashboard] stats cache threw:", err instanceof Error ? err.message : String(err));
+      return null;
+    }),
     getSentryIssues(),
     getVercelDeployments(),
   ]);
