@@ -33,6 +33,7 @@ export default function ModerationDetail({
 }: ModerationDetailProps) {
   const supabase = createClient();
   const [status, setStatus] = useState<"idle" | "loading">("idle");
+  const [actionError, setActionError] = useState<string | null>(null);
 
   if (!item) return null;
 
@@ -45,63 +46,69 @@ export default function ModerationDetail({
   async function handleDecision(action: "approved" | "rejected") {
     if (!item) return;
     setStatus("loading");
-    try {
-      const { error: updateError } = await supabase
-        .from("moderation_queue")
-        .update({ status: action })
-        .eq("id", item.id);
+    setActionError(null);
 
-      if (updateError) throw updateError;
+    const { error: updateError } = await supabase
+      .from("moderation_queue")
+      .update({ status: action })
+      .eq("id", item.id);
 
-      if (action === "approved") {
-        const { error: upsertError } = await supabase.from("urls").upsert(
-          {
-            url: item.url,
-            approved: true,
-            title: item.title,
-            description: item.description,
-            subcategory_id: item.subcategory_id,
-          },
-          { onConflict: "url" }
-        );
-        if (upsertError) throw upsertError;
-      }
-
-      onUpdate?.();
-      setTimeout(() => {
-        setStatus("idle");
-        onClose();
-      }, 500);
-    } catch (err) {
-      console.error("Failed to update moderation decision:", err);
+    if (updateError) {
+      console.error("moderation_queue update failed:", updateError);
+      setActionError(updateError.message);
       setStatus("idle");
+      return;
     }
+
+    if (action === "approved") {
+      const { error: upsertError } = await supabase.from("urls").upsert(
+        {
+          url: item.url,
+          original_url: item.url,
+          approved: true,
+          title: item.title,
+          description: item.description,
+          subcategory_id: item.subcategory_id,
+        },
+        { onConflict: "url" }
+      );
+      if (upsertError) {
+        console.error("urls upsert failed:", upsertError);
+        setActionError(`Queue updated but URL insert failed: ${upsertError.message}`);
+        setStatus("idle");
+        return;
+      }
+    }
+
+    onUpdate?.();
+    setStatus("idle");
+    onClose();
   }
 
   async function handleUndo() {
     if (!item) return;
     setStatus("loading");
-    try {
-      const { error: undoError } = await supabase
-        .from("moderation_queue")
-        .update({ status: "pending" })
-        .eq("id", item.id);
-      if (undoError) throw undoError;
+    setActionError(null);
 
-      if (item.status === "approved") {
-        // Delete from urls table if this was an approval
-        await supabase.from("urls").delete().eq("url", item.url);
-      }
+    const { error: undoError } = await supabase
+      .from("moderation_queue")
+      .update({ status: "pending" })
+      .eq("id", item.id);
 
-      onUpdate?.();
-      setTimeout(() => {
-        setStatus("idle");
-        onClose();
-      }, 500);
-    } catch (err) {
-      console.error("Failed to undo moderation decision:", err);
+    if (undoError) {
+      console.error("undo failed:", undoError);
+      setActionError(undoError.message);
       setStatus("idle");
+      return;
     }
+
+    if (item.status === "approved") {
+      await supabase.from("urls").delete().eq("url", item.url);
+    }
+
+    onUpdate?.();
+    setStatus("idle");
+    onClose();
   }
 
   return (
@@ -246,7 +253,13 @@ export default function ModerationDetail({
         </div>
 
         {/* Footer Actions */}
-        <div className="border-t border-zinc-200 dark:border-zinc-800 px-6 py-4 bg-zinc-50 dark:bg-zinc-800/50 flex gap-2 justify-end">
+        <div className="border-t border-zinc-200 dark:border-zinc-800 px-6 py-4 bg-zinc-50 dark:bg-zinc-800/50 flex flex-col gap-3">
+          {actionError && (
+            <p className="text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 rounded-lg px-3 py-2">
+              {actionError}
+            </p>
+          )}
+          <div className="flex gap-2 justify-end">
           <button
             onClick={onClose}
             className="rounded-lg px-4 py-2 text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-700 transition-colors"
@@ -282,6 +295,7 @@ export default function ModerationDetail({
               Undo
             </button>
           )}
+          </div>
         </div>
       </div>
     </div>

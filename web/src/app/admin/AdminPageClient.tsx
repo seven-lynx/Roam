@@ -60,7 +60,7 @@ export default function AdminPageClient() {
 
   async function loadQueue() {
     try {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from("moderation_queue")
         .select(`
           id,
@@ -79,6 +79,11 @@ export default function AdminPageClient() {
           subcategory:subcategories(name)
         `)
         .order("created_at", { ascending: sortBy === "oldest" });
+
+      if (error) {
+        console.error("Failed to load moderation queue:", error);
+        return;
+      }
 
       setItems(
         (data ?? []).map((item) => ({
