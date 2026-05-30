@@ -51,9 +51,6 @@ sealed interface RoamState {
     data class Error(val message: String) : RoamState
 }
 
-@Serializable
-data class SavedUrl(val url: String, val title: String)
-
 data class ProfileStats(val roamed: Int = 0, val submitted: Int = 0)
 
 class MainViewModel(
@@ -295,6 +292,24 @@ class MainViewModel(
         // /functions/v1/roam with the anon key, causing a 401 (ROAM-ANDROID-5).
         // MainScreen's LaunchedEffect fires vm.roam() after auth is established.
         if (repo.hasSession()) startPrefillQueue()
+
+        // Sync saved-for-later list from the server so saves from the web app
+        // and other devices are visible without a reinstall.
+        if (repo.hasSession()) {
+            viewModelScope.launch {
+                runCatching {
+                    val serverUrls = repo.getSavedUrls()
+                    if (serverUrls.isNotEmpty()) {
+                        val local = _savedUrls.value
+                        // Server is source of truth; merge so locally-saved items that
+                        // haven't been pushed yet (e.g. offline saves) are preserved.
+                        val merged = (serverUrls + local).distinctBy { it.url }
+                        _savedUrls.value = merged
+                        persistSavedUrls(merged)
+                    }
+                }
+            }
+        }
 
         // Observe connectivity; flush queued ratings when back online (14.9)
         viewModelScope.launch {

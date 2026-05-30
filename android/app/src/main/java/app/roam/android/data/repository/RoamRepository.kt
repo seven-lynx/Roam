@@ -5,6 +5,7 @@ import app.roam.android.model.CategoryItem
 import app.roam.android.model.Collection
 import app.roam.android.model.CollectionItem
 import app.roam.android.model.RoamUrl
+import app.roam.android.model.SavedUrl
 import app.roam.android.model.SubcategoryItem
 import app.roam.android.model.UserProfile
 import app.roam.android.model.UserSettings
@@ -225,6 +226,20 @@ class RoamRepository {
             }
             .decodeList<RoamUrl>()
         return results.firstOrNull()
+    }
+
+    /**
+     * Returns the current user's server-side saved-for-later list, newest first.
+     * Used to sync the Android app with saves made on the web or other devices.
+     */
+    suspend fun getSavedUrls(): List<SavedUrl> {
+        supabase.auth.currentUserOrNull() ?: return emptyList()
+        return supabase.postgrest
+            .from("saved_urls")
+            .select(Columns.list("url", "title")) {
+                order("saved_at", Order.DESCENDING)
+            }
+            .decodeList()
     }
 
     /** Saves a URL to the server-side saved_urls table. */

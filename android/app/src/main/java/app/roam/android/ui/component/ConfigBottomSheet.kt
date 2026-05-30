@@ -36,7 +36,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import app.roam.android.model.Collection
-import app.roam.android.viewmodel.SavedUrl
+import app.roam.android.model.SavedUrl
 
 private data class Language(val code: String, val label: String)
 

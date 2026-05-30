@@ -3,6 +3,7 @@ package app.roam.android.ui.screen
 import android.content.Intent
 import android.net.Uri
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
@@ -53,8 +54,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import app.roam.android.model.Collection
 import app.roam.android.model.CollectionItem
+import app.roam.android.model.SavedUrl
 import app.roam.android.viewmodel.MainViewModel
-import app.roam.android.viewmodel.SavedUrl
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -207,6 +208,18 @@ private fun SavedTab(
                             style = MaterialTheme.typography.titleSmall,
                             color = MaterialTheme.colorScheme.onPrimaryContainer,
                         )
+                        IconButton(
+                            onClick = {
+                                selectedUrls.forEach { vm.removeSavedUrl(it) }
+                                selectedUrls = emptySet()
+                            },
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.Delete,
+                                contentDescription = "Delete selected",
+                                tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                            )
+                        }
                         TextButton(
                             onClick = {
                                 vm.loadCollections()
@@ -496,6 +509,7 @@ private fun CollectionDetailTab(
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun SavedUrlRow(
     item: SavedUrl,
