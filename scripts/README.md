@@ -59,7 +59,7 @@ All sources are free public APIs or datasets — no scraping, no paywalled conte
 | `seed-sep.mjs` | Stanford Encyclopedia of Philosophy (contents page) | none | 1,861 | ✅ Live |
 | `seed-hn-discussions.mjs` | Ask HN threads (points > 200, comments > 100) | none | 882 | ✅ Live |
 | `seed-atlantic-newyorker.mjs` | The Atlantic + The New Yorker RSS | none | 312 | ✅ Live |
-| `seed-flickr-commons.mjs` | Flickr: The Commons (public-domain institutional photos) | none | ~440 | ⬜ Not run |
+| `seed-flickr-commons.mjs` | Flickr: The Commons (public-domain institutional photos) | none | 460 | ✅ Live |
 
 **Total: ~3.2M URLs across 34+ active sources** *(as of May 2026)*
 

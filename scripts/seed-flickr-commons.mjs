@@ -59,13 +59,13 @@ const INSTITUTIONS = [
     subcatId:    SUBCATEGORY.ANCIENT_MEDIEVAL_HISTORY,
   },
   {
-    nsid:        '34101206@N08',
+    nsid:        '13145591@N06',
     name:        'National Library of Australia',
     categoryId:  CATEGORY.HISTORY_IDEAS,
     subcatId:    SUBCATEGORY.MODERN_HISTORY,
   },
   {
-    nsid:        '9196820@N00',
+    nsid:        '60849810@N05',
     name:        'State Library Victoria',
     categoryId:  CATEGORY.HISTORY_IDEAS,
     subcatId:    SUBCATEGORY.SOCIAL_HISTORY,
@@ -79,20 +79,8 @@ const INSTITUTIONS = [
 
   // ── Art Museums ───────────────────────────────────────────────────────────
   {
-    nsid:        '40829490@N04',
-    name:        'Rijksmuseum',
-    categoryId:  CATEGORY.ARTS_CULTURE,
-    subcatId:    SUBCATEGORY.VISUAL_ART,
-  },
-  {
-    nsid:        '35436291@N05',
+    nsid:        '97196941@N08',
     name:        'National Gallery of Art',
-    categoryId:  CATEGORY.ARTS_CULTURE,
-    subcatId:    SUBCATEGORY.VISUAL_ART,
-  },
-  {
-    nsid:        '26152503@N04',
-    name:        'National Galleries of Scotland',
     categoryId:  CATEGORY.ARTS_CULTURE,
     subcatId:    SUBCATEGORY.VISUAL_ART,
   },
@@ -105,7 +93,7 @@ const INSTITUTIONS = [
 
   // ── Natural History & Science ─────────────────────────────────────────────
   {
-    nsid:        '35127462@N08',
+    nsid:        '44494372@N05',
     name:        'NASA on The Commons',
     categoryId:  CATEGORY.SCIENCE,
     subcatId:    SUBCATEGORY.SPACE_ASTRONOMY,
@@ -122,36 +110,19 @@ const INSTITUTIONS = [
     categoryId:  CATEGORY.SCIENCE,
     subcatId:    SUBCATEGORY.MEDICINE_HEALTH_SCIENCE,
   },
-  {
-    nsid:        '9422878@N06',
-    name:        'Science Museum Group',
-    categoryId:  CATEGORY.SCIENCE,
-    subcatId:    SUBCATEGORY.MEDICINE_HEALTH_SCIENCE,
-  },
+
 
   // ── Photography Museums ───────────────────────────────────────────────────
   {
-    nsid:        '7424879@N04',
-    name:        'George Eastman Museum',
-    categoryId:  CATEGORY.ARTS_CULTURE,
-    subcatId:    SUBCATEGORY.PHOTOGRAPHY,
-  },
-  {
-    nsid:        '47103991@N07',
-    name:        'Museum of Photographic Arts',
+    nsid:        '7241194@N08',
+    name:        'Museum of Photographic Arts (MOPA)',
     categoryId:  CATEGORY.ARTS_CULTURE,
     subcatId:    SUBCATEGORY.PHOTOGRAPHY,
   },
 
   // ── Military & Maritime History ────────────────────────────────────────────
   {
-    nsid:        '70568523@N05',
-    name:        'Imperial War Museum',
-    categoryId:  CATEGORY.HISTORY_IDEAS,
-    subcatId:    SUBCATEGORY.MILITARY_HISTORY,
-  },
-  {
-    nsid:        '11474655@N00',
+    nsid:        '11334970@N05',
     name:        'National Maritime Museum',
     categoryId:  CATEGORY.HISTORY_IDEAS,
     subcatId:    SUBCATEGORY.SOCIAL_HISTORY,
@@ -165,16 +136,10 @@ const INSTITUTIONS = [
 
   // ── Social & Labour History ───────────────────────────────────────────────
   {
-    nsid:        '27116820@N05',
+    nsid:        '38445726@N04',
     name:        'Kheel Center (Cornell)',
     categoryId:  CATEGORY.HISTORY_IDEAS,
     subcatId:    SUBCATEGORY.SOCIAL_HISTORY,
-  },
-  {
-    nsid:        '75785096@N00',
-    name:        'Prelinger Archives',
-    categoryId:  CATEGORY.HISTORY_IDEAS,
-    subcatId:    SUBCATEGORY.MODERN_HISTORY,
   },
 
   // ── City & Regional Collections ────────────────────────────────────────────
@@ -184,12 +149,7 @@ const INSTITUTIONS = [
     categoryId:  CATEGORY.PEOPLE_PLACES,
     subcatId:    SUBCATEGORY.CITIES_URBAN_LIFE,
   },
-  {
-    nsid:        '55877901@N06',
-    name:        'Penn Museum',
-    categoryId:  CATEGORY.HISTORY_IDEAS,
-    subcatId:    SUBCATEGORY.ANTHROPOLOGY_ARCHAEOLOGY,
-  },
+
 ];
 
 // ── Build RSS URL for a given institution NSID ────────────────────────────────
