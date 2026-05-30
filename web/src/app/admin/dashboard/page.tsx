@@ -105,26 +105,32 @@ async function fetchSupabaseStats(): Promise<SupabaseStats | null> {
     admin.from("ratings").select("*", { count: "exact", head: true }),
     queryErrors,
   );
-  const recentUrls = await countWithTimeout(
-    "recentUrls",
-    admin.from("urls").select("*", { count: "exact", head: true }).gte("created_at", sevenDaysAgo),
-    queryErrors,
-  );
-  const inactiveUrls = await countWithTimeout(
-    "inactiveUrls",
-    admin.from("urls").select("*", { count: "exact", head: true }).eq("inactive", true),
-    queryErrors,
-  );
-  const approvedUrls = await countWithTimeout(
-    "approvedUrls",
-    admin.from("urls").select("*", { count: "exact", head: true }).eq("approved", true),
-    queryErrors,
-  );
-  const totalUrls = await countWithTimeout(
-    "totalUrls",
-    admin.from("urls").select("*", { count: "exact", head: true }),
-    queryErrors,
-  );
+  // All four urls-table counts in one RPC call — single table scan, and the
+  // function sets statement_timeout = '30s' to override the PostgREST default.
+  let recentUrls = 0, inactiveUrls = 0, approvedUrls = 0, totalUrls = 0;
+  try {
+    const { data, error } = await Promise.race([
+      admin.rpc("admin_url_stats", { since_date: sevenDaysAgo }),
+      new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error(`admin_url_stats timed out after ${QUERY_TIMEOUT_MS}ms`)), QUERY_TIMEOUT_MS),
+      ),
+    ]);
+    if (error) {
+      const msg = error.message ?? "unknown error";
+      console.error("[dashboard] admin_url_stats failed:", error.code, msg);
+      queryErrors.push(`urls stats: ${msg}`);
+    } else if (data && data.length > 0) {
+      const row = data[0];
+      totalUrls    = Number(row.total_urls)    || 0;
+      approvedUrls = Number(row.approved_urls) || 0;
+      inactiveUrls = Number(row.inactive_urls) || 0;
+      recentUrls   = Number(row.recent_urls)   || 0;
+    }
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error("[dashboard] admin_url_stats threw:", msg);
+    queryErrors.push(`urls stats: ${msg}`);
+  }
 
   return {
     totalUrls,
