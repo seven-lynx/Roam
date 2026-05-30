@@ -330,7 +330,7 @@ fun SettingsScreen(
                 subtitle = "Tell us what you think",
                 onClick = {
                     val intent = Intent(Intent.ACTION_SENDTO).apply {
-                        data = Uri.parse("mailto:hello@roamtheweb.app")
+                        data = Uri.parse("mailto:developer@roamtheweb.app")
                         putExtra(Intent.EXTRA_SUBJECT, "Roam feedback")
                     }
                     context.startActivity(Intent.createChooser(intent, "Send feedback"))

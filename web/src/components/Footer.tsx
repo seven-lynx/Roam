@@ -22,7 +22,7 @@ export function Footer() {
             Privacy
           </Link>
           <a
-            href="mailto:legal@roamtheweb.app"
+            href="mailto:support@roamtheweb.app"
             className="hover:text-zinc-900 dark:hover:text-white transition-colors"
           >
             Support
