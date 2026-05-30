@@ -14,11 +14,12 @@ $targets = @(
     @{ size = 32;   dest = "web\public\icon-32.png";          src = $logo2 },
     @{ size = 180;  dest = "web\public\apple-touch-icon.png"; src = $logo2 },
     @{ size = 512;  dest = "web\public\icon-512.png";         src = $logo2 },
-    # Extension — roam_logo2, scaled to fill the full icon
-    @{ size = 16;   dest = "extension\icons\icon-16.png";     src = $logo2 },
-    @{ size = 32;   dest = "extension\icons\icon-32.png";     src = $logo2 },
-    @{ size = 48;   dest = "extension\icons\icon-48.png";     src = $logo2 },
-    @{ size = 128;  dest = "extension\icons\icon-128.png";    src = $logo2 },
+    # Extension — roam_logo2, tight-cropped to content bounds (no whitespace)
+    # Crop rect measured from image: content at (30,88)-(448,431), square centered = (24,45,429,429)
+    @{ size = 16;   dest = "extension\icons\icon-16.png";     src = $logo2; crop = @(24,45,429,429) },
+    @{ size = 32;   dest = "extension\icons\icon-32.png";     src = $logo2; crop = @(24,45,429,429) },
+    @{ size = 48;   dest = "extension\icons\icon-48.png";     src = $logo2; crop = @(24,45,429,429) },
+    @{ size = 128;  dest = "extension\icons\icon-128.png";    src = $logo2; crop = @(24,45,429,429) },
     # Android / Play Store  (roam_logo — do not change)
     @{ size = 48;   dest = "android\res\icon-48.png";         src = $logo1 },
     @{ size = 72;   dest = "android\res\icon-72.png";         src = $logo1 },
@@ -37,7 +38,13 @@ foreach ($t in $targets) {
     $g   = [System.Drawing.Graphics]::FromImage($bmp)
     $g.InterpolationMode = [System.Drawing.Drawing2D.InterpolationMode]::HighQualityBicubic
     $g.SmoothingMode     = [System.Drawing.Drawing2D.SmoothingMode]::HighQuality
-    $g.DrawImage($t.src, 0, 0, $t.size, $t.size)
+    if ($t.crop) {
+        $srcRect  = New-Object System.Drawing.Rectangle($t.crop[0], $t.crop[1], $t.crop[2], $t.crop[3])
+        $destRect = New-Object System.Drawing.Rectangle(0, 0, $t.size, $t.size)
+        $g.DrawImage($t.src, $destRect, $srcRect, [System.Drawing.GraphicsUnit]::Pixel)
+    } else {
+        $g.DrawImage($t.src, 0, 0, $t.size, $t.size)
+    }
     $g.Dispose()
     $bmp.Save($destPath, [System.Drawing.Imaging.ImageFormat]::Png)
     $bmp.Dispose()
