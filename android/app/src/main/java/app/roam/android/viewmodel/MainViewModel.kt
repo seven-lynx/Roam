@@ -2,8 +2,6 @@
 
 import android.app.Application
 import android.content.Context
-import android.graphics.Bitmap
-import android.graphics.BitmapFactory
 import android.net.Uri
 import android.os.VibrationEffect
 import android.os.Vibrator
@@ -19,7 +17,6 @@ import app.roam.android.model.UserProfile
 import app.roam.android.util.connectivityFlow
 import io.github.jan.supabase.exceptions.UnauthorizedRestException
 import io.sentry.Sentry
-import java.io.ByteArrayOutputStream
 import java.io.IOException
 import java.net.HttpURLConnection
 import java.net.URL
@@ -757,23 +754,6 @@ class MainViewModel(
         }
     }
 
-    /**
-     * Reads the image from [uri], compresses it to ≤ 600 px JPEG, uploads to Supabase Storage,
-     * then updates the profile's avatar_url.
-     */
-    fun onAvatarPicked(uri: Uri) {
-        viewModelScope.launch {
-            runCatching {
-                val contentResolver = getApplication<android.app.Application>().contentResolver
-                val raw = contentResolver.openInputStream(uri)?.use { it.readBytes() }
-                    ?: return@runCatching
-                val compressed = compressJpeg(raw)
-                val avatarUrl = repo.uploadAvatar(compressed)
-                _profile.value = _profile.value?.copy(avatarUrl = avatarUrl)
-            }
-        }
-    }
-
     /** Optimistically toggles a category, then syncs to Supabase. */
     fun toggleCategory(categoryId: String, selected: Boolean) {
         _userCategoryIds.value = if (selected) {
@@ -784,25 +764,6 @@ class MainViewModel(
         viewModelScope.launch {
             runCatching { repo.setUserCategory(categoryId, selected) }
         }
-    }
-
-    private fun compressJpeg(input: ByteArray, maxDim: Int = 600): ByteArray {
-        val bitmap = BitmapFactory.decodeByteArray(input, 0, input.size) ?: return input
-        val scaled = if (bitmap.width > maxDim || bitmap.height > maxDim) {
-            val scale = maxDim.toFloat() / maxOf(bitmap.width, bitmap.height)
-            Bitmap.createScaledBitmap(
-                bitmap,
-                (bitmap.width * scale).toInt(),
-                (bitmap.height * scale).toInt(),
-                true,
-            )
-        } else bitmap
-        val out = ByteArrayOutputStream()
-        scaled.compress(Bitmap.CompressFormat.JPEG, 85, out)
-        // Recycle intermediate bitmaps to release native memory immediately.
-        if (scaled !== bitmap) scaled.recycle()
-        bitmap.recycle()
-        return out.toByteArray()
     }
 
     // ── Pending ratings flush (14.9) ──────────────────────────────────────────

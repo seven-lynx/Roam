@@ -1,8 +1,5 @@
 package app.roam.android.ui.screen
 
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.PickVisualMediaRequest
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -21,19 +18,14 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CameraAlt
-import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SmallFloatingActionButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
@@ -44,12 +36,13 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import app.roam.android.viewmodel.MainViewModel
-import coil3.compose.SubcomposeAsyncImage
 import kotlinx.coroutines.delay
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
@@ -66,11 +59,6 @@ fun ProfileScreen(vm: MainViewModel, onSignOut: () -> Unit) {
     var username by remember(profile?.username) { mutableStateOf(profile?.username ?: "") }
     var displayName by remember(profile?.displayName) { mutableStateOf(profile?.displayName ?: "") }
     var bio by remember(profile?.bio) { mutableStateOf(profile?.bio ?: "") }
-
-    // Photo picker launcher
-    val avatarLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.PickVisualMedia(),
-    ) { uri -> uri?.let { vm.onAvatarPicked(it) } }
 
     // Debounced auto-save: cancels and restarts on every keystroke
     LaunchedEffect(username, displayName, bio) {
@@ -94,48 +82,23 @@ fun ProfileScreen(vm: MainViewModel, onSignOut: () -> Unit) {
         ) {
             Spacer(Modifier.height(8.dp))
 
-            // Avatar with camera overlay
-            Box {
-                SubcomposeAsyncImage(
-                    model = profile?.avatarUrl,
-                    contentDescription = "Profile avatar",
-                    modifier = Modifier
-                        .size(96.dp)
-                        .clip(CircleShape),
-                    loading = {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .background(MaterialTheme.colorScheme.surfaceVariant),
-                        )
-                    },
-                    error = {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .background(MaterialTheme.colorScheme.surfaceVariant),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            Icon(
-                                imageVector = Icons.Filled.Person,
-                                contentDescription = null,
-                                modifier = Modifier.size(48.dp),
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
-                    },
+            // Stylized initial avatar — color derived deterministically from display name
+            val avatarName = (profile?.displayName?.takeIf { it.isNotBlank() }
+                ?: profile?.username
+                ?: "?").trim()
+            val avatarColor = avatarColorFor(avatarName)
+            Box(
+                modifier = Modifier
+                    .size(96.dp)
+                    .background(avatarColor, CircleShape),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    text = avatarName.first().uppercaseChar().toString(),
+                    color = Color.White,
+                    fontSize = 40.sp,
+                    fontWeight = FontWeight.Bold,
                 )
-                SmallFloatingActionButton(
-                    onClick = {
-                        avatarLauncher.launch(
-                            PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly),
-                        )
-                    },
-                    modifier = Modifier.align(Alignment.BottomEnd),
-                    containerColor = MaterialTheme.colorScheme.primaryContainer,
-                ) {
-                    Icon(Icons.Filled.CameraAlt, contentDescription = "Change avatar")
-                }
             }
 
             // Stats row — shown once profile is loaded
@@ -233,5 +196,24 @@ private fun StatCell(label: String, value: String) {
             overflow = TextOverflow.Ellipsis,
         )
     }
+}
+
+private val AVATAR_COLORS = listOf(
+    Color(0xFFE53935), // rose
+    Color(0xFFF4511E), // orange
+    Color(0xFFF6BF26), // amber
+    Color(0xFF33B679), // emerald
+    Color(0xFF0B8043), // teal
+    Color(0xFF039BE5), // sky
+    Color(0xFF3F51B5), // blue
+    Color(0xFF7986CB), // violet
+    Color(0xFF8E24AA), // purple
+    Color(0xFFD81B60), // pink
+)
+
+private fun avatarColorFor(name: String): Color {
+    var hash = 0
+    for (ch in name) hash = (hash * 31 + ch.code) and 0x7FFFFFFF
+    return AVATAR_COLORS[hash % AVATAR_COLORS.size]
 }
 

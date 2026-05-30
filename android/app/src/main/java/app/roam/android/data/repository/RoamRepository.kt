@@ -12,7 +12,6 @@ import io.github.jan.supabase.functions.functions
 import io.github.jan.supabase.postgrest.postgrest
 import io.github.jan.supabase.postgrest.query.Columns
 import io.github.jan.supabase.postgrest.query.Order
-import io.github.jan.supabase.storage.storage
 import io.ktor.client.call.body
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
@@ -276,17 +275,6 @@ class RoamRepository {
         supabase.postgrest
             .from("profiles")
             .upsert(ProfileUpdateRow(id = userId, username = username, displayName = displayName, bio = bio))
-    }
-
-    /**
-     * Uploads [bytes] to the `avatars` storage bucket under `{userId}/avatar.jpg` (upsert).
-     * Returns the public URL of the uploaded file.
-     */
-    suspend fun uploadAvatar(bytes: ByteArray): String {
-        val userId = supabase.auth.currentUserOrNull()?.id ?: error("Not authenticated")
-        val path = "$userId/avatar.jpg"
-        supabase.storage.from("avatars").upload(path, bytes) { upsert = true }
-        return supabase.storage.from("avatars").publicUrl(path)
     }
 
     /**
