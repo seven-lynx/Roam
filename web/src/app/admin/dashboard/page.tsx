@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { unstable_cache } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { createClient as createSupabaseAdmin } from "@supabase/supabase-js";
 import Link from "next/link";
@@ -6,7 +7,6 @@ import type { Metadata } from "next";
 import RefreshButton from "./RefreshButton";
 
 export const metadata: Metadata = { title: "Admin · Dashboard" };
-export const dynamic = "force-dynamic";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -20,6 +20,7 @@ type SupabaseStats = {
   totalRatings: number;
   inactiveUrls: number;
   queryErrors: string[];
+  refreshedAt: number;
 };
 
 type SentryIssue = {
@@ -44,64 +45,107 @@ type VercelDeployment = {
 
 // ─── Data fetchers ────────────────────────────────────────────────────────────
 
-async function getSupabaseStats(): Promise<SupabaseStats | null> {
+// Per-query timeout. The default Supabase / PostgREST statement timeout is 8s;
+// counts on the urls table (~3.2M rows) often need longer when not cached.
+const QUERY_TIMEOUT_MS = 25_000;
+
+type CountQuery = PromiseLike<{ count: number | null; error: { message?: string; code?: string } | null }>;
+
+async function countWithTimeout(name: string, query: CountQuery, queryErrors: string[]): Promise<number> {
+  try {
+    const res = await Promise.race([
+      query,
+      new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error(`${name} timed out after ${QUERY_TIMEOUT_MS}ms`)), QUERY_TIMEOUT_MS),
+      ),
+    ]);
+    if (res.error) {
+      const msg = res.error.message ?? "unknown error";
+      console.error(`[dashboard] ${name} query failed:`, res.error.code, msg);
+      queryErrors.push(`${name}: ${msg}`);
+      return 0;
+    }
+    return res.count ?? 0;
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error(`[dashboard] ${name} query threw:`, msg);
+    queryErrors.push(`${name}: ${msg}`);
+    return 0;
+  }
+}
+
+async function fetchSupabaseStats(): Promise<SupabaseStats | null> {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!url || !serviceKey) return null;
 
   const admin = createSupabaseAdmin(url, serviceKey);
   const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
-
-  const [totalRes, approvedRes, pendingRes, usersRes, newUsersRes, recentRes, ratingsRes, inactiveRes] = await Promise.all([
-    admin.from("urls").select("*", { count: "exact", head: true }),
-    admin.from("urls").select("*", { count: "exact", head: true }).eq("approved", true),
-    admin
-      .from("moderation_queue")
-      .select("*", { count: "exact", head: true })
-      .eq("status", "pending"),
-    admin.from("profiles").select("*", { count: "exact", head: true }),
-    admin
-      .from("profiles")
-      .select("*", { count: "exact", head: true })
-      .gte("created_at", sevenDaysAgo),
-    admin
-      .from("urls")
-      .select("*", { count: "exact", head: true })
-      .gte("created_at", sevenDaysAgo),
-    admin.from("ratings").select("*", { count: "exact", head: true }),
-    admin.from("urls").select("*", { count: "exact", head: true }).eq("inactive", true),
-  ]);
-
   const queryErrors: string[] = [];
-  const results = [
-    ["totalUrls", totalRes],
-    ["approvedUrls", approvedRes],
-    ["pendingModeration", pendingRes],
-    ["totalUsers", usersRes],
-    ["newUsersThisWeek", newUsersRes],
-    ["recentUrls", recentRes],
-    ["totalRatings", ratingsRes],
-    ["inactiveUrls", inactiveRes],
-  ] as const;
-  for (const [name, res] of results) {
-    if (res.error) {
-      console.error(`[dashboard] ${name} query failed:`, res.error.code, res.error.message);
-      queryErrors.push(`${name}: ${res.error.message}`);
-    }
-  }
+
+  // Run sequentially so we don't hammer Supabase with 8 simultaneous full-table counts.
+  // Cheaper queries first; expensive urls counts last.
+  const pendingModeration = await countWithTimeout(
+    "pendingModeration",
+    admin.from("moderation_queue").select("*", { count: "exact", head: true }).eq("status", "pending"),
+    queryErrors,
+  );
+  const totalUsers = await countWithTimeout(
+    "totalUsers",
+    admin.from("profiles").select("*", { count: "exact", head: true }),
+    queryErrors,
+  );
+  const newUsersThisWeek = await countWithTimeout(
+    "newUsersThisWeek",
+    admin.from("profiles").select("*", { count: "exact", head: true }).gte("created_at", sevenDaysAgo),
+    queryErrors,
+  );
+  const totalRatings = await countWithTimeout(
+    "totalRatings",
+    admin.from("ratings").select("*", { count: "exact", head: true }),
+    queryErrors,
+  );
+  const recentUrls = await countWithTimeout(
+    "recentUrls",
+    admin.from("urls").select("*", { count: "exact", head: true }).gte("created_at", sevenDaysAgo),
+    queryErrors,
+  );
+  const inactiveUrls = await countWithTimeout(
+    "inactiveUrls",
+    admin.from("urls").select("*", { count: "exact", head: true }).eq("inactive", true),
+    queryErrors,
+  );
+  const approvedUrls = await countWithTimeout(
+    "approvedUrls",
+    admin.from("urls").select("*", { count: "exact", head: true }).eq("approved", true),
+    queryErrors,
+  );
+  const totalUrls = await countWithTimeout(
+    "totalUrls",
+    admin.from("urls").select("*", { count: "exact", head: true }),
+    queryErrors,
+  );
 
   return {
-    totalUrls: totalRes.count ?? 0,
-    approvedUrls: approvedRes.count ?? 0,
-    pendingModeration: pendingRes.count ?? 0,
-    totalUsers: usersRes.count ?? 0,
-    newUsersThisWeek: newUsersRes.count ?? 0,
-    recentUrls: recentRes.count ?? 0,
-    totalRatings: ratingsRes.count ?? 0,
-    inactiveUrls: inactiveRes.count ?? 0,
+    totalUrls,
+    approvedUrls,
+    pendingModeration,
+    totalUsers,
+    newUsersThisWeek,
+    recentUrls,
+    totalRatings,
+    inactiveUrls,
     queryErrors,
+    refreshedAt: Date.now(),
   };
 }
+
+// Cached indefinitely; only refreshes when the Refresh button calls revalidateTag("admin-dashboard-stats").
+const getSupabaseStats = unstable_cache(
+  fetchSupabaseStats,
+  ["admin-dashboard-stats"],
+  { tags: ["admin-dashboard-stats"] },
+);
 
 async function getSentryIssues(): Promise<SentryIssue[] | null> {
   const token = process.env.SENTRY_AUTH_TOKEN;
@@ -211,7 +255,7 @@ export default async function AdminDashboardPage() {
               System Dashboard
             </h1>
             <p className="mt-1 text-zinc-500 dark:text-zinc-400 text-sm">
-              Last refreshed: {new Date().toLocaleTimeString()}
+              Stats refreshed: {stats ? new Date(stats.refreshedAt).toLocaleString() : "never"}
             </p>
           </div>
           <div className="flex items-center gap-3">
