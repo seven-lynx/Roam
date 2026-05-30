@@ -60,8 +60,9 @@ All sources are free public APIs or datasets — no scraping, no paywalled conte
 | `seed-hn-discussions.mjs` | Ask HN threads (points > 200, comments > 100) | none | 882 | ✅ Live |
 | `seed-atlantic-newyorker.mjs` | The Atlantic + The New Yorker RSS | none | 312 | ✅ Live |
 | `seed-flickr-commons.mjs` | Flickr: The Commons (public-domain institutional photos) | none | 460 | ✅ Live |
+| `seed-dpla.mjs` | Digital Public Library of America | `DPLA_API_KEY` | 19,660 | ✅ Live |
 
-**Total: ~3.2M URLs across 34+ active sources** *(as of May 2026)*
+**Total: ~3.2M URLs across 35+ active sources** *(as of May 2026)*
 
 ## Setup
 
