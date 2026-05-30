@@ -2,6 +2,7 @@ import { notFound } from 'next/navigation';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/server';
+import { Avatar } from '@/components/UI';
 
 export const revalidate = 60;
 
@@ -54,24 +55,13 @@ export default async function PublicProfilePage({ params }: Props) {
   const interests = (userCategories ?? [])
     .flatMap(r => r.categories ? [r.categories as unknown as { name: string; icon: string }] : []);
 
-  const initial = (profile.display_name || profile.username || '?')[0].toUpperCase();
-
   return (
     <div className="min-h-[calc(100vh-8rem)] bg-white dark:bg-zinc-950">
       <div className="max-w-2xl mx-auto px-6 py-12 flex flex-col gap-10">
 
         {/* Header */}
         <div className="flex items-center gap-5">
-          <div className="flex items-center justify-center w-16 h-16 rounded-full bg-zinc-200 dark:bg-zinc-800 text-2xl font-bold text-zinc-900 dark:text-white shrink-0">
-            {profile.avatar_url ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={profile.avatar_url}
-                alt={profile.username}
-                className="w-16 h-16 rounded-full object-cover"
-              />
-            ) : initial}
-          </div>
+          <Avatar name={profile.display_name || profile.username} size="lg" />
           <div>
             <h1 className="text-2xl font-bold text-zinc-900 dark:text-white">
               {profile.display_name || profile.username}

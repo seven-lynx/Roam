@@ -5,6 +5,7 @@ import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { useAuth } from '@/components/AuthProvider';
+import { avatarPalette } from '@/components/UI';
 import { useState, useEffect, useRef } from 'react';
 
 export function Header() {
@@ -37,7 +38,10 @@ export function Header() {
     router.push('/');
   };
 
-  const initial = session?.user?.email?.[0].toUpperCase() ?? '?';
+  const avatarName = (session?.user?.user_metadata?.display_name as string | undefined)
+    || session?.user?.email
+    || '?';
+  const [avatarBg, avatarFg] = avatarPalette(avatarName);
 
   if (loading) {
     return (
@@ -103,9 +107,9 @@ export function Header() {
             onClick={() => setProfileMenu(v => !v)}
             aria-label="Open account menu"
             aria-expanded={profileMenu}
-            className="flex items-center justify-center w-10 h-10 rounded-full bg-zinc-200 dark:bg-zinc-800 hover:bg-zinc-300 dark:hover:bg-zinc-700 transition-colors text-zinc-900 dark:text-white font-semibold text-sm"
+            className={`flex items-center justify-center w-10 h-10 rounded-full ${avatarBg} ${avatarFg} hover:opacity-90 transition-opacity font-bold text-sm`}
           >
-            {initial}
+            {avatarName[0].toUpperCase()}
           </button>
 
           {profileMenu && (

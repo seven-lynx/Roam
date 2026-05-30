@@ -82,16 +82,40 @@ export function Input({
   );
 }
 
-export function Avatar({ initial, size = 'md' }: { initial: string; size?: 'sm' | 'md' | 'lg' }) {
+const AVATAR_PALETTES = [
+  ['bg-rose-500',    'text-white'],
+  ['bg-orange-500',  'text-white'],
+  ['bg-amber-500',   'text-white'],
+  ['bg-lime-600',    'text-white'],
+  ['bg-emerald-600', 'text-white'],
+  ['bg-teal-600',    'text-white'],
+  ['bg-cyan-600',    'text-white'],
+  ['bg-sky-600',     'text-white'],
+  ['bg-blue-600',    'text-white'],
+  ['bg-violet-600',  'text-white'],
+  ['bg-purple-600',  'text-white'],
+  ['bg-fuchsia-600', 'text-white'],
+  ['bg-pink-600',    'text-white'],
+] as const;
+
+export function avatarPalette(name: string): readonly [string, string] {
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) hash = (hash * 31 + name.charCodeAt(i)) >>> 0;
+  return AVATAR_PALETTES[hash % AVATAR_PALETTES.length];
+}
+
+export function Avatar({ name, size = 'md' }: { name: string; size?: 'sm' | 'md' | 'lg' }) {
   const sizeClass = {
     sm: 'w-8 h-8 text-xs',
     md: 'w-10 h-10 text-sm',
-    lg: 'w-16 h-16 text-lg',
+    lg: 'w-16 h-16 text-xl',
   }[size];
+  const [bg, fg] = avatarPalette(name || '?');
+  const initial = (name || '?')[0].toUpperCase();
 
   return (
-    <div className={`${sizeClass} rounded-full bg-zinc-200 dark:bg-zinc-800 flex items-center justify-center font-semibold text-zinc-900 dark:text-white`}>
-      {initial.toUpperCase()}
+    <div className={`${sizeClass} ${bg} ${fg} rounded-full flex items-center justify-center font-bold shrink-0`}>
+      {initial}
     </div>
   );
 }
