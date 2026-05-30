@@ -6,6 +6,11 @@ type AdminAnalyticsResult = {
   submissions_by_date: { date: string; count: number }[];
   submissions_by_category: { category: string; count: number }[];
   top_urls: { url: string; title: string; wilson_score: number; upvotes: number; downvotes: number }[];
+  queue_stats: { approved: number; rejected: number; pending: number };
+  top_rated_categories: { category: string; rated_urls: number; avg_score: number }[];
+  source_breakdown: { source: string; count: number }[];
+  language_distribution: { language: string; count: number }[];
+  dead_by_category: { category: string; total: number; inactive_count: number; dead_pct: number }[];
 };
 
 export async function getAdminAnalytics(): Promise<{ data: AdminAnalyticsResult | null; error: string | null }> {

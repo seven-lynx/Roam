@@ -39,12 +39,22 @@ type AnalyticsData = {
   submissionsByDate: { date: string; count: number }[];
   submissionsByCategory: { category: string; count: number }[];
   topUrls: { url: string; title: string; wilson_score: number; upvotes: number; downvotes: number }[];
+  queueStats: { approved: number; rejected: number; pending: number };
+  topRatedCategories: { category: string; rated_urls: number; avg_score: number }[];
+  sourceBreakdown: { source: string; count: number }[];
+  languageDistribution: { language: string; count: number }[];
+  deadByCategory: { category: string; total: number; inactive_count: number; dead_pct: number }[];
 };
 
 const EMPTY_ANALYTICS: AnalyticsData = {
   submissionsByDate: [],
   submissionsByCategory: [],
   topUrls: [],
+  queueStats: { approved: 0, rejected: 0, pending: 0 },
+  topRatedCategories: [],
+  sourceBreakdown: [],
+  languageDistribution: [],
+  deadByCategory: [],
 };
 
 type ReportedLink = {
@@ -138,6 +148,11 @@ export default function AdminPageClient() {
         submissionsByDate: result.submissions_by_date ?? [],
         submissionsByCategory: result.submissions_by_category ?? [],
         topUrls: result.top_urls ?? [],
+        queueStats: result.queue_stats ?? { approved: 0, rejected: 0, pending: 0 },
+        topRatedCategories: result.top_rated_categories ?? [],
+        sourceBreakdown: result.source_breakdown ?? [],
+        languageDistribution: result.language_distribution ?? [],
+        deadByCategory: result.dead_by_category ?? [],
       });
       setAnalyticsLoaded(true);
     } catch (err) {
@@ -505,6 +520,164 @@ export default function AdminPageClient() {
                     </div>
                   ) : (
                     <p className="text-zinc-500 text-sm">No rated URLs yet</p>
+                  )}
+                </div>
+
+                {/* Queue Stats */}
+                <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 p-6">
+                  <h2 className="text-lg font-semibold text-zinc-900 dark:text-white mb-1">
+                    Moderation Queue
+                  </h2>
+                  <p className="text-xs text-zinc-400 dark:text-zinc-500 mb-4">All-time submission counts by status</p>
+                  <div className="grid grid-cols-3 gap-4">
+                    {([
+                      { label: "Approved", value: analyticsData.queueStats.approved, color: "text-green-600 dark:text-green-400" },
+                      { label: "Rejected", value: analyticsData.queueStats.rejected, color: "text-red-600 dark:text-red-400" },
+                      { label: "Pending",  value: analyticsData.queueStats.pending,  color: "text-amber-600 dark:text-amber-400" },
+                    ] as const).map(({ label, value, color }) => (
+                      <div key={label} className="rounded-lg bg-zinc-50 dark:bg-zinc-900 p-4 text-center">
+                        <div className={`text-2xl font-bold tabular-nums ${color}`}>{value}</div>
+                        <div className="text-xs text-zinc-500 mt-1">{label}</div>
+                      </div>
+                    ))}
+                  </div>
+                  {(analyticsData.queueStats.approved + analyticsData.queueStats.rejected) > 0 && (
+                    <p className="mt-3 text-xs text-zinc-400">
+                      Approval rate:{" "}
+                      <span className="font-semibold text-zinc-600 dark:text-zinc-300">
+                        {Math.round(analyticsData.queueStats.approved / (analyticsData.queueStats.approved + analyticsData.queueStats.rejected) * 100)}%
+                      </span>
+                      {" "}of reviewed submissions
+                    </p>
+                  )}
+                </div>
+
+                {/* Top Rated Categories */}
+                <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 p-6">
+                  <h2 className="text-lg font-semibold text-zinc-900 dark:text-white mb-1">
+                    Top Rated Categories
+                  </h2>
+                  <p className="text-xs text-zinc-400 dark:text-zinc-500 mb-4">Average Wilson score per category (min. 5 rated URLs)</p>
+                  {analyticsData.topRatedCategories.length > 0 ? (
+                    <div className="flex flex-col gap-1">
+                      {(() => {
+                        const max = Math.max(...analyticsData.topRatedCategories.map((x) => x.avg_score), 1);
+                        return analyticsData.topRatedCategories.map((d) => (
+                          <div key={d.category} className="flex items-center gap-2 text-xs">
+                            <span className="w-36 truncate text-right text-zinc-500 shrink-0">{d.category}</span>
+                            <div className="flex-1 bg-zinc-100 dark:bg-zinc-800 rounded">
+                              <div className="bg-emerald-500 rounded h-4" style={{ width: `${(d.avg_score / max) * 100}%` }} />
+                            </div>
+                            <span className="w-20 text-right tabular-nums text-zinc-700 dark:text-zinc-300">
+                              {d.avg_score}% <span className="text-zinc-400">({d.rated_urls})</span>
+                            </span>
+                          </div>
+                        ));
+                      })()}
+                    </div>
+                  ) : (
+                    <p className="text-zinc-500 text-sm">Not enough rated URLs yet</p>
+                  )}
+                </div>
+
+                {/* Source Breakdown */}
+                <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 p-6">
+                  <h2 className="text-lg font-semibold text-zinc-900 dark:text-white mb-1">
+                    Source Breakdown
+                  </h2>
+                  <p className="text-xs text-zinc-400 dark:text-zinc-500 mb-4">Approved, active URLs by seeder — refreshed hourly</p>
+                  {analyticsData.sourceBreakdown.length > 0 ? (
+                    <div className="flex flex-col gap-1">
+                      {(() => {
+                        const max = Math.max(...analyticsData.sourceBreakdown.map((x) => x.count), 1);
+                        const total = analyticsData.sourceBreakdown.reduce((s, x) => s + x.count, 0);
+                        return analyticsData.sourceBreakdown.map((d) => (
+                          <div key={d.source} className="flex items-center gap-2 text-xs">
+                            <span className="w-36 truncate text-right text-zinc-500 shrink-0 font-mono">{d.source}</span>
+                            <div className="flex-1 bg-zinc-100 dark:bg-zinc-800 rounded">
+                              <div className="bg-sky-500 rounded h-4" style={{ width: `${(d.count / max) * 100}%` }} />
+                            </div>
+                            <span className="w-28 text-right tabular-nums text-zinc-700 dark:text-zinc-300">
+                              {d.count.toLocaleString()} <span className="text-zinc-400">({(d.count / total * 100).toFixed(1)}%)</span>
+                            </span>
+                          </div>
+                        ));
+                      })()}
+                    </div>
+                  ) : (
+                    <p className="text-zinc-500 text-sm">No data yet</p>
+                  )}
+                </div>
+
+                {/* Language Distribution */}
+                <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 p-6">
+                  <h2 className="text-lg font-semibold text-zinc-900 dark:text-white mb-1">
+                    Language Distribution
+                  </h2>
+                  <p className="text-xs text-zinc-400 dark:text-zinc-500 mb-4">Top 15 languages — approved, active URLs — refreshed hourly</p>
+                  {analyticsData.languageDistribution.length > 0 ? (
+                    <div className="flex flex-col gap-1">
+                      {(() => {
+                        const max = Math.max(...analyticsData.languageDistribution.map((x) => x.count), 1);
+                        const total = analyticsData.languageDistribution.reduce((s, x) => s + x.count, 0);
+                        return analyticsData.languageDistribution.map((d) => (
+                          <div key={d.language} className="flex items-center gap-2 text-xs">
+                            <span className="w-8 text-right text-zinc-500 shrink-0 font-mono uppercase">{d.language}</span>
+                            <div className="flex-1 bg-zinc-100 dark:bg-zinc-800 rounded">
+                              <div className="bg-orange-400 rounded h-4" style={{ width: `${(d.count / max) * 100}%` }} />
+                            </div>
+                            <span className="w-28 text-right tabular-nums text-zinc-700 dark:text-zinc-300">
+                              {d.count.toLocaleString()} <span className="text-zinc-400">({(d.count / total * 100).toFixed(1)}%)</span>
+                            </span>
+                          </div>
+                        ));
+                      })()}
+                    </div>
+                  ) : (
+                    <p className="text-zinc-500 text-sm">No data yet</p>
+                  )}
+                </div>
+
+                {/* Dead URL Rate by Category */}
+                <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 p-6">
+                  <h2 className="text-lg font-semibold text-zinc-900 dark:text-white mb-1">
+                    Dead URL Rate by Category
+                  </h2>
+                  <p className="text-xs text-zinc-400 dark:text-zinc-500 mb-4">Inactive approved URLs as % of total — refreshed hourly</p>
+                  {analyticsData.deadByCategory.length > 0 ? (
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="border-b border-zinc-200 dark:border-zinc-700">
+                            <th className="text-left py-3 px-4 font-semibold text-zinc-900 dark:text-white">Category</th>
+                            <th className="text-right py-3 px-4 font-semibold text-zinc-900 dark:text-white w-28">Total</th>
+                            <th className="text-right py-3 px-4 font-semibold text-zinc-900 dark:text-white w-24">Inactive</th>
+                            <th className="text-right py-3 px-4 font-semibold text-zinc-900 dark:text-white w-20">Dead %</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {analyticsData.deadByCategory.map((row) => (
+                            <tr
+                              key={row.category}
+                              className="border-b border-zinc-100 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-900/50"
+                            >
+                              <td className="py-3 px-4 text-zinc-700 dark:text-zinc-300">{row.category}</td>
+                              <td className="py-3 px-4 text-right tabular-nums text-zinc-600 dark:text-zinc-400">{row.total.toLocaleString()}</td>
+                              <td className="py-3 px-4 text-right tabular-nums text-zinc-600 dark:text-zinc-400">{row.inactive_count.toLocaleString()}</td>
+                              <td className={`py-3 px-4 text-right tabular-nums font-semibold ${
+                                row.dead_pct >= 3 ? "text-red-600 dark:text-red-400" :
+                                row.dead_pct >= 1.5 ? "text-amber-600 dark:text-amber-400" :
+                                "text-green-600 dark:text-green-400"
+                              }`}>
+                                {row.dead_pct}%
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : (
+                    <p className="text-zinc-500 text-sm">No data yet</p>
                   )}
                 </div>
               </>
