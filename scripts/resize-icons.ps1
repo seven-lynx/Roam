@@ -12,11 +12,11 @@ $targets = @(
     @{ size = 32;   dest = "web\public\icon-32.png" },
     @{ size = 180;  dest = "web\public\apple-touch-icon.png" },
     @{ size = 512;  dest = "web\public\icon-512.png" },
-    # Extension (Chrome + Firefox)
-    @{ size = 16;   dest = "extension\icons\icon-16.png" },
-    @{ size = 32;   dest = "extension\icons\icon-32.png" },
-    @{ size = 48;   dest = "extension\icons\icon-48.png" },
-    @{ size = 128;  dest = "extension\icons\icon-128.png" },
+    # Extension (Chrome + Firefox) — crop=0.88 removes whitespace so compass fills the icon
+    @{ size = 16;   dest = "extension\icons\icon-16.png";  crop = 0.88 },
+    @{ size = 32;   dest = "extension\icons\icon-32.png";  crop = 0.88 },
+    @{ size = 48;   dest = "extension\icons\icon-48.png";  crop = 0.88 },
+    @{ size = 128;  dest = "extension\icons\icon-128.png"; crop = 0.88 },
     # Android / Play Store
     @{ size = 48;   dest = "android\res\icon-48.png" },
     @{ size = 72;   dest = "android\res\icon-72.png" },
@@ -35,7 +35,21 @@ foreach ($t in $targets) {
     $g   = [System.Drawing.Graphics]::FromImage($bmp)
     $g.InterpolationMode = [System.Drawing.Drawing2D.InterpolationMode]::HighQualityBicubic
     $g.SmoothingMode     = [System.Drawing.Drawing2D.SmoothingMode]::HighQuality
-    $g.DrawImage($srcImg, 0, 0, $t.size, $t.size)
+
+    if ($t.crop) {
+        # Draw from a centered sub-rectangle of the source to zoom in and remove whitespace
+        $cropFactor = $t.crop
+        $sw = [int]($srcImg.Width  * $cropFactor)
+        $sh = [int]($srcImg.Height * $cropFactor)
+        $sx = [int](($srcImg.Width  - $sw) / 2)
+        $sy = [int](($srcImg.Height - $sh) / 2)
+        $srcRect  = New-Object System.Drawing.Rectangle($sx, $sy, $sw, $sh)
+        $destRect = New-Object System.Drawing.Rectangle(0, 0, $t.size, $t.size)
+        $g.DrawImage($srcImg, $destRect, $srcRect, [System.Drawing.GraphicsUnit]::Pixel)
+    } else {
+        $g.DrawImage($srcImg, 0, 0, $t.size, $t.size)
+    }
+
     $g.Dispose()
     $bmp.Save($destPath, [System.Drawing.Imaging.ImageFormat]::Png)
     $bmp.Dispose()
