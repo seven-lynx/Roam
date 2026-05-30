@@ -14,6 +14,7 @@ import app.roam.android.model.SubcategoryItem
 import app.roam.android.model.Collection
 import app.roam.android.model.CollectionItem
 import app.roam.android.model.RoamUrl
+import app.roam.android.model.SavedUrl
 import app.roam.android.model.UserProfile
 import app.roam.android.util.connectivityFlow
 import io.github.jan.supabase.exceptions.UnauthorizedRestException
@@ -729,6 +730,8 @@ class MainViewModel(
                     if (roamUrl != null) repo.addUrlToCollection(collectionId, roamUrl.id)
                 }
             }
+            // Refresh counts so the collections list shows the updated tally immediately.
+            runCatching { _collections.value = repo.getCollections() }
         }
     }
 
@@ -739,7 +742,6 @@ class MainViewModel(
         viewModelScope.launch {
             runCatching {
                 val col = repo.createCollection(name)
-                _collections.value = (_collections.value + col).sortedBy { it.name }
                 urls.forEach { url ->
                     runCatching {
                         val roamUrl = repo.checkUrl(url)
@@ -747,6 +749,8 @@ class MainViewModel(
                     }
                 }
             }
+            // Reload so item_count and sort order are accurate after creation + inserts.
+            runCatching { _collections.value = repo.getCollections() }
         }
     }
 
@@ -754,6 +758,7 @@ class MainViewModel(
         val loaded = _state.value as? RoamState.Loaded ?: return
         viewModelScope.launch {
             runCatching { repo.addUrlToCollection(collectionId, loaded.roamUrl.id) }
+            runCatching { _collections.value = repo.getCollections() }
             _showAddToCollection.value = false
             closeConfigSheet()
         }
@@ -766,6 +771,7 @@ class MainViewModel(
                 val col = repo.createCollection(name)
                 repo.addUrlToCollection(col.id, loaded.roamUrl.id)
             }
+            runCatching { _collections.value = repo.getCollections() }
             _showAddToCollection.value = false
             closeConfigSheet()
         }
