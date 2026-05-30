@@ -89,9 +89,11 @@ async function getSentryIssues(): Promise<SentryIssue[] | null> {
   if (!token || !org) return null;
 
   const project = process.env.SENTRY_PROJECT;
+  // US-region Sentry projects use us.sentry.io for API calls
+  const sentryHost = "https://us.sentry.io";
   const endpoint = project
-    ? `https://sentry.io/api/0/projects/${encodeURIComponent(org)}/${encodeURIComponent(project)}/issues/?query=is%3Aunresolved&limit=5`
-    : `https://sentry.io/api/0/organizations/${encodeURIComponent(org)}/issues/?query=is%3Aunresolved&limit=5`;
+    ? `${sentryHost}/api/0/projects/${encodeURIComponent(org)}/${encodeURIComponent(project)}/issues/?query=is%3Aunresolved&limit=5`
+    : `${sentryHost}/api/0/organizations/${encodeURIComponent(org)}/issues/?query=is%3Aunresolved&limit=5`;
 
   try {
     const res = await fetch(endpoint, {

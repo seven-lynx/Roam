@@ -46,16 +46,15 @@ export default function ModerationDetail({
     if (!item) return;
     setStatus("loading");
     try {
-      await supabase
+      const { error: updateError } = await supabase
         .from("moderation_queue")
-        .update({
-          status: action,
-          reviewed_at: new Date().toISOString(),
-        })
+        .update({ status: action })
         .eq("id", item.id);
 
+      if (updateError) throw updateError;
+
       if (action === "approved") {
-        await supabase.from("urls").upsert(
+        const { error: upsertError } = await supabase.from("urls").upsert(
           {
             url: item.url,
             approved: true,
@@ -65,6 +64,7 @@ export default function ModerationDetail({
           },
           { onConflict: "url" }
         );
+        if (upsertError) throw upsertError;
       }
 
       onUpdate?.();
@@ -82,13 +82,11 @@ export default function ModerationDetail({
     if (!item) return;
     setStatus("loading");
     try {
-      await supabase
+      const { error: undoError } = await supabase
         .from("moderation_queue")
-        .update({
-          status: "pending",
-          reviewed_at: null,
-        })
+        .update({ status: "pending" })
         .eq("id", item.id);
+      if (undoError) throw undoError;
 
       if (item.status === "approved") {
         // Delete from urls table if this was an approval

@@ -19,7 +19,7 @@ export default function ModerationActions({ item }: { item: QueueItem }) {
     setStatus("loading");
     await supabase
       .from("moderation_queue")
-      .update({ status: action, reviewed_at: new Date().toISOString() })
+      .update({ status: action })
       .eq("id", item.id);
 
     if (action === "approved") {
