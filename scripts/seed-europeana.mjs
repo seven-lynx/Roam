@@ -6,7 +6,8 @@
  *
  * API docs: https://api.europeana.eu/
  * Free key:  https://pro.europeana.eu/pages/get-api  (instant approval)
- * Add to .env: EUROPEANA_API_KEY=your_key
+ * Personal key: add EUROPEANA_API_KEY=your_key to .env in the repo root
+ * Project key:  apply at europeana.eu after demonstrating personal key usage
  *
  * Strategy: query by topic/TYPE and aggregate item pages linking to the
  * originating institution's record — these are stable, citable URLs.
@@ -65,14 +66,16 @@ const QUERIES = [
 ];
 
 // ── Fetch one page ────────────────────────────────────────────────────────────
-async function fetchPage(apiKey, q, qf, start) {
+// Uses cursor-based pagination — pass cursor='*' for the first page, then
+// pass the nextCursor value from each response to advance. Returns
+// { items, nextCursor } where nextCursor is null when the set is exhausted.
+async function fetchPage(apiKey, q, qf, cursor) {
   const params = new URLSearchParams({
     query:        q,
-    start:        String(start),
+    cursor:       cursor,
     rows:         String(PAGE_SIZE),
     profile:      'standard',
     reusability:  'open',
-    wskey:        apiKey,
   });
   params.append('qf', qf);           // TYPE filter (IMAGE/TEXT/etc.)
   params.append('qf', 'LANGUAGE:en'); // English-language items only
@@ -81,18 +84,20 @@ async function fetchPage(apiKey, q, qf, start) {
   let res;
   try {
     res = await fetchWithRetry(url, {
-      headers: { 'User-Agent': 'Roam-Seeder/1.0 (https://roamtheweb.app)' },
+      headers: {
+        'User-Agent': 'Roam-Seeder/1.0 (https://roamtheweb.app)',
+        'X-Api-Key':  apiKey,
+      },
     });
   } catch (err) {
     console.warn(`[europeana] Fetch error: ${err.message}`);
-    return [];
+    return { items: [], nextCursor: null };
   }
 
   let data;
-  try { data = await res.json(); } catch { return []; }
+  try { data = await res.json(); } catch { return { items: [], nextCursor: null }; }
 
-  const items = data?.items ?? [];
-  return items
+  const items = (data?.items ?? [])
     .filter((item) => item.edmIsShownAt || item.guid)
     .map((item) => {
       // Prefer the original institution's record page over Europeana's own page
@@ -113,6 +118,8 @@ async function fetchPage(apiKey, q, qf, start) {
         source:      'europeana',
       };
     }).filter(Boolean);
+
+  return { items, nextCursor: data?.nextCursor ?? null };
 }
 
 // ── Main ──────────────────────────────────────────────────────────────────────
@@ -129,16 +136,17 @@ async function fetchEuropeana() {
 
   for (let qi = 0; qi < QUERIES.length; qi++) {
     const { q, qf, max, cat } = QUERIES[qi];
-    let start   = 1;  // Europeana uses 1-based pagination
+    let cursor  = '*';  // '*' = first page; subsequent pages use nextCursor from response
     let fetched = 0;
 
     while (fetched < max) {
-      const cacheKey = `${q}|${qf}|${start}`;
-      let items = cache.get(cacheKey);
-      if (!items) {
-        items = await fetchPage(apiKey, q, qf, start);
-        cache.set(cacheKey, items);
+      const cacheKey = `${q}|${qf}|cursor:${cursor}`;
+      let cached = cache.get(cacheKey);
+      if (!cached) {
+        cached = await fetchPage(apiKey, q, qf, cursor);
+        cache.set(cacheKey, cached);
       }
+      const { items, nextCursor } = cached;
       if (items.length === 0) break;
 
       for (const item of items) {
@@ -148,8 +156,8 @@ async function fetchEuropeana() {
       }
 
       fetched += items.length;
-      start   += items.length;
-      if (items.length < PAGE_SIZE) break;
+      if (!nextCursor || items.length < PAGE_SIZE) break;
+      cursor = nextCursor;
       await sleep(DELAY_MS);
     }
 
