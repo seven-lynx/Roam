@@ -585,7 +585,7 @@ export default function AdminPageClient() {
                   <h2 className="text-lg font-semibold text-zinc-900 dark:text-white mb-1">
                     Source Breakdown
                   </h2>
-                  <p className="text-xs text-zinc-400 dark:text-zinc-500 mb-4">Approved, active URLs by seeder — refreshed hourly</p>
+                  <p className="text-xs text-zinc-400 dark:text-zinc-500 mb-4">Approved, active URLs by seeder — refreshed weekly</p>
                   {analyticsData.sourceBreakdown.length > 0 ? (
                     <div className="flex flex-col gap-1">
                       {(() => {
@@ -614,7 +614,7 @@ export default function AdminPageClient() {
                   <h2 className="text-lg font-semibold text-zinc-900 dark:text-white mb-1">
                     Language Distribution
                   </h2>
-                  <p className="text-xs text-zinc-400 dark:text-zinc-500 mb-4">Top 15 languages — approved, active URLs — refreshed hourly</p>
+                  <p className="text-xs text-zinc-400 dark:text-zinc-500 mb-4">Top 15 languages — approved, active URLs — refreshed weekly</p>
                   {analyticsData.languageDistribution.length > 0 ? (
                     <div className="flex flex-col gap-1">
                       {(() => {
@@ -643,7 +643,7 @@ export default function AdminPageClient() {
                   <h2 className="text-lg font-semibold text-zinc-900 dark:text-white mb-1">
                     Dead URL Rate by Category
                   </h2>
-                  <p className="text-xs text-zinc-400 dark:text-zinc-500 mb-4">Inactive approved URLs as % of total — refreshed hourly</p>
+                  <p className="text-xs text-zinc-400 dark:text-zinc-500 mb-4">Inactive approved URLs as % of total — refreshed weekly</p>
                   {analyticsData.deadByCategory.length > 0 ? (
                     <div className="overflow-x-auto">
                       <table className="w-full text-sm">

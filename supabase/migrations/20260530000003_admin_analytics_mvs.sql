@@ -48,22 +48,22 @@ CREATE INDEX IF NOT EXISTS idx_urls_approved_subcat
   INCLUDE (inactive)
   WHERE approved = true;
 
--- ── Hourly cron jobs ──────────────────────────────────────────────────────────
+-- ── Weekly cron jobs (Sunday 02:00 UTC, staggered 5 min apart) ───────────────
 -- Requires pg_cron (already enabled on this project).
 SELECT cron.schedule(
   'refresh-mv-analytics-sources',
-  '0 * * * *',
+  '0 2 * * 0',
   'REFRESH MATERIALIZED VIEW CONCURRENTLY public.mv_analytics_sources'
 );
 
 SELECT cron.schedule(
   'refresh-mv-analytics-languages',
-  '5 * * * *',
+  '5 2 * * 0',
   'REFRESH MATERIALIZED VIEW CONCURRENTLY public.mv_analytics_languages'
 );
 
 SELECT cron.schedule(
   'refresh-mv-analytics-dead-by-category',
-  '10 * * * *',
+  '10 2 * * 0',
   'REFRESH MATERIALIZED VIEW CONCURRENTLY public.mv_analytics_dead_by_category'
 );
