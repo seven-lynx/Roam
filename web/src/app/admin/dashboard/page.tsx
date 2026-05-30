@@ -19,6 +19,7 @@ type SupabaseStats = {
   recentUrls: number;
   totalRatings: number;
   inactiveUrls: number;
+  queryErrors: string[];
 };
 
 type SentryIssue = {
@@ -71,6 +72,24 @@ async function getSupabaseStats(): Promise<SupabaseStats | null> {
     admin.from("urls").select("*", { count: "exact", head: true }).eq("inactive", true),
   ]);
 
+  const queryErrors: string[] = [];
+  const results = [
+    ["totalUrls", totalRes],
+    ["approvedUrls", approvedRes],
+    ["pendingModeration", pendingRes],
+    ["totalUsers", usersRes],
+    ["newUsersThisWeek", newUsersRes],
+    ["recentUrls", recentRes],
+    ["totalRatings", ratingsRes],
+    ["inactiveUrls", inactiveRes],
+  ] as const;
+  for (const [name, res] of results) {
+    if (res.error) {
+      console.error(`[dashboard] ${name} query failed:`, res.error.code, res.error.message);
+      queryErrors.push(`${name}: ${res.error.message}`);
+    }
+  }
+
   return {
     totalUrls: totalRes.count ?? 0,
     approvedUrls: approvedRes.count ?? 0,
@@ -80,6 +99,7 @@ async function getSupabaseStats(): Promise<SupabaseStats | null> {
     recentUrls: recentRes.count ?? 0,
     totalRatings: ratingsRes.count ?? 0,
     inactiveUrls: inactiveRes.count ?? 0,
+    queryErrors,
   };
 }
 
@@ -211,6 +231,12 @@ export default async function AdminDashboardPage() {
             Database
           </h2>
           {stats ? (
+            <>
+              {stats.queryErrors.length > 0 && (
+                <div className="mb-4 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-700 dark:border-amber-700 dark:bg-amber-900/10 dark:text-amber-400">
+                  {stats.queryErrors.length} stat{stats.queryErrors.length > 1 ? "s" : ""} failed to load — check server logs for details.
+                </div>
+              )}
             <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-4 gap-4">
               {(
                 [
@@ -255,6 +281,7 @@ export default async function AdminDashboardPage() {
                 );
               })}
             </div>
+            </>
           ) : (
             <p className="text-sm text-zinc-500 dark:text-zinc-400">
               Set{" "}
