@@ -48,10 +48,10 @@ export function CollectionsManager({ userId, initialCollections }: Props) {
       .eq('collection_id', collectionId)
       .order('added_at', { ascending: false });
     setExpandedItems(
-      (data ?? []).map((item: { id: string; added_at: string; urls: { id: string; title: string | null; original_url: string } | null }) => ({
+      (data ?? []).map((item: { id: string; added_at: string; urls: { id: string; title: string | null; original_url: string }[] }) => ({
         id: item.id,
         added_at: item.added_at,
-        url: item.urls ?? null,
+        url: item.urls[0] ?? null,
       }))
     );
     setLoadingItems(false);
