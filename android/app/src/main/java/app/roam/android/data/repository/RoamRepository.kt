@@ -307,9 +307,48 @@ class RoamRepository {
     }
 
     /**
-     * Returns the set of category IDs the user has selected.
+     * Returns the set of subcategory IDs the user has selected (topic mode).
+     * Returns an empty set when the user is in pillar mode.
      */
-    suspend fun getUserCategoryIds(): Set<String> {
+    suspend fun getUserTopicIds(): Set<String> {
+        val userId = supabase.auth.currentUserOrNull()?.id ?: return emptySet()
+        return supabase.postgrest
+            .from("user_categories")
+            .select(Columns.list("subcategory_id")) {
+                filter {
+                    eq("user_id", userId)
+                    neq("subcategory_id", "null")
+                }
+            }
+            .decodeList<TopicIdRow>()
+            .mapNotNull { it.subcategoryId }
+            .toSet()
+    }
+
+    /**
+     * Replaces all user_categories rows for the current user.
+     * In pillar mode [topicIds] is empty; in topic mode [pillarIds] is empty.
+     * [subcategoryParentMap] maps subcategoryId → categoryId for topic rows.
+     */
+    suspend fun saveUserInterests(
+        pillarIds: Set<String>,
+        topicIds: Set<String>,
+        subcategoryParentMap: Map<String, String>,
+    ) {
+        val userId = supabase.auth.currentUserOrNull()?.id ?: return
+        supabase.postgrest.from("user_categories").delete {
+            filter { eq("user_id", userId) }
+        }
+        val rows: List<UserCategoryFullRow> = pillarIds.map { catId ->
+            UserCategoryFullRow(userId = userId, categoryId = catId)
+        } + topicIds.mapNotNull { subId ->
+            val catId = subcategoryParentMap[subId] ?: return@mapNotNull null
+            UserCategoryFullRow(userId = userId, categoryId = catId, subcategoryId = subId)
+        }
+        if (rows.isNotEmpty()) {
+            supabase.postgrest.from("user_categories").insert(rows)
+        }
+    }
         val userId = supabase.auth.currentUserOrNull()?.id ?: return emptySet()
         return supabase.postgrest
             .from("user_categories")
@@ -382,6 +421,18 @@ class RoamRepository {
         val username: String,
         @SerialName("display_name") val displayName: String,
         val bio: String?,
+    )
+
+    @Serializable
+    private data class UserCategoryFullRow(
+        @SerialName("user_id") val userId: String,
+        @SerialName("category_id") val categoryId: String,
+        @SerialName("subcategory_id") val subcategoryId: String? = null,
+    )
+
+    @Serializable
+    private data class TopicIdRow(
+        @SerialName("subcategory_id") val subcategoryId: String? = null,
     )
 
     @Serializable

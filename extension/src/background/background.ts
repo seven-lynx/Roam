@@ -98,6 +98,9 @@ async function _dispatch(req: Request): Promise<Response> {
     case 'GET_CATEGORIES':        return getCategories();
     case 'GET_USER_CATEGORIES':   return getUserCategories();
     case 'SET_USER_CATEGORIES':   return setUserCategories(req.categoryIds);
+    case 'GET_USER_INTERESTS':    return getUserInterests();
+    case 'SET_USER_INTERESTS':    return setUserInterests(req.pillarIds, req.topicIds);
+    case 'GET_ALL_SUBCATEGORIES': return getAllSubcategories();
     case 'ROAM':                  return roam(req.categoryId, req.subcategoryId);
     case 'ROAM_COLLECTION':       return roamCollection(req.collectionId);
     case 'ROAM_CATEGORY':         return roamCategory(req.categoryId);
@@ -219,13 +222,54 @@ async function getUserCategories(): Promise<Response<{ categoryIds: string[] }>>
   return { ok: true, data: { categoryIds: (data || []).map((r: any) => r.category_id) } };
 }
 
-async function setUserCategories(categoryIds: string[]): Promise<Response<null>> {
+async function getUserInterests(): Promise<Response<{ mode: 'pillars' | 'topics'; pillarIds: string[]; topicIds: string[] }>> {
+  const session = (await getSupabase().auth.getSession()).data.session;
+  if (!session) return { ok: false, error: "You're not signed in. Please sign in and try again." };
+  const { data, error } = await getSupabase()
+    .from('user_categories')
+    .select('category_id, subcategory_id')
+    .eq('user_id', session.user.id);
+  if (error) return { ok: false, error: "Couldn't load your interests. Please try again." };
+  const rows = data || [];
+  const topicRows = rows.filter((r: any) => r.subcategory_id !== null);
+  const pillarRows = rows.filter((r: any) => r.subcategory_id === null);
+  if (topicRows.length > 0) {
+    return { ok: true, data: { mode: 'topics', pillarIds: [], topicIds: topicRows.map((r: any) => r.subcategory_id) } };
+  }
+  return { ok: true, data: { mode: 'pillars', pillarIds: pillarRows.map((r: any) => r.category_id), topicIds: [] } };
+}
+
+async function getAllSubcategories(): Promise<Response<import('../lib/messages').SubcategoryItem[]>> {
+  try {
+    const { data, error } = await getSupabase()
+      .from('subcategories')
+      .select('id, name, category_id, sort_order')
+      .order('sort_order');
+    if (error || !data) return { ok: true, data: [] };
+    return { ok: true, data: data as import('../lib/messages').SubcategoryItem[] };
+  } catch {
+    return { ok: true, data: [] };
+  }
+}
+
+async function setUserInterests(pillarIds: string[], topicIds: string[]): Promise<Response<null>> {
   const session = (await getSupabase().auth.getSession()).data.session;
   if (!session) return { ok: false, error: "You're not signed in. Please sign in and try again." };
   const { error: delError } = await getSupabase().from('user_categories').delete().eq('user_id', session.user.id);
   if (delError) return { ok: false, error: "Couldn't save your preferences. Please try again." };
-  if (categoryIds.length > 0) {
-    const rows = categoryIds.map((id) => ({ user_id: session.user.id, category_id: id }));
+  if (topicIds.length > 0) {
+    // Topics mode: look up category_id for each topic
+    const { data: scData, error: scError } = await getSupabase()
+      .from('subcategories')
+      .select('id, category_id')
+      .in('id', topicIds);
+    if (scError || !scData) return { ok: false, error: "Couldn't save your preferences. Please try again." };
+    const parentMap = Object.fromEntries((scData as any[]).map((r: any) => [r.id, r.category_id]));
+    const rows = topicIds.map((id) => ({ user_id: session.user.id, category_id: parentMap[id], subcategory_id: id }));
+    const { error: insError } = await getSupabase().from('user_categories').insert(rows);
+    if (insError) return { ok: false, error: "Couldn't save your preferences. Please try again." };
+  } else if (pillarIds.length > 0) {
+    const rows = pillarIds.map((id) => ({ user_id: session.user.id, category_id: id }));
     const { error: insError } = await getSupabase().from('user_categories').insert(rows);
     if (insError) return { ok: false, error: "Couldn't save your preferences. Please try again." };
   }

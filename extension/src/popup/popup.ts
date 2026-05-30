@@ -121,6 +121,12 @@ let categoriesContext: 'firsttime' | 'settings' = 'firsttime';
 // Category list populated on sign-in; used for status bar label lookups
 let loadedCategories: CategoryItem[] = [];
 
+// Subcategory list for topics mode (loaded lazily)
+let loadedSubcategories: SubcategoryItem[] = [];
+
+// Current interest mode shown in the categories screen
+let currentInterestMode: 'pillars' | 'topics' = 'pillars';
+
 // Focus mode — ephemeral, resets on popup close
 let focusModeEnabled = false;
 let focusCategoryId: string | null = null;
@@ -154,39 +160,90 @@ async function refreshStatus(): Promise<void> {
 // FALLBACK_CATEGORIES imported from ../lib/constants
 
 async function checkAndRouteAfterSignIn(): Promise<void> {
-  const [cats, allCats, sessionPrefs] = await Promise.all([
-    sendToBackground<{ categoryIds: string[] }>({ type: 'GET_USER_CATEGORIES' }),
+  const [interests, allCats, allSubcats, sessionPrefs] = await Promise.all([
+    sendToBackground<{ mode: 'pillars' | 'topics'; pillarIds: string[]; topicIds: string[] }>({ type: 'GET_USER_INTERESTS' }),
     sendToBackground<CategoryItem[]>({ type: 'GET_CATEGORIES' }),
+    sendToBackground<SubcategoryItem[]>({ type: 'GET_ALL_SUBCATEGORIES' }),
     chrome.storage.session.get(['auto_translate']),
   ]);
   el<HTMLInputElement>('toggle-translate').checked = sessionPrefs.auto_translate === true;
-  const selectedIds = cats.ok ? cats.data.categoryIds : [];
   const categoryItems = allCats.ok && allCats.data.length > 0 ? allCats.data : FALLBACK_CATEGORIES;
   loadedCategories = categoryItems;
-  if (cats.ok && selectedIds.length > 0) {
-    populateCategoryChips(selectedIds, categoryItems);
+  if (allSubcats.ok) loadedSubcategories = allSubcats.data;
+
+  if (interests.ok && (interests.data.pillarIds.length > 0 || interests.data.topicIds.length > 0)) {
+    currentInterestMode = interests.data.mode;
+    populateInterestChips(interests.data.mode, interests.data.pillarIds, interests.data.topicIds, categoryItems, loadedSubcategories);
     showState('main');
     void refreshStatus();
   } else {
     categoriesContext = 'firsttime';
-    populateCategoryChips(selectedIds, categoryItems);
+    currentInterestMode = 'pillars';
+    populateInterestChips('pillars', [], [], categoryItems, loadedSubcategories);
     el('btn-back-categories').hidden = true;
     showState('categories');
   }
 }
 
-function populateCategoryChips(selectedIds: string[], categories: CategoryItem[]) {
+function setInterestModeUI(mode: 'pillars' | 'topics') {
+  currentInterestMode = mode;
+  el('btn-mode-pillars').classList.toggle('mode-btn--active', mode === 'pillars');
+  el('btn-mode-topics').classList.toggle('mode-btn--active', mode === 'topics');
+}
+
+function populateInterestChips(
+  mode: 'pillars' | 'topics',
+  selectedPillarIds: string[],
+  selectedTopicIds: string[],
+  categories: CategoryItem[],
+  subcategories: SubcategoryItem[],
+) {
+  setInterestModeUI(mode);
   const container = el('category-select-chips');
   while (container.firstChild) container.removeChild(container.firstChild);
-  for (const cat of categories) {
-    const btn = document.createElement('button');
-    btn.className = 'chip' + (selectedIds.includes(cat.id) ? ' selected' : '');
-    btn.dataset.catId = cat.id;
-    btn.textContent = `${cat.icon} ${cat.name}`;
-    container.appendChild(btn);
+
+  if (mode === 'pillars') {
+    for (const cat of categories) {
+      const btn = document.createElement('button');
+      btn.className = 'chip' + (selectedPillarIds.includes(cat.id) ? ' selected' : '');
+      btn.dataset.catId = cat.id;
+      btn.textContent = `${cat.icon} ${cat.name}`;
+      container.appendChild(btn);
+    }
+  } else {
+    // Group subcategories by category
+    const byCat = new Map<string, SubcategoryItem[]>();
+    for (const sc of subcategories) {
+      if (!byCat.has(sc.category_id)) byCat.set(sc.category_id, []);
+      byCat.get(sc.category_id)!.push(sc);
+    }
+    for (const cat of categories) {
+      const subs = byCat.get(cat.id);
+      if (!subs || subs.length === 0) continue;
+      const header = document.createElement('p');
+      header.className = 'topic-group-header';
+      header.textContent = `${cat.icon} ${cat.name}`;
+      container.appendChild(header);
+      for (const sc of subs) {
+        const btn = document.createElement('button');
+        btn.className = 'chip' + (selectedTopicIds.includes(sc.id) ? ' selected' : '');
+        btn.dataset.subcatId = sc.id;
+        btn.textContent = sc.name;
+        container.appendChild(btn);
+      }
+    }
   }
+
+  const anySelected = mode === 'pillars'
+    ? selectedPillarIds.length > 0
+    : selectedTopicIds.length > 0;
   const saveBtn = document.getElementById('btn-save-categories') as HTMLButtonElement | null;
-  if (saveBtn) saveBtn.disabled = selectedIds.length === 0;
+  if (saveBtn) saveBtn.disabled = !anySelected;
+}
+
+/** @deprecated Use populateInterestChips instead */
+function populateCategoryChips(selectedIds: string[], categories: CategoryItem[]) {
+  populateInterestChips('pillars', selectedIds, [], categories, []);
 }
 
 async function boot() {
@@ -219,17 +276,20 @@ document.addEventListener('DOMContentLoaded', () => {
   // ── Retry button ───────────────────────────────────────────────────────────
   el('btn-retry').addEventListener('click', () => boot());
 
-  // ── No-results "Edit categories" button ───────────────────────────────────
   el('btn-add-categories').addEventListener('click', async () => {
     categoriesContext = 'settings';
-    const [cats, allCats] = await Promise.all([
-      sendToBackground<{ categoryIds: string[] }>({ type: 'GET_USER_CATEGORIES' }),
+    const [interests, allCats, allSubcats] = await Promise.all([
+      sendToBackground<{ mode: 'pillars' | 'topics'; pillarIds: string[]; topicIds: string[] }>({ type: 'GET_USER_INTERESTS' }),
       sendToBackground<CategoryItem[]>({ type: 'GET_CATEGORIES' }),
+      sendToBackground<SubcategoryItem[]>({ type: 'GET_ALL_SUBCATEGORIES' }),
     ]);
-    populateCategoryChips(
-      cats.ok ? cats.data.categoryIds : [],
-      allCats.ok && allCats.data.length > 0 ? allCats.data : FALLBACK_CATEGORIES,
-    );
+    const cats = allCats.ok && allCats.data.length > 0 ? allCats.data : FALLBACK_CATEGORIES;
+    if (allSubcats.ok) loadedSubcategories = allSubcats.data;
+    loadedCategories = cats;
+    const mode = interests.ok ? interests.data.mode : 'pillars';
+    const pillars = interests.ok ? interests.data.pillarIds : [];
+    const topics = interests.ok ? interests.data.topicIds : [];
+    populateInterestChips(mode, pillars, topics, cats, loadedSubcategories);
     el('btn-back-categories').hidden = false;
     showState('categories');
   });
@@ -356,18 +416,38 @@ document.addEventListener('DOMContentLoaded', () => {
     el('categories-error').hidden = true;
   });
 
+  // ── Interest mode toggle ──────────────────────────────────────────────────
+  el('btn-mode-pillars').addEventListener('click', () => {
+    if (currentInterestMode === 'pillars') return;
+    populateInterestChips('pillars', [], [], loadedCategories, loadedSubcategories);
+  });
+  el('btn-mode-topics').addEventListener('click', async () => {
+    if (currentInterestMode === 'topics') return;
+    if (loadedSubcategories.length === 0) {
+      const res = await sendToBackground<SubcategoryItem[]>({ type: 'GET_ALL_SUBCATEGORIES' });
+      if (res.ok) loadedSubcategories = res.data;
+    }
+    populateInterestChips('topics', [], [], loadedCategories, loadedSubcategories);
+  });
+
   // ── Categories: save ─────────────────────────────────────────────────────
   el('btn-save-categories').addEventListener('click', async () => {
-    const selected = Array.from(
+    const selectedChips = Array.from(
       el('category-select-chips').querySelectorAll<HTMLButtonElement>('.chip.selected')
-    ).map((c) => c.dataset.catId!);
+    );
+    const pillarIds = currentInterestMode === 'pillars'
+      ? selectedChips.map((c) => c.dataset.catId!).filter(Boolean)
+      : [];
+    const topicIds = currentInterestMode === 'topics'
+      ? selectedChips.map((c) => c.dataset.subcatId!).filter(Boolean)
+      : [];
 
     const saveBtn = el<HTMLButtonElement>('btn-save-categories');
     saveBtn.disabled = true;
     const errEl = el<HTMLParagraphElement>('categories-error');
     errEl.hidden = true;
 
-    const res = await sendToBackground({ type: 'SET_USER_CATEGORIES', categoryIds: selected });
+    const res = await sendToBackground({ type: 'SET_USER_INTERESTS', pillarIds, topicIds });
     saveBtn.disabled = false;
     if (!res.ok) {
       errEl.textContent = res.error;
@@ -711,14 +791,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
   el('btn-category-prefs').addEventListener('click', async () => {
     categoriesContext = 'settings';
-    const [cats, allCats] = await Promise.all([
-      sendToBackground<{ categoryIds: string[] }>({ type: 'GET_USER_CATEGORIES' }),
+    const [interests, allCats, allSubcats] = await Promise.all([
+      sendToBackground<{ mode: 'pillars' | 'topics'; pillarIds: string[]; topicIds: string[] }>({ type: 'GET_USER_INTERESTS' }),
       sendToBackground<CategoryItem[]>({ type: 'GET_CATEGORIES' }),
+      sendToBackground<SubcategoryItem[]>({ type: 'GET_ALL_SUBCATEGORIES' }),
     ]);
-    populateCategoryChips(
-      cats.ok ? cats.data.categoryIds : [],
-      allCats.ok && allCats.data.length > 0 ? allCats.data : FALLBACK_CATEGORIES,
-    );
+    const cats = allCats.ok && allCats.data.length > 0 ? allCats.data : FALLBACK_CATEGORIES;
+    if (allSubcats.ok) loadedSubcategories = allSubcats.data;
+    loadedCategories = cats;
+    const mode = interests.ok ? interests.data.mode : 'pillars';
+    const pillars = interests.ok ? interests.data.pillarIds : [];
+    const topics = interests.ok ? interests.data.topicIds : [];
+    populateInterestChips(mode, pillars, topics, cats, loadedSubcategories);
     showPanel(null);
     el('btn-back-categories').hidden = false;
     showState('categories');

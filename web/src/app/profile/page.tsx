@@ -21,11 +21,12 @@ export default async function ProfilePage() {
 
   const thirtyDaysAgo = thirtyDaysAgoISO();
 
-  const [profileResult, categoriesResult, userCategoriesResult, collectionsResult, savedUrlsResult] =
+  const [profileResult, categoriesResult, subcategoriesResult, userCategoriesResult, collectionsResult, savedUrlsResult] =
     await Promise.all([
       supabase.from('profiles').select('*').eq('id', user.id).single(),
       supabase.from('categories').select('id, name, icon, sort_order').order('sort_order'),
-      supabase.from('user_categories').select('category_id').eq('user_id', user.id),
+      supabase.from('subcategories').select('id, name, category_id, sort_order').order('sort_order'),
+      supabase.from('user_categories').select('category_id, subcategory_id').eq('user_id', user.id),
       supabase
         .from('collections')
         .select('id, name, slug, is_public, item_count:collection_items(count)')
@@ -42,7 +43,10 @@ export default async function ProfilePage() {
 
   const profile = profileResult.data;
   const allCategories = (categoriesResult.data ?? []).map(c => ({ id: c.id, label: c.name, emoji: c.icon }));
-  const userCategoryIds = (userCategoriesResult.data ?? []).map(r => r.category_id);
+  const allSubcategories = (subcategoriesResult.data ?? []).map(s => ({ id: s.id, name: s.name, category_id: s.category_id }));
+  const userCategoryRows = userCategoriesResult.data ?? [];
+  const userCategoryIds = userCategoryRows.filter(r => r.subcategory_id == null).map(r => r.category_id);
+  const userTopicIds = userCategoryRows.filter(r => r.subcategory_id != null).map(r => r.subcategory_id as string);
 
   const collections: CollectionRow[] = (collectionsResult.data ?? []).map((c: { id: string; name: string; slug: string; is_public: boolean; item_count: { count: number }[] | number }) => ({
     id: c.id,
@@ -60,7 +64,9 @@ export default async function ProfilePage() {
       email={user.email ?? ''}
       profile={profile}
       allCategories={allCategories}
+      allSubcategories={allSubcategories}
       initialCategoryIds={userCategoryIds}
+      initialTopicIds={userTopicIds}
       initialCollections={collections}
       initialSavedUrls={savedUrls}
     />

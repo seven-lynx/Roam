@@ -457,6 +457,39 @@ body {
 }
 .categories-chips { margin-bottom: 4px; }
 
+/* ── Interest mode toggle ───────────────────────────────────────────── */
+.interest-mode-toggle {
+  display: flex;
+  gap: 0;
+  margin-bottom: 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.mode-btn {
+  flex: 1;
+  padding: 5px 10px;
+  font-size: 12px;
+  font-weight: 500;
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.mode-btn:hover { background: var(--bg-hover); color: var(--text); }
+.mode-btn--active { background: var(--accent); color: #fff; }
+
+/* Group headers in topics mode */
+.topic-group-header {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin: 8px 0 4px;
+}
+
 /* ── Feedback state ─────────────────────────────────────────────────── */
 .feedback-body {
   display: flex;

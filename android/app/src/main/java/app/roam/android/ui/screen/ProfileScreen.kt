@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
@@ -27,6 +28,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -50,8 +52,16 @@ import kotlinx.coroutines.delay
 fun ProfileScreen(vm: MainViewModel, onSignOut: () -> Unit) {
     val profile by vm.profile.collectAsState()
     val userCategoryIds by vm.userCategoryIds.collectAsState()
+    val userTopicIds by vm.userTopicIds.collectAsState()
+    val interestMode by vm.interestMode.collectAsState()
+    val interestsDirty by vm.interestsDirty.collectAsState()
+    val interestsSaving by vm.interestsSaving.collectAsState()
     val categories by vm.categories.collectAsState()
+    val subcategories by vm.subcategories.collectAsState()
     val stats by vm.profileStats.collectAsState()
+
+    // Group subcategories by parent category
+    val subcatsByCategory = subcategories.groupBy { it.categoryId }
 
     LaunchedEffect(Unit) { vm.loadProfile() }
 
@@ -144,25 +154,82 @@ fun ProfileScreen(vm: MainViewModel, onSignOut: () -> Unit) {
 
             HorizontalDivider()
 
-            // Category interest chips
+            // Interest chips — pillar or topic mode
             Text(
                 text = "Interests",
                 style = MaterialTheme.typography.labelLarge,
                 color = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.align(Alignment.Start),
             )
-            FlowRow(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalArrangement = Arrangement.spacedBy(4.dp),
-            ) {
+
+            if (interestMode == "pillars") {
+                FlowRow(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    categories.forEach { category ->
+                        val selected = category.id in userCategoryIds
+                        FilterChip(
+                            selected = selected,
+                            onClick = { vm.toggleCategory(category.id, !selected) },
+                            label = { Text("${category.icon} ${category.name}") },
+                        )
+                    }
+                }
+                if (subcategories.isNotEmpty()) {
+                    TextButton(
+                        onClick = { vm.setInterestMode("topics") },
+                        modifier = Modifier.align(Alignment.Start),
+                    ) {
+                        Text("Choose specific topics instead →")
+                    }
+                }
+            } else {
+                TextButton(
+                    onClick = { vm.setInterestMode("pillars") },
+                    modifier = Modifier.align(Alignment.Start),
+                ) {
+                    Text("← Choose categories instead")
+                }
                 categories.forEach { category ->
-                    val selected = category.id in userCategoryIds
-                    FilterChip(
-                        selected = selected,
-                        onClick = { vm.toggleCategory(category.id, !selected) },
-                        label = { Text("${category.icon} ${category.name}") },
+                    val subcats = subcatsByCategory[category.id] ?: emptyList()
+                    if (subcats.isEmpty()) return@forEach
+                    Text(
+                        text = "${category.icon}  ${category.name}",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 8.dp, bottom = 4.dp),
                     )
+                    FlowRow(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(4.dp),
+                    ) {
+                        subcats.forEach { sc ->
+                            val selected = sc.id in userTopicIds
+                            FilterChip(
+                                selected = selected,
+                                onClick = { vm.toggleTopic(sc.id, !selected) },
+                                label = { Text(sc.name) },
+                            )
+                        }
+                    }
+                }
+            }
+
+            if (interestsDirty) {
+                Button(
+                    onClick = { vm.saveInterests() },
+                    enabled = !interestsSaving && (
+                        if (interestMode == "pillars") userCategoryIds.isNotEmpty()
+                        else userTopicIds.isNotEmpty()
+                    ),
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text(if (interestsSaving) "Saving…" else "Save interests")
                 }
             }
 

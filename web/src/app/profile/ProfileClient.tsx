@@ -8,6 +8,9 @@ import { CollectionsManager } from './CollectionsManager';
 import type { CollectionRow } from './CollectionsManager';
 import { SavedUrlsManager } from './SavedUrlsManager';
 import type { SavedUrlRow } from './SavedUrlsManager';
+import { InterestPicker } from '@/components/InterestPicker';
+import type { Subcategory } from '@/components/InterestPicker';
+import { saveUserInterests, type InterestMode } from '@/lib/interests';
 
 type Category = { id: string; label: string; emoji: string };
 type Profile = {
@@ -23,12 +26,14 @@ interface ProfileClientProps {
   email: string;
   profile: Profile;
   allCategories: Category[];
+  allSubcategories: Subcategory[];
   initialCategoryIds: string[];
+  initialTopicIds: string[];
   initialCollections: CollectionRow[];
   initialSavedUrls: SavedUrlRow[];
 }
 
-export function ProfileClient({ userId, email, profile, allCategories, initialCategoryIds, initialCollections, initialSavedUrls }: ProfileClientProps) {
+export function ProfileClient({ userId, email, profile, allCategories, allSubcategories, initialCategoryIds, initialTopicIds, initialCollections, initialSavedUrls }: ProfileClientProps) {
   const supabase = createClient();
 
   // Bio editing
@@ -36,11 +41,14 @@ export function ProfileClient({ userId, email, profile, allCategories, initialCa
   const [editingBio, setEditingBio] = useState(false);
   const [bioLoading, setBioLoading] = useState(false);
 
-  // Category selection
-  const [selectedCategories, setSelectedCategories] = useState<Set<string>>(new Set(initialCategoryIds));
-  const [categoriesDirty, setCategoriesDirty] = useState(false);
-  const [categorySaving, setCategorySaving] = useState(false);
-  const [categorySaved, setCategorySaved] = useState(false);
+  // Interest selection
+  const initialMode: InterestMode = initialTopicIds.length > 0 ? 'topics' : 'pillars';
+  const [interestMode, setInterestMode] = useState<InterestMode>(initialMode);
+  const [selectedPillars, setSelectedPillars] = useState<Set<string>>(new Set(initialCategoryIds));
+  const [selectedTopics, setSelectedTopics] = useState<Set<string>>(new Set(initialTopicIds));
+  const [interestsDirty, setInterestsDirty] = useState(false);
+  const [interestsSaving, setInterestsSaving] = useState(false);
+  const [interestsSaved, setInterestsSaved] = useState(false);
 
   const [error, setError] = useState<string | null>(null);
 
@@ -52,33 +60,51 @@ export function ProfileClient({ userId, email, profile, allCategories, initialCa
     setEditingBio(false);
   }
 
-  function toggleCategory(id: string) {
-    setSelectedCategories(prev => {
+  function handlePillarToggle(id: string) {
+    setSelectedPillars((prev) => {
       const next = new Set(prev);
       if (next.has(id)) { next.delete(id); } else { next.add(id); }
       return next;
     });
-    setCategoriesDirty(true);
-    setCategorySaved(false);
+    setInterestsDirty(true);
+    setInterestsSaved(false);
   }
 
-  async function saveCategories() {
-    setCategorySaving(true);
+  function handleTopicToggle(id: string) {
+    setSelectedTopics((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) { next.delete(id); } else { next.add(id); }
+      return next;
+    });
+    setInterestsDirty(true);
+    setInterestsSaved(false);
+  }
+
+  function handleModeChange(next: InterestMode) {
+    setInterestMode(next);
+    if (next === 'topics') setSelectedPillars(new Set());
+    else setSelectedTopics(new Set());
+    setInterestsDirty(true);
+    setInterestsSaved(false);
+  }
+
+  async function saveInterests() {
+    setInterestsSaving(true);
     setError(null);
+    const hasSelection =
+      (interestMode === 'pillars' && selectedPillars.size > 0) ||
+      (interestMode === 'topics' && selectedTopics.size > 0);
+    if (!hasSelection) { setInterestsSaving(false); return; }
     try {
-      await supabase.from('user_categories').delete().eq('user_id', userId);
-      if (selectedCategories.size > 0) {
-        await supabase.from('user_categories').insert(
-          Array.from(selectedCategories).map(category_id => ({ user_id: userId, category_id }))
-        );
-      }
-      setCategoriesDirty(false);
-      setCategorySaved(true);
-      setTimeout(() => setCategorySaved(false), 2500);
+      const subcategoryParentMap = new Map(allSubcategories.map((s) => [s.id, s.category_id]));
+      await saveUserInterests(supabase, userId, interestMode, selectedPillars, selectedTopics, subcategoryParentMap);
+      setInterestsDirty(false);
+      setInterestsSaved(true);
+      setTimeout(() => setInterestsSaved(false), 2500);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to save');
     } finally {
-      setCategorySaving(false);
+      setInterestsSaving(false);
     }
   }
 
@@ -169,37 +195,31 @@ export function ProfileClient({ userId, email, profile, allCategories, initialCa
         {/* Interests */}
         <section>
           <h2 className="text-base font-semibold text-zinc-900 dark:text-white mb-3">Your interests</h2>
-          <div className="grid grid-cols-2 gap-2 mb-4">
-            {allCategories.map(cat => {
-              const active = selectedCategories.has(cat.id);
-              return (
-                <button
-                  key={cat.id}
-                  type="button"
-                  onClick={() => toggleCategory(cat.id)}
-                  className={`flex items-center gap-2 rounded-xl border-2 px-4 py-3 text-sm font-medium text-left transition-colors ${
-                    active
-                      ? 'border-zinc-900 bg-zinc-900 text-white dark:border-white dark:bg-white dark:text-zinc-900'
-                      : 'border-zinc-200 text-zinc-700 hover:border-zinc-400 dark:border-zinc-700 dark:text-zinc-300 dark:hover:border-zinc-500'
-                  }`}
-                >
-                  <span>{cat.emoji}</span>
-                  <span>{cat.label}</span>
-                </button>
-              );
-            })}
+          <div className="mb-4">
+            <InterestPicker
+              categories={allCategories}
+              subcategories={allSubcategories}
+              mode={interestMode}
+              selectedPillars={selectedPillars}
+              selectedTopics={selectedTopics}
+              onPillarToggle={handlePillarToggle}
+              onTopicToggle={handleTopicToggle}
+              onModeChange={handleModeChange}
+            />
           </div>
 
-          {categoriesDirty && (
+          {interestsDirty && (
             <button
-              onClick={saveCategories}
-              disabled={categorySaving || selectedCategories.size === 0}
+              onClick={saveInterests}
+              disabled={interestsSaving || (
+                interestMode === 'pillars' ? selectedPillars.size === 0 : selectedTopics.size === 0
+              )}
               className="text-sm bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 px-5 py-2 rounded-lg font-medium hover:opacity-90 disabled:opacity-50 transition-opacity"
             >
-              {categorySaving ? 'Saving…' : 'Save interests'}
+              {interestsSaving ? 'Saving…' : 'Save interests'}
             </button>
           )}
-          {categorySaved && (
+          {interestsSaved && (
             <p className="text-sm text-green-600 dark:text-green-400 mt-2">✓ Interests saved</p>
           )}
         </section>

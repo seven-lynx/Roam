@@ -7,6 +7,9 @@ import { useRouter, useSearchParams } from "next/navigation";
 import * as Sentry from "@sentry/nextjs";
 import { createClient } from "@/lib/supabase/client";
 import { validateEmail, validatePassword, validatePasswordsMatch, getPasswordStrengthColor, getPasswordStrengthLabel } from "@/lib/validation";
+import { InterestPicker } from "@/components/InterestPicker";
+import { saveUserInterests, type InterestMode } from "@/lib/interests";
+import type { Subcategory } from "@/components/InterestPicker";
 
 type CategoryItem = { id: string; label: string; emoji: string };
 
@@ -42,23 +45,29 @@ export default function JoinPageContent() {
   const [confirmError, setConfirmError] = useState<string | null>(null);
   const [passwordStrength, setPasswordStrength] = useState<"weak" | "fair" | "good" | "strong">("weak");
 
-  // Category state
+  // Category / interest state
   const [categories, setCategories] = useState<CategoryItem[]>(FALLBACK_CATEGORIES);
-  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [subcategories, setSubcategories] = useState<Subcategory[]>([]);
+  const [interestMode, setInterestMode] = useState<InterestMode>('pillars');
+  const [selectedPillars, setSelectedPillars] = useState<Set<string>>(new Set());
+  const [selectedTopics, setSelectedTopics] = useState<Set<string>>(new Set());
 
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  // Fetch categories from DB
+  // Fetch categories + subcategories from DB
   useEffect(() => {
     (async () => {
       try {
-        const { data } = await supabase
-          .from("categories")
-          .select("id, name, icon, sort_order")
-          .order("sort_order");
-        if (data && data.length > 0) {
-          setCategories(data.map((c) => ({ id: c.id, label: c.name, emoji: c.icon })));
+        const [catsRes, subcatsRes] = await Promise.all([
+          supabase.from("categories").select("id, name, icon, sort_order").order("sort_order"),
+          supabase.from("subcategories").select("id, name, category_id, sort_order").order("sort_order"),
+        ]);
+        if (catsRes.data && catsRes.data.length > 0) {
+          setCategories(catsRes.data.map((c) => ({ id: c.id, label: c.name, emoji: c.icon })));
+        }
+        if (subcatsRes.data && subcatsRes.data.length > 0) {
+          setSubcategories(subcatsRes.data.map((s) => ({ id: s.id, name: s.name, category_id: s.category_id })));
         }
       } catch {
         // keep fallback
@@ -169,18 +178,36 @@ export default function JoinPageContent() {
     }
   }
 
-  // ── Category save ─────────────────────────────────────────────────────────
-  function toggleCategory(id: string) {
-    setSelected((prev) => {
+  // ── Interest helpers ──────────────────────────────────────────────────────
+  function handlePillarToggle(id: string) {
+    setSelectedPillars((prev) => {
       const next = new Set(prev);
       if (next.has(id)) { next.delete(id); } else { next.add(id); }
       return next;
     });
   }
 
+  function handleTopicToggle(id: string) {
+    setSelectedTopics((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) { next.delete(id); } else { next.add(id); }
+      return next;
+    });
+  }
+
+  function handleModeChange(next: InterestMode) {
+    setInterestMode(next);
+    if (next === 'topics') setSelectedPillars(new Set());
+    else setSelectedTopics(new Set());
+  }
+
+  const hasSelection =
+    (interestMode === 'pillars' && selectedPillars.size > 0) ||
+    (interestMode === 'topics' && selectedTopics.size > 0);
+
   async function handleCategories(e: React.FormEvent) {
     e.preventDefault();
-    if (selected.size === 0) { setError("Pick at least one category."); return; }
+    if (!hasSelection) { setError("Pick at least one interest."); return; }
     setError(null);
     setLoading(true);
 
@@ -188,13 +215,8 @@ export default function JoinPageContent() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) { setError("Not signed in — please refresh and try again."); setLoading(false); return; }
 
-      await supabase.from("user_categories").delete().eq("user_id", user.id);
-
-      const { error: insertError } = await supabase
-        .from("user_categories")
-        .insert(Array.from(selected).map((category_id) => ({ user_id: user.id, category_id })));
-
-      if (insertError) { setError("Couldn't save preferences — please try again."); setLoading(false); return; }
+      const subcategoryParentMap = new Map(subcategories.map((s) => [s.id, s.category_id]));
+      await saveUserInterests(supabase, user.id, interestMode, selectedPillars, selectedTopics, subcategoryParentMap);
 
       if (isAndroid) {
         try {
@@ -234,32 +256,22 @@ export default function JoinPageContent() {
             <p className="mt-2 text-zinc-500 dark:text-zinc-400">Pick at least one — you can change this later.</p>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            {categories.map((cat) => {
-              const active = selected.has(cat.id);
-              return (
-                <button
-                  key={cat.id}
-                  type="button"
-                  onClick={() => toggleCategory(cat.id)}
-                  className={`flex flex-col items-center gap-1 rounded-xl border-2 px-4 py-3 text-sm font-medium transition-colors ${
-                    active
-                      ? "border-zinc-900 bg-zinc-900 text-white dark:border-white dark:bg-white dark:text-zinc-900"
-                      : "border-zinc-200 text-zinc-700 hover:border-zinc-400 dark:border-zinc-700 dark:text-zinc-300 dark:hover:border-zinc-500"
-                  }`}
-                >
-                  <span>{cat.emoji}</span>
-                  <span>{cat.label}</span>
-                </button>
-              );
-            })}
-          </div>
+          <InterestPicker
+            categories={categories}
+            subcategories={subcategories}
+            mode={interestMode}
+            selectedPillars={selectedPillars}
+            selectedTopics={selectedTopics}
+            onPillarToggle={handlePillarToggle}
+            onTopicToggle={handleTopicToggle}
+            onModeChange={handleModeChange}
+          />
 
           {error && <p className="text-sm text-red-500 text-center">{error}</p>}
 
           <button
             type="submit"
-            disabled={loading || selected.size === 0}
+            disabled={loading || !hasSelection}
             className="rounded-full bg-zinc-900 dark:bg-white px-8 py-3 text-white dark:text-zinc-900 font-semibold hover:opacity-90 transition-opacity disabled:opacity-50"
           >
             {loading ? "Saving…" : "Start exploring →"}

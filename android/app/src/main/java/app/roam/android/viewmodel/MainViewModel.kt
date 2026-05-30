@@ -253,6 +253,22 @@ class MainViewModel(
     private val _userCategoryIds = MutableStateFlow<Set<String>>(emptySet())
     val userCategoryIds: StateFlow<Set<String>> = _userCategoryIds.asStateFlow()
 
+    /** IDs of subcategories the user has selected when in topic mode */
+    private val _userTopicIds = MutableStateFlow<Set<String>>(emptySet())
+    val userTopicIds: StateFlow<Set<String>> = _userTopicIds.asStateFlow()
+
+    /** Whether the user is in 'pillars' (whole category) or 'topics' (specific subcategory) mode */
+    private val _interestMode = MutableStateFlow("pillars")
+    val interestMode: StateFlow<String> = _interestMode.asStateFlow()
+
+    /** True when local interest state has unsaved changes */
+    private val _interestsDirty = MutableStateFlow(false)
+    val interestsDirty: StateFlow<Boolean> = _interestsDirty.asStateFlow()
+
+    /** True while interests are being saved to the server */
+    private val _interestsSaving = MutableStateFlow(false)
+    val interestsSaving: StateFlow<Boolean> = _interestsSaving.asStateFlow()
+
     /** Counts of pages roamed and submitted by the current user */
     private val _profileStats = MutableStateFlow(ProfileStats())
     val profileStats: StateFlow<ProfileStats> = _profileStats.asStateFlow()
@@ -820,7 +836,16 @@ class MainViewModel(
             runCatching { _profile.value = repo.getProfile() }
         }
         viewModelScope.launch {
-            runCatching { _userCategoryIds.value = repo.getUserCategoryIds() }
+            runCatching {
+                val topicIds = repo.getUserTopicIds()
+                if (topicIds.isNotEmpty()) {
+                    _userTopicIds.value = topicIds
+                    _interestMode.value = "topics"
+                } else {
+                    _userCategoryIds.value = repo.getUserCategoryIds()
+                    _interestMode.value = "pillars"
+                }
+            }
         }
         viewModelScope.launch {
             runCatching {
@@ -847,15 +872,53 @@ class MainViewModel(
         }
     }
 
-    /** Optimistically toggles a category, then syncs to Supabase. */
+    /** Optimistically toggles a pillar category, then syncs to Supabase. */
     fun toggleCategory(categoryId: String, selected: Boolean) {
         _userCategoryIds.value = if (selected) {
             _userCategoryIds.value + categoryId
         } else {
             _userCategoryIds.value - categoryId
         }
+        _interestsDirty.value = true
         viewModelScope.launch {
             runCatching { repo.setUserCategory(categoryId, selected) }
+        }
+    }
+
+    /** Toggles a topic (subcategory) selection in topic mode. Does not auto-save. */
+    fun toggleTopic(subcategoryId: String, selected: Boolean) {
+        _userTopicIds.value = if (selected) {
+            _userTopicIds.value + subcategoryId
+        } else {
+            _userTopicIds.value - subcategoryId
+        }
+        _interestsDirty.value = true
+    }
+
+    /** Switches between pillar and topic modes, clearing the other mode's selection. */
+    fun setInterestMode(mode: String) {
+        _interestMode.value = mode
+        if (mode == "topics") _userCategoryIds.value = emptySet()
+        else _userTopicIds.value = emptySet()
+        _interestsDirty.value = true
+    }
+
+    /** Saves current pillar or topic selections to Supabase. */
+    fun saveInterests() {
+        val mode = _interestMode.value
+        val pillars = _userCategoryIds.value
+        val topics = _userTopicIds.value
+        val subcats = _subcategories.value
+        if (mode == "pillars" && pillars.isEmpty()) return
+        if (mode == "topics" && topics.isEmpty()) return
+        _interestsSaving.value = true
+        viewModelScope.launch {
+            runCatching {
+                val parentMap = subcats.associate { it.id to it.categoryId }
+                repo.saveUserInterests(pillars, topics, parentMap)
+                _interestsDirty.value = false
+            }
+            _interestsSaving.value = false
         }
     }
 

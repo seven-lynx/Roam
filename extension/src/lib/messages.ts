@@ -11,6 +11,9 @@ export type Request =
   | { type: 'GET_CATEGORIES' }
   | { type: 'GET_USER_CATEGORIES' }
   | { type: 'SET_USER_CATEGORIES'; categoryIds: string[] }
+  | { type: 'GET_USER_INTERESTS' }
+  | { type: 'SET_USER_INTERESTS'; pillarIds: string[]; topicIds: string[] }
+  | { type: 'GET_ALL_SUBCATEGORIES' }
   | { type: 'SIGN_OUT' }
   | { type: 'ROAM'; categoryId?: string; subcategoryId?: string }
   | { type: 'GET_SUBCATEGORIES'; categoryId: string }
@@ -68,6 +71,12 @@ export interface CategoryItem {
 
 export interface UserCategoriesData {
   categoryIds: string[];
+}
+
+export interface UserInterestsData {
+  mode: 'pillars' | 'topics';
+  pillarIds: string[];
+  topicIds: string[];
 }
 
 export interface SignUpEmailData {
