@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { createClient } from '@/lib/supabase/client';
 
 export interface SavedUrlRow {
@@ -19,6 +19,7 @@ export function SavedUrlsManager({ userId, initialSavedUrls }: Props) {
   const supabase = createClient();
   const [items, setItems] = useState<SavedUrlRow[]>(initialSavedUrls);
   const [error, setError] = useState<string | null>(null);
+  const nowMs = useMemo(() => new Date().getTime(), []);
 
   async function remove(id: string) {
     const { error: err } = await supabase
@@ -49,7 +50,7 @@ export function SavedUrlsManager({ userId, initialSavedUrls }: Props) {
               catch { return item.url; }
             })();
             const daysAgo = Math.floor(
-              (Date.now() - new Date(item.saved_at).getTime()) / (1000 * 60 * 60 * 24)
+              (nowMs - new Date(item.saved_at).getTime()) / (1000 * 60 * 60 * 24)
             );
             const expiresIn = 30 - daysAgo;
             return (

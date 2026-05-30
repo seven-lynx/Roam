@@ -3,6 +3,11 @@
 import { useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 
+function makeSlug(name: string): string {
+  const base = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+  return `${base}-${crypto.randomUUID().slice(0, 8)}`;
+}
+
 interface CollectionItem {
   id: string;
   added_at: string;
@@ -43,7 +48,7 @@ export function CollectionsManager({ userId, initialCollections }: Props) {
       .eq('collection_id', collectionId)
       .order('added_at', { ascending: false });
     setExpandedItems(
-      (data ?? []).map((item: any) => ({
+      (data ?? []).map((item: { id: string; added_at: string; urls: { id: string; title: string | null; original_url: string } | null }) => ({
         id: item.id,
         added_at: item.added_at,
         url: item.urls ?? null,
@@ -67,8 +72,7 @@ export function CollectionsManager({ userId, initialCollections }: Props) {
     if (!name) return;
     setCreating(true);
     setCreateError(null);
-    const base = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
-    const slug = `${base}-${Date.now().toString(36)}`;
+    const slug = makeSlug(name);
     const { data, error: err } = await supabase
       .from('collections')
       .insert({ name, slug, user_id: userId, is_public: false })

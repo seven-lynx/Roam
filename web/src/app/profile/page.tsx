@@ -7,13 +7,19 @@ import type { SavedUrlRow } from './SavedUrlsManager';
 
 export const metadata: Metadata = { title: 'Profile' };
 
+function thirtyDaysAgoISO(): string {
+  const d = new Date();
+  d.setDate(d.getDate() - 30);
+  return d.toISOString();
+}
+
 export default async function ProfilePage() {
   const supabase = await createClient();
 
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect('/join?mode=signin');
 
-  const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+  const thirtyDaysAgo = thirtyDaysAgoISO();
 
   const [profileResult, categoriesResult, userCategoriesResult, collectionsResult, savedUrlsResult] =
     await Promise.all([
@@ -38,7 +44,7 @@ export default async function ProfilePage() {
   const allCategories = (categoriesResult.data ?? []).map(c => ({ id: c.id, label: c.name, emoji: c.icon }));
   const userCategoryIds = (userCategoriesResult.data ?? []).map(r => r.category_id);
 
-  const collections: CollectionRow[] = (collectionsResult.data ?? []).map((c: any) => ({
+  const collections: CollectionRow[] = (collectionsResult.data ?? []).map((c: { id: string; name: string; slug: string; is_public: boolean; item_count: { count: number }[] | number }) => ({
     id: c.id,
     name: c.name,
     slug: c.slug,
