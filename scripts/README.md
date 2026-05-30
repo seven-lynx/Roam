@@ -38,7 +38,7 @@ All sources are free public APIs or datasets — no scraping, no paywalled conte
 | `seed-reddit.js` | Reddit JSON API | none | 685 | ⚠️ Broken (API now 403) |
 | `seed-ted.js` | TED Talks Sitemap | none | 7,466 | ✅ Live |
 | `seed-metmuseum.js` | Met Museum / Wikidata | none | 55,346 | ✅ Complete |
-| `seed-boardgamegeek.js` | BoardGameGeek XML API (search-based) | none | 0 | ⚠️ Broken (API now 401) |
+| `seed-boardgamegeek.js` | BoardGameGeek hotness (top 50 trending games) | none | 49 | ✅ Live |
 | `seed-librivox.js` | LibriVox API | none | 18,747 | ✅ Complete |
 | `seed-github.js` | GitHub Search API | optional `GITHUB_TOKEN` | 5,802 | ✅ Live |
 | `seed-itchio.js` | Itch.io Browse API | none | 13,328 | ✅ Complete |
