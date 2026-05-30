@@ -40,6 +40,12 @@ type AnalyticsData = {
   topUrls: { url: string; title: string; wilson_score: number; upvotes: number; downvotes: number }[];
 };
 
+const EMPTY_ANALYTICS: AnalyticsData = {
+  submissionsByDate: [],
+  submissionsByCategory: [],
+  topUrls: [],
+};
+
 type ReportedLink = {
   url_id: string;
   reported_at: string;
@@ -59,12 +65,10 @@ export default function AdminPageClient() {
   const [searchQuery, setSearchQuery] = useState("");
   const [sortBy, setSortBy] = useState<"newest" | "oldest">("newest");
   const [view, setView] = useState<"queue" | "analytics" | "reports">("queue");
-  const [analyticsData, setAnalyticsData] = useState<AnalyticsData>({
-    submissionsByDate: [],
-    submissionsByCategory: [],
-    topUrls: [],
-  });
-  const [analyticsLoading, setAnalyticsLoading] = useState(true);
+  const [analyticsData, setAnalyticsData] = useState<AnalyticsData>(EMPTY_ANALYTICS);
+  const [analyticsLoading, setAnalyticsLoading] = useState(false);
+  const [analyticsError, setAnalyticsError] = useState<string | null>(null);
+  const [analyticsLoaded, setAnalyticsLoaded] = useState(false);
   const [reportedLinks, setReportedLinks] = useState<ReportedLink[]>([]);
   const [reportsLoading, setReportsLoading] = useState(false);
   const [restoringId, setRestoringId] = useState<string | null>(null);
@@ -123,70 +127,26 @@ export default function AdminPageClient() {
   }
 
   async function loadAnalytics() {
+    if (analyticsLoaded) return; // don't re-fetch on tab switch
     setAnalyticsLoading(true);
+    setAnalyticsError(null);
     try {
-      // Fetch all moderation queue items for analytics
-      const { data: queueItems } = await supabase
-        .from("moderation_queue")
-        .select(`
-          created_at,
-          subcategory_id,
-          subcategory:subcategories(name),
-          status
-        `);
-
-      // Fetch all URLs for top-rated table
-      const { data: urls } = await supabase
-        .from("urls")
-        .select("url, title, wilson_score, upvotes, downvotes")
-        .order("wilson_score", { ascending: false })
-        .limit(10);
-
-      // Process submissions by date
-      const dateMap: { [key: string]: number } = {};
-      queueItems?.forEach((item) => {
-        if (item.created_at) {
-          const date = new Date(item.created_at).toLocaleDateString("en-US", {
-            year: "numeric",
-            month: "short",
-            day: "numeric",
-          });
-          dateMap[date] = (dateMap[date] || 0) + 1;
-        }
-      });
-
-      const submissionsByDate = Object.entries(dateMap)
-        .map(([date, count]) => ({ date, count }))
-        .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
-        .slice(-30); // Last 30 days
-
-      // Process submissions by category
-      const categoryMap: { [key: string]: number } = {};
-      queueItems?.forEach((item) => {
-        if (item.subcategory?.[0]?.name) {
-          const category = item.subcategory[0].name;
-          categoryMap[category] = (categoryMap[category] || 0) + 1;
-        }
-      });
-
-      const submissionsByCategory = Object.entries(categoryMap)
-        .map(([category, count]) => ({ category, count }))
-        .sort((a, b) => b.count - a.count)
-        .slice(0, 10); // Top 10 categories
-
+      const { data, error } = await supabase.rpc("admin_analytics");
+      if (error) throw error;
+      const result = data as {
+        submissions_by_date: { date: string; count: number }[];
+        submissions_by_category: { category: string; count: number }[];
+        top_urls: { url: string; title: string; wilson_score: number; upvotes: number; downvotes: number }[];
+      };
       setAnalyticsData({
-        submissionsByDate,
-        submissionsByCategory,
-        topUrls: urls?.map((u) => ({
-          url: u.url,
-          title: u.title || "Untitled",
-          wilson_score: u.wilson_score || 0,
-          upvotes: u.upvotes || 0,
-          downvotes: u.downvotes || 0,
-        })) || [],
+        submissionsByDate: result.submissions_by_date ?? [],
+        submissionsByCategory: result.submissions_by_category ?? [],
+        topUrls: result.top_urls ?? [],
       });
+      setAnalyticsLoaded(true);
     } catch (err) {
       console.error("Failed to load analytics:", err);
+      setAnalyticsError(err instanceof Error ? err.message : "Failed to load analytics");
     } finally {
       setAnalyticsLoading(false);
     }
@@ -442,86 +402,86 @@ export default function AdminPageClient() {
           <div className="flex flex-col gap-8">
             {analyticsLoading ? (
               <div className="text-center text-zinc-500">Loading analytics...</div>
+            ) : analyticsError ? (
+              <div className="rounded-xl border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/20 p-6 text-sm text-red-700 dark:text-red-400">
+                Failed to load analytics: {analyticsError}
+              </div>
             ) : (
               <>
-                {/* Submissions by Date (Line Chart) */}
+                {/* Submissions by Date */}
                 <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 p-6">
-                  <h2 className="text-lg font-semibold text-zinc-900 dark:text-white mb-4">
+                  <h2 className="text-lg font-semibold text-zinc-900 dark:text-white mb-1">
                     Submissions Over Time
                   </h2>
+                  <p className="text-xs text-zinc-400 dark:text-zinc-500 mb-4">Last 30 days</p>
                   {analyticsData.submissionsByDate.length > 0 ? (
                     <div className="flex flex-col gap-1">
-                      {analyticsData.submissionsByDate.map((d: { date: string; count: number }) => {
-                        const max = Math.max(...analyticsData.submissionsByDate.map((x: { count: number }) => x.count), 1);
-                        return (
+                      {(() => {
+                        const max = Math.max(...analyticsData.submissionsByDate.map((x) => x.count), 1);
+                        return analyticsData.submissionsByDate.map((d) => (
                           <div key={d.date} className="flex items-center gap-2 text-xs">
-                            <span className="w-24 text-right text-zinc-500 shrink-0">{d.date}</span>
+                            <span className="w-24 text-right text-zinc-500 shrink-0">
+                              {new Date(d.date + "T00:00:00Z").toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" })}
+                            </span>
                             <div className="flex-1 bg-zinc-100 dark:bg-zinc-800 rounded">
                               <div className="bg-blue-500 rounded h-4" style={{ width: `${(d.count / max) * 100}%` }} />
                             </div>
-                            <span className="w-8 text-zinc-700 dark:text-zinc-300">{d.count}</span>
+                            <span className="w-6 text-right text-zinc-700 dark:text-zinc-300">{d.count}</span>
                           </div>
-                        );
-                      })}
+                        ));
+                      })()}
                     </div>
                   ) : (
-                    <p className="text-zinc-500">No submission data available</p>
+                    <p className="text-zinc-500 text-sm">No submissions in the last 30 days</p>
                   )}
                 </div>
 
-                {/* Top Categories (Bar Chart) */}
+                {/* Submissions by Category */}
                 <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 p-6">
-                  <h2 className="text-lg font-semibold text-zinc-900 dark:text-white mb-4">
-                    Top Submission Categories
+                  <h2 className="text-lg font-semibold text-zinc-900 dark:text-white mb-1">
+                    Submissions by Category
                   </h2>
+                  <p className="text-xs text-zinc-400 dark:text-zinc-500 mb-4">Top 10 parent categories, all time</p>
                   {analyticsData.submissionsByCategory.length > 0 ? (
                     <div className="flex flex-col gap-1">
-                      {analyticsData.submissionsByCategory.map((d: { category: string; count: number }) => {
-                        const max = Math.max(...analyticsData.submissionsByCategory.map((x: { count: number }) => x.count), 1);
-                        return (
+                      {(() => {
+                        const max = Math.max(...analyticsData.submissionsByCategory.map((x) => x.count), 1);
+                        return analyticsData.submissionsByCategory.map((d) => (
                           <div key={d.category} className="flex items-center gap-2 text-xs">
-                            <span className="w-32 truncate text-right text-zinc-500 shrink-0">{d.category}</span>
+                            <span className="w-36 truncate text-right text-zinc-500 shrink-0">{d.category}</span>
                             <div className="flex-1 bg-zinc-100 dark:bg-zinc-800 rounded">
                               <div className="bg-violet-500 rounded h-4" style={{ width: `${(d.count / max) * 100}%` }} />
                             </div>
-                            <span className="w-8 text-zinc-700 dark:text-zinc-300">{d.count}</span>
+                            <span className="w-6 text-right text-zinc-700 dark:text-zinc-300">{d.count}</span>
                           </div>
-                        );
-                      })}
+                        ));
+                      })()}
                     </div>
                   ) : (
-                    <p className="text-zinc-500">No category data available</p>
+                    <p className="text-zinc-500 text-sm">No category data available</p>
                   )}
                 </div>
 
-                {/* Top Rated URLs (Table) */}
+                {/* Top Rated URLs */}
                 <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 p-6">
-                  <h2 className="text-lg font-semibold text-zinc-900 dark:text-white mb-4">
+                  <h2 className="text-lg font-semibold text-zinc-900 dark:text-white mb-1">
                     Top Rated URLs
                   </h2>
+                  <p className="text-xs text-zinc-400 dark:text-zinc-500 mb-4">Highest Wilson score among rated URLs</p>
                   {analyticsData.topUrls.length > 0 ? (
                     <div className="overflow-x-auto">
                       <table className="w-full text-sm">
                         <thead>
                           <tr className="border-b border-zinc-200 dark:border-zinc-700">
-                            <th className="text-left py-3 px-4 font-semibold text-zinc-900 dark:text-white">
-                              Title
-                            </th>
-                            <th className="text-center py-3 px-4 font-semibold text-zinc-900 dark:text-white">
-                              Rating
-                            </th>
-                            <th className="text-center py-3 px-4 font-semibold text-zinc-900 dark:text-white">
-                              👍
-                            </th>
-                            <th className="text-center py-3 px-4 font-semibold text-zinc-900 dark:text-white">
-                              👎
-                            </th>
+                            <th className="text-left py-3 px-4 font-semibold text-zinc-900 dark:text-white">Title</th>
+                            <th className="text-center py-3 px-4 font-semibold text-zinc-900 dark:text-white w-20">Score</th>
+                            <th className="text-center py-3 px-4 font-semibold text-zinc-900 dark:text-white w-24">👍 / 👎</th>
                           </tr>
                         </thead>
                         <tbody>
-                          {analyticsData.topUrls.map((url, idx) => (
+                          {analyticsData.topUrls.map((url) => (
                             <tr
-                              key={idx}
+                              key={url.url}
                               className="border-b border-zinc-100 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-900/50"
                             >
                               <td className="py-3 px-4">
@@ -529,19 +489,18 @@ export default function AdminPageClient() {
                                   href={url.url}
                                   target="_blank"
                                   rel="noopener noreferrer"
-                                  className="text-blue-600 dark:text-blue-400 hover:underline break-all text-xs"
+                                  className="text-blue-600 dark:text-blue-400 hover:underline text-xs"
                                 >
                                   {url.title}
                                 </a>
                               </td>
-                              <td className="text-center py-3 px-4 font-semibold text-zinc-900 dark:text-white">
-                                {(url.wilson_score * 100).toFixed(1)}%
+                              <td className="text-center py-3 px-4 font-semibold text-zinc-900 dark:text-white tabular-nums">
+                                {url.wilson_score}%
                               </td>
-                              <td className="text-center py-3 px-4 text-green-600 dark:text-green-400">
-                                {url.upvotes}
-                              </td>
-                              <td className="text-center py-3 px-4 text-red-600 dark:text-red-400">
-                                {url.downvotes}
+                              <td className="text-center py-3 px-4 text-xs tabular-nums">
+                                <span className="text-green-600 dark:text-green-400">{url.upvotes}</span>
+                                <span className="text-zinc-400 mx-1">/</span>
+                                <span className="text-red-600 dark:text-red-400">{url.downvotes}</span>
                               </td>
                             </tr>
                           ))}
@@ -549,7 +508,7 @@ export default function AdminPageClient() {
                       </table>
                     </div>
                   ) : (
-                    <p className="text-zinc-500">No URL data available</p>
+                    <p className="text-zinc-500 text-sm">No rated URLs yet</p>
                   )}
                 </div>
               </>
