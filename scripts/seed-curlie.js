@@ -329,7 +329,7 @@ async function extractAndParseTsv() {
     // to those languages can discover them via user_settings.
     const filenameToMeta = {
       'rdf-Arts-c.tsv':        { category: CATEGORY.ARTS_CULTURE,    language: 'en' },
-      'rdf-Business-c.tsv':   { category: CATEGORY.TECHNOLOGY,      language: 'en' },
+      'rdf-Business-c.tsv':   { category: null,                     language: 'en' }, // skip — local businesses/services
       'rdf-Computers-c.tsv':  { category: CATEGORY.TECHNOLOGY,      language: 'en' },
       'rdf-Deutsch-c.tsv':    { category: CATEGORY.TECHNOLOGY,      language: 'de' },
       'rdf-Europe-c.tsv':     { category: CATEGORY.PEOPLE_PLACES,   language: 'en' }, // mixed; English index
@@ -337,8 +337,8 @@ async function extractAndParseTsv() {
       'rdf-Italiano-c.tsv':   { category: CATEGORY.ARTS_CULTURE,    language: 'it' },
       'rdf-Japanese-c.tsv':   { category: CATEGORY.ARTS_CULTURE,    language: 'ja' },
       'rdf-KT-c.tsv':         { category: CATEGORY.GAMES_HOBBIES,   language: 'en' },
-      'rdf-NorthAmerica-c.tsv': { category: CATEGORY.PEOPLE_PLACES, language: 'en' },
-      'rdf-Regional-c.tsv':   { category: CATEGORY.PEOPLE_PLACES,   language: 'en' },
+      'rdf-NorthAmerica-c.tsv': { category: null,                   language: 'en' }, // skip — local city/business directories
+      'rdf-Regional-c.tsv':   { category: null,                     language: 'en' }, // skip — local geographic business directories
       'rdf-Society-c.tsv':    { category: CATEGORY.HISTORY_IDEAS,   language: 'en' },
       'rdf-Top-c.tsv':        { category: CATEGORY.SCIENCE,         language: 'en' },
       'rdf-World-c.tsv':      { category: CATEGORY.PEOPLE_PLACES,   language: 'en' }, // mixed; English index
