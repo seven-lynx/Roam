@@ -51,6 +51,15 @@ All sources are free public APIs or datasets — no scraping, no paywalled conte
 | `seed-podcastindex.mjs` | Podcast Index | `PODCAST_INDEX_API_KEY` + `PODCAST_INDEX_API_SECRET` | ~20,000 | ✅ Live |
 | `seed-europeana.mjs` | Europeana cultural heritage | `EUROPEANA_API_KEY` | ~18,000 | ✅ Live |
 | `seed-marginalia.mjs` | Marginalia Search (indie web) | none | ~5,000 | ✅ Live |
+| `seed-loc.mjs` | Library of Congress public API | none | ~1,500 | ✅ Live |
+| `seed-kottke.mjs` | Kottke.org RSS (linked articles) | none | ~300 | ⬜ Not run |
+| `seed-lesswrong.mjs` | LessWrong GraphQL API | none | ~1,000 | ⬜ Not run |
+| `seed-mastodon.mjs` | Mastodon trending links (3 instances) | none | ~120 | ⬜ Not run |
+| `seed-longform.mjs` | Long-form publications RSS (Aeon, Quanta, etc.) | none | ~500 | ⬜ Not run |
+| `seed-sep.mjs` | Stanford Encyclopedia of Philosophy (sitemap) | none | ~1,800 | ⬜ Not run |
+| `seed-hn-discussions.mjs` | Ask HN threads (points > 200, comments > 100) | none | ~500 | ⬜ Not run |
+| `seed-atlantic-newyorker.mjs` | The Atlantic + The New Yorker RSS | none | ~300 | ⬜ Not run |
+| `seed-flickr-commons.mjs` | Flickr: The Commons (public-domain institutional photos) | none | ~440 | ⬜ Not run |
 
 **Total: ~3.1M+ URLs across all sources**
 
