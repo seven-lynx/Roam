@@ -1,29 +1,31 @@
-# Generates all required icon sizes from roam_logo.png
+# Generates all required icon sizes
+# roam_logo2.png -> web app + extension
+# roam_logo.png  -> Android
 # Run from repo root: .\scripts\resize-icons.ps1
 
 Add-Type -AssemblyName System.Drawing
 
-$src = Join-Path $PSScriptRoot "..\assets\roam_logo2.png"
-$srcImg = [System.Drawing.Image]::FromFile((Resolve-Path $src))
+$logo2 = [System.Drawing.Image]::FromFile((Resolve-Path (Join-Path $PSScriptRoot "..\assets\roam_logo2.png")))
+$logo1 = [System.Drawing.Image]::FromFile((Resolve-Path (Join-Path $PSScriptRoot "..\assets\roam_logo.png")))
 
 $targets = @(
-    # Web / favicon
-    @{ size = 16;   dest = "web\public\icon-16.png" },
-    @{ size = 32;   dest = "web\public\icon-32.png" },
-    @{ size = 180;  dest = "web\public\apple-touch-icon.png" },
-    @{ size = 512;  dest = "web\public\icon-512.png" },
-    # Extension (Chrome + Firefox)
-    @{ size = 16;   dest = "extension\icons\icon-16.png" },
-    @{ size = 32;   dest = "extension\icons\icon-32.png" },
-    @{ size = 48;   dest = "extension\icons\icon-48.png" },
-    @{ size = 128;  dest = "extension\icons\icon-128.png" },
-    # Android / Play Store
-    @{ size = 48;   dest = "android\res\icon-48.png" },
-    @{ size = 72;   dest = "android\res\icon-72.png" },
-    @{ size = 96;   dest = "android\res\icon-96.png" },
-    @{ size = 144;  dest = "android\res\icon-144.png" },
-    @{ size = 192;  dest = "android\res\icon-192.png" },
-    @{ size = 512;  dest = "android\res\icon-512.png" }
+    # Web / favicon  (roam_logo2)
+    @{ size = 16;   dest = "web\public\icon-16.png";          src = $logo2 },
+    @{ size = 32;   dest = "web\public\icon-32.png";          src = $logo2 },
+    @{ size = 180;  dest = "web\public\apple-touch-icon.png"; src = $logo2 },
+    @{ size = 512;  dest = "web\public\icon-512.png";         src = $logo2 },
+    # Extension — roam_logo2, scaled to fill the full icon
+    @{ size = 16;   dest = "extension\icons\icon-16.png";     src = $logo2 },
+    @{ size = 32;   dest = "extension\icons\icon-32.png";     src = $logo2 },
+    @{ size = 48;   dest = "extension\icons\icon-48.png";     src = $logo2 },
+    @{ size = 128;  dest = "extension\icons\icon-128.png";    src = $logo2 },
+    # Android / Play Store  (roam_logo — do not change)
+    @{ size = 48;   dest = "android\res\icon-48.png";         src = $logo1 },
+    @{ size = 72;   dest = "android\res\icon-72.png";         src = $logo1 },
+    @{ size = 96;   dest = "android\res\icon-96.png";         src = $logo1 },
+    @{ size = 144;  dest = "android\res\icon-144.png";        src = $logo1 },
+    @{ size = 192;  dest = "android\res\icon-192.png";        src = $logo1 },
+    @{ size = 512;  dest = "android\res\icon-512.png";        src = $logo1 }
 )
 
 foreach ($t in $targets) {
@@ -35,9 +37,7 @@ foreach ($t in $targets) {
     $g   = [System.Drawing.Graphics]::FromImage($bmp)
     $g.InterpolationMode = [System.Drawing.Drawing2D.InterpolationMode]::HighQualityBicubic
     $g.SmoothingMode     = [System.Drawing.Drawing2D.SmoothingMode]::HighQuality
-
-    $g.DrawImage($srcImg, 0, 0, $t.size, $t.size)
-
+    $g.DrawImage($t.src, 0, 0, $t.size, $t.size)
     $g.Dispose()
     $bmp.Save($destPath, [System.Drawing.Imaging.ImageFormat]::Png)
     $bmp.Dispose()
@@ -45,6 +45,7 @@ foreach ($t in $targets) {
     Write-Host "OK $($t.size)x$($t.size) -> $($t.dest)"
 }
 
-$srcImg.Dispose()
+$logo2.Dispose()
+$logo1.Dispose()
 Write-Host ""
 Write-Host "Done. Next: copy web\public\icon-32.png to web\public\favicon.ico"
