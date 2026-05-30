@@ -3,9 +3,9 @@ package app.roam.android.ui.screen
 import android.content.Intent
 import android.net.Uri
 import androidx.activity.compose.BackHandler
-import androidx.browser.customtabs.CustomTabsIntent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -19,13 +19,17 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Collections
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.SwipeToDismissBox
 import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Tab
@@ -39,6 +43,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -124,13 +129,13 @@ fun SavedScreen(
                 }
 
                 when (selectedTab) {
-                    0 -> SavedTab(savedUrls = savedUrls, vm = vm)
+                    0 -> SavedTab(savedUrls = savedUrls, collections = collections, vm = vm)
                     1 -> CollectionsTab(
                         collections = collections,
                         onOpenCollection = { vm.openCollection(it) },
                         onManageCollections = {
-                            CustomTabsIntent.Builder().build()
-                                .launchUrl(context, Uri.parse("https://roamtheweb.app/u/me"))
+                            vm.navigateTo("https://roamtheweb.app/profile")
+                            onNavigateToDiscover()
                         },
                     )
                 }
@@ -143,9 +148,21 @@ fun SavedScreen(
 @Composable
 private fun SavedTab(
     savedUrls: List<SavedUrl>,
+    collections: List<Collection>,
     vm: MainViewModel,
 ) {
     val context = LocalContext.current
+    var selectedUrls by remember { mutableStateOf(emptySet<String>()) }
+    var collectionPickerOpen by remember { mutableStateOf(false) }
+    var newCollectionDialogOpen by remember { mutableStateOf(false) }
+    var newCollectionName by remember { mutableStateOf("") }
+    val isSelectionMode = selectedUrls.isNotEmpty()
+
+    // Keep selection consistent if items are removed while in selection mode
+    LaunchedEffect(savedUrls) {
+        val validUrls = savedUrls.map { it.url }.toSet()
+        selectedUrls = selectedUrls.intersect(validUrls)
+    }
 
     if (savedUrls.isEmpty()) {
         Box(
@@ -166,46 +183,171 @@ private fun SavedTab(
             }
         }
     } else {
-        LazyColumn(modifier = Modifier.fillMaxSize()) {
-            items(savedUrls, key = { it.url }) { item ->
-                val dismissState = rememberSwipeToDismissBoxState(
-                    confirmValueChange = { value ->
-                        if (value == SwipeToDismissBoxValue.EndToStart) {
-                            vm.removeSavedUrl(item.url)
-                            true
-                        } else false
-                    },
-                )
-                SwipeToDismissBox(
-                    state = dismissState,
-                    backgroundContent = {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .background(MaterialTheme.colorScheme.errorContainer)
-                                .padding(end = 24.dp),
-                            contentAlignment = Alignment.CenterEnd,
-                        ) {
+        Column(modifier = Modifier.fillMaxSize()) {
+            // Selection action bar
+            if (isSelectionMode) {
+                Surface(
+                    color = MaterialTheme.colorScheme.primaryContainer,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        IconButton(onClick = { selectedUrls = emptySet() }) {
                             Icon(
-                                imageVector = Icons.Filled.Delete,
-                                contentDescription = "Delete",
-                                tint = MaterialTheme.colorScheme.onErrorContainer,
+                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = "Cancel selection",
+                                tint = MaterialTheme.colorScheme.onPrimaryContainer,
                             )
                         }
-                    },
-                    enableDismissFromStartToEnd = false,
-                ) {
-                    SavedUrlRow(
-                        item = item,
-                        onClick = {
-                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(item.url))
-                            context.startActivity(intent)
-                        },
-                    )
+                        Text(
+                            "${selectedUrls.size} selected",
+                            modifier = Modifier.weight(1f),
+                            style = MaterialTheme.typography.titleSmall,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer,
+                        )
+                        TextButton(
+                            onClick = {
+                                vm.loadCollections()
+                                collectionPickerOpen = true
+                            },
+                        ) {
+                            Text(
+                                "Add to collection",
+                                color = MaterialTheme.colorScheme.onPrimaryContainer,
+                            )
+                        }
+                    }
                 }
-                HorizontalDivider()
+            }
+
+            LazyColumn(modifier = Modifier.weight(1f).fillMaxWidth()) {
+                items(savedUrls, key = { it.url }) { item ->
+                    val isSelected = item.url in selectedUrls
+                    if (isSelectionMode) {
+                        SelectableUrlRow(
+                            item = item,
+                            isSelected = isSelected,
+                            onToggle = {
+                                selectedUrls = if (isSelected) selectedUrls - item.url
+                                              else selectedUrls + item.url
+                            },
+                        )
+                    } else {
+                        val dismissState = rememberSwipeToDismissBoxState(
+                            confirmValueChange = { value ->
+                                if (value == SwipeToDismissBoxValue.EndToStart) {
+                                    vm.removeSavedUrl(item.url)
+                                    true
+                                } else false
+                            },
+                        )
+                        SwipeToDismissBox(
+                            state = dismissState,
+                            backgroundContent = {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .background(MaterialTheme.colorScheme.errorContainer)
+                                        .padding(end = 24.dp),
+                                    contentAlignment = Alignment.CenterEnd,
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Filled.Delete,
+                                        contentDescription = "Delete",
+                                        tint = MaterialTheme.colorScheme.onErrorContainer,
+                                    )
+                                }
+                            },
+                            enableDismissFromStartToEnd = false,
+                        ) {
+                            SavedUrlRow(
+                                item = item,
+                                onClick = {
+                                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse(item.url))
+                                    context.startActivity(intent)
+                                },
+                                onLongClick = { selectedUrls = setOf(item.url) },
+                            )
+                        }
+                    }
+                    HorizontalDivider()
+                }
             }
         }
+    }
+
+    // Collection picker
+    if (collectionPickerOpen) {
+        AlertDialog(
+            onDismissRequest = { collectionPickerOpen = false },
+            title = { Text("Add to collection") },
+            text = {
+                Column {
+                    collections.forEach { col ->
+                        TextButton(
+                            onClick = {
+                                collectionPickerOpen = false
+                                vm.addSavedUrlsToCollection(col.id, selectedUrls.toList())
+                                selectedUrls = emptySet()
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            Text(col.name, modifier = Modifier.fillMaxWidth())
+                        }
+                    }
+                    TextButton(
+                        onClick = {
+                            collectionPickerOpen = false
+                            newCollectionDialogOpen = true
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text("New collection…", modifier = Modifier.fillMaxWidth())
+                    }
+                }
+            },
+            confirmButton = {},
+            dismissButton = {
+                TextButton(onClick = { collectionPickerOpen = false }) { Text("Cancel") }
+            },
+        )
+    }
+
+    // New collection dialog
+    if (newCollectionDialogOpen) {
+        AlertDialog(
+            onDismissRequest = { newCollectionDialogOpen = false; newCollectionName = "" },
+            title = { Text("New collection") },
+            text = {
+                OutlinedTextField(
+                    value = newCollectionName,
+                    onValueChange = { newCollectionName = it },
+                    label = { Text("Name") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        if (newCollectionName.isNotBlank()) {
+                            vm.createCollectionAndAddSaved(newCollectionName.trim(), selectedUrls.toList())
+                            selectedUrls = emptySet()
+                            newCollectionDialogOpen = false
+                            newCollectionName = ""
+                        }
+                    },
+                    enabled = newCollectionName.isNotBlank(),
+                ) { Text("Create") }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { newCollectionDialogOpen = false; newCollectionName = "" },
+                ) { Text("Cancel") }
+            },
+        )
     }
 }
 
@@ -358,15 +500,56 @@ private fun CollectionDetailTab(
 private fun SavedUrlRow(
     item: SavedUrl,
     onClick: () -> Unit,
+    onLongClick: () -> Unit = {},
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .background(MaterialTheme.colorScheme.surface)
-            .clickable(onClick = onClick)
+            .combinedClickable(onClick = onClick, onLongClick = onLongClick)
             .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = item.title.ifBlank { item.url },
+                style = MaterialTheme.typography.bodyMedium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                text = Uri.parse(item.url).host ?: item.url,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+    }
+}
+
+@Composable
+private fun SelectableUrlRow(
+    item: SavedUrl,
+    isSelected: Boolean,
+    onToggle: () -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(
+                if (isSelected) MaterialTheme.colorScheme.secondaryContainer
+                else MaterialTheme.colorScheme.surface,
+            )
+            .clickable(onClick = onToggle)
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Checkbox(
+            checked = isSelected,
+            onCheckedChange = null,
+            modifier = Modifier.padding(end = 8.dp),
+        )
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = item.title.ifBlank { item.url },

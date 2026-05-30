@@ -692,6 +692,49 @@ class MainViewModel(
         _collectionItemsLoading.value = false
     }
 
+    /**
+     * Navigates the WebView directly to [url] without going through the discovery queue.
+     * Useful for opening internal web pages (e.g. profile/collections management).
+     */
+    fun navigateTo(url: String) {
+        _rawUrl.value = url
+        _currentUrl.value = url
+        _state.value = RoamState.Loaded(RoamUrl(id = "", url = url))
+    }
+
+    /**
+     * Looks up each URL in [urls] in the database, then adds each found entry
+     * to the given collection.
+     */
+    fun addSavedUrlsToCollection(collectionId: String, urls: List<String>) {
+        viewModelScope.launch {
+            urls.forEach { url ->
+                runCatching {
+                    val roamUrl = repo.checkUrl(url)
+                    if (roamUrl != null) repo.addUrlToCollection(collectionId, roamUrl.id)
+                }
+            }
+        }
+    }
+
+    /**
+     * Creates a new collection then adds all [urls] to it.
+     */
+    fun createCollectionAndAddSaved(name: String, urls: List<String>) {
+        viewModelScope.launch {
+            runCatching {
+                val col = repo.createCollection(name)
+                _collections.value = (_collections.value + col).sortedBy { it.name }
+                urls.forEach { url ->
+                    runCatching {
+                        val roamUrl = repo.checkUrl(url)
+                        if (roamUrl != null) repo.addUrlToCollection(col.id, roamUrl.id)
+                    }
+                }
+            }
+        }
+    }
+
     fun addCurrentUrlToCollection(collectionId: String) {
         val loaded = _state.value as? RoamState.Loaded ?: return
         viewModelScope.launch {

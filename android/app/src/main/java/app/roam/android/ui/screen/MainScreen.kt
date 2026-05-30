@@ -361,8 +361,7 @@ private fun DiscoverTab(
             onRoamWithinCategory = { vm.roamWithinCategory() },
             onRoamCollection = { collectionId -> vm.roamCollection(collectionId) },
             onManageCollections = {
-                CustomTabsIntent.Builder().build()
-                    .launchUrl(activity, Uri.parse("https://roamtheweb.app/u/me"))
+                vm.navigateTo("https://roamtheweb.app/profile")
                 vm.closeConfigSheet()
             },
             onCategoryPrefs = {
