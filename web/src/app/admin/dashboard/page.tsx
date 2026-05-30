@@ -3,9 +3,10 @@ import { createClient } from "@/lib/supabase/server";
 import { createClient as createSupabaseAdmin } from "@supabase/supabase-js";
 import Link from "next/link";
 import type { Metadata } from "next";
+import RefreshButton from "./RefreshButton";
 
 export const metadata: Metadata = { title: "Admin · Dashboard" };
-export const revalidate = 300; // 5-minute ISR cache
+export const dynamic = "force-dynamic";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -14,7 +15,10 @@ type SupabaseStats = {
   approvedUrls: number;
   pendingModeration: number;
   totalUsers: number;
+  newUsersThisWeek: number;
   recentUrls: number;
+  totalRatings: number;
+  inactiveUrls: number;
 };
 
 type SentryIssue = {
@@ -47,7 +51,7 @@ async function getSupabaseStats(): Promise<SupabaseStats | null> {
   const admin = createSupabaseAdmin(url, serviceKey);
   const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
 
-  const [totalRes, approvedRes, pendingRes, usersRes, recentRes] = await Promise.all([
+  const [totalRes, approvedRes, pendingRes, usersRes, newUsersRes, recentRes, ratingsRes, inactiveRes] = await Promise.all([
     admin.from("urls").select("*", { count: "exact", head: true }),
     admin.from("urls").select("*", { count: "exact", head: true }).eq("approved", true),
     admin
@@ -56,9 +60,15 @@ async function getSupabaseStats(): Promise<SupabaseStats | null> {
       .eq("status", "pending"),
     admin.from("profiles").select("*", { count: "exact", head: true }),
     admin
+      .from("profiles")
+      .select("*", { count: "exact", head: true })
+      .gte("created_at", sevenDaysAgo),
+    admin
       .from("urls")
       .select("*", { count: "exact", head: true })
       .gte("created_at", sevenDaysAgo),
+    admin.from("ratings").select("*", { count: "exact", head: true }),
+    admin.from("urls").select("*", { count: "exact", head: true }).eq("inactive", true),
   ]);
 
   return {
@@ -66,7 +76,10 @@ async function getSupabaseStats(): Promise<SupabaseStats | null> {
     approvedUrls: approvedRes.count ?? 0,
     pendingModeration: pendingRes.count ?? 0,
     totalUsers: usersRes.count ?? 0,
+    newUsersThisWeek: newUsersRes.count ?? 0,
     recentUrls: recentRes.count ?? 0,
+    totalRatings: ratingsRes.count ?? 0,
+    inactiveUrls: inactiveRes.count ?? 0,
   };
 }
 
@@ -176,15 +189,18 @@ export default async function AdminDashboardPage() {
               System Dashboard
             </h1>
             <p className="mt-1 text-zinc-500 dark:text-zinc-400 text-sm">
-              Cached stats · refreshes every 5 minutes
+              Last refreshed: {new Date().toLocaleTimeString()}
             </p>
           </div>
-          <Link
-            href="/admin"
-            className="text-sm text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white transition-colors"
-          >
-            ← Back to admin
-          </Link>
+          <div className="flex items-center gap-3">
+            <RefreshButton />
+            <Link
+              href="/admin"
+              className="text-sm text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white transition-colors"
+            >
+              ← Back to admin
+            </Link>
+          </div>
         </div>
 
         {/* ── Supabase stats ─────────────────────────────────────────────── */}
@@ -193,36 +209,49 @@ export default async function AdminDashboardPage() {
             Database
           </h2>
           {stats ? (
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-4 gap-4">
               {(
                 [
                   { label: "Total URLs", value: stats.totalUrls },
                   { label: "Approved URLs", value: stats.approvedUrls },
                   { label: "Added this week", value: stats.recentUrls },
-                  { label: "Users", value: stats.totalUsers },
+                  { label: "Total ratings", value: stats.totalRatings },
+                  { label: "Dead links", value: stats.inactiveUrls, highlight: stats.inactiveUrls > 50 },
+                  { label: "Total users", value: stats.totalUsers },
+                  { label: "New users this week", value: stats.newUsersThisWeek },
                   {
                     label: "Pending review",
                     value: stats.pendingModeration,
                     highlight: stats.pendingModeration > 0,
+                    href: "/admin",
                   },
-                ] as { label: string; value: number; highlight?: boolean }[]
-              ).map(({ label, value, highlight }) => (
-                <div
-                  key={label}
-                  className={`rounded-xl border px-4 py-4 flex flex-col gap-1 ${
-                    highlight
-                      ? "border-amber-400 bg-amber-50 dark:bg-amber-900/10 dark:border-amber-700"
-                      : "border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900"
-                  }`}
-                >
-                  <span className="text-2xl font-bold text-zinc-900 dark:text-white">
-                    {value.toLocaleString()}
-                  </span>
-                  <span className="text-xs text-zinc-500 dark:text-zinc-400">
-                    {label}
-                  </span>
-                </div>
-              ))}
+                ] as { label: string; value: number; highlight?: boolean; href?: string }[]
+              ).map(({ label, value, highlight, href }) => {
+                const inner = (
+                  <>
+                    <span className="text-2xl font-bold text-zinc-900 dark:text-white">
+                      {value.toLocaleString()}
+                    </span>
+                    <span className="text-xs text-zinc-500 dark:text-zinc-400">
+                      {label}
+                    </span>
+                  </>
+                );
+                const cls = `rounded-xl border px-4 py-4 flex flex-col gap-1 ${
+                  highlight
+                    ? "border-amber-400 bg-amber-50 dark:bg-amber-900/10 dark:border-amber-700"
+                    : "border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900"
+                }`;
+                return href ? (
+                  <Link key={label} href={href} className={`${cls} hover:opacity-80 transition-opacity`}>
+                    {inner}
+                  </Link>
+                ) : (
+                  <div key={label} className={cls}>
+                    {inner}
+                  </div>
+                );
+              })}
             </div>
           ) : (
             <p className="text-sm text-zinc-500 dark:text-zinc-400">
