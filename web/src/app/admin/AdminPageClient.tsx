@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import ModerationDetail from "./ModerationDetail";
-import { getAdminAnalytics } from "./actions";
+import { getAdminAnalytics, getAdminQueue, getAdminReports, restoreLinkAdmin } from "./actions";
 
 
 type Category = {
@@ -99,33 +99,15 @@ export default function AdminPageClient() {
 
   async function loadQueue() {
     try {
-      const { data, error } = await supabase
-        .from("moderation_queue")
-        .select(`
-          id,
-          url,
-          title,
-          description,
-          status,
-          safe_browsing_passed,
-          submitted_by,
-          created_at,
-          updated_at,
-          reviewer_note,
-          reviewed_by,
-          subcategory_id,
-          profile:profiles!submitted_by(display_name, username),
-          subcategory:subcategories(id, name, category_id, category:categories(id, name))
-        `)
-        .order("created_at", { ascending: sortBy === "oldest" });
+      const { data, error } = await getAdminQueue(sortBy);
 
-      if (error) {
+      if (error || !data) {
         console.error("Failed to load moderation queue:", error);
         return;
       }
 
       setItems(
-        (data ?? []).map((item) => ({
+        data.map((item) => ({
           ...item,
           profile: Array.isArray(item.profile) ? item.profile[0] ?? null : item.profile,
         }))
@@ -167,17 +149,14 @@ export default function AdminPageClient() {
     setReportsLoading(true);
     try {
       // Aggregate report counts per URL, then join with urls for details
-      const { data, error } = await supabase
-        .from("url_reports")
-        .select("url_id, reported_at, url:urls(url, title, inactive)")
-        .order("reported_at", { ascending: false });
+      const { data, error } = await getAdminReports();
 
-      if (error) throw error;
+      if (error) throw new Error(error);
 
       // Group by url_id, keep the most recent reported_at and count reports
       const grouped = new Map<string, ReportedLink>();
       for (const row of data ?? []) {
-        const urlData = Array.isArray(row.url) ? row.url[0] : row.url;
+        const urlData = row.url;
         if (!row.url_id || !urlData) continue;
         const existing = grouped.get(row.url_id);
         if (!existing) {
@@ -210,7 +189,11 @@ export default function AdminPageClient() {
   async function restoreLink(urlId: string) {
     setRestoringId(urlId);
     try {
-      await supabase.from("urls").update({ inactive: false }).eq("id", urlId);
+      const { error } = await restoreLinkAdmin(urlId);
+      if (error) {
+        console.error("Failed to restore link:", error);
+        return;
+      }
       setReportedLinks((prev) =>
         prev.map((r) => r.url_id === urlId ? { ...r, inactive: false } : r)
       );

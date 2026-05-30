@@ -44,3 +44,108 @@ export async function getSubmitterEmail(userId: string): Promise<string | null> 
   if (error || !data?.user) return null;
   return data.user.email ?? null;
 }
+
+// ─── Types shared with AdminPageClient ───────────────────────────────────────
+
+export type AdminQueueItem = {
+  id: string;
+  url: string;
+  title: string | null;
+  description: string | null;
+  status: "pending" | "approved" | "rejected" | null;
+  created_at: string | null;
+  safe_browsing_passed: boolean | null;
+  submitted_by: string | null;
+  reviewed_at?: string | null;
+  reviewer_note: string | null;
+  reviewed_by: string | null;
+  subcategory_id: string | null;
+  profile?: { display_name: string; username: string } | null;
+  subcategory?: { id: string; name: string; category_id: string; category?: { id: string; name: string }[] | null }[] | null;
+};
+
+export type AdminReportRow = {
+  url_id: string;
+  reported_at: string;
+  url: { url: string; title: string | null; inactive: boolean } | null;
+};
+
+// ─── Admin queue ─────────────────────────────────────────────────────────────
+
+export async function getAdminQueue(
+  sortBy: "newest" | "oldest" = "newest",
+): Promise<{ data: AdminQueueItem[] | null; error: string | null }> {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !serviceKey) return { data: null, error: "Server misconfiguration" };
+
+  const admin = createClient(url, serviceKey, {
+    auth: { autoRefreshToken: false, persistSession: false },
+  });
+
+  const { data, error } = await admin
+    .from("moderation_queue")
+    .select(`
+      id,
+      url,
+      title,
+      description,
+      status,
+      safe_browsing_passed,
+      submitted_by,
+      created_at,
+      updated_at,
+      reviewer_note,
+      reviewed_by,
+      subcategory_id,
+      profile:profiles!submitted_by(display_name, username),
+      subcategory:subcategories(id, name, category_id, category:categories(id, name))
+    `)
+    .order("created_at", { ascending: sortBy === "oldest" });
+
+  if (error) return { data: null, error: error.message };
+  return { data: data as AdminQueueItem[], error: null };
+}
+
+// ─── Admin reports ────────────────────────────────────────────────────────────
+
+export async function getAdminReports(): Promise<{ data: AdminReportRow[] | null; error: string | null }> {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !serviceKey) return { data: null, error: "Server misconfiguration" };
+
+  const admin = createClient(url, serviceKey, {
+    auth: { autoRefreshToken: false, persistSession: false },
+  });
+
+  const { data, error } = await admin
+    .from("url_reports")
+    .select("url_id, reported_at, url:urls(url, title, inactive)")
+    .order("reported_at", { ascending: false });
+
+  if (error) return { data: null, error: error.message };
+
+  return {
+    data: (data ?? []).map((row) => ({
+      url_id: row.url_id,
+      reported_at: row.reported_at,
+      url: Array.isArray(row.url) ? (row.url[0] ?? null) : row.url,
+    })) as AdminReportRow[],
+    error: null,
+  };
+}
+
+// ─── Restore link ─────────────────────────────────────────────────────────────
+
+export async function restoreLinkAdmin(urlId: string): Promise<{ error: string | null }> {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !serviceKey || !urlId) return { error: "Server misconfiguration" };
+
+  const admin = createClient(url, serviceKey, {
+    auth: { autoRefreshToken: false, persistSession: false },
+  });
+
+  const { error } = await admin.from("urls").update({ inactive: false }).eq("id", urlId);
+  return { error: error ? error.message : null };
+}
