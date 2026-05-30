@@ -121,9 +121,6 @@ let categoriesContext: 'firsttime' | 'settings' = 'firsttime';
 // Category list populated on sign-in; used for status bar label lookups
 let loadedCategories: CategoryItem[] = [];
 
-// Discovery mode: 'discovery' (default) shows adjacent content; 'deep_dive' stays focused
-let discoveryMode: 'discovery' | 'deep_dive' = 'discovery';
-
 // Focus mode — ephemeral, resets on popup close
 let focusModeEnabled = false;
 let focusCategoryId: string | null = null;
@@ -142,7 +139,7 @@ async function refreshStatus(): Promise<void> {
     const catName = loadedCategories.find(c => c.id === focusCategoryId)?.name ?? 'Focus';
     modeLabel = focusSubcategoryName ? `🎯 ${catName} · ${focusSubcategoryName}` : `🎯 ${catName}`;
   } else {
-    modeLabel = discoveryMode === 'discovery' ? '🔍 Discover' : '🎯 Deep Dive';
+    modeLabel = '🔍 Discover';
   }
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
   const url = tab?.url ?? '';
@@ -157,14 +154,11 @@ async function refreshStatus(): Promise<void> {
 // FALLBACK_CATEGORIES imported from ../lib/constants
 
 async function checkAndRouteAfterSignIn(): Promise<void> {
-  const [cats, allCats, storedPrefs, sessionPrefs] = await Promise.all([
+  const [cats, allCats, sessionPrefs] = await Promise.all([
     sendToBackground<{ categoryIds: string[] }>({ type: 'GET_USER_CATEGORIES' }),
     sendToBackground<CategoryItem[]>({ type: 'GET_CATEGORIES' }),
-    chrome.storage.local.get(['discovery_mode']),
     chrome.storage.session.get(['auto_translate']),
   ]);
-  discoveryMode = (storedPrefs.discovery_mode as 'discovery' | 'deep_dive') ?? 'discovery';
-  el<HTMLInputElement>('toggle-discovery').checked = discoveryMode === 'discovery';
   el<HTMLInputElement>('toggle-translate').checked = sessionPrefs.auto_translate === true;
   const selectedIds = cats.ok ? cats.data.categoryIds : [];
   const categoryItems = allCats.ok && allCats.data.length > 0 ? allCats.data : FALLBACK_CATEGORIES;
@@ -782,14 +776,6 @@ document.addEventListener('DOMContentLoaded', () => {
   el<HTMLInputElement>('toggle-paywall').addEventListener('change', async (e) => {
     const checked = (e.target as HTMLInputElement).checked;
     await sendToBackground({ type: 'SET_PAYWALL_PREF', skip: checked });
-  });
-
-  // ── Discovery mode toggle ─────────────────────────────────────────────────
-  el<HTMLInputElement>('toggle-discovery').addEventListener('change', async (e) => {
-    const checked = (e.target as HTMLInputElement).checked;
-    discoveryMode = checked ? 'discovery' : 'deep_dive';
-    void refreshStatus();
-    await sendToBackground({ type: 'SET_DISCOVERY_MODE', mode: discoveryMode });
   });
 
   // ── Auto-translate toggle ─────────────────────────────────────────────────
