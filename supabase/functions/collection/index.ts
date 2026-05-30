@@ -56,21 +56,28 @@ Deno.serve(async (req) => {
   switch (action) {
     // ── Create collection ───────────────────────────────────────────────────
     case 'create': {
-      const { name, slug, is_public } = body
-      
+      const { name, is_public } = body
+
       const nameValidation = validateName(name as string)
       if (!nameValidation.valid) return json({ error: nameValidation.error }, 400)
-      
-      const slugValidation = validateSlug(slug as string)
-      if (!slugValidation.valid) return json({ error: slugValidation.error }, 400)
-      
+
+      // Derive slug server-side, prefixed with the first 8 characters of the user's UUID.
+      // This namespaces slugs by user, preventing cross-user collisions on the global
+      // UNIQUE constraint without requiring a schema change.
+      const baseSlug = (name as string)
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '')
+        .slice(0, 52)
+      const slug = `${baseSlug}-${user.id.slice(0, 8)}`
+
       const { data, error } = await supabase
         .from('collections')
-        .insert({ user_id: user.id, name: name as string, slug: slug as string, is_public: is_public !== false })
+        .insert({ user_id: user.id, name: name as string, slug, is_public: is_public !== false })
         .select()
         .single()
       if (error) {
-        if (error.code === '23505') return json({ error: 'A collection with that slug already exists' }, 409)
+        if (error.code === '23505') return json({ error: 'A collection with that name already exists' }, 409)
         return json({ error: error.message }, 500)
       }
       return json(data, 201)

@@ -18,6 +18,8 @@ import io.ktor.client.call.body
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.add
+import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 
@@ -101,17 +103,19 @@ class RoamRepository {
         discoveryMode: String? = null,
     ) {
         val userId = supabase.auth.currentUserOrNull()?.id ?: return
-        val current = getUserSettings()
-        supabase.postgrest
-            .from("user_settings")
-            .upsert(
-                UserSettings(
-                    userId = userId,
-                    preferredLanguages = preferredLanguages ?: current.preferredLanguages,
-                    skipPaywalled = skipPaywalled ?: current.skipPaywalled,
-                    discoveryMode = discoveryMode ?: current.discoveryMode,
-                )
-            )
+        // Build a partial upsert — only include columns explicitly set.
+        // On INSERT (new user), unspecified columns receive their DB defaults.
+        // On CONFLICT (existing row), only the specified columns are overwritten,
+        // eliminating the read-then-write race of the previous implementation.
+        val patch = buildJsonObject {
+            put("user_id", userId)
+            preferredLanguages?.let { langs ->
+                put("preferred_languages", buildJsonArray { langs.forEach { add(it) } })
+            }
+            skipPaywalled?.let { put("skip_paywalled", it) }
+            discoveryMode?.let { put("discovery_mode", it) }
+        }
+        supabase.postgrest.from("user_settings").upsert(patch)
     }
 
     /**
@@ -177,14 +181,9 @@ class RoamRepository {
      * Returns the created collection.
      */
     suspend fun createCollection(name: String): Collection {
-        val slug = name.lowercase()
-            .replace(Regex("[^a-z0-9]+"), "-")
-            .trim('-')
-            .take(60)
         val body = buildJsonObject {
             put("action", "create")
             put("name", name)
-            put("slug", slug)
         }
         val response = supabase.functions.invoke("collection", body = body)
         return json.decodeFromString(response.body())

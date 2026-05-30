@@ -50,7 +50,7 @@ class MainViewModelTest {
         coEvery { repo.getCategories() } returns emptyList()
         coEvery { repo.getUserSettings() } returns UserSettings()
         // Prevent init's launchPrefetch from populating _prefetchedUrl with a relaxed mock
-        coEvery { repo.roam(any(), any(), any()) } returns null
+        coEvery { repo.roam(any(), any(), any(), any()) } returns null
         vm = MainViewModel(app, repo)
     }
 
@@ -152,21 +152,21 @@ class MainViewModelTest {
 
     @Test
     fun `roam transitions to Loaded on success`() = runTest {
-        coEvery { repo.roam(any(), any(), any()) } returns mockUrl
+        coEvery { repo.roam(any(), any(), any(), any()) } returns mockUrl
         vm.roam()
         assertEquals(RoamState.Loaded(mockUrl), vm.state.value)
     }
 
     @Test
     fun `roam transitions to Exhausted when repository returns null`() = runTest {
-        coEvery { repo.roam(any(), any(), any()) } returns null
+        coEvery { repo.roam(any(), any(), any(), any()) } returns null
         vm.roam()
         assertEquals(RoamState.Exhausted, vm.state.value)
     }
 
     @Test
     fun `roam transitions to Error on repository exception`() = runTest {
-        coEvery { repo.roam(any(), any(), any()) } throws RuntimeException("Network failure")
+        coEvery { repo.roam(any(), any(), any(), any()) } throws RuntimeException("Network failure")
         vm.roam()
         val state = vm.state.value
         assertTrue(state is RoamState.Error)
@@ -176,7 +176,7 @@ class MainViewModelTest {
     @Test
     fun `roam passes active collection id to repository`() = runTest {
         vm.setCollectionFilter("col-xyz")
-        coEvery { repo.roam(collectionId = "col-xyz", excludeDomain = any(), subcategoryId = any()) } returns mockUrl
+        coEvery { repo.roam(collectionId = "col-xyz", excludeDomain = any(), categoryId = any(), subcategoryId = any()) } returns mockUrl
         vm.roam()
         assertEquals(RoamState.Loaded(mockUrl), vm.state.value)
     }
@@ -193,7 +193,7 @@ class MainViewModelTest {
 
     @Test
     fun `roam shows offline message when IOException is thrown`() = runTest {
-        coEvery { repo.roam(any(), any(), any()) } throws IOException("timeout")
+        coEvery { repo.roam(any(), any(), any(), any()) } throws IOException("timeout")
         vm.roam()
         val state = vm.state.value
         assertTrue("Expected Error state", state is RoamState.Error)
@@ -211,7 +211,7 @@ class MainViewModelTest {
         val freshRepo = mockk<RoamRepository>(relaxed = true)
         coEvery { freshRepo.getCategories() } returns emptyList()
         coEvery { freshRepo.getUserSettings() } returns UserSettings()
-        coEvery { freshRepo.roam(any(), any(), any()) } returns mockUrl
+        coEvery { freshRepo.roam(any(), any(), any(), any()) } returns mockUrl
 
         val freshVm = MainViewModel(app, freshRepo)
         // After init, launchPrefetch() has run (call #1) → _prefetchedUrl = mockUrl
@@ -219,14 +219,14 @@ class MainViewModelTest {
         // roam() consumes prefetch (no extra repo.roam() call itself) then re-triggers launchPrefetch (call #2)
         freshVm.roam()
         assertEquals(RoamState.Loaded(mockUrl), freshVm.state.value)
-        coVerify(exactly = 2) { freshRepo.roam(any(), any(), any()) }
+        coVerify(exactly = 2) { freshRepo.roam(any(), any(), any(), any()) }
     }
 
     // ─── thumbsUp / thumbsDown ─────────────────────────────────────────────────
 
     @Test
     fun `thumbsUp sends positive rating when state is Loaded`() = runTest {
-        coEvery { repo.roam(any(), any(), any()) } returns mockUrl
+        coEvery { repo.roam(any(), any(), any(), any()) } returns mockUrl
         vm.roam()
         assertEquals(RoamState.Loaded(mockUrl), vm.state.value)
 
@@ -237,7 +237,7 @@ class MainViewModelTest {
 
     @Test
     fun `thumbsDown sends negative rating when state is Loaded`() = runTest {
-        coEvery { repo.roam(any(), any(), any()) } returns mockUrl
+        coEvery { repo.roam(any(), any(), any(), any()) } returns mockUrl
         vm.roam()
         assertEquals(RoamState.Loaded(mockUrl), vm.state.value)
 
@@ -258,7 +258,7 @@ class MainViewModelTest {
 
     @Test
     fun `saveForLater adds url to savedUrls`() = runTest {
-        coEvery { repo.roam(any(), any(), any()) } returns mockUrl
+        coEvery { repo.roam(any(), any(), any(), any()) } returns mockUrl
         vm.roam()
         vm.onWebViewUrlChanged(mockUrl.url)
 
@@ -269,7 +269,7 @@ class MainViewModelTest {
 
     @Test
     fun `saveForLater shows savedConfirmation`() = runTest {
-        coEvery { repo.roam(any(), any(), any()) } returns mockUrl
+        coEvery { repo.roam(any(), any(), any(), any()) } returns mockUrl
         vm.roam()
         vm.onWebViewUrlChanged(mockUrl.url)
 
@@ -280,7 +280,7 @@ class MainViewModelTest {
 
     @Test
     fun `removeSavedUrl removes the entry from savedUrls`() = runTest {
-        coEvery { repo.roam(any(), any(), any()) } returns mockUrl
+        coEvery { repo.roam(any(), any(), any(), any()) } returns mockUrl
         vm.roam()
         vm.onWebViewUrlChanged(mockUrl.url)
         vm.saveForLater()
