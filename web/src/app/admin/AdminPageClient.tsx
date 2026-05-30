@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import ModerationDetail from "./ModerationDetail";
+import { getAdminAnalytics } from "./actions";
 
 
 type Category = {
@@ -131,13 +132,8 @@ export default function AdminPageClient() {
     setAnalyticsLoading(true);
     setAnalyticsError(null);
     try {
-      const { data, error } = await supabase.rpc("admin_analytics");
-      if (error) throw error;
-      const result = data as {
-        submissions_by_date: { date: string; count: number }[];
-        submissions_by_category: { category: string; count: number }[];
-        top_urls: { url: string; title: string; wilson_score: number; upvotes: number; downvotes: number }[];
-      };
+      const { data: result, error } = await getAdminAnalytics();
+      if (error || !result) throw new Error(error ?? "No data");
       setAnalyticsData({
         submissionsByDate: result.submissions_by_date ?? [],
         submissionsByCategory: result.submissions_by_category ?? [],
