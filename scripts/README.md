@@ -57,7 +57,7 @@ All sources are free public APIs or datasets — no scraping, no paywalled conte
 | `seed-mastodon.mjs` | Mastodon trending links (3 instances) | none | 79 | ✅ Live |
 | `seed-longform.mjs` | Long-form publications RSS (Aeon, Quanta, etc.) | none | 766 | ✅ Live |
 | `seed-sep.mjs` | Stanford Encyclopedia of Philosophy (sitemap) | none | ~1,800 | ⬜ Not run |
-| `seed-hn-discussions.mjs` | Ask HN threads (points > 200, comments > 100) | none | ~500 | ⬜ Not run |
+| `seed-hn-discussions.mjs` | Ask HN threads (points > 200, comments > 100) | none | 882 | ✅ Live |
 | `seed-atlantic-newyorker.mjs` | The Atlantic + The New Yorker RSS | none | 312 | ✅ Live |
 | `seed-flickr-commons.mjs` | Flickr: The Commons (public-domain institutional photos) | none | ~440 | ⬜ Not run |
 
