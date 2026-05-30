@@ -3,6 +3,7 @@
 import app.roam.android.data.supabase
 import app.roam.android.model.CategoryItem
 import app.roam.android.model.Collection
+import app.roam.android.model.CollectionItem
 import app.roam.android.model.RoamUrl
 import app.roam.android.model.SubcategoryItem
 import app.roam.android.model.UserProfile
@@ -173,6 +174,19 @@ class RoamRepository {
             }
             .decodeList()
     }
+
+    /**
+     * Returns all URL items in [collectionId], newest first.
+     * The nested `urls` join provides title and URL string.
+     */
+    suspend fun getCollectionItems(collectionId: String): List<CollectionItem> =
+        supabase.postgrest
+            .from("collection_items")
+            .select(Columns.raw("added_at, urls(id, url, title)")) {
+                filter { eq("collection_id", collectionId) }
+                order("added_at", Order.DESCENDING)
+            }
+            .decodeList()
 
     /**
      * Creates a new collection. [slug] is auto-derived from [name] if not provided.

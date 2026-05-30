@@ -12,6 +12,7 @@ import app.roam.android.data.repository.RoamRepository
 import app.roam.android.model.CategoryItem
 import app.roam.android.model.SubcategoryItem
 import app.roam.android.model.Collection
+import app.roam.android.model.CollectionItem
 import app.roam.android.model.RoamUrl
 import app.roam.android.model.UserProfile
 import app.roam.android.util.connectivityFlow
@@ -85,6 +86,16 @@ class MainViewModel(
     /** User's collections (lazy-loaded when config sheet opens) */
     private val _collections = MutableStateFlow<List<Collection>>(emptyList())
     val collections: StateFlow<List<Collection>> = _collections.asStateFlow()
+
+    /** Collection currently open for browsing in SavedScreen (null = list view) */
+    private val _selectedCollection = MutableStateFlow<Collection?>(null)
+    val selectedCollection: StateFlow<Collection?> = _selectedCollection.asStateFlow()
+
+    private val _collectionItems = MutableStateFlow<List<CollectionItem>>(emptyList())
+    val collectionItems: StateFlow<List<CollectionItem>> = _collectionItems.asStateFlow()
+
+    private val _collectionItemsLoading = MutableStateFlow(false)
+    val collectionItemsLoading: StateFlow<Boolean> = _collectionItemsLoading.asStateFlow()
 
     /** Controls whether the "add to collection" dialog is visible */
     private val _showAddToCollection = MutableStateFlow(false)
@@ -661,6 +672,24 @@ class MainViewModel(
         viewModelScope.launch {
             runCatching { _collections.value = repo.getCollections() }
         }
+    }
+
+    /** Opens a collection detail view — loads its URLs. */
+    fun openCollection(collection: Collection) {
+        _selectedCollection.value = collection
+        _collectionItems.value = emptyList()
+        _collectionItemsLoading.value = true
+        viewModelScope.launch {
+            runCatching { _collectionItems.value = repo.getCollectionItems(collection.id) }
+            _collectionItemsLoading.value = false
+        }
+    }
+
+    /** Returns from the collection detail view to the collection list. */
+    fun closeCollection() {
+        _selectedCollection.value = null
+        _collectionItems.value = emptyList()
+        _collectionItemsLoading.value = false
     }
 
     fun addCurrentUrlToCollection(collectionId: String) {
