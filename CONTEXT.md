@@ -111,6 +111,22 @@ All core functionality is implemented. Code compiles, tests pass, all platform b
 - No migration needed — the query change alone is sufficient
 - Committed `f6ffd54`
 
+**✅ RESOLVED: Web App Audit (full sweep)**
+- Comprehensive audit of all web app routes, components, hooks, and auth layer
+- Fixed OAuth callback profile lookup bug (`.eq('user_id')` → `.eq('id')`) — returning OAuth users were always redirected to category picker on every sign-in
+- Removed redundant `/profile/edit` page (duplicate of inline profile editing with conflicting 256 vs 160 char bio limits)
+- Removed Discovery/Deep Dive mode from settings UI (was UI-only; roam function had no different behavior)
+- Deployed `export-user` and `delete-user` Edge Functions (both were fully implemented but never deployed — buttons now work)
+- Header: added `sticky top-0 z-50` to unauthenticated variant; fixed mobile menu `useEffect` missing `usePathname` dep
+- Footer: fixed GitHub URL (`seito/roam` → `seven-lynx/Roam`); wired in `FeedbackWidget`
+- `useRequireAuth`: replaced `window.location.href` with `router.push('/join?mode=signin')`
+- Public profile page: deduplicated interest pills by category name
+- `UsernamePrompt`: replaced `.upsert().eq()` with `.update().eq()` (correct PostgREST pattern)
+- `globals.css`: fixed `font-family` to use `var(--font-sans)` so Geist Sans is applied
+- `AuthProvider`: removed insecure `getSession()` fallback; now trusts server-validated `initialSession` only
+- Landing page: added `scroll-mt-20` to `#get-the-app` so sticky header doesn't obscure section on anchor scroll
+- Committed `0772d19`
+
 ---
 
 ## 2. PRINCIPLES & WORKFLOW
