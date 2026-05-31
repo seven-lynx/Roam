@@ -1,5 +1,5 @@
 // POST /functions/v1/roam
-// Body (optional): { collection_id?, exclude_domain?, category_id? }
+// Body (optional): { collection_id?, exclude_domain?, category_id?, subcategory_id? }
 // Returns a single URL row, or 404 when pool is exhausted.
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { corsHeaders } from '../_shared/cors.ts'
@@ -30,10 +30,12 @@ Deno.serve(async (req) => {
     const collectionId  = typeof body.collection_id  === 'string' ? body.collection_id  : null
     const excludeDomain = typeof body.exclude_domain  === 'string' ? body.exclude_domain : null
     const categoryId    = typeof body.category_id     === 'string' ? body.category_id    : null
+    const subcategoryId = typeof body.subcategory_id  === 'string' ? body.subcategory_id : null
     const rpcParams: Record<string, unknown> = { p_user_id: user.id }
     if (collectionId)  rpcParams.p_collection_id  = collectionId
     if (excludeDomain) rpcParams.p_exclude_domain = excludeDomain
     if (categoryId)    rpcParams.p_category_id    = categoryId
+    if (subcategoryId) rpcParams.p_subcategory_id = subcategoryId
     const { data, error } = await supabase.rpc('roam', rpcParams)
     if (error) {
       console.error('roam RPC error', error.code, error.message)
