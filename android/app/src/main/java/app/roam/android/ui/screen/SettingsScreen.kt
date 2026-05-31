@@ -66,7 +66,6 @@ fun SettingsScreen(
     val focusSubcategoryId by vm.focusSubcategoryId.collectAsState()
     val context = LocalContext.current
     var showSignOutDialog by remember { mutableStateOf(false) }
-    var showReportDeadLinkDialog by remember { mutableStateOf(false) }
     var showSubmitUrlDialog by remember { mutableStateOf(false) }
     var translateDropdownExpanded by remember { mutableStateOf(false) }
     var focusCategoryDropdownExpanded by remember { mutableStateOf(false) }
@@ -78,23 +77,6 @@ fun SettingsScreen(
         "zh" to "中文", "ru" to "Русский", "ko" to "한국어",
     )
     val translateLanguageLabel = translateLanguages.firstOrNull { it.first == translateLanguage }?.second ?: "English"
-
-    if (showReportDeadLinkDialog) {
-        AlertDialog(
-            onDismissRequest = { showReportDeadLinkDialog = false },
-            title = { Text("Report dead link?") },
-            text = { Text("This will flag the current page as broken and skip to the next one.") },
-            confirmButton = {
-                TextButton(onClick = {
-                    showReportDeadLinkDialog = false
-                    vm.reportBrokenLink()
-                }) { Text("Report") }
-            },
-            dismissButton = {
-                TextButton(onClick = { showReportDeadLinkDialog = false }) { Text("Cancel") }
-            },
-        )
-    }
 
     if (showSignOutDialog) {
         AlertDialog(
@@ -358,7 +340,7 @@ fun SettingsScreen(
             SettingsActionRow(
                 title = "Report dead link",
                 subtitle = currentUrl ?: "No page loaded",
-                onClick = { showReportDeadLinkDialog = true },
+                onClick = { vm.reportBrokenLink() },
             )
 
             HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))

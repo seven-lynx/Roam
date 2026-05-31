@@ -77,6 +77,10 @@ class MainViewModel(
     private val _savedConfirmation = MutableStateFlow(false)
     val savedConfirmation: StateFlow<Boolean> = _savedConfirmation.asStateFlow()
 
+    /** True while a dead-link report confirmation should be visible */
+    private val _reportConfirmation = MutableStateFlow(false)
+    val reportConfirmation: StateFlow<Boolean> = _reportConfirmation.asStateFlow()
+
     /** One-shot message shown after a submit-url attempt (null = nothing to show) */
     private val _submitToast = MutableStateFlow<String?>(null)
     val submitToast: StateFlow<String?> = _submitToast.asStateFlow()
@@ -693,9 +697,12 @@ class MainViewModel(
         val loaded = _state.value as? RoamState.Loaded ?: return
         val urlId = loaded.roamUrl.id
         _showConfigSheet.value = false
+        _reportConfirmation.value = true
         viewModelScope.launch {
             runCatching { repo.reportUrl(urlId) }
             roam(excludeDomain = extractDomain(_rawUrl.value))
+            kotlinx.coroutines.delay(2000)
+            _reportConfirmation.value = false
         }
     }
 

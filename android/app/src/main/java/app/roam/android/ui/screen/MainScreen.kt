@@ -140,6 +140,7 @@ private fun DiscoverTab(
     val showSubmitSheet by vm.showSubmitSheet.collectAsState()
     val showConfigSheet by vm.showConfigSheet.collectAsState()
     val savedConfirmation by vm.savedConfirmation.collectAsState()
+    val reportConfirmation by vm.reportConfirmation.collectAsState()
     val submitToast by vm.submitToast.collectAsState()
     val collections by vm.collections.collectAsState()
     val categories by vm.categories.collectAsState()
@@ -300,6 +301,24 @@ private fun DiscoverTab(
                 ) {
                     Text(
                         "Saved for later",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSecondaryContainer,
+                    )
+                }
+            }
+
+            // "Reported" confirmation snackbar
+            if (reportConfirmation) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .align(Alignment.BottomCenter)
+                        .background(MaterialTheme.colorScheme.secondaryContainer)
+                        .padding(horizontal = 16.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        "Dead link reported — loading next page",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSecondaryContainer,
                     )
