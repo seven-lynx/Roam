@@ -40,11 +40,11 @@ export default async function PublicProfilePage({ params }: Props) {
 
   if (!profile) notFound();
 
+  // RLS handles visibility: owner sees all, followers see followed-private, others see public only.
   const { data: collections } = await supabase
     .from('collections')
     .select('id, name, slug, created_at')
     .eq('user_id', profile.id)
-    .eq('is_public', true)
     .order('created_at', { ascending: false });
 
   const { data: userCategories } = await supabase

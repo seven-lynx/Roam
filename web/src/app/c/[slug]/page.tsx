@@ -16,7 +16,6 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     .from('collections')
     .select('name, profiles(username)')
     .eq('slug', slug)
-    .eq('is_public', true)
     .single();
 
   if (!data) return { title: 'Collection not found' };
@@ -35,7 +34,6 @@ export default async function CollectionPage({ params }: Props) {
     .from('collections')
     .select('id, name, user_id, created_at, profiles(username, display_name)')
     .eq('slug', slug)
-    .eq('is_public', true)
     .single();
 
   if (!collection) notFound();

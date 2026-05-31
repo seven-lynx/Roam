@@ -49,7 +49,13 @@ Deno.serve(async (req) => {
   if (authError || !user) return json({ error: 'Unauthorized' }, 401)
 
   let body: Record<string, unknown>
-  try { body = await req.json() } catch { return json({ error: 'Invalid JSON' }, 400) }
+  try {
+    body = await req.json()
+  } catch (err) {
+    console.error('[collection] Invalid JSON body:', err)
+    return json({ error: 'Invalid JSON' }, 400)
+  }
+  console.log('[collection] request body:', JSON.stringify(body))
 
   const action = body.action as string
 

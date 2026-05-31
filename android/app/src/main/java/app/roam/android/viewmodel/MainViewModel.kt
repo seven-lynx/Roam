@@ -756,7 +756,7 @@ class MainViewModel(
      */
     fun createCollectionAndAddSaved(name: String, urls: List<String>) {
         viewModelScope.launch {
-            runCatching {
+            val createResult = runCatching {
                 val col = repo.createCollection(name)
                 urls.forEach { url ->
                     runCatching {
@@ -764,6 +764,10 @@ class MainViewModel(
                         if (roamUrl != null) repo.addUrlToCollection(col.id, roamUrl.id)
                     }
                 }
+            }
+            createResult.onFailure { e ->
+                Sentry.captureException(e)
+                showTransientToast("Couldn't create collection: ${e.message ?: "unknown error"}")
             }
             // Reload so item_count and sort order are accurate after creation + inserts.
             runCatching { _collections.value = repo.getCollections() }
@@ -781,11 +785,15 @@ class MainViewModel(
     }
 
     fun createCollectionAndAdd(name: String) {
-        val loaded = _state.value as? RoamState.Loaded ?: return
+        val loaded = _state.value as? RoamState.Loaded
         viewModelScope.launch {
-            runCatching {
+            val result = runCatching {
                 val col = repo.createCollection(name)
-                repo.addUrlToCollection(col.id, loaded.roamUrl.id)
+                if (loaded != null) repo.addUrlToCollection(col.id, loaded.roamUrl.id)
+            }
+            result.onFailure { e ->
+                Sentry.captureException(e)
+                showTransientToast("Couldn't create collection: ${e.message ?: "unknown error"}")
             }
             runCatching { _collections.value = repo.getCollections() }
             _showAddToCollection.value = false
@@ -795,7 +803,11 @@ class MainViewModel(
 
     fun renameCollection(collectionId: String, name: String) {
         viewModelScope.launch {
-            runCatching { repo.renameCollection(collectionId, name) }
+            val result = runCatching { repo.renameCollection(collectionId, name) }
+            result.onFailure { e ->
+                Sentry.captureException(e)
+                showTransientToast("Couldn't rename: ${e.message ?: "unknown error"}")
+            }
             runCatching { _collections.value = repo.getCollections() }
         }
     }
@@ -804,9 +816,24 @@ class MainViewModel(
         // Clear the active filter if the deleted collection was selected.
         if (_activeCollectionId.value == collectionId) setCollectionFilter(null)
         // Optimistic removal so the UI updates instantly.
-        _collections.value = _collections.value.filter { it.id != collectionId }
+        val previous = _collections.value
+        _collections.value = previous.filter { it.id != collectionId }
         viewModelScope.launch {
-            runCatching { repo.deleteCollection(collectionId) }
+            val result = runCatching { repo.deleteCollection(collectionId) }
+            result.onFailure { e ->
+                Sentry.captureException(e)
+                _collections.value = previous  // Roll back optimistic removal
+                showTransientToast("Couldn't delete: ${e.message ?: "unknown error"}")
+            }
+        }
+    }
+
+    /** Shows a 4-second toast via the existing submitToast flow. */
+    private fun showTransientToast(message: String) {
+        _submitToast.value = message
+        viewModelScope.launch {
+            delay(4000)
+            if (_submitToast.value == message) _submitToast.value = null
         }
     }
 
