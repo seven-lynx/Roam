@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import ModerationDetail from "./ModerationDetail";
@@ -75,7 +76,9 @@ export default function AdminPageClient() {
   const [statusFilter, setStatusFilter] = useState<"all" | "pending" | "approved" | "rejected">("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [sortBy, setSortBy] = useState<"newest" | "oldest">("newest");
-  const [view, setView] = useState<"queue" | "analytics" | "reports">("queue");
+  const searchParams = useSearchParams();
+  const initialView = searchParams.get("view") === "reports" ? "reports" : searchParams.get("view") === "analytics" ? "analytics" : "queue";
+  const [view, setView] = useState<"queue" | "analytics" | "reports">(initialView);
   const [analyticsData, setAnalyticsData] = useState<AnalyticsData>(EMPTY_ANALYTICS);
   const [analyticsLoading, setAnalyticsLoading] = useState(false);
   const [analyticsError, setAnalyticsError] = useState<string | null>(null);

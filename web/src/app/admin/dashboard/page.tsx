@@ -326,7 +326,7 @@ export default async function AdminDashboardPage() {
                   // Row 1 — Content library
                   { label: "Total URLs", value: stats.totalUrls },
                   { label: "Active URLs", value: stats.activeUrls },
-                  { label: "Dead links", value: stats.inactiveUrls, highlight: stats.inactiveUrls > 50 },
+                  { label: "Dead links", value: stats.inactiveUrls, highlight: stats.inactiveUrls > 50, href: "/admin?view=reports" },
                   { label: "Added this week", value: stats.recentUrls },
                   { label: "Total collections", value: stats.totalCollections },
                   // Row 2 — Engagement
