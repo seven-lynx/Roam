@@ -12,7 +12,7 @@ export const metadata: Metadata = { title: "Admin · Dashboard" };
 
 type SupabaseStats = {
   totalUrls: number;
-  approvedUrls: number;
+  activeUrls: number;
   pendingModeration: number;
   totalUsers: number;
   newUsersThisWeek: number;
@@ -107,7 +107,7 @@ async function fetchSupabaseStats(): Promise<SupabaseStats | null> {
   );
   // All four urls-table counts in one RPC call — single table scan, and the
   // function sets statement_timeout = '30s' to override the PostgREST default.
-  let recentUrls = 0, inactiveUrls = 0, approvedUrls = 0, totalUrls = 0;
+  let recentUrls = 0, inactiveUrls = 0, activeUrls = 0, totalUrls = 0;
   try {
     const { data, error } = await Promise.race([
       admin.rpc("admin_url_stats", { since_date: sevenDaysAgo }),
@@ -123,7 +123,7 @@ async function fetchSupabaseStats(): Promise<SupabaseStats | null> {
     } else if (data && data.length > 0) {
       const row = data[0];
       totalUrls    = Number(row.total_urls)    || 0;
-      approvedUrls = Number(row.approved_urls) || 0;
+      activeUrls   = Number(row.active_urls)   || 0;
       inactiveUrls = Number(row.inactive_urls) || 0;
       recentUrls   = Number(row.recent_urls)   || 0;
     }
@@ -136,7 +136,7 @@ async function fetchSupabaseStats(): Promise<SupabaseStats | null> {
 
   return {
     totalUrls,
-    approvedUrls,
+    activeUrls,
     pendingModeration,
     totalUsers,
     newUsersThisWeek,
@@ -297,7 +297,7 @@ export default async function AdminDashboardPage() {
               {(
                 [
                   { label: "Total URLs", value: stats.totalUrls },
-                  { label: "Approved URLs", value: stats.approvedUrls },
+                  { label: "Active URLs", value: stats.activeUrls },
                   { label: "Added this week", value: stats.recentUrls },
                   { label: "Total ratings", value: stats.totalRatings },
                   { label: "Dead links", value: stats.inactiveUrls, highlight: stats.inactiveUrls > 50 },
