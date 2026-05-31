@@ -47,11 +47,14 @@ export function CollectionsManager({ userId, initialCollections }: Props) {
       .select('id, added_at, urls(id, title, original_url)')
       .eq('collection_id', collectionId)
       .order('added_at', { ascending: false });
+    // PostgREST returns the many-to-one `urls` embed as an object (or null), not an array.
+    // Defensively handle both shapes in case a future schema change makes it many-to-many.
+    type RawUrl = { id: string; title: string | null; original_url: string };
     setExpandedItems(
-      (data ?? []).map((item: { id: string; added_at: string; urls: { id: string; title: string | null; original_url: string }[] }) => ({
+      (data ?? []).map((item: { id: string; added_at: string; urls: RawUrl | RawUrl[] | null }) => ({
         id: item.id,
         added_at: item.added_at,
-        url: item.urls[0] ?? null,
+        url: Array.isArray(item.urls) ? item.urls[0] ?? null : item.urls,
       }))
     );
     setLoadingItems(false);
