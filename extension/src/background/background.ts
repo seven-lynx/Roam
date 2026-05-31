@@ -510,9 +510,14 @@ async function getCollections(): Promise<Response<Collection[]>> {
 async function createCollection(name: string): Promise<Response<Collection>> {
   const session = (await getSupabase().auth.getSession()).data.session;
   if (!session) return { ok: false, error: "You're not signed in. Please sign in and try again." };
-  const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
-  const { data, error } = await getSupabase().from('collections').insert({ name, slug, user_id: session.user.id, is_public: false }).select().single();
+  // Route through the `collection` edge function so slug namespacing, validation,
+  // and the per-user uniqueness rules stay identical across surfaces.
+  const { data, error } = await getSupabase().functions.invoke('collection', {
+    body: { action: 'create', name },
+  });
   if (error) return { ok: false, error: error.message };
+  if (data?.error) return { ok: false, error: data.error };
+  if (!data?.id) return { ok: false, error: "Couldn't create collection." };
   return { ok: true, data: { id: data.id, name: data.name, slug: data.slug, is_public: data.is_public, item_count: 0 } };
 }
 
@@ -527,10 +532,15 @@ async function addUrlToCollection(url: string, collectionId: string): Promise<Re
     if (createError) return { ok: false, error: "Couldn't add to collection. Please try again." };
     urlId = newUrl.id;
   }
-  const { error: addError } = await getSupabase().from('collection_items').insert({ collection_id: collectionId, url_id: urlId });
-  if (addError) {
-    if (addError.message.includes('unique') || addError.message.includes('duplicate')) return { ok: true, data: null };
-    return { ok: false, error: "Couldn't add to collection. Please try again." };
+  // Route through the `collection` edge function so the 10K per-collection cap
+  // and duplicate handling are enforced server-side.
+  const { data, error: addError } = await getSupabase().functions.invoke('collection', {
+    body: { action: 'add_item', collection_id: collectionId, url_id: urlId },
+  });
+  if (addError) return { ok: false, error: addError.message };
+  if (data?.error) {
+    if (data.error.includes('already in collection')) return { ok: true, data: null };
+    return { ok: false, error: data.error };
   }
   return { ok: true, data: null };
 }
