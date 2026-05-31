@@ -78,7 +78,7 @@
 
 ## Project Progress
 
-**Overall Completion: 282 / 350 tasks (81%)**
+**Overall Completion: 282 / 355 tasks (79%)**
 
 | Category | Complete | Total | % |
 |----------|----------|-------|-----|
@@ -89,7 +89,7 @@
 | Extension Rebuild (Stage 13) | 9 | 9 | 100% |
 | Android Rebuild (Stage 14) | 11 | 11 | 100% |
 | P0 Reliability (Stage 15) | 6 | 6 | 100% |
-| Post-Launch Roadmap | 18 | 25 | 72% |
+| Post-Launch Roadmap | 18 | 30 | 60% |
 
 **Time invested: 400+ hours**
 
