@@ -89,6 +89,28 @@ All core functionality is implemented. Code compiles, tests pass, all platform b
 **⏳ PENDING: OAuth Testing (9.10)**
 - Firefox extension OAuth fixed; web session restoration and Android deep link testing still need manual execution
 
+**✅ RESOLVED: Android System Back Button Navigation**
+- Added `BackHandler` to `MainScreen.kt`: Settings → Roam, Profile → Settings, Saved → Settings
+- Back arrows added to `SettingsScreen`, `ProfileScreen`, and `SavedScreen` top-bars
+- Committed `2fce34b`
+
+**✅ RESOLVED: serve_count Tracking**
+- Added `serve_count INTEGER NOT NULL DEFAULT 0` to `urls` table; incremented in `roam()` v13 on every serve
+- Migration `20260530234000_add_serve_count.sql` — deployed via MCP
+- Committed `8bd6b2e`
+
+**✅ RESOLVED: Admin System Dashboard Expanded (12 cards)**
+- `/admin/dashboard` now shows 12 stat cards in 3 rows: Content (Total URLs, Active URLs, Dead links, Added this week), Engagement (Total serves, Total ratings, Avg Wilson score, Total collections), Users (Total users, New users this week, Active users 7d, Pending review)
+- `admin_url_stats()` RPC extended to v2 with `total_serves`, `avg_wilson_score`, `active_users_week`
+- Migration `20260530234100_admin_url_stats_v2.sql` — deployed via MCP
+- Committed `51f39a1`
+
+**✅ RESOLVED: Admin Queue Empty (FK regression)**
+- Root cause: `moderation_queue.submitted_by` FK was retargeted to `auth.users` (to fix a Sentry FK violation); this broke the PostgREST join `profile:profiles!submitted_by` in `getAdminQueue`, returning an error and an empty list
+- Fix: removed the PostgREST FK join; now fetches profiles in a separate `.from("profiles").select(...).in("id", userIds)` query and merges server-side
+- No migration needed — the query change alone is sufficient
+- Committed `f6ffd54`
+
 ---
 
 ## 2. PRINCIPLES & WORKFLOW
