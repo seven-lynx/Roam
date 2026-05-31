@@ -108,6 +108,54 @@ Deno.serve(async (req) => {
     return json({ error: 'Rate limit exceeded — max 10 submissions per hour' }, 429)
   }
 
+  // ── Duplicate check ───────────────────────────────────────────────────────
+  // Bail out early if the URL is already in the catalog (approved, pending,
+  // or retired) or already waiting in the moderation queue. The user sees a
+  // clear "already in our database" notice instead of a vague success.
+  // Service-role client is needed because regular users can't read other
+  // submitters' moderation_queue rows or unapproved urls.
+  const adminUrl = Deno.env.get('SUPABASE_URL')
+  const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
+  const adminClient = adminUrl && serviceKey ? createClient(adminUrl, serviceKey) : supabase
+
+  const { data: existingUrl, error: existingUrlErr } = await adminClient
+    .from('urls')
+    .select('id, approved, inactive')
+    .eq('url', normalized)
+    .maybeSingle()
+  if (existingUrlErr) {
+    console.error('duplicate url lookup failed', existingUrlErr)
+    return json({ error: 'Internal error' }, 500)
+  }
+  if (existingUrl) {
+    return json(
+      {
+        duplicate: true,
+        message: existingUrl.approved && !existingUrl.inactive
+          ? "This URL is already in our database."
+          : "This URL has already been submitted.",
+      },
+      409,
+    )
+  }
+
+  const { data: existingQueue, error: existingQueueErr } = await adminClient
+    .from('moderation_queue')
+    .select('id, status')
+    .eq('url', normalized)
+    .in('status', ['pending', 'approved'])
+    .maybeSingle()
+  if (existingQueueErr) {
+    console.error('duplicate queue lookup failed', existingQueueErr)
+    return json({ error: 'Internal error' }, 500)
+  }
+  if (existingQueue) {
+    return json(
+      { duplicate: true, message: "This URL is already pending review." },
+      409,
+    )
+  }
+
   // ── Safe Browsing check ───────────────────────────────────────────────────
   // The API key is verified at boot above. Safe Browsing failures (network,
   // quota, API errors) return 503. Detections (malicious URL) return 422.

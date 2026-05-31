@@ -401,13 +401,29 @@ async function checkUrl(url: string): Promise<Response<CheckUrlData>> {
   return { ok: true, data: { known: false } };
 }
 
-async function submitUrl(url: string, categoryId: string): Promise<Response<null>> {
+async function submitUrl(url: string, categoryId: string): Promise<Response<{ duplicate?: boolean; message?: string }>> {
   const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
   if (!categoryId || !UUID_RE.test(categoryId)) return { ok: false, error: 'Invalid category selection.' };
   const { data, error } = await getSupabase().functions.invoke('submit-url', { body: { url, category_id: categoryId } });
-  if (error) return { ok: false, error: error.message };
+  if (error) {
+    // supabase-js wraps the JSON body in FunctionsHttpError.context (Response).
+    // Read it so we can surface a "duplicate" outcome (HTTP 409) distinctly.
+    type FnErr = Error & { context?: Response };
+    const ctx = (error as FnErr).context;
+    let body: { error?: string; message?: string; duplicate?: boolean } | null = null;
+    if (ctx && typeof ctx.json === 'function') {
+      try { body = await ctx.json(); } catch { /* not JSON */ }
+    }
+    if (body?.duplicate) {
+      return { ok: true, data: { duplicate: true, message: body.message ?? 'This URL is already in our database.' } };
+    }
+    return { ok: false, error: body?.error ?? body?.message ?? error.message };
+  }
+  if (data?.duplicate) {
+    return { ok: true, data: { duplicate: true, message: data.message ?? 'This URL is already in our database.' } };
+  }
   if (data?.error) return { ok: false, error: data.error };
-  return { ok: true, data: null };
+  return { ok: true, data: { message: data?.message ?? 'URL submitted for review' } };
 }
 
 // ── Save for later ────────────────────────────────────────────────────────────

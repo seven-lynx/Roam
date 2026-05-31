@@ -588,7 +588,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const submitErr = el<HTMLParagraphElement>('submit-error');
     submitErr.hidden = true;
     el<HTMLButtonElement>('btn-submit').disabled = true;
-    const res = await sendToBackground({ type: 'SUBMIT_URL', url, categoryId: selectedCategory });
+    const res = await sendToBackground<{ duplicate?: boolean; message?: string }>({ type: 'SUBMIT_URL', url, categoryId: selectedCategory });
     el<HTMLButtonElement>('btn-submit').disabled = false;
     if (!res.ok) {
       // Show inline error — Safe Browsing rejection or rate-limit
@@ -597,6 +597,11 @@ document.addEventListener('DOMContentLoaded', () => {
         : res.error.includes('429') || res.error.includes('rate')
           ? 'You\'ve submitted too many URLs recently. Try again in an hour.'
           : res.error;
+      submitErr.hidden = false;
+      return;
+    }
+    if (res.data?.duplicate) {
+      submitErr.textContent = res.data.message ?? 'This URL is already in our database.';
       submitErr.hidden = false;
       return;
     }

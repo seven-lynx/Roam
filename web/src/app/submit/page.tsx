@@ -32,6 +32,7 @@ export default function SubmitPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [duplicateMsg, setDuplicateMsg] = useState<string | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -53,6 +54,7 @@ export default function SubmitPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+    setDuplicateMsg(null);
 
     let normalized: string;
     try {
@@ -64,7 +66,7 @@ export default function SubmitPage() {
 
     setLoading(true);
     try {
-      const { error: fnError } = await supabase.functions.invoke('submit-url', {
+      const { data, error: fnError } = await supabase.functions.invoke('submit-url', {
         body: {
           url: normalized,
           title: title.trim() || undefined,
@@ -74,13 +76,27 @@ export default function SubmitPage() {
       });
 
       if (fnError) {
-        // fnError.message is the JSON body from the function
-        let msg = fnError.message;
-        try {
-          const parsed = JSON.parse(msg);
-          msg = parsed.error ?? msg;
-        } catch { /* not JSON */ }
-        setError(msg);
+        // supabase-js exposes the JSON body via FunctionsHttpError.context.
+        // Parse it so we can branch on `duplicate` and surface the friendly message.
+        type FnHttpError = { context?: Response };
+        let body: { error?: string; message?: string; duplicate?: boolean } | null = null;
+        const ctx = (fnError as FnHttpError).context;
+        if (ctx && typeof ctx.json === 'function') {
+          try { body = await ctx.json(); } catch { /* fall through */ }
+        }
+        if (!body) {
+          try { body = JSON.parse(fnError.message); } catch { /* not JSON */ }
+        }
+        if (body?.duplicate) {
+          setDuplicateMsg(body.message ?? 'This URL is already in our database.');
+        } else {
+          setError(body?.error ?? body?.message ?? fnError.message);
+        }
+        return;
+      }
+
+      if (data?.duplicate) {
+        setDuplicateMsg(data.message ?? 'This URL is already in our database.');
         return;
       }
 
@@ -204,6 +220,12 @@ export default function SubmitPage() {
                 ))}
               </select>
             </div>
+
+            {duplicateMsg && (
+              <p className="text-sm text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/40 rounded-lg px-4 py-2">
+                {duplicateMsg}
+              </p>
+            )}
 
             {error && (
               <p className="text-sm text-red-600 bg-red-50 dark:bg-red-950/40 rounded-lg px-4 py-2">

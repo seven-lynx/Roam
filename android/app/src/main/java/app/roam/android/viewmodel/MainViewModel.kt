@@ -580,13 +580,22 @@ class MainViewModel(
         viewModelScope.launch {
             val result = runCatching { repo.submitUrl(url, categoryId, subcategoryId) }
             _showSubmitSheet.value = false
-            if (result.isSuccess) {
-                _submitToast.value = "Submitted for review — thanks!"
-            } else {
-                val err = result.exceptionOrNull()
-                err?.let { Sentry.captureException(it) }
-                _submitToast.value = "Couldn't submit: ${err?.message ?: "unknown error"}"
-            }
+            result.fold(
+                onSuccess = { outcome ->
+                    _submitToast.value = when (outcome) {
+                        is app.roam.android.data.repository.SubmitResult.Queued -> outcome.message
+                        is app.roam.android.data.repository.SubmitResult.Duplicate -> outcome.message
+                        is app.roam.android.data.repository.SubmitResult.Failed -> {
+                            Sentry.captureMessage("submit-url failed: ${outcome.message}")
+                            "Couldn't submit: ${outcome.message}"
+                        }
+                    }
+                },
+                onFailure = { err ->
+                    Sentry.captureException(err)
+                    _submitToast.value = "Couldn't submit: ${err.message ?: "unknown error"}"
+                },
+            )
         }
         viewModelScope.launch {
             delay(4000)

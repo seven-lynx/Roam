@@ -15,13 +15,24 @@ import io.github.jan.supabase.postgrest.postgrest
 import io.github.jan.supabase.postgrest.query.Columns
 import io.github.jan.supabase.postgrest.query.Order
 import io.ktor.client.call.body
+import io.ktor.client.statement.bodyAsText
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.add
+import kotlinx.serialization.json.boolean
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
+
+/** Outcome of a URL submission. Lets the UI distinguish duplicates from real failures. */
+sealed interface SubmitResult {
+    data class Queued(val message: String) : SubmitResult
+    data class Duplicate(val message: String) : SubmitResult
+    data class Failed(val message: String) : SubmitResult
+}
 
 class RoamRepository {
 
@@ -69,13 +80,33 @@ class RoamRepository {
      * Calls POST /functions/v1/submit-url.
      * [url] is required; [subcategoryId] is the user-selected category chip.
      */
-    suspend fun submitUrl(url: String, categoryId: String? = null, subcategoryId: String? = null) {
+    suspend fun submitUrl(url: String, categoryId: String? = null, subcategoryId: String? = null): SubmitResult {
         val body = buildJsonObject {
             put("url", url)
             categoryId?.let { put("category_id", it) }
             subcategoryId?.let { put("subcategory_id", it) }
         }
-        supabase.functions.invoke("submit-url", body = body)
+        // supabase-kt raises on non-2xx; the body text still parses as our JSON error shape.
+        val (status, text) = try {
+            val response = supabase.functions.invoke("submit-url", body = body)
+            response.status.value to runCatching { response.bodyAsText() }.getOrNull().orEmpty()
+        } catch (e: io.github.jan.supabase.exceptions.RestException) {
+            e.statusCode to (e.message.orEmpty())
+        }
+        val parsed = runCatching {
+            (Json.parseToJsonElement(text) as? JsonObject)
+        }.getOrNull()
+        val message = (parsed?.get("message") as? kotlinx.serialization.json.JsonPrimitive)?.content
+            ?: (parsed?.get("error") as? kotlinx.serialization.json.JsonPrimitive)?.content
+        val duplicateFlag = (parsed?.get("duplicate") as? kotlinx.serialization.json.JsonPrimitive)?.content == "true"
+        return when {
+            duplicateFlag || status == 409 ->
+                SubmitResult.Duplicate(message ?: "This URL is already in our database.")
+            status in 200..299 ->
+                SubmitResult.Queued(message ?: "Submitted for review — thanks!")
+            else ->
+                SubmitResult.Failed(message ?: "Submission failed (HTTP $status)")
+        }
     }
 
     /**
