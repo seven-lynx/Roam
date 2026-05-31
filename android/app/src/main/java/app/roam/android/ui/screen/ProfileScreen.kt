@@ -18,11 +18,15 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -49,7 +53,11 @@ import kotlinx.coroutines.delay
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
-fun ProfileScreen(vm: MainViewModel, onSignOut: () -> Unit) {
+fun ProfileScreen(
+    vm: MainViewModel,
+    onNavigateBack: () -> Unit = {},
+    onSignOut: () -> Unit,
+) {
     val profile by vm.profile.collectAsState()
     val userCategoryIds by vm.userCategoryIds.collectAsState()
     val userTopicIds by vm.userTopicIds.collectAsState()
@@ -78,7 +86,16 @@ fun ProfileScreen(vm: MainViewModel, onSignOut: () -> Unit) {
     }
 
     Scaffold(
-        topBar = { TopAppBar(title = { Text("Profile") }) },
+        topBar = {
+            TopAppBar(
+                title = { Text("Profile") },
+                navigationIcon = {
+                    IconButton(onClick = onNavigateBack) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                    }
+                },
+            )
+        },
     ) { innerPadding ->
         Column(
             modifier = Modifier

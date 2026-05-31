@@ -65,6 +65,7 @@ import app.roam.android.viewmodel.MainViewModel
 fun SavedScreen(
     vm: MainViewModel,
     onNavigateToDiscover: () -> Unit,
+    onNavigateBack: () -> Unit = {},
 ) {
     val savedUrls by vm.savedUrls.collectAsState()
     val collections by vm.collections.collectAsState()
@@ -101,7 +102,14 @@ fun SavedScreen(
                     },
                 )
             } else {
-                TopAppBar(title = { Text("Saved") })
+                TopAppBar(
+                    title = { Text("Saved") },
+                    navigationIcon = {
+                        IconButton(onClick = onNavigateBack) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        }
+                    },
+                )
             }
         },
     ) { innerPadding ->

@@ -3,6 +3,7 @@ package app.roam.android.ui.screen
 import android.content.Intent
 import android.net.Uri
 import androidx.browser.customtabs.CustomTabsIntent
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.fadeIn
@@ -75,6 +76,13 @@ fun MainScreen(
                 .fillMaxSize()
                 .padding(innerPadding),
         ) {
+            // System back button navigation between tabs
+            BackHandler(enabled = currentTab == RoamTab.Settings.route) { currentTab = RoamTab.Roam.route }
+            BackHandler(enabled = currentTab == RoamTab.Profile.route) { currentTab = RoamTab.Settings.route }
+            // SavedScreen's own BackHandler fires first when a collection is open;
+            // this one fires when at the top-level saved list.
+            BackHandler(enabled = currentTab == RoamTab.Saved.route) { currentTab = RoamTab.Settings.route }
+
             // DiscoverTab is always in the composition tree — WebView is never destroyed
             DiscoverTab(vm = vm, activity = activity, onSignOut = {
                 onSignOut()
@@ -107,6 +115,7 @@ fun MainScreen(
                 SavedScreen(
                     vm = vm,
                     onNavigateToDiscover = { currentTab = RoamTab.Roam.route },
+                    onNavigateBack = { currentTab = RoamTab.Settings.route },
                 )
             }
 
@@ -115,10 +124,14 @@ fun MainScreen(
                 enter = fadeIn(animationSpec = spring()),
                 exit = fadeOut(animationSpec = spring()),
             ) {
-                ProfileScreen(vm = vm, onSignOut = {
-                    onSignOut()
-                    currentTab = RoamTab.Roam.route
-                })
+                ProfileScreen(
+                    vm = vm,
+                    onNavigateBack = { currentTab = RoamTab.Settings.route },
+                    onSignOut = {
+                        onSignOut()
+                        currentTab = RoamTab.Roam.route
+                    },
+                )
             }
         }
     }
