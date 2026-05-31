@@ -267,7 +267,7 @@ export default async function AdminDashboardPage() {
               System Dashboard
             </h1>
             <p className="mt-1 text-zinc-500 dark:text-zinc-400 text-sm">
-              Stats refreshed: {stats ? new Date(stats.refreshedAt).toLocaleString() : "never"}
+              Stats refreshed: {stats ? new Date(stats.refreshedAt).toLocaleString('en-US', { timeZone: 'America/New_York', timeZoneName: 'short' }) : "never"}
             </p>
           </div>
           <div className="flex items-center gap-3">

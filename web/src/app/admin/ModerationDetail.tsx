@@ -283,7 +283,7 @@ export default function ModerationDetail({
               Submitted
             </label>
             <div className="bg-zinc-50 dark:bg-zinc-800 rounded-lg px-4 py-3 text-sm text-zinc-900 dark:text-white">
-              {new Date(item.created_at ?? '').toLocaleString()}
+              {new Date(item.created_at ?? '').toLocaleString('en-US', { timeZone: 'America/New_York', timeZoneName: 'short' })}
             </div>
           </div>
 

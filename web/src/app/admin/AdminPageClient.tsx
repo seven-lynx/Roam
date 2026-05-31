@@ -382,7 +382,7 @@ export default function AdminPageClient() {
                       </span>
                     </div>
                     <span className="text-xs text-zinc-400">
-                      {new Date(item.created_at ?? '').toLocaleString()}
+                      {new Date(item.created_at ?? '').toLocaleString('en-US', { timeZone: 'America/New_York', timeZoneName: 'short' })}
                     </span>
                   </button>
                 ))}
@@ -711,7 +711,7 @@ export default function AdminPageClient() {
                           {r.report_count}
                         </td>
                         <td className="py-3 px-4 text-xs text-zinc-500 whitespace-nowrap">
-                          {new Date(r.reported_at).toLocaleDateString()}
+                          {new Date(r.reported_at).toLocaleDateString('en-US', { timeZone: 'America/New_York' })}
                         </td>
                         <td className="text-center py-3 px-4">
                           <span className={`text-xs font-medium px-2 py-1 rounded ${
