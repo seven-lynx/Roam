@@ -16,9 +16,13 @@ type SupabaseStats = {
   pendingModeration: number;
   totalUsers: number;
   newUsersThisWeek: number;
+  activeUsersThisWeek: number;
   recentUrls: number;
   totalRatings: number;
+  totalServes: number;
+  avgWilsonScore: number;
   inactiveUrls: number;
+  totalCollections: number;
   queryErrors: string[];
   refreshedAt: number;
 };
@@ -105,9 +109,15 @@ async function fetchSupabaseStats(): Promise<SupabaseStats | null> {
     admin.from("ratings").select("*", { count: "exact", head: true }),
     queryErrors,
   );
-  // All four urls-table counts in one RPC call — single table scan, and the
-  // function sets statement_timeout = '30s' to override the PostgREST default.
+  const totalCollections = await countWithTimeout(
+    "totalCollections",
+    admin.from("collections").select("*", { count: "exact", head: true }),
+    queryErrors,
+  );
+  // All url-table aggregates in one RPC call — avoids multiple full-table scans.
+  // The function sets statement_timeout = '30s' to override the PostgREST default.
   let recentUrls = 0, inactiveUrls = 0, activeUrls = 0, totalUrls = 0;
+  let totalServes = 0, avgWilsonScore = 0, activeUsersThisWeek = 0;
   try {
     const { data, error } = await Promise.race([
       admin.rpc("admin_url_stats", { since_date: sevenDaysAgo }),
@@ -122,10 +132,13 @@ async function fetchSupabaseStats(): Promise<SupabaseStats | null> {
       throw new Error(`admin_url_stats: ${msg}`);
     } else if (data && data.length > 0) {
       const row = data[0];
-      totalUrls    = Number(row.total_urls)    || 0;
-      activeUrls   = Number(row.active_urls)   || 0;
-      inactiveUrls = Number(row.inactive_urls) || 0;
-      recentUrls   = Number(row.recent_urls)   || 0;
+      totalUrls          = Number(row.total_urls)          || 0;
+      activeUrls         = Number(row.active_urls)         || 0;
+      inactiveUrls       = Number(row.inactive_urls)       || 0;
+      recentUrls         = Number(row.recent_urls)         || 0;
+      totalServes        = Number(row.total_serves)        || 0;
+      avgWilsonScore     = Number(row.avg_wilson_score)    || 0;
+      activeUsersThisWeek = Number(row.active_users_week) || 0;
     }
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
@@ -140,9 +153,13 @@ async function fetchSupabaseStats(): Promise<SupabaseStats | null> {
     pendingModeration,
     totalUsers,
     newUsersThisWeek,
+    activeUsersThisWeek,
     recentUrls,
     totalRatings,
+    totalServes,
+    avgWilsonScore,
     inactiveUrls,
+    totalCollections,
     queryErrors,
     refreshedAt: Date.now(),
   };
@@ -296,25 +313,32 @@ export default async function AdminDashboardPage() {
             <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-4 gap-4">
               {(
                 [
+                  // Row 1 — Content library
                   { label: "Total URLs", value: stats.totalUrls },
                   { label: "Active URLs", value: stats.activeUrls },
-                  { label: "Added this week", value: stats.recentUrls },
-                  { label: "Total ratings", value: stats.totalRatings },
                   { label: "Dead links", value: stats.inactiveUrls, highlight: stats.inactiveUrls > 50 },
+                  { label: "Added this week", value: stats.recentUrls },
+                  // Row 2 — Engagement
+                  { label: "Total serves", value: stats.totalServes },
+                  { label: "Total ratings", value: stats.totalRatings },
+                  { label: "Avg Wilson score", value: stats.avgWilsonScore.toFixed(3) },
+                  { label: "Total collections", value: stats.totalCollections },
+                  // Row 3 — Users & moderation
                   { label: "Total users", value: stats.totalUsers },
                   { label: "New users this week", value: stats.newUsersThisWeek },
+                  { label: "Active users (7d)", value: stats.activeUsersThisWeek },
                   {
                     label: "Pending review",
                     value: stats.pendingModeration,
                     highlight: stats.pendingModeration > 0,
                     href: "/admin",
                   },
-                ] as { label: string; value: number; highlight?: boolean; href?: string }[]
+                ] as { label: string; value: number | string; highlight?: boolean; href?: string }[]
               ).map(({ label, value, highlight, href }) => {
                 const inner = (
                   <>
                     <span className="text-2xl font-bold text-zinc-900 dark:text-white">
-                      {value.toLocaleString()}
+                      {typeof value === "string" ? value : value.toLocaleString()}
                     </span>
                     <span className="text-xs text-zinc-500 dark:text-zinc-400">
                       {label}
