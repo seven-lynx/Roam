@@ -304,11 +304,11 @@ class MainViewModel(
             }
         }
         // Prime the prefetch queue so first roam() is instant.
-        // Only do this when a session is already in memory (returning user).
-        // On first launch the session isn't loaded yet and the call would hit
-        // /functions/v1/roam with the anon key, causing a 401 (ROAM-ANDROID-5).
-        // MainScreen's LaunchedEffect fires vm.roam() after auth is established.
-        if (repo.hasSession()) startPrefillQueue()
+        // Start unconditionally — the loop's own session guard (delay 500ms + continue)
+        // handles the case where supabase-kt hasn't restored the session yet. This lets
+        // prefetching begin during onboarding so the queue is ready the moment MainScreen
+        // appears (fixes fresh-install slow first load).
+        startPrefillQueue()
 
         // Sync saved-for-later list from the server so saves from the web app
         // and other devices are visible without a reinstall.
@@ -479,10 +479,11 @@ class MainViewModel(
                 if (warmFails >= 8 && warmSize == 0) break   // server returning nothing
 
                 // Phase 1: keep warm topped up (cheap — no HEAD check)
-                // Small delay between calls reduces cold-start hammering on the
-                // edge function, which helps avoid 60s timeouts (ROAM-ANDROID-4).
+                // Skip the inter-call delay on the very first fetch (when both queues are
+                // empty) so the queue starts filling without added latency on cold start.
+                // After that, pace calls to avoid hammering the edge function (ROAM-ANDROID-4).
                 if (!warmDone && warmFails < 8) {
-                    delay(300)
+                    if (warmSize > 0 || hotSize > 0) delay(300)
                     val candidate = runCatching {
                         repo.roam(
                             collectionId  = _activeCollectionId.value,
