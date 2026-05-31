@@ -105,6 +105,21 @@ All core functionality is implemented. Code compiles, tests pass, all platform b
 - Migration `20260530234100_admin_url_stats_v2.sql` — deployed via MCP
 - Committed `51f39a1`
 
+**✅ RESOLVED: Admin Dashboard Timeout + Expanded to 15 Cards (3×5)**
+- Root cause: `SUM(serve_count)` + `AVG(wilson_score)` over 1.7M rows without a covering index caused >25s statement timeout
+- Fix: `idx_urls_active_aggregates ON urls(serve_count, wilson_score) WHERE approved=true AND inactive=false` — query now uses Parallel Index Only Scan (~2.9s)
+- `admin_url_stats()` upgraded to v3 with 10 return columns: added `rated_urls`, `unrated_urls`, `new_ratings_week`; Wilson score now rated-only (`WHERE wilson_score > 0`) to show meaningful signal (~0.207) instead of near-zero average across 1.7M unrated URLs
+- Dashboard expanded to 3×5 grid (15 cards); Dead Links card deep-links to `/admin?view=reports`; `?view=` param restores active tab on navigation
+- Migrations: `20260531045000_admin_url_stats_covering_index.sql`, `20260531050000_admin_url_stats_v3.sql`
+- Committed `ec324bf`, `19f27c2`, `237e3c4`
+
+**✅ RESOLVED: roam() Serving Dead URLs + Intermittent Android Timeouts**
+- Root cause: `inactive = FALSE` guard was accidentally dropped from all four WHERE clauses in roam() v21 (standard Phase 1 TABLESAMPLE, standard Phase 2 full-scan, collection Phase 1, collection Phase 2)
+- Impact: 1.5M dead URLs entered the candidate pool (47% excess I/O), causing `DataFileRead` stalls; Sentry recorded 263 HTTP 500s from `/functions/v1/roam` hitting the 25s edge function wall-clock limit
+- Fix: roam() v22 restores `AND u.inactive = FALSE` to every WHERE clause; new `idx_urls_roam_score_active ON urls(roam_score_static DESC) WHERE approved=true AND inactive=false` lets Phase 2 ORDER BY scan 1.7M rows instead of 3.2M
+- Migration `20260531060000_roam_v22_restore_inactive_filter.sql` — deployed via MCP
+- Committed `a5266e3`
+
 **✅ RESOLVED: Admin Queue Empty (FK regression)**
 - Root cause: `moderation_queue.submitted_by` FK was retargeted to `auth.users` (to fix a Sentry FK violation); this broke the PostgREST join `profile:profiles!submitted_by` in `getAdminQueue`, returning an error and an empty list
 - Fix: removed the PostgREST FK join; now fetches profiles in a separate `.from("profiles").select(...).in("id", userIds)` query and merges server-side
