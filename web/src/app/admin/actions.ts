@@ -98,13 +98,35 @@ export async function getAdminQueue(
       reviewer_note,
       reviewed_by,
       subcategory_id,
-      profile:profiles!submitted_by(display_name, username),
       subcategory:subcategories(id, name, category_id, category:categories(id, name))
     `)
     .order("created_at", { ascending: sortBy === "oldest" });
 
   if (error) return { data: null, error: error.message };
-  return { data: data as unknown as AdminQueueItem[], error: null };
+  if (!data) return { data: [], error: null };
+
+  // Fetch profiles separately — submitted_by FK targets auth.users, not profiles,
+  // so PostgREST cannot navigate the join directly.
+  const userIds = [...new Set(data.map((item) => item.submitted_by).filter(Boolean))] as string[];
+  const profileMap: Record<string, { display_name: string | null; username: string | null }> = {};
+  if (userIds.length > 0) {
+    const { data: profiles } = await admin
+      .from("profiles")
+      .select("id, display_name, username")
+      .in("id", userIds);
+    if (profiles) {
+      for (const p of profiles) {
+        profileMap[p.id] = { display_name: p.display_name, username: p.username };
+      }
+    }
+  }
+
+  const enriched = data.map((item) => ({
+    ...item,
+    profile: item.submitted_by ? (profileMap[item.submitted_by] ?? null) : null,
+  }));
+
+  return { data: enriched as unknown as AdminQueueItem[], error: null };
 }
 
 // ─── Admin reports ────────────────────────────────────────────────────────────

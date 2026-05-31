@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { Header } from '@/components/Header';
 import { LoadingPage } from '@/components/UI';
 import { createClient } from '@/lib/supabase/client';
 import { useRequireAuth } from '@/lib/hooks';
@@ -116,7 +115,6 @@ export default function SubmitPage() {
 
   return (
     <div className="min-h-screen bg-white dark:bg-zinc-950">
-      <Header />
       <main className="max-w-2xl mx-auto px-6 py-12">
         <Link href="/profile" className="text-zinc-500 hover:text-zinc-900 dark:hover:text-white transition-colors text-sm mb-8 inline-block">
           ← Back to profile
