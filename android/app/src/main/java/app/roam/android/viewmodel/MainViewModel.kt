@@ -548,11 +548,14 @@ class MainViewModel(
             haptic(context)
             val result = runCatching { repo.rate(loaded.roamUrl.id, 1) }
             if (result.isFailure) {
-                // Queue for retry if offline; report unexpected errors
-                if (result.exceptionOrNull() is IOException) {
+                val err = result.exceptionOrNull()
+                // Queue for retry if offline; report unexpected errors.
+                // Use isOfflineError() — Ktor's HttpRequestException wraps IOException
+                // in the cause chain and does not itself extend IOException.
+                if (err != null && isOfflineError(err)) {
                     pendingRatings.addLast(PendingRating(loaded.roamUrl.id, 1))
                 } else {
-                    result.exceptionOrNull()?.let { Sentry.captureException(it) }
+                    err?.let { Sentry.captureException(it) }
                 }
             }
             // Thumbs up just records the rating — no navigation, user may still be reading
@@ -566,10 +569,11 @@ class MainViewModel(
             if (loaded != null) {
                 val result = runCatching { repo.rate(loaded.roamUrl.id, -1) }
                 if (result.isFailure) {
-                    if (result.exceptionOrNull() is IOException) {
+                    val err = result.exceptionOrNull()
+                    if (err != null && isOfflineError(err)) {
                         pendingRatings.addLast(PendingRating(loaded.roamUrl.id, -1))
                     } else {
-                        result.exceptionOrNull()?.let { Sentry.captureException(it) }
+                        err?.let { Sentry.captureException(it) }
                     }
                 }
             }
@@ -987,7 +991,7 @@ class MainViewModel(
                 runCatching { repo.rate(pending.urlId, pending.value) }
                     .onFailure { e ->
                         // Re-queue only if still offline; drop other errors
-                        if (e is IOException) pendingRatings.addLast(pending)
+                        if (isOfflineError(e)) pendingRatings.addLast(pending)
                         else Sentry.captureException(e)
                     }
             }
