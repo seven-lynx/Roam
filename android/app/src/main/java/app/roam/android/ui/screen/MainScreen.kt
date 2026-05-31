@@ -95,6 +95,7 @@ fun MainScreen(
                     },
                     onNavigateToSaved = { currentTab = RoamTab.Saved.route },
                     onNavigateToProfile = { currentTab = RoamTab.Profile.route },
+                    onNavigateToRoam = { currentTab = RoamTab.Roam.route },
                 )
             }
 

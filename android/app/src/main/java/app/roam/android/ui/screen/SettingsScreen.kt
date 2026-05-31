@@ -51,6 +51,7 @@ fun SettingsScreen(
     onSignOut: () -> Unit,
     onNavigateToSaved: () -> Unit = {},
     onNavigateToProfile: () -> Unit = {},
+    onNavigateToRoam: () -> Unit = {},
 ) {
     val skipPaywalled by vm.skipPaywalled.collectAsState()
     val webDarkMode by vm.webDarkMode.collectAsState()
@@ -340,7 +341,10 @@ fun SettingsScreen(
             SettingsActionRow(
                 title = "Report dead link",
                 subtitle = currentUrl ?: "No page loaded",
-                onClick = { vm.reportBrokenLink() },
+                onClick = {
+                    vm.reportBrokenLink()
+                    onNavigateToRoam()
+                },
             )
 
             HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
