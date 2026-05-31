@@ -81,10 +81,28 @@ fun ConfigBottomSheet(
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var langPickerOpen by remember { mutableStateOf(false) }
+    var showReportDeadLinkDialog by remember { mutableStateOf(false) }
     var collectionPickerOpen by remember { mutableStateOf(false) }
     var collectionPickerMode by remember { mutableStateOf("add") } // "add" or "roam"
     var newCollectionDialogOpen by remember { mutableStateOf(false) }
     var newCollectionName by remember { mutableStateOf("") }
+
+    if (showReportDeadLinkDialog) {
+        AlertDialog(
+            onDismissRequest = { showReportDeadLinkDialog = false },
+            title = { Text("Report dead link?") },
+            text = { Text("This will flag the current page as broken and skip to the next one.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    showReportDeadLinkDialog = false
+                    onReportBrokenLink()
+                }) { Text("Report") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showReportDeadLinkDialog = false }) { Text("Cancel") }
+            },
+        )
+    }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -256,7 +274,7 @@ fun ConfigBottomSheet(
             Spacer(modifier = Modifier.height(4.dp))
 
             TextButton(
-                onClick = onReportBrokenLink,
+                onClick = { showReportDeadLinkDialog = true },
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
             ) {
                 Text(
