@@ -29,7 +29,7 @@ export function UsernamePrompt() {
 
     const { error: err } = await supabase
       .from('profiles')
-      .upsert({ id: session!.user.id, username: clean, display_name: clean })
+      .update({ username: clean, display_name: clean })
       .eq('id', session!.user.id);
 
     setLoading(false);

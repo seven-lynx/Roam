@@ -52,8 +52,11 @@ export default async function PublicProfilePage({ params }: Props) {
     .select('categories(name, icon)')
     .eq('user_id', profile.id);
 
-  const interests = (userCategories ?? [])
-    .flatMap(r => r.categories ? [r.categories as unknown as { name: string; icon: string }] : []);
+  const interests = [...new Map(
+    (userCategories ?? [])
+      .flatMap(r => r.categories ? [r.categories as unknown as { name: string; icon: string }] : [])
+      .map(c => [c.name, c] as [string, { name: string; icon: string }])
+  ).values()];
 
   return (
     <div className="min-h-[calc(100vh-8rem)] bg-white dark:bg-zinc-950">

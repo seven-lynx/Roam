@@ -46,7 +46,7 @@ export default async function Home() {
         {/* Downloads */}
         <div
           id="get-the-app"
-          className="w-full border-t border-zinc-200 dark:border-zinc-800 pt-10 mt-4 grid sm:grid-cols-2 gap-6 text-left"
+          className="w-full border-t border-zinc-200 dark:border-zinc-800 pt-10 mt-4 grid sm:grid-cols-2 gap-6 text-left scroll-mt-20"
         >
           <div className="flex flex-col gap-2">
             <h2 className="font-semibold text-zinc-900 dark:text-white text-lg">Browser extension</h2>

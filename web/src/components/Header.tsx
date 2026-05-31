@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { useAuth } from '@/components/AuthProvider';
 import { avatarPalette } from '@/components/UI';
@@ -15,6 +15,7 @@ export function Header() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [profileMenu, setProfileMenu] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const pathname = usePathname();
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -30,7 +31,7 @@ export function Header() {
   // Close mobile menu on route change
   useEffect(() => {
     setMenuOpen(false);
-  }, []);
+  }, [pathname]);
 
   const handleLogout = async () => {
     setProfileMenu(false);
@@ -58,7 +59,7 @@ export function Header() {
 
   if (!session) {
     return (
-      <header className="border-b border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950">
+      <header className="border-b border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
           <Link href="/" className="flex items-center gap-2 font-bold text-2xl text-zinc-900 dark:text-white">
             <Image src="/icon-512.png" alt="Roam" width={32} height={32} />

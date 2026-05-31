@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { createClient } from './supabase/client';
 import { useAuth } from '@/components/AuthProvider';
 
@@ -53,12 +54,13 @@ export function useUserCategories() {
  */
 export function useRequireAuth() {
   const { session, loading } = useSession();
+  const router = useRouter();
 
   useEffect(() => {
     if (!loading && !session) {
-      window.location.href = '/join';
+      router.push('/join?mode=signin');
     }
-  }, [session, loading]);
+  }, [session, loading, router]);
 
   const isReady = !loading && !!session;
 

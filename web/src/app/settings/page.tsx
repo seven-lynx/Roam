@@ -12,7 +12,7 @@ export default async function SettingsPage() {
 
   const { data: settings } = await supabase
     .from('user_settings')
-    .select('email_notifications, discovery_mode')
+    .select('email_notifications')
     .eq('user_id', user.id)
     .single();
 
@@ -24,7 +24,6 @@ export default async function SettingsPage() {
       email={user.email ?? ''}
       provider={provider}
       initialNotifications={settings?.email_notifications ?? true}
-      initialDiscoveryMode={(settings?.discovery_mode as 'discovery' | 'deep_dive') ?? 'discovery'}
     />
   );
 }

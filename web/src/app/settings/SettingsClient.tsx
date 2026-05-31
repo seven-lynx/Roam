@@ -12,7 +12,6 @@ interface SettingsClientProps {
   email: string;
   provider: string;
   initialNotifications: boolean;
-  initialDiscoveryMode: 'discovery' | 'deep_dive';
 }
 
 // ── Two-step delete modal ─────────────────────────────────────────────────
@@ -93,7 +92,6 @@ export function SettingsClient({
   email,
   provider,
   initialNotifications,
-  initialDiscoveryMode,
 }: SettingsClientProps) {
   const router = useRouter();
   const supabase = createClient();
@@ -103,10 +101,6 @@ export function SettingsClient({
   // Notification toggle
   const [notifications, setNotifications] = useState(initialNotifications);
   const [notificationsLoading, setNotificationsLoading] = useState(false);
-
-  // Discovery mode
-  const [discoveryMode, setDiscoveryMode] = useState<'discovery' | 'deep_dive'>(initialDiscoveryMode);
-  const [discoveryLoading, setDiscoveryLoading] = useState(false);
 
   // Password change (email users only)
   const [newPassword, setNewPassword] = useState('');
@@ -137,21 +131,6 @@ export function SettingsClient({
       Sentry.captureException(err, { tags: { context: 'notifications-toggle' } });
     } finally {
       setNotificationsLoading(false);
-    }
-  }
-
-  async function handleDiscoveryModeChange(mode: 'discovery' | 'deep_dive') {
-    setDiscoveryLoading(true);
-    try {
-      await supabase.from('user_settings').upsert(
-        { user_id: userId, discovery_mode: mode },
-        { onConflict: 'user_id' }
-      );
-      setDiscoveryMode(mode);
-    } catch (err) {
-      Sentry.captureException(err, { tags: { context: 'discovery-mode' } });
-    } finally {
-      setDiscoveryLoading(false);
     }
   }
 
@@ -292,39 +271,6 @@ export function SettingsClient({
                 }`}
               >
                 {t}
-              </button>
-            ))}
-          </div>
-        </Section>
-
-        {/* Discovery mode */}
-        <Section title="Discovery mode">
-          <p className="text-sm text-zinc-500 dark:text-zinc-400 mb-4">Controls how Roam selects URLs for you.</p>
-          <div className={`flex flex-col gap-3 ${discoveryLoading ? 'opacity-50 pointer-events-none' : ''}`}>
-            {(['discovery', 'deep_dive'] as const).map(mode => (
-              <button
-                key={mode}
-                type="button"
-                onClick={() => handleDiscoveryModeChange(mode)}
-                className={`flex items-start gap-4 rounded-xl border-2 p-4 text-left transition-colors ${
-                  discoveryMode === mode
-                    ? 'border-zinc-900 dark:border-white bg-zinc-50 dark:bg-zinc-800'
-                    : 'border-zinc-200 dark:border-zinc-700 hover:border-zinc-400 dark:hover:border-zinc-500'
-                }`}
-              >
-                <span className={`mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full border-2 ${discoveryMode === mode ? 'border-zinc-900 dark:border-white' : 'border-zinc-400 dark:border-zinc-600'}`}>
-                  {discoveryMode === mode && <span className="h-2 w-2 rounded-full bg-zinc-900 dark:bg-white" />}
-                </span>
-                <div>
-                  <span className="font-semibold text-zinc-900 dark:text-white">
-                    {mode === 'discovery' ? 'Discovery' : 'Deep Dive'}
-                  </span>
-                  <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-0.5">
-                    {mode === 'discovery'
-                      ? 'Mix of top interests with occasional adjacent topics.'
-                      : 'Focus on your highest-rated topics only.'}
-                  </p>
-                </div>
               </button>
             ))}
           </div>

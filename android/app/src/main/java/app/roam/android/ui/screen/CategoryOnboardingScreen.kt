@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
@@ -95,7 +96,7 @@ fun CategoryOnboardingScreen(
                 if (subcategories.isNotEmpty()) {
                     TextButton(
                         onClick = { vm.setInterestMode("topics") },
-                        modifier = Modifier.align(Alignment.Start),
+                        modifier = Modifier.wrapContentWidth(Alignment.Start),
                     ) {
                         Text("Choose specific topics instead →")
                     }
@@ -106,7 +107,7 @@ fun CategoryOnboardingScreen(
             item {
                 TextButton(
                     onClick = { vm.setInterestMode("pillars") },
-                    modifier = Modifier.align(Alignment.Start),
+                    modifier = Modifier.wrapContentWidth(Alignment.Start),
                 ) {
                     Text("← Choose categories instead")
                 }

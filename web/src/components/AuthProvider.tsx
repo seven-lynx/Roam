@@ -39,7 +39,7 @@ export function AuthProvider({ initialSession, children }: AuthProviderProps) {
   const supabase = supabaseClient;
   const [session, setSession] = useState<Session | null>(initialSession);
   const [profile, setProfile] = useState<Profile | null>(null);
-  const [loading, setLoading] = useState(!initialSession);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     // Load profile whenever session changes
@@ -64,14 +64,6 @@ export function AuthProvider({ initialSession, children }: AuthProviderProps) {
       setSession(newSession);
       setLoading(false);
     });
-
-    // If no initial session was provided, check once
-    if (!initialSession) {
-      supabase.auth.getSession().then(({ data: { session: s } }) => {
-        setSession(s);
-        setLoading(false);
-      });
-    }
 
     return () => subscription.unsubscribe();
   }, [supabase, initialSession]);

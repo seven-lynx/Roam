@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import FeedbackWidget from './FeedbackWidget';
 
 export function Footer() {
   const year = new Date().getFullYear();
@@ -8,7 +9,7 @@ export function Footer() {
         <span>© {year} Roam</span>
         <nav className="flex items-center gap-5">
           <a
-            href="https://github.com/seito/roam"
+            href="https://github.com/seven-lynx/Roam"
             target="_blank"
             rel="noopener noreferrer"
             className="hover:text-zinc-900 dark:hover:text-white transition-colors"
@@ -27,6 +28,7 @@ export function Footer() {
           >
             Support
           </a>
+          <FeedbackWidget />
         </nav>
       </div>
     </footer>
