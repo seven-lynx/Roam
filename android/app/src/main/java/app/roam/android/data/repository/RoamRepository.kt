@@ -215,6 +215,29 @@ class RoamRepository {
     }
 
     /**
+     * Renames a collection.
+     */
+    suspend fun renameCollection(collectionId: String, name: String) {
+        val body = buildJsonObject {
+            put("action", "update")
+            put("id", collectionId)
+            put("name", name)
+        }
+        supabase.functions.invoke("collection", body = body)
+    }
+
+    /**
+     * Deletes a collection and all its items.
+     */
+    suspend fun deleteCollection(collectionId: String) {
+        val body = buildJsonObject {
+            put("action", "delete")
+            put("id", collectionId)
+        }
+        supabase.functions.invoke("collection", body = body)
+    }
+
+    /**
      * Looks up the URL record for [url] — returns its ID and category_id if known.
      */
     suspend fun checkUrl(url: String): RoamUrl? {
@@ -349,6 +372,12 @@ class RoamRepository {
             supabase.postgrest.from("user_categories").insert(rows)
         }
     }
+
+    /**
+     * Returns the set of category IDs the user has selected (pillar mode).
+     * Returns an empty set when the user is in topic mode.
+     */
+    suspend fun getUserCategoryIds(): Set<String> {
         val userId = supabase.auth.currentUserOrNull()?.id ?: return emptySet()
         return supabase.postgrest
             .from("user_categories")

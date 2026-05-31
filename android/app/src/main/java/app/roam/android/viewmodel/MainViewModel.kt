@@ -793,6 +793,23 @@ class MainViewModel(
         }
     }
 
+    fun renameCollection(collectionId: String, name: String) {
+        viewModelScope.launch {
+            runCatching { repo.renameCollection(collectionId, name) }
+            runCatching { _collections.value = repo.getCollections() }
+        }
+    }
+
+    fun deleteCollection(collectionId: String) {
+        // Clear the active filter if the deleted collection was selected.
+        if (_activeCollectionId.value == collectionId) setCollectionFilter(null)
+        // Optimistic removal so the UI updates instantly.
+        _collections.value = _collections.value.filter { it.id != collectionId }
+        viewModelScope.launch {
+            runCatching { repo.deleteCollection(collectionId) }
+        }
+    }
+
     fun roamWithinCategory() {
         val loaded = _state.value as? RoamState.Loaded
         val categoryId = loaded?.roamUrl?.categoryId

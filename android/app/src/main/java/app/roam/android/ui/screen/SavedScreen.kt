@@ -20,7 +20,10 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Collections
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -134,10 +137,8 @@ fun SavedScreen(
                     1 -> CollectionsTab(
                         collections = collections,
                         onOpenCollection = { vm.openCollection(it) },
-                        onManageCollections = {
-                            vm.navigateTo("https://roamtheweb.app/profile")
-                            onNavigateToDiscover()
-                        },
+                        onRenameCollection = { id, name -> vm.renameCollection(id, name) },
+                        onDeleteCollection = { id -> vm.deleteCollection(id) },
                     )
                 }
             }
@@ -368,7 +369,8 @@ private fun SavedTab(
 private fun CollectionsTab(
     collections: List<Collection>,
     onOpenCollection: (Collection) -> Unit,
-    onManageCollections: () -> Unit,
+    onRenameCollection: (id: String, name: String) -> Unit,
+    onDeleteCollection: (id: String) -> Unit,
 ) {
     if (collections.isEmpty()) {
         Box(
@@ -387,41 +389,28 @@ private fun CollectionsTab(
                 )
                 Text("No collections yet", style = MaterialTheme.typography.titleMedium)
                 Text(
-                    "Create collections on roamtheweb.app to organise your discoveries.",
+                    "Use the ⚙ menu while browsing to create your first collection.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
                 )
-                TextButton(onClick = onManageCollections) {
-                    Text("Manage collections ↗")
-                }
             }
         }
     } else {
+        var menuCollection by remember { mutableStateOf<Collection?>(null) }
+        var renameTarget by remember { mutableStateOf<Collection?>(null) }
+        var renameText by remember { mutableStateOf("") }
+        var deleteTarget by remember { mutableStateOf<Collection?>(null) }
+
         LazyColumn(modifier = Modifier.fillMaxSize()) {
-            item {
-                TextButton(
-                    onClick = onManageCollections,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 8.dp, vertical = 4.dp),
-                ) {
-                    Text(
-                        "Manage collections ↗",
-                        modifier = Modifier.fillMaxWidth(),
-                        color = MaterialTheme.colorScheme.primary,
-                    )
-                }
-                HorizontalDivider()
-            }
             items(collections, key = { it.id }) { collection ->
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clickable { onOpenCollection(collection) }
-                        .padding(horizontal = 16.dp, vertical = 14.dp),
+                        .padding(start = 16.dp, end = 4.dp, top = 6.dp, bottom = 6.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Column(modifier = Modifier.weight(1f)) {
+                    Column(modifier = Modifier.weight(1f).padding(vertical = 8.dp)) {
                         Text(
                             text = collection.name,
                             style = MaterialTheme.typography.bodyLarge,
@@ -434,9 +423,89 @@ private fun CollectionsTab(
                             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.55f),
                         )
                     }
+                    Box {
+                        IconButton(onClick = { menuCollection = collection }) {
+                            Icon(
+                                imageVector = Icons.Filled.MoreVert,
+                                contentDescription = "Collection options",
+                                tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                            )
+                        }
+                        DropdownMenu(
+                            expanded = menuCollection?.id == collection.id,
+                            onDismissRequest = { menuCollection = null },
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text("Rename") },
+                                onClick = {
+                                    renameTarget = collection
+                                    renameText = collection.name
+                                    menuCollection = null
+                                },
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Delete", color = MaterialTheme.colorScheme.error) },
+                                onClick = {
+                                    deleteTarget = collection
+                                    menuCollection = null
+                                },
+                            )
+                        }
+                    }
                 }
                 HorizontalDivider()
             }
+        }
+
+        // Rename dialog
+        renameTarget?.let { target ->
+            AlertDialog(
+                onDismissRequest = { renameTarget = null },
+                title = { Text("Rename collection") },
+                text = {
+                    OutlinedTextField(
+                        value = renameText,
+                        onValueChange = { renameText = it },
+                        label = { Text("Name") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            if (renameText.isNotBlank()) {
+                                onRenameCollection(target.id, renameText.trim())
+                                renameTarget = null
+                            }
+                        },
+                        enabled = renameText.isNotBlank(),
+                    ) { Text("Rename") }
+                },
+                dismissButton = {
+                    TextButton(onClick = { renameTarget = null }) { Text("Cancel") }
+                },
+            )
+        }
+
+        // Delete confirmation dialog
+        deleteTarget?.let { target ->
+            AlertDialog(
+                onDismissRequest = { deleteTarget = null },
+                title = { Text("Delete collection?") },
+                text = { Text("\"${target.name}\" and all its items will be permanently deleted.") },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            onDeleteCollection(target.id)
+                            deleteTarget = null
+                        },
+                    ) { Text("Delete", color = MaterialTheme.colorScheme.error) }
+                },
+                dismissButton = {
+                    TextButton(onClick = { deleteTarget = null }) { Text("Cancel") }
+                },
+            )
         }
     }
 }

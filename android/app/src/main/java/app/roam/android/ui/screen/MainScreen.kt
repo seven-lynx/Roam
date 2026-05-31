@@ -79,7 +79,7 @@ fun MainScreen(
             DiscoverTab(vm = vm, activity = activity, onSignOut = {
                 onSignOut()
                 currentTab = RoamTab.Roam.route
-            })
+            }, onNavigateToSaved = { currentTab = RoamTab.Saved.route })
 
             // Other tabs slide in as full-screen overlays on top of the WebView
             AnimatedVisibility(
@@ -130,6 +130,7 @@ private fun DiscoverTab(
     vm: MainViewModel,
     activity: MainActivity,
     onSignOut: () -> Unit = {},
+    onNavigateToSaved: () -> Unit = {},
 ) {
     val context = LocalContext.current
 
@@ -361,7 +362,7 @@ private fun DiscoverTab(
             onRoamWithinCategory = { vm.roamWithinCategory() },
             onRoamCollection = { collectionId -> vm.roamCollection(collectionId) },
             onManageCollections = {
-                vm.navigateTo("https://roamtheweb.app/profile")
+                onNavigateToSaved()
                 vm.closeConfigSheet()
             },
             onCategoryPrefs = {
