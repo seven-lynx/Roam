@@ -51,12 +51,14 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
-            // Sign with the keystore declared in local.properties when the keys are present.
-            // On CI / Play Store pipeline, set these four values in local.properties or env vars.
-            val storeFile     = localProperties["RELEASE_STORE_FILE"]?.toString()
-            val storePassword = localProperties["RELEASE_STORE_PASSWORD"]?.toString()
-            val keyAlias      = localProperties["RELEASE_KEY_ALIAS"]?.toString()
-            val keyPassword   = localProperties["RELEASE_KEY_PASSWORD"]?.toString()
+            // Signing credentials are read from Gradle user-home properties
+            // (~/.gradle/gradle.properties) so they are never stored inside the repo.
+            // For CI, set the four ROAM_* properties as environment variables or
+            // inject them via a secrets manager.
+            val storeFile     = providers.gradleProperty("ROAM_RELEASE_STORE_FILE").orNull
+            val storePassword = providers.gradleProperty("ROAM_RELEASE_STORE_PASSWORD").orNull
+            val keyAlias      = providers.gradleProperty("ROAM_RELEASE_KEY_ALIAS").orNull
+            val keyPassword   = providers.gradleProperty("ROAM_RELEASE_KEY_PASSWORD").orNull
             if (storeFile != null && storePassword != null && keyAlias != null && keyPassword != null) {
                 signingConfig = signingConfigs.create("release").also { cfg ->
                     cfg.storeFile     = file(storeFile)

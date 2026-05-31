@@ -5,9 +5,11 @@ SUPABASE_URL=https://your-project-ref.supabase.co
 SUPABASE_ANON_KEY=your-anon-key-here
 SENTRY_DSN=https://your-sentry-dsn@oNNNNNN.ingest.sentry.io/NNNNNNN
 
-# Release signing (required for Play Store AAB builds)
-# RELEASE_STORE_FILE=/absolute/path/to/roam.keystore
-# RELEASE_STORE_PASSWORD=your-keystore-password
-# RELEASE_KEY_ALIAS=roam
-# RELEASE_KEY_PASSWORD=your-key-password
+# Release signing — do NOT put these in local.properties.
+# Store them in ~/.gradle/gradle.properties instead (outside the repo):
+#
+#   ROAM_RELEASE_STORE_FILE=/absolute/path/to/roam-release.jks
+#   ROAM_RELEASE_STORE_PASSWORD=your-keystore-password
+#   ROAM_RELEASE_KEY_ALIAS=roam
+#   ROAM_RELEASE_KEY_PASSWORD=your-key-password
 
