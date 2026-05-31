@@ -23,6 +23,9 @@ type SupabaseStats = {
   avgWilsonScore: number;
   inactiveUrls: number;
   totalCollections: number;
+  ratedUrls: number;
+  unratedUrls: number;
+  newRatingsWeek: number;
   queryErrors: string[];
   refreshedAt: number;
 };
@@ -118,6 +121,7 @@ async function fetchSupabaseStats(): Promise<SupabaseStats | null> {
   // The function sets statement_timeout = '30s' to override the PostgREST default.
   let recentUrls = 0, inactiveUrls = 0, activeUrls = 0, totalUrls = 0;
   let totalServes = 0, avgWilsonScore = 0, activeUsersThisWeek = 0;
+  let ratedUrls = 0, unratedUrls = 0, newRatingsWeek = 0;
   try {
     const { data, error } = await Promise.race([
       admin.rpc("admin_url_stats", { since_date: sevenDaysAgo }),
@@ -138,6 +142,9 @@ async function fetchSupabaseStats(): Promise<SupabaseStats | null> {
       recentUrls         = Number(row.recent_urls)         || 0;
       totalServes        = Number(row.total_serves)        || 0;
       avgWilsonScore     = Number(row.avg_wilson_score)    || 0;
+      ratedUrls          = Number(row.rated_urls)          || 0;
+      unratedUrls        = Number(row.unrated_urls)        || 0;
+      newRatingsWeek     = Number(row.new_ratings_week)    || 0;
       activeUsersThisWeek = Number(row.active_users_week) || 0;
     }
   } catch (err) {
@@ -160,6 +167,9 @@ async function fetchSupabaseStats(): Promise<SupabaseStats | null> {
     avgWilsonScore,
     inactiveUrls,
     totalCollections,
+    ratedUrls,
+    unratedUrls,
+    newRatingsWeek,
     queryErrors,
     refreshedAt: Date.now(),
   };
@@ -310,7 +320,7 @@ export default async function AdminDashboardPage() {
                   {stats.queryErrors.length} stat{stats.queryErrors.length > 1 ? "s" : ""} failed to load — check server logs for details.
                 </div>
               )}
-            <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
               {(
                 [
                   // Row 1 — Content library
@@ -318,15 +328,18 @@ export default async function AdminDashboardPage() {
                   { label: "Active URLs", value: stats.activeUrls },
                   { label: "Dead links", value: stats.inactiveUrls, highlight: stats.inactiveUrls > 50 },
                   { label: "Added this week", value: stats.recentUrls },
+                  { label: "Total collections", value: stats.totalCollections },
                   // Row 2 — Engagement
                   { label: "Total serves", value: stats.totalServes },
                   { label: "Total ratings", value: stats.totalRatings },
                   { label: "Avg Wilson score", value: stats.avgWilsonScore.toFixed(3) },
-                  { label: "Total collections", value: stats.totalCollections },
+                  { label: "Rated URLs", value: stats.ratedUrls },
+                  { label: "Unrated URLs", value: stats.unratedUrls },
                   // Row 3 — Users & moderation
                   { label: "Total users", value: stats.totalUsers },
                   { label: "New users this week", value: stats.newUsersThisWeek },
                   { label: "Active users (7d)", value: stats.activeUsersThisWeek },
+                  { label: "New ratings this week", value: stats.newRatingsWeek },
                   {
                     label: "Pending review",
                     value: stats.pendingModeration,
