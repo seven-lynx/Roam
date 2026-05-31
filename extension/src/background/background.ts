@@ -89,7 +89,6 @@ async function _dispatch(req: Request): Promise<Response> {
   switch (req.type) {
     case 'GET_STATE':             return getState();
     case 'SIGN_IN_GOOGLE':        return signInWithOAuth('google');
-    case 'SIGN_IN_GITHUB':        return signInWithOAuth('github');
     case 'SIGN_IN_EMAIL':         return signInWithEmail(req.email, req.password);
     case 'SIGN_UP_EMAIL':         return signUpWithEmail(req.email, req.password);
     case 'EXCHANGE_CODE':         return exchangeCode(req.code);
@@ -149,7 +148,7 @@ async function getState(): Promise<Response<StateData>> {
   return { ok: true, data: { signedIn: true, email: session.user.email, userId: session.user.id } };
 }
 
-async function signInWithOAuth(provider: 'google' | 'github'): Promise<Response<StateData>> {
+async function signInWithOAuth(provider: 'google'): Promise<Response<StateData>> {
   const redirectTo = chrome.runtime.getURL('callback.html');
   try {
     const { data, error } = await getSupabase().auth.signInWithOAuth({ provider, options: { redirectTo, skipBrowserRedirect: true } });
@@ -172,7 +171,15 @@ async function signInWithEmail(email: string, password: string): Promise<Respons
 }
 
 async function signUpWithEmail(email: string, password: string): Promise<Response<{ needsVerification: boolean }>> {
-  const { data, error } = await getSupabase().auth.signUp({ email, password });
+  // Email confirmation links open in the user's default browser. Pointing them
+  // at the web app's auth callback lets the link resolve to a real success
+  // page — once the email is confirmed, the user can return to the extension
+  // and sign in with their password.
+  const { data, error } = await getSupabase().auth.signUp({
+    email,
+    password,
+    options: { emailRedirectTo: 'https://roamtheweb.app/auth/callback' },
+  });
   if (error) return { ok: false, error: error.message };
   return { ok: true, data: { needsVerification: !data.session } };
 }

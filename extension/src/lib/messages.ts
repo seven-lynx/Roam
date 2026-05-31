@@ -5,7 +5,6 @@ import { Sentry } from './sentry';
 export type Request =
   | { type: 'GET_STATE' }
   | { type: 'SIGN_IN_GOOGLE' }
-  | { type: 'SIGN_IN_GITHUB' }
   | { type: 'SIGN_IN_EMAIL'; email: string; password: string }
   | { type: 'SIGN_UP_EMAIL'; email: string; password: string }
   | { type: 'GET_CATEGORIES' }

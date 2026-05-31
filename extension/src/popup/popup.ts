@@ -301,13 +301,12 @@ document.addEventListener('DOMContentLoaded', () => {
   el('btn-back-email').addEventListener('click', () => showState('auth'));
 
   // ── Auth: Google OAuth ────────────────────────────────────────────────────
-  async function startOAuthFlow(provider: 'google' | 'github') {
-    const buttons = ['btn-auth-google', 'btn-auth-github', 'btn-auth-email'];
+  async function startOAuthFlow() {
+    const buttons = ['btn-auth-google', 'btn-auth-email'];
     buttons.forEach((id) => (el<HTMLButtonElement>(id).disabled = true));
     el('auth-waiting').hidden = false;
 
-    const msgType = provider === 'google' ? 'SIGN_IN_GOOGLE' : 'SIGN_IN_GITHUB';
-    const res = await sendToBackground<StateData>({ type: msgType });
+    const res = await sendToBackground<StateData>({ type: 'SIGN_IN_GOOGLE' });
     if (!res.ok) {
       buttons.forEach((id) => (el<HTMLButtonElement>(id).disabled = false));
       el('auth-waiting').hidden = true;
@@ -326,8 +325,7 @@ document.addEventListener('DOMContentLoaded', () => {
     setTimeout(() => clearInterval(pollInterval), 5 * 60 * 1000);
   }
 
-  el('btn-auth-google').addEventListener('click', () => startOAuthFlow('google'));
-  el('btn-auth-github').addEventListener('click', () => startOAuthFlow('github'));
+  el('btn-auth-google').addEventListener('click', () => startOAuthFlow());
 
   // ── Auth: show email form ─────────────────────────────────────────────────
   el('btn-auth-email').addEventListener('click', () => {
