@@ -41,11 +41,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.Canvas
 import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.Shape
-import androidx.compose.ui.graphics.Outline
-import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.unit.Density
-import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
@@ -223,17 +218,24 @@ private fun DiscoverTab(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(vertical = 6.dp),
+                    .padding(vertical = 8.dp),
                 contentAlignment = Alignment.Center,
             ) {
-                Box(
-                    modifier = Modifier
-                        .size(width = 32.dp, height = 4.dp)
-                        .background(
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            shape = TrapezoidHandleShape,
-                        )
-                )
+                Canvas(
+                    modifier = Modifier.size(width = 32.dp, height = 4.dp)
+                ) {
+                    val path = Path().apply {
+                        moveTo(size.width * 0.15f, 0f)
+                        lineTo(size.width * 0.85f, 0f)
+                        lineTo(size.width, size.height)
+                        lineTo(0f, size.height)
+                        close()
+                    }
+                    drawPath(
+                        path = path,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             }
         },
         sheetContent = {
@@ -480,22 +482,5 @@ private fun DiscoverTab(
             onSubmit = { submittedUrl, categoryId -> vm.submitUrl(submittedUrl, categoryId) },
             onDismiss = { vm.closeSubmitSheet() },
         )
-    }
-}
-
-private object TrapezoidHandleShape : Shape {
-    override fun createOutline(
-        size: androidx.compose.ui.geometry.Size,
-        layoutDirection: LayoutDirection,
-        density: Density,
-    ): Outline {
-        val path = Path().apply {
-            moveTo(size.width * 0.15f, 0f)
-            lineTo(size.width * 0.85f, 0f)
-            lineTo(size.width, size.height)
-            lineTo(0f, size.height)
-            close()
-        }
-        return Outline.Generic(path)
     }
 }
