@@ -39,8 +39,6 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.graphics.Color
-import androidx.compose.foundation.Canvas
-import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
@@ -221,21 +219,14 @@ private fun DiscoverTab(
                     .padding(vertical = 8.dp),
                 contentAlignment = Alignment.Center,
             ) {
-                Canvas(
-                    modifier = Modifier.size(width = 32.dp, height = 4.dp)
-                ) {
-                    val path = Path().apply {
-                        moveTo(size.width * 0.15f, 0f)
-                        lineTo(size.width * 0.85f, 0f)
-                        lineTo(size.width, size.height)
-                        lineTo(0f, size.height)
-                        close()
-                    }
-                    drawPath(
-                        path = path,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
+                Box(
+                    modifier = Modifier
+                        .size(width = 32.dp, height = 4.dp)
+                        .background(
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            shape = RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp),
+                        )
+                )
             }
         },
         sheetContent = {
