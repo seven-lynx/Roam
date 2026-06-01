@@ -163,6 +163,7 @@ private fun DiscoverTab(
     val submitToast by vm.submitToast.collectAsState()
     val collections by vm.collections.collectAsState()
     val categories by vm.categories.collectAsState()
+    val subcategories by vm.subcategories.collectAsState()
     val savedUrls by vm.savedUrls.collectAsState()
     val isOnline by vm.isOnline.collectAsState()
     val webDarkMode by vm.webDarkMode.collectAsState()
@@ -179,20 +180,26 @@ private fun DiscoverTab(
     val loaded = state as? RoamState.Loaded
     val categoryName: String? = loaded?.roamUrl?.categoryId
         ?.let { catId -> categories.firstOrNull { it.id == catId }?.let { "${it.icon} ${it.name}" } }
+    val subcategoryName: String? = loaded?.roamUrl?.subcategoryId
+        ?.let { subId -> subcategories.firstOrNull { it.id == subId }?.name }
     val domain: String? = rawUrl?.let { Uri.parse(it).host?.removePrefix("www.") }
 
     // Persist last-known values so they stay visible between roams
     var lastCategoryName by remember { mutableStateOf<String?>(null) }
+    var lastSubcategoryName by remember { mutableStateOf<String?>(null) }
     var lastDomain by remember { mutableStateOf<String?>(null) }
     if (!isRoaming) {
         if (categoryName != null) lastCategoryName = categoryName
+        if (subcategoryName != null) lastSubcategoryName = subcategoryName
         if (domain != null) lastDomain = domain
     } else {
         lastCategoryName = null
+        lastSubcategoryName = null
         lastDomain = null
     }
-    val displayCategory = if (!isRoaming) categoryName ?: lastCategoryName else null
-    val displayDomain   = if (!isRoaming) domain ?: lastDomain else null
+    val displayCategory    = if (!isRoaming) categoryName    ?: lastCategoryName    else null
+    val displaySubcategory = if (!isRoaming) subcategoryName ?: lastSubcategoryName else null
+    val displayDomain      = if (!isRoaming) domain          ?: lastDomain          else null
 
     val scaffoldState = rememberBottomSheetScaffoldState()
     val scope = rememberCoroutineScope()
@@ -308,7 +315,17 @@ private fun DiscoverTab(
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.weight(1f),
                             )
+                            if (displaySubcategory != null) {
+                                Text(
+                                    text = displaySubcategory,
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                            }
                         }
                     }
                 }

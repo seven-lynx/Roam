@@ -99,8 +99,8 @@ fun ConfigBottomSheet(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 OutlinedButton(onClick = onNavBack,    modifier = Modifier.weight(1f)) { Text("← Back") }
-                OutlinedButton(onClick = onNavForward, modifier = Modifier.weight(1f)) { Text("Forward →") }
                 OutlinedButton(onClick = onNavReload,  modifier = Modifier.weight(1f)) { Text("↻ Reload") }
+                OutlinedButton(onClick = onNavForward, modifier = Modifier.weight(1f)) { Text("Forward →") }
             }
 
             Spacer(modifier = Modifier.height(8.dp))
@@ -202,7 +202,6 @@ fun ConfigBottomSheet(
                             )
                         }
                     }
-                }
             }
         }
     }
