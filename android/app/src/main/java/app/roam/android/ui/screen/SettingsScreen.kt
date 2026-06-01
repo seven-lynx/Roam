@@ -61,8 +61,6 @@ fun SettingsScreen(
     val webDarkMode by vm.webDarkMode.collectAsState()
     val autoTranslate by vm.autoTranslate.collectAsState()
     val translateLanguage by vm.translateLanguage.collectAsState()
-    val currentUrl by vm.currentUrl.collectAsState()
-    val savedConfirmation by vm.savedConfirmation.collectAsState()
     val jsEnabled by vm.jsEnabled.collectAsState()
     val categories by vm.categories.collectAsState()
     val subcategories by vm.subcategories.collectAsState()
@@ -82,6 +80,8 @@ fun SettingsScreen(
         "zh" to "中文", "ru" to "Русский", "ko" to "한국어",
     )
     val translateLanguageLabel = translateLanguages.firstOrNull { it.first == translateLanguage }?.second ?: "English"
+    val currentUrl by vm.currentUrl.collectAsState()
+    val savedConfirmation by vm.savedConfirmation.collectAsState()
 
     if (showSignOutDialog) {
         AlertDialog(
@@ -141,23 +141,6 @@ fun SettingsScreen(
                 onClick = { vm.saveForLater() },
             )
 
-            HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
-            Spacer(Modifier.height(8.dp))
-
-            SectionHeader("Navigation")
-
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 4.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                OutlinedButton(onClick = { vm.webNavBack() },    modifier = Modifier.weight(1f)) { Text("← Back") }
-                OutlinedButton(onClick = { vm.webNavForward() }, modifier = Modifier.weight(1f)) { Text("Forward →") }
-                OutlinedButton(onClick = { vm.webNavReload() },  modifier = Modifier.weight(1f)) { Text("↻ Reload") }
-            }
-
-            Spacer(Modifier.height(8.dp))
             HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
             Spacer(Modifier.height(8.dp))
 

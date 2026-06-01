@@ -18,8 +18,11 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.material3.BottomSheetScaffold
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.rememberBottomSheetScaffoldState
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -30,6 +33,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -45,6 +49,7 @@ import app.roam.android.ui.component.RoamWebView
 import app.roam.android.ui.component.SubmitBottomSheet
 import app.roam.android.viewmodel.MainViewModel
 import app.roam.android.viewmodel.RoamState
+import kotlinx.coroutines.launch
 
 @Composable
 fun MainScreen(
@@ -139,6 +144,7 @@ fun MainScreen(
 
 // ── Discover tab ──────────────────────────────────────────────────────────────
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun DiscoverTab(
     vm: MainViewModel,
@@ -152,7 +158,6 @@ private fun DiscoverTab(
     val currentUrl by vm.currentUrl.collectAsState()
     val rawUrl by vm.rawUrl.collectAsState()
     val showSubmitSheet by vm.showSubmitSheet.collectAsState()
-    val showConfigSheet by vm.showConfigSheet.collectAsState()
     val savedConfirmation by vm.savedConfirmation.collectAsState()
     val reportConfirmation by vm.reportConfirmation.collectAsState()
     val submitToast by vm.submitToast.collectAsState()
@@ -189,9 +194,58 @@ private fun DiscoverTab(
     val displayCategory = if (!isRoaming) categoryName ?: lastCategoryName else null
     val displayDomain   = if (!isRoaming) domain ?: lastDomain else null
 
-    Column(modifier = Modifier.fillMaxSize()) {
+    val scaffoldState = rememberBottomSheetScaffoldState()
+    val scope = rememberCoroutineScope()
 
-        // ── Status bar ───────────────────────────────────────────────────────
+    BottomSheetScaffold(
+        scaffoldState = scaffoldState,
+        sheetContent = {
+            ConfigBottomSheet(
+                currentUrl = currentUrl,
+                collections = collections,
+                savedUrls = savedUrls,
+                onSaveForLater = { vm.saveForLater() },
+                onShare = {
+                    val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                        type = "text/plain"
+                        putExtra(Intent.EXTRA_TEXT, currentUrl ?: "")
+                    }
+                    activity.startActivity(Intent.createChooser(shareIntent, null))
+                },
+                onAddToCollection = { collectionId -> vm.addCurrentUrlToCollection(collectionId) },
+                onCreateCollectionAndAdd = { name -> vm.createCollectionAndAdd(name) },
+                onRoamWithinCategory = {
+                    vm.roamWithinCategory()
+                    scope.launch { scaffoldState.bottomSheetState.partialExpand() }
+                },
+                onRoamCollection = { collectionId ->
+                    vm.roamCollection(collectionId)
+                    scope.launch { scaffoldState.bottomSheetState.partialExpand() }
+                },
+                onManageCollections = {
+                    onNavigateToSaved()
+                    scope.launch { scaffoldState.bottomSheetState.partialExpand() }
+                },
+                onCategoryPrefs = {
+                    CustomTabsIntent.Builder().build()
+                        .launchUrl(activity, Uri.parse("https://roamtheweb.app/profile"))
+                    scope.launch { scaffoldState.bottomSheetState.partialExpand() }
+                },
+                onNavBack = { vm.webNavBack() },
+                onNavForward = { vm.webNavForward() },
+                onNavReload = { vm.webNavReload() },
+                onRemoveSavedUrl = { url -> vm.removeSavedUrl(url) },
+                onReportBrokenLink = {
+                    vm.reportBrokenLink()
+                    scope.launch { scaffoldState.bottomSheetState.partialExpand() }
+                },
+            )
+        },
+        sheetPeekHeight = 24.dp,
+    ) { contentPadding ->
+        Column(modifier = Modifier.fillMaxSize().padding(contentPadding)) {
+
+            // ── Status bar ───────────────────────────────────────────────────────
         Surface(
             modifier = Modifier.fillMaxWidth(),
             color = MaterialTheme.colorScheme.surfaceVariant,
@@ -362,6 +416,7 @@ private fun DiscoverTab(
                 }
             }
         }
+        }
     }
 
     if (showSubmitSheet) {
@@ -370,47 +425,6 @@ private fun DiscoverTab(
             categories = categories,
             onSubmit = { submittedUrl, categoryId -> vm.submitUrl(submittedUrl, categoryId) },
             onDismiss = { vm.closeSubmitSheet() },
-        )
-    }
-
-    if (showConfigSheet) {
-        ConfigBottomSheet(
-            currentUrl = currentUrl,
-            skipPaywalled = vm.skipPaywalled.collectAsState().value,
-            preferredLanguages = vm.preferredLanguages.collectAsState().value,
-            collections = collections,
-            savedUrls = savedUrls,
-            onDismiss = { vm.closeConfigSheet() },
-            onSaveForLater = { vm.saveForLater(); vm.closeConfigSheet() },
-            onShare = {
-                val shareIntent = Intent(Intent.ACTION_SEND).apply {
-                    type = "text/plain"
-                    putExtra(Intent.EXTRA_TEXT, currentUrl ?: "")
-                }
-                activity.startActivity(Intent.createChooser(shareIntent, null))
-                vm.closeConfigSheet()
-            },
-            onAddToCollection = { collectionId -> vm.addCurrentUrlToCollection(collectionId) },
-            onCreateCollectionAndAdd = { name -> vm.createCollectionAndAdd(name) },
-            onRoamWithinCategory = { vm.roamWithinCategory() },
-            onRoamCollection = { collectionId -> vm.roamCollection(collectionId) },
-            onManageCollections = {
-                onNavigateToSaved()
-                vm.closeConfigSheet()
-            },
-            onCategoryPrefs = {
-                CustomTabsIntent.Builder().build()
-                    .launchUrl(activity, Uri.parse("https://roamtheweb.app/profile"))
-                vm.closeConfigSheet()
-            },
-            onSkipPaywalledChange = { vm.setSkipPaywalled(it) },
-            onLanguagesChange = { vm.setPreferredLanguages(it) },
-            onRemoveSavedUrl = { url -> vm.removeSavedUrl(url) },
-            onReportBrokenLink = { vm.reportBrokenLink() },
-            onSignOut = {
-                vm.closeConfigSheet()
-                onSignOut()
-            },
         )
     }
 }
