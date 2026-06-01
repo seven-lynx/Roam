@@ -1,4 +1,4 @@
-﻿# Roam — Rediscover the Web
+﻿ # Roam — Rediscover the Web
 
 > Press one button. Land somewhere interesting.
 
@@ -77,12 +77,15 @@ Deliberately non-intrusive. Click, roam, rate, close — nothing is injected int
 - Offline reading queue
 - Material Design 3 / Jetpack Compose
 - Android 8.0+ (SDK 26), target SDK 35
+- Google OAuth or email/password sign-in
+
 
 ### Web
 
-- Account management, collections, URL submission
-- Admin moderation and analytics dashboards
-- Next.js 15 / TypeScript / Tailwind CSS, deployed on Vercel
+- Account management portal, onboarding, and admin moderation
+- Next.js 16 / TypeScript / Tailwind CSS, deployed on Vercel
+
+See [web/README.md](web/README.md) for the authoritative route map and UI spec.
 
 ---
 

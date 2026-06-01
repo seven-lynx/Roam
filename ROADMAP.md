@@ -163,9 +163,7 @@
   - Completed in task 11.10 (web/README.md, scripts/README.md, supabase/README.md, android/README.md all created)
 - [ ] Add contribution guidelines (CONTRIBUTING.md) and a code of conduct (CODE_OF_CONDUCT.md) for open source clarity
   - Add to LOW-PRIORITY post-launch tasks; recommended by audit report Section 5
-- [ ] Update `CONTEXT.md` stale Known Issues section — section 4 still lists Curlie seeder failure and PubMed as unrun; both are now resolved (Curlie: 1.22M rows, PubMed: 40K rows). Update counts, remove resolved blockers, and bump **Last Updated** date.
 
-This document lists every task required to ship Roam, organised by stage. As each task is completed, it will be checked off and followed by a plain-English explanation of what was done and why, so you can follow along and build understanding as the project grows.
 
 ---
 

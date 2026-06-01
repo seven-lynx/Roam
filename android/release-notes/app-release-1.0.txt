@@ -1,0 +1,35 @@
+Roam 1.0.1 Beta Release Notes
+
+Version: 1.0.1
+Release Date: May 31, 2026
+Status: Beta testing via Firebase
+
+Beta update: this build focuses on UI polish, navigation improvements, and stability fixes before wider release.
+
+What’s new
+- Updated UI with a Material Design 3 redesign
+- Refined bottom sheet actions for easier page-level controls (save, share, collections)
+- Improved navigation polish across tabs and in-page controls
+- Discovery status improvements, including clearer category/domain context
+
+Bug fixes and quality improvements
+- Fixed white screen on app resume by improving WebView recovery behavior
+- Improved reliability when roaming/loading pages after transient network or renderer issues
+- Better offline behavior for ratings (queue while offline, sync when connection returns)
+- Improved error handling and recovery messaging for roam failures
+
+Testing focus areas
+1) Resume behavior: background the app on a page, return to app, confirm no blank/white screen
+2) Offline mode: disable Wi-Fi/cellular, rate URLs, reconnect, confirm queued ratings sync
+3) Navigation flow: verify back/reload/forward controls and tab back behavior feel consistent
+4) Roam reliability: thumbs-down, roam, and report-broken-link should all advance cleanly
+5) Bottom sheet UX: swipe up/down interactions and action responsiveness
+
+Feedback
+- Please report bugs, regressions, or confusing UX flows
+- Include device model, Android version, and exact steps to reproduce
+- Screenshots/screen recordings are very helpful for UI issues
+
+Known limitations
+- This is still a beta build, so behavior and copy may continue to change
+- Some advanced workflows are still being refined based on tester feedback

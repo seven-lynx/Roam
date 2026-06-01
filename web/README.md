@@ -1,6 +1,6 @@
 # Roam Web Platform
 
-The Next.js 16 web application for Roam discovery. Provides user accounts, interest management, discovery interface, URL submissions, and admin moderation dashboard.
+The Next.js 16 web application for Roam. The web surface is the account-management hub: onboarding, auth, profile, settings, privacy/terms, and the admin moderation area.
 
 ## Tech Stack
 
@@ -15,26 +15,37 @@ The Next.js 16 web application for Roam discovery. Provides user accounts, inter
 
 ## Features
 
-### Core Discovery
-- **Roam button** — get a random page matched to your interests
-- **Interest categories** — select and manage your topic preferences
-- **Community voting** — rate pages with thumbs up/down
-- **Collections** — save pages to public or private collections
-- **User profiles** — view your stats and public profile
+### Onboarding
+- **Create account** — Google OAuth or email/password
+- **Pick interests** — select the categories you care about
+- **Email verification** — confirmation flow for email sign-up
 
-### Account Management
-- **Authentication** — email/password or Google OAuth
-- **Interest profile** — customize what you discover
-- **Account settings** — manage auth, privacy, notifications
-- **Following** — follow other users and see their activity
-- **Activity history** — track pages you've rated
+### Account hub
+- **Profile** — view and edit public profile details
+- **Settings** — auth, privacy, and account danger-zone controls
+- **Password reset** — request and complete password changes
+- **Privacy / Terms** — public legal pages
 
-### Admin Features
-- **Moderation queue** — review and approve/reject URL submissions
-- **Detail view** — full metadata with Safe Browsing check result
-- **Undo capability** — reverse wrong decisions
-- **Filtering & search** — find submissions by status, URL, title
-- **Real-time updates** — instant queue refresh
+### Admin
+- **Moderation queue** — review and approve/reject submissions
+- **Submission details** — inspect metadata and Safe Browsing results
+- **Search / filtering** — work the queue efficiently
+- **Undo / refresh** — correct mistakes and reload live data
+
+## Route Map
+
+| Route | Type | Auth required | Purpose |
+|---|---|---|---|
+| `/` | Server Component | No | Landing page |
+| `/join` | Client Component | No | Create account / sign in |
+| `/auth/callback` | Server Component | No | OAuth code exchange + routing |
+| `/forgot-password` | Client Component | No | Request password reset email |
+| `/auth/reset-password` | Client Component | No | Set new password from email link |
+| `/profile` | Server shell + Client island | Yes | View / edit profile and categories |
+| `/settings` | Client Component | Yes | Preferences and account controls |
+| `/admin` | Server shell + Client Component | Yes (admin role) | Moderation queue |
+| `/privacy` | Server Component | No | Privacy policy |
+| `/terms` | Server Component | No | Terms of service |
 
 ## Development Setup
 
@@ -76,11 +87,9 @@ web/
 ├── src/
 │   ├── app/               # Next.js App Router pages and layouts
 │   │   ├── admin/         # Admin moderation dashboard (protected)
-│   │   ├── dashboard/     # User discovery interface
-│   │   ├── join/          # Signup page
-│   │   ├── u/[username]/  # User profiles
-│   │   ├── c/[slug]/      # Collection detail pages
-│   │   ├── urls/          # Submitted URLs listing
+│   │   ├── auth/          # OAuth callback + password reset
+│   │   ├── join/          # Sign-up / sign-in page
+│   │   ├── profile/       # Profile view + edit shell
 │   │   ├── settings/      # User account settings
 │   │   ├── privacy/       # Privacy Policy
 │   │   └── terms/         # Terms of Service

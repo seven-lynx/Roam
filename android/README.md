@@ -60,9 +60,7 @@ app/src/main/java/app/roam/android/
 │   │   ├── BottomBar.kt             # Skip / Roam / Settings / Like
 │   │   ├── RoamWebView.kt           # WebView with lifecycle + dark mode
 │   │   ├── ConfigBottomSheet.kt     # Per-page actions (save, share, report…)
-│   │   ├── SubmitBottomSheet.kt
-│   │   ├── DiscoverCard.kt
-│   │   └── DiscoverCardSkeleton.kt
+│   │   └── SubmitBottomSheet.kt
 │   ├── screen/
 │   │   ├── MainScreen.kt            # Nav host + DiscoverTab
 │   │   ├── SettingsScreen.kt
@@ -127,6 +125,10 @@ cd android
 ```
 
 ## Key Features
+
+### Authentication
+
+The app supports **Google OAuth** and **email/password** from the onboarding screen. Google opens via Chrome Custom Tabs; email uses the inline form in `OnboardingScreen.kt`.
 
 ### Prefetch Queue
 
