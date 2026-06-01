@@ -38,9 +38,10 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material3.Icon
 import androidx.compose.ui.graphics.Color
-import androidx.compose.foundation.Canvas
-import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
@@ -211,39 +212,25 @@ private fun DiscoverTab(
 
     BottomSheetScaffold(
         scaffoldState = scaffoldState,
-        sheetContainerColor = Color.Transparent,
-        sheetShadowElevation = 0.dp,
+        sheetContainerColor = MaterialTheme.colorScheme.surfaceContainer,
+        sheetShadowElevation = 4.dp,
         sheetTonalElevation = 0.dp,
         sheetDragHandle = {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(vertical = 8.dp),
+                    .padding(top = 6.dp, bottom = 2.dp),
                 contentAlignment = Alignment.Center,
             ) {
-                Canvas(
-                    modifier = Modifier.size(width = 40.dp, height = 6.dp)
-                ) {
-                    val path = Path().apply {
-                        moveTo(size.width * 0.2f, 0f)
-                        lineTo(size.width * 0.8f, 0f)
-                        lineTo(size.width, size.height)
-                        lineTo(0f, size.height)
-                        close()
-                    }
-                    drawPath(
-                        path = path,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
+                Icon(
+                    imageVector = Icons.Filled.KeyboardArrowUp,
+                    contentDescription = "Open menu",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(24.dp),
+                )
             }
         },
         sheetContent = {
-            Surface(
-                modifier = Modifier.fillMaxWidth(),
-                color = MaterialTheme.colorScheme.surface,
-                shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp),
-            ) {
             ConfigBottomSheet(
                 currentUrl = currentUrl,
                 collections = collections,
@@ -284,9 +271,8 @@ private fun DiscoverTab(
                     scope.launch { scaffoldState.bottomSheetState.partialExpand() }
                 },
             )
-            } // Surface
         },
-        sheetPeekHeight = 16.dp,
+        sheetPeekHeight = 36.dp,
     ) { contentPadding ->
         Column(modifier = Modifier.fillMaxSize().padding(top = contentPadding.calculateTopPadding())) {
 
