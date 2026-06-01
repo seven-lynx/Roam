@@ -212,25 +212,40 @@ private fun DiscoverTab(
 
     BottomSheetScaffold(
         scaffoldState = scaffoldState,
-        sheetContainerColor = MaterialTheme.colorScheme.surfaceContainer,
-        sheetShadowElevation = 4.dp,
+        sheetContainerColor = Color.Transparent,
+        sheetShadowElevation = 0.dp,
         sheetTonalElevation = 0.dp,
         sheetDragHandle = {
+            // Full-width invisible hit area so drag works everywhere across the bump
             Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 6.dp, bottom = 2.dp),
+                modifier = Modifier.fillMaxWidth(),
                 contentAlignment = Alignment.Center,
             ) {
-                Icon(
-                    imageVector = Icons.Filled.KeyboardArrowUp,
-                    contentDescription = "Open menu",
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(24.dp),
-                )
+                Box(
+                    modifier = Modifier
+                        .width(72.dp)
+                        .background(
+                            color = MaterialTheme.colorScheme.surfaceContainer,
+                            shape = RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp),
+                        )
+                        .padding(top = 6.dp, bottom = 4.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.KeyboardArrowUp,
+                        contentDescription = "Open menu",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(20.dp),
+                    )
+                }
             }
         },
         sheetContent = {
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                color = MaterialTheme.colorScheme.surfaceContainer,
+                shape = RoundedCornerShape(0.dp),
+            ) {
             ConfigBottomSheet(
                 currentUrl = currentUrl,
                 collections = collections,
@@ -271,8 +286,9 @@ private fun DiscoverTab(
                     scope.launch { scaffoldState.bottomSheetState.partialExpand() }
                 },
             )
+            } // Surface
         },
-        sheetPeekHeight = 36.dp,
+        sheetPeekHeight = 30.dp,
     ) { contentPadding ->
         Column(modifier = Modifier.fillMaxSize().padding(top = contentPadding.calculateTopPadding())) {
 
