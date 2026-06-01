@@ -34,6 +34,11 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import android.graphics.Bitmap
+import android.graphics.Canvas
+import androidx.compose.foundation.Image
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
 import app.roam.android.viewmodel.WebNavCommand
 import kotlinx.coroutines.flow.Flow
 
@@ -61,6 +66,10 @@ fun RoamWebView(
     val savedScrollY = rememberSaveable { mutableIntStateOf(0) }
     // Bumped to force AndroidView to recreate the WebView after renderer process death.
     var webViewKey by remember { mutableIntStateOf(0) }
+    // Snapshot of the last visible viewport — shown as an overlay while the page reloads
+    // after renderer death, eliminating the white-screen flash.
+    var snapshotBitmap by remember { mutableStateOf<Bitmap?>(null) }
+    var showSnapshot by remember { mutableStateOf(false) }
 
     LaunchedEffect(navCommandsFlow) {
         navCommandsFlow?.collect { cmd ->
@@ -93,6 +102,7 @@ fun RoamWebView(
                     // If the renderer was killed while backgrounded, the WebView url is null.
                     // Restore saved state first; fall back to reloading the current url.
                     if (wv.url.isNullOrEmpty()) {
+                        showSnapshot = true
                         if (!savedState.isEmpty) {
                             wv.restoreState(savedState)
                         } else {
@@ -102,6 +112,11 @@ fun RoamWebView(
                 }
                 Lifecycle.Event.ON_PAUSE -> {
                     webViewRef.value?.let {
+                        if (it.width > 0 && it.height > 0) {
+                            val bmp = Bitmap.createBitmap(it.width, it.height, Bitmap.Config.ARGB_8888)
+                            it.draw(Canvas(bmp))
+                            snapshotBitmap = bmp
+                        }
                         savedScrollY.intValue = it.scrollY
                         it.saveState(savedState)
                         it.onPause()
@@ -144,9 +159,10 @@ fun RoamWebView(
     // key(webViewKey) forces Compose to destroy and recreate AndroidView when the
     // WebView renderer is killed (onRenderProcessGone). The saved Bundle is preserved
     // across recreation so navigation history is restored.
+    Box(modifier = modifier) {
     key(webViewKey) {
     AndroidView(
-        modifier = modifier.fillMaxSize(),
+        modifier = Modifier.fillMaxSize(),
         factory = { context ->
             // createConfigurationContext with UI_MODE_NIGHT_YES makes the WebView renderer
             // treat this as a dark-mode app, activating algorithmic darkening on all API levels.
@@ -160,6 +176,7 @@ fun RoamWebView(
                 settings.apply {
                     javaScriptEnabled = jsEnabled
                     domStorageEnabled = jsEnabled
+                    cacheMode = android.webkit.WebSettings.LOAD_CACHE_ELSE_NETWORK
                     setSupportZoom(true)
                     builtInZoomControls = true
                     displayZoomControls = false
@@ -183,6 +200,8 @@ fun RoamWebView(
                         onUrlChanged(loadedUrl)
                         loadError = false
                         onLoadingChanged(false)
+                        showSnapshot = false
+                        snapshotBitmap = null
                         val sy = savedScrollY.intValue
                         if (sy > 0) {
                             view.post { view.scrollTo(0, sy) }
@@ -204,6 +223,7 @@ fun RoamWebView(
                     // Compose tears down this AndroidView and rebuilds a fresh WebView;
                     // the factory block will restore state from savedState on the new instance.
                     override fun onRenderProcessGone(view: WebView, detail: RenderProcessGoneDetail): Boolean {
+                        showSnapshot = true
                         Handler(Looper.getMainLooper()).post { webViewKey++ }
                         return true
                     }
@@ -231,4 +251,15 @@ fun RoamWebView(
         },
     )
     } // end key(webViewKey)
+    if (showSnapshot) {
+        snapshotBitmap?.let { bmp ->
+            Image(
+                bitmap = bmp.asImageBitmap(),
+                contentDescription = null,
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.FillBounds,
+            )
+        }
+    }
+    } // end Box
 }
