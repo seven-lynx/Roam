@@ -391,6 +391,8 @@ async function rate(url_id: string, vote: 1 | -1): Promise<Response<null>> {
   const { data, error } = await getSupabase().functions.invoke('rate', { body: { url_id, value: vote } });
   if (error) return { ok: false, error: error.message };
   if (data?.error) return { ok: false, error: data.error };
+  // Clear prefetch cache to prevent serving stale suppressed URLs
+  await chrome.storage.session.remove(PREFETCH_KEY);
   return { ok: true, data: null };
 }
 

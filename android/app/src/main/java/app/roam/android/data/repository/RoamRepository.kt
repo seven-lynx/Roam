@@ -21,7 +21,6 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.add
-import kotlinx.serialization.json.boolean
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.jsonPrimitive
@@ -147,32 +146,6 @@ class RoamRepository {
         supabase.postgrest.from("user_settings").upsert(patch)
     }
 
-    /**
-     * Returns all subcategories as a map of subcategoryId → categoryId.
-     * Used to resolve the top-level category for a given URL.
-     */
-    suspend fun getSubcategoryMap(): Map<String, String> {
-        return supabase.postgrest
-            .from("subcategories")
-            .select(Columns.list("id", "category_id"))
-            .decodeList<SubcategoryRow>()
-            .associate { it.id to it.categoryId }
-    }
-
-    /**
-     * Returns the category_id for a given url id.
-     * Used when the roam edge function doesn't return category_id directly.
-     */
-    suspend fun getCategoryIdForUrl(urlId: String): String? {
-        return supabase.postgrest
-            .from("urls")
-            .select(Columns.list("category_id")) {
-                filter { eq("id", urlId) }
-                limit(1)
-            }
-            .decodeList<UrlCategoryRow>()
-            .firstOrNull()?.categoryId
-    }
     suspend fun getCategories(): List<CategoryItem> {
         return supabase.postgrest
             .from("categories")
@@ -219,7 +192,7 @@ class RoamRepository {
             .decodeList()
 
     /**
-     * Creates a new collection. [slug] is auto-derived from [name] if not provided.
+     * Creates a new collection.
      * Returns the created collection.
      */
     suspend fun createCollection(name: String): Collection {
@@ -373,6 +346,7 @@ class RoamRepository {
                 }
             }
             .decodeList<TopicIdRow>()
+            .asSequence()
             .mapNotNull { it.subcategoryId }
             .toSet()
     }
@@ -461,17 +435,6 @@ class RoamRepository {
 
     @Serializable
     private data class IdRow(val id: String)
-
-    @Serializable
-    private data class UrlCategoryRow(
-        @SerialName("category_id") val categoryId: String? = null,
-    )
-
-    @Serializable
-    private data class SubcategoryRow(
-        val id: String,
-        @SerialName("category_id") val categoryId: String,
-    )
 
     @Serializable
     private data class ProfileUpdateRow(

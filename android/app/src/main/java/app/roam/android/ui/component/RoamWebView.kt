@@ -56,7 +56,7 @@ fun RoamWebView(
     navCommandsFlow: Flow<WebNavCommand>? = null,
     clearCookiesFlow: Flow<Unit>? = null,
 ) {
-    var loadError by remember { mutableStateOf(false) }
+    var loadError by remember { mutableStateOf(value = false) }
     // Persists WebView back/forward history + current URL across process death
     val savedState = rememberSaveable { Bundle() }
     // Hold a stable reference so lifecycle observer can reach it
@@ -114,7 +114,7 @@ fun RoamWebView(
                 }
                 Lifecycle.Event.ON_PAUSE -> {
                     webViewRef.value?.let {
-                        if (it.width > 0 && it.height > 0) {
+                        if ((it.width > 0) && (it.height > 0)) {
                             val bmp = createBitmap(it.width, it.height, Bitmap.Config.ARGB_8888)
                             it.draw(Canvas(bmp))
                             snapshotBitmap = bmp
@@ -176,6 +176,7 @@ fun RoamWebView(
             } else context
             WebView(webContext).apply {
                 settings.apply {
+                    @Suppress("SetJavaScriptEnabled")
                     javaScriptEnabled = jsEnabled
                     domStorageEnabled = jsEnabled
                     cacheMode = android.webkit.WebSettings.LOAD_CACHE_ELSE_NETWORK

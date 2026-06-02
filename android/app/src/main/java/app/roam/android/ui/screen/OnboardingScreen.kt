@@ -53,7 +53,7 @@ fun OnboardingScreen() {
     val scope = rememberCoroutineScope()
     val focusManager = LocalFocusManager.current
 
-    var showEmailForm by remember { mutableStateOf(false) }
+    var showEmailForm by remember { mutableStateOf(value = false) }
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var isLoading by remember { mutableStateOf(false) }
@@ -198,8 +198,8 @@ fun OnboardingScreen() {
                                     result.onFailure { e ->
                                         Log.e(TAG, "Email sign-in failed", e)
                                         errorMessage = when {
-                                            e.message?.contains("Invalid login") == true ||
-                                            e.message?.contains("invalid_grant") == true ->
+                                            (e.message?.contains("Invalid login") == true) ||
+                                            (e.message?.contains("invalid_grant") == true) ->
                                                 "Incorrect email or password."
                                             e.message?.contains("Email not confirmed") == true ->
                                                 "Please verify your email first."

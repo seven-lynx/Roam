@@ -161,7 +161,7 @@ private fun SavedTab(
 ) {
     val context = LocalContext.current
     var selectedUrls by remember { mutableStateOf(emptySet<String>()) }
-    var collectionPickerOpen by remember { mutableStateOf(false) }
+    var collectionPickerOpen by remember { mutableStateOf(value = false) }
     var newCollectionDialogOpen by remember { mutableStateOf(false) }
     var newCollectionName by remember { mutableStateOf("") }
     val isSelectionMode = selectedUrls.isNotEmpty()
@@ -301,7 +301,7 @@ private fun SavedTab(
     // Collection picker
     if (collectionPickerOpen) {
         AlertDialog(
-            onDismissRequest = { collectionPickerOpen = false },
+            onDismissRequest = { /* ignored */ },
             title = { Text("Add to collection") },
             text = {
                 Column {

@@ -70,7 +70,7 @@ fun SettingsScreen(
     val focusCategoryId by vm.focusCategoryId.collectAsState()
     val focusSubcategoryId by vm.focusSubcategoryId.collectAsState()
     val context = LocalContext.current
-    var showSignOutDialog by remember { mutableStateOf(false) }
+    var showSignOutDialog by remember { mutableStateOf(value = false) }
     var showSubmitUrlDialog by remember { mutableStateOf(false) }
     var translateDropdownExpanded by remember { mutableStateOf(false) }
     var focusCategoryDropdownExpanded by remember { mutableStateOf(false) }
@@ -87,14 +87,18 @@ fun SettingsScreen(
 
     if (showSignOutDialog) {
         AlertDialog(
-            onDismissRequest = { showSignOutDialog = false },
+            onDismissRequest = { /* ignored */ },
             title = { Text("Sign out?") },
             text = { Text("You'll need to sign in again to continue using Roam.") },
             confirmButton = {
-                TextButton(onClick = {
-                    showSignOutDialog = false
-                    onSignOut()
-                }) { Text("Sign out") }
+                TextButton(
+                    onClick = {
+                        showSignOutDialog = false
+                        onSignOut()
+                    },
+                ) {
+                    Text("Sign out")
+                }
             },
             dismissButton = {
                 TextButton(onClick = { showSignOutDialog = false }) { Text("Cancel") }
@@ -135,7 +139,11 @@ fun SettingsScreen(
         ) {
             SectionHeader("Account")
 
-            SettingsActionRow(title = "Profile", subtitle = "Edit your name, avatar and categories", onClick = onNavigateToProfile)
+            SettingsActionRow(
+                title = "Profile",
+                subtitle = "Edit your name, avatar and categories",
+                onClick = onNavigateToProfile,
+            )
             SettingsActionRow(title = "Saved pages", subtitle = "Pages you bookmarked", onClick = onNavigateToSaved)
             SettingsActionRow(
                 title = "Bookmark this page",

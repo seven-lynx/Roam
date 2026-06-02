@@ -241,7 +241,7 @@ fun ProfileScreen(
                 Button(
                     onClick = { vm.saveInterests() },
                     enabled = !interestsSaving && (
-                        if (interestMode == "pillars") userCategoryIds.isNotEmpty()
+                        if (interestMode == "pillars") { userCategoryIds.isNotEmpty() }
                         else userTopicIds.isNotEmpty()
                     ),
                     modifier = Modifier.fillMaxWidth(),
@@ -297,7 +297,9 @@ private val AVATAR_COLORS = listOf(
 
 private fun avatarColorFor(name: String): Color {
     var hash = 0
-    for (ch in name) hash = (hash * 31 + ch.code) and 0x7FFFFFFF
+    for (ch in name) {
+        hash = (hash * 31 + ch.code) and 0x7FFFFFFF
+    }
     return AVATAR_COLORS[hash % AVATAR_COLORS.size]
 }
 

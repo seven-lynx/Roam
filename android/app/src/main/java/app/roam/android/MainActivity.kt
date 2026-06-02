@@ -48,8 +48,8 @@ class MainActivity : ComponentActivity() {
             val authState by authVm.authState.collectAsState()
             // Force dark theme while on the login/splash screen so enableEdgeToEdge()
             // paints a dark window background rather than the system default white.
-            val forceDark = authState == AuthState.Unauthenticated
-                         || authState == AuthState.Loading
+            val forceDark = (authState == AuthState.Unauthenticated)
+                         || (authState == AuthState.Loading)
                          || isSystemInDarkTheme()
             RoamTheme(darkTheme = forceDark) {
                 Log.d(TAG, "AuthState = $authState")
