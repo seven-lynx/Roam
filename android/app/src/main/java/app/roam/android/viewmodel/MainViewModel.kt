@@ -24,6 +24,7 @@ import java.net.HttpURLConnection
 import java.net.URL
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -34,6 +35,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeout
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -302,6 +304,7 @@ class MainViewModel(
 
     /** Ratings that failed to send because the device was offline */
     private data class PendingRating(val urlId: String, val value: Int)
+    private val pendingRatingsMutex = Mutex()
     private val pendingRatings = ArrayDeque<PendingRating>()
 
     init {
@@ -367,6 +370,7 @@ class MainViewModel(
         val effectiveExclude = excludeDomain ?: extractDomain(_rawUrl.value)
 
         roamJob?.cancel()
+        prefetchJob?.cancel()  // Stop prefetch while user is roaming
         roamJob = viewModelScope.launch {
             // Pop from the hot queue for an instant transition, skipping any entry from
             // the excluded domain or matching the current URL (avoids re-serving the same
@@ -398,10 +402,12 @@ class MainViewModel(
             var lastException: Throwable? = null
             var result: RoamUrl? = null
             var success = false
-            // Retry up to 3 times with increasing delays to handle transient auth/network issues
-            for (attempt in 0 until 3) {
-                if (attempt > 0) delay(500L * attempt)
-                val outcome = runCatching {
+            try {
+                withTimeout(15_000) {  // 15 second total timeout for all retries
+                    // Retry up to 3 times with increasing delays to handle transient auth/network issues
+                    for (attempt in 0 until 3) {
+                        if (attempt > 0) delay(500L * attempt)
+                        val outcome = runCatching {
                     repo.roam(
                         collectionId = _activeCollectionId.value,
                         excludeDomain = effectiveExclude,
@@ -419,9 +425,14 @@ class MainViewModel(
                 if (lastException != null && isOfflineError(lastException!!)) break
                 // UnauthorizedRestException: repository already attempted one session refresh.
                 // A second attempt won't help; break early so we don't burn retry budget.
-                if (lastException is UnauthorizedRestException) break
-                // IllegalStateException: no refresh token — session is gone entirely.
-                if (lastException is IllegalStateException) break
+                        if (lastException is UnauthorizedRestException) break
+                        // IllegalStateException: no refresh token — session is gone entirely.
+                        if (lastException is IllegalStateException) break
+                    }
+                }
+            } catch (e: kotlinx.coroutines.TimeoutCancellationException) {
+                lastException = e
+                success = false
             }
 
             if (success) {
@@ -552,8 +563,8 @@ class MainViewModel(
         runCatching {
             val conn = URL(url).openConnection() as HttpURLConnection
             conn.requestMethod = "HEAD"
-            conn.connectTimeout = 5_000
-            conn.readTimeout = 5_000
+            conn.connectTimeout = 2_000
+            conn.readTimeout = 2_000
             conn.instanceFollowRedirects = true
             conn.setRequestProperty("User-Agent", "Mozilla/5.0")
             val code = conn.responseCode
@@ -577,7 +588,9 @@ class MainViewModel(
                 // Use isOfflineError() — Ktor's HttpRequestException wraps IOException
                 // in the cause chain and does not itself extend IOException.
                 if (err != null && isOfflineError(err)) {
-                    pendingRatings.addLast(PendingRating(loaded.roamUrl.id, 1))
+                    pendingRatingsMutex.withLock {
+                        pendingRatings.addLast(PendingRating(loaded.roamUrl.id, 1))
+                    }
                 } else {
                     err?.let { Sentry.captureException(it) }
                 }
@@ -595,7 +608,9 @@ class MainViewModel(
                 if (result.isFailure) {
                     val err = result.exceptionOrNull()
                     if (err != null && isOfflineError(err)) {
-                        pendingRatings.addLast(PendingRating(loaded.roamUrl.id, -1))
+                        pendingRatingsMutex.withLock {
+                            pendingRatings.addLast(PendingRating(loaded.roamUrl.id, -1))
+                        }
                     } else {
                         err?.let { Sentry.captureException(it) }
                     }
@@ -1010,17 +1025,19 @@ class MainViewModel(
     // ── Pending ratings flush (14.9) ──────────────────────────────────────────
 
     private fun flushPendingRatings() {
-        if (pendingRatings.isEmpty()) return
         viewModelScope.launch {
-            val snapshot = pendingRatings.toList()
-            pendingRatings.clear()
-            snapshot.forEach { pending ->
-                runCatching { repo.rate(pending.urlId, pending.value) }
-                    .onFailure { e ->
-                        // Re-queue only if still offline; drop other errors
-                        if (isOfflineError(e)) pendingRatings.addLast(pending)
-                        else Sentry.captureException(e)
-                    }
+            pendingRatingsMutex.withLock {
+                if (pendingRatings.isEmpty()) return@withLock
+                val snapshot = pendingRatings.toList()
+                pendingRatings.clear()
+                snapshot.forEach { pending ->
+                    runCatching { repo.rate(pending.urlId, pending.value) }
+                        .onFailure { e ->
+                            // Re-queue only if still offline; drop other errors
+                            if (isOfflineError(e)) pendingRatings.addLast(pending)
+                            else Sentry.captureException(e)
+                        }
+                }
             }
         }
     }
