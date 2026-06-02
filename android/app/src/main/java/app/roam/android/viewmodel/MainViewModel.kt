@@ -425,6 +425,11 @@ class MainViewModel(
                                  subcategoryId = if (_focusModeEnabled.value) _focusSubcategoryId.value else null,
                              )
                          }
+                         // Re-throw CancellationException so the outer withTimeout(15_000)
+                         // can cancel the loop properly — runCatching swallows it otherwise.
+                         outcome.exceptionOrNull()?.let {
+                             if (it is kotlinx.coroutines.CancellationException) throw it
+                         }
                          if (outcome.isSuccess) {
                              result = outcome.getOrNull()
                              success = true

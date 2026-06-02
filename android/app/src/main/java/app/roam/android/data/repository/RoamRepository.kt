@@ -16,7 +16,6 @@ import io.github.jan.supabase.postgrest.query.Columns
 import io.github.jan.supabase.postgrest.query.Order
 import io.ktor.client.call.body
 import io.ktor.client.statement.bodyAsText
-import kotlinx.coroutines.withTimeout
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
@@ -52,7 +51,7 @@ class RoamRepository {
         excludeDomain: String? = null,
         categoryId: String? = null,
         subcategoryId: String? = null,
-    ): RoamUrl? = withTimeout(10_000) {
+    ): RoamUrl? {
         val body = buildJsonObject {
             collectionId?.let { put("collection_id", it) }
             excludeDomain?.let { put("exclude_domain", it) }
@@ -60,15 +59,15 @@ class RoamRepository {
             subcategoryId?.let { put("subcategory_id", it) }
         }
         val response = supabase.functions.invoke("roam", body = body)
-        if (response.status.value == 404) return@withTimeout null
-        json.decodeFromString(response.body())
+        if (response.status.value == 404) return null
+        return json.decodeFromString(response.body())
     }
 
     /**
      * Calls POST /functions/v1/rate.
      * [value] must be 1 (thumbs up) or -1 (thumbs down).
      */
-    suspend fun rate(urlId: String, value: Int) = withTimeout(8_000) {
+    suspend fun rate(urlId: String, value: Int) {
         require(value == 1 || value == -1)
         val body = buildJsonObject {
             put("url_id", urlId)
@@ -81,7 +80,7 @@ class RoamRepository {
      * Calls POST /functions/v1/submit-url.
      * [url] is required; [subcategoryId] is the user-selected category chip.
      */
-    suspend fun submitUrl(url: String, categoryId: String? = null, subcategoryId: String? = null): SubmitResult = withTimeout(10_000) {
+    suspend fun submitUrl(url: String, categoryId: String? = null, subcategoryId: String? = null): SubmitResult {
         val body = buildJsonObject {
             put("url", url)
             categoryId?.let { put("category_id", it) }
@@ -100,7 +99,7 @@ class RoamRepository {
         val message = (parsed?.get("message") as? kotlinx.serialization.json.JsonPrimitive)?.content
             ?: (parsed?.get("error") as? kotlinx.serialization.json.JsonPrimitive)?.content
         val duplicateFlag = (parsed?.get("duplicate") as? kotlinx.serialization.json.JsonPrimitive)?.content == "true"
-        when {
+        return when {
             duplicateFlag || status == 409 ->
                 SubmitResult.Duplicate(message ?: "This URL is already in our database.")
             status in 200..299 ->
@@ -114,8 +113,8 @@ class RoamRepository {
      * Reads the current user's settings row.
      * Returns defaults (en, no paywall skip) if no row exists yet.
      */
-    suspend fun getUserSettings(): UserSettings = withTimeout(8_000) {
-        val userId = supabase.auth.currentUserOrNull()?.id ?: return@withTimeout UserSettings()
+    suspend fun getUserSettings(): UserSettings {
+        val userId = supabase.auth.currentUserOrNull()?.id ?: return UserSettings()
         val results = supabase.postgrest
             .from("user_settings")
             .select(Columns.list("preferred_languages", "skip_paywalled", "discovery_mode")) {
@@ -123,7 +122,7 @@ class RoamRepository {
                 limit(1)
             }
             .decodeList<UserSettings>()
-        results.firstOrNull() ?: UserSettings(userId = userId)
+        return results.firstOrNull() ?: UserSettings(userId = userId)
     }
 
     /**
@@ -133,8 +132,8 @@ class RoamRepository {
         preferredLanguages: List<String>? = null,
         skipPaywalled: Boolean? = null,
         discoveryMode: String? = null,
-    ) = withTimeout(8_000) {
-        val userId = supabase.auth.currentUserOrNull()?.id ?: return@withTimeout
+    ) {
+        val userId = supabase.auth.currentUserOrNull()?.id ?: return
         // Build a partial upsert — only include columns explicitly set.
         // On INSERT (new user), unspecified columns receive their DB defaults.
         // On CONFLICT (existing row), only the specified columns are overwritten,
