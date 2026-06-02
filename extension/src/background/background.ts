@@ -44,6 +44,12 @@ function getDomain(url: string): string | null {
     const u = new URL(url);
     let domain = u.hostname.toLowerCase();
     if (domain.startsWith('www.')) domain = domain.slice(4);
+    // Extract registrable domain (last 2 parts) to block all subdomains together
+    // e.g., "username.itch.io" → "itch.io", "github.com" → "github.com"
+    const parts = domain.split('.');
+    if (parts.length >= 3) {
+      return parts.slice(-2).join('.');
+    }
     return domain;
   } catch { return null; }
 }
