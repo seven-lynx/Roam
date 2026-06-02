@@ -430,10 +430,11 @@ class MainViewModel(
                          // UnauthorizedRestException: repository already attempted one session refresh.
                          // A second attempt won't help; break early so we don't burn retry budget.
                          if (lastException is UnauthorizedRestException) break
-                         // IllegalStateException: no refresh token — session is gone entirely.
-                         if (lastException is IllegalStateException) break
-                     }
-            } catch (e: kotlinx.coroutines.TimeoutCancellationException) {
+                          // IllegalStateException: no refresh token — session is gone entirely.
+                          if (lastException is IllegalStateException) break
+                      }
+                  }
+              } catch (e: kotlinx.coroutines.TimeoutCancellationException) {
                 lastException = e
                 success = false
             }
@@ -454,8 +455,12 @@ class MainViewModel(
                 val isOffline = isOfflineError(e)
                 val isTimeout = e.javaClass.name.contains("Timeout", ignoreCase = true)
                     || e.message?.contains("timed out", ignoreCase = true) == true
+                val isDnsError = e.message?.contains("Unable to resolve host", ignoreCase = true) == true
+                    || e.message?.contains("No address associated", ignoreCase = true) == true
+                    || e.message?.contains("Unknown host", ignoreCase = true) == true
                 val msg = when {
-                    isTimeout -> "Request timed out. Please try again."
+                    isDnsError -> "Network unreachable. Check WiFi/cellular connection and try again."
+                    isTimeout -> "Request timed out. Check your network connection and try again."
                     e is UnauthorizedRestException -> "Session expired. Please sign in again."
                     e is IllegalStateException -> "Session expired. Please sign in again."
                     isOffline -> "You appear to be offline. Please check your connection."
