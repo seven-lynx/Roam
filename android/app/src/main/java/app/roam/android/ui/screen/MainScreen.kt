@@ -201,6 +201,10 @@ private fun DiscoverTab(
     var lastCategoryName by remember { mutableStateOf<String?>(null) }
     var lastSubcategoryName by remember { mutableStateOf<String?>(null) }
     var lastDomain by remember { mutableStateOf<String?>(null) }
+
+    // Debounce flag to prevent rapid-fire taps during sheet animations
+    var isSheetAnimationRunning by remember { mutableStateOf(false) }
+
     if (!isRoaming) {
         if (categoryName != null) lastCategoryName = categoryName
         if (subcategoryName != null) lastSubcategoryName = subcategoryName
@@ -231,11 +235,26 @@ private fun DiscoverTab(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clickable {
+                            // Debounce: prevent rapid taps during ongoing animations
+                            if (isSheetAnimationRunning) return@clickable
+                            
+                            isSheetAnimationRunning = true
                             scope.launch {
-                                if (scaffoldState.bottomSheetState.currentValue == SheetValue.Expanded) {
-                                    scaffoldState.bottomSheetState.hide()
-                                } else {
-                                    scaffoldState.bottomSheetState.expand()
+                                try {
+                                    val currentState = scaffoldState.bottomSheetState.currentValue
+                                    // Sheet is "open" if Expanded or PartiallyExpanded
+                                    val isSheetOpen = currentState == SheetValue.Expanded || 
+                                                       currentState == SheetValue.PartiallyExpanded
+                                    
+                                    if (isSheetOpen) {
+                                        scaffoldState.bottomSheetState.hide()
+                                    } else {
+                                        scaffoldState.bottomSheetState.expand()
+                                    }
+                                } catch (e: Exception) {
+                                    // Silently handle state transition errors - state may already be animating
+                                } finally {
+                                    isSheetAnimationRunning = false
                                 }
                             }
                         },
