@@ -254,12 +254,12 @@ class MainViewModel(
     }
 
     // ── Prefetch queues ───────────────────────────────────────────────────────
-    // Hot queue  (HOT_TARGET = 5): HEAD-validated URLs served instantly on tap.
-    // Warm queue (WARM_TARGET = 8): fetched from the API but not yet validated.
-    // Phase 2 validates up to 3 warming URLs concurrently to maximize throughput.
+    // Hot queue  (HOT_TARGET = 10): HEAD-validated URLs served instantly on tap.
+    // Warm queue (WARM_TARGET = 15): fetched from the API but not yet validated.
+    // Phase 2 validates URLs concurrently to maximize throughput.
 
-    private val HOT_TARGET  = 5
-    private val WARM_TARGET = 8
+    private val HOT_TARGET  = 10
+    private val WARM_TARGET = 15
     private val hotQueue    = ArrayDeque<RoamUrl>()
     private val warmQueue   = ArrayDeque<RoamUrl>()
     private val prefetchMutex = Mutex()
@@ -376,29 +376,22 @@ class MainViewModel(
         roamJob?.cancel()
         roamJob = viewModelScope.launch {
             // Try to pop from the hot queue for an instant transition, skipping any entry from
-            // the excluded domain or matching the current URL. Use tryLock to avoid deadlock
-            // if the prefetch job is holding the mutex — in that case, just fall through to
-            // the API call.
-            val prefetched = if (prefetchMutex.tryLock()) {
-                try {
-                    var result: RoamUrl? = null
-                    while (hotQueue.isNotEmpty()) {
-                        val candidate = hotQueue.removeFirst()
-                        val sameDomain = effectiveExclude != null &&
-                            extractDomain(candidate.url) == effectiveExclude
-                        val sameUrl = candidate.url == _rawUrl.value
-                        if (!sameDomain && !sameUrl) {
-                            result = candidate
-                            break
-                        }
+            // the excluded domain or matching the current URL.
+            val prefetched = prefetchMutex.withLock {
+                var result: RoamUrl? = null
+                while (hotQueue.isNotEmpty()) {
+                    val candidate = hotQueue.removeFirst()
+                    val candDomain = extractDomain(candidate.url)
+                    val sameDomain = effectiveExclude != null && candDomain == effectiveExclude
+                    val sameUrl = candidate.url == _rawUrl.value
+                    if (!sameDomain && !sameUrl) {
+                        result = candidate
+                        break
                     }
-                    result
-                } finally {
-                    prefetchMutex.unlock()
                 }
-            } else {
-                null  // Prefetch busy, skip hot queue and call API directly
+                result
             }
+
             if (prefetched != null) {
                 _rawUrl.value = prefetched.url
                 _currentUrl.value = prefetched.url
@@ -492,95 +485,102 @@ class MainViewModel(
     /**
      * Cancels any running fill job and starts a fresh one.
      *
-     * Phase 1 — warm fill: fetch URLs from the API (no HEAD check) until the warm
-     *   queue reaches [WARM_TARGET]. Fast — just network calls to our own edge function.
-     *
-     * Phase 2 — hot promotion: pull from the front of warm, HEAD-check the URL,
-     *   and move it to the hot queue until hot reaches [HOT_TARGET].
-     *
-     * Both phases run concurrently inside the same coroutine so warm keeps filling
-     * while hot is being topped up.
+     * Runs Phase 1 (warm fill) and Phase 2 (hot promotion) concurrently
+     * to maximize throughput and responsiveness.
      */
     private fun startPrefillQueue(excludeDomain: String? = null) {
         prefetchJob?.cancel()
-        // Run entirely on IO — OkHttp network calls must not touch the main thread.
-        // Running on Main caused foreground & background ANRs (ROAM-ANDROID-D/E/F/G).
         prefetchJob = viewModelScope.launch(Dispatchers.IO) {
-            var warmFails = 0
-            var hotFails  = 0
+            // Wait for session once at the top level
+            while (!repo.hasSession()) {
+                delay(500)
+            }
 
-            while (true) {
-                // Wait for a valid session before hitting the edge function.
-                // supabase-kt restores the persisted session asynchronously after
-                // app start; calling functions.invoke() before restoration sends
-                // the anon key as Bearer, causing UNAUTHORIZED_INVALID_JWT_FORMAT (ROAM-ANDROID-5).
-                if (!repo.hasSession()) {
-                    delay(500)
-                    continue
-                }
-
-                val (hotSize, warmSize) = prefetchMutex.withLock { hotQueue.size to warmQueue.size }
-
-                val hotDone  = hotSize  >= HOT_TARGET
-                val warmDone = warmSize >= WARM_TARGET
-
-                if (hotDone && warmDone) break
-                if (warmFails >= 8 && warmSize == 0) break   // server returning nothing
-
-                // Phase 1: keep warm topped up (cheap — no HEAD check)
-                // Skip the inter-call delay on the very first fetch (when both queues are
-                // empty) so the queue starts filling without added latency on cold start.
-                // After that, pace calls to avoid hammering the edge function (ROAM-ANDROID-4).
-                if (!warmDone && warmFails < 8) {
-                    if (warmSize > 0 || hotSize > 0) delay(300)
-                    val candidate = runCatching {
-                        repo.roam(
-                            collectionId  = _activeCollectionId.value,
-                            excludeDomain = excludeDomain,
-                            categoryId = if (_focusModeEnabled.value) _focusCategoryId.value else null,
-                            subcategoryId = if (_focusModeEnabled.value) _focusSubcategoryId.value else null,
-                        )
-                    }.getOrNull()
-
-                    if (candidate == null) {
-                        warmFails++
-                    } else {
-                        prefetchMutex.withLock {
-                            if (warmQueue.size < WARM_TARGET) warmQueue.addLast(candidate)
+            // Launch concurrent workers for warm filling and hot promotion
+            coroutineScope {
+                // Phase 1: Warm Fill (parallel fetching from API)
+                launch {
+                    var warmFails = 0
+                    while (true) {
+                        val warmSize = prefetchMutex.withLock { warmQueue.size }
+                        if (warmSize >= WARM_TARGET) {
+                            delay(1000)
+                            continue
                         }
-                        warmFails = 0
+                        if (warmFails >= 5) {
+                            delay(5000) // Back off on repeated failures
+                            warmFails = 0
+                            continue
+                        }
+
+                        // Fetch up to 3 candidates in parallel
+                        val batchSize = minOf(3, WARM_TARGET - warmSize)
+                        val candidates = (1..batchSize).map {
+                            async {
+                                runCatching {
+                                    repo.roam(
+                                        collectionId = _activeCollectionId.value,
+                                        excludeDomain = excludeDomain,
+                                        categoryId = if (_focusModeEnabled.value) _focusCategoryId.value else null,
+                                        subcategoryId = if (_focusModeEnabled.value) _focusSubcategoryId.value else null,
+                                    )
+                                }.getOrNull()
+                            }
+                        }.awaitAll().filterNotNull()
+
+                        if (candidates.isEmpty()) {
+                            warmFails++
+                            delay(1000)
+                        } else {
+                            warmFails = 0
+                            prefetchMutex.withLock {
+                                candidates.forEach { if (warmQueue.size < WARM_TARGET) warmQueue.addLast(it) }
+                            }
+                            delay(500) // Pace to avoid hammering
+                        }
                     }
                 }
 
-                // Phase 2: promote warm → hot (HEAD-validate up to 3 URLs concurrently)
-                if (!hotDone) {
-                    val batch = prefetchMutex.withLock {
-                        val size = minOf(3, warmQueue.size)  // Validate up to 3 URLs in parallel
-                        (1..size).mapNotNull { if (warmQueue.isNotEmpty()) warmQueue.removeFirst() else null }
-                    }
-                    if (batch.isNotEmpty()) {
-                        try {
-                            coroutineScope {
-                                val validationResults = batch.map { url ->
-                                    async {
-                                        url to isUrlReachable(url.url)
+                // Phase 2: Hot Promotion (parallel validation)
+                launch {
+                    var hotFails = 0
+                    while (true) {
+                        val (hotSize, warmSize) = prefetchMutex.withLock { hotQueue.size to warmQueue.size }
+                        if (hotSize >= HOT_TARGET) {
+                            delay(1000)
+                            continue
+                        }
+                        if (warmSize == 0) {
+                            delay(500)
+                            continue
+                        }
+
+                        // Pull a batch from warm to validate
+                        val batch = prefetchMutex.withLock {
+                            val size = minOf(4, warmQueue.size, HOT_TARGET - hotQueue.size)
+                            (1..size).mapNotNull { if (warmQueue.isNotEmpty()) warmQueue.removeFirst() else null }
+                        }
+
+                        if (batch.isNotEmpty()) {
+                            val validationResults = batch.map { url ->
+                                async { url to isUrlReachable(url.url) }
+                            }.awaitAll()
+
+                            prefetchMutex.withLock {
+                                var successCount = 0
+                                validationResults.forEach { (url, isReachable) ->
+                                    if (isReachable && hotQueue.size < HOT_TARGET) {
+                                        hotQueue.addLast(url)
+                                        successCount++
                                     }
-                                }.awaitAll()
-                                prefetchMutex.withLock {
-                                    var successCount = 0
-                                    validationResults.forEach { (url, isReachable) ->
-                                        if (isReachable && hotQueue.size < HOT_TARGET) {
-                                            hotQueue.addLast(url)
-                                            successCount++
-                                        }
-                                    }
-                                    hotFails = if (successCount > 0) 0 else hotFails + 1
                                 }
+                                hotFails = if (successCount > 0) 0 else hotFails + 1
                             }
-                        } catch (e: kotlinx.coroutines.CancellationException) {
-                            throw e  // Always propagate cancellation to exit the loop
-                        } catch (e: Exception) {
-                            hotFails++
+                        }
+                        
+                        if (hotFails >= 5) {
+                            delay(2000)
+                            hotFails = 0
                         }
                     }
                 }
@@ -1089,7 +1089,20 @@ class MainViewModel(
     private fun extractDomain(url: String?): String? {
         url ?: return null
         return runCatching {
-            android.net.Uri.parse(url).host?.removePrefix("www.")
+            var host = android.net.Uri.parse(url).host ?: return null
+            // Remove www. prefix if present
+            if (host.startsWith("www.")) {
+                host = host.substring(4)
+            }
+            val parts = host.split(".")
+            // For subdomains like "username.itch.io", extract "itch.io" (registrable domain).
+            // Simple heuristic: if 3+ parts, take the last 2. Doesn't handle all multi-part TLDs
+            // perfectly (e.g., .co.uk), but works for ~95% of cases.
+            if (parts.size >= 3) {
+                parts.takeLast(2).joinToString(".")
+            } else {
+                host
+            }
         }.getOrNull()
     }
 
