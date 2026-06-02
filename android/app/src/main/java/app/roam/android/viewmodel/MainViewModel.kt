@@ -412,42 +412,36 @@ class MainViewModel(
             var lastException: Throwable? = null
             var result: RoamUrl? = null
             var success = false
-            try {
-                withTimeout(15_000) {  // 15 second total timeout for all retries
-                    // Retry up to 3 times with increasing delays to handle transient auth/network issues
-                     for (attempt in 0 until 3) {
-                         if (attempt > 0) delay(500L * attempt)
-                         val outcome = runCatching {
-                             repo.roam(
-                                 collectionId = _activeCollectionId.value,
-                                 excludeDomain = effectiveExclude,
-                                 categoryId = if (_focusModeEnabled.value) _focusCategoryId.value else null,
-                                 subcategoryId = if (_focusModeEnabled.value) _focusSubcategoryId.value else null,
-                             )
-                         }
-                         // Re-throw CancellationException so the outer withTimeout(15_000)
-                         // can cancel the loop properly — runCatching swallows it otherwise.
-                         outcome.exceptionOrNull()?.let {
-                             if (it is kotlinx.coroutines.CancellationException) throw it
-                         }
-                         if (outcome.isSuccess) {
-                             result = outcome.getOrNull()
-                             success = true
-                             break
-                         }
-                         lastException = outcome.exceptionOrNull()
-                         // Don't retry offline errors — they won't resolve with retries
-                         if (lastException != null && isOfflineError(lastException!!)) break
-                         // UnauthorizedRestException: repository already attempted one session refresh.
-                         // A second attempt won't help; break early so we don't burn retry budget.
-                         if (lastException is UnauthorizedRestException) break
-                          // IllegalStateException: no refresh token — session is gone entirely.
-                          if (lastException is IllegalStateException) break
-                      }
-                  }
-              } catch (e: kotlinx.coroutines.TimeoutCancellationException) {
-                lastException = e
-                success = false
+            // Retry up to 3 times with increasing delays to handle transient auth/network issues.
+            // Ktor (SupabaseClient.kt) already enforces a 60s request timeout per attempt.
+            for (attempt in 0 until 3) {
+                if (attempt > 0) delay(500L * attempt)
+                val outcome = runCatching {
+                    repo.roam(
+                        collectionId = _activeCollectionId.value,
+                        excludeDomain = effectiveExclude,
+                        categoryId = if (_focusModeEnabled.value) _focusCategoryId.value else null,
+                        subcategoryId = if (_focusModeEnabled.value) _focusSubcategoryId.value else null,
+                    )
+                }
+                // Re-throw CancellationException so coroutine cancellation (e.g. ViewModel cleared)
+                // propagates correctly — runCatching swallows it otherwise.
+                outcome.exceptionOrNull()?.let {
+                    if (it is kotlinx.coroutines.CancellationException) throw it
+                }
+                if (outcome.isSuccess) {
+                    result = outcome.getOrNull()
+                    success = true
+                    break
+                }
+                lastException = outcome.exceptionOrNull()
+                // Don't retry offline errors — they won't resolve with retries
+                if (lastException != null && isOfflineError(lastException!!)) break
+                // UnauthorizedRestException: repository already attempted one session refresh.
+                // A second attempt won't help; break early so we don't burn retry budget.
+                if (lastException is UnauthorizedRestException) break
+                // IllegalStateException: no refresh token — session is gone entirely.
+                if (lastException is IllegalStateException) break
             }
 
             if (success) {
