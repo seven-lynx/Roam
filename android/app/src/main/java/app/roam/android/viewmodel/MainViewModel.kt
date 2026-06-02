@@ -424,7 +424,7 @@ class MainViewModel(
                 }
                 lastException = outcome.exceptionOrNull()
                 // Don't retry offline errors — they won't resolve with retries
-                if (lastException != null && isOfflineError(lastException!!)) break
+                if (lastException != null && isOfflineError(lastException)) break
                 // UnauthorizedRestException: repository already attempted one session refresh.
                 // A second attempt won't help; break early so we don't burn retry budget.
                 if (lastException is UnauthorizedRestException) break
@@ -529,7 +529,16 @@ class MainViewModel(
                         } else {
                             warmFails = 0
                             prefetchMutex.withLock {
-                                candidates.forEach { if (warmQueue.size < WARM_TARGET) warmQueue.addLast(it) }
+                                candidates.forEach { candidate ->
+                                    val domain = extractDomain(candidate.url)
+                                    val domainAlreadyQueued = domain != null && (
+                                        warmQueue.any { extractDomain(it.url) == domain } ||
+                                        hotQueue.any { extractDomain(it.url) == domain }
+                                    )
+                                    if (!domainAlreadyQueued && warmQueue.size < WARM_TARGET) {
+                                        warmQueue.addLast(candidate)
+                                    }
+                                }
                             }
                             delay(500) // Pace to avoid hammering
                         }
@@ -564,7 +573,9 @@ class MainViewModel(
                             prefetchMutex.withLock {
                                 var successCount = 0
                                 validationResults.forEach { (url, isReachable) ->
-                                    if (isReachable && hotQueue.size < HOT_TARGET) {
+                                    val domain = extractDomain(url.url)
+                                    val domainInHot = domain != null && hotQueue.any { extractDomain(it.url) == domain }
+                                    if (isReachable && !domainInHot && hotQueue.size < HOT_TARGET) {
                                         hotQueue.addLast(url)
                                         successCount++
                                     }

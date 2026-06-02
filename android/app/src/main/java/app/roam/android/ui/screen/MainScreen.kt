@@ -175,14 +175,18 @@ private fun DiscoverTab(
     val webDarkMode by vm.webDarkMode.collectAsState()
     val jsEnabled by vm.jsEnabled.collectAsState()
     val sheetGestureMode by vm.sheetGestureMode.collectAsState()
+    val showConfigSheet by vm.showConfigSheet.collectAsState()
 
     // Only auto-roam on first entry (Idle = fresh app launch).
     LaunchedEffect(Unit) { if (vm.state.value is RoamState.Idle) vm.roam() }
 
+    val scaffoldState = rememberBottomSheetScaffoldState()
+    val scope = rememberCoroutineScope()
+
     // lastLoadedUrl tracks what the WebView has actually finished rendering (or reached 70% progress).
     // When currentUrl advances ahead of it (new URL set by ViewModel), the overlay stays up immediately
     // without waiting for onPageStarted to fire in the next frame.
-    var webViewLoading by rememberSaveable { mutableStateOf(false) }
+    var webViewLoading by rememberSaveable { mutableStateOf(value = false) }
     var lastLoadedUrl by remember { mutableStateOf<String?>(null) }
     // Only show the loading overlay when loading the roam URL. If the user navigates to a different URL
     // (by clicking a link), don't show the overlay — they're exploring, not waiting for a new roam.
@@ -200,8 +204,8 @@ private fun DiscoverTab(
     var lastSubcategoryName by remember { mutableStateOf<String?>(null) }
     var lastDomain by remember { mutableStateOf<String?>(null) }
 
-    // Debounce flag to prevent rapid-fire taps during sheet animations
-    var isSheetAnimationRunning by remember { mutableStateOf(false) }
+    // Track sheet state to sync with ViewModel
+    var wasConfigSheetOpenLastFrame by remember { mutableStateOf(false) }
 
     if (!isRoaming) {
         categoryName?.let { lastCategoryName = it }
@@ -216,8 +220,22 @@ private fun DiscoverTab(
     val displaySubcategory = if (!isRoaming) subcategoryName ?: lastSubcategoryName else null
     val displayDomain      = if (!isRoaming) domain          ?: lastDomain          else null
 
-    val scaffoldState = rememberBottomSheetScaffoldState()
-    val scope = rememberCoroutineScope()
+    // Sync sheet expansion when ViewModel state changes (but not on initial composition)
+    if (showConfigSheet != wasConfigSheetOpenLastFrame) {
+        scope.launch {
+            try {
+                if (showConfigSheet) {
+                    scaffoldState.bottomSheetState.expand()
+                } else {
+                    // Collapse to peek height (can't fully hide with sheetPeekHeight enabled)
+                    scaffoldState.bottomSheetState.partialExpand()
+                }
+            } catch (_: Exception) {
+                // Silently handle state transition errors
+            }
+        }
+        wasConfigSheetOpenLastFrame = showConfigSheet
+    }
 
     BottomSheetScaffold(
         scaffoldState = scaffoldState,
@@ -233,27 +251,10 @@ private fun DiscoverTab(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clickable {
-                            // Debounce: prevent rapid taps during ongoing animations
-                            if (isSheetAnimationRunning) return@clickable
-                            
-                            isSheetAnimationRunning = true
-                            scope.launch {
-                                try {
-                                    val currentState = scaffoldState.bottomSheetState.currentValue
-                                    // Sheet is "open" if Expanded or PartiallyExpanded
-                                    val isSheetOpen = currentState == SheetValue.Expanded || 
-                                                       currentState == SheetValue.PartiallyExpanded
-                                    
-                                    if (isSheetOpen) {
-                                        scaffoldState.bottomSheetState.hide()
-                                    } else {
-                                        scaffoldState.bottomSheetState.expand()
-                                    }
-                                } catch (_: Exception) {
-                                    // Silently handle state transition errors - state may already be animating
-                                } finally {
-                                    isSheetAnimationRunning = false
-                                }
+                            if (showConfigSheet) {
+                                vm.closeConfigSheet()
+                            } else {
+                                vm.openConfigSheet()
                             }
                         },
                     contentAlignment = Alignment.Center,
