@@ -374,24 +374,30 @@ class MainViewModel(
         val effectiveExclude = excludeDomain ?: extractDomain(_rawUrl.value)
 
         roamJob?.cancel()
-        prefetchJob?.cancel()  // Stop prefetch while user is roaming
         roamJob = viewModelScope.launch {
-            // Pop from the hot queue for an instant transition, skipping any entry from
-            // the excluded domain or matching the current URL (avoids re-serving the same
-            // page after a thumbs-down when the prefetch queue was built before the skip).
-            val prefetched = prefetchMutex.withLock {
-                var result: RoamUrl? = null
-                while (hotQueue.isNotEmpty()) {
-                    val candidate = hotQueue.removeFirst()
-                    val sameDomain = effectiveExclude != null &&
-                        extractDomain(candidate.url) == effectiveExclude
-                    val sameUrl = candidate.url == _rawUrl.value
-                    if (!sameDomain && !sameUrl) {
-                        result = candidate
-                        break
+            // Try to pop from the hot queue for an instant transition, skipping any entry from
+            // the excluded domain or matching the current URL. Use tryLock to avoid deadlock
+            // if the prefetch job is holding the mutex — in that case, just fall through to
+            // the API call.
+            val prefetched = if (prefetchMutex.tryLock()) {
+                try {
+                    var result: RoamUrl? = null
+                    while (hotQueue.isNotEmpty()) {
+                        val candidate = hotQueue.removeFirst()
+                        val sameDomain = effectiveExclude != null &&
+                            extractDomain(candidate.url) == effectiveExclude
+                        val sameUrl = candidate.url == _rawUrl.value
+                        if (!sameDomain && !sameUrl) {
+                            result = candidate
+                            break
+                        }
                     }
+                    result
+                } finally {
+                    prefetchMutex.unlock()
                 }
-                result
+            } else {
+                null  // Prefetch busy, skip hot queue and call API directly
             }
             if (prefetched != null) {
                 _rawUrl.value = prefetched.url
@@ -572,7 +578,11 @@ class MainViewModel(
                                     hotFails = if (successCount > 0) 0 else hotFails + 1
                                 }
                             }
-                        } catch (e: Exception) { hotFails++ }
+                        } catch (e: kotlinx.coroutines.CancellationException) {
+                            throw e  // Always propagate cancellation to exit the loop
+                        } catch (e: Exception) {
+                            hotFails++
+                        }
                     }
                 }
             }
