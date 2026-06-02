@@ -25,7 +25,10 @@ import java.net.URL
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.TimeoutCancellationException
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -251,11 +254,12 @@ class MainViewModel(
     }
 
     // ── Prefetch queues ───────────────────────────────────────────────────────
-    // Hot queue  (HOT_TARGET = 3): HEAD-validated URLs served instantly on tap.
-    // Warm queue (WARM_TARGET = 5): fetched from the API but not yet validated.
+    // Hot queue  (HOT_TARGET = 5): HEAD-validated URLs served instantly on tap.
+    // Warm queue (WARM_TARGET = 8): fetched from the API but not yet validated.
+    // Phase 2 validates up to 3 warming URLs concurrently to maximize throughput.
 
-    private val HOT_TARGET  = 3
-    private val WARM_TARGET = 5
+    private val HOT_TARGET  = 5
+    private val WARM_TARGET = 8
     private val hotQueue    = ArrayDeque<RoamUrl>()
     private val warmQueue   = ArrayDeque<RoamUrl>()
     private val prefetchMutex = Mutex()
@@ -436,14 +440,15 @@ class MainViewModel(
             }
 
             if (success) {
-                if (result == null) {
+                val roamUrl = result
+                if (roamUrl == null) {
                     _state.value = RoamState.Exhausted
                 } else {
-                    _rawUrl.value = result.url
-                    _currentUrl.value = result.url
+                    _rawUrl.value = roamUrl.url
+                    _currentUrl.value = roamUrl.url
                     _autoTranslate.value = false
-                    _state.value = RoamState.Loaded(result)
-                    startPrefillQueue(excludeDomain = extractDomain(result.url))
+                    _state.value = RoamState.Loaded(roamUrl)
+                    startPrefillQueue(excludeDomain = extractDomain(roamUrl.url))
                 }
             } else {
                 val e = lastException ?: Exception("Unknown error")
@@ -538,20 +543,32 @@ class MainViewModel(
                     }
                 }
 
-                // Phase 2: promote warm → hot (HEAD-validate one entry per loop tick)
+                // Phase 2: promote warm → hot (HEAD-validate up to 3 URLs concurrently)
                 if (!hotDone) {
-                    val next = prefetchMutex.withLock {
-                        if (warmQueue.isNotEmpty()) warmQueue.removeFirst() else null
+                    val batch = prefetchMutex.withLock {
+                        val size = minOf(3, warmQueue.size)  // Validate 1-3 URLs in parallel
+                        (1..size).mapNotNull { if (warmQueue.isNotEmpty()) warmQueue.removeFirst() else null }
                     }
-                    if (next != null) {
-                        if (isUrlReachable(next.url)) {
-                            prefetchMutex.withLock {
-                                if (hotQueue.size < HOT_TARGET) hotQueue.addLast(next)
+                    if (batch.isNotEmpty()) {
+                        try {
+                            coroutineScope {
+                                val validationResults = batch.map { url ->
+                                    async {
+                                        url to isUrlReachable(url.url)
+                                    }
+                                }.awaitAll()
+                                prefetchMutex.withLock {
+                                    var successCount = 0
+                                    validationResults.forEach { (url, isReachable) ->
+                                        if (isReachable && hotQueue.size < HOT_TARGET) {
+                                            hotQueue.addLast(url)
+                                            successCount++
+                                        }
+                                    }
+                                    hotFails = if (successCount > 0) 0 else hotFails + 1
+                                }
                             }
-                            hotFails = 0
-                        } else {
-                            hotFails++
-                        }
+                        } catch { hotFails++ }
                     }
                 }
             }
