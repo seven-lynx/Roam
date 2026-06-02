@@ -229,7 +229,7 @@ private fun DiscoverTab(
                         .clickable {
                             scope.launch {
                                 if (scaffoldState.bottomSheetState.currentValue == SheetValue.Expanded) {
-                                    scaffoldState.bottomSheetState.partialExpand()
+                                    scaffoldState.bottomSheetState.hide()
                                 } else {
                                     scaffoldState.bottomSheetState.expand()
                                 }

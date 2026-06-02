@@ -409,31 +409,30 @@ class MainViewModel(
             try {
                 withTimeout(15_000) {  // 15 second total timeout for all retries
                     // Retry up to 3 times with increasing delays to handle transient auth/network issues
-                    for (attempt in 0 until 3) {
-                        if (attempt > 0) delay(500L * attempt)
-                        val outcome = runCatching {
-                    repo.roam(
-                        collectionId = _activeCollectionId.value,
-                        excludeDomain = effectiveExclude,
-                        categoryId = if (_focusModeEnabled.value) _focusCategoryId.value else null,
-                        subcategoryId = if (_focusModeEnabled.value) _focusSubcategoryId.value else null,
-                    )
-                }
-                if (outcome.isSuccess) {
-                    result = outcome.getOrNull()
-                    success = true
-                    break
-                }
-                lastException = outcome.exceptionOrNull()
-                // Don't retry offline errors — they won't resolve with retries
-                if (lastException != null && isOfflineError(lastException!!)) break
-                // UnauthorizedRestException: repository already attempted one session refresh.
-                // A second attempt won't help; break early so we don't burn retry budget.
-                        if (lastException is UnauthorizedRestException) break
-                        // IllegalStateException: no refresh token — session is gone entirely.
-                        if (lastException is IllegalStateException) break
-                    }
-                }
+                     for (attempt in 0 until 3) {
+                         if (attempt > 0) delay(500L * attempt)
+                         val outcome = runCatching {
+                             repo.roam(
+                                 collectionId = _activeCollectionId.value,
+                                 excludeDomain = effectiveExclude,
+                                 categoryId = if (_focusModeEnabled.value) _focusCategoryId.value else null,
+                                 subcategoryId = if (_focusModeEnabled.value) _focusSubcategoryId.value else null,
+                             )
+                         }
+                         if (outcome.isSuccess) {
+                             result = outcome.getOrNull()
+                             success = true
+                             break
+                         }
+                         lastException = outcome.exceptionOrNull()
+                         // Don't retry offline errors — they won't resolve with retries
+                         if (lastException != null && isOfflineError(lastException!!)) break
+                         // UnauthorizedRestException: repository already attempted one session refresh.
+                         // A second attempt won't help; break early so we don't burn retry budget.
+                         if (lastException is UnauthorizedRestException) break
+                         // IllegalStateException: no refresh token — session is gone entirely.
+                         if (lastException is IllegalStateException) break
+                     }
             } catch (e: kotlinx.coroutines.TimeoutCancellationException) {
                 lastException = e
                 success = false
@@ -568,7 +567,7 @@ class MainViewModel(
                                     hotFails = if (successCount > 0) 0 else hotFails + 1
                                 }
                             }
-                        } catch { hotFails++ }
+                        } catch (e: Exception) { hotFails++ }
                     }
                 }
             }
