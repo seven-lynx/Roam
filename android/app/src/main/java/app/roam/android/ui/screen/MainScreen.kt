@@ -181,9 +181,13 @@ private fun DiscoverTab(
     // Only auto-roam on first entry (Idle = fresh app launch).
     LaunchedEffect(Unit) { if (vm.state.value is RoamState.Idle) vm.roam() }
 
-    // True while either the edge function is fetching OR the WebView is loading the page
+    // True while either the edge function is fetching OR the WebView is loading the page.
+    // lastLoadedUrl tracks what the WebView has actually finished rendering — when currentUrl
+    // advances ahead of it (new URL set by ViewModel), the overlay stays up immediately
+    // without waiting for onPageStarted to fire in the next frame.
     var webViewLoading by rememberSaveable { mutableStateOf(false) }
-    val isRoaming = state is RoamState.Loading || webViewLoading
+    var lastLoadedUrl by remember { mutableStateOf<String?>(null) }
+    val isRoaming = state is RoamState.Loading || webViewLoading || (currentUrl != null && currentUrl != lastLoadedUrl)
 
     // Derive category name and domain from the loaded result / current URL
     val loaded = state as? RoamState.Loaded
@@ -435,7 +439,10 @@ private fun DiscoverTab(
                 jsEnabled = jsEnabled,
                 onUrlChanged = { vm.onWebViewUrlChanged(it) },
                 onLoadError = { vm.roam() },
-                onLoadingChanged = { webViewLoading = it },
+                onLoadingChanged = { loading ->
+                    webViewLoading = loading
+                    if (!loading) lastLoadedUrl = currentUrl
+                },
                 navCommandsFlow = vm.webNavFlow,
                 clearCookiesFlow = vm.clearCookiesFlow,
             )
