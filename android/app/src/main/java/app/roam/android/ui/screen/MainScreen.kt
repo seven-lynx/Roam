@@ -9,6 +9,7 @@ import androidx.compose.animation.core.spring
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -20,6 +21,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.BottomSheetScaffold
+import androidx.compose.material3.SheetValue
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
@@ -174,6 +176,7 @@ private fun DiscoverTab(
     val isOnline by vm.isOnline.collectAsState()
     val webDarkMode by vm.webDarkMode.collectAsState()
     val jsEnabled by vm.jsEnabled.collectAsState()
+    val sheetGestureMode by vm.sheetGestureMode.collectAsState()
 
     // Only auto-roam on first entry (Idle = fresh app launch).
     LaunchedEffect(Unit) { if (vm.state.value is RoamState.Idle) vm.roam() }
@@ -215,28 +218,66 @@ private fun DiscoverTab(
         sheetContainerColor = Color.Transparent,
         sheetShadowElevation = 0.dp,
         sheetTonalElevation = 0.dp,
+        sheetSwipeEnabled = sheetGestureMode == "slide",
         sheetDragHandle = {
             // Full-width invisible hit area so drag works everywhere across the bump
-            Box(
-                modifier = Modifier.fillMaxWidth(),
-                contentAlignment = Alignment.Center,
-            ) {
+            if (sheetGestureMode == "tap") {
+                // Tap mode: clickable handle to toggle sheet
                 Box(
                     modifier = Modifier
-                        .width(72.dp)
-                        .background(
-                            color = MaterialTheme.colorScheme.surfaceContainer,
-                            shape = RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp),
-                        )
-                        .padding(top = 6.dp, bottom = 4.dp),
+                        .fillMaxWidth()
+                        .clickable {
+                            scope.launch {
+                                if (scaffoldState.bottomSheetState.currentValue == SheetValue.Expanded) {
+                                    scaffoldState.bottomSheetState.partialExpand()
+                                } else {
+                                    scaffoldState.bottomSheetState.expand()
+                                }
+                            }
+                        },
                     contentAlignment = Alignment.Center,
                 ) {
-                    Icon(
-                        imageVector = Icons.Filled.KeyboardArrowUp,
-                        contentDescription = "Open menu",
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(20.dp),
-                    )
+                    Box(
+                        modifier = Modifier
+                            .width(44.dp)
+                            .background(
+                                color = MaterialTheme.colorScheme.surfaceContainer,
+                                shape = RoundedCornerShape(topStart = 8.dp, topEnd = 8.dp),
+                            )
+                            .padding(top = 4.dp, bottom = 2.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.KeyboardArrowUp,
+                            contentDescription = "Open menu",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(12.dp),
+                        )
+                    }
+                }
+            } else {
+                // Slide mode: default drag handle behavior
+                Box(
+                    modifier = Modifier.fillMaxWidth(),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .width(44.dp)
+                            .background(
+                                color = MaterialTheme.colorScheme.surfaceContainer,
+                                shape = RoundedCornerShape(topStart = 8.dp, topEnd = 8.dp),
+                            )
+                            .padding(top = 4.dp, bottom = 2.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.KeyboardArrowUp,
+                            contentDescription = "Open menu",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(12.dp),
+                        )
+                    }
                 }
             }
         },
@@ -277,9 +318,18 @@ private fun DiscoverTab(
                         .launchUrl(activity, Uri.parse("https://roamtheweb.app/profile"))
                     scope.launch { scaffoldState.bottomSheetState.partialExpand() }
                 },
-                onNavBack = { vm.webNavBack() },
-                onNavForward = { vm.webNavForward() },
-                onNavReload = { vm.webNavReload() },
+                onNavBack = {
+                    vm.webNavBack()
+                    scope.launch { scaffoldState.bottomSheetState.partialExpand() }
+                },
+                onNavForward = {
+                    vm.webNavForward()
+                    scope.launch { scaffoldState.bottomSheetState.partialExpand() }
+                },
+                onNavReload = {
+                    vm.webNavReload()
+                    scope.launch { scaffoldState.bottomSheetState.partialExpand() }
+                },
                 onRemoveSavedUrl = { url -> vm.removeSavedUrl(url) },
                 onReportBrokenLink = {
                     vm.reportBrokenLink()
@@ -288,7 +338,7 @@ private fun DiscoverTab(
             )
             } // Surface
         },
-        sheetPeekHeight = 30.dp,
+        sheetPeekHeight = 15.dp,
     ) { contentPadding ->
         Column(modifier = Modifier.fillMaxSize().padding(top = contentPadding.calculateTopPadding())) {
 

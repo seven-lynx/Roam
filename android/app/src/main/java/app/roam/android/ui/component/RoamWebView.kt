@@ -244,8 +244,9 @@ fun RoamWebView(
                 webView.settings.javaScriptEnabled = jsEnabled
                 webView.settings.domStorageEnabled = jsEnabled
                 webView.reload()
-            } else if (webView.url != url) {
+            } else if (webView.url != url || loadError) {
                 loadError = false
+                onLoadingChanged(true)
                 webView.loadUrl(url)
             }
         },

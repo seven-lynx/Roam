@@ -62,6 +62,7 @@ fun SettingsScreen(
     val autoTranslate by vm.autoTranslate.collectAsState()
     val translateLanguage by vm.translateLanguage.collectAsState()
     val jsEnabled by vm.jsEnabled.collectAsState()
+    val sheetGestureMode by vm.sheetGestureMode.collectAsState()
     val categories by vm.categories.collectAsState()
     val subcategories by vm.subcategories.collectAsState()
     val focusModeEnabled by vm.focusModeEnabled.collectAsState()
@@ -194,6 +195,47 @@ fun SettingsScreen(
                 checked = jsEnabled,
                 onCheckedChange = { vm.setJsEnabled(it) },
             )
+
+            var sheetGestureDropdownExpanded by remember { mutableStateOf(false) }
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("Menu gesture", style = MaterialTheme.typography.bodyLarge)
+                    Text(
+                        "How to open the menu",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                    )
+                }
+                Box {
+                    OutlinedButton(onClick = { sheetGestureDropdownExpanded = true }) {
+                        Text(if (sheetGestureMode == "slide") "Slide up" else "Tap handle")
+                    }
+                    DropdownMenu(
+                        expanded = sheetGestureDropdownExpanded,
+                        onDismissRequest = { sheetGestureDropdownExpanded = false },
+                    ) {
+                        DropdownMenuItem(
+                            text = { Text("Slide up") },
+                            onClick = {
+                                vm.setSheetGestureMode("slide")
+                                sheetGestureDropdownExpanded = false
+                            },
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Tap handle") },
+                            onClick = {
+                                vm.setSheetGestureMode("tap")
+                                sheetGestureDropdownExpanded = false
+                            },
+                        )
+                    }
+                }
+            }
 
             Row(
                 modifier = Modifier

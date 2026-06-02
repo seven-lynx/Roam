@@ -66,6 +66,7 @@ class MainViewModel(
     private val WEB_DARK_KEY = "web_dark_mode"
     private val JS_ENABLED_KEY = "js_enabled"
     private val TRANSLATE_LANG_KEY = "translate_language"
+    private val SHEET_GESTURE_MODE_KEY = "sheet_gesture_mode"  // "slide" or "tap"
 
     private val _state = MutableStateFlow<RoamState>(RoamState.Idle)
     val state: StateFlow<RoamState> = _state.asStateFlow()
@@ -111,7 +112,7 @@ class MainViewModel(
     private val _rawUrl = MutableStateFlow<String?>(null)
     val rawUrl: StateFlow<String?> = _rawUrl.asStateFlow()
 
-    private val _webNavChannel = Channel<WebNavCommand>(Channel.CONFLATED)
+    private val _webNavChannel = Channel<WebNavCommand>(Channel.BUFFERED)
     val webNavFlow = _webNavChannel.receiveAsFlow()
 
     fun webNavBack()    { _webNavChannel.trySend(WebNavCommand.Back) }
@@ -178,6 +179,15 @@ class MainViewModel(
     fun setTranslateLanguage(lang: String) {
         _translateLanguage.value = lang
         prefs.edit().putString(TRANSLATE_LANG_KEY, lang).apply()
+    }
+
+    /** User preference: sheet gesture mode ("slide" = drag to open, "tap" = tap handle to toggle) */
+    private val _sheetGestureMode = MutableStateFlow(prefs.getString(SHEET_GESTURE_MODE_KEY, "slide") ?: "slide")
+    val sheetGestureMode: StateFlow<String> = _sheetGestureMode.asStateFlow()
+
+    fun setSheetGestureMode(mode: String) {
+        _sheetGestureMode.value = mode
+        prefs.edit().putString(SHEET_GESTURE_MODE_KEY, mode).apply()
     }
 
     /** Wraps [url] through Google Translate. */
@@ -280,6 +290,10 @@ class MainViewModel(
     /** Debounce job for profile auto-save */
     private var profileSaveJob: Job? = null
 
+    /** Cancels the previous roam() coroutine when a new one starts, preventing
+     *  concurrent API calls from racing and overwriting each other's results. */
+    private var roamJob: Job? = null
+
     // ── Connectivity + offline queue (14.9) ───────────────────────────────────
 
     /** True when the device has an active internet connection */
@@ -347,7 +361,13 @@ class MainViewModel(
     }
 
     fun roam(excludeDomain: String? = null) {
-        viewModelScope.launch {
+        // Default to excluding the current domain so the bottom-bar Roam button
+        // behaves the same as Thumbs Down / Report Broken Link — otherwise the
+        // API may return another dead URL from the same domain.
+        val effectiveExclude = excludeDomain ?: extractDomain(_rawUrl.value)
+
+        roamJob?.cancel()
+        roamJob = viewModelScope.launch {
             // Pop from the hot queue for an instant transition, skipping any entry from
             // the excluded domain or matching the current URL (avoids re-serving the same
             // page after a thumbs-down when the prefetch queue was built before the skip).
@@ -355,8 +375,8 @@ class MainViewModel(
                 var result: RoamUrl? = null
                 while (hotQueue.isNotEmpty()) {
                     val candidate = hotQueue.removeFirst()
-                    val sameDomain = excludeDomain != null &&
-                        extractDomain(candidate.url) == excludeDomain
+                    val sameDomain = effectiveExclude != null &&
+                        extractDomain(candidate.url) == effectiveExclude
                     val sameUrl = candidate.url == _rawUrl.value
                     if (!sameDomain && !sameUrl) {
                         result = candidate
@@ -384,7 +404,7 @@ class MainViewModel(
                 val outcome = runCatching {
                     repo.roam(
                         collectionId = _activeCollectionId.value,
-                        excludeDomain = excludeDomain,
+                        excludeDomain = effectiveExclude,
                         categoryId = if (_focusModeEnabled.value) _focusCategoryId.value else null,
                         subcategoryId = if (_focusModeEnabled.value) _focusSubcategoryId.value else null,
                     )
