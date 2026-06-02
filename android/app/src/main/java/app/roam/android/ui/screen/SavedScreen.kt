@@ -1,7 +1,6 @@
 package app.roam.android.ui.screen
 
 import android.content.Intent
-import android.net.Uri
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
@@ -55,6 +54,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.core.net.toUri
 import app.roam.android.model.Collection
 import app.roam.android.model.CollectionItem
 import app.roam.android.model.SavedUrl
@@ -64,7 +64,6 @@ import app.roam.android.viewmodel.MainViewModel
 @Composable
 fun SavedScreen(
     vm: MainViewModel,
-    onNavigateToDiscover: () -> Unit,
     onNavigateBack: () -> Unit = {},
 ) {
     val savedUrls by vm.savedUrls.collectAsState()
@@ -73,7 +72,6 @@ fun SavedScreen(
     val collectionItems by vm.collectionItems.collectAsState()
     val collectionItemsLoading by vm.collectionItemsLoading.collectAsState()
     var selectedTab by remember { mutableIntStateOf(0) }
-    val context = LocalContext.current
 
     // Load collections when the screen first appears
     LaunchedEffect(Unit) { vm.loadCollections() }
@@ -170,7 +168,7 @@ private fun SavedTab(
 
     // Keep selection consistent if items are removed while in selection mode
     LaunchedEffect(savedUrls) {
-        val validUrls = savedUrls.map { it.url }.toSet()
+        val validUrls = savedUrls.asSequence().map { it.url }.toSet()
         selectedUrls = selectedUrls.intersect(validUrls)
     }
 
@@ -287,7 +285,7 @@ private fun SavedTab(
                             SavedUrlRow(
                                 item = item,
                                 onClick = {
-                                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse(item.url))
+                                    val intent = Intent(Intent.ACTION_VIEW, item.url.toUri())
                                     context.startActivity(intent)
                                 },
                                 onLongClick = { selectedUrls = setOf(item.url) },
@@ -557,7 +555,7 @@ private fun CollectionDetailTab(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clickable {
-                                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(item.urls.url))
+                                val intent = Intent(Intent.ACTION_VIEW, item.urls.url.toUri())
                                 context.startActivity(intent)
                             }
                             .padding(horizontal = 16.dp, vertical = 12.dp),
@@ -571,7 +569,7 @@ private fun CollectionDetailTab(
                                 overflow = TextOverflow.Ellipsis,
                             )
                             Text(
-                                text = Uri.parse(item.urls.url).host ?: item.urls.url,
+                                text = item.urls.url.toUri().host ?: item.urls.url,
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
                                 maxLines = 1,
@@ -609,7 +607,7 @@ private fun SavedUrlRow(
                 overflow = TextOverflow.Ellipsis,
             )
             Text(
-                text = Uri.parse(item.url).host ?: item.url,
+                text = item.url.toUri().host ?: item.url,
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
                 maxLines = 1,
@@ -649,7 +647,7 @@ private fun SelectableUrlRow(
                 overflow = TextOverflow.Ellipsis,
             )
             Text(
-                text = Uri.parse(item.url).host ?: item.url,
+                text = item.url.toUri().host ?: item.url,
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
                 maxLines = 1,

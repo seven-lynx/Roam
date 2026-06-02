@@ -6,8 +6,9 @@ Native Android app built with Kotlin and Jetpack Compose. Users tap Roam to inst
 
 | Library | Purpose |
 |---|---|
-| Kotlin + Coroutines | Language + async |
-| Jetpack Compose (Material 3) | Declarative UI |
+| Kotlin | 2.2.10 (latest stable) |
+| Coroutines | Async |
+| Jetpack Compose (Material 3) | Declarative UI with full Material Design 3 polish |
 | Jetpack Navigation | Fragment-less nav |
 | Supabase Kotlin SDK `3.0.2` | Auth + DB + Storage + Edge Functions |
 | Ktor OkHttp engine | HTTP client |
@@ -125,6 +126,24 @@ cd android
 ```
 
 ## Key Features
+
+### Gesture-Based Discovery (Material Design 3)
+- **Swipe right** to like a page
+- **Swipe left** to skip
+- **Swipe down** for page details (title, source, image preview)
+- Full Material Design 3 polish with native Android look & feel (rebuilt Stage 14, May 2026)
+
+### Navigation
+- Intuitive back navigation: Settings ↔ Main, Profile ↔ Settings, Saved ↔ Settings
+- System back button support with context-aware routing
+
+### Smart Domain Blocking
+- Automatically blocks all subdomains after repeated downvotes (e.g., blocking `itch.io` blocks all `username.itch.io` variants, preventing spam from the same site)
+- 30-day suppression prevents repetitive content from dominating sessions
+
+### Focus Mode
+- Narrow discovery to specific topics or categories you select
+- Switch between focused and wide exploration on the fly
 
 ### Authentication
 

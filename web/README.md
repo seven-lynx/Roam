@@ -30,6 +30,7 @@ The Next.js 16 web application for Roam. The web surface is the account-manageme
 - **Moderation queue** — review and approve/reject submissions
 - **Submission details** — inspect metadata and Safe Browsing results
 - **Search / filtering** — work the queue efficiently
+- **Dashboard statistics** — 15 stat cards (content, engagement, users) with request-time caching; use the Refresh button to clear
 - **Undo / refresh** — correct mistakes and reload live data
 
 ## Route Map
@@ -41,6 +42,9 @@ The Next.js 16 web application for Roam. The web surface is the account-manageme
 | `/auth/callback` | Server Component | No | OAuth code exchange + routing |
 | `/forgot-password` | Client Component | No | Request password reset email |
 | `/auth/reset-password` | Client Component | No | Set new password from email link |
+| `/u/[username]` | Server Component | No | Public user profile + activity |
+| `/c/[slug]` | Server Component | No | Public collection view |
+| `/submit` | Client Component | No | Submit new URL for moderation |
 | `/profile` | Server shell + Client island | Yes | View / edit profile and categories |
 | `/settings` | Client Component | Yes | Preferences and account controls |
 | `/admin` | Server shell + Client Component | Yes (admin role) | Moderation queue |
@@ -61,7 +65,7 @@ Create `.env.local` in the `web/` directory:
 NEXT_PUBLIC_SUPABASE_URL=https://yrhckctwtdjowulfuaqc.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=sb_publishable_HNqqRWeISKlQ6TRvOvsAAQ_MqEbP5ak
 NEXT_PUBLIC_SENTRY_DSN=https://...@...ingest.us.sentry.io/...
-SENTRY_AUTH_TOKEN=your_sentry_auth_token  # Only needed in Vercel for source map uploads
+SENTRY_AUTH_TOKEN=your_sentry_auth_token  # Server-side only. Required in Vercel for @sentry/nextjs source map uploads
 ```
 
 ### Install & Run

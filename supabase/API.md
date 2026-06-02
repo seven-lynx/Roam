@@ -1,8 +1,8 @@
-# Roam Supabase API Reference
+ # Roam Supabase API Reference
 
 Complete documentation of all Supabase Edge Functions and PostgreSQL RPC functions used by Roam clients.
 
-**Last Updated:** 2026-05-02  
+**Last Updated:** 2026-05-31  
 **Base URL:** `https://<PROJECT_ID>.supabase.co`  
 **Authentication:** Bearer token in `Authorization: Bearer <JWT>` header (except public endpoints)
 
@@ -21,8 +21,11 @@ Complete documentation of all Supabase Edge Functions and PostgreSQL RPC functio
   - [`feedback` — Submit feedback](#feedback--submit-feedback)
   - [`report-url` — Report broken link](#report-url--report-broken-link)
   - [`log-failed-urls` — Log failed URLs](#log-failed-urls--log-failed-urls)
+  - [`export-user` — Export user data](#export-user--export-user-data)
+  - [`delete-user` — Delete user account](#delete-user--delete-user-account)
 - [RPC Functions (Database)](#rpc-functions-database)
   - [`roam()` — Weighted-random URL discovery](#roam--weighted-random-url-discovery)
+  - [`admin_url_stats()` — Fetch admin dashboard statistics](#admin_url_stats--fetch-admin-dashboard-statistics)
 - [Error Codes](#error-codes)
 - [Rate Limiting](#rate-limiting)
 - [Examples](#examples)
@@ -595,6 +598,95 @@ Extension/app internal endpoint: batch log failed URLs for moderation review.
 
 ---
 
+### `export-user` — Export user data
+
+Exports all user data as a JSON file for GDPR compliance. Returns a download link.
+
+**Endpoint:** `GET /functions/v1/export-user`
+
+**Authentication:** Required (Bearer token)
+
+**Response (200):**
+```json
+{
+  "ok": true,
+  "download_url": "https://...",
+  "expires_in_hours": 24
+}
+```
+
+**Error Responses:**
+- **401** — Unauthorized (invalid or missing token)
+- **429** — Rate limit exceeded (1 export per 24 hours per user)
+- **500** — Internal server error
+
+**Details:**
+- Generates a complete export of user profile, categories, ratings, collections, follows, and submission history
+- Exports as a timestamped JSON file (e.g., `roam-export-2026-05-31.json`)
+- Download link is valid for 24 hours
+- Rate limited to 1 export per 24 hours to prevent abuse
+- No PII like passwords or tokens is included in the export
+
+**Example (Web):**
+```typescript
+const response = await supabase.functions.invoke('export-user');
+if (response.data.ok) {
+  window.location.href = response.data.download_url;
+}
+```
+
+---
+
+### `delete-user` — Delete user account
+
+Permanently deletes the authenticated user and all associated data (GDPR right to be forgotten).
+
+**Endpoint:** `POST /functions/v1/delete-user`
+
+**Authentication:** Required (Bearer token)
+
+**Request Body:**
+```json
+{
+  "confirm": true  // Required confirmation to prevent accidental deletion
+}
+```
+
+**Response (200):**
+```json
+{
+  "ok": true,
+  "message": "Account deleted. You will be signed out."
+}
+```
+
+**Error Responses:**
+- **400** — Missing or false `confirm` field
+- **401** — Unauthorized (invalid or missing token)
+- **500** — Internal server error
+
+**Details:**
+- Deletes the user from `auth.users` (Supabase Auth)
+- Cascades delete all related records: profiles, ratings, collections, follows, submissions, saved URLs
+- This is irreversible and cannot be undone
+- User is immediately signed out after deletion
+- All public data (collections, posts) become orphaned but are retained for data integrity
+
+**Example (Web):**
+```typescript
+if (confirm('Are you sure? This cannot be undone.')) {
+  const response = await supabase.functions.invoke('delete-user', {
+    body: { confirm: true }
+  });
+  if (response.data.ok) {
+    // Browser will auto-sign-out; redirect to landing page
+    window.location.href = '/';
+  }
+}
+```
+
+---
+
 ## RPC Functions (Database)
 
 Called via `supabase.rpc()`, not HTTP. These are PostgreSQL functions that run server-side.
@@ -631,6 +723,55 @@ subcategory_label, source, language
 - **Empty pool:** Returns NULL row if no URLs match the filters
 
 **Implementation note:** Runs as `SECURITY DEFINER` (elevated privileges) to insert `seen_urls` rows automatically.
+
+---
+
+### `admin_url_stats()` — Fetch admin dashboard statistics
+
+Efficiently fetches aggregated dashboard statistics for the admin panel without timing out on the 3.1M-row `urls` table.
+
+**Call Signature:**
+```sql
+SELECT * FROM admin_url_stats(since_date timestamp = NULL)
+```
+
+**Parameters:**
+- `since_date` — Optional; defaults to 7 days ago. Filters "new this week" statistics.
+
+**Returns (single row):**
+```
+total_urls bigint,           -- Total approved, active URLs
+active_urls bigint,          -- Approved URLs with at least 1 vote
+dead_urls bigint,            -- URLs marked inactive
+new_urls_week bigint,        -- URLs added since since_date
+total_serves bigint,         -- Total serve_count across all URLs
+avg_wilson_score numeric,    -- Average Wilson score (rated URLs only)
+rated_urls bigint,           -- URLs with at least 1 vote
+unrated_urls bigint,         -- URLs with zero votes
+new_ratings_week bigint,     -- Ratings added since since_date
+active_users_week bigint     -- Unique users who rated URLs since since_date
+```
+
+**Details:**
+- **Performance:** Uses 4 separate subqueries with per-function `statement_timeout = '30s'` to avoid timeout on large scans
+- **Indexes:** Backed by 3 partial/BRIN indexes on `urls(serve_count, wilson_score, active_date)` where `approved=true AND inactive=false`
+- **Caching:** Results cached client-side via Next.js `unstable_cache` with 5-minute TTL
+- **Freshness:** Dashboard provides manual Refresh button to clear cache and fetch latest stats
+- **Admin-only:** Only callable by users with `role = 'admin'` (enforced by RLS policy)
+
+**Implementation note:** Uses `SECURITY DEFINER` to bypass RLS for efficient aggregation; RLS enforced at function call site.
+
+**Example (Web admin page):**
+```typescript
+const stats = await supabase.rpc('admin_url_stats', {
+  since_date: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
+});
+
+console.log(`Total URLs: ${stats.data.total_urls}`);
+console.log(`Dead URLs: ${stats.data.dead_urls}`);
+console.log(`Avg Wilson: ${stats.data.avg_wilson_score.toFixed(3)}`);
+console.log(`Active users (7d): ${stats.data.active_users_week}`);
+```
 
 ---
 

@@ -21,14 +21,13 @@ Press the button and land on a real page, curated by real users, matched to what
 
 ## How the algorithm works
 
-The discovery function runs directly in PostgreSQL. When you press the button, it balances four signals to pick a page you'll likely enjoy:
+The discovery function runs directly in PostgreSQL. When you press the button, it balances five signals to pick a page you'll likely enjoy:
 
-- **Community quality** — statistically-correct ranking that handles small vote counts fairly
+- **Community quality** — statistically-correct ranking (Wilson score) that handles small vote counts fairly
 - **Editorial signal** — source reputation (HN score, citation count, Reddit karma, etc.)
-- **Your taste** — topics you upvote more often surface more; topics you downvote dial back
+- **Your taste** — topics you upvote more often surface more; topics you downvote dial back. Calibrated per subcategory.
 - **Freshness** — recently published pages get a mild boost; very old ones fade gradually
-
-There's also a small bonus for pages nobody has rated yet, to keep fresh content circulating rather than the same well-worn URLs.
+- **Exploration bonus** — newly seeded pages receive a small boost to keep fresh content circulating
 
 
 ---
@@ -39,13 +38,14 @@ There's also a small bonus for pages nobody has rated yet, to keep fresh content
 - One button, filtered to your interests
 - 30-minute domain cooldown prevents seeing the same site twice in a row
 - 12% chance of an adjacent topic in discovery mode — intentional serendipity
-- Deep dive mode narrows to your top-3 subcategories by calibrated weight
+- Focus mode lets you narrow discovery to specific topics or categories you select
 - Collection mode stays within a saved list
 
 **Personalisation**
-- Topic affinity: upvoting a topic more often increases how frequently it appears (up to 2× weight; floor 0.4×). Downvoting doesn't hide a topic — it just dials the weight back slightly.
+- Topic affinity: upvoting a topic more often increases how frequently it appears (up to 2× weight; floor 0.4×). Downvoting doesn't hide a topic — it just dials the weight back slightly. Calibrated per subcategory.
 - Domain muting: two downvotes from the same domain triggers a 30-day auto-mute
 - Language filter, paywall opt-out
+- Subcategories: the system tracks your preferences within 20+ subcategories (e.g., Science, Art, Gaming) for more granular personalization
 
 **Community**
 - URL submission with moderation queue and duplicate detection
@@ -93,7 +93,7 @@ See [web/README.md](web/README.md) for the authoritative route map and UI spec.
 
 ### Backend — Supabase (PostgreSQL)
 
-The database does the heavy lifting. Discovery runs as a `plpgsql` RPC (`roam()`) invoked via a Deno Edge Function. Row-Level Security enforces all access control at the database level.
+The database does the heavy lifting. Discovery runs as a `plpgsql` RPC (`roam()`) invoked via a Deno Edge Function. Row-Level Security enforces all access control at the database level. Every successful discovery is tracked via `serve_count` for analytics.
 
 Edge Functions (Deno) handle operations that need more than a simple query: `roam`, `rate`, `submit-url`, `save-url`, `collection`, `follow`, `profile`, `feedback`, `report-url`, `log-failed-urls`, `delete-user`, `export-user`.
 

@@ -5,6 +5,7 @@ import android.os.Handler
 import android.os.Looper
 import android.webkit.CookieManager
 import android.webkit.RenderProcessGoneDetail
+import android.webkit.WebChromeClient
 import android.webkit.WebResourceError
 import android.webkit.WebResourceRequest
 import android.webkit.WebStorage
@@ -36,6 +37,7 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import android.graphics.Bitmap
 import android.graphics.Canvas
+import androidx.core.graphics.createBitmap
 import androidx.compose.foundation.Image
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
@@ -113,7 +115,7 @@ fun RoamWebView(
                 Lifecycle.Event.ON_PAUSE -> {
                     webViewRef.value?.let {
                         if (it.width > 0 && it.height > 0) {
-                            val bmp = Bitmap.createBitmap(it.width, it.height, Bitmap.Config.ARGB_8888)
+                            val bmp = createBitmap(it.width, it.height, Bitmap.Config.ARGB_8888)
                             it.draw(Canvas(bmp))
                             snapshotBitmap = bmp
                         }
@@ -192,8 +194,16 @@ fun RoamWebView(
                         WebSettingsCompat.setForceDark(settings, WebSettingsCompat.FORCE_DARK_ON)
                     }
                 }
+                webChromeClient = object : WebChromeClient() {
+                    override fun onProgressChanged(view: WebView, newProgress: Int) {
+                        // Hide loading overlay early once the page is 70% loaded
+                        if (newProgress >= 70) {
+                            onLoadingChanged(false)
+                        }
+                    }
+                }
                 webViewClient = object : WebViewClient() {
-                    override fun onPageStarted(view: WebView, url: String, favicon: android.graphics.Bitmap?) {
+                    override fun onPageStarted(view: WebView, url: String, favicon: Bitmap?) {
                         onLoadingChanged(true)
                     }
                     override fun onPageFinished(view: WebView, loadedUrl: String) {

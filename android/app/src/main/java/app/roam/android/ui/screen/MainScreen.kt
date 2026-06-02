@@ -1,7 +1,6 @@
 package app.roam.android.ui.screen
 
 import android.content.Intent
-import android.net.Uri
 import androidx.browser.customtabs.CustomTabsIntent
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
@@ -48,6 +47,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.core.net.toUri
 import app.roam.android.MainActivity
 import app.roam.android.ui.component.BottomBar
 import app.roam.android.ui.component.ConfigBottomSheet
@@ -65,7 +65,6 @@ fun MainScreen(
     onSignOut: () -> Unit = {},
 ) {
     val context = LocalContext.current
-
     // Track the active tab without NavController so DiscoverTab is never destroyed
     var currentTab by rememberSaveable { mutableStateOf(RoamTab.Roam.route) }
     val focusModeEnabled by vm.focusModeEnabled.collectAsState()
@@ -127,7 +126,6 @@ fun MainScreen(
             ) {
                 SavedScreen(
                     vm = vm,
-                    onNavigateToDiscover = { currentTab = RoamTab.Roam.route },
                     onNavigateBack = { currentTab = RoamTab.Settings.route },
                 )
             }
@@ -190,12 +188,12 @@ private fun DiscoverTab(
     // (by clicking a link), don't show the overlay — they're exploring, not waiting for a new roam.
     val loaded = state as? RoamState.Loaded
     val isRoaming = state is RoamState.Loading || 
-                    (currentUrl == loaded?.roamUrl?.url && (webViewLoading || currentUrl != lastLoadedUrl))
+                    (currentUrl == loaded?.roamUrl?.url && (webViewLoading || (currentUrl != lastLoadedUrl)))
     val categoryName: String? = loaded?.roamUrl?.categoryId
         ?.let { catId -> categories.firstOrNull { it.id == catId }?.let { "${it.icon} ${it.name}" } }
     val subcategoryName: String? = loaded?.roamUrl?.subcategoryId
         ?.let { subId -> subcategories.firstOrNull { it.id == subId }?.name }
-    val domain: String? = rawUrl?.let { Uri.parse(it).host?.removePrefix("www.") }
+    val domain: String? = rawUrl?.let { it.toUri().host?.removePrefix("www.") }
 
     // Persist last-known values so they stay visible between roams
     var lastCategoryName by remember { mutableStateOf<String?>(null) }
@@ -206,9 +204,9 @@ private fun DiscoverTab(
     var isSheetAnimationRunning by remember { mutableStateOf(false) }
 
     if (!isRoaming) {
-        if (categoryName != null) lastCategoryName = categoryName
-        if (subcategoryName != null) lastSubcategoryName = subcategoryName
-        if (domain != null) lastDomain = domain
+        categoryName?.let { lastCategoryName = it }
+        subcategoryName?.let { lastSubcategoryName = it }
+        domain?.let { lastDomain = it }
     } else {
         lastCategoryName = null
         lastSubcategoryName = null
@@ -251,7 +249,7 @@ private fun DiscoverTab(
                                     } else {
                                         scaffoldState.bottomSheetState.expand()
                                     }
-                                } catch (e: Exception) {
+                                } catch (_: Exception) {
                                     // Silently handle state transition errors - state may already be animating
                                 } finally {
                                     isSheetAnimationRunning = false
@@ -338,7 +336,7 @@ private fun DiscoverTab(
                 },
                 onCategoryPrefs = {
                     CustomTabsIntent.Builder().build()
-                        .launchUrl(activity, Uri.parse("https://roamtheweb.app/profile"))
+                        .launchUrl(activity, "https://roamtheweb.app/profile".toUri())
                     scope.launch { scaffoldState.bottomSheetState.partialExpand() }
                 },
                 onNavBack = {
@@ -430,9 +428,9 @@ private fun DiscoverTab(
                                 overflow = TextOverflow.Ellipsis,
                                 modifier = Modifier.weight(1f),
                             )
-                            if (displaySubcategory != null) {
+                            displaySubcategory?.let {
                                 Text(
-                                    text = displaySubcategory,
+                                    text = it,
                                     style = MaterialTheme.typography.labelMedium,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
                                     maxLines = 1,

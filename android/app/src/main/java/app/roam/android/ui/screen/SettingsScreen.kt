@@ -44,6 +44,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.core.net.toUri
 import app.roam.android.BuildConfig
 import app.roam.android.model.SubcategoryItem
 import app.roam.android.viewmodel.MainViewModel
@@ -369,7 +370,7 @@ fun SettingsScreen(
                 subtitle = "Tell us what you think",
                 onClick = {
                     val intent = Intent(Intent.ACTION_SENDTO).apply {
-                        data = Uri.parse("mailto:developer@roamtheweb.app")
+                        data = "mailto:developer@roamtheweb.app".toUri()
                         putExtra(Intent.EXTRA_SUBJECT, "Roam feedback")
                     }
                     context.startActivity(Intent.createChooser(intent, "Send feedback"))

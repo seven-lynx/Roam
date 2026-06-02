@@ -7,20 +7,27 @@ import androidx.compose.material.icons.filled.ThumbDown
 import androidx.compose.material.icons.filled.ThumbUp
 import androidx.compose.material.icons.outlined.Explore
 import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material.icons.outlined.ThumbDown
+import androidx.compose.material.icons.outlined.ThumbUp
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 
-enum class RoamTab(val route: String, val label: String) {
-    Roam("discover", "Roam"),
-    Settings("settings", "Settings"),
+enum class RoamTab(val route: String) {
+    Roam("discover"),
+    Settings("settings"),
     // Accessible via Settings, not bottom bar
-    Saved("saved", "Saved"),
-    Profile("profile", "Profile"),
+    Saved("saved"),
+    Profile("profile"),
 }
 
 @Composable
@@ -28,17 +35,46 @@ fun BottomBar(
     currentRoute: String,
     onThumbsDown: () -> Unit,
     onThumbsUp: () -> Unit,
+    modifier: Modifier = Modifier,
     onRoam: () -> Unit = {},
     onNavigate: (String) -> Unit = {},
     focusModeEnabled: Boolean = false,
-    modifier: Modifier = Modifier,
 ) {
+    // Track recent clicks for temporary highlight feedback
+    var recentLikeClick by remember { mutableStateOf(false) }
+    var recentSkipClick by remember { mutableStateOf(false) }
+
+    // Auto-reset like click after 500ms
+    LaunchedEffect(recentLikeClick) {
+        if (recentLikeClick) {
+            kotlinx.coroutines.delay(500)
+            recentLikeClick = false
+        }
+    }
+
+    // Auto-reset skip click after 500ms
+    LaunchedEffect(recentSkipClick) {
+        if (recentSkipClick) {
+            kotlinx.coroutines.delay(500)
+            recentSkipClick = false
+        }
+    }
+
     NavigationBar(modifier = modifier) {
         // Thumbs Down
         NavigationBarItem(
             selected = false,
-            onClick = onThumbsDown,
-            icon = { Icon(Icons.Filled.ThumbDown, contentDescription = "Skip", tint = MaterialTheme.colorScheme.onSurfaceVariant) },
+            onClick = {
+                recentSkipClick = true
+                onThumbsDown()
+            },
+            icon = {
+                Icon(
+                    if (recentSkipClick) Icons.Filled.ThumbDown else Icons.Outlined.ThumbDown,
+                    contentDescription = "Skip",
+                    tint = if (recentSkipClick) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            },
             label = { Text("Skip", style = MaterialTheme.typography.labelSmall) },
         )
 
@@ -91,8 +127,17 @@ fun BottomBar(
         // Thumbs Up
         NavigationBarItem(
             selected = false,
-            onClick = onThumbsUp,
-            icon = { Icon(Icons.Filled.ThumbUp, contentDescription = "Like", tint = MaterialTheme.colorScheme.primary) },
+            onClick = {
+                recentLikeClick = true
+                onThumbsUp()
+            },
+            icon = {
+                Icon(
+                    if (recentLikeClick) Icons.Filled.ThumbUp else Icons.Outlined.ThumbUp,
+                    contentDescription = "Like",
+                    tint = if (recentLikeClick) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            },
             label = { Text("Like", style = MaterialTheme.typography.labelSmall) },
         )
     }

@@ -1,0 +1,44 @@
+Roam 1.0.2 Release Notes
+
+Version: 1.0.2
+Release Date: June 2, 2026
+Status: Beta testing via Firebase
+
+Major update: This build completes the Material Design 3 redesign, adds robust offline support, refines navigation, and includes significant stability and performance improvements.
+
+What's new
+- Material Design 3 UI overhaul — Modern, polished interface with updated typography, colors, and component spacing throughout the app
+- System back button integration — Proper Android back navigation stack with predictable behavior (back within page, then back to previous page, then exit app)
+- Swipe gesture support — Smooth swipe-up for bottom sheet actions, swipe navigation between tabs, and refined gesture-based controls
+- True offline support — Rate URLs while offline; queued ratings automatically sync when connectivity returns, with duplicate prevention
+- Domain exclusion refinement — Block registrable domains (e.g., itch.io) instead of full hostnames, preventing workarounds via subdomains (username.itch.io and otheruser.itch.io both excluded)
+
+Bug fixes and quality improvements
+- WebView stability — Fixed white screen on app resume, improved recovery from transient renderer crashes, better handling of memory pressure scenarios
+- Navigation reliability — System back button now correctly maintains navigation stack; no more accidental app exits or unexpected navigation jumps
+- Offline queue robustness — Enhanced sync logic to prevent duplicate rating submissions, improved retry behavior on transient network errors, persistent queue storage
+- Bottom sheet UX — Refined dismiss interactions, better touch target sizing, prevented accidental action triggers from swipe gestures
+- Performance — Reduced jank when loading pages with embedded media, improved scrolling smoothness, optimized WebView memory usage
+- Error handling — Better messaging for transient failures; clearer distinction between network errors, server errors, and client-side issues
+
+Testing focus areas
+1) Domain exclusion — Block a subdomain (e.g., username.itch.io), roam, verify other subdomains from same parent (otheruser.itch.io) are also blocked
+2) Back navigation — Navigate through tabs, open a URL, tap back—verify consistent stack behavior; test back from collections, search, and settings
+3) Offline workflow — Disable network, rate 5+ URLs, check exclusions, then re-enable network—confirm all queued actions sync without duplicates or loss
+4) Rapid interactions — Quickly roam, rate down, report broken link, roam again—verify no UI freezes, crashes, or state corruption
+5) Background/resume — Background app on a URL, wait 1+ minute, return to app—confirm page loads cleanly without white screen
+6) Swipe gestures — Test bottom sheet swipe-up/down, tab swipe navigation, and pull-to-refresh—verify smooth, responsive behavior
+7) Memory pressure — Run on a device with low available RAM; background app, open other apps, resume—verify graceful recovery
+
+Feedback
+- Report regressions from 1.0.1 or new issues with exact reproduction steps
+- Domain exclusion feedback especially welcome—let us know if blocking behavior feels too broad or narrow
+- Offline sync edge cases (poor connectivity, rapid toggling) are high priority
+- Include device model, Android version, RAM, and exact steps to reproduce for UI/performance issues
+
+Known limitations
+- Beta build; some workflows may continue to evolve based on feedback
+- Registrable domain blocking uses public suffix list logic—.co.uk sites block the entire .co.uk domain (not just .uk)
+- App background/resume behavior depends on available system memory; very low-memory devices may experience app restart
+- Offline queue persists across app sessions but is cleared on app uninstall
+- Swipe gestures may feel different on tablets due to larger touch surfaces (feedback welcome)

@@ -12,6 +12,7 @@ Roam’s backend runs on Supabase and provides authentication, the PostgreSQL sc
 ## Current responsibilities
 
 - Serve the discovery RPC that the app clients call to get a URL
+- 12 Deno Edge Functions for complex operations (roam, rate, submit-url, save-url, collection, follow, profile, feedback, report-url, log-failed-urls, delete-user, export-user)
 - Persist users, URLs, ratings, collections, follows, and moderation data
 - Enforce access control with RLS instead of client-side trust
 - Keep the public HTTP API documented in one place: [API.md](API.md)
