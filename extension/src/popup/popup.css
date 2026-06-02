@@ -60,6 +60,15 @@ body {
   margin: 0;
 }
 
+/* ── Submit inline success ──────────────────────────────────────────────── */
+.submit-success {
+  color: #2a9d5c;
+  font-size: 12px;
+  text-align: center;
+  padding: 0 4px;
+  margin: 0;
+}
+
 /* ── Status bar ───────────────────────────────────────────────────────── */
 .status-bar {
   padding: 0 10px 6px;

@@ -605,7 +605,11 @@ document.addEventListener('DOMContentLoaded', () => {
       submitErr.hidden = false;
       return;
     }
-    window.close();
+    const submitSuccess = el<HTMLParagraphElement>('submit-success');
+    submitSuccess.textContent = 'Submitted for review!';
+    submitSuccess.hidden = false;
+    el<HTMLButtonElement>('btn-submit').disabled = true;
+    setTimeout(() => window.close(), 2000);
   });
 
   // ── Config panel actions ──────────────────────────────────────────────────
