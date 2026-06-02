@@ -552,10 +552,10 @@ class MainViewModel(
                     }
                 }
 
-                // Phase 2: promote warm → hot (HEAD-validate up to 2 URLs concurrently)
+                // Phase 2: promote warm → hot (HEAD-validate up to 3 URLs concurrently)
                 if (!hotDone) {
                     val batch = prefetchMutex.withLock {
-                        val size = minOf(2, warmQueue.size)  // Validate up to 2 URLs in parallel
+                        val size = minOf(3, warmQueue.size)  // Validate up to 3 URLs in parallel
                         (1..size).mapNotNull { if (warmQueue.isNotEmpty()) warmQueue.removeFirst() else null }
                     }
                     if (batch.isNotEmpty()) {
