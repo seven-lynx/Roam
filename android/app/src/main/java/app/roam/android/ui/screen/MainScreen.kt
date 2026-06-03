@@ -22,7 +22,6 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.statusBars
-import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.material3.BottomSheetScaffold
 import androidx.compose.material3.SheetValue
 import androidx.compose.material3.CircularProgressIndicator
@@ -251,6 +250,10 @@ private fun DiscoverTab(
         sheetTonalElevation = 0.dp,
         sheetSwipeEnabled = sheetGestureMode == "slide",
         sheetDragHandle = {
+            // Push the handle (and therefore the whole expanded sheet) below the status bar.
+            // The handle is the topmost element in the sheet layout, so inset it here rather
+            // than in sheetContent — that way handle and content stay connected.
+            Box(modifier = Modifier.windowInsetsPadding(WindowInsets.statusBars)) {
             // Full-width invisible hit area so drag works everywhere across the bump
             if (sheetGestureMode == "tap") {
                 // Tap mode: clickable handle to toggle sheet
@@ -309,14 +312,11 @@ private fun DiscoverTab(
                     }
                 }
             }
+            } // end status bar inset Box
         },
         sheetContent = {
-            // Reserve status bar space so the sheet can't expand over it
-            val statusBarPadding = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
             Surface(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = statusBarPadding),
+                modifier = Modifier.fillMaxWidth(),
                 color = MaterialTheme.colorScheme.surfaceContainer,
                 shape = RoundedCornerShape(0.dp),
             ) {
