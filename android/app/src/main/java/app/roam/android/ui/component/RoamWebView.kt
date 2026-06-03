@@ -198,14 +198,7 @@ fun RoamWebView(
                         WebSettingsCompat.setForceDark(settings, WebSettingsCompat.FORCE_DARK_ON)
                     }
                 }
-                webChromeClient = object : WebChromeClient() {
-                    override fun onProgressChanged(view: WebView, newProgress: Int) {
-                        // Hide loading overlay early once the page is 60% loaded
-                        if (newProgress >= 60) {
-                            onLoadingChanged(false)
-                        }
-                    }
-                }
+                webChromeClient = WebChromeClient()
                 webViewClient = object : WebViewClient() {
                     override fun onPageStarted(view: WebView, url: String, favicon: Bitmap?) {
                         onLoadingChanged(true)

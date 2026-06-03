@@ -19,7 +19,7 @@ What's new
 - Code cleanup — Removed deprecated discoveryMode code as part of Focus mode transition for cleaner codebase and reduced maintenance surface
 - Background page preloading (opt-in) — New "Preload next page" setting loads the next queued URL in a hidden background WebView while you're reading the current one, warming the cache so the loading overlay clears significantly faster on subsequent roams
 - Queue size and throughput improvements — Hot queue expanded from 10 to 12 slots and warm-fill batch size increased, reducing fallback-to-API frequency for rapid tappers
-- Earlier content reveal — Loading overlay now hides at 60% page progress (down from 70%), revealing content sooner while the remainder loads in the background
+- Loading overlay flash fix — Overlay now waits for the page to fully commit before dismissing, eliminating the flash of the previous page's content that appeared briefly after the overlay disappeared
 
 Bug fixes and quality improvements
 - Menu gesture handling — Added debouncing and error handling to prevent rapid tap crashes; now checks for both Expanded and PartiallyExpanded sheet states
@@ -44,7 +44,7 @@ Testing focus areas
 10) Offline workflow — Disable network, rate URLs, roam, check exclusions—re-enable network and confirm all queued actions sync without issues
 11) Back navigation — Navigate freely, then use system back button—verify consistent stack behavior and no crashes
 12) Background preload (opt-in) — Enable "Preload next page" in Settings → Browser; roam several times on WiFi—verify the loading overlay clears noticeably faster after the first tap; verify no ANR or excess memory pressure; toggle off and confirm no background network traffic
-13) Content reveal timing — Roam to a mid-weight page; verify content becomes visible around the 60% progress mark rather than waiting for full load
+13) Overlay flash — Roam repeatedly; verify the loading overlay dismisses cleanly onto the new page's content with no flash of the previous page visible
 
 Feedback
 - Report menu crashes with exact gesture sequence and device model
