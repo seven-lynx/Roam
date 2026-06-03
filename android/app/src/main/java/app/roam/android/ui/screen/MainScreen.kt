@@ -18,7 +18,11 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.material3.BottomSheetScaffold
 import androidx.compose.material3.SheetValue
 import androidx.compose.material3.CircularProgressIndicator
@@ -307,8 +311,12 @@ private fun DiscoverTab(
             }
         },
         sheetContent = {
+            // Reserve status bar space so the sheet can't expand over it
+            val statusBarPadding = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
             Surface(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = statusBarPadding),
                 color = MaterialTheme.colorScheme.surfaceContainer,
                 shape = RoundedCornerShape(0.dp),
             ) {
