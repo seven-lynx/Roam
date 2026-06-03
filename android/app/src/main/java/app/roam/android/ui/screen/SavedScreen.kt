@@ -17,9 +17,11 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Collections
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -120,6 +122,7 @@ fun SavedScreen(
                 CollectionDetailTab(
                     items = collectionItems,
                     isLoading = collectionItemsLoading,
+                    onRemoveItem = { urlId -> vm.removeItemFromCollection(selectedCollection!!.id, urlId) },
                 )
             } else {
                 TabRow(selectedTabIndex = selectedTab) {
@@ -140,12 +143,22 @@ fun SavedScreen(
 
                 when (selectedTab) {
                     0 -> SavedTab(savedUrls = savedUrls, collections = collections, vm = vm)
-                    1 -> CollectionsTab(
-                        collections = collections,
-                        onOpenCollection = { vm.openCollection(it) },
-                        onRenameCollection = { id, name -> vm.renameCollection(id, name) },
-                        onDeleteCollection = { id -> vm.deleteCollection(id) },
-                    )
+                    1 -> {
+                        val context = LocalContext.current
+                        CollectionsTab(
+                            collections = collections,
+                            onOpenCollection = { vm.openCollection(it) },
+                            onRenameCollection = { id, name -> vm.renameCollection(id, name) },
+                            onDeleteCollection = { id -> vm.deleteCollection(id) },
+                            onUpdateCollectionPublic = { id, isPublic -> vm.updateCollectionPublic(id, isPublic) },
+                            onShareCollection = { slug ->
+                                val url = "https://roamtheweb.app/c/$slug"
+                                val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                                clipboard.setPrimaryClip(android.content.ClipData.newPlainText("Collection URL", url))
+                                vm.showTransientToast("Link copied to clipboard")
+                            },
+                        )
+                    }
                 }
             }
         }
@@ -377,6 +390,8 @@ private fun CollectionsTab(
     onOpenCollection: (Collection) -> Unit,
     onRenameCollection: (id: String, name: String) -> Unit,
     onDeleteCollection: (id: String) -> Unit,
+    onUpdateCollectionPublic: (id: String, isPublic: Boolean) -> Unit,
+    onShareCollection: (slug: String) -> Unit,
 ) {
     if (collections.isEmpty()) {
         Box(
@@ -406,6 +421,7 @@ private fun CollectionsTab(
         var renameTarget by remember { mutableStateOf<Collection?>(null) }
         var renameText by remember { mutableStateOf("") }
         var deleteTarget by remember { mutableStateOf<Collection?>(null) }
+        var copiedCollectionId by remember { mutableStateOf<String?>(null) }
 
         LazyColumn(modifier = Modifier.fillMaxSize()) {
             items(collections, key = { it.id }) { collection ->
@@ -424,10 +440,19 @@ private fun CollectionsTab(
                             overflow = TextOverflow.Ellipsis,
                         )
                         Text(
-                            text = "${collection.itemCount} items",
+                            text = "${collection.itemCount} items${if (collection.isPublic) " • Public" else ""}",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.55f),
                         )
+                    }
+                    if (collection.isPublic) {
+                        IconButton(onClick = { onShareCollection(collection.slug); copiedCollectionId = collection.id }) {
+                            Icon(
+                                imageVector = Icons.Filled.Share,
+                                contentDescription = "Share collection",
+                                tint = MaterialTheme.colorScheme.primary,
+                            )
+                        }
                     }
                     Box {
                         IconButton(onClick = { menuCollection = collection }) {
@@ -441,6 +466,23 @@ private fun CollectionsTab(
                             expanded = menuCollection?.id == collection.id,
                             onDismissRequest = { menuCollection = null },
                         ) {
+                            if (collection.isPublic) {
+                                DropdownMenuItem(
+                                    text = { Text("Make private") },
+                                    onClick = {
+                                        onUpdateCollectionPublic(collection.id, false)
+                                        menuCollection = null
+                                    },
+                                )
+                            } else {
+                                DropdownMenuItem(
+                                    text = { Text("Make public") },
+                                    onClick = {
+                                        onUpdateCollectionPublic(collection.id, true)
+                                        menuCollection = null
+                                    },
+                                )
+                            }
                             DropdownMenuItem(
                                 text = { Text("Rename") },
                                 onClick = {
@@ -520,6 +562,7 @@ private fun CollectionsTab(
 private fun CollectionDetailTab(
     items: List<CollectionItem>,
     isLoading: Boolean,
+    onRemoveItem: (urlId: String) -> Unit = {},
 ) {
     val context = LocalContext.current
 
@@ -574,6 +617,16 @@ private fun CollectionDetailTab(
                                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
+                            )
+                        }
+                        IconButton(
+                            onClick = { onRemoveItem(item.urls.id) },
+                            modifier = Modifier.padding(start = 8.dp),
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.Close,
+                                contentDescription = "Remove from collection",
+                                tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f),
                             )
                         }
                     }

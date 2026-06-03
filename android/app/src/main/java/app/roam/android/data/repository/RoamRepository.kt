@@ -240,6 +240,30 @@ class RoamRepository {
     }
 
     /**
+     * Toggles a collection's public/private status.
+     */
+    suspend fun updateCollectionPublic(collectionId: String, isPublic: Boolean) {
+        val body = buildJsonObject {
+            put("action", "update")
+            put("id", collectionId)
+            put("is_public", isPublic)
+        }
+        supabase.functions.invoke("collection", body = body)
+    }
+
+    /**
+     * Removes a URL item from a collection.
+     */
+    suspend fun removeItemFromCollection(collectionId: String, urlId: String) {
+        val body = buildJsonObject {
+            put("action", "remove_item")
+            put("collection_id", collectionId)
+            put("url_id", urlId)
+        }
+        supabase.functions.invoke("collection", body = body)
+    }
+
+    /**
      * Looks up the URL record for [url] — returns its ID and category_id if known.
      */
     suspend fun checkUrl(url: String): RoamUrl? {

@@ -444,6 +444,69 @@ private fun DiscoverTab(
             }
         }
 
+        // ── Status messages (top) ─────────────────────────────────────────────
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(MaterialTheme.colorScheme.surfaceContainer),
+        ) {
+            // "Saved!" confirmation message
+            if (savedConfirmation) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(MaterialTheme.colorScheme.secondaryContainer)
+                        .padding(horizontal = 16.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        "Saved for later",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSecondaryContainer,
+                    )
+                }
+            }
+
+            // "Reported" confirmation message
+            if (reportConfirmation) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(MaterialTheme.colorScheme.secondaryContainer)
+                        .padding(horizontal = 16.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        "Dead link reported — loading next page",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSecondaryContainer,
+                    )
+                }
+            }
+
+            // Submit result message
+            submitToast?.let { msg ->
+                val isError = msg.startsWith("Couldn't")
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(
+                            if (isError) MaterialTheme.colorScheme.errorContainer
+                            else MaterialTheme.colorScheme.secondaryContainer
+                        )
+                        .padding(horizontal = 16.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        msg,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = if (isError) MaterialTheme.colorScheme.onErrorContainer
+                                else MaterialTheme.colorScheme.onSecondaryContainer,
+                    )
+                }
+            }
+        }
+
         // ── WebView area ─────────────────────────────────────────────────────
         Box(
             modifier = Modifier
@@ -489,68 +552,10 @@ private fun DiscoverTab(
                 }
             }
 
-            // "Saved!" confirmation snackbar
-            if (savedConfirmation) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .align(Alignment.BottomCenter)
-                        .background(MaterialTheme.colorScheme.secondaryContainer)
-                        .padding(horizontal = 16.dp, vertical = 10.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Text(
-                        "Saved for later",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSecondaryContainer,
-                    )
-                }
-            }
 
-            // "Reported" confirmation snackbar
-            if (reportConfirmation) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .align(Alignment.BottomCenter)
-                        .background(MaterialTheme.colorScheme.secondaryContainer)
-                        .padding(horizontal = 16.dp, vertical = 10.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Text(
-                        "Dead link reported — loading next page",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSecondaryContainer,
-                    )
-                }
-            }
-
-            // Submit result toast
-            submitToast?.let { msg ->
-                val isError = msg.startsWith("Couldn't")
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .align(Alignment.BottomCenter)
-                        .background(
-                            if (isError) MaterialTheme.colorScheme.errorContainer
-                            else MaterialTheme.colorScheme.secondaryContainer
-                        )
-                        .padding(horizontal = 16.dp, vertical = 10.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Text(
-                        msg,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = if (isError) MaterialTheme.colorScheme.onErrorContainer
-                                else MaterialTheme.colorScheme.onSecondaryContainer,
-                    )
-                }
-            }
-
-        }
         }
     }
+}
 
     if (showSubmitSheet) {
         SubmitBottomSheet(

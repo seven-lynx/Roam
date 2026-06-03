@@ -116,6 +116,9 @@ class MainViewModel(
     /** The canonical (un-translated) URL from the discovery API — never a Google Translate wrapper */
     private val _rawUrl = MutableStateFlow<String?>(null)
     val rawUrl: StateFlow<String?> = _rawUrl.asStateFlow()
+    // Tracks the previous roam URL so onWebViewUrlChanged can drop stale onPageFinished
+    // callbacks that arrive after roam() has already advanced to a new destination.
+    private var previousRawUrl: String? = null
 
     private val _webNavChannel = Channel<WebNavCommand>(Channel.BUFFERED)
     val webNavFlow = _webNavChannel.receiveAsFlow()
@@ -363,6 +366,8 @@ class MainViewModel(
     }
 
     fun roam(excludeDomain: String? = null) {
+        haptic(getApplication())
+
         // Default to excluding the current domain so the bottom-bar Roam button
         // behaves the same as Thumbs Down / Report Broken Link — otherwise the
         // API may return another dead URL from the same domain.
@@ -388,6 +393,7 @@ class MainViewModel(
             }
 
             if (prefetched != null) {
+                previousRawUrl = _rawUrl.value
                 _rawUrl.value = prefetched.url
                 _currentUrl.value = prefetched.url
                 _autoTranslate.value = false
@@ -437,6 +443,7 @@ class MainViewModel(
                 if (roamUrl == null) {
                     _state.value = RoamState.Exhausted
                 } else {
+                    previousRawUrl = _rawUrl.value
                     _rawUrl.value = roamUrl.url
                     _currentUrl.value = roamUrl.url
                     _autoTranslate.value = false
@@ -637,22 +644,26 @@ class MainViewModel(
 
     fun thumbsDown(context: Context) {
         val loaded = _state.value as? RoamState.Loaded
+        val excludeDomain = extractDomain(_rawUrl.value)
         viewModelScope.launch {
             haptic(context)
             if (loaded != null) {
-                val result = runCatching { repo.rate(loaded.roamUrl.id, -1) }
-                if (result.isFailure) {
-                    val err = result.exceptionOrNull()
-                    if (err != null && isOfflineError(err)) {
-                        pendingRatingsMutex.withLock {
-                            pendingRatings.addLast(PendingRating(loaded.roamUrl.id, -1))
+                // Fire the rating in the background — don't wait for it before showing next page
+                launch {
+                    val result = runCatching { repo.rate(loaded.roamUrl.id, -1) }
+                    if (result.isFailure) {
+                        val err = result.exceptionOrNull()
+                        if (err != null && isOfflineError(err)) {
+                            pendingRatingsMutex.withLock {
+                                pendingRatings.addLast(PendingRating(loaded.roamUrl.id, -1))
+                            }
+                        } else {
+                            err?.let { Sentry.captureException(it) }
                         }
-                    } else {
-                        err?.let { Sentry.captureException(it) }
                     }
                 }
             }
-            roam(excludeDomain = extractDomain(_rawUrl.value))
+            roam(excludeDomain = excludeDomain)
         }
     }
 
@@ -712,6 +723,10 @@ class MainViewModel(
 
     /** Called by the WebView when the user navigates to a page not in the discovery pool */
     fun onWebViewUrlChanged(url: String) {
+        // Drop stale onPageFinished callbacks from a page we've already navigated away from.
+        // This prevents a slow page's completion from overwriting _currentUrl after roam()
+        // has advanced _rawUrl to a new destination, which would cause the WebView to revert.
+        if (url == previousRawUrl && url != _rawUrl.value) return
         _currentUrl.value = url
     }
 
@@ -752,6 +767,7 @@ class MainViewModel(
         val updated = _savedUrls.value.filter { it.url != url }
         _savedUrls.value = updated
         persistSavedUrls(updated)
+        showTransientToast("Removed from saved")
         viewModelScope.launch {
             runCatching { repo.unsaveUrl(url) }
         }
@@ -760,11 +776,13 @@ class MainViewModel(
     fun reportBrokenLink() {
         val loaded = _state.value as? RoamState.Loaded ?: return
         val urlId = loaded.roamUrl.id
+        val excludeDomain = extractDomain(_rawUrl.value)
         _showConfigSheet.value = false
         _reportConfirmation.value = true
         viewModelScope.launch {
-            runCatching { repo.reportUrl(urlId) }
-            roam(excludeDomain = extractDomain(_rawUrl.value))
+            // Fire the report in the background — don't wait for it before showing next page
+            launch { runCatching { repo.reportUrl(urlId) } }
+            roam(excludeDomain = excludeDomain)
             kotlinx.coroutines.delay(2000)
             _reportConfirmation.value = false
         }
@@ -814,6 +832,7 @@ class MainViewModel(
      * Useful for opening internal web pages (e.g. profile/collections management).
      */
     fun navigateTo(url: String) {
+        previousRawUrl = _rawUrl.value
         _rawUrl.value = url
         _currentUrl.value = url
         _state.value = RoamState.Loaded(RoamUrl(id = "", url = url))
@@ -854,6 +873,9 @@ class MainViewModel(
                 Sentry.captureException(e)
                 showTransientToast("Couldn't create collection: ${e.message ?: "unknown error"}")
             }
+            createResult.onSuccess {
+                showTransientToast("Created collection '$name'")
+            }
             // Reload so item_count and sort order are accurate after creation + inserts.
             runCatching { _collections.value = repo.getCollections() }
         }
@@ -864,6 +886,11 @@ class MainViewModel(
         viewModelScope.launch {
             runCatching { repo.addUrlToCollection(collectionId, loaded.roamUrl.id) }
             runCatching { _collections.value = repo.getCollections() }
+            // Find and show the collection name in the success message
+            val collectionName = _collections.value.firstOrNull { it.id == collectionId }?.name
+            if (collectionName != null) {
+                showTransientToast("Added to $collectionName")
+            }
             _showAddToCollection.value = false
             closeConfigSheet()
         }
@@ -879,6 +906,9 @@ class MainViewModel(
             result.onFailure { e ->
                 Sentry.captureException(e)
                 showTransientToast("Couldn't create collection: ${e.message ?: "unknown error"}")
+            }
+            result.onSuccess {
+                showTransientToast("Created collection '$name'")
             }
             runCatching { _collections.value = repo.getCollections() }
             _showAddToCollection.value = false
@@ -913,8 +943,32 @@ class MainViewModel(
         }
     }
 
+    fun updateCollectionPublic(collectionId: String, isPublic: Boolean) {
+        viewModelScope.launch {
+            val result = runCatching { repo.updateCollectionPublic(collectionId, isPublic) }
+            result.onFailure { e ->
+                Sentry.captureException(e)
+                showTransientToast("Couldn't update: ${e.message ?: "unknown error"}")
+            }
+            // Refresh collections to sync state
+            runCatching { _collections.value = repo.getCollections() }
+        }
+    }
+
+    fun removeItemFromCollection(collectionId: String, urlId: String) {
+        viewModelScope.launch {
+            val result = runCatching { repo.removeItemFromCollection(collectionId, urlId) }
+            result.onFailure { e ->
+                Sentry.captureException(e)
+                showTransientToast("Couldn't remove item: ${e.message ?: "unknown error"}")
+            }
+            // Refresh collection items to reflect the removal
+            runCatching { _collectionItems.value = repo.getCollectionItems(collectionId) }
+        }
+    }
+
     /** Shows a 4-second toast via the existing submitToast flow. */
-    private fun showTransientToast(message: String) {
+    fun showTransientToast(message: String) {
         _submitToast.value = message
         viewModelScope.launch {
             delay(4000)

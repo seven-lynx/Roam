@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
@@ -47,6 +48,7 @@ fun SubmitBottomSheet(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
+                .statusBarsPadding()
                 .navigationBarsPadding()
                 .padding(horizontal = 16.dp, vertical = 8.dp)
                 .padding(bottom = 16.dp),
@@ -119,6 +121,7 @@ fun SubmitBottomSheet(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
+                .statusBarsPadding()
                 .navigationBarsPadding()
                 .padding(horizontal = 16.dp, vertical = 8.dp)
                 .padding(bottom = 16.dp),
