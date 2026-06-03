@@ -63,3 +63,10 @@ extension/build_output.txt
 extension/roam-extension.zip
 extension/roam-firefox.zip
 extension/dist-firefox/
+android/*.log
+scripts/.check-dead-error.log
+
+# ── Android signing keys (SENSITIVE) ──────────────────────────────────────────
+*.keystore
+*.jks
+android/*.jks

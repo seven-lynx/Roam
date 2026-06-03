@@ -72,7 +72,6 @@ Deliberately non-intrusive. Click, roam, rate, close — nothing is injected int
 
 ### Android app
 
-- Swipe right to like, left to skip, down for details
 - In-app browser so you don't have to leave
 - Offline reading queue
 - Material Design 3 / Jetpack Compose
@@ -301,7 +300,16 @@ Run `pnpm lint` before pushing. Use TypeScript throughout.
 
 ## License
 
-MIT — see [LICENSE](LICENSE). Free to use, modify, and distribute, including commercially.
+**Dual Licensed:**
+
+- **Open Source:** MIT License ([LICENSE](LICENSE)) — Free to use, modify, and distribute for personal, research, and open-source projects.
+- **Commercial:** For commercial deployments, white-label services, or closed-source modifications, see [COMMERCIAL_LICENSE.md](COMMERCIAL_LICENSE.md).
+
+**In short:**
+- Contribute back to open source? Use MIT, no cost.
+- Run as a commercial service or resell? Commercial license required.
+- Fork and open-source? Use MIT, no cost.
+- Use for personal/internal projects? Use MIT, no cost.
 
 ---
 
