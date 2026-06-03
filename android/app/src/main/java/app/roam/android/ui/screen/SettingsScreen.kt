@@ -63,6 +63,7 @@ fun SettingsScreen(
     val autoTranslate by vm.autoTranslate.collectAsState()
     val translateLanguage by vm.translateLanguage.collectAsState()
     val jsEnabled by vm.jsEnabled.collectAsState()
+    val prefetchWebView by vm.prefetchWebView.collectAsState()
     val sheetGestureMode by vm.sheetGestureMode.collectAsState()
     val categories by vm.categories.collectAsState()
     val subcategories by vm.subcategories.collectAsState()
@@ -203,6 +204,13 @@ fun SettingsScreen(
                 subtitle = "Disable to reduce tracking on sites you browse",
                 checked = jsEnabled,
                 onCheckedChange = { vm.setJsEnabled(it) },
+            )
+
+            SettingsToggleRow(
+                title = "Preload next page",
+                subtitle = "Loads the next URL in the background while you're reading the current one — uses more data",
+                checked = prefetchWebView,
+                onCheckedChange = { vm.setPrefetchWebView(it) },
             )
 
             var sheetGestureDropdownExpanded by remember { mutableStateOf(false) }

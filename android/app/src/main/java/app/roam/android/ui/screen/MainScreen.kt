@@ -50,6 +50,7 @@ import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
 import app.roam.android.MainActivity
 import app.roam.android.ui.component.BottomBar
+import app.roam.android.ui.component.BackgroundPrefetchWebView
 import app.roam.android.ui.component.ConfigBottomSheet
 import app.roam.android.ui.component.RoamTab
 import app.roam.android.ui.component.RoamWebView
@@ -176,6 +177,8 @@ private fun DiscoverTab(
     val jsEnabled by vm.jsEnabled.collectAsState()
     val sheetGestureMode by vm.sheetGestureMode.collectAsState()
     val showConfigSheet by vm.showConfigSheet.collectAsState()
+    val prefetchWebView by vm.prefetchWebView.collectAsState()
+    val nextPrefetchUrl by vm.nextPrefetchUrl.collectAsState()
 
     // Only auto-roam on first entry (Idle = fresh app launch).
     LaunchedEffect(Unit) { if (vm.state.value is RoamState.Idle) vm.roam() }
@@ -550,6 +553,17 @@ private fun DiscoverTab(
                         )
                     }
                 }
+            }
+
+            // Background cache-warmer — only active when the user has enabled the setting.
+            // Loads the next queued URL in a hidden 1×1dp WebView so it's already cached
+            // when the user taps Roam, eliminating most of the visible overlay delay.
+            if (prefetchWebView && nextPrefetchUrl != null) {
+                BackgroundPrefetchWebView(
+                    url = nextPrefetchUrl!!,
+                    jsEnabled = jsEnabled,
+                    darkMode = webDarkMode,
+                )
             }
 
 

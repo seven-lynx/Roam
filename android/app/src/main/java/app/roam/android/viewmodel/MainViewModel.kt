@@ -72,6 +72,7 @@ class MainViewModel(
     private val JS_ENABLED_KEY = "js_enabled"
     private val TRANSLATE_LANG_KEY = "translate_language"
     private val SHEET_GESTURE_MODE_KEY = "sheet_gesture_mode"  // "slide" or "tap"
+    private val PREFETCH_WEBVIEW_KEY  = "prefetch_webview"
 
     private val _state = MutableStateFlow<RoamState>(RoamState.Idle)
     val state: StateFlow<RoamState> = _state.asStateFlow()
@@ -171,6 +172,20 @@ class MainViewModel(
         prefs.edit().putBoolean(JS_ENABLED_KEY, enabled).apply()
     }
 
+    /** User preference: load the next queued URL in a background WebView to warm the cache */
+    private val _prefetchWebView = MutableStateFlow(prefs.getBoolean(PREFETCH_WEBVIEW_KEY, false))
+    val prefetchWebView: StateFlow<Boolean> = _prefetchWebView.asStateFlow()
+
+    fun setPrefetchWebView(enabled: Boolean) {
+        _prefetchWebView.value = enabled
+        prefs.edit().putBoolean(PREFETCH_WEBVIEW_KEY, enabled).apply()
+        if (!enabled) _nextPrefetchUrl.value = null
+    }
+
+    /** The next URL in the hot queue, exposed so the UI can warm-load it in a background WebView */
+    private val _nextPrefetchUrl = MutableStateFlow<String?>(null)
+    val nextPrefetchUrl: StateFlow<String?> = _nextPrefetchUrl.asStateFlow()
+
     private val _clearCookiesChannel = Channel<Unit>(Channel.CONFLATED)
     val clearCookiesFlow = _clearCookiesChannel.receiveAsFlow()
 
@@ -257,7 +272,7 @@ class MainViewModel(
     // Warm queue (WARM_TARGET = 15): fetched from the API but not yet validated.
     // Phase 2 validates URLs concurrently to maximize throughput.
 
-    private val HOT_TARGET  = 10
+    private val HOT_TARGET  = 12
     private val WARM_TARGET = 15
     private val hotQueue    = ArrayDeque<RoamUrl>()
     private val warmQueue   = ArrayDeque<RoamUrl>()
@@ -398,6 +413,11 @@ class MainViewModel(
                 _currentUrl.value = prefetched.url
                 _autoTranslate.value = false
                 _state.value = RoamState.Loaded(prefetched)
+                // If background WebView preloading is enabled, expose the next hot-queue entry
+                // so the UI can start warming it in an invisible WebView right now.
+                if (_prefetchWebView.value) {
+                    _nextPrefetchUrl.value = prefetchMutex.withLock { hotQueue.firstOrNull()?.url }
+                }
                 startPrefillQueue(excludeDomain = extractDomain(prefetched.url))
                 return@launch
             }
@@ -516,7 +536,7 @@ class MainViewModel(
                         }
 
                         // Fetch up to 3 candidates in parallel
-                        val batchSize = minOf(3, WARM_TARGET - warmSize)
+                        val batchSize = minOf(4, WARM_TARGET - warmSize)
                         val candidates = (1..batchSize).map {
                             async {
                                 runCatching {

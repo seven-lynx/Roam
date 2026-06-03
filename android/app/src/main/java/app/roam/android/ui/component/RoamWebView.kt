@@ -16,6 +16,7 @@ import androidx.webkit.WebViewFeature
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.size
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -31,6 +32,8 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -197,8 +200,8 @@ fun RoamWebView(
                 }
                 webChromeClient = object : WebChromeClient() {
                     override fun onProgressChanged(view: WebView, newProgress: Int) {
-                        // Hide loading overlay early once the page is 70% loaded
-                        if (newProgress >= 70) {
+                        // Hide loading overlay early once the page is 60% loaded
+                        if (newProgress >= 60) {
                             onLoadingChanged(false)
                         }
                     }
@@ -274,4 +277,57 @@ fun RoamWebView(
         }
     }
     } // end Box
+}
+
+/**
+ * Invisible 1×1dp WebView that loads [url] in the background, warming the shared WebView
+ * disk cache so the main WebView displays it near-instantly when the user taps Roam.
+ *
+ * Uses [key] so a fresh instance is created whenever the URL changes. The composable is
+ * only rendered when the user has enabled the "Preload next page" setting.
+ */
+@Composable
+fun BackgroundPrefetchWebView(
+    url: String,
+    jsEnabled: Boolean = true,
+    darkMode: Boolean = true,
+) {
+    key(url) {
+        AndroidView(
+            modifier = Modifier
+                .size(1.dp)
+                .alpha(0f),
+            factory = { context ->
+                val webContext = if (darkMode) {
+                    val nightConfig = android.content.res.Configuration(context.resources.configuration)
+                    nightConfig.uiMode = (nightConfig.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK.inv()) or
+                                          android.content.res.Configuration.UI_MODE_NIGHT_YES
+                    context.createConfigurationContext(nightConfig)
+                } else context
+                WebView(webContext).apply {
+                    settings.apply {
+                        @Suppress("SetJavaScriptEnabled")
+                        javaScriptEnabled = jsEnabled
+                        domStorageEnabled = jsEnabled
+                        cacheMode = android.webkit.WebSettings.LOAD_CACHE_ELSE_NETWORK
+                        userAgentString = "Mozilla/5.0 (Linux; Android 10; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36"
+                        allowFileAccess = false
+                        allowContentAccess = false
+                    }
+                    if (darkMode) {
+                        if (WebViewFeature.isFeatureSupported(WebViewFeature.ALGORITHMIC_DARKENING)) {
+                            WebSettingsCompat.setAlgorithmicDarkeningAllowed(settings, true)
+                        } else if (WebViewFeature.isFeatureSupported(WebViewFeature.FORCE_DARK)) {
+                            @Suppress("DEPRECATION")
+                            WebSettingsCompat.setForceDark(settings, WebSettingsCompat.FORCE_DARK_ON)
+                        }
+                    }
+                    loadUrl(url)
+                }
+            },
+            update = { wv ->
+                if (wv.url != url) wv.loadUrl(url)
+            },
+        )
+    }
 }
