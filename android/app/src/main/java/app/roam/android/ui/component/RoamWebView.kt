@@ -115,6 +115,13 @@ fun RoamWebView(
                         } else {
                             urlRef.value?.let { wv.loadUrl(it) }
                         }
+                    } else {
+                        // WebView is still alive — restore scroll position saved during ON_PAUSE
+                        val sy = savedScrollY.intValue
+                        if (sy > 0) {
+                            wv.post { wv.scrollTo(0, sy) }
+                            savedScrollY.intValue = 0
+                        }
                     }
                 }
                 Lifecycle.Event.ON_PAUSE -> {
