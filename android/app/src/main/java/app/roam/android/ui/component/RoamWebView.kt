@@ -1,5 +1,4 @@
 package app.roam.android.ui.component
-import android.content.res.Configuration
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -66,11 +65,14 @@ fun RoamWebView(
     val webViewRef = remember { mutableStateOf<WebView?>(null) }
     // Keep a stable url reference for use inside the lifecycle observer
     val urlRef = remember { mutableStateOf(url) }
-    LaunchedEffect(url) { urlRef.value = url }
+    LaunchedEffect(url) {
+        urlRef.value = url
+        // Reset the error state whenever we get a new URL to try.
+        // This ensures that "Try next page" can actually escape the error screen.
+        loadError = false
+    }
     // Scroll position saved on pause, restored after the page reloads
     val savedScrollY = rememberSaveable { mutableIntStateOf(0) }
-    // Bumped to force AndroidView to recreate the WebView after renderer process death.
-    var webViewKey by remember { mutableIntStateOf(0) }
     // Snapshot of the last visible viewport — shown as an overlay while the page reloads
     // after renderer death, eliminating the white-screen flash.
     var snapshotBitmap by remember { mutableStateOf<Bitmap?>(null) }
@@ -161,104 +163,108 @@ fun RoamWebView(
         return
     }
 
-    // key(webViewKey) forces Compose to destroy and recreate AndroidView when the
-    // WebView renderer is killed (onRenderProcessGone). The saved Bundle is preserved
-    // across recreation so navigation history is restored.
     Box(modifier = modifier) {
-    key(webViewKey) {
     AndroidView(
         modifier = Modifier.fillMaxSize(),
         factory = { context ->
-            // createConfigurationContext with UI_MODE_NIGHT_YES makes the WebView renderer
-            // treat this as a dark-mode app, activating algorithmic darkening on all API levels.
-            val webContext = if (darkMode) {
-                val nightConfig = Configuration(context.resources.configuration)
-                nightConfig.uiMode = (nightConfig.uiMode and Configuration.UI_MODE_NIGHT_MASK.inv()) or
-                                      Configuration.UI_MODE_NIGHT_YES
-                context.createConfigurationContext(nightConfig)
-            } else context
-            WebView(webContext).apply {
-                settings.apply {
-                    @Suppress("SetJavaScriptEnabled")
-                    javaScriptEnabled = jsEnabled
-                    domStorageEnabled = jsEnabled
-                    cacheMode = android.webkit.WebSettings.LOAD_CACHE_ELSE_NETWORK
-                    setSupportZoom(true)
-                    builtInZoomControls = true
-                    displayZoomControls = false
-                    userAgentString = "Mozilla/5.0 (Linux; Android 10; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36"
-                    allowFileAccess = false
-                    allowContentAccess = false
-                }
-                if (darkMode) {
-                    if (WebViewFeature.isFeatureSupported(WebViewFeature.ALGORITHMIC_DARKENING)) {
-                        WebSettingsCompat.setAlgorithmicDarkeningAllowed(settings, true)
-                    } else if (WebViewFeature.isFeatureSupported(WebViewFeature.FORCE_DARK)) {
-                        @Suppress("DEPRECATION")
-                        WebSettingsCompat.setForceDark(settings, WebSettingsCompat.FORCE_DARK_ON)
+            try {
+                WebView(context).apply {
+                    settings.apply {
+                        @Suppress("SetJavaScriptEnabled")
+                        javaScriptEnabled = jsEnabled
+                        domStorageEnabled = jsEnabled
+                        cacheMode = android.webkit.WebSettings.LOAD_CACHE_ELSE_NETWORK
+                        setSupportZoom(true)
+                        builtInZoomControls = true
+                        displayZoomControls = false
+                        userAgentString = "Mozilla/5.0 (Linux; Android 10; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36"
+                        allowFileAccess = false
+                        allowContentAccess = false
                     }
-                }
-                webChromeClient = WebChromeClient()
-                webViewClient = object : WebViewClient() {
-                    override fun onPageStarted(view: WebView, url: String, favicon: Bitmap?) {
-                        onLoadingChanged(true)
-                    }
-                    override fun onPageFinished(view: WebView, loadedUrl: String) {
-                        onUrlChanged(loadedUrl)
-                        loadError = false
-                        onLoadingChanged(false)
-                        showSnapshot = false
-                        snapshotBitmap = null
-                        val sy = savedScrollY.intValue
-                        if (sy > 0) {
-                            view.post { view.scrollTo(0, sy) }
-                            savedScrollY.intValue = 0
+                    if (darkMode) {
+                        if (WebViewFeature.isFeatureSupported(WebViewFeature.ALGORITHMIC_DARKENING)) {
+                            WebSettingsCompat.setAlgorithmicDarkeningAllowed(settings, true)
+                        } else if (WebViewFeature.isFeatureSupported(WebViewFeature.FORCE_DARK)) {
+                            @Suppress("DEPRECATION")
+                            WebSettingsCompat.setForceDark(settings, WebSettingsCompat.FORCE_DARK_ON)
                         }
                     }
-                    override fun onReceivedError(
-                        view: WebView,
-                        request: WebResourceRequest,
-                        error: WebResourceError,
-                    ) {
-                        if (request.isForMainFrame) {
-                            loadError = true
+                    webChromeClient = WebChromeClient()
+                    webViewClient = object : WebViewClient() {
+                        override fun onPageStarted(view: WebView, url: String, favicon: Bitmap?) {
+                            onLoadingChanged(true)
+                        }
+                        override fun onPageFinished(view: WebView, loadedUrl: String) {
+                            onUrlChanged(loadedUrl)
+                            loadError = false
                             onLoadingChanged(false)
+                            showSnapshot = false
+                            snapshotBitmap = null
+                            val sy = savedScrollY.intValue
+                            if (sy > 0) {
+                                view.post { view.scrollTo(0, sy) }
+                                savedScrollY.intValue = 0
+                            }
+                        }
+                        override fun onReceivedError(
+                            view: WebView,
+                            request: WebResourceRequest,
+                            error: WebResourceError,
+                        ) {
+                            if (request.isForMainFrame) {
+                                loadError = true
+                                onLoadingChanged(false)
+                            }
+                        }
+                        // The renderer process was killed. On some devices (Samsung One UI 6),
+                        // constructing a new WebView after renderer death throws
+                        // AndroidRuntimeException. Show the error UI instead of trying to
+                        // recreate the WebView — it recovers after a fresh roam.
+                        override fun onRenderProcessGone(view: WebView, detail: RenderProcessGoneDetail): Boolean {
+                            Handler(Looper.getMainLooper()).post {
+                                webViewRef.value = null
+                                showSnapshot = false
+                                snapshotBitmap = null
+                                loadError = true
+                            }
+                            return true
                         }
                     }
-                    // The renderer process was killed (screen lock + memory pressure is the
-                    // common trigger). Return true to prevent a crash. Bump webViewKey so
-                    // Compose tears down this AndroidView and rebuilds a fresh WebView;
-                    // the factory block will restore state from savedState on the new instance.
-                    override fun onRenderProcessGone(view: WebView, detail: RenderProcessGoneDetail): Boolean {
-                        showSnapshot = true
-                        Handler(Looper.getMainLooper()).post { webViewKey++ }
-                        return true
+                    // Restore saved session (back/forward stack + scroll) or load fresh
+                    if (!savedState.isEmpty) {
+                        restoreState(savedState)
+                    } else {
+                        loadUrl(url)
                     }
+                    webViewRef.value = this
                 }
-                // Restore saved session (back/forward stack + scroll) or load fresh
-                if (!savedState.isEmpty) {
-                    restoreState(savedState)
-                } else {
-                    loadUrl(url)
-                }
-                webViewRef.value = this
+            } catch (t: Throwable) {
+                // If WebView creation fails (e.g. System WebView is missing or disabled),
+                // show an error in the UI instead of crashing. Catch Throwable to include
+                // fatal Errors like NoClassDefFoundError if the provider is missing.
+                android.util.Log.e("RoamWebView", "Failed to create WebView", t)
+                loadError = true
+                onLoadingChanged(false) // Clear the loading overlay so the error box is visible
+                // Return a dummy view so Compose doesn't crash on null return from factory
+                android.view.View(context)
             }
         },
         update = { webView ->
-            webViewRef.value = webView
-            webView.saveState(savedState)
-            if (webView.settings.javaScriptEnabled != jsEnabled) {
-                webView.settings.javaScriptEnabled = jsEnabled
-                webView.settings.domStorageEnabled = jsEnabled
-                webView.reload()
-            } else if (webView.url != url || loadError) {
-                loadError = false
-                onLoadingChanged(true)
-                webView.loadUrl(url)
+            if (webView is WebView) {
+                webViewRef.value = webView
+                webView.saveState(savedState)
+                if (webView.settings.javaScriptEnabled != jsEnabled) {
+                    webView.settings.javaScriptEnabled = jsEnabled
+                    webView.settings.domStorageEnabled = jsEnabled
+                    webView.reload()
+                } else if (webView.url != url || loadError) {
+                    loadError = false
+                    onLoadingChanged(true)
+                    webView.loadUrl(url)
+                }
             }
         },
     )
-    } // end key(webViewKey)
     if (showSnapshot) {
         snapshotBitmap?.let { bmp ->
             Image(
@@ -291,35 +297,34 @@ fun BackgroundPrefetchWebView(
                 .size(1.dp)
                 .alpha(0f),
             factory = { context ->
-                val webContext = if (darkMode) {
-                    val nightConfig = android.content.res.Configuration(context.resources.configuration)
-                    nightConfig.uiMode = (nightConfig.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK.inv()) or
-                                          android.content.res.Configuration.UI_MODE_NIGHT_YES
-                    context.createConfigurationContext(nightConfig)
-                } else context
-                WebView(webContext).apply {
-                    settings.apply {
-                        @Suppress("SetJavaScriptEnabled")
-                        javaScriptEnabled = jsEnabled
-                        domStorageEnabled = jsEnabled
-                        cacheMode = android.webkit.WebSettings.LOAD_CACHE_ELSE_NETWORK
-                        userAgentString = "Mozilla/5.0 (Linux; Android 10; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36"
-                        allowFileAccess = false
-                        allowContentAccess = false
-                    }
-                    if (darkMode) {
-                        if (WebViewFeature.isFeatureSupported(WebViewFeature.ALGORITHMIC_DARKENING)) {
-                            WebSettingsCompat.setAlgorithmicDarkeningAllowed(settings, true)
-                        } else if (WebViewFeature.isFeatureSupported(WebViewFeature.FORCE_DARK)) {
-                            @Suppress("DEPRECATION")
-                            WebSettingsCompat.setForceDark(settings, WebSettingsCompat.FORCE_DARK_ON)
+                try {
+                    WebView(context).apply {
+                        settings.apply {
+                            @Suppress("SetJavaScriptEnabled")
+                            javaScriptEnabled = jsEnabled
+                            domStorageEnabled = jsEnabled
+                            cacheMode = android.webkit.WebSettings.LOAD_CACHE_ELSE_NETWORK
+                            userAgentString = "Mozilla/5.0 (Linux; Android 10; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36"
+                            allowFileAccess = false
+                            allowContentAccess = false
                         }
+                        if (darkMode) {
+                            if (WebViewFeature.isFeatureSupported(WebViewFeature.ALGORITHMIC_DARKENING)) {
+                                WebSettingsCompat.setAlgorithmicDarkeningAllowed(settings, true)
+                            } else if (WebViewFeature.isFeatureSupported(WebViewFeature.FORCE_DARK)) {
+                                @Suppress("DEPRECATION")
+                                WebSettingsCompat.setForceDark(settings, WebSettingsCompat.FORCE_DARK_ON)
+                            }
+                        }
+                        loadUrl(url)
                     }
-                    loadUrl(url)
+                } catch (t: Throwable) {
+                    android.util.Log.e("RoamWebView", "Failed to create prefetch WebView", t)
+                    android.view.View(context)
                 }
             },
             update = { wv ->
-                if (wv.url != url) wv.loadUrl(url)
+                if (wv is WebView && wv.url != url) wv.loadUrl(url)
             },
         )
     }
