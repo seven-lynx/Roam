@@ -28,6 +28,7 @@ enum class RoamTab(val route: String) {
     // Accessible via Settings, not bottom bar
     Saved("saved"),
     Profile("profile"),
+    History("history"),
 }
 
 @Composable

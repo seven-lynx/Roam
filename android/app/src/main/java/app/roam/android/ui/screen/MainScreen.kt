@@ -18,7 +18,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.BottomSheetScaffold
 import androidx.compose.material3.SheetValue
@@ -53,11 +52,14 @@ import app.roam.android.MainActivity
 import app.roam.android.ui.component.BottomBar
 import app.roam.android.ui.component.BackgroundPrefetchWebView
 import app.roam.android.ui.component.ConfigBottomSheet
+import app.roam.android.ui.component.pickRandomMessage
 import app.roam.android.ui.component.RoamTab
 import app.roam.android.ui.component.RoamWebView
+import app.roam.android.ui.screen.HistoryScreen
 import app.roam.android.ui.component.SubmitBottomSheet
 import app.roam.android.viewmodel.MainViewModel
 import app.roam.android.viewmodel.RoamState
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 @Composable
@@ -95,6 +97,7 @@ fun MainScreen(
             // SavedScreen's own BackHandler fires first when a collection is open;
             // this one fires when at the top-level saved list.
             BackHandler(enabled = currentTab == RoamTab.Saved.route) { currentTab = RoamTab.Settings.route }
+            BackHandler(enabled = currentTab == RoamTab.History.route) { currentTab = RoamTab.Settings.route }
 
             // DiscoverTab is always in the composition tree — WebView is never destroyed
             DiscoverTab(vm = vm, activity = activity, onSignOut = {
@@ -116,6 +119,7 @@ fun MainScreen(
                     },
                     onNavigateToSaved = { currentTab = RoamTab.Saved.route },
                     onNavigateToProfile = { currentTab = RoamTab.Profile.route },
+                    onNavigateToHistory = { currentTab = RoamTab.History.route },
                     onNavigateToRoam = { currentTab = RoamTab.Roam.route },
                 )
             }
@@ -142,6 +146,21 @@ fun MainScreen(
                     onNavigateBack = { currentTab = RoamTab.Settings.route },
                     onSignOut = {
                         onSignOut()
+                        currentTab = RoamTab.Roam.route
+                    },
+                )
+            }
+
+            AnimatedVisibility(
+                visible = currentTab == RoamTab.History.route,
+                enter = fadeIn(animationSpec = spring()),
+                exit = fadeOut(animationSpec = spring()),
+            ) {
+                HistoryScreen(
+                    vm = vm,
+                    onNavigateBack = { currentTab = RoamTab.Settings.route },
+                    onNavigateToUrl = { url ->
+                        vm.navigateTo(url)
                         currentTab = RoamTab.Roam.route
                     },
                 )
@@ -192,6 +211,19 @@ private fun DiscoverTab(
     // without waiting for onPageStarted to fire in the next frame.
     var webViewLoading by rememberSaveable { mutableStateOf(value = false) }
     var lastLoadedUrl by remember { mutableStateOf<String?>(null) }
+    var loadingMessage by remember { mutableStateOf(pickRandomMessage()) }
+    // Cycle the loading message with individual random durations while the overlay is visible
+    val showOverlay = rawUrl == null || (state is RoamState.Loading)
+    LaunchedEffect(showOverlay) {
+        if (showOverlay) {
+            loadingMessage = pickRandomMessage()
+            while (true) {
+                delay(loadingMessage.displayDurationMs)
+                loadingMessage = pickRandomMessage()
+            }
+        }
+    }
+
     // Only show the loading overlay when loading the roam URL. If the user navigates to a different URL
     // (by clicking a link), don't show the overlay — they're exploring, not waiting for a new roam.
     val loaded = state as? RoamState.Loaded
@@ -208,9 +240,6 @@ private fun DiscoverTab(
     var lastSubcategoryName by remember { mutableStateOf<String?>(null) }
     var lastDomain by remember { mutableStateOf<String?>(null) }
 
-    // Track sheet state to sync with ViewModel
-    var wasConfigSheetOpenLastFrame by remember { mutableStateOf(false) }
-
     if (!isRoaming) {
         categoryName?.let { lastCategoryName = it }
         subcategoryName?.let { lastSubcategoryName = it }
@@ -224,25 +253,22 @@ private fun DiscoverTab(
     val displaySubcategory = if (!isRoaming) subcategoryName ?: lastSubcategoryName else null
     val displayDomain      = if (!isRoaming) domain          ?: lastDomain          else null
 
-    // Sync sheet expansion when ViewModel state changes (but not on initial composition)
-    if (showConfigSheet != wasConfigSheetOpenLastFrame) {
-        scope.launch {
-            try {
-                if (showConfigSheet) {
-                    scaffoldState.bottomSheetState.expand()
-                } else {
-                    // Collapse to peek height (can't fully hide with sheetPeekHeight enabled)
-                    scaffoldState.bottomSheetState.partialExpand()
-                }
-            } catch (_: Exception) {
-                // Silently handle state transition errors
+    // Sync sheet expansion when ViewModel state changes
+    LaunchedEffect(showConfigSheet) {
+        try {
+            if (showConfigSheet) {
+                scaffoldState.bottomSheetState.expand()
+            } else {
+                // Collapse to peek height (can't fully hide with sheetPeekHeight enabled)
+                scaffoldState.bottomSheetState.partialExpand()
             }
+        } catch (_: Exception) {
+            // Silently handle state transition errors
         }
-        wasConfigSheetOpenLastFrame = showConfigSheet
     }
 
     BottomSheetScaffold(
-        modifier = Modifier.statusBarsPadding(),
+        modifier = Modifier,
         scaffoldState = scaffoldState,
         sheetContainerColor = Color.Transparent,
         sheetShadowElevation = 0.dp,
@@ -549,7 +575,7 @@ private fun DiscoverTab(
                         )
                         Spacer(Modifier.size(16.dp))
                         Text(
-                            text = if (rawUrl == null) "Finding something great…" else "Loading…",
+                            text = loadingMessage.text,
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )

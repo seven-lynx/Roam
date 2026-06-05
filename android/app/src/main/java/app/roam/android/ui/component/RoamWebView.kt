@@ -116,11 +116,23 @@ fun RoamWebView(
                             urlRef.value?.let { wv.loadUrl(it) }
                         }
                     } else {
-                        // WebView is alive and has a page loaded — restore its native state
-                        // (nav history + scroll position) that was saved during ON_PAUSE.
-                        // restoreState handles the correct internal timing for scroll restoration.
+                        // WebView is alive — restore scroll position saved during ON_PAUSE.
+                        // restoreState is the WebView's native mechanism for restoring nav
+                        // history + scroll, and handles internal timing correctly.
                         if (!savedState.isEmpty) {
                             wv.restoreState(savedState)
+                        }
+                        // Fallback: manual scroll restoration via postDelayed. We capture
+                        // savedScrollY as a local val BEFORE resetting so the lambda uses
+                        // the correct value (not the zero it gets reset to on the next line).
+                        // The 300ms delay gives the WebView time to finish its internal
+                        // resume/layout cycle triggered by resumeTimers().
+                        val sy = savedScrollY.intValue
+                        savedScrollY.intValue = 0
+                        if (sy > 0) {
+                            wv.postDelayed({
+                                wv.scrollTo(0, sy)
+                            }, 300)
                         }
                     }
                 }

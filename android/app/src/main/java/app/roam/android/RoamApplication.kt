@@ -22,20 +22,26 @@ class RoamApplication : Application() {
         // DSN is injected from local.properties at build time via BuildConfig.
         // If SENTRY_DSN is empty (e.g. local dev without a key), Sentry is a no-op.
         if (BuildConfig.SENTRY_DSN.isNotEmpty()) {
-            SentryAndroid.init(this) { options ->
-                options.dsn = BuildConfig.SENTRY_DSN
-                options.environment = if (BuildConfig.DEBUG) "development" else "production"
-                options.tracesSampleRate = if (BuildConfig.DEBUG) 1.0 else 0.1
-                options.isEnableUserInteractionTracing = false
-                // Drop HTTP 500s auto-captured by the OkHttp integration (ROAM-ANDROID-7).
-                // These are server-side crashes in the edge function — noise on the client.
-                // Real app-thrown exceptions still reach Sentry via Sentry.captureException().
-                options.beforeSend = io.sentry.SentryOptions.BeforeSendCallback { event, _ ->
-                    val isOkHttpCapture = event.exceptions
-                        ?.firstOrNull()
-                        ?.type == "SentryHttpClientException"
-                    if (isOkHttpCapture) null else event
+            try {
+                SentryAndroid.init(this) { options ->
+                    options.dsn = BuildConfig.SENTRY_DSN
+                    options.environment = if (BuildConfig.DEBUG) "development" else "production"
+                    options.tracesSampleRate = if (BuildConfig.DEBUG) 1.0 else 0.1
+                    options.isEnableUserInteractionTracing = false
+                    // Drop HTTP 500s auto-captured by the OkHttp integration (ROAM-ANDROID-7).
+                    // These are server-side crashes in the edge function — noise on the client.
+                    // Real app-thrown exceptions still reach Sentry via Sentry.captureException().
+                    options.beforeSend = io.sentry.SentryOptions.BeforeSendCallback { event, _ ->
+                        val isOkHttpCapture = event.exceptions
+                            ?.firstOrNull()
+                            ?.type == "SentryHttpClientException"
+                        if (isOkHttpCapture) null else event
+                    }
                 }
+            } catch (e: Exception) {
+                // If Sentry init fails (e.g. WebView missing on some devices/emulators),
+                // log it and continue. Don't let it crash the whole app.
+                android.util.Log.e("RoamApplication", "Failed to initialize Sentry", e)
             }
         }
 

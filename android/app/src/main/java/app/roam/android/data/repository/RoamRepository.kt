@@ -37,8 +37,11 @@ class RoamRepository {
 
     private val json = Json { ignoreUnknownKeys = true }
 
-    /** Returns true if a user session is currently active. */
-    fun hasSession(): Boolean = supabase.auth.currentUserOrNull() != null
+    /** Returns true if a user session is currently active and authenticated. */
+    fun hasSession(): Boolean {
+        val status = supabase.auth.sessionStatus.value
+        return status is io.github.jan.supabase.auth.status.SessionStatus.Authenticated
+    }
 
     /**
      * Calls POST /functions/v1/roam.
@@ -57,6 +60,13 @@ class RoamRepository {
             categoryId?.let { put("category_id", it) }
             subcategoryId?.let { put("subcategory_id", it) }
         }
+        
+        // Debug session state
+        val status = supabase.auth.sessionStatus.value
+        if (status !is io.github.jan.supabase.auth.status.SessionStatus.Authenticated) {
+            android.util.Log.w("RoamRepository", "roam() called without Authenticated status: $status")
+        }
+
         val response = supabase.functions.invoke("roam", body = body)
         if (response.status.value == 404) return null
         return json.decodeFromString(response.body())

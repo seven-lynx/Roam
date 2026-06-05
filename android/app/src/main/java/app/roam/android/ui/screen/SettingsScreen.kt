@@ -19,6 +19,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -56,12 +57,14 @@ fun SettingsScreen(
     onSignOut: () -> Unit,
     onNavigateToSaved: () -> Unit = {},
     onNavigateToProfile: () -> Unit = {},
+    onNavigateToHistory: () -> Unit = {},
     onNavigateToRoam: () -> Unit = {},
 ) {
     val skipPaywalled by vm.skipPaywalled.collectAsState()
     val webDarkMode by vm.webDarkMode.collectAsState()
     val autoTranslate by vm.autoTranslate.collectAsState()
     val translateLanguage by vm.translateLanguage.collectAsState()
+    val preferredLanguages by vm.preferredLanguages.collectAsState()
     val jsEnabled by vm.jsEnabled.collectAsState()
     val prefetchWebView by vm.prefetchWebView.collectAsState()
     val sheetGestureMode by vm.sheetGestureMode.collectAsState()
@@ -152,10 +155,72 @@ fun SettingsScreen(
                 onClick = { vm.saveForLater() },
             )
 
+            SettingsActionRow(
+                title = "Browsing history",
+                subtitle = "Pages you've visited",
+                onClick = onNavigateToHistory,
+            )
+
             HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
             Spacer(Modifier.height(8.dp))
 
             SectionHeader("Browser")
+
+            // Language selection for discovery filtering
+            Text(
+                "Preferred languages",
+                style = MaterialTheme.typography.bodyLarge,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+            )
+            Text(
+                "Select which languages you want to see",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 0.dp),
+            )
+
+            val availableLanguages = listOf(
+                "en" to "English", "fr" to "Français", "de" to "Deutsch",
+                "it" to "Italiano", "es" to "Español", "pt" to "Português",
+                "nl" to "Nederlands", "pl" to "Polski", "ja" to "日本語",
+                "zh" to "中文", "ru" to "Русский", "ko" to "한국어",
+            )
+
+            availableLanguages.forEach { (code, label) ->
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable {
+                            val newLangs = if (preferredLanguages.contains(code)) {
+                                preferredLanguages - code
+                            } else {
+                                preferredLanguages + code
+                            }
+                            vm.setPreferredLanguages(newLangs)
+                        }
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Checkbox(
+                        checked = preferredLanguages.contains(code),
+                        onCheckedChange = { isChecked ->
+                            val newLangs = if (isChecked) {
+                                preferredLanguages + code
+                            } else {
+                                preferredLanguages - code
+                            }
+                            vm.setPreferredLanguages(newLangs)
+                        },
+                    )
+                    Text(label, modifier = Modifier.padding(start = 8.dp))
+                }
+            }
+
+            Spacer(Modifier.height(8.dp))
+            HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+            Spacer(Modifier.height(8.dp))
+
+            SectionHeader("Browser Features")
 
             SettingsToggleRow(
                 title = "Dark mode",
@@ -270,9 +335,6 @@ fun SettingsScreen(
                 }
                 OutlinedButton(onClick = { vm.clearCookies() }) { Text("Clear") }
             }
-
-            HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
-            Spacer(Modifier.height(8.dp))
 
             SectionHeader("Discovery")
 

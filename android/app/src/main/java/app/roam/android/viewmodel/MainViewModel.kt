@@ -15,6 +15,9 @@ import app.roam.android.model.Collection
 import app.roam.android.model.CollectionItem
 import app.roam.android.model.RoamUrl
 import app.roam.android.model.SavedUrl
+import app.roam.android.model.UrlHistoryEntry
+import app.roam.android.model.deserializeHistory
+import app.roam.android.model.serializeHistory
 import app.roam.android.model.UserProfile
 import app.roam.android.util.connectivityFlow
 import io.github.jan.supabase.exceptions.UnauthorizedRestException
@@ -73,12 +76,17 @@ class MainViewModel(
     private val TRANSLATE_LANG_KEY = "translate_language"
     private val SHEET_GESTURE_MODE_KEY = "sheet_gesture_mode"  // "slide" or "tap"
     private val PREFETCH_WEBVIEW_KEY  = "prefetch_webview"
+    private val URL_HISTORY_KEY = "url_history"
+    private val MAX_HISTORY_ENTRIES = 100
 
     private val _state = MutableStateFlow<RoamState>(RoamState.Idle)
     val state: StateFlow<RoamState> = _state.asStateFlow()
 
     private val _savedUrls = MutableStateFlow<List<SavedUrl>>(loadSavedUrls())
     val savedUrls: StateFlow<List<SavedUrl>> = _savedUrls.asStateFlow()
+
+    private val _urlHistory = MutableStateFlow<List<UrlHistoryEntry>>(loadUrlHistory())
+    val urlHistory: StateFlow<List<UrlHistoryEntry>> = _urlHistory.asStateFlow()
 
     /** True while a save-for-later confirmation should be visible */
     private val _savedConfirmation = MutableStateFlow(false)
@@ -410,9 +418,10 @@ class MainViewModel(
             if (prefetched != null) {
                 previousRawUrl = _rawUrl.value
                 _rawUrl.value = prefetched.url
-                _currentUrl.value = prefetched.url
+                _currentUrl.value = if (_autoTranslate.value) translateUrl(prefetched.url) else prefetched.url
                 _autoTranslate.value = false
                 _state.value = RoamState.Loaded(prefetched)
+                recordUrlVisit(prefetched.url, prefetched.title ?: prefetched.url)
                 // If background WebView preloading is enabled, expose the next hot-queue entry
                 // so the UI can start warming it in an invisible WebView right now.
                 if (_prefetchWebView.value) {
@@ -423,13 +432,23 @@ class MainViewModel(
             }
 
             _state.value = RoamState.Loading
+            
+            // Wait for session to be fully ready before the network call.
+            // If the app just launched, it might take a few hundred ms for the
+            // SharedPreferences session to be restored and status to flip to Authenticated.
+            var sessionWaitAttempts = 0
+            while (!repo.hasSession() && sessionWaitAttempts < 10) {
+                delay(100)
+                sessionWaitAttempts++
+            }
+
             var lastException: Throwable? = null
             var result: RoamUrl? = null
             var success = false
             // Retry up to 3 times with increasing delays to handle transient auth/network issues.
             // Ktor (SupabaseClient.kt) already enforces a 60s request timeout per attempt.
             for (attempt in 0 until 3) {
-                if (attempt > 0) delay(500L * attempt)
+                if (attempt > 0) delay(1000L * attempt)
                 val outcome = runCatching {
                     repo.roam(
                         collectionId = _activeCollectionId.value,
@@ -451,23 +470,30 @@ class MainViewModel(
                 lastException = outcome.exceptionOrNull()
                 // Don't retry offline errors — they won't resolve with retries
                 if (lastException != null && isOfflineError(lastException)) break
-                // UnauthorizedRestException: repository already attempted one session refresh.
-                // A second attempt won't help; break early so we don't burn retry budget.
-                if (lastException is UnauthorizedRestException) break
                 // IllegalStateException: no refresh token — session is gone entirely.
                 if (lastException is IllegalStateException) break
+                
+                // If we get an UnauthorizedRestException (like "Invalid JWT"),
+                // it might be a transient state where the anon key was used as bearer.
+                // We'll let it retry.
+                if (lastException != null) {
+                    android.util.Log.w("MainViewModel", "Roam attempt ${attempt + 1} failed: ${lastException.message}")
+                }
             }
 
             if (success) {
                 val roamUrl = result
                 if (roamUrl == null) {
+                    android.util.Log.i("MainViewModel", "Roam pool exhausted")
                     _state.value = RoamState.Exhausted
                 } else {
+                    android.util.Log.i("MainViewModel", "Roam success: ${roamUrl.url}")
                     previousRawUrl = _rawUrl.value
                     _rawUrl.value = roamUrl.url
-                    _currentUrl.value = roamUrl.url
+                    _currentUrl.value = if (_autoTranslate.value) translateUrl(roamUrl.url) else roamUrl.url
                     _autoTranslate.value = false
                     _state.value = RoamState.Loaded(roamUrl)
+                    recordUrlVisit(roamUrl.url, roamUrl.title ?: roamUrl.url)
                     startPrefillQueue(excludeDomain = extractDomain(roamUrl.url))
                 }
             } else {
@@ -478,9 +504,10 @@ class MainViewModel(
                 val isDnsError = e.message?.contains("Unable to resolve host", ignoreCase = true) == true
                     || e.message?.contains("No address associated", ignoreCase = true) == true
                     || e.message?.contains("Unknown host", ignoreCase = true) == true
+                
                 val msg = when {
-                    isDnsError -> "Network unreachable. Check WiFi/cellular connection and try again."
-                    isTimeout -> "Request timed out. Check your network connection and try again."
+                    isDnsError -> "Network unreachable. Check WiFi/cellular connection."
+                    isTimeout -> "Request timed out. Check your network connection."
                     e is UnauthorizedRestException -> "Session expired. Please sign in again."
                     e is IllegalStateException -> "Session expired. Please sign in again."
                     isOffline -> "You appear to be offline. Please check your connection."
@@ -513,10 +540,15 @@ class MainViewModel(
     private fun startPrefillQueue(excludeDomain: String? = null) {
         prefetchJob?.cancel()
         prefetchJob = viewModelScope.launch(Dispatchers.IO) {
-            // Wait for session once at the top level
+            // Wait for session to be fully authenticated before starting prefetch.
+            // checking currentUserOrNull isn't enough; we need an active session token
+            // for the edge functions to accept the request.
             while (!repo.hasSession()) {
                 delay(500)
             }
+            
+            // Give Supabase a tiny bit more time to propagate the token to all plugins.
+            delay(100)
 
             // Launch concurrent workers for warm filling and hot promotion
             coroutineScope {
@@ -535,8 +567,9 @@ class MainViewModel(
                             continue
                         }
 
-                        // Fetch up to 3 candidates in parallel
-                        val batchSize = minOf(4, WARM_TARGET - warmSize)
+                        // Fetch candidates. Use a smaller batch size (2) to avoid overwhelming
+                        // the edge function, especially if several instances are running.
+                        val batchSize = minOf(2, WARM_TARGET - warmSize)
                         val candidates = (1..batchSize).map {
                             async {
                                 runCatching {
@@ -748,6 +781,7 @@ class MainViewModel(
         // has advanced _rawUrl to a new destination, which would cause the WebView to revert.
         if (url == previousRawUrl && url != _rawUrl.value) return
         _currentUrl.value = url
+        recordUrlVisit(url, (_state.value as? RoamState.Loaded)?.roamUrl?.title ?: url)
     }
 
     private fun haptic(context: Context) {
@@ -1143,6 +1177,38 @@ class MainViewModel(
                 }
             }
         }
+    }
+
+    // ── URL History ───────────────────────────────────────────────────────────
+
+    fun recordUrlVisit(url: String, title: String) {
+        if (url.isBlank()) return
+        val trimmedTitle = title.take(200)
+        val entry = UrlHistoryEntry(url = url, title = trimmedTitle)
+        val current = _urlHistory.value.toMutableList()
+        // Remove existing entry for the same URL to avoid duplicates, then prepend
+        current.removeAll { it.url == url }
+        current.add(0, entry)
+        // Trim to max entries
+        if (current.size > MAX_HISTORY_ENTRIES) {
+            current.subList(MAX_HISTORY_ENTRIES, current.size).clear()
+        }
+        _urlHistory.value = current
+        persistUrlHistory(current)
+    }
+
+    fun clearUrlHistory() {
+        _urlHistory.value = emptyList()
+        prefs.edit().remove(URL_HISTORY_KEY).apply()
+    }
+
+    private fun loadUrlHistory(): List<UrlHistoryEntry> {
+        val raw = prefs.getString(URL_HISTORY_KEY, null) ?: return emptyList()
+        return deserializeHistory(raw)
+    }
+
+    private fun persistUrlHistory(list: List<UrlHistoryEntry>) {
+        prefs.edit().putString(URL_HISTORY_KEY, serializeHistory(list)).apply()
     }
 
     // ── Local persistence ─────────────────────────────────────────────────────
