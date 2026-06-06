@@ -248,6 +248,17 @@ fun RoamWebView(
                             }
                             return true
                         }
+                        // Keep all URL navigation within the WebView, including links with
+                        // target="_blank" or window.open(). This ensures history and discovered URLs
+                        // always open inside Roam, never in an external browser.
+                        override fun shouldOverrideUrlLoading(
+                            view: WebView,
+                            request: WebResourceRequest,
+                        ): Boolean {
+                            // Return false to let the WebView load all URLs normally.
+                            // This prevents delegation to the system browser.
+                            return false
+                        }
                     }
                     // Restore saved session (back/forward stack + scroll) or load fresh
                     if (!savedState.isEmpty) {

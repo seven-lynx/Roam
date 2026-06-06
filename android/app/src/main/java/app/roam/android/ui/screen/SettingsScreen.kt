@@ -77,6 +77,7 @@ fun SettingsScreen(
     var showSignOutDialog by remember { mutableStateOf(value = false) }
     var showSubmitUrlDialog by remember { mutableStateOf(false) }
     var translateDropdownExpanded by remember { mutableStateOf(false) }
+    var languageFilterDropdownExpanded by remember { mutableStateOf(false) }
     var focusCategoryDropdownExpanded by remember { mutableStateOf(false) }
     var focusSubcategoryDropdownExpanded by remember { mutableStateOf(false) }
     val translateLanguages = listOf(
@@ -167,52 +168,71 @@ fun SettingsScreen(
             SectionHeader("Browser")
 
             // Language selection for discovery filtering
-            Text(
-                "Preferred languages",
-                style = MaterialTheme.typography.bodyLarge,
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-            )
-            Text(
-                "Select which languages you want to see",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 0.dp),
-            )
-
-            val availableLanguages = listOf(
-                "en" to "English", "fr" to "Français", "de" to "Deutsch",
-                "it" to "Italiano", "es" to "Español", "pt" to "Português",
-                "nl" to "Nederlands", "pl" to "Polski", "ja" to "日本語",
-                "zh" to "中文", "ru" to "Русский", "ko" to "한국어",
-            )
-
-            availableLanguages.forEach { (code, label) ->
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable {
-                            val newLangs = if (preferredLanguages.contains(code)) {
-                                preferredLanguages - code
-                            } else {
-                                preferredLanguages + code
-                            }
-                            vm.setPreferredLanguages(newLangs)
-                        }
-                        .padding(horizontal = 16.dp, vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Checkbox(
-                        checked = preferredLanguages.contains(code),
-                        onCheckedChange = { isChecked ->
-                            val newLangs = if (isChecked) {
-                                preferredLanguages + code
-                            } else {
-                                preferredLanguages - code
-                            }
-                            vm.setPreferredLanguages(newLangs)
-                        },
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("Preferred languages", style = MaterialTheme.typography.bodyLarge)
+                    Text(
+                        "Select which languages you want to see",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
                     )
-                    Text(label, modifier = Modifier.padding(start = 8.dp))
+                }
+                Box {
+                    val availableLanguages = listOf(
+                        "en" to "English", "fr" to "Français", "de" to "Deutsch",
+                        "it" to "Italiano", "es" to "Español", "pt" to "Português",
+                        "nl" to "Nederlands", "pl" to "Polski", "ja" to "日本語",
+                        "zh" to "中文", "ru" to "Русский", "ko" to "한국어",
+                    )
+                    val selectedLabel = if (preferredLanguages.size == availableLanguages.size) {
+                        "All"
+                    } else if (preferredLanguages.isEmpty()) {
+                        "None"
+                    } else {
+                        "${preferredLanguages.size}"
+                    }
+                    OutlinedButton(onClick = { languageFilterDropdownExpanded = !languageFilterDropdownExpanded }) {
+                        Text(selectedLabel)
+                    }
+                    DropdownMenu(
+                        expanded = languageFilterDropdownExpanded,
+                        onDismissRequest = { languageFilterDropdownExpanded = false },
+                    ) {
+                        availableLanguages.forEach { (code, label) ->
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        val newLangs = if (preferredLanguages.contains(code)) {
+                                            preferredLanguages - code
+                                        } else {
+                                            preferredLanguages + code
+                                        }
+                                        vm.setPreferredLanguages(newLangs)
+                                    }
+                                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Checkbox(
+                                    checked = preferredLanguages.contains(code),
+                                    onCheckedChange = { isChecked ->
+                                        val newLangs = if (isChecked) {
+                                            preferredLanguages + code
+                                        } else {
+                                            preferredLanguages - code
+                                        }
+                                        vm.setPreferredLanguages(newLangs)
+                                    },
+                                )
+                                Text(label, modifier = Modifier.padding(start = 8.dp))
+                            }
+                        }
+                    }
                 }
             }
 
@@ -233,32 +253,39 @@ fun SettingsScreen(
                 title = "Auto-translate",
                 subtitle = "Translate pages via Google Translate",
                 checked = autoTranslate,
-                onCheckedChange = { vm.setAutoTranslate(it) },
+                onCheckedChange = { 
+                    vm.setAutoTranslate(it)
+                    // Close dropdown when toggling to avoid UI issues
+                    translateDropdownExpanded = false
+                },
             )
 
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text("Translate to", style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
-                Box {
-                    OutlinedButton(onClick = { translateDropdownExpanded = !translateDropdownExpanded }) {
-                        Text(translateLanguageLabel)
-                    }
-                    DropdownMenu(
-                        expanded = translateDropdownExpanded,
-                        onDismissRequest = { translateDropdownExpanded = false },
-                    ) {
-                        translateLanguages.forEach { (code, label) ->
-                            DropdownMenuItem(
-                                text = { Text(label) },
-                                onClick = {
-                                    vm.setTranslateLanguage(code)
-                                    translateDropdownExpanded = false
-                                },
-                            )
+            // Language selector only shown when auto-translate is enabled
+            if (autoTranslate) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text("Translate to", style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
+                    Box {
+                        OutlinedButton(onClick = { translateDropdownExpanded = !translateDropdownExpanded }) {
+                            Text(translateLanguageLabel)
+                        }
+                        DropdownMenu(
+                            expanded = translateDropdownExpanded,
+                            onDismissRequest = { translateDropdownExpanded = false },
+                        ) {
+                            translateLanguages.forEach { (code, label) ->
+                                DropdownMenuItem(
+                                    text = { Text(label) },
+                                    onClick = {
+                                        vm.setTranslateLanguage(code)
+                                        translateDropdownExpanded = false
+                                    },
+                                )
+                            }
                         }
                     }
                 }

@@ -168,7 +168,13 @@ class MainViewModel(
     fun setAutoTranslate(enabled: Boolean) {
         _autoTranslate.value = enabled
         val raw = _rawUrl.value ?: return
-        _currentUrl.value = if (enabled) translateUrl(raw) else raw
+        val current = _currentUrl.value ?: return
+        
+        // Only update the URL if we're still on the original discovery page
+        if (current == raw || current == translateUrl(raw)) {
+            _currentUrl.value = if (enabled) translateUrl(raw) else raw
+        }
+        // If user has navigated away, don't revert their navigation
     }
 
     /** User preference: enable JavaScript in the WebView (default on) */
