@@ -50,6 +50,21 @@ import app.roam.android.BuildConfig
 import app.roam.android.model.SubcategoryItem
 import app.roam.android.viewmodel.MainViewModel
 
+// Constants to avoid recreating lists on every recomposition
+private val TRANSLATE_LANGUAGES = listOf(
+    "en" to "English", "fr" to "Français", "de" to "Deutsch",
+    "it" to "Italiano", "es" to "Español", "pt" to "Português",
+    "nl" to "Nederlands", "pl" to "Polski", "ja" to "日本語",
+    "zh" to "中文", "ru" to "Русский", "ko" to "한국어",
+)
+
+private val AVAILABLE_LANGUAGES = listOf(
+    "en" to "English", "fr" to "Français", "de" to "Deutsch",
+    "it" to "Italiano", "es" to "Español", "pt" to "Português",
+    "nl" to "Nederlands", "pl" to "Polski", "ja" to "日本語",
+    "zh" to "中文", "ru" to "Русский", "ko" to "한국어",
+)
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
@@ -80,13 +95,7 @@ fun SettingsScreen(
     var languageFilterDropdownExpanded by remember { mutableStateOf(false) }
     var focusCategoryDropdownExpanded by remember { mutableStateOf(false) }
     var focusSubcategoryDropdownExpanded by remember { mutableStateOf(false) }
-    val translateLanguages = listOf(
-        "en" to "English", "fr" to "Français", "de" to "Deutsch",
-        "it" to "Italiano", "es" to "Español", "pt" to "Português",
-        "nl" to "Nederlands", "pl" to "Polski", "ja" to "日本語",
-        "zh" to "中文", "ru" to "Русский", "ko" to "한국어",
-    )
-    val translateLanguageLabel = translateLanguages.firstOrNull { it.first == translateLanguage }?.second ?: "English"
+    val translateLanguageLabel = TRANSLATE_LANGUAGES.firstOrNull { it.first == translateLanguage }?.second ?: "English"
     val currentUrl by vm.currentUrl.collectAsState()
     val savedConfirmation by vm.savedConfirmation.collectAsState()
 
@@ -183,13 +192,7 @@ fun SettingsScreen(
                     )
                 }
                 Box {
-                    val availableLanguages = listOf(
-                        "en" to "English", "fr" to "Français", "de" to "Deutsch",
-                        "it" to "Italiano", "es" to "Español", "pt" to "Português",
-                        "nl" to "Nederlands", "pl" to "Polski", "ja" to "日本語",
-                        "zh" to "中文", "ru" to "Русский", "ko" to "한국어",
-                    )
-                    val selectedLabel = if (preferredLanguages.size == availableLanguages.size) {
+                    val selectedLabel = if (preferredLanguages.size == AVAILABLE_LANGUAGES.size) {
                         "All"
                     } else if (preferredLanguages.isEmpty()) {
                         "None"
@@ -203,7 +206,7 @@ fun SettingsScreen(
                         expanded = languageFilterDropdownExpanded,
                         onDismissRequest = { languageFilterDropdownExpanded = false },
                     ) {
-                        availableLanguages.forEach { (code, label) ->
+                        AVAILABLE_LANGUAGES.forEach { (code, label) ->
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -277,7 +280,7 @@ fun SettingsScreen(
                             expanded = translateDropdownExpanded,
                             onDismissRequest = { translateDropdownExpanded = false },
                         ) {
-                            translateLanguages.forEach { (code, label) ->
+                            TRANSLATE_LANGUAGES.forEach { (code, label) ->
                                 DropdownMenuItem(
                                     text = { Text(label) },
                                     onClick = {
