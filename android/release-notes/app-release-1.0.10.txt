@@ -1,0 +1,41 @@
+Roam 1.0.10 Release Notes
+
+Version: 1.0.10
+Release Date: June 7, 2026
+Status: Beta testing via Firebase
+
+Stability release focused on WebView resilience, error reporting hygiene, and crash fixes across core screens.
+
+What's new since 1.0.8
+- WebView renderer death recovery — When the Android system kills the WebView renderer process, the app now restores the page with a snapshot overlay and preserves scroll position, preventing white screens and lost reading progress
+- WebView creation failure handling — If WebView creation fails (e.g. on devices with limited resources), the error is now caught gracefully instead of crashing the app
+- Sentry noise reduction — DNS resolution failures and internal Sentry HTTP client exceptions are now filtered out of error reporting, keeping the issue feed actionable
+- Profile error visibility — Profile save failures now surface an error message to the user instead of silently failing
+
+Bug fixes and quality improvements
+- Infinite WebView load loop — Fixed a bug where the WebView would re-issue loadUrl() on every recomposition while a page was still loading, causing an infinite reload cycle that made browsing unusable
+- Bottom sheet animation crash — Added guard for IllegalStateException when bottom sheet animations conflict with rapid user input, preventing crashes during quick Roam/Done interactions
+- Profile empty-string guards — Stat cells and avatar URLs no longer crash on empty or null string values
+- Profile save errors — Failed profile updates now display an inline error instead of appearing to succeed with no changes persisted
+
+Testing focus areas
+1) WebView stability — Roam through 10+ URLs in a single session, return to history, tap entries — verify no white screens or infinite reloads
+2) Renderer death — Browse content-heavy pages, background the app under memory pressure, return — verify the page restores instead of showing a blank WebView
+3) Bottom sheet — Rapidly tap Roam/Done on multiple URLs in quick succession — verify no crash
+4) Profile editing — Edit profile with empty display name or avatar URL — verify no crash
+5) Profile save — Edit profile on a slow/unstable connection, attempt save — verify error message appears if save fails
+6) Sentry dashboard — Verify that DNS_FAILED and SentryHttpClientException events are excluded from the issue stream
+7) Scroll preservation — Scroll partway down a page, navigate away, return — verify scroll position is maintained
+8) App startup — Launch on older devices (API 26+) and emulators where WebView may be unavailable — verify no crash
+
+Feedback
+- Report any WebView white screens with device model, Android version, and the URL being viewed
+- Infinite load issues should include whether the page was still loading or had completed
+- Profile save errors should include any error message displayed
+- Include device model, Android version, and steps to reproduce for any regressions
+
+Known limitations
+- Beta build; behavior may evolve based on feedback
+- Renderer death recovery uses a snapshot overlay; the page must be reloaded to become interactive again
+- History is stored locally and cleared on app uninstall
+- History entries are capped at 200; oldest entries are evicted when the limit is reached
