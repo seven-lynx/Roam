@@ -9,13 +9,19 @@
 // message rather than an error.
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-import { corsHeaders } from '../_shared/cors.ts'
 import { clientIp, rateLimit } from '../_shared/rate-limit.ts'
 
 const RATE_LIMIT = 5
 const WINDOW_MS = 10 * 60_000 // 10 minutes
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+
+// Public endpoint — allow any origin (unlike the shared cors.ts which restricts to roamtheweb.app)
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
+}
 
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {

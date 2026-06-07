@@ -165,6 +165,19 @@ export type BetaSignup = {
   created_at: string;
 };
 
+export async function deleteBetaSignup(id: number): Promise<{ error: string | null }> {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !serviceKey || !id) return { error: "Server misconfiguration" };
+
+  const admin = createClient(url, serviceKey, {
+    auth: { autoRefreshToken: false, persistSession: false },
+  });
+
+  const { error } = await admin.from("beta_signups").delete().eq("id", id);
+  return { error: error ? error.message : null };
+}
+
 export async function getBetaSignups(): Promise<{ data: BetaSignup[] | null; error: string | null }> {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;

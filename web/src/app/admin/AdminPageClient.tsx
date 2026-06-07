@@ -5,7 +5,7 @@ import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import ModerationDetail from "./ModerationDetail";
-import { getAdminAnalytics, getAdminQueue, getAdminReports, getBetaSignups, restoreLinkAdmin } from "./actions";
+import { getAdminAnalytics, getAdminQueue, getAdminReports, getBetaSignups, deleteBetaSignup, restoreLinkAdmin } from "./actions";
 import type { BetaSignup } from "./actions";
 
 
@@ -91,6 +91,7 @@ export default function AdminPageClient() {
   const [allSubcategories, setAllSubcategories] = useState<Subcategory[]>([]);
   const [betaSignups, setBetaSignups] = useState<BetaSignup[]>([]);
   const [betaLoading, setBetaLoading] = useState(false);
+  const [deletingBetaId, setDeletingBetaId] = useState<number | null>(null);
 
   async function loadCategories() {
     try {
@@ -218,6 +219,20 @@ export default function AdminPageClient() {
       console.error("Failed to load beta signups:", err);
     } finally {
       setBetaLoading(false);
+    }
+  }
+
+  async function deleteSignup(id: number) {
+    setDeletingBetaId(id);
+    try {
+      const { error } = await deleteBetaSignup(id);
+      if (error) {
+        console.error("Failed to delete signup:", error);
+        return;
+      }
+      setBetaSignups((prev) => prev.filter((s) => s.id !== id));
+    } finally {
+      setDeletingBetaId(null);
     }
   }
 
@@ -807,6 +822,7 @@ export default function AdminPageClient() {
                       <tr className="border-b border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900">
                         <th className="text-left py-3 px-4 font-semibold text-zinc-700 dark:text-zinc-300">Email</th>
                         <th className="text-right py-3 px-4 font-semibold text-zinc-700 dark:text-zinc-300 w-48">Signed up</th>
+                        <th className="py-3 px-4 w-24"></th>
                       </tr>
                     </thead>
                     <tbody>
@@ -820,6 +836,15 @@ export default function AdminPageClient() {
                           </td>
                           <td className="py-3 px-4 text-right text-xs text-zinc-500 whitespace-nowrap">
                             {new Date(s.created_at).toLocaleString('en-US', { timeZone: 'America/New_York', timeZoneName: 'short' })}
+                          </td>
+                          <td className="py-3 px-4 text-center">
+                            <button
+                              onClick={() => deleteSignup(s.id)}
+                              disabled={deletingBetaId === s.id}
+                              className="text-xs px-3 py-1.5 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/40 disabled:opacity-50 transition-colors"
+                            >
+                              {deletingBetaId === s.id ? "…" : "Delete"}
+                            </button>
                           </td>
                         </tr>
                       ))}
