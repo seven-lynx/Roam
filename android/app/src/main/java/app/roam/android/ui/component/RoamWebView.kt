@@ -65,6 +65,11 @@ fun RoamWebView(
     val webViewRef = remember { mutableStateOf<WebView?>(null) }
     // Keep a stable url reference for use inside the lifecycle observer
     val urlRef = remember { mutableStateOf(url) }
+    // Track the URL we've told the WebView to load so the update block doesn't
+    // re-issue loadUrl() on every recomposition while the WebView is still loading
+    // the old page (webView.url lags behind during navigation, causing an infinite
+    // load loop).
+    var commandedUrl by remember { mutableStateOf(url) }
     LaunchedEffect(url) {
         urlRef.value = url
         // Reset the error state whenever we get a new URL to try.
@@ -210,7 +215,24 @@ fun RoamWebView(
                             WebSettingsCompat.setForceDark(settings, WebSettingsCompat.FORCE_DARK_ON)
                         }
                     }
-                    webChromeClient = WebChromeClient()
+                    webChromeClient = object : WebChromeClient() {
+                        // When a page calls window.open() or a link has target="_blank",
+                        // Android calls onCreateWindow. The default implementation returns
+                        // false, which fires an ACTION_VIEW intent and opens the URL in
+                        // the system browser. We override it to reuse the same WebView,
+                        // keeping all navigation inside Roam.
+                        override fun onCreateWindow(
+                            view: WebView,
+                            isDialog: Boolean,
+                            isUserGesture: Boolean,
+                            resultMsg: android.os.Message,
+                        ): Boolean {
+                            val transport = resultMsg.obj as? WebView.WebViewTransport
+                            transport?.webView = view
+                            resultMsg.sendToTarget()
+                            return true
+                        }
+                    }
                     webViewClient = object : WebViewClient() {
                         override fun onPageStarted(view: WebView, url: String, favicon: Bitmap?) {
                             onLoadingChanged(true)
@@ -219,6 +241,7 @@ fun RoamWebView(
                             savedScrollY.intValue = 0
                         }
                         override fun onPageFinished(view: WebView, loadedUrl: String) {
+                            commandedUrl = loadedUrl
                             onUrlChanged(loadedUrl)
                             loadError = false
                             onLoadingChanged(false)
@@ -292,7 +315,8 @@ fun RoamWebView(
                     webView.settings.javaScriptEnabled = jsEnabled
                     webView.settings.domStorageEnabled = jsEnabled
                     webView.reload()
-                } else if (webView.url != url || loadError) {
+                } else if (commandedUrl != url || loadError) {
+                    commandedUrl = url
                     loadError = false
                     onLoadingChanged(true)
                     webView.loadUrl(url)
@@ -351,7 +375,7 @@ fun BackgroundPrefetchWebView(
                                 WebSettingsCompat.setForceDark(settings, WebSettingsCompat.FORCE_DARK_ON)
                             }
                         }
-                        loadUrl(url)
+                                        loadUrl(url)
                     }
                 } catch (t: Throwable) {
                     android.util.Log.e("RoamWebView", "Failed to create prefetch WebView", t)
