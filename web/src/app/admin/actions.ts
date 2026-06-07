@@ -157,6 +157,32 @@ export async function getAdminReports(): Promise<{ data: AdminReportRow[] | null
   };
 }
 
+// ─── Beta signups ──────────────────────────────────────────────────────────────
+
+export type BetaSignup = {
+  id: number;
+  email: string;
+  created_at: string;
+};
+
+export async function getBetaSignups(): Promise<{ data: BetaSignup[] | null; error: string | null }> {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !serviceKey) return { data: null, error: "Server misconfiguration" };
+
+  const admin = createClient(url, serviceKey, {
+    auth: { autoRefreshToken: false, persistSession: false },
+  });
+
+  const { data, error } = await admin
+    .from("beta_signups")
+    .select("id, email, created_at")
+    .order("created_at", { ascending: false });
+
+  if (error) return { data: null, error: error.message };
+  return { data: data as BetaSignup[], error: null };
+}
+
 // ─── Restore link ─────────────────────────────────────────────────────────────
 
 export async function restoreLinkAdmin(urlId: string): Promise<{ error: string | null }> {
