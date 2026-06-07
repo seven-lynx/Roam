@@ -67,6 +67,7 @@ fun ProfileScreen(
     val categories by vm.categories.collectAsState()
     val subcategories by vm.subcategories.collectAsState()
     val stats by vm.profileStats.collectAsState()
+    val profileSaveError by vm.profileSaveError.collectAsState()
 
     // Group subcategories by parent category
     val subcatsByCategory = subcategories.groupBy { it.categoryId }
@@ -111,9 +112,10 @@ fun ProfileScreen(
 
             // Stylized initial avatar — color derived deterministically from display name
             val avatarName = (profile?.displayName?.takeIf { it.isNotBlank() }
-                ?: profile?.username
+                ?: profile?.username?.takeIf { it.isNotBlank() }
                 ?: "?").trim()
             val avatarColor = avatarColorFor(avatarName)
+            val avatarInitial = avatarName.firstOrNull()?.uppercaseChar()?.toString() ?: "?"
             Box(
                 modifier = Modifier
                     .size(96.dp)
@@ -121,7 +123,7 @@ fun ProfileScreen(
                 contentAlignment = Alignment.Center,
             ) {
                 Text(
-                    text = avatarName.first().uppercaseChar().toString(),
+                    text = avatarInitial,
                     color = Color.White,
                     fontSize = 40.sp,
                     fontWeight = FontWeight.Bold,
@@ -145,12 +147,23 @@ fun ProfileScreen(
 
             HorizontalDivider()
 
+            // Profile save error (e.g. duplicate username)
+            if (profileSaveError != null) {
+                Text(
+                    text = profileSaveError!!,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+
             // Edit fields
             OutlinedTextField(
                 value = username,
                 onValueChange = { username = it.take(30) },
                 label = { Text("Username") },
                 singleLine = true,
+                isError = profileSaveError != null,
                 modifier = Modifier.fillMaxWidth(),
             )
             OutlinedTextField(

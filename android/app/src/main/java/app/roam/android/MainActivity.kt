@@ -5,7 +5,6 @@ import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.lifecycleScope
@@ -46,11 +45,14 @@ class MainActivity : ComponentActivity() {
             val authVm: AuthViewModel = viewModel()
             val mainVm: MainViewModel = viewModel()
             val authState by authVm.authState.collectAsState()
+            val webDarkMode by mainVm.webDarkMode.collectAsState()
             // Force dark theme while on the login/splash screen so enableEdgeToEdge()
             // paints a dark window background rather than the system default white.
-            val forceDark = (authState == AuthState.Unauthenticated)
-                         || (authState == AuthState.Loading)
-                         || isSystemInDarkTheme()
+            // When authenticated, use the user's webDarkMode preference.
+            val forceDark = when (authState) {
+                AuthState.Unauthenticated, AuthState.Loading -> true
+                AuthState.NeedsOnboarding, AuthState.Authenticated -> webDarkMode
+            }
             RoamTheme(darkTheme = forceDark) {
                 Log.d(TAG, "AuthState = $authState")
                 when (authState) {

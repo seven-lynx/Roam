@@ -67,6 +67,7 @@ import app.roam.android.viewmodel.MainViewModel
 fun SavedScreen(
     vm: MainViewModel,
     onNavigateBack: () -> Unit = {},
+    onNavigateToUrl: (String) -> Unit = {},
 ) {
     val savedUrls by vm.savedUrls.collectAsState()
     val collections by vm.collections.collectAsState()
@@ -123,6 +124,7 @@ fun SavedScreen(
                     items = collectionItems,
                     isLoading = collectionItemsLoading,
                     onRemoveItem = { urlId -> vm.removeItemFromCollection(selectedCollection!!.id, urlId) },
+                    onNavigateToUrl = onNavigateToUrl,
                 )
             } else {
                 TabRow(selectedTabIndex = selectedTab) {
@@ -142,7 +144,7 @@ fun SavedScreen(
                 }
 
                 when (selectedTab) {
-                    0 -> SavedTab(savedUrls = savedUrls, collections = collections, vm = vm)
+                    0 -> SavedTab(savedUrls = savedUrls, collections = collections, vm = vm, onNavigateToUrl = onNavigateToUrl)
                     1 -> {
                         val context = LocalContext.current
                         CollectionsTab(
@@ -171,6 +173,7 @@ private fun SavedTab(
     savedUrls: List<SavedUrl>,
     collections: List<Collection>,
     vm: MainViewModel,
+    onNavigateToUrl: (String) -> Unit = {},
 ) {
     val context = LocalContext.current
     var selectedUrls by remember { mutableStateOf(emptySet<String>()) }
@@ -297,10 +300,7 @@ private fun SavedTab(
                         ) {
                             SavedUrlRow(
                                 item = item,
-                                onClick = {
-                                    val intent = Intent(Intent.ACTION_VIEW, item.url.toUri())
-                                    context.startActivity(intent)
-                                },
+                                onClick = { onNavigateToUrl(item.url) },
                                 onLongClick = { selectedUrls = setOf(item.url) },
                             )
                         }
@@ -563,9 +563,8 @@ private fun CollectionDetailTab(
     items: List<CollectionItem>,
     isLoading: Boolean,
     onRemoveItem: (urlId: String) -> Unit = {},
+    onNavigateToUrl: (String) -> Unit = {},
 ) {
-    val context = LocalContext.current
-
     when {
         isLoading -> {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -597,10 +596,7 @@ private fun CollectionDetailTab(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clickable {
-                                val intent = Intent(Intent.ACTION_VIEW, item.urls.url.toUri())
-                                context.startActivity(intent)
-                            }
+                            .clickable { onNavigateToUrl(item.urls.url) }
                             .padding(horizontal = 16.dp, vertical = 12.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {

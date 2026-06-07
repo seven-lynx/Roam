@@ -133,6 +133,10 @@ fun MainScreen(
                 SavedScreen(
                     vm = vm,
                     onNavigateBack = { currentTab = RoamTab.Settings.route },
+                    onNavigateToUrl = { url ->
+                        vm.navigateTo(url)
+                        currentTab = RoamTab.Roam.route
+                    },
                 )
             }
 
@@ -384,6 +388,10 @@ private fun DiscoverTab(
                     scope.launch { scaffoldState.bottomSheetState.partialExpand() }
                 },
                 onRemoveSavedUrl = { url -> vm.removeSavedUrl(url) },
+                onNavigateSavedUrl = { url ->
+                    vm.navigateTo(url)
+                    scope.launch { scaffoldState.bottomSheetState.partialExpand() }
+                },
                 onReportBrokenLink = {
                     vm.reportBrokenLink()
                     scope.launch { scaffoldState.bottomSheetState.partialExpand() }

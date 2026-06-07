@@ -91,10 +91,6 @@ export function ProfileClient({ userId, email, profile, allCategories, allSubcat
   async function saveInterests() {
     setInterestsSaving(true);
     setError(null);
-    const hasSelection =
-      (interestMode === 'pillars' && selectedPillars.size > 0) ||
-      (interestMode === 'topics' && selectedTopics.size > 0);
-    if (!hasSelection) { setInterestsSaving(false); return; }
     try {
       const subcategoryParentMap = new Map(allSubcategories.map((s) => [s.id, s.category_id]));
       await saveUserInterests(supabase, userId, interestMode, selectedPillars, selectedTopics, subcategoryParentMap);
@@ -211,9 +207,7 @@ export function ProfileClient({ userId, email, profile, allCategories, allSubcat
           {interestsDirty && (
             <button
               onClick={saveInterests}
-              disabled={interestsSaving || (
-                interestMode === 'pillars' ? selectedPillars.size === 0 : selectedTopics.size === 0
-              )}
+              disabled={interestsSaving}
               className="text-sm bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 px-5 py-2 rounded-lg font-medium hover:opacity-90 disabled:opacity-50 transition-opacity"
             >
               {interestsSaving ? 'Saving…' : 'Save interests'}

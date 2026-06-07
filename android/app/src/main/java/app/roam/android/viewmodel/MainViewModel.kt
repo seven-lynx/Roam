@@ -324,6 +324,10 @@ class MainViewModel(
     /** Debounce job for profile auto-save */
     private var profileSaveJob: Job? = null
 
+    /** Profile save error message (null = no error), surfaced in ProfileScreen */
+    private val _profileSaveError = MutableStateFlow<String?>(null)
+    val profileSaveError: StateFlow<String?> = _profileSaveError.asStateFlow()
+
     /** Cancels the previous roam() coroutine when a new one starts, preventing
      *  concurrent API calls from racing and overwriting each other's results. */
     private var roamJob: Job? = null
@@ -801,10 +805,27 @@ class MainViewModel(
     }
 
     fun saveForLater() {
-        val url = _rawUrl.value ?: return
-        val title = ((_state.value as? RoamState.Loaded)?.roamUrl?.title ?: url)
+        // Use _currentUrl (what the user is actually viewing) rather than _rawUrl
+        // (the original discovery URL). If the user clicked a link within the page
+        // and navigated to a different URL on the same domain, we should save the
+        // page they're looking at, not the original entry point.
+        //
+        // If the current URL is a Google Translate wrapper, extract the underlying
+        // URL so we save the actual page, not translate.google.com.
+        val raw = _rawUrl.value
+        val rawUrl = _currentUrl.value ?: raw ?: return
+        val url = if (rawUrl.startsWith("https://translate.google.com/translate?")) {
+            Uri.parse(rawUrl).getQueryParameter("u") ?: rawUrl
+        } else {
+            rawUrl
+        }
+        // Use the discovered page title if the user is still on the original
+        // discovered page; otherwise fall back to the URL itself.
+        val rawTitle = (_state.value as? RoamState.Loaded)?.roamUrl?.title
+        val isOnDiscoveredPage = url == raw
+        val title = (if (isOnDiscoveredPage && !rawTitle.isNullOrBlank()) rawTitle else url)
             .take(200)  // Guard against huge titles
-        val urlId = (_state.value as? RoamState.Loaded)?.roamUrl?.id
+        val urlId = if (isOnDiscoveredPage) (_state.value as? RoamState.Loaded)?.roamUrl?.id else null
         val entry = SavedUrl(url = url, title = title)
         val current = _savedUrls.value
         if (current.none { it.url == url }) {
@@ -1108,10 +1129,29 @@ class MainViewModel(
             displayName = displayName,
             bio = bio,
         )
+        _profileSaveError.value = null
         profileSaveJob?.cancel()
         profileSaveJob = viewModelScope.launch {
             delay(800)
-            runCatching { repo.updateProfile(username, displayName, bio) }
+            val result = runCatching { repo.updateProfile(username, displayName, bio) }
+            result.onFailure { e ->
+                val message = e.message.orEmpty()
+                val isUniqueViolation = message.contains("duplicate key", ignoreCase = true)
+                    || message.contains("unique", ignoreCase = true)
+                    || message.contains("violates", ignoreCase = true)
+                if (isUniqueViolation) {
+                    _profileSaveError.value = "Username '$username' is already taken. Please choose another."
+                    // Revert local state to the last known server value so the text field
+                    // doesn't show the rejected username. Only revert if we still have a profile.
+                    val latest = runCatching { repo.getProfile() }.getOrNull()
+                    if (latest != null) {
+                        _profile.value = latest
+                    }
+                } else {
+                    _profileSaveError.value = "Couldn't save: ${e.message ?: "unknown error"}"
+                    Sentry.captureException(e)
+                }
+            }
         }
     }
 

@@ -1,0 +1,29 @@
+Roam 1.0.7 Release Notes
+
+Version: 1.0.7
+Release Date: June 6, 2026
+Status: Beta testing via Firebase
+
+Minor release focused on language features, navigation refinements, and Settings screen performance.
+
+What's new
+- Language filter for discovery — Users can now filter by preferred language when discovering URLs, enabling more relevant recommendations based on language preference
+- Auto-translate persistence — Language preferences are now properly saved and restored across app sessions, ensuring consistent user experience
+- In-app history navigation — History URLs now open within the app instead of launching the browser, providing seamless navigation and keeping users in the Roam experience
+- URL history — New dedicated history feature to view and revisit previously discovered and visited URLs with full persistence across sessions
+- Page navigation buttons — Improved navigation controls for browsing multi-page content and moving between discovery results
+
+Bug fixes and quality improvements
+- Settings screen jankiness — Fixed performance issues in the Settings screen by memoizing language lists, eliminating unnecessary re-renders and UI freezes when navigating settings
+- Scroll state preservation — Fixed scroll position being reset unexpectedly during navigation, ensuring users maintain their scroll position when returning to previously viewed content
+- Navigation flow — Improved consistency of URL handling across history, bookmarks, and discovery surfaces
+
+Testing focus areas
+1) Language filter — Open Discovery, verify language filter is available and functional; select a language and confirm URLs are filtered accordingly
+2) Language persistence — Select a language preference in Settings, close and reopen the app, verify the language preference is retained
+3) History navigation — Visit several URLs, navigate to History, tap a previous URL, verify it opens in-app using the WebView instead of external browser
+4) History feature — Verify history is populated with visited URLs, persists across sessions, and can be cleared from settings
+5) Page navigation buttons — When discovering multi-page results, verify next/previous page buttons are functional and navigate correctly
+6) Scroll state — Navigate to a URL, scroll down partway, go back, return to that URL, verify scroll position is preserved at the same location
+7) Settings performance — Rapidly scroll through Settings screen, verify smooth scrolling without UI jank or delays in language list rendering
+8) Discovery + language — Use language filter during discovery, switch between filters, verify filtering works correctly across multiple roams

@@ -1,5 +1,6 @@
 package app.roam.android.ui.component
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -49,6 +50,7 @@ fun ConfigBottomSheet(
     onNavReload: () -> Unit,
     onRemoveSavedUrl: (url: String) -> Unit,
     onReportBrokenLink: () -> Unit,
+    onNavigateSavedUrl: (url: String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var collectionPickerOpen by remember { mutableStateOf(false) }
@@ -175,11 +177,12 @@ fun ConfigBottomSheet(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
+                            .clickable { onNavigateSavedUrl(saved.url) }
                             .padding(horizontal = 16.dp, vertical = 2.dp),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Column(modifier = Modifier.weight(1f)) {
+                        Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
                             Text(
                                 text = saved.title,
                                 style = MaterialTheme.typography.bodySmall,

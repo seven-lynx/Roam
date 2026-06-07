@@ -1,0 +1,47 @@
+Roam 1.0.8 Release Notes
+
+Version: 1.0.8
+Release Date: June 6, 2026
+Status: Beta testing via Firebase
+
+Stability release: This build hardens the 1.0.7 feature set with fixes for Settings screen performance and in-app history navigation. All features and testing focus areas from the 1.0.7 beta notes (app-release-1.0.6.txt) still apply.
+
+What's new since 1.0.7
+- Settings screen performance — Language lists are now memoized at file-level constants, eliminating unnecessary list recreation on every recomposition and delivering smooth scrolling throughout the Settings screen
+- In-app history navigation — History URLs now reliably open within the app WebView instead of launching the system browser, keeping all browsing within the Roam experience
+- Sentry initialization hardening — Sentry init is now wrapped in a try/catch to prevent crashes on devices or emulators where WebView is unavailable during startup
+- Session state checks — Improved authentication state detection using session status rather than currentUserOrNull, reducing edge cases where prefetch would start before the session token was fully propagated
+
+Bug fixes and quality improvements
+- Settings screen jank — Dropdown menus and language selectors no longer cause UI freezes or stutter during rapid scrolling
+- History URL handling — Added shouldOverrideUrlLoading to RoamWebView, preventing URL delegation to the system browser for history-tapped links
+- Prefetch timing — Added a 100ms delay after session authentication before starting prefetch, giving Supabase plugins time to propagate the token
+- Prefetch batch size — Reduced warm-fill batch size from 4 to 2 to avoid overwhelming the edge function with concurrent requests
+
+Testing focus areas
+1) Settings performance — Rapidly scroll through Settings, expand dropdowns, switch languages — verify smooth scrolling with no jank
+2) History in-app navigation — Visit several URLs, go to History, tap a previous URL — verify it opens in the Roam WebView (not an external browser)
+3) History persistence — Visit 5+ URLs across multiple sessions, close and reopen the app — verify all visited URLs appear in History in correct recency order (most recent first)
+4) History deduplication — Visit the same URL twice with different titles (e.g., after a roam title refresh) — verify only one entry appears, at the most recent position, with the latest title
+5) Save from history — Go to History, long-press or use the save action on a history entry — verify the URL appears in Saved and persists across app restarts
+6) Save to collection from history — While in History, save an entry to a specific collection — open that collection and verify the URL appears with correct metadata
+7) History clear — Navigate to Settings, clear history — verify History screen shows empty state; visit new URLs and confirm history repopulates correctly
+8) History URL correctness — Tap several different URLs from History — verify each opens the correct page (not a different entry or the current roam page)
+9) App startup — Launch the app on various devices including older hardware — verify no crash related to Sentry initialization
+10) Session handling — Sign in, quickly tap Roam — verify prefetch starts correctly without auth errors
+11) Language filter + history — Filter discovery by a non-English language, visit URLs, check History — verify visited URLs appear regardless of language filter
+12) Back navigation from history — Tap a URL in History, press system back — verify you return to History (not exit the app)
+
+Feedback
+- Report any Settings screen jank with device model and Android version
+- History navigation issues should include the URL and whether it attempted to open externally
+- History persistence issues should include number of entries, device model, and whether you cleared app data
+- Save/collection workflows — include whether the URL saved correctly and which collection it was added to
+- Include device model, Android version, and steps to reproduce for any regressions
+
+Known limitations
+- Beta build; behavior may evolve based on feedback
+- Settings language lists are loaded at app startup; adding new languages requires an app update
+- History is stored locally and cleared on app uninstall
+- History entries are capped at 200; oldest entries are evicted when the limit is reached
+- History titles reflect the page title at time of visit; if a page title changes on subsequent loads, the original entry is updated

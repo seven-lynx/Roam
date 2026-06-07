@@ -104,10 +104,7 @@ fun RoamWebView(
             when (event) {
                 Lifecycle.Event.ON_RESUME -> {
                     val wv = webViewRef.value ?: return@LifecycleEventObserver
-                    wv.onResume()
-                    wv.resumeTimers()
                     // If the renderer was killed while backgrounded, the WebView url is null.
-                    // Restore saved state first; fall back to reloading the current url.
                     if (wv.url.isNullOrEmpty()) {
                         showSnapshot = true
                         if (!savedState.isEmpty) {
@@ -116,37 +113,42 @@ fun RoamWebView(
                             urlRef.value?.let { wv.loadUrl(it) }
                         }
                     } else {
-                        // WebView is alive — restore scroll position saved during ON_PAUSE.
-                        // restoreState is the WebView's native mechanism for restoring nav
-                        // history + scroll, and handles internal timing correctly.
-                        if (!savedState.isEmpty) {
-                            wv.restoreState(savedState)
-                        }
-                        // Fallback: manual scroll restoration via postDelayed. We capture
-                        // savedScrollY as a local val BEFORE resetting so the lambda uses
-                        // the correct value (not the zero it gets reset to on the next line).
-                        // The 300ms delay gives the WebView time to finish its internal
-                        // resume/layout cycle triggered by resumeTimers().
+                        // WebView is alive — restore the page's scroll position using
+                        // JavaScript. We use evaluateJavascript("window.scrollTo") rather
+                        // than wv.scrollTo() because the latter operates on the Android
+                        // View's scroll, not the web page content's scroll position.
+                        // Do NOT call onPause()/onResume() or pauseTimers()/resumeTimers()
+                        // — they interfere with the WebView's internal state and can reset
+                        // scroll to 0.
                         val sy = savedScrollY.intValue
                         savedScrollY.intValue = 0
                         if (sy > 0) {
-                            wv.postDelayed({
-                                wv.scrollTo(0, sy)
-                            }, 300)
+                            wv.post {
+                                wv.evaluateJavascript(
+                                    "window.scrollTo(0, $sy);",
+                                    null,
+                                )
+                            }
                         }
                     }
                 }
                 Lifecycle.Event.ON_PAUSE -> {
-                    webViewRef.value?.let {
-                        if ((it.width > 0) && (it.height > 0)) {
-                            val bmp = createBitmap(it.width, it.height, Bitmap.Config.ARGB_8888)
-                            it.draw(Canvas(bmp))
+                    webViewRef.value?.let { wv ->
+                        if ((wv.width > 0) && (wv.height > 0)) {
+                            val bmp = createBitmap(wv.width, wv.height, Bitmap.Config.ARGB_8888)
+                            wv.draw(Canvas(bmp))
                             snapshotBitmap = bmp
                         }
-                        savedScrollY.intValue = it.scrollY
-                        it.saveState(savedState)
-                        it.onPause()
-                        it.pauseTimers()
+                        // Capture the page's actual scroll position via JavaScript.
+                        // wv.scrollY returns the Android View's scroll offset, which on
+                        // many devices does not track the DOM scroll position.
+                        wv.evaluateJavascript(
+                            "(function(){var d=document.documentElement;var b=document.body;return d.scrollTop||b.scrollTop||window.pageYOffset||0;})()",
+                        ) { result ->
+                            val parsed = result?.removeSurrounding("\"")?.toIntOrNull() ?: 0
+                            savedScrollY.intValue = parsed
+                        }
+                        wv.saveState(savedState)
                     }
                 }
                 else -> {}
@@ -212,6 +214,9 @@ fun RoamWebView(
                     webViewClient = object : WebViewClient() {
                         override fun onPageStarted(view: WebView, url: String, favicon: Bitmap?) {
                             onLoadingChanged(true)
+                            // Reset saved scroll when navigating to a new page so we don't
+                            // accidentally scroll a new roam to the previous page's position.
+                            savedScrollY.intValue = 0
                         }
                         override fun onPageFinished(view: WebView, loadedUrl: String) {
                             onUrlChanged(loadedUrl)

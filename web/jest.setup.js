@@ -3,6 +3,16 @@
  * Runs before each test suite.
  */
 
+// Next.js 16 server components need the native Request class in scope.
+// jsdom does not provide it, so supply a minimal polyfill.
+if (typeof Request === 'undefined') {
+  global.Request = class Request {
+    constructor(input) {
+      this.url = typeof input === 'string' ? input : input?.url ?? ''
+    }
+  }
+}
+
 // Mock Sentry for tests (prevent noise in test output)
 jest.mock('@sentry/nextjs', () => ({
   captureException: jest.fn(),

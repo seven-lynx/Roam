@@ -206,6 +206,37 @@ fun SettingsScreen(
                         expanded = languageFilterDropdownExpanded,
                         onDismissRequest = { languageFilterDropdownExpanded = false },
                     ) {
+                        // "All languages" option
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    val newLangs = if (preferredLanguages.size == AVAILABLE_LANGUAGES.size) {
+                                        listOf("en")  // Default to English if already all selected
+                                    } else {
+                                        AVAILABLE_LANGUAGES.map { it.first }
+                                    }
+                                    vm.setPreferredLanguages(newLangs)
+                                }
+                                .padding(horizontal = 16.dp, vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Checkbox(
+                                checked = preferredLanguages.size == AVAILABLE_LANGUAGES.size,
+                                onCheckedChange = { isChecked ->
+                                    val newLangs = if (isChecked) {
+                                        AVAILABLE_LANGUAGES.map { it.first }
+                                    } else {
+                                        listOf("en")
+                                    }
+                                    vm.setPreferredLanguages(newLangs)
+                                },
+                            )
+                            Text("All languages", modifier = Modifier.padding(start = 8.dp))
+                        }
+
+                        HorizontalDivider()
+
                         AVAILABLE_LANGUAGES.forEach { (code, label) ->
                             Row(
                                 modifier = Modifier
