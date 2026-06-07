@@ -16,6 +16,9 @@ export function Footer() {
           >
             GitHub
           </a>
+          <Link href="/how-it-works" className="hover:text-zinc-900 dark:hover:text-white transition-colors">
+            How It Works
+          </Link>
           <Link href="/beta" className="hover:text-zinc-900 dark:hover:text-white transition-colors">
             Join the Beta
           </Link>

@@ -43,6 +43,13 @@ export default async function Home() {
           </a>
         </div>
 
+        <Link
+          href="/how-it-works"
+          className="text-blue-600 hover:underline text-sm font-medium"
+        >
+          How Roam Works →
+        </Link>
+
         {/* Downloads */}
         <div
           id="get-the-app"
