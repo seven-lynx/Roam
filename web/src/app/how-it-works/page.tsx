@@ -42,7 +42,7 @@ export default function HowItWorks() {
                 <strong className="text-zinc-900 dark:text-white">
                   Press the button.
                 </strong>{" "}
-                In the browser extension or mobile app, tap "Roam" and
+                In the browser extension or mobile app, tap &ldquo;Roam&rdquo; and
                 land on a real page curated by real people.
               </p>
             </div>
@@ -87,7 +87,7 @@ export default function HowItWorks() {
           <p className="text-zinc-600 dark:text-zinc-300 leading-relaxed mb-6">
             The discovery function runs directly in PostgreSQL. When you press
             the button, it balances five independent signals to pick a page
-            you'll likely enjoy:
+            you&rsquo;ll likely enjoy:
           </p>
           <div className="grid sm:grid-cols-2 gap-5">
             <div className="border border-zinc-200 dark:border-zinc-800 rounded-xl p-5">
@@ -119,7 +119,7 @@ export default function HowItWorks() {
               </h3>
               <p className="text-sm text-zinc-500 dark:text-zinc-400 leading-relaxed">
                 Topics you upvote appear more often (up to 2× weight).
-                Downvoting doesn't hide a topic — it just dials the weight
+                Downvoting doesn&rsquo;t hide a topic — it just dials the weight
                 back slightly. Calibrated per subcategory.
               </p>
             </div>
@@ -130,7 +130,7 @@ export default function HowItWorks() {
               </h3>
               <p className="text-sm text-zinc-500 dark:text-zinc-400 leading-relaxed">
                 Recently published pages get a mild boost; very old ones fade
-                gradually. You won't get stale content, but timeless gems
+                gradually. You won&rsquo;t get stale content, but timeless gems
                 still surface.
               </p>
             </div>
@@ -176,7 +176,7 @@ export default function HowItWorks() {
                 </h3>
                 <p className="text-sm leading-relaxed">
                   Two downvotes from the same domain triggers a 30-day
-                  auto-mute. That site won't appear again until the
+                  auto-mute. That site won&rsquo;t appear again until the
                   cooldown expires.
                 </p>
               </div>
@@ -230,7 +230,7 @@ export default function HowItWorks() {
                 <strong className="text-zinc-900 dark:text-white">
                   Wilson score ranking.
                 </strong>{" "}
-                Every vote recalculates the page's community score
+                Every vote recalculates the page&rsquo;s community score
                 automatically. No cron jobs, no batch processing — rankings are
                 always live.
               </p>
