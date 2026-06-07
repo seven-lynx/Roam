@@ -45,7 +45,7 @@ export default function BetaPage() {
         <div>
           <h1 className="text-3xl font-bold text-zinc-900 dark:text-white">Join the Closed Beta</h1>
           <p className="mt-3 text-zinc-500 dark:text-zinc-400">
-            Roam is in early access. Drop your email below and we'll let you know when
+            Roam is in early access. Drop your email below and we&rsquo;ll let you know when
             a spot opens up.
           </p>
         </div>
@@ -56,7 +56,7 @@ export default function BetaPage() {
               {message}
             </p>
             <p className="text-green-600 dark:text-green-400 text-sm mt-2">
-              We'll reach out when the beta expands. No spam, ever.
+              We&rsquo;ll reach out when the beta expands. No spam, ever.
             </p>
           </div>
         ) : (
