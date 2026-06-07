@@ -163,7 +163,7 @@ export default function HowItWorks() {
                 <p className="text-sm leading-relaxed">
                   Your upvotes and downvotes calibrate how often each
                   subcategory appears. Fine-grained — the system tracks
-                  preferences across 20+ subcategories like Science, Art, and
+                  preferences across 70+ subcategories like Science, Art, and
                   Gaming.
                 </p>
               </div>

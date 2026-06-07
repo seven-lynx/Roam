@@ -176,6 +176,25 @@ Deno.serve(async (req) => {
     )
   }
 
+  // ── Ensure profile row exists ─────────────────────────────────────────────
+  // moderation_queue.submitted_by references profiles(id) via FK. If the user
+  // doesn't have a profiles row yet (new sign-up who hasn't visited Profile
+  // screen), the insert below would fail with FK violation: "insert or update
+  // on table \"moderation_queue\" violates foreign key constraint
+  // \"moderation_queue_submitted_by_fkey\"" (ROAM-ANDROID-5).
+  // Upsert a minimal profile row first to satisfy the FK.
+  const { error: profileError } = await supabase.from('profiles').upsert({
+    id: user.id,
+    // Use email prefix or a generated username as fallback
+    username: user.email?.split('@')[0] ?? `user_${user.id.slice(0, 8)}`,
+    display_name: user.user_metadata?.full_name ?? null,
+  }, { onConflict: 'id' })
+
+  if (profileError) {
+    console.error('Failed to upsert profile row for FK', { userId: user.id, error: profileError })
+    return json({ error: 'Internal error' }, 500)
+  }
+
   // ── Insert into moderation queue ──────────────────────────────────────────
   // category_id is a top-level category UUID hint from the submitter.
   // moderation_queue has no category_id column, so we store it as reviewer_note

@@ -28,14 +28,29 @@ class RoamApplication : Application() {
                     options.environment = if (BuildConfig.DEBUG) "development" else "production"
                     options.tracesSampleRate = if (BuildConfig.DEBUG) 1.0 else 0.1
                     options.isEnableUserInteractionTracing = false
-                    // Drop HTTP 500s auto-captured by the OkHttp integration (ROAM-ANDROID-7).
-                    // These are server-side crashes in the edge function — noise on the client.
+                    // Drop noise auto-captured by the OkHttp integration:
+                    // - SentryHttpClientException (HTTP 500s from Sentry's own ingestion) — ROAM-ANDROID-7
+                    // - HttpRequestException with DNS failure messages — ROAM-ANDROID-Q/6/H
+                    //   These are transient network conditions the app already handles gracefully.
                     // Real app-thrown exceptions still reach Sentry via Sentry.captureException().
-                    options.beforeSend = io.sentry.SentryOptions.BeforeSendCallback { event, _ ->
-                        val isOkHttpCapture = event.exceptions
-                            ?.firstOrNull()
-                            ?.type == "SentryHttpClientException"
-                        if (isOkHttpCapture) null else event
+                    options.beforeSend = io.sentry.SentryOptions.BeforeSendCallback { event, hint ->
+                        val exc = event.exceptions?.firstOrNull()
+                        val excType = exc?.type
+                        val excValue = exc?.value ?: ""
+
+                        // Drop Sentry's own internal HTTP client errors (ROAM-ANDROID-7)
+                        if (excType == "SentryHttpClientException") return@BeforeSendCallback null
+
+                        // Drop DNS resolution failures — transient network conditions
+                        // that the app already surfaces to the user as "Network unreachable"
+                        // (ROAM-ANDROID-Q, ROAM-ANDROID-6, ROAM-ANDROID-H)
+                        if (excType == "HttpRequestException" && (
+                            excValue.contains("Unable to resolve host", ignoreCase = true) ||
+                            excValue.contains("No address associated", ignoreCase = true) ||
+                            excValue.contains("UnknownHostException", ignoreCase = true)
+                        )) return@BeforeSendCallback null
+
+                        event
                     }
                 }
             } catch (e: Exception) {

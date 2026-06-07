@@ -110,11 +110,13 @@ fun ProfileScreen(
         ) {
             Spacer(Modifier.height(8.dp))
 
-            // Stylized initial avatar — color derived deterministically from display name
+            // Stylized initial avatar — color derived deterministically from display name.
+            // Guard against empty strings: if both displayName and username are blank,
+            // fall back to "?" to avoid NoSuchElementException (ROAM-ANDROID-N).
             val avatarName = (profile?.displayName?.takeIf { it.isNotBlank() }
                 ?: profile?.username?.takeIf { it.isNotBlank() }
                 ?: "?").trim()
-            val avatarColor = avatarColorFor(avatarName)
+            val avatarColor = avatarColorFor(avatarName.ifBlank { "?" })
             val avatarInitial = avatarName.firstOrNull()?.uppercaseChar()?.toString() ?: "?"
             Box(
                 modifier = Modifier
@@ -130,7 +132,9 @@ fun ProfileScreen(
                 )
             }
 
-            // Stats row — shown once profile is loaded
+            // Stats row — shown once profile is loaded.
+            // Guard createdAt: if it's empty/blank, show "—" to prevent
+            // NoSuchElementException from string operations on empty sequences.
             if (profile != null) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -140,7 +144,8 @@ fun ProfileScreen(
                     StatCell(label = "Submitted", value = stats.submitted.toString())
                     StatCell(
                         label = "Joined",
-                        value = profile!!.createdAt.take(10).ifBlank { "—" },
+                        value = (profile?.createdAt?.takeIf { it.isNotBlank() }
+                            ?.take(10) ?: "—"),
                     )
                 }
             }
@@ -150,7 +155,7 @@ fun ProfileScreen(
             // Profile save error (e.g. duplicate username)
             if (profileSaveError != null) {
                 Text(
-                    text = profileSaveError!!,
+                    text = profileSaveError ?: "",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.error,
                     modifier = Modifier.fillMaxWidth(),
@@ -212,7 +217,7 @@ fun ProfileScreen(
                         onClick = { vm.setInterestMode("topics") },
                         modifier = Modifier.align(Alignment.Start),
                     ) {
-                        Text("Choose specific topics instead →")
+                        Text("Choose specific topics instead \u2192")
                     }
                 }
             } else {
@@ -220,7 +225,7 @@ fun ProfileScreen(
                     onClick = { vm.setInterestMode("pillars") },
                     modifier = Modifier.align(Alignment.Start),
                 ) {
-                    Text("← Choose categories instead")
+                    Text("\u2190 Choose categories instead")
                 }
                 categories.forEach { category ->
                     val subcats = subcatsByCategory[category.id] ?: emptyList()
@@ -259,7 +264,7 @@ fun ProfileScreen(
                     ),
                     modifier = Modifier.fillMaxWidth(),
                 ) {
-                    Text(if (interestsSaving) "Saving…" else "Save interests")
+                    Text(if (interestsSaving) "Saving\u2026" else "Save interests")
                 }
             }
 
@@ -283,8 +288,11 @@ fun ProfileScreen(
 
 @Composable
 private fun StatCell(label: String, value: String) {
+    // Guard against empty string values that could trigger NoSuchElementException
+    // in Compose's Text rendering (ROAM-ANDROID-N).
+    val safeValue = value.ifBlank { "\u2014" }
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(value, style = MaterialTheme.typography.titleLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Text(safeValue, style = MaterialTheme.typography.titleLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
         Text(
             label,
             style = MaterialTheme.typography.bodySmall,
@@ -315,4 +323,3 @@ private fun avatarColorFor(name: String): Color {
     }
     return AVATAR_COLORS[hash % AVATAR_COLORS.size]
 }
-

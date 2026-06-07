@@ -78,6 +78,10 @@ fun RoamWebView(
     }
     // Scroll position saved on pause, restored after the page reloads
     val savedScrollY = rememberSaveable { mutableIntStateOf(0) }
+    // The URL for which savedScrollY was captured. Used to prevent onPageStarted from
+    // zeroing scroll when the same page reloads after the WebView renderer was killed
+    // (e.g. app backgrounded, screen locked). If the URL changes, scroll is correctly reset.
+    var savedScrollUrl by remember { mutableStateOf<String?>(null) }
     // Snapshot of the last visible viewport — shown as an overlay while the page reloads
     // after renderer death, eliminating the white-screen flash.
     var snapshotBitmap by remember { mutableStateOf<Bitmap?>(null) }
@@ -152,6 +156,10 @@ fun RoamWebView(
                         ) { result ->
                             val parsed = result?.removeSurrounding("\"")?.toIntOrNull() ?: 0
                             savedScrollY.intValue = parsed
+                            // Tag the URL so that onPageStarted only resets scroll
+                            // when navigating to a genuinely new page, not when the
+                            // WebView reloads after renderer death.
+                            savedScrollUrl = wv.url
                         }
                         wv.saveState(savedState)
                     }
@@ -236,9 +244,13 @@ fun RoamWebView(
                     webViewClient = object : WebViewClient() {
                         override fun onPageStarted(view: WebView, url: String, favicon: Bitmap?) {
                             onLoadingChanged(true)
-                            // Reset saved scroll when navigating to a new page so we don't
-                            // accidentally scroll a new roam to the previous page's position.
-                            savedScrollY.intValue = 0
+                            // Reset saved scroll when navigating to a genuinely new page.
+                            // If the URL matches the scroll we captured in ON_PAUSE, this
+                            // is a reload after renderer death — preserve the scroll position.
+                            if (url != savedScrollUrl) {
+                                savedScrollY.intValue = 0
+                                savedScrollUrl = null
+                            }
                         }
                         override fun onPageFinished(view: WebView, loadedUrl: String) {
                             commandedUrl = loadedUrl
@@ -249,8 +261,18 @@ fun RoamWebView(
                             snapshotBitmap = null
                             val sy = savedScrollY.intValue
                             if (sy > 0) {
-                                view.post { view.scrollTo(0, sy) }
+                                // Use JavaScript window.scrollTo rather than view.scrollTo()
+                                // because view.scrollTo() operates on the Android View's
+                                // scroll offset, which does not track the DOM scroll position
+                                // on many devices.
+                                view.post {
+                                    view.evaluateJavascript(
+                                        "window.scrollTo(0, $sy);",
+                                        null,
+                                    )
+                                }
                                 savedScrollY.intValue = 0
+                                savedScrollUrl = null
                             }
                         }
                         override fun onReceivedError(

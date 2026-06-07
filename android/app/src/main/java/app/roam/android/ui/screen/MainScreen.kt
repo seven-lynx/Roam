@@ -207,7 +207,11 @@ private fun DiscoverTab(
     // Only auto-roam on first entry (Idle = fresh app launch).
     LaunchedEffect(Unit) { if (vm.state.value is RoamState.Idle) vm.roam() }
 
-    val scaffoldState = rememberBottomSheetScaffoldState()
+    // skipHiddenState must be false so that the sheet can animate to Hidden when the
+    // BottomSheetScaffold is recomposed. With skipHiddenState=true, Compose throws
+    // IllegalStateException: "Attempted to animate to hidden when skipHiddenState
+    // was enabled" if any event (back press, configuration change) triggers hiding.
+    val scaffoldState = rememberBottomSheetScaffoldState(skipHiddenState = false)
     val scope = rememberCoroutineScope()
 
     // lastLoadedUrl tracks what the WebView has actually finished rendering (or reached 70% progress).
@@ -257,7 +261,11 @@ private fun DiscoverTab(
     val displaySubcategory = if (!isRoaming) subcategoryName ?: lastSubcategoryName else null
     val displayDomain      = if (!isRoaming) domain          ?: lastDomain          else null
 
-    // Sync sheet expansion when ViewModel state changes
+    // Sync sheet expansion when ViewModel state changes.
+    // Catch IllegalStateException specifically: when a configuration change or back press
+    // causes the scaffold to hide the sheet while we're still trying to animate, the
+    // IllegalStateException "Attempted to animate to hidden when skipHiddenState was enabled"
+    // would otherwise crash the app (ROAM-ANDROID-J).
     LaunchedEffect(showConfigSheet) {
         try {
             if (showConfigSheet) {
@@ -266,8 +274,11 @@ private fun DiscoverTab(
                 // Collapse to peek height (can't fully hide with sheetPeekHeight enabled)
                 scaffoldState.bottomSheetState.partialExpand()
             }
+        } catch (_: IllegalStateException) {
+            // State transition conflict — sheet was already being hidden by the scaffold.
+            // Harmless; the visual state will resolve on the next recomposition.
         } catch (_: Exception) {
-            // Silently handle state transition errors
+            // Silently handle any other unexpected state transition errors
         }
     }
 
@@ -418,7 +429,7 @@ private fun DiscoverTab(
                 when {
                     state is RoamState.Error -> {
                         Text(
-                            "⚠ ${(state as RoamState.Error).message}",
+                            "\u26A0 ${(state as RoamState.Error).message}",
                             style = MaterialTheme.typography.labelMedium,
                             color = MaterialTheme.colorScheme.error,
                             maxLines = 1,
@@ -431,7 +442,7 @@ private fun DiscoverTab(
                     }
                     state is RoamState.Exhausted -> {
                         Text(
-                            "You've seen everything — adjust categories in Settings",
+                            "You've seen everything \u2014 adjust categories in Settings",
                             style = MaterialTheme.typography.labelMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             maxLines = 1,
@@ -440,7 +451,7 @@ private fun DiscoverTab(
                     }
                     !isOnline -> {
                         Text(
-                            "⚠ Offline — ratings queued",
+                            "\u26A0 Offline \u2014 ratings queued",
                             style = MaterialTheme.typography.labelMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -454,14 +465,14 @@ private fun DiscoverTab(
                             )
                             Spacer(Modifier.width(8.dp))
                             Text(
-                                "Roaming…",
+                                "Roaming\u2026",
                                 style = MaterialTheme.typography.labelMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                         } else {
                             val parts = listOfNotNull(displayCategory, displayDomain)
                             Text(
-                                text = if (parts.isEmpty()) "Roam" else parts.joinToString(" · "),
+                                text = if (parts.isEmpty()) "Roam" else parts.joinToString(" \u00B7 "),
                                 style = MaterialTheme.typography.labelMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 maxLines = 1,
@@ -516,7 +527,7 @@ private fun DiscoverTab(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(
-                        "Dead link reported — loading next page",
+                        "Dead link reported \u2014 loading next page",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSecondaryContainer,
                     )
