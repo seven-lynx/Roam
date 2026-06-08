@@ -85,6 +85,7 @@ export default async function CollectionPage({ params }: Props) {
                     className="flex gap-3 px-4 py-3 rounded-lg border border-zinc-200 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-900 transition-colors group"
                   >
                     {url.og_image_url && (
+                      // eslint-disable-next-line @next/next/no-img-element -- external OG images cannot use next/image
                       <img
                         src={url.og_image_url}
                         alt=""
@@ -101,6 +102,7 @@ export default async function CollectionPage({ params }: Props) {
                         <span className="text-xs text-zinc-500 dark:text-zinc-400 line-clamp-2">{url.description}</span>
                       )}
                       <span className="text-xs text-zinc-400 flex items-center gap-1">
+                        {/* eslint-disable-next-line @next/next/no-img-element -- favicons are 14x14 and don't benefit from next/image */}
                         <img
                           src={`https://www.google.com/s2/favicons?domain=${encodeURIComponent(domain)}&sz=32`}
                           alt=""
