@@ -18,6 +18,9 @@ web/TESTING.md
 !.env.example
 local.properties
 
+# ── Scripts (proprietary sources & seed pool) ────────────────────────────────
+scripts/
+
 # ── Seeder cache ─────────────────────────────────────────────────────────────
 scripts/.cache/
 
