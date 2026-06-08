@@ -24,7 +24,6 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.key
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -45,6 +44,91 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import app.roam.android.viewmodel.WebNavCommand
 import kotlinx.coroutines.flow.Flow
+
+// Schemes the WebView is allowed to load. Everything else (intent://, market://,
+// tel:, etc.) is blocked to prevent escaping into external apps.
+private val ALLOWED_SCHEMES = setOf("http", "https", "about", "data", "blob")
+
+// Self-contained JavaScript that saves and restores scroll position per-URL using
+// sessionStorage. Runs entirely in the WebView's JS context with no Android lifecycle
+// dependencies — eliminates the async race conditions of the old evaluateJavascript +
+// rememberSaveable approach.
+//
+// Mechanism:
+//  1. On page load, check sessionStorage for a saved scroll anchor for this URL. If
+//     found, poll requestAnimationFrame until the document height reaches the saved
+//     value, then scrollTo(0, savedY). This prevents the script from scrolling to a
+//     position the page hasn't reached yet (dynamic content, lazy images, etc.).
+//  2. On scroll (debounced 200ms), save { y, height, url } to sessionStorage.
+//  3. On beforeunload, immediately save the final scroll position.
+//
+// sessionStorage is scoped to origin — no cross-site leaks. Browsing history across
+// different domains is not tracked by this script (only within the same origin).
+private const val ROAM_SCROLL_MEMORY_SCRIPT = """
+(function(){
+  'use strict';
+  var STORAGE_KEY = '__roam_scroll__';
+  var DEBOUNCE_MS = 200;
+  var MAX_POLL_ATTEMPTS = 60; // 60 * ~100ms = 6s max wait
+  var pendingTimer = null;
+
+  function getScrollData() {
+    return { y: window.scrollY || window.pageYOffset || 0,
+             height: Math.max(document.body.scrollHeight, document.documentElement.scrollHeight, 0) };
+  }
+
+  function saveScroll() {
+    try {
+      var data = getScrollData();
+      data.url = location.href;
+      var store = JSON.parse(sessionStorage.getItem(STORAGE_KEY) || '{}');
+      store[data.url] = data;
+      sessionStorage.setItem(STORAGE_KEY, JSON.stringify(store));
+    } catch(e) { /* sessionStorage may be unavailable in some contexts */ }
+  }
+
+  function loadAndRestore() {
+    try {
+      var store = JSON.parse(sessionStorage.getItem(STORAGE_KEY) || '{}');
+      var entry = store[location.href];
+      if (!entry || !entry.y) return;
+      var targetY = entry.y;
+      var targetHeight = entry.height;
+      var pollCount = 0;
+
+      function tryScroll() {
+        var currentHeight = Math.max(document.body.scrollHeight, document.documentElement.scrollHeight, 0);
+        // Page has grown to at least the saved height, or we've polled long enough
+        if (currentHeight >= targetHeight || pollCount >= MAX_POLL_ATTEMPTS) {
+          window.scrollTo(0, Math.min(targetY, currentHeight));
+        } else {
+          pollCount++;
+          requestAnimationFrame(tryScroll);
+        }
+      }
+
+      // Delay first attempt by one frame so initial layout completes
+      requestAnimationFrame(tryScroll);
+    } catch(e) { /* no-op */ }
+  }
+
+  // Debounced scroll listener
+  window.addEventListener('scroll', function() {
+    if (pendingTimer) clearTimeout(pendingTimer);
+    pendingTimer = setTimeout(saveScroll, DEBOUNCE_MS);
+  }, { passive: true });
+
+  // Final save before navigating away
+  window.addEventListener('beforeunload', saveScroll);
+
+  // Restore on load
+  if (document.readyState === 'complete') {
+    loadAndRestore();
+  } else {
+    window.addEventListener('load', loadAndRestore, { once: true });
+  }
+})();
+"""
 
 @Composable
 fun RoamWebView(
@@ -76,12 +160,6 @@ fun RoamWebView(
         // This ensures that "Try next page" can actually escape the error screen.
         loadError = false
     }
-    // Scroll position saved on pause, restored after the page reloads
-    val savedScrollY = rememberSaveable { mutableIntStateOf(0) }
-    // The URL for which savedScrollY was captured. Used to prevent onPageStarted from
-    // zeroing scroll when the same page reloads after the WebView renderer was killed
-    // (e.g. app backgrounded, screen locked). If the URL changes, scroll is correctly reset.
-    var savedScrollUrl by remember { mutableStateOf<String?>(null) }
     // Snapshot of the last visible viewport — shown as an overlay while the page reloads
     // after renderer death, eliminating the white-screen flash.
     var snapshotBitmap by remember { mutableStateOf<Bitmap?>(null) }
@@ -121,25 +199,10 @@ fun RoamWebView(
                         } else {
                             urlRef.value?.let { wv.loadUrl(it) }
                         }
-                    } else {
-                        // WebView is alive — restore the page's scroll position using
-                        // JavaScript. We use evaluateJavascript("window.scrollTo") rather
-                        // than wv.scrollTo() because the latter operates on the Android
-                        // View's scroll, not the web page content's scroll position.
-                        // Do NOT call onPause()/onResume() or pauseTimers()/resumeTimers()
-                        // — they interfere with the WebView's internal state and can reset
-                        // scroll to 0.
-                        val sy = savedScrollY.intValue
-                        savedScrollY.intValue = 0
-                        if (sy > 0) {
-                            wv.post {
-                                wv.evaluateJavascript(
-                                    "window.scrollTo(0, $sy);",
-                                    null,
-                                )
-                            }
-                        }
                     }
+                    // Scroll position is restored by the injected scroll-memory script
+                    // when JavaScript is enabled. When JS is off, restoreState() above
+                    // handles it natively for the renderer-killed case.
                 }
                 Lifecycle.Event.ON_PAUSE -> {
                     webViewRef.value?.let { wv ->
@@ -148,19 +211,9 @@ fun RoamWebView(
                             wv.draw(Canvas(bmp))
                             snapshotBitmap = bmp
                         }
-                        // Capture the page's actual scroll position via JavaScript.
-                        // wv.scrollY returns the Android View's scroll offset, which on
-                        // many devices does not track the DOM scroll position.
-                        wv.evaluateJavascript(
-                            "(function(){var d=document.documentElement;var b=document.body;return d.scrollTop||b.scrollTop||window.pageYOffset||0;})()",
-                        ) { result ->
-                            val parsed = result?.removeSurrounding("\"")?.toIntOrNull() ?: 0
-                            savedScrollY.intValue = parsed
-                            // Tag the URL so that onPageStarted only resets scroll
-                            // when navigating to a genuinely new page, not when the
-                            // WebView reloads after renderer death.
-                            savedScrollUrl = wv.url
-                        }
+                        // Scroll position is saved by the injected scroll-memory script
+                        // on every scroll + beforeunload. Native saveState covers the
+                        // back/forward stack when JS is disabled.
                         wv.saveState(savedState)
                     }
                 }
@@ -244,13 +297,6 @@ fun RoamWebView(
                     webViewClient = object : WebViewClient() {
                         override fun onPageStarted(view: WebView, url: String, favicon: Bitmap?) {
                             onLoadingChanged(true)
-                            // Reset saved scroll when navigating to a genuinely new page.
-                            // If the URL matches the scroll we captured in ON_PAUSE, this
-                            // is a reload after renderer death — preserve the scroll position.
-                            if (url != savedScrollUrl) {
-                                savedScrollY.intValue = 0
-                                savedScrollUrl = null
-                            }
                         }
                         override fun onPageFinished(view: WebView, loadedUrl: String) {
                             commandedUrl = loadedUrl
@@ -259,20 +305,14 @@ fun RoamWebView(
                             onLoadingChanged(false)
                             showSnapshot = false
                             snapshotBitmap = null
-                            val sy = savedScrollY.intValue
-                            if (sy > 0) {
-                                // Use JavaScript window.scrollTo rather than view.scrollTo()
-                                // because view.scrollTo() operates on the Android View's
-                                // scroll offset, which does not track the DOM scroll position
-                                // on many devices.
-                                view.post {
-                                    view.evaluateJavascript(
-                                        "window.scrollTo(0, $sy);",
-                                        null,
-                                    )
-                                }
-                                savedScrollY.intValue = 0
-                                savedScrollUrl = null
+                            // Inject a self-contained scroll-memory script that saves/restores
+                            // scroll position from sessionStorage. This runs entirely in the
+                            // JS context with zero Android lifecycle race conditions.
+                            // When jsEnabled is false, the script is not injected and
+                            // restoreState/saveState (native Android WebView session) handles
+                            // scroll via the lifecycle observers instead.
+                            if (jsEnabled) {
+                                view.evaluateJavascript(ROAM_SCROLL_MEMORY_SCRIPT, null)
                             }
                         }
                         override fun onReceivedError(
@@ -305,7 +345,13 @@ fun RoamWebView(
                             view: WebView,
                             request: WebResourceRequest,
                         ): Boolean {
-                            // Return false to let the WebView load all URLs normally.
+                            val scheme = request.url.scheme
+                            // Block Android intent:// and other non-http schemes that would
+                            // launch external apps (e.g. market://, tel:, mailto: via intent).
+                            if (scheme != null && scheme !in ALLOWED_SCHEMES) {
+                                return true
+                            }
+                            // Return false to let the WebView load all http/https URLs normally.
                             // This prevents delegation to the system browser.
                             return false
                         }
@@ -380,6 +426,30 @@ fun BackgroundPrefetchWebView(
             factory = { context ->
                 try {
                     WebView(context).apply {
+                        // Prevent the prefetch WebView from navigating to other URLs or
+                        // opening the system browser. This WebView only exists to warm the
+                        // disk cache for a single URL.
+                        webViewClient = object : WebViewClient() {
+                            override fun shouldOverrideUrlLoading(
+                                view: WebView,
+                                request: WebResourceRequest,
+                            ): Boolean {
+                                // Block all navigation — this is a cache warmer, not a browser.
+                                return true
+                            }
+                        }
+                        webChromeClient = object : WebChromeClient() {
+                            override fun onCreateWindow(
+                                view: WebView,
+                                isDialog: Boolean,
+                                isUserGesture: Boolean,
+                                resultMsg: android.os.Message,
+                            ): Boolean {
+                                // Suppress window.open() — don't let the prefetch WebView
+                                // fire intents or open the system browser.
+                                return true
+                            }
+                        }
                         settings.apply {
                             @Suppress("SetJavaScriptEnabled")
                             javaScriptEnabled = jsEnabled
