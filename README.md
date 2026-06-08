@@ -149,7 +149,6 @@ roam/
 │       ├── viewmodel/
 │       └── data/
 │
-├── scripts/                # Seeder scripts (Wikipedia, HN, Guardian, etc.)
 └── docs/                   # Audit docs, reports, etc.
 ```
 
@@ -285,7 +284,7 @@ Sentry: https://7-lynx.sentry.io/projects/roam-extension
 
 ## Contributing
 
-PRs are welcome. Good starting points: open bugs in the Issues list, UI improvements to the web or extension, and new seed sources in `scripts/`.
+PRs are welcome. Good starting points: open bugs in the Issues list and UI improvements to the web or extension.
 
 ```bash
 git checkout -b feature/my-thing
