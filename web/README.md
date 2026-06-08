@@ -62,8 +62,8 @@ The Next.js 16 web application for Roam. The web surface is the account-manageme
 Create `.env.local` in the `web/` directory:
 
 ```
-NEXT_PUBLIC_SUPABASE_URL=https://yrhckctwtdjowulfuaqc.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=sb_publishable_HNqqRWeISKlQ6TRvOvsAAQ_MqEbP5ak
+NEXT_PUBLIC_SUPABASE_URL=https://<YOUR_PROJECT>.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=sb_publishable_...
 NEXT_PUBLIC_SENTRY_DSN=https://...@...ingest.us.sentry.io/...
 SENTRY_AUTH_TOKEN=your_sentry_auth_token  # Server-side only. Required in Vercel for @sentry/nextjs source map uploads
 ```

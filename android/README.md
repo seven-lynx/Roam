@@ -6,7 +6,7 @@ Native Android app built with Kotlin and Jetpack Compose. Users tap Roam to inst
 
 | Library | Purpose |
 |---|---|
-| Kotlin | 2.2.10 (latest stable) |
+| Kotlin | 2.2.20 |
 | Coroutines | Async |
 | Jetpack Compose (Material 3) | Declarative UI with full Material Design 3 polish |
 | Jetpack Navigation | Fragment-less nav |
@@ -55,18 +55,21 @@ app/src/main/java/app/roam/android/
 │   ├── CategoryItem.kt
 │   ├── Collection.kt
 │   ├── UserProfile.kt
-│   └── UserSettings.kt
+│   ├── UserSettings.kt
+│   └── UrlHistoryEntry.kt
 ├── ui/
 │   ├── component/
 │   │   ├── BottomBar.kt             # Skip / Roam / Settings / Like
 │   │   ├── RoamWebView.kt           # WebView with lifecycle + dark mode
 │   │   ├── ConfigBottomSheet.kt     # Per-page actions (save, share, report…)
-│   │   └── SubmitBottomSheet.kt
+│   │   ├── SubmitBottomSheet.kt
+│   │   └── LoadingMessages.kt
 │   ├── screen/
 │   │   ├── MainScreen.kt            # Nav host + DiscoverTab
 │   │   ├── SettingsScreen.kt
 │   │   ├── ProfileScreen.kt
 │   │   ├── SavedScreen.kt
+│   │   ├── HistoryScreen.kt
 │   │   ├── OnboardingScreen.kt
 │   │   ├── CategoryOnboardingScreen.kt
 │   │   └── SplashScreen.kt
@@ -90,9 +93,9 @@ app/src/main/java/app/roam/android/
 
 ### Prerequisites
 
-- Android Studio Hedgehog or newer
+- Android Studio Ladybug or newer
 - JDK 17
-- Android SDK 26+ (minSdk = 26, targetSdk = 35)
+- Android SDK 26+ (minSdk = 26, targetSdk = 35, compileSdk = 35)
 
 ### local.properties
 
@@ -100,7 +103,7 @@ Copy `local.properties.example` → `local.properties` and fill in:
 
 ```
 sdk.dir=/path/to/Android/sdk
-SUPABASE_URL=https://yrhckctwtdjowulfuaqc.supabase.co
+SUPABASE_URL=https://<YOUR_PROJECT>.supabase.co
 SUPABASE_ANON_KEY=sb_publishable_...
 SENTRY_DSN=https://...@...ingest.us.sentry.io/...
 ```
@@ -208,7 +211,7 @@ Ratings that fail due to no connectivity are pushed onto `pendingRatings`. `conn
 
 - **Network errors** → offline message in status bar; ratings queued for retry
 - **Roam failures** → up to 3 retries with 500 ms backoff; `RoamState.Error` shown with retry button
-- **Timeouts** → Ktor `requestTimeoutMillis = 60_000`, OkHttp `callTimeout = 30 s`
+- **Timeouts** → Ktor `requestTimeoutMillis = 15_000`, OkHttp `callTimeout = 15 s`
 - **Unhandled exceptions** → Sentry captures with device info, app version, user ID
 
 ## Troubleshooting
@@ -226,7 +229,7 @@ Ratings that fail due to no connectivity are pushed onto `pendingRatings`. `conn
 **"Discovery failed" on roam**
 - Verify the `roam` Supabase Edge Function is deployed:
   ```
-  supabase functions deploy roam --project-ref yrhckctwtdjowulfuaqc --workdir /path/to/roam
+  supabase functions deploy roam --project-ref <YOUR_PROJECT_REF> --workdir /path/to/roam
   ```
 - Check Sentry for `WORKER_ERROR` events
 

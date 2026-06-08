@@ -1,4 +1,4 @@
-﻿ # Roam — Rediscover the Web
+﻿# Roam — Rediscover the Web
 
 > Press one button. Land somewhere interesting.
 
@@ -74,6 +74,7 @@ Deliberately non-intrusive. Click, roam, rate, close — nothing is injected int
 
 - In-app browser so you don't have to leave
 - Offline reading queue
+- Browsing history screen with search and filtering
 - Material Design 3 / Jetpack Compose
 - Android 8.0+ (SDK 26), target SDK 35
 - Google OAuth or email/password sign-in
@@ -94,7 +95,7 @@ See [web/README.md](web/README.md) for the authoritative route map and UI spec.
 
 The database does the heavy lifting. Discovery runs as a `plpgsql` RPC (`roam()`) invoked via a Deno Edge Function. Row-Level Security enforces all access control at the database level. Every successful discovery is tracked via `serve_count` for analytics.
 
-Edge Functions (Deno) handle operations that need more than a simple query: `roam`, `rate`, `submit-url`, `save-url`, `collection`, `follow`, `profile`, `feedback`, `report-url`, `log-failed-urls`, `delete-user`, `export-user`.
+Edge Functions (Deno) handle operations that need more than a simple query: `roam`, `rate`, `submit-url`, `save-url`, `collection`, `follow`, `profile`, `feedback`, `report-url`, `log-failed-urls`, `delete-user`, `export-user`, `beta-signup`, `send-bulk-email`.
 
 **Key tables:**
 
@@ -143,13 +144,13 @@ roam/
 │       └── lib/            # Queue, Supabase client
 │
 ├── android/                # Kotlin + Compose app
-│   └── app/src/main/kotlin/com/roam/
+│   └── app/src/main/java/app/roam/android/
 │       ├── ui/             # Compose screens
 │       ├── viewmodel/
 │       └── data/
 │
 ├── scripts/                # Seeder scripts (Wikipedia, HN, Guardian, etc.)
-└── docs/                   # ALGORITHM.md, audit docs, etc.
+└── docs/                   # Audit docs, reports, etc.
 ```
 
 ---
@@ -158,7 +159,7 @@ roam/
 
 ### Prerequisites
 
-- Node.js 20+, pnpm 9+
+- Node.js 20+, pnpm 10+
 - Supabase CLI (`npm install -g supabase`)
 - Android Studio Ladybug+ (Android only)
 
@@ -316,4 +317,3 @@ Run `pnpm lint` before pushing. Use TypeScript throughout.
 Built with Supabase, Next.js, Jetpack Compose, esbuild, Tailwind CSS, and TypeScript.
 
 Made by 7 Lynx. Questions? [Open an issue](https://github.com/seven-lynx/Roam/issues).
-

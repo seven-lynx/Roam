@@ -19,10 +19,12 @@ Complete documentation of all Supabase Edge Functions and PostgreSQL RPC functio
   - [`follow` — Manage follows](#follow--manage-follows)
   - [`save-url` — Save/unsave URLs](#save-url--saveunsave-urls)
   - [`feedback` — Submit feedback](#feedback--submit-feedback)
-  - [`report-url` — Report broken link](#report-url--report-broken-link)
-  - [`log-failed-urls` — Log failed URLs](#log-failed-urls--log-failed-urls)
-  - [`export-user` — Export user data](#export-user--export-user-data)
-  - [`delete-user` — Delete user account](#delete-user--delete-user-account)
+- [`report-url` — Report broken link](#report-url--report-broken-link)
+- [`log-failed-urls` — Log failed URLs](#log-failed-urls--log-failed-urls)
+- [`export-user` — Export user data](#export-user--export-user-data)
+- [`delete-user` — Delete user account](#delete-user--delete-user-account)
+- [`beta-signup` — Beta waitlist signup](#beta-signup--beta-waitlist-signup)
+- [`send-bulk-email` — Send bulk emails to subscribers](#send-bulk-email--send-bulk-emails-to-subscribers)
 - [RPC Functions (Database)](#rpc-functions-database)
   - [`roam()` — Weighted-random URL discovery](#roam--weighted-random-url-discovery)
   - [`admin_url_stats()` — Fetch admin dashboard statistics](#admin_url_stats--fetch-admin-dashboard-statistics)
@@ -175,7 +177,7 @@ Submits a new URL for moderation. Normalizes the URL, checks rate limits, runs S
 
 **Details:**
 - **URL Normalization:** HTTPS enforced, `www.` stripped, UTM/tracking params removed, fragments stripped, trailing slashes removed
-- **Safe Browsing:** Google Safe Browsing API is called for all non-blocked submissions. If the URL matches a known-malicious list (MALWARE, SOCIAL_ENGINEERING, UNWANTED_SOFTWARE, POTENTIALLY_HARMFUL_APPLICATION), submission is rejected with 403
+- **Safe Browsing:** Google Safe Browsing API is called for all non-blocked submissions. If the URL matches a known-malicious list (MALWARE, SOCIAL_ENGINEERING, UNWANTED_SOFTWARE, POTENTIALLY_HARMFUL_APPLICATION), submission is rejected with 422
 - **Rate Limiting:** Per-user rate limit of 10 submissions per 60 minutes. If exceeded, returns 429 + `Retry-After` header
 - **Moderation Queue:** Submission added with `status = 'pending'`, waiting for admin review
 
@@ -781,8 +783,9 @@ console.log(`Active users (7d): ${stats.data.active_users_week}`);
 |------|---------|----------|
 | **400** | Bad request (invalid input) | Check request schema, fix typos, validate JSON |
 | **401** | Unauthorized (missing/invalid token) | Refresh auth, re-authenticate user |
-| **403** | Forbidden (Safe Browsing rejection, permission denied) | URL is unsafe; don't resubmit; or user lacks permission |
+| **403** | Forbidden (permission denied) | User lacks required permissions |
 | **404** | Not found (user, URL, or empty pool) | Verify IDs exist; if empty pool, ask user to add categories |
+| **422** | Unprocessable content (Safe Browsing rejection) | URL flagged as unsafe; don't resubmit |
 | **409** | Conflict (slug collision, already following) | Choose different slug or unfollow first |
 | **413** | Payload too large (collection item limit) | Remove items from collection before adding more |
 | **429** | Too many requests (rate limit exceeded) | Wait + retry (see Retry-After header) |
@@ -875,7 +878,7 @@ const response = await supabase.functions.invoke('submit-url', {
 });
 
 if (response.error) {
-  if (response.error.status === 403) {
+  if (response.error.status === 422) {
     showToast('This URL was blocked as unsafe. Please choose a different one.');
   } else if (response.error.status === 429) {
     showToast('You\'ve submitted too many URLs today. Try again tomorrow.');
