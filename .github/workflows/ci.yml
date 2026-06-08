@@ -52,10 +52,6 @@ jobs:
         working-directory: ./extension
         run: pnpm install --frozen-lockfile
 
-      - name: Install scripts dependencies
-        working-directory: ./scripts
-        run: pnpm install --frozen-lockfile
-
       # Web layer
       - name: Lint web
         working-directory: ./web
@@ -84,11 +80,6 @@ jobs:
       - name: Test extension
         working-directory: ./extension
         run: pnpm test
-
-      # Scripts layer
-      - name: Lint scripts
-        working-directory: ./scripts
-        run: pnpm lint || echo "No linter configured yet"
 
       # Supabase layer
       - name: Setup Deno
