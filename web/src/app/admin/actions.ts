@@ -210,3 +210,91 @@ export async function restoreLinkAdmin(urlId: string): Promise<{ error: string |
   const { error } = await admin.from("urls").update({ inactive: false }).eq("id", urlId);
   return { error: error ? error.message : null };
 }
+
+// ─── Email: types ────────────────────────────────────────────────────────────
+
+export type EmailLogEntry = {
+  id: string;
+  subject: string;
+  recipient_count: number;
+  success_count: number;
+  fail_count: number;
+  sender_type: string;
+  sent_at: string;
+};
+
+export type SendBulkEmailResult = {
+  sent: number;
+  failed: number;
+  total: number;
+};
+
+// ─── Email: actions ──────────────────────────────────────────────────────────
+
+export async function getNotificationCount(): Promise<{ count: number; error: string | null }> {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !serviceKey) return { count: 0, error: "Server misconfiguration" };
+
+  const admin = createClient(url, serviceKey, {
+    auth: { autoRefreshToken: false, persistSession: false },
+  });
+
+  const { count, error } = await admin
+    .from("user_settings")
+    .select("*", { count: "exact", head: true })
+    .eq("email_notifications", true);
+
+  if (error) return { count: 0, error: error.message };
+  return { count: count ?? 0, error: null };
+}
+
+export async function getEmailLogs(): Promise<{ data: EmailLogEntry[] | null; error: string | null }> {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !serviceKey) return { data: null, error: "Server misconfiguration" };
+
+  const admin = createClient(url, serviceKey, {
+    auth: { autoRefreshToken: false, persistSession: false },
+  });
+
+  const { data, error } = await admin
+    .from("email_log")
+    .select("id, subject, recipient_count, success_count, fail_count, sender_type, sent_at")
+    .order("sent_at", { ascending: false })
+    .limit(50);
+
+  if (error) return { data: null, error: error.message };
+  return { data: data as EmailLogEntry[], error: null };
+}
+
+export async function sendBulkEmail(
+  subject: string,
+  bodyMarkdown: string,
+): Promise<{ data: SendBulkEmailResult | null; error: string | null }> {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!supabaseUrl || !serviceKey) return { data: null, error: "Server misconfiguration" };
+
+  try {
+    const response = await fetch(
+      `${supabaseUrl}/functions/v1/send-bulk-email`,
+      {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${serviceKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ subject, bodyMarkdown }),
+      },
+    );
+
+    const body = await response.json();
+    if (!response.ok) {
+      return { data: null, error: body?.error ?? `HTTP ${response.status}` };
+    }
+    return { data: body as SendBulkEmailResult, error: null };
+  } catch (err) {
+    return { data: null, error: err instanceof Error ? err.message : "Failed to send email" };
+  }
+}

@@ -5,8 +5,8 @@ import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import ModerationDetail from "./ModerationDetail";
-import { getAdminAnalytics, getAdminQueue, getAdminReports, getBetaSignups, deleteBetaSignup, restoreLinkAdmin } from "./actions";
-import type { BetaSignup } from "./actions";
+import { getAdminAnalytics, getAdminQueue, getAdminReports, getBetaSignups, deleteBetaSignup, restoreLinkAdmin, getNotificationCount, getEmailLogs, sendBulkEmail } from "./actions";
+import type { BetaSignup, EmailLogEntry } from "./actions";
 
 
 type Category = {
@@ -78,8 +78,8 @@ export default function AdminPageClient() {
   const [searchQuery, setSearchQuery] = useState("");
   const [sortBy, setSortBy] = useState<"newest" | "oldest">("newest");
   const searchParams = useSearchParams();
-  const initialView = searchParams.get("view") === "beta" ? "beta" : searchParams.get("view") === "reports" ? "reports" : searchParams.get("view") === "analytics" ? "analytics" : "queue";
-  const [view, setView] = useState<"queue" | "analytics" | "reports" | "beta">(initialView);
+  const initialView = searchParams.get("view") === "beta" ? "beta" : searchParams.get("view") === "reports" ? "reports" : searchParams.get("view") === "analytics" ? "analytics" : searchParams.get("view") === "email" ? "email" : "queue";
+  const [view, setView] = useState<"queue" | "analytics" | "reports" | "beta" | "email">(initialView);
   const [analyticsData, setAnalyticsData] = useState<AnalyticsData>(EMPTY_ANALYTICS);
   const [analyticsLoading, setAnalyticsLoading] = useState(false);
   const [analyticsError, setAnalyticsError] = useState<string | null>(null);
@@ -92,6 +92,52 @@ export default function AdminPageClient() {
   const [betaSignups, setBetaSignups] = useState<BetaSignup[]>([]);
   const [betaLoading, setBetaLoading] = useState(false);
   const [deletingBetaId, setDeletingBetaId] = useState<number | null>(null);
+
+  // ─── Email tab state ───────────────────────────────────────────────────
+  const [emailSubject, setEmailSubject] = useState("");
+  const [emailBody, setEmailBody] = useState("");
+  const [emailSending, setEmailSending] = useState(false);
+  const [emailResult, setEmailResult] = useState<string | null>(null);
+  const [emailError, setEmailError] = useState<string | null>(null);
+  const [notificationCount, setNotificationCount] = useState<number | null>(null);
+  const [emailLogs, setEmailLogs] = useState<EmailLogEntry[]>([]);
+  const [emailLogsLoading, setEmailLogsLoading] = useState(false);
+
+  async function loadEmailLogs() {
+    setEmailLogsLoading(true);
+    try {
+      const { data, error } = await getEmailLogs();
+      if (error) throw new Error(error);
+      setEmailLogs(data ?? []);
+    } catch (err) {
+      console.error("Failed to load email logs:", err);
+    } finally {
+      setEmailLogsLoading(false);
+    }
+  }
+
+  async function loadNotificationCount() {
+    const { count, error } = await getNotificationCount();
+    if (!error) setNotificationCount(count);
+  }
+
+  async function handleSendEmail() {
+    setEmailSending(true);
+    setEmailResult(null);
+    setEmailError(null);
+    try {
+      const { data, error } = await sendBulkEmail(emailSubject, emailBody);
+      if (error) throw new Error(error);
+      setEmailResult(`Sent to ${data?.sent ?? 0} recipients (${data?.failed ?? 0} failed)`);
+      setEmailSubject("");
+      setEmailBody("");
+      loadEmailLogs();
+    } catch (err) {
+      setEmailError(err instanceof Error ? err.message : "Failed to send email");
+    } finally {
+      setEmailSending(false);
+    }
+  }
 
   async function loadCategories() {
     try {
@@ -256,6 +302,10 @@ export default function AdminPageClient() {
     if (view === "beta") {
       loadBetaSignups();
     }
+    if (view === "email") {
+      loadEmailLogs();
+      loadNotificationCount();
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [view]);
 
@@ -291,7 +341,7 @@ export default function AdminPageClient() {
         </div>
 
         {/* View Toggle */}
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
           <button
             onClick={() => setView("queue")}
             className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
@@ -337,6 +387,16 @@ export default function AdminPageClient() {
             }`}
           >
             Beta Signups
+          </button>
+          <button
+            onClick={() => setView("email")}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+              view === "email"
+                ? "bg-amber-600 text-white"
+                : "bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700"
+            }`}
+          >
+            Email Users
           </button>
         </div>
 
@@ -852,6 +912,120 @@ export default function AdminPageClient() {
                   </table>
                 </div>
               </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Email View */}
+      {view === "email" && (
+        <div className="flex flex-col gap-8">
+          {/* Compose */}
+          <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 p-6">
+            <h2 className="text-lg font-semibold text-zinc-900 dark:text-white mb-1">
+              Send Email to All Users
+            </h2>
+            <p className="text-xs text-zinc-400 dark:text-zinc-500 mb-4">
+              Sends to every user with email notifications enabled. Emails include an unsubscribe link.
+            </p>
+            {notificationCount !== null && (
+              <div className="mb-4 rounded-lg bg-amber-50 dark:bg-amber-900/20 px-4 py-3 text-sm text-amber-700 dark:text-amber-300">
+                <strong>{notificationCount}</strong> user{notificationCount !== 1 ? "s" : ""} with notifications enabled
+              </div>
+            )}
+            <div className="flex flex-col gap-4">
+              <input
+                type="text"
+                placeholder="Subject line"
+                value={emailSubject}
+                onChange={(e) => { setEmailSubject(e.target.value); setEmailResult(null); setEmailError(null); }}
+                className="rounded-lg border border-zinc-200 dark:border-zinc-700 px-4 py-2.5 text-sm bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white placeholder:text-zinc-400 dark:placeholder:text-zinc-500"
+              />
+              <textarea
+                placeholder={"Write your email in Markdown...\n\n# Heading\n\nThis is **bold** and *italic*.\n\n- List item 1\n- List item 2\n\n[Link text](https://example.com)"}
+                value={emailBody}
+                onChange={(e) => { setEmailBody(e.target.value); setEmailResult(null); setEmailError(null); }}
+                rows={12}
+                className="rounded-lg border border-zinc-200 dark:border-zinc-700 px-4 py-2.5 text-sm bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white placeholder:text-zinc-400 dark:placeholder:text-zinc-500 font-mono resize-y"
+              />
+              <div className="flex items-center gap-4">
+                <button
+                  onClick={handleSendEmail}
+                  disabled={emailSending || !emailSubject.trim() || !emailBody.trim()}
+                  className="rounded-lg bg-amber-600 text-white py-2.5 px-6 text-sm font-semibold hover:bg-amber-700 disabled:opacity-40 transition-opacity"
+                >
+                  {emailSending ? "Sending…" : "Send to All"}
+                </button>
+                {emailResult && (
+                  <p className="text-sm text-green-600 dark:text-green-400">{emailResult}</p>
+                )}
+                {emailError && (
+                  <p className="text-sm text-red-600 dark:text-red-400">{emailError}</p>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Preview */}
+          {emailBody.trim() && (
+            <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 p-6">
+              <h2 className="text-lg font-semibold text-zinc-900 dark:text-white mb-1">Preview</h2>
+              <p className="text-xs text-zinc-400 dark:text-zinc-500 mb-4">Rough preview — email clients may render differently.</p>
+              <div className="rounded-lg border border-zinc-100 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 p-4 prose prose-sm dark:prose-invert max-w-none text-sm text-zinc-700 dark:text-zinc-300 font-mono whitespace-pre-wrap">
+                {emailBody}
+              </div>
+            </div>
+          )}
+
+          {/* History */}
+          <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 p-6">
+            <h2 className="text-lg font-semibold text-zinc-900 dark:text-white mb-1">Email History</h2>
+            <p className="text-xs text-zinc-400 dark:text-zinc-500 mb-4">Last 50 sends</p>
+            {emailLogsLoading ? (
+              <div className="text-center text-zinc-500 py-8">Loading...</div>
+            ) : emailLogs.length === 0 ? (
+              <div className="rounded-lg border border-zinc-100 dark:border-zinc-800 p-6 text-center text-zinc-400 text-sm">
+                No emails sent yet.
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900">
+                      <th className="text-left py-3 px-4 font-semibold text-zinc-700 dark:text-zinc-300">Subject</th>
+                      <th className="text-center py-3 px-4 font-semibold text-zinc-700 dark:text-zinc-300 w-20">Sent</th>
+                      <th className="text-center py-3 px-4 font-semibold text-zinc-700 dark:text-zinc-300 w-20">Failed</th>
+                      <th className="text-right py-3 px-4 font-semibold text-zinc-700 dark:text-zinc-300 w-40">Date</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {emailLogs.map((log) => (
+                      <tr
+                        key={log.id}
+                        className="border-b border-zinc-100 dark:border-zinc-800 last:border-0"
+                      >
+                        <td className="py-3 px-4 text-zinc-700 dark:text-zinc-300 max-w-xs truncate">
+                          {log.subject}
+                        </td>
+                        <td className="text-center py-3 px-4 tabular-nums">
+                          <span className="font-semibold text-green-600 dark:text-green-400">{log.success_count}</span>
+                          <span className="text-zinc-400">/{log.recipient_count}</span>
+                        </td>
+                        <td className="text-center py-3 px-4 tabular-nums">
+                          {log.fail_count > 0 ? (
+                            <span className="font-semibold text-red-600 dark:text-red-400">{log.fail_count}</span>
+                          ) : (
+                            <span className="text-zinc-400">0</span>
+                          )}
+                        </td>
+                        <td className="text-right py-3 px-4 text-xs text-zinc-500 whitespace-nowrap">
+                          {new Date(log.sent_at).toLocaleString("en-US", { timeZone: "America/New_York", timeZoneName: "short" })}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             )}
           </div>
         </div>

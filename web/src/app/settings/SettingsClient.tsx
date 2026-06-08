@@ -119,15 +119,12 @@ export function SettingsClient({
 
   // Notification toggle
   const [notifications, setNotifications] = useState(initialNotifications);
-  const [notificationsLoading, setNotificationsLoading] = useState(false);
 
   // Language preferences
   const [languages, setLanguages] = useState<string[]>(initialLanguages);
-  const [languagesLoading, setLanguagesLoading] = useState(false);
 
   // Paywall skip
   const [skipPaywalled, setSkipPaywalled] = useState(initialSkipPaywalled);
-  const [skipPaywalledLoading, setSkipPaywalledLoading] = useState(false);
 
   // Password change (email users only)
   const [newPassword, setNewPassword] = useState('');
@@ -145,55 +142,61 @@ export function SettingsClient({
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [globalError, setGlobalError] = useState<string | null>(null);
 
+  // Save settings
+  const [savingSettings, setSavingSettings] = useState(false);
+  const [settingsSaveError, setSettingsSaveError] = useState<string | null>(null);
+  const [settingsSaveSuccess, setSettingsSaveSuccess] = useState<string | null>(null);
+
+  // Track whether local state has changed from initial values
+  const isDirty =
+    notifications !== initialNotifications ||
+    skipPaywalled !== initialSkipPaywalled ||
+    JSON.stringify([...languages].sort()) !== JSON.stringify([...initialLanguages].sort());
+
   // ── Handlers ───────────────────────────────────────────────────────────
-  async function handleLanguageToggle(code: string) {
-    setLanguagesLoading(true);
+  function handleLanguageToggle(code: string) {
+    setSettingsSaveError(null);
+    setSettingsSaveSuccess(null);
     const next = languages.includes(code)
       ? languages.filter(c => c !== code)
       : [...languages, code];
-    // Enforce minimum: at least English
     const safe = next.includes('en') ? next : [...next, 'en'];
     setLanguages(safe);
-    try {
-      await supabase.from('user_settings').upsert(
-        { user_id: userId, preferred_languages: safe },
-        { onConflict: 'user_id' }
-      );
-    } catch (err) {
-      Sentry.captureException(err, { tags: { context: 'language-toggle' } });
-    } finally {
-      setLanguagesLoading(false);
-    }
   }
 
-  async function handleSkipPaywalledToggle() {
-    setSkipPaywalledLoading(true);
-    const next = !skipPaywalled;
-    setSkipPaywalled(next);
-    try {
-      await supabase.from('user_settings').upsert(
-        { user_id: userId, skip_paywalled: next },
-        { onConflict: 'user_id' }
-      );
-    } catch (err) {
-      Sentry.captureException(err, { tags: { context: 'skip-paywalled-toggle' } });
-    } finally {
-      setSkipPaywalledLoading(false);
-    }
+  function handleSkipPaywalledToggle() {
+    setSettingsSaveError(null);
+    setSettingsSaveSuccess(null);
+    setSkipPaywalled(v => !v);
   }
 
-  async function handleNotificationsToggle() {
-    setNotificationsLoading(true);
+  function handleNotificationsToggle() {
+    setSettingsSaveError(null);
+    setSettingsSaveSuccess(null);
+    setNotifications(v => !v);
+  }
+
+  async function handleSaveSettings() {
+    setSavingSettings(true);
+    setSettingsSaveError(null);
+    setSettingsSaveSuccess(null);
     try {
-      await supabase.from('user_settings').upsert(
-        { user_id: userId, email_notifications: !notifications },
+      const { error } = await supabase.from('user_settings').upsert(
+        {
+          user_id: userId,
+          email_notifications: notifications,
+          preferred_languages: languages,
+          skip_paywalled: skipPaywalled,
+        },
         { onConflict: 'user_id' }
       );
-      setNotifications(v => !v);
+      if (error) throw error;
+      setSettingsSaveSuccess('Settings saved successfully.');
     } catch (err) {
-      Sentry.captureException(err, { tags: { context: 'notifications-toggle' } });
+      Sentry.captureException(err, { tags: { context: 'save-settings' } });
+      setSettingsSaveError(err instanceof Error ? err.message : 'Failed to save settings.');
     } finally {
-      setNotificationsLoading(false);
+      setSavingSettings(false);
     }
   }
 
@@ -303,6 +306,26 @@ export function SettingsClient({
           <p className="text-sm text-red-600 bg-red-50 dark:bg-red-950/40 rounded-lg px-4 py-2">{globalError}</p>
         )}
 
+        {/* Save settings */}
+        {isDirty && (
+          <div className="flex flex-col gap-2">
+            <button
+              type="button"
+              onClick={handleSaveSettings}
+              disabled={savingSettings}
+              className="rounded-lg bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 py-2.5 text-sm font-semibold hover:opacity-90 disabled:opacity-40 transition-opacity"
+            >
+              {savingSettings ? 'Saving…' : 'Save settings'}
+            </button>
+            {settingsSaveError && (
+              <p className="text-sm text-red-600 bg-red-50 dark:bg-red-950/40 rounded-lg px-4 py-2">{settingsSaveError}</p>
+            )}
+            {settingsSaveSuccess && (
+              <p className="text-sm text-green-600 bg-green-50 dark:bg-green-950/40 rounded-lg px-4 py-2">{settingsSaveSuccess}</p>
+            )}
+          </div>
+        )}
+
         {/* Account */}
         <Section title="Account">
           <div className="flex flex-col gap-3 text-sm">
@@ -346,7 +369,7 @@ export function SettingsClient({
               <p className="text-sm font-medium text-zinc-900 dark:text-white">Email notifications</p>
               <p className="text-xs text-zinc-500 dark:text-zinc-400">Receive updates about your submissions and activity.</p>
             </div>
-            <Toggle checked={notifications} onChange={handleNotificationsToggle} disabled={notificationsLoading} />
+            <Toggle checked={notifications} onChange={handleNotificationsToggle} disabled={false} />
           </div>
         </Section>
 
@@ -363,7 +386,7 @@ export function SettingsClient({
                 <button
                   key={lang.code}
                   type="button"
-                  disabled={isEnglish || languagesLoading}
+                  disabled={isEnglish}
                   onClick={() => handleLanguageToggle(lang.code)}
                   className={`rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
                     selected
@@ -385,7 +408,7 @@ export function SettingsClient({
               <p className="text-sm font-medium text-zinc-900 dark:text-white">Skip paywalled sites</p>
               <p className="text-xs text-zinc-500 dark:text-zinc-400">Hide pages from NYT, WSJ, The Atlantic, and similar paywalled publications.</p>
             </div>
-            <Toggle checked={skipPaywalled} onChange={handleSkipPaywalledToggle} disabled={skipPaywalledLoading} />
+            <Toggle checked={skipPaywalled} onChange={handleSkipPaywalledToggle} disabled={false} />
           </div>
         </Section>
 
