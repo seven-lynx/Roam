@@ -39,3 +39,4 @@ Known limitations
 - Renderer death recovery uses a snapshot overlay; the page must be reloaded to become interactive again
 - History is stored locally and cleared on app uninstall
 - History entries are capped at 200; oldest entries are evicted when the limit is reached
+

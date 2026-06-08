@@ -25,6 +25,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.rememberBottomSheetScaffoldState
+import androidx.compose.material3.rememberStandardBottomSheetState
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -211,7 +212,11 @@ private fun DiscoverTab(
     // BottomSheetScaffold is recomposed. With skipHiddenState=true, Compose throws
     // IllegalStateException: "Attempted to animate to hidden when skipHiddenState
     // was enabled" if any event (back press, configuration change) triggers hiding.
-    val scaffoldState = rememberBottomSheetScaffoldState(skipHiddenState = false)
+    val scaffoldState = rememberBottomSheetScaffoldState(
+        bottomSheetState = rememberStandardBottomSheetState(
+            skipHiddenState = false
+        )
+    )
     val scope = rememberCoroutineScope()
 
     // lastLoadedUrl tracks what the WebView has actually finished rendering (or reached 70% progress).
