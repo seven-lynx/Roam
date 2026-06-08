@@ -46,6 +46,10 @@ type AnalyticsData = {
   sourceBreakdown: { source: string; count: number }[];
   languageDistribution: { language: string; count: number }[];
   deadByCategory: { category: string; total: number; inactive_count: number; dead_pct: number }[];
+  activeUsers: { dau: number; wau: number; mau: number };
+  submissionsByDowHour: { dow: number; hour: number; count: number }[];
+  velocity: { thisWeek: number; lastWeek: number };
+  rejectionByDomain: { domain: string; total: number; rejected: number; rejectionPct: number }[];
 };
 
 const EMPTY_ANALYTICS: AnalyticsData = {
@@ -57,6 +61,10 @@ const EMPTY_ANALYTICS: AnalyticsData = {
   sourceBreakdown: [],
   languageDistribution: [],
   deadByCategory: [],
+  activeUsers: { dau: 0, wau: 0, mau: 0 },
+  submissionsByDowHour: [],
+  velocity: { thisWeek: 0, lastWeek: 0 },
+  rejectionByDomain: [],
 };
 
 type ReportedLink = {
@@ -188,6 +196,10 @@ export default function AdminPageClient() {
         sourceBreakdown: result.source_breakdown ?? [],
         languageDistribution: result.language_distribution ?? [],
         deadByCategory: result.dead_by_category ?? [],
+        activeUsers: result.active_users ?? { dau: 0, wau: 0, mau: 0 },
+        submissionsByDowHour: result.submissions_by_dow_hour ?? [],
+        velocity: { thisWeek: result.velocity?.this_week ?? 0, lastWeek: result.velocity?.last_week ?? 0 },
+        rejectionByDomain: (result.rejection_by_domain ?? []).map((d) => ({ domain: d.domain, total: d.total, rejected: d.rejected, rejectionPct: d.rejection_pct })),
       });
       setAnalyticsLoaded(true);
     } catch (err) {
@@ -770,10 +782,191 @@ export default function AdminPageClient() {
                     <p className="text-zinc-500 text-sm">No data yet</p>
                   )}
                 </div>
+
+                {/* Active Users */}
+                <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 p-6">
+                  <h2 className="text-lg font-semibold text-zinc-900 dark:text-white mb-1">
+                    Active Users
+                  </h2>
+                  <p className="text-xs text-zinc-400 dark:text-zinc-500 mb-4">Based on browsing + voting activity signals</p>
+                  <div className="grid grid-cols-3 gap-4">
+                    {([
+                      { label: "DAU", value: analyticsData.activeUsers.dau, description: "Past 24 hours", color: "text-blue-600 dark:text-blue-400" },
+                      { label: "WAU", value: analyticsData.activeUsers.wau, description: "Past 7 days", color: "text-violet-600 dark:text-violet-400" },
+                      { label: "MAU", value: analyticsData.activeUsers.mau, description: "Past 30 days", color: "text-emerald-600 dark:text-emerald-400" },
+                    ] as const).map(({ label, value, description, color }) => (
+                      <div key={label} className="rounded-lg bg-zinc-50 dark:bg-zinc-900 p-4 text-center">
+                        <div className={`text-2xl font-bold tabular-nums ${color}`}>{value.toLocaleString()}</div>
+                        <div className="text-xs text-zinc-500 mt-1">{label}</div>
+                        <div className="text-xs text-zinc-400 mt-0.5">{description}</div>
+                      </div>
+                    ))}
+                  </div>
+                  {analyticsData.activeUsers.mau > 0 && (
+                    <div className="mt-4 flex gap-6 text-xs">
+                      <div className="flex items-center gap-2">
+                        <span className="text-zinc-500">DAU/MAU</span>
+                        <span className="font-semibold tabular-nums text-zinc-700 dark:text-zinc-300">
+                          {(analyticsData.activeUsers.dau / analyticsData.activeUsers.mau * 100).toFixed(1)}%
+                        </span>
+                        <span className="text-zinc-400">stickiness</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-zinc-500">WAU/MAU</span>
+                        <span className="font-semibold tabular-nums text-zinc-700 dark:text-zinc-300">
+                          {(analyticsData.activeUsers.wau / analyticsData.activeUsers.mau * 100).toFixed(1)}%
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Velocity */}
+                <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 p-6">
+                  <h2 className="text-lg font-semibold text-zinc-900 dark:text-white mb-1">
+                    Content Velocity
+                  </h2>
+                  <p className="text-xs text-zinc-400 dark:text-zinc-500 mb-4">Approved URLs created this week vs. last week</p>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="rounded-lg bg-zinc-50 dark:bg-zinc-900 p-4 text-center">
+                      <div className="text-2xl font-bold tabular-nums text-zinc-700 dark:text-zinc-300">
+                        {analyticsData.velocity.thisWeek.toLocaleString()}
+                      </div>
+                      <div className="text-xs text-zinc-500 mt-1">This week</div>
+                    </div>
+                    <div className="rounded-lg bg-zinc-50 dark:bg-zinc-900 p-4 text-center">
+                      <div className="text-2xl font-bold tabular-nums text-zinc-700 dark:text-zinc-300">
+                        {analyticsData.velocity.lastWeek.toLocaleString()}
+                      </div>
+                      <div className="text-xs text-zinc-500 mt-1">Last week</div>
+                    </div>
+                  </div>
+                  {analyticsData.velocity.lastWeek > 0 && (
+                    <p className="mt-3 text-xs text-zinc-400">
+                      Change:{" "}
+                      <span className={`font-semibold tabular-nums ${
+                        analyticsData.velocity.thisWeek >= analyticsData.velocity.lastWeek
+                          ? "text-green-600 dark:text-green-400"
+                          : "text-red-600 dark:text-red-400"
+                      }`}>
+                        {analyticsData.velocity.thisWeek >= analyticsData.velocity.lastWeek ? "+" : ""}
+                        {Math.round((analyticsData.velocity.thisWeek - analyticsData.velocity.lastWeek) / analyticsData.velocity.lastWeek * 100)}%
+                      </span>
+                      {" "}vs last week
+                    </p>
+                  )}
+                </div>
+
+                {/* Submissions by Day-of-Week × Hour */}
+                <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 p-6">
+                  <h2 className="text-lg font-semibold text-zinc-900 dark:text-white mb-1">
+                    Submission Timing Heatmap
+                  </h2>
+                  <p className="text-xs text-zinc-400 dark:text-zinc-500 mb-4">Day-of-week × hour-of-day (ET) — all time</p>
+                  {analyticsData.submissionsByDowHour.length > 0 ? (
+                    <div className="overflow-x-auto">
+                      {(() => {
+                        const DOW_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+                        const HOUR_LABELS = ["12a", "1a", "2a", "3a", "4a", "5a", "6a", "7a", "8a", "9a", "10a", "11a", "12p", "1p", "2p", "3p", "4p", "5p", "6p", "7p", "8p", "9p", "10p", "11p"];
+                        const max = Math.max(...analyticsData.submissionsByDowHour.map((x) => x.count), 1);
+                        const lookup = new Map<string, number>();
+                        for (const d of analyticsData.submissionsByDowHour) {
+                          lookup.set(`${d.dow}-${d.hour}`, d.count);
+                        }
+                        return (
+                          <table className="border-collapse text-xs mx-auto">
+                            <thead>
+                              <tr>
+                                <th className="w-10"></th>
+                                {HOUR_LABELS.map((h) => (
+                                  <th key={h} className="w-9 text-center text-zinc-400 font-normal py-1">{h}</th>
+                                ))}
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {DOW_LABELS.map((day, dow) => (
+                                <tr key={day}>
+                                  <td className="text-right pr-2 text-zinc-500 font-medium whitespace-nowrap">{day}</td>
+                                  {Array.from({ length: 24 }, (_, hour) => {
+                                    const count = lookup.get(`${dow}-${hour}`) ?? 0;
+                                    const intensity = count / max;
+                                    let bgClass = "bg-zinc-50 dark:bg-zinc-900";
+                                    if (intensity >= 0.9) bgClass = "bg-blue-600 dark:bg-blue-500";
+                                    else if (intensity >= 0.7) bgClass = "bg-blue-500 dark:bg-blue-400";
+                                    else if (intensity >= 0.5) bgClass = "bg-blue-400 dark:bg-blue-500/70";
+                                    else if (intensity >= 0.3) bgClass = "bg-blue-300 dark:bg-blue-500/50";
+                                    else if (intensity >= 0.1) bgClass = "bg-blue-200 dark:bg-blue-500/30";
+                                    return (
+                                      <td
+                                        key={hour}
+                                        className={`text-center py-1 ${bgClass} ${
+                                          intensity > 0.3 ? "text-white dark:text-white font-medium" : "text-zinc-400"
+                                        }`}
+                                        title={`${day} ${HOUR_LABELS[hour]}: ${count} submissions`}
+                                      >
+                                        {count > 0 ? count : ""}
+                                      </td>
+                                    );
+                                  })}
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        );
+                      })()}
+                    </div>
+                  ) : (
+                    <p className="text-zinc-500 text-sm">No data yet</p>
+                  )}
+                </div>
+
+                {/* Rejection by Domain */}
+                <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 p-6">
+                  <h2 className="text-lg font-semibold text-zinc-900 dark:text-white mb-1">
+                    Rejection Rate by Domain
+                  </h2>
+                  <p className="text-xs text-zinc-400 dark:text-zinc-500 mb-4">Top domains with highest rejection rate (min. 5 submissions)</p>
+                  {analyticsData.rejectionByDomain.length > 0 ? (
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="border-b border-zinc-200 dark:border-zinc-700">
+                            <th className="text-left py-3 px-4 font-semibold text-zinc-900 dark:text-white">Domain</th>
+                            <th className="text-right py-3 px-4 font-semibold text-zinc-900 dark:text-white w-24">Total</th>
+                            <th className="text-right py-3 px-4 font-semibold text-zinc-900 dark:text-white w-24">Rejected</th>
+                            <th className="text-right py-3 px-4 font-semibold text-zinc-900 dark:text-white w-24">Rej. %</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {analyticsData.rejectionByDomain.map((d) => (
+                            <tr
+                              key={d.domain}
+                              className="border-b border-zinc-100 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-900/50"
+                            >
+                              <td className="py-3 px-4 font-mono text-xs text-zinc-700 dark:text-zinc-300 truncate max-w-xs">{d.domain}</td>
+                              <td className="py-3 px-4 text-right tabular-nums text-zinc-600 dark:text-zinc-400">{d.total}</td>
+                              <td className="py-3 px-4 text-right tabular-nums text-zinc-600 dark:text-zinc-400">{d.rejected}</td>
+                              <td className={`py-3 px-4 text-right tabular-nums font-semibold ${
+                                d.rejectionPct >= 50 ? "text-red-600 dark:text-red-400" :
+                                d.rejectionPct >= 25 ? "text-amber-600 dark:text-amber-400" :
+                                "text-green-600 dark:text-green-400"
+                              }`}>
+                                {d.rejectionPct}%
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : (
+                    <p className="text-zinc-500 text-sm">No domain has enough submissions yet</p>
+                  )}
+                </div>
               </>
             )}
           </div>
         )}
+
         {/* Dead Links View */}
         {view === "reports" && (
           <div className="flex flex-col gap-4">

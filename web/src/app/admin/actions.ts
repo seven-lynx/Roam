@@ -2,7 +2,7 @@
 
 import { createClient } from "@supabase/supabase-js";
 
-type AdminAnalyticsResult = {
+export type AdminAnalyticsResult = {
   submissions_by_date: { date: string; count: number }[];
   submissions_by_category: { category: string; count: number }[];
   top_urls: { url: string; title: string; wilson_score: number; upvotes: number; downvotes: number }[];
@@ -11,6 +11,10 @@ type AdminAnalyticsResult = {
   source_breakdown: { source: string; count: number }[];
   language_distribution: { language: string; count: number }[];
   dead_by_category: { category: string; total: number; inactive_count: number; dead_pct: number }[];
+  active_users: { dau: number; wau: number; mau: number };
+  submissions_by_dow_hour: { dow: number; hour: number; count: number }[];
+  velocity: { this_week: number; last_week: number };
+  rejection_by_domain: { domain: string; total: number; rejected: number; rejection_pct: number }[];
 };
 
 export async function getAdminAnalytics(): Promise<{ data: AdminAnalyticsResult | null; error: string | null }> {
