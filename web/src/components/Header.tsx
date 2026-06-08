@@ -7,21 +7,14 @@ import { createClient } from '@/lib/supabase/client';
 import { useAuth } from '@/components/AuthProvider';
 import { avatarPalette } from '@/components/UI';
 import { useState, useEffect, useRef } from 'react';
-import { useTheme } from 'next-themes';
-
 export function Header() {
   const { session, loading } = useAuth();
   const router = useRouter();
   const supabase = createClient();
-  const { theme, setTheme } = useTheme();
-  const [mounted, setMounted] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [profileMenu, setProfileMenu] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const pathname = usePathname();
-
-  // Avoid hydration mismatch for theme toggle
-  useEffect(() => setMounted(true), []);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -84,15 +77,6 @@ export function Header() {
             >
               Get started
             </Link>
-            {mounted && (
-              <button
-                onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-                aria-label="Toggle dark mode"
-                className="p-2 text-zinc-500 hover:text-zinc-900 dark:hover:text-white transition-colors"
-              >
-                {theme === 'dark' ? '☀️' : '🌙'}
-              </button>
-            )}
           </div>
         </div>
       </header>
@@ -115,15 +99,6 @@ export function Header() {
           <Link href="/settings" className="text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white transition-colors">
             Settings
           </Link>
-          {mounted && (
-            <button
-              onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-              aria-label="Toggle dark mode"
-              className="p-2 text-zinc-500 hover:text-zinc-900 dark:hover:text-white transition-colors"
-            >
-              {theme === 'dark' ? '☀️' : '🌙'}
-            </button>
-          )}
         </nav>
 
         {/* Avatar dropdown */}

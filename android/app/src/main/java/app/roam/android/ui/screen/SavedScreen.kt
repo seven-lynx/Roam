@@ -258,7 +258,7 @@ private fun SavedTab(
                 }
             }
 
-            LazyColumn(modifier = Modifier.weight(1f).fillMaxWidth()) {
+            LazyColumn(modifier = Modifier.weight(1f).fillMaxWidth().navigationBarsPadding()) {
                 items(savedUrls, key = { it.url }) { item ->
                     val isSelected = item.url in selectedUrls
                     if (isSelectionMode) {
@@ -423,7 +423,7 @@ private fun CollectionsTab(
         var deleteTarget by remember { mutableStateOf<Collection?>(null) }
         var copiedCollectionId by remember { mutableStateOf<String?>(null) }
 
-        LazyColumn(modifier = Modifier.fillMaxSize()) {
+        LazyColumn(modifier = Modifier.fillMaxSize().navigationBarsPadding()) {
             items(collections, key = { it.id }) { collection ->
                 Row(
                     modifier = Modifier
@@ -591,7 +591,7 @@ private fun CollectionDetailTab(
             }
         }
         else -> {
-            LazyColumn(modifier = Modifier.fillMaxSize()) {
+            LazyColumn(modifier = Modifier.fillMaxSize().navigationBarsPadding()) {
                 items(items, key = { it.urls.id }) { item ->
                     Row(
                         modifier = Modifier

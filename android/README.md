@@ -214,6 +214,10 @@ Ratings that fail due to no connectivity are pushed onto `pendingRatings`. `conn
 - **Timeouts** → Ktor `requestTimeoutMillis = 15_000`, OkHttp `callTimeout = 15 s`
 - **Unhandled exceptions** → Sentry captures with device info, app version, user ID
 
+## Release Notes
+
+See [CHANGELOG.md](CHANGELOG.md) for the full version history.
+
 ## Troubleshooting
 
 **Build fails / Gradle sync error**

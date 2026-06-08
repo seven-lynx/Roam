@@ -2,7 +2,6 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useTheme } from 'next-themes';
 import { createClient } from '@/lib/supabase/client';
 import * as Sentry from '@sentry/nextjs';
 import { validatePassword, validatePasswordsMatch, getPasswordStrengthColor, getPasswordStrengthLabel } from '@/lib/validation';
@@ -114,7 +113,6 @@ export function SettingsClient({
 }: SettingsClientProps) {
   const router = useRouter();
   const supabase = createClient();
-  const { theme, setTheme } = useTheme();
   const isEmailUser = provider === 'email';
 
   // Notification toggle
@@ -339,26 +337,6 @@ export function SettingsClient({
                 {provider === 'email' ? 'Email & password' : provider}
               </span>
             </div>
-          </div>
-        </Section>
-
-        {/* Appearance */}
-        <Section title="Appearance">
-          <div className="flex gap-2">
-            {(['light', 'dark', 'system'] as const).map(t => (
-              <button
-                key={t}
-                type="button"
-                onClick={() => setTheme(t)}
-                className={`flex-1 rounded-lg border py-2 text-sm font-medium capitalize transition-colors ${
-                  theme === t
-                    ? 'border-zinc-900 dark:border-white bg-zinc-900 dark:bg-white text-white dark:text-zinc-900'
-                    : 'border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 hover:border-zinc-400 dark:hover:border-zinc-500'
-                }`}
-              >
-                {t}
-              </button>
-            ))}
           </div>
         </Section>
 
