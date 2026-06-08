@@ -318,6 +318,101 @@ export default function HowItWorks() {
           </div>
         </section>
 
+        {/* FAQ */}
+        <section className="text-left">
+          <h2 className="text-2xl font-bold text-zinc-900 dark:text-white mb-6">
+            Frequently asked questions
+          </h2>
+
+          <details className="border border-zinc-200 dark:border-zinc-800 rounded-xl p-4 mb-3 group">
+            <summary className="font-medium text-zinc-900 dark:text-white cursor-pointer list-none">
+              <span className="mr-2 text-zinc-400 group-open:hidden">→</span>
+              <span className="mr-2 text-zinc-400 hidden group-open:inline">↓</span>
+              Why did I see the same page twice?
+            </summary>
+            <p className="mt-3 text-sm text-zinc-600 dark:text-zinc-400 leading-relaxed">
+              Roam tracks pages you&rsquo;ve seen and excludes them for 30 days. If you saw
+              the same page twice in one session, it may have come from a different URL
+              (e.g., with/without www). Report it via the feedback form and we&rsquo;ll
+              investigate.
+            </p>
+          </details>
+
+          <details className="border border-zinc-200 dark:border-zinc-800 rounded-xl p-4 mb-3 group">
+            <summary className="font-medium text-zinc-900 dark:text-white cursor-pointer list-none">
+              <span className="mr-2 text-zinc-400 group-open:hidden">→</span>
+              <span className="mr-2 text-zinc-400 hidden group-open:inline">↓</span>
+              How do I stop seeing a particular site?
+            </summary>
+            <p className="mt-3 text-sm text-zinc-600 dark:text-zinc-400 leading-relaxed">
+              Downvote two pages from the same domain and it&rsquo;s automatically muted for
+              30 days. You can also enable &ldquo;Skip paywalled sites&rdquo; in Settings to
+              hide NYT, WSJ, and similar publications entirely.
+            </p>
+          </details>
+
+          <details className="border border-zinc-200 dark:border-zinc-800 rounded-xl p-4 mb-3 group">
+            <summary className="font-medium text-zinc-900 dark:text-white cursor-pointer list-none">
+              <span className="mr-2 text-zinc-400 group-open:hidden">→</span>
+              <span className="mr-2 text-zinc-400 hidden group-open:inline">↓</span>
+              How do I submit a URL?
+            </summary>
+            <p className="mt-3 text-sm text-zinc-600 dark:text-zinc-400 leading-relaxed">
+              Click &ldquo;Submit URL&rdquo; from your profile, or use the 👍 button on an
+              unknown page in the browser extension or Android app. All submissions go
+              through moderation before appearing in the discovery pool. Max 10 per hour.
+            </p>
+          </details>
+
+          <details className="border border-zinc-200 dark:border-zinc-800 rounded-xl p-4 mb-3 group">
+            <summary className="font-medium text-zinc-900 dark:text-white cursor-pointer list-none">
+              <span className="mr-2 text-zinc-400 group-open:hidden">→</span>
+              <span className="mr-2 text-zinc-400 hidden group-open:inline">↓</span>
+              What happens if I downvote everything?
+            </summary>
+            <p className="mt-3 text-sm text-zinc-600 dark:text-zinc-400 leading-relaxed">
+              Downvoting doesn&rsquo;t block topics — it just slightly reduces how often
+              they appear (the weight goes from 1× to 0.8×). If you truly dislike a site,
+              two downvotes from the same domain mutes it for 30 days.
+            </p>
+          </details>
+
+          <details className="border border-zinc-200 dark:border-zinc-800 rounded-xl p-4 mb-3 group">
+            <summary className="font-medium text-zinc-900 dark:text-white cursor-pointer list-none">
+              <span className="mr-2 text-zinc-400 group-open:hidden">→</span>
+              <span className="mr-2 text-zinc-400 hidden group-open:inline">↓</span>
+              Is Roam really open source?
+            </summary>
+            <p className="mt-3 text-sm text-zinc-600 dark:text-zinc-400 leading-relaxed">
+              Yes — the source code for the website, browser extension, and Android app is
+              available under the MIT license on{' '}
+              <a
+                href="https://github.com/seven-lynx/Roam"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-blue-600 hover:underline"
+              >
+                GitHub
+              </a>
+              . The URL catalogue and ratings database are not public (that&rsquo;s the
+              secret sauce), but the code that powers discovery is fully open.
+            </p>
+          </details>
+
+          <details className="border border-zinc-200 dark:border-zinc-800 rounded-xl p-4 mb-3 group">
+            <summary className="font-medium text-zinc-900 dark:text-white cursor-pointer list-none">
+              <span className="mr-2 text-zinc-400 group-open:hidden">→</span>
+              <span className="mr-2 text-zinc-400 hidden group-open:inline">↓</span>
+              Can I use Roam without an account?
+            </summary>
+            <p className="mt-3 text-sm text-zinc-600 dark:text-zinc-400 leading-relaxed">
+              You can browse public collections and profiles without an account, but to roam
+              (discover pages), rate content, save URLs, or create collections you&rsquo;ll
+              need to sign up. It&rsquo;s free and takes about 30 seconds.
+            </p>
+          </details>
+        </section>
+
         {/* CTA */}
         <section className="flex flex-col items-center gap-5 border-t border-zinc-200 dark:border-zinc-800 pt-10">
           <p className="text-lg text-zinc-600 dark:text-zinc-300">

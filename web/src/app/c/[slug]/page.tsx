@@ -40,7 +40,7 @@ export default async function CollectionPage({ params }: Props) {
 
   const { data: items } = await supabase
     .from('collection_items')
-    .select('id, added_at, urls(id, title, original_url, description)')
+    .select('id, added_at, urls(id, title, original_url, description, og_image_url)')
     .eq('collection_id', collection.id)
     .order('added_at', { ascending: false });
 
@@ -70,7 +70,7 @@ export default async function CollectionPage({ params }: Props) {
         {items && items.length > 0 ? (
           <ul className="flex flex-col gap-3">
             {items.map(item => {
-              const url = item.urls as unknown as { id: string; title: string | null; original_url: string; description: string | null } | null;
+              const url = item.urls as unknown as { id: string; title: string | null; original_url: string; description: string | null; og_image_url: string | null } | null;
               if (!url) return null;
               const domain = (() => {
                 try { return new URL(url.original_url).hostname.replace(/^www\./, ''); }
@@ -82,15 +82,36 @@ export default async function CollectionPage({ params }: Props) {
                     href={url.original_url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex flex-col gap-1 px-4 py-3 rounded-lg border border-zinc-200 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-900 transition-colors group"
+                    className="flex gap-3 px-4 py-3 rounded-lg border border-zinc-200 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-900 transition-colors group"
                   >
-                    <span className="text-sm font-medium text-zinc-900 dark:text-white group-hover:underline">
-                      {url.title || url.original_url}
-                    </span>
-                    {url.description && (
-                      <span className="text-xs text-zinc-500 dark:text-zinc-400 line-clamp-2">{url.description}</span>
+                    {url.og_image_url && (
+                      <img
+                        src={url.og_image_url}
+                        alt=""
+                        loading="lazy"
+                        className="w-14 h-14 rounded-lg object-cover bg-zinc-100 dark:bg-zinc-800 shrink-0"
+                        onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                      />
                     )}
-                    <span className="text-xs text-zinc-400">{domain}</span>
+                    <div className="flex flex-col gap-1 min-w-0 flex-1">
+                      <span className="text-sm font-medium text-zinc-900 dark:text-white group-hover:underline truncate">
+                        {url.title || url.original_url}
+                      </span>
+                      {url.description && (
+                        <span className="text-xs text-zinc-500 dark:text-zinc-400 line-clamp-2">{url.description}</span>
+                      )}
+                      <span className="text-xs text-zinc-400 flex items-center gap-1">
+                        <img
+                          src={`https://www.google.com/s2/favicons?domain=${encodeURIComponent(domain)}&sz=32`}
+                          alt=""
+                          width={14}
+                          height={14}
+                          className="shrink-0"
+                          onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                        />
+                        {domain}
+                      </span>
+                    </div>
                   </a>
                 </li>
               );

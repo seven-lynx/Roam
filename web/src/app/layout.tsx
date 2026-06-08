@@ -10,6 +10,7 @@ import { AuthProvider } from "@/components/AuthProvider";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { CookieBanner } from "@/components/CookieBanner";
+import { WebsiteSchema } from "@/components/StructuredData";
 import { createClient } from "@/lib/supabase/server";
 
 const geistSans = Geist({
@@ -56,6 +57,7 @@ export default async function RootLayout({
       suppressHydrationWarning
     >
       <body className="min-h-full flex flex-col">
+        <WebsiteSchema />
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
           <AuthProvider initialSession={session}>
             <ErrorBoundary>
