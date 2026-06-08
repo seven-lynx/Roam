@@ -12,6 +12,8 @@ interface SettingsClientProps {
   email: string;
   provider: string;
   initialNotifications: boolean;
+  initialLanguages: string[];
+  initialSkipPaywalled: boolean;
 }
 
 // ── Two-step delete modal ─────────────────────────────────────────────────
@@ -87,11 +89,28 @@ function Section({ title, children, danger }: { title: string; children: React.R
 }
 
 // ── Main component ─────────────────────────────────────────────────────────
+const LANGUAGES = [
+  { code: 'en', label: 'English' },
+  { code: 'fr', label: 'Français' },
+  { code: 'de', label: 'Deutsch' },
+  { code: 'it', label: 'Italiano' },
+  { code: 'es', label: 'Español' },
+  { code: 'pt', label: 'Português' },
+  { code: 'nl', label: 'Nederlands' },
+  { code: 'pl', label: 'Polski' },
+  { code: 'ja', label: '日本語' },
+  { code: 'zh', label: '中文' },
+  { code: 'ru', label: 'Русский' },
+  { code: 'ko', label: '한국어' },
+] as const;
+
 export function SettingsClient({
   userId,
   email,
   provider,
   initialNotifications,
+  initialLanguages,
+  initialSkipPaywalled,
 }: SettingsClientProps) {
   const router = useRouter();
   const supabase = createClient();
@@ -101,6 +120,14 @@ export function SettingsClient({
   // Notification toggle
   const [notifications, setNotifications] = useState(initialNotifications);
   const [notificationsLoading, setNotificationsLoading] = useState(false);
+
+  // Language preferences
+  const [languages, setLanguages] = useState<string[]>(initialLanguages);
+  const [languagesLoading, setLanguagesLoading] = useState(false);
+
+  // Paywall skip
+  const [skipPaywalled, setSkipPaywalled] = useState(initialSkipPaywalled);
+  const [skipPaywalledLoading, setSkipPaywalledLoading] = useState(false);
 
   // Password change (email users only)
   const [newPassword, setNewPassword] = useState('');
@@ -119,6 +146,42 @@ export function SettingsClient({
   const [globalError, setGlobalError] = useState<string | null>(null);
 
   // ── Handlers ───────────────────────────────────────────────────────────
+  async function handleLanguageToggle(code: string) {
+    setLanguagesLoading(true);
+    const next = languages.includes(code)
+      ? languages.filter(c => c !== code)
+      : [...languages, code];
+    // Enforce minimum: at least English
+    const safe = next.includes('en') ? next : [...next, 'en'];
+    setLanguages(safe);
+    try {
+      await supabase.from('user_settings').upsert(
+        { user_id: userId, preferred_languages: safe },
+        { onConflict: 'user_id' }
+      );
+    } catch (err) {
+      Sentry.captureException(err, { tags: { context: 'language-toggle' } });
+    } finally {
+      setLanguagesLoading(false);
+    }
+  }
+
+  async function handleSkipPaywalledToggle() {
+    setSkipPaywalledLoading(true);
+    const next = !skipPaywalled;
+    setSkipPaywalled(next);
+    try {
+      await supabase.from('user_settings').upsert(
+        { user_id: userId, skip_paywalled: next },
+        { onConflict: 'user_id' }
+      );
+    } catch (err) {
+      Sentry.captureException(err, { tags: { context: 'skip-paywalled-toggle' } });
+    } finally {
+      setSkipPaywalledLoading(false);
+    }
+  }
+
   async function handleNotificationsToggle() {
     setNotificationsLoading(true);
     try {
@@ -284,6 +347,45 @@ export function SettingsClient({
               <p className="text-xs text-zinc-500 dark:text-zinc-400">Receive updates about your submissions and activity.</p>
             </div>
             <Toggle checked={notifications} onChange={handleNotificationsToggle} disabled={notificationsLoading} />
+          </div>
+        </Section>
+
+        {/* Language preferences */}
+        <Section title="Language">
+          <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-3">
+            Choose which languages you want to see content in. English is always included.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {LANGUAGES.map(lang => {
+              const selected = languages.includes(lang.code);
+              const isEnglish = lang.code === 'en';
+              return (
+                <button
+                  key={lang.code}
+                  type="button"
+                  disabled={isEnglish || languagesLoading}
+                  onClick={() => handleLanguageToggle(lang.code)}
+                  className={`rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
+                    selected
+                      ? 'bg-zinc-900 dark:bg-white text-white dark:text-zinc-900'
+                      : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700'
+                  } ${isEnglish ? 'opacity-60 cursor-not-allowed' : ''}`}
+                >
+                  {lang.label}
+                </button>
+              );
+            })}
+          </div>
+        </Section>
+
+        {/* Discovery */}
+        <Section title="Discovery">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-zinc-900 dark:text-white">Skip paywalled sites</p>
+              <p className="text-xs text-zinc-500 dark:text-zinc-400">Hide pages from NYT, WSJ, The Atlantic, and similar paywalled publications.</p>
+            </div>
+            <Toggle checked={skipPaywalled} onChange={handleSkipPaywalledToggle} disabled={skipPaywalledLoading} />
           </div>
         </Section>
 

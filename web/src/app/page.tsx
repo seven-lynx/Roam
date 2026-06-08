@@ -85,7 +85,12 @@ export default async function Home() {
               Swipe to discover. Tap to save. Read offline. The full Roam experience in your pocket.
             </p>
             <div className="flex gap-2 mt-auto">
-              <span className="text-sm text-zinc-400 font-semibold">Coming soon to Google Play</span>
+              <Link
+                href="/beta"
+                className="text-blue-600 hover:underline text-sm font-semibold"
+              >
+                Get notified when it launches →
+              </Link>
             </div>
           </div>
         </div>

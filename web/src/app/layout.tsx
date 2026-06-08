@@ -9,6 +9,7 @@ import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { AuthProvider } from "@/components/AuthProvider";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
+import { CookieBanner } from "@/components/CookieBanner";
 import { createClient } from "@/lib/supabase/server";
 
 const geistSans = Geist({
@@ -63,6 +64,7 @@ export default async function RootLayout({
                 {children}
               </main>
               <Footer />
+              <CookieBanner />
             </ErrorBoundary>
           </AuthProvider>
         </ThemeProvider>

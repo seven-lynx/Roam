@@ -12,7 +12,7 @@ export default async function SettingsPage() {
 
   const { data: settings } = await supabase
     .from('user_settings')
-    .select('email_notifications')
+    .select('email_notifications, preferred_languages, skip_paywalled')
     .eq('user_id', user.id)
     .single();
 
@@ -24,6 +24,8 @@ export default async function SettingsPage() {
       email={user.email ?? ''}
       provider={provider}
       initialNotifications={settings?.email_notifications ?? true}
+      initialLanguages={settings?.preferred_languages ?? ['en']}
+      initialSkipPaywalled={settings?.skip_paywalled ?? false}
     />
   );
 }

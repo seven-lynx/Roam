@@ -151,7 +151,7 @@ export function ProfileClient({ userId, email, profile, allCategories, allSubcat
                   href={`/u/${profile.username}`}
                   className="text-xs text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors"
                 >
-                  roam.the.web/u/{profile.username} ↗
+                  roamtheweb.app/u/{profile.username} ↗
                 </Link>
                 <button
                   onClick={copyProfileLink}

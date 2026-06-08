@@ -244,14 +244,14 @@ export default function HowItWorks() {
                 Curate lists that others can follow, or keep them to yourself.
               </p>
             </div>
-            <div className="flex gap-3">
+              <div className="flex gap-3">
               <span className="text-2xl shrink-0">👥</span>
               <p>
                 <strong className="text-zinc-900 dark:text-white">
                   Follow users.
                 </strong>{" "}
-                Stay connected with interesting people. Profile pages show their
-                collections, interests, and follower counts.
+                See their public collections, interests, and profile on Roam.
+                Discover new curators through the people you follow.
               </p>
             </div>
           </div>
