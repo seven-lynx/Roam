@@ -14,10 +14,6 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const token = searchParams.get("token");
 
-  const redirectSettings = NextResponse.redirect(
-    new URL("/settings", request.url),
-  );
-
   if (!token) {
     return NextResponse.redirect(
       new URL("/settings?error=missing-token", request.url),
