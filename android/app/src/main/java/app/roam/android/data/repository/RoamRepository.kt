@@ -365,6 +365,14 @@ class RoamRepository {
             .upsert(ProfileUpdateRow(id = userId, username = username, displayName = displayName, bio = bio))
     }
 
+    /** Updates the profile's is_public flag. */
+    suspend fun updateProfilePublic(isPublic: Boolean) {
+        val userId = supabase.auth.currentUserOrNull()?.id ?: return
+        supabase.postgrest
+            .from("profiles")
+            .update(mapOf("is_public" to isPublic)) { filter { eq("id", userId) } }
+    }
+
     /**
      * Returns the set of subcategory IDs the user has selected (topic mode).
      * Returns an empty set when the user is in pillar mode.

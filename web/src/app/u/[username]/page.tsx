@@ -3,6 +3,8 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/server';
 import { Avatar } from '@/components/UI';
+import { FollowButton } from './FollowButton';
+import { CopyProfileLink } from './CopyProfileLink';
 
 export const revalidate = 60;
 
@@ -40,6 +42,37 @@ export default async function PublicProfilePage({ params }: Props) {
 
   if (!profile) notFound();
 
+  // Get the viewing user (null if not signed in)
+  const { data: { user: viewer } } = await supabase.auth.getUser();
+
+  // Fetch follower/following counts via the profile Edge Function
+  const [followerCount, followingCount, followStatus] = viewer
+    ? await (async () => {
+        // Call profile Edge Function for counts
+        const baseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+        const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+        const profileUrl = `${baseUrl}/functions/v1/profile?username=${encodeURIComponent(username)}`;
+        const profileRes = await fetch(profileUrl, {
+          headers: { Authorization: `Bearer ${(await supabase.auth.getSession()).data.session?.access_token ?? anonKey}` },
+        });
+        const profileData = profileRes.ok ? await profileRes.json() : null;
+
+        // Check current follow relationship
+        const { data: followRow } = await supabase
+          .from('follows')
+          .select('is_pending')
+          .eq('follower_id', viewer.id)
+          .eq('following_id', profile.id)
+          .single();
+
+        let status: 'none' | 'following' | 'pending' = 'none';
+        if (followRow?.is_pending === true) status = 'pending';
+        else if (followRow?.is_pending === false) status = 'following';
+
+        return [profileData?.follower_count ?? 0, profileData?.following_count ?? 0, status] as const;
+      })()
+    : [0, 0, 'none' as const];
+
   // RLS handles visibility: owner sees all, followers see followed-private, others see public only.
   const { data: collections } = await supabase
     .from('collections')
@@ -58,6 +91,10 @@ export default async function PublicProfilePage({ params }: Props) {
       .map(c => [c.name, c] as [string, { name: string; icon: string }])
   ).values()];
 
+  const joinedDate = profile.created_at
+    ? new Date(profile.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'short' })
+    : null;
+
   return (
     <div className="min-h-[calc(100vh-8rem)] bg-white dark:bg-zinc-950">
       <div className="max-w-2xl mx-auto px-6 py-12 flex flex-col gap-10">
@@ -65,13 +102,40 @@ export default async function PublicProfilePage({ params }: Props) {
         {/* Header */}
         <div className="flex items-center gap-5">
           <Avatar name={profile.display_name || profile.username} size="lg" />
-          <div>
+          <div className="flex-1">
             <h1 className="text-2xl font-bold text-zinc-900 dark:text-white">
               {profile.display_name || profile.username}
             </h1>
             <p className="text-sm text-zinc-500 dark:text-zinc-400">@{profile.username}</p>
+            <div className="flex items-center gap-1 mt-1">
+              <CopyProfileLink username={profile.username} />
+            </div>
           </div>
+          {viewer && viewer.id !== profile.id && (
+            <FollowButton
+              targetUserId={profile.id}
+              initialStatus={followStatus}
+            />
+          )}
         </div>
+
+        {/* Stats */}
+        <section className="flex items-center gap-6 text-sm">
+          <div className="text-center">
+            <p className="font-semibold text-zinc-900 dark:text-white">{followerCount}</p>
+            <p className="text-zinc-400">followers</p>
+          </div>
+          <div className="text-center">
+            <p className="font-semibold text-zinc-900 dark:text-white">{followingCount}</p>
+            <p className="text-zinc-400">following</p>
+          </div>
+          {joinedDate && (
+            <div className="text-center">
+              <p className="font-semibold text-zinc-900 dark:text-white">{joinedDate}</p>
+              <p className="text-zinc-400">joined</p>
+            </div>
+          )}
+        </section>
 
         {/* Bio */}
         {profile.bio && (

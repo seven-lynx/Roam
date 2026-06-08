@@ -31,6 +31,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -68,6 +69,7 @@ fun ProfileScreen(
     val subcategories by vm.subcategories.collectAsState()
     val stats by vm.profileStats.collectAsState()
     val profileSaveError by vm.profileSaveError.collectAsState()
+    val profileIsPublic by vm.profileIsPublic.collectAsState()
 
     // Group subcategories by parent category
     val subcatsByCategory = subcategories.groupBy { it.categoryId }
@@ -161,6 +163,28 @@ fun ProfileScreen(
                     modifier = Modifier.fillMaxWidth(),
                 )
             }
+
+            // Profile visibility toggle
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("Public profile", style = MaterialTheme.typography.bodyLarge)
+                    Text(
+                        if (profileIsPublic) "Anyone can see your profile" else "Only you can see your profile",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                    )
+                }
+                Switch(
+                    checked = profileIsPublic,
+                    onCheckedChange = { vm.toggleProfilePublic() },
+                )
+            }
+
+            HorizontalDivider()
 
             // Edit fields
             OutlinedTextField(

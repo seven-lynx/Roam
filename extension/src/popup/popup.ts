@@ -775,20 +775,48 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     const anchor = el<HTMLButtonElement>('btn-roam-collection');
-    showDropdown(
-      anchor,
-      loadedCollections.map(col => ({
-        label: `${col.name} (${col.item_count})`,
-        onPick: async () => {
-          const res = await sendToBackground<RoamData>({ type: 'ROAM_COLLECTION', collectionId: col.id });
-          if (!res.ok) { showError(res.error); return; }
-          if (!res.data?.url) { showState('noresults'); return; }
-          const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-          if (tab?.id) chrome.tabs.update(tab.id, { url: res.data.url });
-          window.close();
-        },
-      }))
-    );
+    // Build dropdown items: roam actions + copy-link footer for public collections
+    const items = loadedCollections.map(col => ({
+      label: `${col.name} (${col.item_count})`,
+      onPick: async () => {
+        const res = await sendToBackground<RoamData>({ type: 'ROAM_COLLECTION', collectionId: col.id });
+        if (!res.ok) { showError(res.error); return; }
+        if (!res.data?.url) { showState('noresults'); return; }
+        const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+        if (tab?.id) chrome.tabs.update(tab.id, { url: res.data.url });
+        window.close();
+      },
+    }));
+    const publicCols = loadedCollections.filter(c => c.is_public);
+    let footer: HTMLElement | undefined;
+    if (publicCols.length > 0) {
+      footer = document.createElement('div');
+      footer.style.cssText = 'display: flex; flex-direction: column; gap: 4px;';
+      for (const col of publicCols) {
+        const linkBtn = document.createElement('button');
+        linkBtn.style.cssText = `
+          width: 100%;
+          padding: 8px 10px;
+          border: none;
+          border-top: 1px solid var(--border);
+          background: transparent;
+          color: var(--text);
+          text-align: left;
+          cursor: pointer;
+          font-size: 13px;
+        `;
+        linkBtn.textContent = `🔗 Copy link: ${col.name}`;
+        linkBtn.addEventListener('click', async (e) => {
+          e.stopPropagation();
+          await navigator.clipboard.writeText(`https://roamtheweb.app/c/${col.slug}`);
+          linkBtn.textContent = '✓ Copied';
+        });
+        linkBtn.addEventListener('mouseover', () => { linkBtn.style.background = 'var(--bg-hover)'; });
+        linkBtn.addEventListener('mouseout', () => { linkBtn.style.background = 'transparent'; });
+        footer.appendChild(linkBtn);
+      }
+    }
+    showDropdown(anchor, items, footer);
   });
 
   el('btn-manage-collections').addEventListener('click', () => {

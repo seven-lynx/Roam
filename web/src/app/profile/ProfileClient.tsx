@@ -1,4 +1,4 @@
-'use client';
+'use client'; 
 
 import { useState } from 'react';
 import Link from 'next/link';
@@ -16,9 +16,10 @@ type Category = { id: string; label: string; emoji: string };
 type Profile = {
   id: string;
   username: string | null;
-  email: string;
+  email?: string;
   bio?: string | null;
   avatar_url?: string | null;
+  is_public?: boolean;
 } | null;
 
 interface ProfileClientProps {
@@ -35,6 +36,11 @@ interface ProfileClientProps {
 
 export function ProfileClient({ userId, email, profile, allCategories, allSubcategories, initialCategoryIds, initialTopicIds, initialCollections, initialSavedUrls }: ProfileClientProps) {
   const supabase = createClient();
+
+  // Profile privacy
+  const [isPublic, setIsPublic] = useState(profile?.is_public ?? true);
+  const [privacyLoading, setPrivacyLoading] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   // Bio editing
   const [bio, setBio] = useState(profile?.bio ?? '');
@@ -104,6 +110,23 @@ export function ProfileClient({ userId, email, profile, allCategories, allSubcat
     }
   }
 
+  async function togglePrivacy() {
+    setPrivacyLoading(true);
+    setError(null);
+    const { error: err } = await supabase.from('profiles').update({ is_public: !isPublic }).eq('id', userId);
+    setPrivacyLoading(false);
+    if (err) { setError(err.message); return; }
+    setIsPublic(prev => !prev);
+  }
+
+  function copyProfileLink() {
+    const username = profile?.username;
+    if (!username) return;
+    void navigator.clipboard.writeText(`https://roamtheweb.app/u/${username}`);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }
+
   const initial = email[0]?.toUpperCase() ?? '?';
 
   return (
@@ -123,12 +146,21 @@ export function ProfileClient({ userId, email, profile, allCategories, allSubcat
             </h1>
             <p className="text-sm text-zinc-500 dark:text-zinc-400">{email}</p>
             {profile?.username && (
-              <Link
-                href={`/u/${profile.username}`}
-                className="text-xs text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors"
-              >
-                roam.the.web/u/{profile.username} ↗
-              </Link>
+              <div className="flex items-center gap-2 mt-1">
+                <Link
+                  href={`/u/${profile.username}`}
+                  className="text-xs text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors"
+                >
+                  roam.the.web/u/{profile.username} ↗
+                </Link>
+                <button
+                  onClick={copyProfileLink}
+                  className="text-xs text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors"
+                  title="Copy profile link"
+                >
+                  {copied ? '✓' : '🔗'}
+                </button>
+              </div>
             )}
           </div>
           <Link
@@ -138,6 +170,32 @@ export function ProfileClient({ userId, email, profile, allCategories, allSubcat
             + Submit URL
           </Link>
         </div>
+
+        {/* Privacy */}
+        <section>
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-base font-semibold text-zinc-900 dark:text-white">Profile visibility</h2>
+              <p className="text-xs text-zinc-400 mt-0.5">
+                {isPublic ? 'Your profile is visible to everyone.' : 'Only you can see your profile.'}
+              </p>
+            </div>
+            <button
+              onClick={togglePrivacy}
+              disabled={privacyLoading}
+              className={`shrink-0 relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                isPublic ? 'bg-zinc-900 dark:bg-white' : 'bg-zinc-300 dark:bg-zinc-600'
+              } disabled:opacity-50`}
+              aria-label={isPublic ? 'Make profile private' : 'Make profile public'}
+            >
+              <span
+                className={`inline-block h-4 w-4 rounded-full bg-white dark:bg-zinc-900 transition-transform ${
+                  isPublic ? 'translate-x-6' : 'translate-x-1'
+                }`}
+              />
+            </button>
+          </div>
+        </section>
 
         {/* Bio */}
         <section>

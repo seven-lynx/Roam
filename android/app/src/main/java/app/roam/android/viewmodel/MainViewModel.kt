@@ -297,6 +297,10 @@ class MainViewModel(
     private val _profile = MutableStateFlow<UserProfile?>(null)
     val profile: StateFlow<UserProfile?> = _profile.asStateFlow()
 
+    /** Whether the user's profile is public */
+    private val _profileIsPublic = MutableStateFlow(true)
+    val profileIsPublic: StateFlow<Boolean> = _profileIsPublic.asStateFlow()
+
     /** IDs of categories the user has selected (whole-category, no subcategory filter) */
     private val _userCategoryIds = MutableStateFlow<Set<String>>(emptySet())
     val userCategoryIds: StateFlow<Set<String>> = _userCategoryIds.asStateFlow()
@@ -320,6 +324,19 @@ class MainViewModel(
     /** Counts of pages roamed and submitted by the current user */
     private val _profileStats = MutableStateFlow(ProfileStats())
     val profileStats: StateFlow<ProfileStats> = _profileStats.asStateFlow()
+
+    /** Toggles profile public/private. */
+    fun toggleProfilePublic() {
+        val next = !_profileIsPublic.value
+        _profileIsPublic.value = next
+        viewModelScope.launch {
+            runCatching { repo.updateProfilePublic(next) }
+                .onFailure {
+                    _profileIsPublic.value = !next // revert on failure
+                    _profileSaveError.value = "Failed to update visibility"
+                }
+        }
+    }
 
     /** Debounce job for profile auto-save */
     private var profileSaveJob: Job? = null

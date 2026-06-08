@@ -250,8 +250,8 @@ export default function HowItWorks() {
                 <strong className="text-zinc-900 dark:text-white">
                   Follow users.
                 </strong>{" "}
-                See what interesting people are discovering. Profile pages show
-                pages rated, submitted, and follower counts.
+                Stay connected with interesting people. Profile pages show their
+                collections, interests, and follower counts.
               </p>
             </div>
           </div>
