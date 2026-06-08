@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import type { CollectionRow } from './CollectionsManager';
 
@@ -200,7 +200,7 @@ function CollectionPicker({ onSelect, onClose }: { onSelect: (id: string) => voi
   const [collections, setCollections] = useState<CollectionRow[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useMemo(() => {
+  useEffect(() => {
     (async () => {
       const res = await supabase.from('collections').select('id, name, item_count:collection_items(count)').order('name');
       setCollections((res.data ?? []).map((c: { id: string; name: string; item_count: { count: number }[] | number }) => ({

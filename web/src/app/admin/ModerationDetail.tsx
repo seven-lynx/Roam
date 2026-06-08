@@ -72,7 +72,7 @@ export default function ModerationDetail({
     } else {
       setSubmitterEmail(null);
     }
-  }, [item?.id]);
+  }, [item]);
 
   const filteredSubcategories = selectedCategoryId
     ? allSubcategories.filter((s) => s.category_id === selectedCategoryId)
