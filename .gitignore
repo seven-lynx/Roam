@@ -1,16 +1,20 @@
 # ── Dev-facing docs (internal only; not for end users) ──────────────────────
 
-PLANNING.md
-CONTEXT.md
-ROADMAP.md
 docs/
-docs/*AUDIT*.md
 android/TESTING.md
 android/REFERENCE.md
 android/DESIGN.md
 extension/TESTING.md
 extension/DESIGN.md
 web/TESTING.md
+web/AGENTS.md
+web/CLAUDE.md
+supabase/TESTING.md
+
+# ── AI context files (not for end users) ──────────────────────────────────────
+CLAUDE.md
+.github/copilot-instructions.md
+.github/skills/
 
 # ── Environment / secrets ────────────────────────────────────────────────────
 .env

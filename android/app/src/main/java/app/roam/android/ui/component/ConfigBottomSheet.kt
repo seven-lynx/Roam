@@ -37,6 +37,8 @@ fun ConfigBottomSheet(
     currentUrl: String?,
     collections: List<Collection>,
     savedUrls: List<SavedUrl>,
+    isTranslated: Boolean,
+    onToggleTranslation: () -> Unit,
     onSaveForLater: () -> Unit,
     onShare: () -> Unit,
     onAddToCollection: (collectionId: String) -> Unit,
@@ -77,6 +79,16 @@ fun ConfigBottomSheet(
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
             ) {
                 Text("Save for later", modifier = Modifier.fillMaxWidth())
+            }
+
+            TextButton(
+                onClick = onToggleTranslation,
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
+            ) {
+                Text(
+                    if (isTranslated) "Show original" else "Translate this page",
+                    modifier = Modifier.fillMaxWidth(),
+                )
             }
 
             TextButton(
@@ -280,4 +292,3 @@ fun ConfigBottomSheet(
         )
     }
 }
-

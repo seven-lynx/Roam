@@ -364,6 +364,8 @@ private fun DiscoverTab(
                 currentUrl = currentUrl,
                 collections = collections,
                 savedUrls = savedUrls,
+                isTranslated = vm.isTranslated,
+                onToggleTranslation = { vm.toggleTranslation() },
                 onSaveForLater = { vm.saveForLater() },
                 onShare = {
                     val shareIntent = Intent(Intent.ACTION_SEND).apply {

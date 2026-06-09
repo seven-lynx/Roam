@@ -50,20 +50,21 @@ import kotlinx.coroutines.flow.Flow
 private val ALLOWED_SCHEMES = setOf("http", "https", "about", "data", "blob")
 
 // Self-contained JavaScript that saves and restores scroll position per-URL using
-// sessionStorage. Runs entirely in the WebView's JS context with no Android lifecycle
+// localStorage. Runs entirely in the WebView's JS context with no Android lifecycle
 // dependencies — eliminates the async race conditions of the old evaluateJavascript +
 // rememberSaveable approach.
 //
 // Mechanism:
-//  1. On page load, check sessionStorage for a saved scroll anchor for this URL. If
+//  1. On page load, check localStorage for a saved scroll anchor for this URL. If
 //     found, poll requestAnimationFrame until the document height reaches the saved
 //     value, then scrollTo(0, savedY). This prevents the script from scrolling to a
 //     position the page hasn't reached yet (dynamic content, lazy images, etc.).
-//  2. On scroll (debounced 200ms), save { y, height, url } to sessionStorage.
+//  2. On scroll (debounced 200ms), save { y, height, url } to localStorage.
 //  3. On beforeunload, immediately save the final scroll position.
 //
-// sessionStorage is scoped to origin — no cross-site leaks. Browsing history across
-// different domains is not tracked by this script (only within the same origin).
+// localStorage is disk-backed and survives WebView renderer process death — unlike
+// sessionStorage which is wiped when Android kills the renderer in the background.
+// It is scoped to origin — no cross-site leaks.
 private const val ROAM_SCROLL_MEMORY_SCRIPT = """
 (function(){
   'use strict';
@@ -81,15 +82,15 @@ private const val ROAM_SCROLL_MEMORY_SCRIPT = """
     try {
       var data = getScrollData();
       data.url = location.href;
-      var store = JSON.parse(sessionStorage.getItem(STORAGE_KEY) || '{}');
+      var store = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
       store[data.url] = data;
-      sessionStorage.setItem(STORAGE_KEY, JSON.stringify(store));
-    } catch(e) { /* sessionStorage may be unavailable in some contexts */ }
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(store));
+    } catch(e) { /* localStorage may be unavailable in some contexts */ }
   }
 
   function loadAndRestore() {
     try {
-      var store = JSON.parse(sessionStorage.getItem(STORAGE_KEY) || '{}');
+      var store = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
       var entry = store[location.href];
       if (!entry || !entry.y) return;
       var targetY = entry.y;
@@ -277,22 +278,24 @@ fun RoamWebView(
                         }
                     }
                     webChromeClient = object : WebChromeClient() {
-                        // When a page calls window.open() or a link has target="_blank",
-                        // Android calls onCreateWindow. The default implementation returns
-                        // false, which fires an ACTION_VIEW intent and opens the URL in
-                        // the system browser. We override it to reuse the same WebView,
-                        // keeping all navigation inside Roam.
-                        override fun onCreateWindow(
-                            view: WebView,
-                            isDialog: Boolean,
-                            isUserGesture: Boolean,
-                            resultMsg: android.os.Message,
-                        ): Boolean {
-                            val transport = resultMsg.obj as? WebView.WebViewTransport
-                            transport?.webView = view
-                            resultMsg.sendToTarget()
-                            return true
-                        }
+                // When a page calls window.open() or a link has target="_blank",
+                // Android calls onCreateWindow. The default implementation returns
+                // false, which fires an ACTION_VIEW intent and opens the URL in
+                // the system browser. We override it to reuse the same WebView,
+                // keeping all navigation inside Roam.
+                override fun onCreateWindow(
+                    view: WebView,
+                    isDialog: Boolean,
+                    isUserGesture: Boolean,
+                    resultMsg: android.os.Message,
+                ): Boolean {
+                    val transport = resultMsg.obj as? WebView.WebViewTransport
+                    if (transport != null) {
+                        transport.webView = view
+                        resultMsg.sendToTarget()
+                    }
+                    return true
+                }
                     }
                     webViewClient = object : WebViewClient() {
                         override fun onPageStarted(view: WebView, url: String, favicon: Bitmap?) {
@@ -306,7 +309,7 @@ fun RoamWebView(
                             showSnapshot = false
                             snapshotBitmap = null
                             // Inject a self-contained scroll-memory script that saves/restores
-                            // scroll position from sessionStorage. This runs entirely in the
+                            // scroll position from localStorage. This runs entirely in the
                             // JS context with zero Android lifecycle race conditions.
                             // When jsEnabled is false, the script is not injected and
                             // restoreState/saveState (native Android WebView session) handles
@@ -338,23 +341,36 @@ fun RoamWebView(
                             }
                             return true
                         }
-                        // Keep all URL navigation within the WebView, including links with
-                        // target="_blank" or window.open(). This ensures history and discovered URLs
-                        // always open inside Roam, never in an external browser.
-                        override fun shouldOverrideUrlLoading(
-                            view: WebView,
-                            request: WebResourceRequest,
-                        ): Boolean {
-                            val scheme = request.url.scheme
-                            // Block Android intent:// and other non-http schemes that would
-                            // launch external apps (e.g. market://, tel:, mailto: via intent).
-                            if (scheme != null && scheme !in ALLOWED_SCHEMES) {
-                                return true
-                            }
-                            // Return false to let the WebView load all http/https URLs normally.
-                            // This prevents delegation to the system browser.
-                            return false
+                    // Keep all URL navigation within the WebView, including links with
+                    // target="_blank" or window.open(). This ensures history and discovered URLs
+                    // always open inside Roam, never in an external browser.
+                    override fun shouldOverrideUrlLoading(
+                        view: WebView,
+                        request: WebResourceRequest,
+                    ): Boolean {
+                        val scheme = request.url.scheme
+                        // Block Android intent:// and other non-http schemes that would
+                        // launch external apps (e.g. market://, tel:, mailto: via intent).
+                        if (scheme != null && scheme !in ALLOWED_SCHEMES) {
+                            return true
                         }
+                        // Return false to let the WebView load all http/https URLs normally.
+                        // This prevents delegation to the system browser.
+                        return false
+                    }
+
+                    // Deprecated overload — some OEM WebView implementations (Samsung,
+                    // Huawei) and server-side redirects still route through this path.
+                    // Without this override, non-http schemes can fire ACTION_VIEW intents
+                    // that open the system browser or other apps.
+                    @Suppress("DEPRECATION")
+                    override fun shouldOverrideUrlLoading(view: WebView, url: String): Boolean {
+                        val scheme = try { android.net.Uri.parse(url).scheme } catch (_: Exception) { null }
+                        if (scheme != null && scheme !in ALLOWED_SCHEMES) {
+                            return true
+                        }
+                        return false
+                    }
                     }
                     // Restore saved session (back/forward stack + scroll) or load fresh
                     if (!savedState.isEmpty) {
@@ -378,7 +394,6 @@ fun RoamWebView(
         update = { webView ->
             if (webView is WebView) {
                 webViewRef.value = webView
-                webView.saveState(savedState)
                 if (webView.settings.javaScriptEnabled != jsEnabled) {
                     webView.settings.javaScriptEnabled = jsEnabled
                     webView.settings.domStorageEnabled = jsEnabled
@@ -435,6 +450,13 @@ fun BackgroundPrefetchWebView(
                                 request: WebResourceRequest,
                             ): Boolean {
                                 // Block all navigation — this is a cache warmer, not a browser.
+                                return true
+                            }
+
+                            // Deprecated overload — OEM WebView implementations may route
+                            // server-side redirects through this path.
+                            @Suppress("DEPRECATION")
+                            override fun shouldOverrideUrlLoading(view: WebView, url: String): Boolean {
                                 return true
                             }
                         }

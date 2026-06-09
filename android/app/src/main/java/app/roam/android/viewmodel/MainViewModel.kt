@@ -161,20 +161,14 @@ class MainViewModel(
         prefs.edit().putBoolean(WEB_DARK_KEY, enabled).apply()
     }
 
-    /** Auto-translate is ephemeral (per-page) — always starts off, resets on each roam */
-    private val _autoTranslate = MutableStateFlow(false)
-    val autoTranslate: StateFlow<Boolean> = _autoTranslate.asStateFlow()
+    /** True while the current URL is wrapped through Google Translate. */
+    val isTranslated: Boolean
+        get() = _currentUrl.value?.startsWith("https://translate.google.com/translate?") == true
 
-    fun setAutoTranslate(enabled: Boolean) {
-        _autoTranslate.value = enabled
+    /** Toggles between the raw (discovery) URL and the Google Translate wrapper. */
+    fun toggleTranslation() {
         val raw = _rawUrl.value ?: return
-        val current = _currentUrl.value ?: return
-        
-        // Only update the URL if we're still on the original discovery page
-        if (current == raw || current == translateUrl(raw)) {
-            _currentUrl.value = if (enabled) translateUrl(raw) else raw
-        }
-        // If user has navigated away, don't revert their navigation
+        _currentUrl.value = if (isTranslated) raw else translateUrl(raw)
     }
 
     /** User preference: enable JavaScript in the WebView (default on) */
@@ -212,6 +206,11 @@ class MainViewModel(
     fun setTranslateLanguage(lang: String) {
         _translateLanguage.value = lang
         prefs.edit().putString(TRANSLATE_LANG_KEY, lang).apply()
+        // If the current page is already translated, re-translate with the new language
+        if (isTranslated) {
+            val raw = _rawUrl.value ?: return
+            _currentUrl.value = translateUrl(raw)
+        }
     }
 
     /** User preference: sheet gesture mode ("slide" = drag to open, "tap" = tap handle to toggle) */
@@ -445,8 +444,7 @@ class MainViewModel(
             if (prefetched != null) {
                 previousRawUrl = _rawUrl.value
                 _rawUrl.value = prefetched.url
-                _currentUrl.value = if (_autoTranslate.value) translateUrl(prefetched.url) else prefetched.url
-                _autoTranslate.value = false
+                _currentUrl.value = prefetched.url
                 _state.value = RoamState.Loaded(prefetched)
                 recordUrlVisit(prefetched.url, prefetched.title ?: prefetched.url)
                 // If background WebView preloading is enabled, expose the next hot-queue entry
@@ -517,8 +515,7 @@ class MainViewModel(
                     android.util.Log.i("MainViewModel", "Roam success: ${roamUrl.url}")
                     previousRawUrl = _rawUrl.value
                     _rawUrl.value = roamUrl.url
-                    _currentUrl.value = if (_autoTranslate.value) translateUrl(roamUrl.url) else roamUrl.url
-                    _autoTranslate.value = false
+                    _currentUrl.value = roamUrl.url
                     _state.value = RoamState.Loaded(roamUrl)
                     recordUrlVisit(roamUrl.url, roamUrl.title ?: roamUrl.url)
                     startPrefillQueue(excludeDomain = extractDomain(roamUrl.url))
@@ -1094,7 +1091,6 @@ class MainViewModel(
                 else {
                     _rawUrl.value = result.url
                     _currentUrl.value = result.url
-                    _autoTranslate.value = false
                     _state.value = RoamState.Loaded(result)
                 }
             }.onFailure { e ->
@@ -1323,4 +1319,3 @@ class MainViewModel(
         return false
     }
 }
-

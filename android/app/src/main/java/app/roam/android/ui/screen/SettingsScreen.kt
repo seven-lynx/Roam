@@ -77,7 +77,6 @@ fun SettingsScreen(
 ) {
     val skipPaywalled by vm.skipPaywalled.collectAsState()
     val webDarkMode by vm.webDarkMode.collectAsState()
-    val autoTranslate by vm.autoTranslate.collectAsState()
     val translateLanguage by vm.translateLanguage.collectAsState()
     val preferredLanguages by vm.preferredLanguages.collectAsState()
     val jsEnabled by vm.jsEnabled.collectAsState()
@@ -283,43 +282,30 @@ fun SettingsScreen(
                 onCheckedChange = { vm.setWebDarkMode(it) },
             )
 
-            SettingsToggleRow(
-                title = "Auto-translate",
-                subtitle = "Translate pages via Google Translate",
-                checked = autoTranslate,
-                onCheckedChange = { 
-                    vm.setAutoTranslate(it)
-                    // Close dropdown when toggling to avoid UI issues
-                    translateDropdownExpanded = false
-                },
-            )
-
-            // Language selector only shown when auto-translate is enabled
-            if (autoTranslate) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Text("Translate to", style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
-                    Box {
-                        OutlinedButton(onClick = { translateDropdownExpanded = !translateDropdownExpanded }) {
-                            Text(translateLanguageLabel)
-                        }
-                        DropdownMenu(
-                            expanded = translateDropdownExpanded,
-                            onDismissRequest = { translateDropdownExpanded = false },
-                        ) {
-                            TRANSLATE_LANGUAGES.forEach { (code, label) ->
-                                DropdownMenuItem(
-                                    text = { Text(label) },
-                                    onClick = {
-                                        vm.setTranslateLanguage(code)
-                                        translateDropdownExpanded = false
-                                    },
-                                )
-                            }
+            // Language selector always visible (translation is a one-shot action from the config sheet)
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text("Translate to", style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
+                Box {
+                    OutlinedButton(onClick = { translateDropdownExpanded = !translateDropdownExpanded }) {
+                        Text(translateLanguageLabel)
+                    }
+                    DropdownMenu(
+                        expanded = translateDropdownExpanded,
+                        onDismissRequest = { translateDropdownExpanded = false },
+                    ) {
+                        TRANSLATE_LANGUAGES.forEach { (code, label) ->
+                            DropdownMenuItem(
+                                text = { Text(label) },
+                                onClick = {
+                                    vm.setTranslateLanguage(code)
+                                    translateDropdownExpanded = false
+                                },
+                            )
                         }
                     }
                 }
