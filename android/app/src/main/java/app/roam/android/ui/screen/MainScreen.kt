@@ -581,6 +581,19 @@ private fun DiscoverTab(
                     webViewLoading = loading
                     if (!loading) lastLoadedUrl = currentUrl
                 },
+                // Hide the loading overlay as soon as the first frame paints
+                // (onPageCommitVisible), not when all JS finishes (onPageFinished).
+                onPageVisible = {
+                    webViewLoading = false
+                    lastLoadedUrl = currentUrl
+                },
+                // Trigger proactive cache warming: as soon as the current page
+                // finishes loading, tell the ViewModel to expose the next URL
+                // so the hidden prefetch WebView can start warming it now,
+                // while the user is still reading.
+                onPageFinishedForPrefetch = {
+                    vm.onPageFinishedForPrefetch()
+                },
                 navCommandsFlow = vm.webNavFlow,
                 clearCookiesFlow = vm.clearCookiesFlow,
             )

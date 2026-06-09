@@ -140,6 +140,8 @@ fun RoamWebView(
     onUrlChanged: (String) -> Unit = {},
     onLoadError: () -> Unit = {},
     onLoadingChanged: (Boolean) -> Unit = {},
+    onPageVisible: () -> Unit = {},  // Fires at first paint (onPageCommitVisible)
+    onPageFinishedForPrefetch: () -> Unit = {},  // Fires on go page finish so cache-warmer can start
     navCommandsFlow: Flow<WebNavCommand>? = null,
     clearCookiesFlow: Flow<Unit>? = null,
 ) {
@@ -268,6 +270,8 @@ fun RoamWebView(
                         userAgentString = "Mozilla/5.0 (Linux; Android 10; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36"
                         allowFileAccess = false
                         allowContentAccess = false
+                        @Suppress("DEPRECATION")
+                        setOffscreenPreRaster(true)
                     }
                     if (darkMode) {
                         if (WebViewFeature.isFeatureSupported(WebViewFeature.ALGORITHMIC_DARKENING)) {
@@ -301,6 +305,14 @@ fun RoamWebView(
                         override fun onPageStarted(view: WebView, url: String, favicon: Bitmap?) {
                             onLoadingChanged(true)
                         }
+                        // Fires when the first frame is rendered — the page is visually
+                        // present even if JS/CSS hasn't finished. This lets the loading
+                        // overlay disappear ~0.5-2s earlier than waiting for onPageFinished.
+                        override fun onPageCommitVisible(view: WebView, url: String) {
+                            if (url == commandedUrl || commandedUrl == null) {
+                                onPageVisible()
+                            }
+                        }
                         override fun onPageFinished(view: WebView, loadedUrl: String) {
                             commandedUrl = loadedUrl
                             onUrlChanged(loadedUrl)
@@ -317,6 +329,9 @@ fun RoamWebView(
                             if (jsEnabled) {
                                 view.evaluateJavascript(ROAM_SCROLL_MEMORY_SCRIPT, null)
                             }
+                            // Tell the ViewModel the page finished so it can start warming
+                            // the cache for the next URL while the user reads.
+                            onPageFinishedForPrefetch()
                         }
                         override fun onReceivedError(
                             view: WebView,
@@ -479,9 +494,14 @@ fun BackgroundPrefetchWebView(
                             cacheMode = android.webkit.WebSettings.LOAD_CACHE_ELSE_NETWORK
                             userAgentString = "Mozilla/5.0 (Linux; Android 10; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36"
                             allowFileAccess = false
-                            allowContentAccess = false
-                        }
-                        if (darkMode) {
+                        allowContentAccess = false
+                        // Tell the Chromium renderer to raster tiles even while the
+                        // WebView is offscreen, so the page is fully painted when it
+                        // becomes visible. Small GPU cost for a meaningful visual win.
+                        @Suppress("DEPRECATION")
+                        setOffscreenPreRaster(true)
+                    }
+                    if (darkMode) {
                             if (WebViewFeature.isFeatureSupported(WebViewFeature.ALGORITHMIC_DARKENING)) {
                                 WebSettingsCompat.setAlgorithmicDarkeningAllowed(settings, true)
                             } else if (WebViewFeature.isFeatureSupported(WebViewFeature.FORCE_DARK)) {

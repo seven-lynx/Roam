@@ -593,7 +593,7 @@ class MainViewModel(
 
                         // Fetch candidates. Use a smaller batch size (2) to avoid overwhelming
                         // the edge function, especially if several instances are running.
-                        val batchSize = minOf(2, WARM_TARGET - warmSize)
+                        val batchSize = minOf(5, WARM_TARGET - warmSize)
                         val candidates = (1..batchSize).map {
                             async {
                                 runCatching {
@@ -683,8 +683,8 @@ class MainViewModel(
         runCatching {
             val conn = URL(url).openConnection() as HttpURLConnection
             conn.requestMethod = "HEAD"
-            conn.connectTimeout = 2_000
-            conn.readTimeout = 2_000
+            conn.connectTimeout = 1_000
+            conn.readTimeout = 1_000
             conn.instanceFollowRedirects = true
             conn.setRequestProperty("User-Agent", "Mozilla/5.0")
             val code = conn.responseCode
@@ -791,6 +791,23 @@ class MainViewModel(
         prefetchJob?.cancel()
         viewModelScope.launch { prefetchMutex.withLock { hotQueue.clear(); warmQueue.clear() } }
         startPrefillQueue()
+    }
+
+    /** Called when the WebView finishes rendering the current page. 
+     *  Proactively exposes the next hot-queue URL so the hidden prefetch WebView 
+     *  can start warming the disk cache while the user is still reading.
+     *  This replaces the reactive approach where _nextPrefetchUrl was only set
+     *  when the user tapped Roam — which meant the cache and the main WebView
+     *  were racing, and the prefetch rarely finished first. */
+    fun onPageFinishedForPrefetch() {
+        if (_prefetchWebView.value) {
+            viewModelScope.launch {
+                val nextUrl = prefetchMutex.withLock { hotQueue.firstOrNull()?.url }
+                if (nextUrl != null) {
+                    _nextPrefetchUrl.value = nextUrl
+                }
+            }
+        }
     }
 
     fun openSubmitSheet() { _showSubmitSheet.value = true }
