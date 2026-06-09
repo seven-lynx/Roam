@@ -113,6 +113,11 @@ private const val ROAM_SCROLL_MEMORY_SCRIPT = """
     } catch(e) { /* no-op */ }
   }
 
+  // Expose save/restore globally so Android can call them via evaluateJavascript
+  // when the app is backgrounded/foregrounded and no native load event fires.
+  window.__roam_saveScroll = saveScroll;
+  window.__roam_restoreScroll = loadAndRestore;
+
   // Debounced scroll listener
   window.addEventListener('scroll', function() {
     if (pendingTimer) clearTimeout(pendingTimer);
@@ -122,12 +127,24 @@ private const val ROAM_SCROLL_MEMORY_SCRIPT = """
   // Final save before navigating away
   window.addEventListener('beforeunload', saveScroll);
 
+  // Also save on pagehide — some browsers fire this instead of beforeunload
+  // when the page enters the back-forward cache, and it fires synchronously
+  // on app backgrounding in WebView contexts that support it.
+  window.addEventListener('pagehide', saveScroll);
+
   // Restore on load
   if (document.readyState === 'complete') {
     loadAndRestore();
   } else {
     window.addEventListener('load', loadAndRestore, { once: true });
   }
+
+  // Belt-and-suspenders: if the page is restored from the back-forward cache
+  // (e.g. after app backgrounding on some OEM WebViews), pageshow fires but
+  // load does not. The persisted property indicates a bfcache restore.
+  window.addEventListener('pageshow', function(e) {
+    if (e.persisted) loadAndRestore();
+  });
 })();
 """
 
@@ -203,20 +220,30 @@ fun RoamWebView(
                             urlRef.value?.let { wv.loadUrl(it) }
                         }
                     }
-                    // Scroll position is restored by the injected scroll-memory script
-                    // when JavaScript is enabled. When JS is off, restoreState() above
-                    // handles it natively for the renderer-killed case.
+                    // Force-restore scroll position for the surviving-renderer case.
+                    // The JS script only restores on load/pageshow — neither of which
+                    // fire when the renderer survives backgrounding. Calling the exposed
+                    // global __roam_restoreScroll forces an immediate restore from
+                    // localStorage, regardless of whether a native load event occurred.
+                    if (jsEnabled) {
+                        wv.evaluateJavascript("window.__roam_restoreScroll && window.__roam_restoreScroll()", null)
+                    }
                 }
                 Lifecycle.Event.ON_PAUSE -> {
                     webViewRef.value?.let { wv ->
+                        // Force-save the current scroll position immediately, bypassing
+                        // the 200ms debounce in the injected script. This guarantees the
+                        // final scroll position is persisted before the app is backgrounded,
+                        // even if the user swiped home mid-scroll.
+                        if (jsEnabled) {
+                            wv.evaluateJavascript("window.__roam_saveScroll && window.__roam_saveScroll()", null)
+                        }
                         if ((wv.width > 0) && (wv.height > 0)) {
                             val bmp = createBitmap(wv.width, wv.height, Bitmap.Config.ARGB_8888)
                             wv.draw(Canvas(bmp))
                             snapshotBitmap = bmp
                         }
-                        // Scroll position is saved by the injected scroll-memory script
-                        // on every scroll + beforeunload. Native saveState covers the
-                        // back/forward stack when JS is disabled.
+                        // Native saveState covers the back/forward stack when JS is disabled.
                         wv.saveState(savedState)
                     }
                 }
