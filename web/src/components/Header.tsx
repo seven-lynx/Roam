@@ -7,6 +7,7 @@ import { createClient } from '@/lib/supabase/client';
 import { useAuth } from '@/components/AuthProvider';
 import { avatarPalette } from '@/components/UI';
 import { NotificationBell } from '@/components/NotificationBell';
+import { ThemeToggle } from '@/components/ThemeToggle';
 import { useState, useEffect, useRef } from 'react';
 export function Header() {
   const { session, loading } = useAuth();
@@ -78,6 +79,7 @@ export function Header() {
             >
               Get started
             </Link>
+            <ThemeToggle />
           </div>
         </div>
       </header>
@@ -94,6 +96,7 @@ export function Header() {
 
         {/* Desktop nav */}
         <nav className="hidden md:flex items-center gap-6">
+          <ThemeToggle />
           <NotificationBell />
           <Link href="/profile" className="text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white transition-colors">
             Profile
