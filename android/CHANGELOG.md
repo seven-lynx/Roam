@@ -2,6 +2,13 @@
 
 All notable changes to the Roam Android app.
 
+## [1.0.13] - 2026-06-10
+
+### Added
+- Push notifications via Firebase Cloud Messaging (FCM) — Receive push notifications for important updates and events directly on your device.
+- In-app notifications for URL submissions — Get notified within the app when your submitted URLs are approved or rejected, with a dedicated notifications screen to review all past notifications.
+- Web + backend push notification infrastructure — Added service worker push handling on web and a Supabase Edge Function for sending push notifications across platforms.
+
 ## [1.0.12] - 2026-06-09
 
 ### Added
