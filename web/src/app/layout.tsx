@@ -61,8 +61,15 @@ export default async function RootLayout({
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
           <AuthProvider initialSession={session}>
             <ErrorBoundary>
+              {/* Skip to content link for keyboard users (WCAG 2.1 AA) */}
+              <a
+                href="#main-content"
+                className="sr-only focus:not-sr-only focus:absolute focus:top-3 focus:left-3 focus:z-[100] focus:px-4 focus:py-2 focus:bg-white dark:focus:bg-zinc-900 focus:text-zinc-900 dark:focus:text-white focus:rounded-lg focus:shadow-lg focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:focus:ring-white"
+              >
+                Skip to content
+              </a>
               <Header />
-              <main className="flex-1">
+              <main id="main-content" className="flex-1">
                 {children}
               </main>
               <Footer />
