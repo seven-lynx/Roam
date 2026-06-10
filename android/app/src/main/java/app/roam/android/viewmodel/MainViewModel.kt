@@ -125,10 +125,6 @@ class MainViewModel(
     /** The canonical (un-translated) URL from the discovery API — never a Google Translate wrapper */
     private val _rawUrl = MutableStateFlow<String?>(null)
     val rawUrl: StateFlow<String?> = _rawUrl.asStateFlow()
-    // Tracks the previous roam URL so onWebViewUrlChanged can drop stale onPageFinished
-    // callbacks that arrive after roam() has already advanced to a new destination.
-    private var previousRawUrl: String? = null
-
     private val _webNavChannel = Channel<WebNavCommand>(Channel.BUFFERED)
     val webNavFlow = _webNavChannel.receiveAsFlow()
 
@@ -169,6 +165,15 @@ class MainViewModel(
     fun toggleTranslation() {
         val raw = _rawUrl.value ?: return
         _currentUrl.value = if (isTranslated) raw else translateUrl(raw)
+    }
+
+    /** Translates the current page to [targetLang]. Uses the persisted preference. */
+    fun translateTo(targetLang: String = _translateLanguage.value) {
+        val raw = _rawUrl.value ?: return
+        // Persist the language choice so future toggles use the same language
+        _translateLanguage.value = targetLang
+        prefs.edit().putString(TRANSLATE_LANG_KEY, targetLang).apply()
+        _currentUrl.value = translateUrl(raw)
     }
 
     /** User preference: enable JavaScript in the WebView (default on) */
@@ -376,11 +381,10 @@ class MainViewModel(
             }
         }
         // Prime the prefetch queue so first roam() is instant.
-        // Start unconditionally — the loop's own session guard (delay 500ms + continue)
-        // handles the case where supabase-kt hasn't restored the session yet. This lets
-        // prefetching begin during onboarding so the queue is ready the moment MainScreen
-        // appears (fixes fresh-install slow first load).
-        startPrefillQueue()
+        // Only start when the user has enabled prefetching — the parallel API calls
+        // in the prefill loop consume OkHttp connection slots and starve the main
+        // roam() request if they kick off unconditionally.
+        if (_prefetchWebView.value) startPrefillQueue()
 
         // Sync saved-for-later list from the server so saves from the web app
         // and other devices are visible without a reinstall.
@@ -442,7 +446,6 @@ class MainViewModel(
             }
 
             if (prefetched != null) {
-                previousRawUrl = _rawUrl.value
                 _rawUrl.value = prefetched.url
                 _currentUrl.value = prefetched.url
                 _state.value = RoamState.Loaded(prefetched)
@@ -513,7 +516,6 @@ class MainViewModel(
                     _state.value = RoamState.Exhausted
                 } else {
                     android.util.Log.i("MainViewModel", "Roam success: ${roamUrl.url}")
-                    previousRawUrl = _rawUrl.value
                     _rawUrl.value = roamUrl.url
                     _currentUrl.value = roamUrl.url
                     _state.value = RoamState.Loaded(roamUrl)
@@ -591,9 +593,9 @@ class MainViewModel(
                             continue
                         }
 
-                        // Fetch candidates. Use a smaller batch size (2) to avoid overwhelming
-                        // the edge function, especially if several instances are running.
-                        val batchSize = minOf(5, WARM_TARGET - warmSize)
+                        // Fetch candidates. Use a batch size of 2 to leave OkHttp connection
+                        // slots available for the main roam() request and other API calls.
+                        val batchSize = minOf(2, WARM_TARGET - warmSize)
                         val candidates = (1..batchSize).map {
                             async {
                                 runCatching {
@@ -817,10 +819,12 @@ class MainViewModel(
 
     /** Called by the WebView when the user navigates to a page not in the discovery pool */
     fun onWebViewUrlChanged(url: String) {
-        // Drop stale onPageFinished callbacks from a page we've already navigated away from.
-        // This prevents a slow page's completion from overwriting _currentUrl after roam()
-        // has advanced _rawUrl to a new destination, which would cause the WebView to revert.
-        if (url == previousRawUrl && url != _rawUrl.value) return
+        // During an active roam (Loading state), ignore stale onPageFinished callbacks
+        // from the previous page. These would otherwise revert _currentUrl after roam()
+        // has already advanced _rawUrl to the new destination.
+        // During normal browsing (Loaded state), always accept URL changes — this ensures
+        // WebView back/forward navigation and link clicks update _currentUrl correctly.
+        if (_state.value is RoamState.Loading && url != _rawUrl.value) return
         _currentUrl.value = url
         recordUrlVisit(url, (_state.value as? RoamState.Loaded)?.roamUrl?.title ?: url)
     }
@@ -944,7 +948,6 @@ class MainViewModel(
      * Useful for opening internal web pages (e.g. profile/collections management).
      */
     fun navigateTo(url: String) {
-        previousRawUrl = _rawUrl.value
         _rawUrl.value = url
         _currentUrl.value = url
         _state.value = RoamState.Loaded(RoamUrl(id = "", url = url))
