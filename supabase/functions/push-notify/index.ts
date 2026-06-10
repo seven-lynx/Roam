@@ -183,7 +183,7 @@ async function sendWebPush(
     const rawKey = base64UrlToBytes(vapidPrivateKey)
     const cryptoKey = await crypto.subtle.importKey(
       'raw',
-      rawKey,
+      rawKey.buffer as ArrayBuffer,
       { name: 'ECDSA', namedCurve: 'P-256' },
       false,
       ['sign'],
@@ -213,7 +213,7 @@ async function sendWebPush(
         'Authorization': `WebPush ${vapidJwt}`,
         'Crypto-Key': `p256ecdsa=${vapidPublicKey}`,
       },
-      body: encryptedPayload,
+      body: encryptedPayload as BodyInit,
     })
 
     if (!response.ok) {
@@ -259,7 +259,7 @@ async function encryptPayload(
   const publicKeyBytes = base64UrlToBytes(keys.p256dh)
   const publicKey = await crypto.subtle.importKey(
     'raw',
-    publicKeyBytes,
+    publicKeyBytes.buffer as ArrayBuffer,
     { name: 'ECDH', namedCurve: 'P-256' },
     false,
     [],
@@ -314,7 +314,7 @@ async function encryptPayload(
 
   // Derive 32 bytes: first 16 = content encryption key, next 16 = nonce
   const prk = await crypto.subtle.deriveBits(
-    { name: 'HKDF', hash: 'SHA-256', salt: authBytes, info },
+    { name: 'HKDF', hash: 'SHA-256', salt: authBytes.buffer as ArrayBuffer, info },
     ikmKey,
     256,
   )
