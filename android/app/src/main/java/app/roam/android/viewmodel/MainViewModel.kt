@@ -100,6 +100,10 @@ class MainViewModel(
     private val _submitToast = MutableStateFlow<String?>(null)
     val submitToast: StateFlow<String?> = _submitToast.asStateFlow()
 
+    /** True when the user has thumbs-upped the current page */
+    private val _hasRatedUp = MutableStateFlow(false)
+    val hasRatedUp: StateFlow<Boolean> = _hasRatedUp.asStateFlow()
+
     /** User's collections (lazy-loaded when config sheet opens) */
     private val _collections = MutableStateFlow<List<Collection>>(emptyList())
     val collections: StateFlow<List<Collection>> = _collections.asStateFlow()
@@ -349,6 +353,10 @@ class MainViewModel(
     private val _profileSaveError = MutableStateFlow<String?>(null)
     val profileSaveError: StateFlow<String?> = _profileSaveError.asStateFlow()
 
+    /** Non-null when interests failed to load, surfaced in ProfileScreen */
+    private val _profileInterestsError = MutableStateFlow<String?>(null)
+    val profileInterestsError: StateFlow<String?> = _profileInterestsError.asStateFlow()
+
     /** Cancels the previous roam() coroutine when a new one starts, preventing
      *  concurrent API calls from racing and overwriting each other's results. */
     private var roamJob: Job? = null
@@ -420,6 +428,7 @@ class MainViewModel(
 
     fun roam(excludeDomain: String? = null) {
         haptic(getApplication())
+        _hasRatedUp.value = false
 
         // Default to excluding the current domain so the bottom-bar Roam button
         // behaves the same as Thumbs Down / Report Broken Link — otherwise the
@@ -701,6 +710,7 @@ class MainViewModel(
             _showSubmitSheet.value = true
             return
         }
+        _hasRatedUp.value = true
         viewModelScope.launch {
             haptic(context)
             val result = runCatching { repo.rate(loaded.roamUrl.id, 1) }
@@ -724,6 +734,7 @@ class MainViewModel(
     fun thumbsDown(context: Context) {
         val loaded = _state.value as? RoamState.Loaded
         val excludeDomain = extractDomain(_rawUrl.value)
+        _hasRatedUp.value = false
         viewModelScope.launch {
             haptic(context)
             if (loaded != null) {
@@ -948,6 +959,7 @@ class MainViewModel(
      * Useful for opening internal web pages (e.g. profile/collections management).
      */
     fun navigateTo(url: String) {
+        _hasRatedUp.value = false
         _rawUrl.value = url
         _currentUrl.value = url
         _state.value = RoamState.Loaded(RoamUrl(id = "", url = url))
@@ -1092,6 +1104,7 @@ class MainViewModel(
     }
 
     fun roamWithinCategory() {
+        _hasRatedUp.value = false
         val loaded = _state.value as? RoamState.Loaded
         val categoryId = loaded?.roamUrl?.categoryId
         _activeCollectionId.value = null
@@ -1129,11 +1142,22 @@ class MainViewModel(
 
     /** Loads profile, user categories, and stats in parallel. */
     fun loadProfile() {
+        _profileInterestsError.value = null
         viewModelScope.launch {
             runCatching { _profile.value = repo.getProfile() }
         }
         viewModelScope.launch {
-            runCatching {
+            // Wait for the session to be fully authenticated before querying
+            // user_categories. On reinstall / fresh update the token may not
+            // be propagated yet, and the repo silently returns emptySet() when
+            // currentUserOrNull is null — which makes the user's previously
+            // saved category selections appear unsaved.
+            var sessionWait = 0
+            while (!repo.hasSession() && sessionWait < 10) {
+                delay(150)
+                sessionWait++
+            }
+            val loaded = runCatching {
                 val topicIds = repo.getUserTopicIds()
                 if (topicIds.isNotEmpty()) {
                     _userTopicIds.value = topicIds
@@ -1143,11 +1167,39 @@ class MainViewModel(
                     _interestMode.value = "pillars"
                 }
             }
+            loaded.onFailure {
+                _profileInterestsError.value = "Couldn't load your saved interests. Pull to refresh."
+            }
         }
         viewModelScope.launch {
             runCatching {
                 val (roamed, submitted) = repo.getProfileStats()
                 _profileStats.value = ProfileStats(roamed = roamed, submitted = submitted)
+            }
+        }
+    }
+
+    /** Re-runs the interests query, incrementing a version so ProfileScreen re-reads. */
+    fun reloadInterests() {
+        _profileInterestsError.value = null
+        viewModelScope.launch {
+            var sessionWait = 0
+            while (!repo.hasSession() && sessionWait < 10) {
+                delay(150)
+                sessionWait++
+            }
+            val loaded = runCatching {
+                val topicIds = repo.getUserTopicIds()
+                if (topicIds.isNotEmpty()) {
+                    _userTopicIds.value = topicIds
+                    _interestMode.value = "topics"
+                } else {
+                    _userCategoryIds.value = repo.getUserCategoryIds()
+                    _interestMode.value = "pillars"
+                }
+            }
+            loaded.onFailure {
+                _profileInterestsError.value = "Couldn't load your saved interests. Pull to refresh."
             }
         }
     }

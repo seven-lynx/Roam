@@ -51,13 +51,6 @@ import app.roam.android.model.SubcategoryItem
 import app.roam.android.viewmodel.MainViewModel
 
 // Constants to avoid recreating lists on every recomposition
-private val TRANSLATE_LANGUAGES = listOf(
-    "en" to "English", "fr" to "Français", "de" to "Deutsch",
-    "it" to "Italiano", "es" to "Español", "pt" to "Português",
-    "nl" to "Nederlands", "pl" to "Polski", "ja" to "日本語",
-    "zh" to "中文", "ru" to "Русский", "ko" to "한국어",
-)
-
 private val AVAILABLE_LANGUAGES = listOf(
     "en" to "English", "fr" to "Français", "de" to "Deutsch",
     "it" to "Italiano", "es" to "Español", "pt" to "Português",
@@ -77,7 +70,6 @@ fun SettingsScreen(
 ) {
     val skipPaywalled by vm.skipPaywalled.collectAsState()
     val webDarkMode by vm.webDarkMode.collectAsState()
-    val translateLanguage by vm.translateLanguage.collectAsState()
     val preferredLanguages by vm.preferredLanguages.collectAsState()
     val jsEnabled by vm.jsEnabled.collectAsState()
     val prefetchWebView by vm.prefetchWebView.collectAsState()
@@ -90,11 +82,9 @@ fun SettingsScreen(
     val context = LocalContext.current
     var showSignOutDialog by remember { mutableStateOf(value = false) }
     var showSubmitUrlDialog by remember { mutableStateOf(false) }
-    var translateDropdownExpanded by remember { mutableStateOf(false) }
     var languageFilterDropdownExpanded by remember { mutableStateOf(false) }
     var focusCategoryDropdownExpanded by remember { mutableStateOf(false) }
     var focusSubcategoryDropdownExpanded by remember { mutableStateOf(false) }
-    val translateLanguageLabel = TRANSLATE_LANGUAGES.firstOrNull { it.first == translateLanguage }?.second ?: "English"
     val currentUrl by vm.currentUrl.collectAsState()
     val savedConfirmation by vm.savedConfirmation.collectAsState()
 
@@ -281,35 +271,6 @@ fun SettingsScreen(
                 checked = webDarkMode,
                 onCheckedChange = { vm.setWebDarkMode(it) },
             )
-
-            // Language selector always visible (translation is a one-shot action from the config sheet)
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text("Translate to", style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
-                Box {
-                    OutlinedButton(onClick = { translateDropdownExpanded = !translateDropdownExpanded }) {
-                        Text(translateLanguageLabel)
-                    }
-                    DropdownMenu(
-                        expanded = translateDropdownExpanded,
-                        onDismissRequest = { translateDropdownExpanded = false },
-                    ) {
-                        TRANSLATE_LANGUAGES.forEach { (code, label) ->
-                            DropdownMenuItem(
-                                text = { Text(label) },
-                                onClick = {
-                                    vm.setTranslateLanguage(code)
-                                    translateDropdownExpanded = false
-                                },
-                            )
-                        }
-                    }
-                }
-            }
 
             SettingsToggleRow(
                 title = "JavaScript",

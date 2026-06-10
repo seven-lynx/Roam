@@ -1,0 +1,8 @@
+What's new in 1.0.12:
+
+• Fixed back/forward navigation — no more getting stuck on the same page when using back/forward buttons
+• Scroll position preserved when switching apps or locking your screen
+• Faster page loading with proactive cache warming and earlier spinner dismissal
+• New "Translate this page" button replaces the broken auto-translate toggle
+
+Plus faster queue refill so you spend less time waiting between pages.

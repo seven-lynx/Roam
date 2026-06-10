@@ -70,6 +70,7 @@ fun ProfileScreen(
     val stats by vm.profileStats.collectAsState()
     val profileSaveError by vm.profileSaveError.collectAsState()
     val profileIsPublic by vm.profileIsPublic.collectAsState()
+    val profileInterestsError by vm.profileInterestsError.collectAsState()
 
     // Group subcategories by parent category
     val subcatsByCategory = subcategories.groupBy { it.categoryId }
@@ -162,6 +163,25 @@ fun ProfileScreen(
                     color = MaterialTheme.colorScheme.error,
                     modifier = Modifier.fillMaxWidth(),
                 )
+            }
+
+            // Interests load failure with retry
+            if (profileInterestsError != null) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = profileInterestsError ?: "",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.weight(1f),
+                    )
+                    TextButton(onClick = { vm.reloadInterests() }) {
+                        Text("Retry")
+                    }
+                }
             }
 
             // Profile visibility toggle

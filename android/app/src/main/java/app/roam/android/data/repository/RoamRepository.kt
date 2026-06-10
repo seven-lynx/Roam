@@ -382,10 +382,7 @@ class RoamRepository {
         return supabase.postgrest
             .from("user_categories")
             .select(Columns.list("subcategory_id")) {
-                filter {
-                    eq("user_id", userId)
-                    neq("subcategory_id", "null")
-                }
+                filter { eq("user_id", userId) }
             }
             .decodeList<TopicIdRow>()
             .asSequence()

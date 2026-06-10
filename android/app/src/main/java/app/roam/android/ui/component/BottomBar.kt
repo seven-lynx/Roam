@@ -40,6 +40,7 @@ fun BottomBar(
     onRoam: () -> Unit = {},
     onNavigate: (String) -> Unit = {},
     focusModeEnabled: Boolean = false,
+    hasRatedUp: Boolean = false,
 ) {
     // Track recent clicks for temporary highlight feedback
     var recentLikeClick by remember { mutableStateOf(false) }
@@ -134,9 +135,9 @@ fun BottomBar(
             },
             icon = {
                 Icon(
-                    if (recentLikeClick) Icons.Filled.ThumbUp else Icons.Outlined.ThumbUp,
+                    if (hasRatedUp || recentLikeClick) Icons.Filled.ThumbUp else Icons.Outlined.ThumbUp,
                     contentDescription = "Like",
-                    tint = if (recentLikeClick) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                    tint = if (hasRatedUp || recentLikeClick) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             },
             label = { Text("Like", style = MaterialTheme.typography.labelSmall) },

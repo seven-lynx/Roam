@@ -2,6 +2,19 @@
 
 All notable changes to the Roam Android app.
 
+## [1.0.12] - 2026-06-09
+
+### Added
+- One-shot translate button — Replaced the broken auto-translate toggle in the config sheet with a one-shot "Translate this page" button. The button triggers Google Translate directly via the WebView, avoiding the reliability issues the toggle had with dynamically-loaded content.
+- Proactive cache warming — The WebView now pre-connects and warms the cache for the next queued URL while displaying the current page, reducing perceived load time when moving to the next page.
+- Early spinner dismissal — The loading spinner now dismisses earlier (on page commit rather than waiting for full render), providing a more responsive feel.
+- Faster queue refill — Queue cold-fill logic is now triggered earlier and more aggressively, reducing wait time between pages.
+
+### Fixed
+- Back/forward navigation broken — Fixed a bug where the ConfigBottomSheet's stale callback guard (which checked `previousRawUrl`) would match back/forward navigation URLs, causing the WebView to reload the current page instead of navigating. The guard now uses `RoamState.Loading` state checks, which correctly blocks stale callbacks during active roams while allowing normal browsing navigation.
+- Scroll position lost on app background/foreground — Android lifecycle callbacks (ON_PAUSE/ON_RESUME) now force-save and force-restore scroll position via `evaluateJavascript`, bypassing the 200ms JS debounce. Added `pagehide`/`pageshow` listeners in the injected JS for synchronous scroll save on backgrounding and bfcache restore on OEM WebViews. This prevents losing reading position when switching apps or locking the screen.
+- Auto-translate reliability — Removed the broken auto-translate toggle whose state tracking relied on unreliable load-time heuristics. The new one-shot button approach is stateless and works consistently across all pages.
+
 ## [1.0.11] - 2026-06-08
 
 ### Added

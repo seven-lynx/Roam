@@ -39,6 +39,7 @@ fun ConfigBottomSheet(
     savedUrls: List<SavedUrl>,
     isTranslated: Boolean,
     onToggleTranslation: () -> Unit,
+    onTranslate: (language: String) -> Unit,
     onSaveForLater: () -> Unit,
     onShare: () -> Unit,
     onAddToCollection: (collectionId: String) -> Unit,
@@ -59,6 +60,15 @@ fun ConfigBottomSheet(
     var collectionPickerMode by remember { mutableStateOf("add") } // "add" or "roam"
     var newCollectionDialogOpen by remember { mutableStateOf(false) }
     var newCollectionName by remember { mutableStateOf("") }
+    var translateDialogOpen by remember { mutableStateOf(false) }
+
+    // Language list for the translate picker
+    val translateLanguages = listOf(
+        "en" to "English", "fr" to "Français", "de" to "Deutsch",
+        "it" to "Italiano", "es" to "Español", "pt" to "Português",
+        "nl" to "Nederlands", "pl" to "Polski", "ja" to "日本語",
+        "zh" to "中文", "ru" to "Русский", "ko" to "한국어",
+    )
 
     Column(
         modifier = modifier
@@ -82,7 +92,13 @@ fun ConfigBottomSheet(
             }
 
             TextButton(
-                onClick = onToggleTranslation,
+                onClick = {
+                    if (isTranslated) {
+                        onToggleTranslation()
+                    } else {
+                        translateDialogOpen = true
+                    }
+                },
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
             ) {
                 Text(
@@ -256,6 +272,33 @@ fun ConfigBottomSheet(
             confirmButton = {},
             dismissButton = {
                 TextButton(onClick = { collectionPickerOpen = false }) { Text("Cancel") }
+            },
+        )
+    }
+
+    // ── Translate language picker dialog ─────────────────────────────────
+    if (translateDialogOpen) {
+        AlertDialog(
+            onDismissRequest = { translateDialogOpen = false },
+            title = { Text("Translate to…") },
+            text = {
+                Column {
+                    translateLanguages.forEach { (code, label) ->
+                        TextButton(
+                            onClick = {
+                                translateDialogOpen = false
+                                onTranslate(code)
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            Text(label, modifier = Modifier.fillMaxWidth())
+                        }
+                    }
+                }
+            },
+            confirmButton = {},
+            dismissButton = {
+                TextButton(onClick = { translateDialogOpen = false }) { Text("Cancel") }
             },
         )
     }

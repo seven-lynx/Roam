@@ -73,6 +73,7 @@ fun MainScreen(
     // Track the active tab without NavController so DiscoverTab is never destroyed
     var currentTab by rememberSaveable { mutableStateOf(RoamTab.Roam.route) }
     val focusModeEnabled by vm.focusModeEnabled.collectAsState()
+    val hasRatedUp by vm.hasRatedUp.collectAsState()
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
@@ -84,6 +85,7 @@ fun MainScreen(
                 onRoam = { vm.roam() },
                 onNavigate = { currentTab = it },
                 focusModeEnabled = focusModeEnabled,
+                hasRatedUp = hasRatedUp,
             )
         },
     ) { innerPadding ->
@@ -366,6 +368,7 @@ private fun DiscoverTab(
                 savedUrls = savedUrls,
                 isTranslated = vm.isTranslated,
                 onToggleTranslation = { vm.toggleTranslation() },
+                onTranslate = { lang -> vm.translateTo(lang) },
                 onSaveForLater = { vm.saveForLater() },
                 onShare = {
                     val shareIntent = Intent(Intent.ACTION_SEND).apply {

@@ -59,7 +59,10 @@ private val ALLOWED_SCHEMES = setOf("http", "https", "about", "data", "blob")
 //     found, poll requestAnimationFrame until the document height reaches the saved
 //     value, then scrollTo(0, savedY). This prevents the script from scrolling to a
 //     position the page hasn't reached yet (dynamic content, lazy images, etc.).
-//  2. On scroll (debounced 200ms), save { y, height, url } to localStorage.
+//  2. On every scroll event, save { y, height, url } to localStorage immediately
+//     (skipped only when y hasn't changed — eliminates the 200ms debounce race
+//     condition where the user could background the app before the debounce fired,
+//     causing the 1st scroll position to be restored instead of the 2nd).
 //  3. On beforeunload, immediately save the final scroll position.
 //
 // localStorage is disk-backed and survives WebView renderer process death — unlike
@@ -69,9 +72,8 @@ private const val ROAM_SCROLL_MEMORY_SCRIPT = """
 (function(){
   'use strict';
   var STORAGE_KEY = '__roam_scroll__';
-  var DEBOUNCE_MS = 200;
   var MAX_POLL_ATTEMPTS = 60; // 60 * ~100ms = 6s max wait
-  var pendingTimer = null;
+  var _lastSavedY = -1; // guard: skip redundant writes when y hasn't changed
 
   function getScrollData() {
     return { y: window.scrollY || window.pageYOffset || 0,
@@ -81,6 +83,9 @@ private const val ROAM_SCROLL_MEMORY_SCRIPT = """
   function saveScroll() {
     try {
       var data = getScrollData();
+      // Skip write if scroll position hasn't changed since last save
+      if (data.y === _lastSavedY) return;
+      _lastSavedY = data.y;
       data.url = location.href;
       var store = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
       store[data.url] = data;
@@ -118,11 +123,11 @@ private const val ROAM_SCROLL_MEMORY_SCRIPT = """
   window.__roam_saveScroll = saveScroll;
   window.__roam_restoreScroll = loadAndRestore;
 
-  // Debounced scroll listener
-  window.addEventListener('scroll', function() {
-    if (pendingTimer) clearTimeout(pendingTimer);
-    pendingTimer = setTimeout(saveScroll, DEBOUNCE_MS);
-  }, { passive: true });
+  // Save immediately on every scroll (no debounce) so the latest position is
+  // always persisted before Android can suspend the JS thread on backgrounding.
+  // The _lastSavedY guard prevents redundant localStorage writes on events
+  // where scrollY hasn't changed (e.g. scrollend/overscroll rubber-banding).
+  window.addEventListener('scroll', saveScroll, { passive: true });
 
   // Final save before navigating away
   window.addEventListener('beforeunload', saveScroll);
@@ -225,16 +230,26 @@ fun RoamWebView(
                     // fire when the renderer survives backgrounding. Calling the exposed
                     // global __roam_restoreScroll forces an immediate restore from
                     // localStorage, regardless of whether a native load event occurred.
+                    //
+                    // Issue a delayed second restore ~150ms later to catch cases where
+                    // the WebView hasn't finished its internal resume layout dance
+                    // (window inset animations, renderer thaw, etc.) when the first
+                    // attempt fires. The restore is idempotent — if the first call
+                    // already succeeded, the second is a no-op.
                     if (jsEnabled) {
                         wv.evaluateJavascript("window.__roam_restoreScroll && window.__roam_restoreScroll()", null)
+                        Handler(Looper.getMainLooper()).postDelayed({
+                            wv.evaluateJavascript("window.__roam_restoreScroll && window.__roam_restoreScroll()", null)
+                        }, 150L)
                     }
                 }
                 Lifecycle.Event.ON_PAUSE -> {
                     webViewRef.value?.let { wv ->
-                        // Force-save the current scroll position immediately, bypassing
-                        // the 200ms debounce in the injected script. This guarantees the
-                        // final scroll position is persisted before the app is backgrounded,
-                        // even if the user swiped home mid-scroll.
+                        // Belt-and-suspenders: force-save the current scroll position.
+                        // The injected script saves on every scroll event immediately,
+                        // but if the user backgrounds mid-scroll the last scroll event
+                        // may have already fired. This call guarantees the absolute final
+                        // position is persisted before Android suspends the WebView.
                         if (jsEnabled) {
                             wv.evaluateJavascript("window.__roam_saveScroll && window.__roam_saveScroll()", null)
                         }
