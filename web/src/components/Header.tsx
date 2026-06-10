@@ -16,6 +16,7 @@ export function Header() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [profileMenu, setProfileMenu] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const mobileMenuRef = useRef<HTMLDivElement>(null);
   const pathname = usePathname();
 
   // Close dropdown when clicking outside
@@ -33,6 +34,27 @@ export function Header() {
   useEffect(() => {
     setMenuOpen(false);
   }, [pathname]);
+
+  // Focus trap for mobile menu
+  useEffect(() => {
+    if (!menuOpen || !mobileMenuRef.current) return;
+    const menu = mobileMenuRef.current;
+    const focusable = menu.querySelectorAll<HTMLElement>(
+      'a[href], button, input, textarea, select, [tabindex]:not([tabindex="-1"])'
+    );
+    if (focusable.length === 0) return;
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    first.focus();
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Escape') { setMenuOpen(false); return; }
+      if (e.key !== 'Tab') return;
+      if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+    }
+    menu.addEventListener('keydown', handleKeyDown);
+    return () => menu.removeEventListener('keydown', handleKeyDown);
+  }, [menuOpen]);
 
   const handleLogout = async () => {
     setProfileMenu(false);
@@ -117,7 +139,10 @@ export function Header() {
             aria-expanded={profileMenu}
             className={`flex items-center justify-center w-10 h-10 rounded-full ${avatarBg} ${avatarFg} hover:opacity-90 transition-opacity font-bold text-sm`}
           >
-            {avatarName[0].toUpperCase()}
+        {avatarName[0].toUpperCase()}
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-3.5 h-3.5 ml-0.5 text-zinc-400" aria-hidden="true">
+          <path fillRule="evenodd" d="M5.22 8.22a.75.75 0 011.06 0L10 11.94l3.72-3.72a.75.75 0 111.06 1.06l-4.25 4.25a.75.75 0 01-1.06 0L5.22 9.28a.75.75 0 010-1.06z" clipRule="evenodd" />
+        </svg>
           </button>
 
           {profileMenu && (
@@ -162,7 +187,7 @@ export function Header() {
 
       {/* Mobile menu */}
       {menuOpen && (
-        <nav className="md:hidden border-t border-zinc-200 dark:border-zinc-800 py-4 px-6 flex flex-col gap-4">
+        <nav ref={mobileMenuRef} className="md:hidden border-t border-zinc-200 dark:border-zinc-800 py-4 px-6 flex flex-col gap-4">
           <Link href="/profile" className="text-zinc-700 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white">
             Profile
           </Link>
