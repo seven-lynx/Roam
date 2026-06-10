@@ -131,7 +131,7 @@ export function CollectionsManager({ userId, initialCollections }: Props) {
   }
 
   function copyShareLink(col: CollectionRow) {
-    void navigator.clipboard.writeText(`https://roamtheweb.app/c/${col.slug}`);
+    void navigator.clipboard.writeText(`https://roamtheweb.app/collections/${col.slug}`);
     setCopied(col.id);
     setTimeout(() => setCopied(null), 2000);
   }

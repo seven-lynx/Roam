@@ -170,7 +170,7 @@ export default async function PublicProfilePage({ params }: Props) {
               {collections.map(col => (
                 <li key={col.id}>
                   <Link
-                    href={`/c/${col.slug}`}
+                    href={`/collections/${col.slug}`}
                     className="flex items-center justify-between px-4 py-3 rounded-lg border border-zinc-200 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-900 transition-colors group"
                   >
                     <span className="text-sm font-medium text-zinc-900 dark:text-white">{col.name}</span>
