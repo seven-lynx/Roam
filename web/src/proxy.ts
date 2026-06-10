@@ -3,6 +3,9 @@ import { NextResponse, type NextRequest } from 'next/server'
 import type { User } from '@supabase/supabase-js'
 import { logError } from '@/lib/logger'
 
+const PROTECTED_ROUTES = ['/profile', '/settings', '/submit']
+const AUTH_REDIRECT_ROUTES = ['/signup', '/android-beta']
+
 export async function proxy(request: NextRequest) {
   try {
     let supabaseResponse = NextResponse.next({ request })
@@ -44,18 +47,40 @@ export async function proxy(request: NextRequest) {
       // Continue with unauthenticated user — all public paths remain accessible
     }
 
+    const pathname = request.nextUrl.pathname
+
+    // Protect routes requiring authentication
+    const isProtected = PROTECTED_ROUTES.some(
+      (route) => pathname === route || pathname.startsWith(route + '/')
+    )
+    if (isProtected && !user) {
+      const url = new URL('/signup', request.url)
+      url.searchParams.set('mode', 'signin')
+      return NextResponse.redirect(url)
+    }
+
+    // Redirect authenticated users away from auth-specific pages
+    const isAuthRoute = AUTH_REDIRECT_ROUTES.some(
+      (route) => pathname === route || pathname.startsWith(route + '/')
+    )
+    if (isAuthRoute && user) {
+      return NextResponse.redirect(new URL('/profile', request.url))
+    }
+
     // Protect /admin — redirect unauthenticated or non-admin users to /
-    if (request.nextUrl.pathname.startsWith('/admin')) {
+    if (pathname.startsWith('/admin')) {
       if (!user) {
-        return NextResponse.redirect(new URL('/', request.url))
+        const url = new URL('/signup', request.url)
+        url.searchParams.set('mode', 'signin')
+        return NextResponse.redirect(url)
       }
-      
+
       // Safely check admin role with type guards
       const isAdmin =
         typeof user?.app_metadata === 'object' &&
         user.app_metadata !== null &&
         (user.app_metadata as Record<string, unknown>)?.role === 'admin';
-      
+
       if (!isAdmin) {
         return NextResponse.redirect(new URL('/', request.url))
       }
