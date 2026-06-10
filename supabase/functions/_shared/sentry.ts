@@ -19,7 +19,7 @@ function parseSentryDsn(dsn: string) {
 }
 
 export type ReportFn = (
-  error: Error | string,
+  error: unknown,
   level?: 'error' | 'warning',
   extra?: Record<string, unknown>,
 ) => Promise<void>;
@@ -39,6 +39,18 @@ export function initSentry(releaseName?: string): ReportFn {
     const parsed = parseSentryDsn(dsn);
     if (!parsed) return;
 
+    // Normalise error from catch blocks (unknown) to a string message.
+    const errorMessage = error instanceof Error
+      ? error.message
+      : typeof error === 'string'
+        ? error
+        : String(error ?? 'Unknown error');
+    const errorType = error instanceof Error
+      ? error.name
+      : typeof error === 'string'
+        ? 'Error'
+        : 'UnknownError';
+
     const eventId = crypto.randomUUID();
     const envelopeBody = {
       event_id: eventId,
@@ -50,8 +62,8 @@ export function initSentry(releaseName?: string): ReportFn {
       exception: {
         values: [
           {
-            type: typeof error === 'string' ? 'Error' : error.name,
-            value: typeof error === 'string' ? error : error.message,
+            type: errorType,
+            value: errorMessage,
           },
         ],
       },
