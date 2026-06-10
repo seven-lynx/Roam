@@ -3,7 +3,7 @@
 import { useState, FormEvent } from 'react';
 import { useAuth } from '@/components/AuthProvider';
 
-export default function BetaPage() {
+export default function AndroidBetaPage() {
   const { session } = useAuth();
   const [email, setEmail] = useState(session?.user?.email ?? '');
   const [status, setStatus] = useState<'idle' | 'submitting' | 'success' | 'error'>('idle');
@@ -43,9 +43,9 @@ export default function BetaPage() {
     <div className="flex min-h-[calc(100vh-8rem)] flex-col items-center justify-center px-6 bg-white dark:bg-zinc-950">
       <div className="w-full max-w-md flex flex-col gap-6 text-center">
         <div>
-          <h1 className="text-3xl font-bold text-zinc-900 dark:text-white">Join the Closed Beta</h1>
+          <h1 className="text-3xl font-bold text-zinc-900 dark:text-white">Join the Android Beta</h1>
           <p className="mt-3 text-zinc-500 dark:text-zinc-400">
-            Roam is in early access. Drop your email below and we&rsquo;ll let you know when
+            The Roam Android app is in closed beta. Drop your email below and we&rsquo;ll let you know when
             a spot opens up.
           </p>
         </div>
@@ -79,7 +79,7 @@ export default function BetaPage() {
               disabled={!email.trim() || status === 'submitting'}
               className="rounded-full bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 font-semibold py-3 text-base hover:opacity-90 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed"
             >
-              {status === 'submitting' ? 'Joining…' : 'Join the Beta'}
+              {status === 'submitting' ? 'Joining…' : 'Join the Android Beta'}
             </button>
           </form>
         )}

@@ -86,7 +86,7 @@ export default async function Home() {
             </p>
             <div className="flex gap-2 mt-auto">
               <Link
-                href="/beta"
+                href="/android-beta"
                 className="text-blue-600 hover:underline text-sm font-semibold"
               >
                 Get notified when it launches →

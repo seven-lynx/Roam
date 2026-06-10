@@ -10,6 +10,11 @@ const nextConfig: NextConfig = {
         destination: '/collections/:slug',
         permanent: true,
       },
+      {
+        source: '/beta',
+        destination: '/android-beta',
+        permanent: true,
+      },
     ];
   },
   async headers() {
