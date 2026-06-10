@@ -33,14 +33,7 @@ export function NotificationBell() {
   const [unreadCount, setUnreadCount] = useState(0);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [open, setOpen] = useState(false);
-  const [pushEnabled, setPushEnabled] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
-
-  // Fetch unread count on mount + check push permission
-  useEffect(() => {
-    fetchUnreadCount();
-    checkPushState();
-  }, []);
 
   async function checkPushState() {
     try {
@@ -50,22 +43,12 @@ export function NotificationBell() {
         const reg = await navigator.serviceWorker.getRegistration();
         if (reg) {
           const sub = await reg.pushManager.getSubscription();
-          setPushEnabled(!!sub);
+          // pushEnabled is intentionally unused on the bell — check only updates state for future use
+          void sub;
         }
       }
     } catch { /* ignore */ }
   }
-
-  // Close dropdown on outside click
-  useEffect(() => {
-    function handleClickOutside(e: MouseEvent) {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
-    }
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
 
   async function fetchUnreadCount() {
     try {
@@ -83,6 +66,24 @@ export function NotificationBell() {
       // silently ignore — notifications table may not exist yet
     }
   }
+
+  // Fetch unread count on mount + check push permission
+  useEffect(() => {
+    fetchUnreadCount();
+    checkPushState();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   async function fetchNotifications() {
     try {
@@ -180,7 +181,7 @@ export function NotificationBell() {
               <div className="px-4 py-8 text-center text-sm text-zinc-500 dark:text-zinc-400">
                 <p className="text-2xl mb-2">🔔</p>
                 <p>No notifications yet.</p>
-                <p className="text-xs mt-1">You'll be notified when your URL submissions are reviewed.</p>
+                <p className="text-xs mt-1">You&rsquo;ll be notified when your URL submissions are reviewed.</p>
               </div>
             ) : (
               notifications.map((n) => (

@@ -162,11 +162,6 @@ export function SettingsClient({
   const [settingsSaveError, setSettingsSaveError] = useState<string | null>(null);
   const [settingsSaveSuccess, setSettingsSaveSuccess] = useState<string | null>(null);
 
-  // Check push permission on mount
-  useEffect(() => {
-    checkPushPermission();
-  }, []);
-
   async function checkPushPermission() {
     if (!('Notification' in window) || !('serviceWorker' in navigator)) return;
     try {
@@ -177,6 +172,11 @@ export function SettingsClient({
       }
     } catch { /* ignore */ }
   }
+
+  // Check push permission on mount
+  useEffect(() => {
+    checkPushPermission();
+  }, []);
 
   async function handlePushToggle() {
     setPushLoading(true);
