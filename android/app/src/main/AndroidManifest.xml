@@ -4,6 +4,10 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.VIBRATE" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <!-- FCM: prevent Doze from delaying push messages -->
+    <uses-permission android:name="com.google.android.c2dm.permission.RECEIVE" />
 
     <application
         android:name=".RoamApplication"
@@ -46,6 +50,21 @@
         RoamApplication.onCreate() — without a DSN in the manifest it would crash immediately.
     -->
         <meta-data android:name="io.sentry.auto-init" android:value="false" />
+
+        <!-- FCM default notification channel -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_channel_id"
+            android:value="roam_notifications" />
+
+        <!-- FCM service for token registration and message handling -->
+        <service
+            android:name=".FCMService"
+            android:exported="false"
+            android:directBootAware="true">
+            <intent-filter>
+                <action android:name="com.google.firebase.MESSAGING_EVENT" />
+            </intent-filter>
+        </service>
 
 </application>
 

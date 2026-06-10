@@ -5,6 +5,7 @@ plugins {
     id("org.jetbrains.kotlin.plugin.compose")
     id("org.jetbrains.kotlin.plugin.serialization")
     id("io.sentry.android.gradle") version "6.9.0"
+    id("com.google.gms.google-services")
 }
 
 android {
@@ -124,6 +125,9 @@ dependencies {
 
     // Error tracking
     implementation("io.sentry:sentry-android:7.22.1")
+
+    // Firebase Cloud Messaging (push notifications)
+    implementation("com.google.firebase:firebase-messaging-ktx:24.1.0")
 
     // Baseline profiles — install AOT-compiled profile on first launch
     implementation("androidx.profileinstaller:profileinstaller:1.3.1")
