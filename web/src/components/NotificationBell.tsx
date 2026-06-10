@@ -33,12 +33,28 @@ export function NotificationBell() {
   const [unreadCount, setUnreadCount] = useState(0);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [open, setOpen] = useState(false);
+  const [pushEnabled, setPushEnabled] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  // Fetch unread count on mount
+  // Fetch unread count on mount + check push permission
   useEffect(() => {
     fetchUnreadCount();
+    checkPushState();
   }, []);
+
+  async function checkPushState() {
+    try {
+      if (!('Notification' in window) || !('serviceWorker' in navigator)) return;
+      const perm = Notification.permission;
+      if (perm === 'granted') {
+        const reg = await navigator.serviceWorker.getRegistration();
+        if (reg) {
+          const sub = await reg.pushManager.getSubscription();
+          setPushEnabled(!!sub);
+        }
+      }
+    } catch { /* ignore */ }
+  }
 
   // Close dropdown on outside click
   useEffect(() => {

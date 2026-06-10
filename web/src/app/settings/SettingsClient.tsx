@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import * as Sentry from '@sentry/nextjs';
@@ -87,6 +87,18 @@ function Section({ title, children, danger }: { title: string; children: React.R
   );
 }
 
+// Convert a base64url VAPID key to Uint8Array for pushManager.subscribe
+function urlBase64ToUint8Array(base64String: string): Uint8Array {
+  const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const rawData = window.atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+  for (let i = 0; i < rawData.length; i++) {
+    outputArray[i] = rawData.charCodeAt(i);
+  }
+  return outputArray;
+}
+
 // ── Main component ─────────────────────────────────────────────────────────
 const LANGUAGES = [
   { code: 'en', label: 'English' },
@@ -140,10 +152,102 @@ export function SettingsClient({
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [globalError, setGlobalError] = useState<string | null>(null);
 
+  // Push notification state
+  const [pushEnabled, setPushEnabled] = useState(false);
+  const [pushLoading, setPushLoading] = useState(false);
+  const [pushError, setPushError] = useState<string | null>(null);
+
   // Save settings
   const [savingSettings, setSavingSettings] = useState(false);
   const [settingsSaveError, setSettingsSaveError] = useState<string | null>(null);
   const [settingsSaveSuccess, setSettingsSaveSuccess] = useState<string | null>(null);
+
+  // Check push permission on mount
+  useEffect(() => {
+    checkPushPermission();
+  }, []);
+
+  async function checkPushPermission() {
+    if (!('Notification' in window) || !('serviceWorker' in navigator)) return;
+    try {
+      const reg = await navigator.serviceWorker.getRegistration();
+      if (reg) {
+        const sub = await reg.pushManager.getSubscription();
+        setPushEnabled(!!sub);
+      }
+    } catch { /* ignore */ }
+  }
+
+  async function handlePushToggle() {
+    setPushLoading(true);
+    setPushError(null);
+
+    if (pushEnabled) {
+      // Disable push
+      try {
+        const reg = await navigator.serviceWorker.getRegistration();
+        if (reg) {
+          const sub = await reg.pushManager.getSubscription();
+          if (sub) {
+            await sub.unsubscribe();
+            const { data: { user } } = await supabase.auth.getUser();
+            if (user) {
+              await supabase
+                .from('push_tokens')
+                .delete()
+                .eq('user_id', user.id)
+                .eq('platform', 'web');
+            }
+          }
+        }
+        setPushEnabled(false);
+      } catch {
+        setPushError('Failed to disable push notifications');
+      }
+    } else {
+      // Enable push
+      try {
+        const permission = await Notification.requestPermission();
+        if (permission !== 'granted') {
+          setPushError('Notification permission was denied. Please allow notifications in your browser settings.');
+          setPushLoading(false);
+          return;
+        }
+
+        const reg = await navigator.serviceWorker.getRegistration();
+        if (!reg) {
+          setPushError('Service worker not registered. Try refreshing the page.');
+          setPushLoading(false);
+          return;
+        }
+
+        const key = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+        if (!key) {
+          setPushError('Push notifications are not configured yet.');
+          setPushLoading(false);
+          return;
+        }
+
+        const sub = await reg.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: urlBase64ToUint8Array(key),
+        });
+
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          await supabase.from('push_tokens').upsert({
+            user_id: user.id,
+            platform: 'web',
+            token: JSON.stringify(sub.toJSON()),
+          });
+        }
+        setPushEnabled(true);
+      } catch {
+        setPushError('Failed to enable push notifications');
+      }
+    }
+    setPushLoading(false);
+  }
 
   // Track whether local state has changed from initial values
   const isDirty =
@@ -349,6 +453,16 @@ export function SettingsClient({
             </div>
             <Toggle checked={notifications} onChange={handleNotificationsToggle} disabled={false} />
           </div>
+          <div className="flex items-center justify-between mt-4">
+            <div>
+              <p className="text-sm font-medium text-zinc-900 dark:text-white">Push notifications</p>
+              <p className="text-xs text-zinc-500 dark:text-zinc-400">Receive notifications on your device even when the browser is closed.</p>
+            </div>
+            <Toggle checked={pushEnabled} onChange={handlePushToggle} disabled={pushLoading} />
+          </div>
+          {pushError && (
+            <p className="text-xs text-red-600 mt-2">{pushError}</p>
+          )}
         </Section>
 
         {/* Language preferences */}
