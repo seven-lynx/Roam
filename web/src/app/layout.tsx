@@ -11,6 +11,7 @@ import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { CookieBanner } from "@/components/CookieBanner";
 import { WebsiteSchema } from "@/components/JsonLd";
+import { Suspense } from "react";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { PageTransition } from "@/components/PageTransition";
 import { createClient } from "@/lib/supabase/server";
@@ -71,7 +72,7 @@ export default async function RootLayout({
                 Skip to content
               </a>
               <Header />
-              <PageTransition />
+              <Suspense><PageTransition /></Suspense>
               <Breadcrumbs />
               <main id="main-content" className="flex-1">
                 {children}

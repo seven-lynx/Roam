@@ -29,7 +29,7 @@ export function Breadcrumbs() {
   const segments = pathname.split('/').filter(Boolean);
   const crumbs: Crumb[] = [{ label: 'Home', href: '/' }];
 
-  segments.reduce((acc, segment, i) => {
+  segments.reduce((acc, segment) => {
     const href = `${acc}/${segment}`;
     const label = PATH_MAP[segment] ?? segment.replace(/-/g, ' ');
     crumbs.push({ label: label.charAt(0).toUpperCase() + label.slice(1), href });

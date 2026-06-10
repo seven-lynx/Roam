@@ -1,15 +1,6 @@
 import Link from 'next/link';
-import Image from 'next/image';
-
-const RANDOM_DESTINATIONS = [
-  '/explore',
-  '/how-it-works',
-  '/collections/popular',
-];
 
 export default function NotFound() {
-  const randomDest = RANDOM_DESTINATIONS[Math.floor(Math.random() * RANDOM_DESTINATIONS.length)];
-
   return (
     <div className="flex min-h-[calc(100vh-8rem)] flex-col items-center justify-center px-6 py-16 bg-white dark:bg-zinc-950 text-center">
       <div className="text-7xl mb-4">🧭</div>
@@ -25,7 +16,7 @@ export default function NotFound() {
           Go home
         </Link>
         <Link
-          href={randomDest}
+          href="/how-it-works"
           className="inline-flex items-center gap-2 rounded-full border border-zinc-300 dark:border-zinc-700 px-5 py-2.5 text-sm font-semibold text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
         >
           Explore the web →

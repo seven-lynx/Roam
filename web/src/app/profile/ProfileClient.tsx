@@ -3,7 +3,6 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
-import { useAuth } from '@/components/AuthProvider';
 import { useToast } from '@/lib/hooks';
 import { Toast } from '@/components/UI';
 import { UsernamePrompt } from '@/components/UsernamePrompt';
