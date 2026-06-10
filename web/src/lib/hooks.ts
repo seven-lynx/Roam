@@ -58,7 +58,7 @@ export function useRequireAuth() {
 
   useEffect(() => {
     if (!loading && !session) {
-      router.push('/join?mode=signin');
+      router.push('/signup?mode=signin');
     }
   }, [session, loading, router]);
 

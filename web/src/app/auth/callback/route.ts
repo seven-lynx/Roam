@@ -8,11 +8,11 @@ export async function GET(request: NextRequest) {
   const origin = url.origin;
 
   if (error) {
-    return NextResponse.redirect(`${origin}/join?error=${encodeURIComponent(error)}`);
+    return NextResponse.redirect(`${origin}/signup?error=${encodeURIComponent(error)}`);
   }
 
   if (!code) {
-    return NextResponse.redirect(`${origin}/join`);
+    return NextResponse.redirect(`${origin}/signup`);
   }
 
   // Build the response first — session cookies must be set directly on the
@@ -39,13 +39,13 @@ export async function GET(request: NextRequest) {
 
   if (exchangeError) {
     return NextResponse.redirect(
-      `${origin}/join?error=${encodeURIComponent(exchangeError.message)}`,
+      `${origin}/signup?error=${encodeURIComponent(exchangeError.message)}`,
     );
   }
 
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) {
-    return NextResponse.redirect(`${origin}/join`);
+    return NextResponse.redirect(`${origin}/signup`);
   }
 
   // Check if this is a new user (no username set yet)
@@ -59,7 +59,7 @@ export async function GET(request: NextRequest) {
     // New OAuth user — send to category selection.
     // Copy session cookies onto the new redirect response.
     const newUserResponse = NextResponse.redirect(
-      new URL(`${origin}/join?step=categories`),
+      new URL(`${origin}/signup?step=categories`),
     );
     response.cookies.getAll().forEach((cookie) =>
       newUserResponse.cookies.set(cookie.name, cookie.value, cookie),

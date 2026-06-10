@@ -30,7 +30,7 @@ export default async function Home() {
         {/* CTAs */}
         <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
           <Link
-            href="/join"
+            href="/signup"
             className="flex items-center justify-center rounded-full bg-zinc-900 dark:bg-white px-8 py-3 text-white dark:text-zinc-900 font-semibold text-base hover:opacity-90 transition-opacity"
           >
             Get started

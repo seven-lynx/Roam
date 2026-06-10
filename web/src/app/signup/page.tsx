@@ -1,13 +1,13 @@
 import { Suspense } from "react";
 import Image from "next/image";
 import type { Metadata } from "next";
-import JoinPageContent from "./join-content";
+import SignupPageContent from "./signup-content";
 
 export const metadata: Metadata = {
-  title: "Join",
+  title: "Sign up",
 };
 
-function JoinPageLoading() {
+function SignupPageLoading() {
   return (
     <div className="flex min-h-[calc(100vh-8rem)] flex-col items-center justify-center px-6 bg-white dark:bg-zinc-950">
       <div className="w-full max-w-sm flex flex-col gap-8">
@@ -20,10 +20,10 @@ function JoinPageLoading() {
   );
 }
 
-export default function JoinPage() {
+export default function SignupPage() {
   return (
-    <Suspense fallback={<JoinPageLoading />}>
-      <JoinPageContent />
+    <Suspense fallback={<SignupPageLoading />}>
+      <SignupPageContent />
     </Suspense>
   );
 }

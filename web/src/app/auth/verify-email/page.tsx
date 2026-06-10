@@ -58,7 +58,7 @@ export default function VerifyEmailPage() {
         )}
 
         <Link
-          href="/join"
+          href="/signup"
           className="text-sm text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white transition-colors"
         >
           ← Use a different address

@@ -419,7 +419,7 @@ export default function HowItWorks() {
             Ready to discover something new?
           </p>
           <Link
-            href="/join"
+            href="/signup"
             className="inline-flex items-center justify-center rounded-full bg-zinc-900 dark:bg-white px-8 py-3 text-white dark:text-zinc-900 font-semibold text-base hover:opacity-90 transition-opacity"
           >
             Get started

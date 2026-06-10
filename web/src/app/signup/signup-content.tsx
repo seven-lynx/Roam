@@ -24,7 +24,7 @@ const FALLBACK_CATEGORIES: CategoryItem[] = [
   { id: "c1000000-0000-0000-0000-000000000008", label: "Mind & Body", emoji: "🧠" },
 ];
 
-export default function JoinPageContent() {
+export default function SignupPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const isAndroid = searchParams.get("platform") === "android";
@@ -82,7 +82,7 @@ export default function JoinPageContent() {
     setError(null);
     const params = new URLSearchParams(searchParams.toString());
     if (next === "signin") { params.set("mode", "signin"); } else { params.delete("mode"); }
-    router.replace(`/join?${params.toString()}`, { scroll: false });
+    router.replace(`/signup?${params.toString()}`, { scroll: false });
   }
 
   // ── Validation helpers ────────────────────────────────────────────────────
@@ -118,7 +118,7 @@ export default function JoinPageContent() {
     setLoading(true);
     try {
       const redirectTo = isAndroid
-        ? `${location.origin}/join?platform=android`
+        ? `${location.origin}/signup?platform=android`
         : `${location.origin}/auth/callback`;
       const { error: err } = await supabase.auth.signInWithOAuth({
         provider: "google",

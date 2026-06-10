@@ -15,6 +15,16 @@ const nextConfig: NextConfig = {
         destination: '/android-beta',
         permanent: true,
       },
+      {
+        source: '/join',
+        destination: '/signup',
+        permanent: true,
+      },
+      {
+        source: '/join/:path*',
+        destination: '/signup/:path*',
+        permanent: true,
+      },
     ];
   },
   async headers() {

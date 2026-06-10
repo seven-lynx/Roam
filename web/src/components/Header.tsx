@@ -67,13 +67,13 @@ export function Header() {
           </Link>
           <div className="flex gap-4 items-center">
             <Link
-              href="/join?mode=signin"
+              href="/signup?mode=signin"
               className="text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white transition-colors"
             >
               Sign in
             </Link>
             <Link
-              href="/join"
+              href="/signup"
               className="bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 px-4 py-2 rounded-lg font-semibold text-sm hover:opacity-90 transition-opacity"
             >
               Get started
