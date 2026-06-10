@@ -566,17 +566,13 @@ class RoamRepository {
     /** Registers an FCM token for the current user. Called by FCMService on token refresh. */
     suspend fun registerPushToken(token: String) {
         val userId = supabase.auth.currentUserOrNull()?.id ?: return
-        runCatching {
-            supabase.postgrest.from("push_tokens").upsert(
-                mapOf(
-                    "user_id" to userId,
-                    "platform" to "android",
-                    "token" to token,
-                )
+        supabase.postgrest.from("push_tokens").upsert(
+            mapOf(
+                "user_id" to userId,
+                "platform" to "android",
+                "token" to token,
             )
-        }.onFailure { e ->
-            android.util.Log.e("RoamRepository", "Failed to register push token: ${e.message}", e)
-        }
+        )
     }
 
     /** Deletes all Android push tokens for the current user. Called when notifications are disabled. */

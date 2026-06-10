@@ -416,7 +416,7 @@ fun RoamWebView(
                                 this.message = "WebView renderer process killed"
                                 this.category = "navigation"
                                 this.level = SentryLevel.ERROR
-                                this.setData("renderer_priority_at_exit", detail.rendererPriorityAtExit)
+                                this.setData("renderer_priority_at_exit", detail.rendererPriorityAtExit())
                             })
                             Handler(Looper.getMainLooper()).post {
                                 webViewRef.value = null

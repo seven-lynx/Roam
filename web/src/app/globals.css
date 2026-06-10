@@ -25,3 +25,20 @@ body {
   color: var(--foreground);
   font-family: var(--font-sans), Arial, Helvetica, sans-serif;
 }
+
+/* Visited state for external links — subtle distinction for UX */
+a[target="_blank"]:visited,
+a[rel*="noopener"]:visited {
+  opacity: 0.7;
+}
+
+/* Top-loading progress bar for page transitions */
+.nprogress-bar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 3px;
+  z-index: 9999;
+  background: linear-gradient(90deg, #f59e0b, #3b82f6);
+  transition: width 200ms ease;
+}

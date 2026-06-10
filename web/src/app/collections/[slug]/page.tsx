@@ -40,11 +40,12 @@ export default async function CollectionPage({ params }: Props) {
 
   const { data: items } = await supabase
     .from('collection_items')
-    .select('id, added_at, urls(id, title, original_url, description, og_image_url)')
+    .select('id, added_at, urls(id, title, original_url, description, og_image_url, upvotes, downvotes)')
     .eq('collection_id', collection.id)
     .order('added_at', { ascending: false });
 
   const owner = collection.profiles as unknown as { username: string; display_name: string } | null;
+  const itemCount = items?.length ?? 0;
 
   return (
     <div className="min-h-[calc(100vh-8rem)] bg-white dark:bg-zinc-950">
@@ -53,24 +54,26 @@ export default async function CollectionPage({ params }: Props) {
         {/* Header */}
         <div>
           <h1 className="text-2xl font-bold text-zinc-900 dark:text-white">{collection.name}</h1>
-          {owner && (
-            <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-              by{' '}
-              <Link
-                href={`/u/${owner.username}`}
-                className="hover:text-zinc-900 dark:hover:text-white transition-colors"
-              >
-                {owner.display_name || owner.username}
-              </Link>
-            </p>
-          )}
+          <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
+            {itemCount} website{itemCount !== 1 ? 's' : ''}{owner && (
+              <>
+                {' · by '}
+                <Link
+                  href={`/u/${owner.username}`}
+                  className="hover:text-zinc-900 dark:hover:text-white transition-colors"
+                >
+                  {owner.display_name || owner.username}
+                </Link>
+              </>
+            )}
+          </p>
         </div>
 
         {/* URL list */}
         {items && items.length > 0 ? (
           <ul className="flex flex-col gap-3">
             {items.map(item => {
-              const url = item.urls as unknown as { id: string; title: string | null; original_url: string; description: string | null; og_image_url: string | null } | null;
+              const url = item.urls as unknown as { id: string; title: string | null; original_url: string; description: string | null; og_image_url: string | null; upvotes: number; downvotes: number } | null;
               if (!url) return null;
               const domain = (() => {
                 try { return new URL(url.original_url).hostname.replace(/^www\./, ''); }
@@ -114,13 +117,22 @@ export default async function CollectionPage({ params }: Props) {
                         {domain}
                       </span>
                     </div>
+                    <div className="flex items-center gap-1 shrink-0 text-xs text-zinc-400">
+                      <span className="text-green-600 dark:text-green-400">↑</span>
+                      <span>{url.upvotes}</span>
+                    </div>
                   </a>
                 </li>
               );
             })}
           </ul>
         ) : (
-          <p className="text-sm text-zinc-500 dark:text-zinc-400">This collection is empty.</p>
+          <div className="flex flex-col items-center gap-4 py-16 text-center">
+            <p className="text-sm text-zinc-500 dark:text-zinc-400">This collection is empty yet.</p>
+            <p className="text-xs text-zinc-400">
+              Browse the web and save URLs to this collection to get started.
+            </p>
+          </div>
         )}
 
       </div>

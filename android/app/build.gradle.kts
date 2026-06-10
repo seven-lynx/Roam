@@ -4,20 +4,19 @@ plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.plugin.compose")
     id("org.jetbrains.kotlin.plugin.serialization")
-    id("io.sentry.android.gradle") version "4.16.0"
+    id("io.sentry.android.gradle")
     id("com.google.gms.google-services")
+}
+
+val localProperties = Properties()
+val localPropertiesFile = rootProject.file("local.properties")
+if (localPropertiesFile.exists()) {
+    localPropertiesFile.inputStream().use { localProperties.load(it) }
 }
 
 android {
     namespace = "app.roam.android"
     compileSdk = 35
-
-    // Load local.properties once — used in both defaultConfig and buildTypes
-    val localProperties = Properties()
-    val localPropertiesFile = rootProject.file("local.properties")
-    if (localPropertiesFile.exists()) {
-        localPropertiesFile.inputStream().use { localProperties.load(it) }
-    }
 
     defaultConfig {
         applicationId = "app.roam.android"
@@ -126,8 +125,9 @@ dependencies {
     // Error tracking
     implementation("io.sentry:sentry-android:8.4.0")
 
-    // Firebase Cloud Messaging (push notifications)
-    implementation("com.google.firebase:firebase-messaging-ktx:24.1.0")
+    // Firebase (push notifications)
+    implementation(platform("com.google.firebase:firebase-bom:34.14.0"))
+    implementation("com.google.firebase:firebase-messaging")
 
     // Baseline profiles — install AOT-compiled profile on first launch
     implementation("androidx.profileinstaller:profileinstaller:1.3.1")
@@ -149,11 +149,13 @@ dependencies {
 
 sentry {
     // Upload source maps to Sentry for readable stack traces.
-    // Requires SENTRY_AUTH_TOKEN env var at release build time (CI only).
-    // Set to false locally to skip the upload step.
-    autoUploadProguardMapping.set(
-        System.getenv("SENTRY_AUTH_TOKEN") != null ||
-        localProperties.getProperty("SENTRY_AUTH_TOKEN") != null
-    )
+    // Requires SENTRY_ORG, SENTRY_PROJECT, and SENTRY_AUTH_TOKEN to be set
+    // in local.properties or as environment variables.
+    // If any are missing, we skip the upload step to avoid build failures.
+    val hasSentryInfo = (localProperties.getProperty("SENTRY_AUTH_TOKEN") != null || System.getenv("SENTRY_AUTH_TOKEN") != null) &&
+                        (localProperties.getProperty("SENTRY_ORG") != null || System.getenv("SENTRY_ORG") != null) &&
+                        (localProperties.getProperty("SENTRY_PROJECT") != null || System.getenv("SENTRY_PROJECT") != null)
+
+    autoUploadProguardMapping.set(hasSentryInfo)
     uploadNativeSymbols.set(false)
 }

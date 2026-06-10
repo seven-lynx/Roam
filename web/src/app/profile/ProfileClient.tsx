@@ -3,6 +3,9 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
+import { useAuth } from '@/components/AuthProvider';
+import { useToast } from '@/lib/hooks';
+import { Toast } from '@/components/UI';
 import { UsernamePrompt } from '@/components/UsernamePrompt';
 import { CollectionsManager } from './CollectionsManager';
 import type { CollectionRow } from './CollectionsManager';
@@ -44,7 +47,9 @@ export function ProfileClient({ userId, email, profile, allCategories, allSubcat
   // Profile privacy
   const [isPublic, setIsPublic] = useState(profile?.is_public ?? true);
   const [privacyLoading, setPrivacyLoading] = useState(false);
-  const [copied, setCopied] = useState(false);
+
+  // Toast for copy confirmation
+  const { toast, showToast, dismiss } = useToast();
 
   // Bio editing
   const [bio, setBio] = useState(profile?.bio ?? '');
@@ -127,8 +132,7 @@ export function ProfileClient({ userId, email, profile, allCategories, allSubcat
     const username = profile?.username;
     if (!username) return;
     void navigator.clipboard.writeText(`https://roamtheweb.app/u/${username}`);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    showToast('Profile link copied to clipboard', 'success');
   }
 
   const initial = email[0]?.toUpperCase() ?? '?';
@@ -168,7 +172,7 @@ export function ProfileClient({ userId, email, profile, allCategories, allSubcat
                   className="text-xs text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors"
                   title="Copy profile link"
                 >
-                  {copied ? '✓' : '🔗'}
+                  🔗
                 </button>
               </div>
             )}
@@ -356,6 +360,11 @@ export function ProfileClient({ userId, email, profile, allCategories, allSubcat
           <p className="text-sm text-red-600">{error}</p>
         )}
       </div>
+
+      {/* Toast notification */}
+      {toast && (
+        <Toast message={toast.message} variant={toast.variant} onDismiss={dismiss} />
+      )}
     </div>
   );
 }

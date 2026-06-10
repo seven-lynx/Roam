@@ -5,10 +5,10 @@ import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.viewModels
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.lifecycleScope
-import androidx.lifecycle.viewmodel.compose.viewModel
 import app.roam.android.data.supabase
 import app.roam.android.ui.screen.CategoryOnboardingScreen
 import app.roam.android.ui.screen.MainScreen
@@ -30,6 +30,9 @@ class MainActivity : ComponentActivity() {
         private var lastHandledAuthUri: String? = null
     }
 
+    private val authVm: AuthViewModel by viewModels()
+    private val mainVm: MainViewModel by viewModels()
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -42,8 +45,6 @@ class MainActivity : ComponentActivity() {
             handleDeepLink(intent)
         }
         setContent {
-            val authVm: AuthViewModel = viewModel()
-            val mainVm: MainViewModel = viewModel()
             val authState by authVm.authState.collectAsState()
             val webDarkMode by mainVm.webDarkMode.collectAsState()
             // Force dark theme while on the login/splash screen so enableEdgeToEdge()
@@ -77,29 +78,36 @@ class MainActivity : ComponentActivity() {
         handleDeepLink(intent)
     }
     private fun handleDeepLink(intent: Intent?) {
-        val uri = intent?.data ?: return
+        val uri = intent?.data ?: intent?.getStringExtra("notification_url")?.let { android.net.Uri.parse(it) } ?: return
+        val rawUri = uri.toString()
+        if (rawUri == lastHandledAuthUri) {
+            Log.d(TAG, "Skipping duplicate deep link: $rawUri")
+            return
+        }
+        
         if (uri.scheme == "app.roam.android") {
-            val rawUri = uri.toString()
-            if (rawUri == lastHandledAuthUri) {
-                Log.d(TAG, "Skipping duplicate auth deep link: $rawUri")
-                return
-            }
             lastHandledAuthUri = rawUri
             Log.d(TAG, "Processing auth deep link: $uri")
             lifecycleScope.launch {
                 // Ensure Supabase has finished loading session storage before exchanging the
                 // PKCE code — the code_verifier must already be in memory at this point.
                 supabase.auth.sessionStatus.first { it !is SessionStatus.Initializing }
-                runCatching { supabase.handleDeeplinks(intent) }
-                    .onFailure { e ->
-                        Log.e(TAG, "Failed to process auth callback deep link", e)
-                        io.sentry.Sentry.captureException(e)
-                    }
-                // Consume the deep link so activity recreation doesn't replay the same callback.
-                // Clear the guard so a future sign-out + sign-in with the same URI isn't dropped.
-                intent.data = null
+                if (intent != null) {
+                    runCatching { supabase.handleDeeplinks(intent) }
+                        .onFailure { e ->
+                            Log.e(TAG, "Failed to process auth callback deep link", e)
+                            io.sentry.Sentry.captureException(e)
+                        }
+                    // Consume the deep link so activity recreation doesn't replay the same callback.
+                    // Clear the guard so a future sign-out + sign-in with the same URI isn't dropped.
+                    intent.data = null
+                }
                 lastHandledAuthUri = null
             }
+        } else {
+            // Standard web URL or other deep link (e.g. from notification)
+            Log.d(TAG, "Processing non-auth deep link: $uri")
+            mainVm.navigateTo(rawUri)
         }
     }
 }

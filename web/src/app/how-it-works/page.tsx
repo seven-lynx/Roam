@@ -30,8 +30,40 @@ export default function HowItWorks() {
           </p>
         </section>
 
+        {/* TL;DR */}
+        <section className="text-left bg-zinc-50 dark:bg-zinc-900/50 rounded-2xl border border-zinc-200 dark:border-zinc-800 p-6">
+          <h2 className="text-lg font-bold text-zinc-900 dark:text-white mb-3">TL;DR</h2>
+          <ul className="text-sm text-zinc-600 dark:text-zinc-300 space-y-2 list-disc list-inside">
+            <li>Press <strong className="text-zinc-900 dark:text-white">Roam</strong> → land on a curated page</li>
+            <li>Rate 👍👎 → your taste shapes future discoveries</li>
+            <li>Five signals decide what you see: community votes, editorial quality, your preferences, freshness, and serendipity</li>
+            <li>Downvote a domain twice → auto-muted for 30 days</li>
+            <li>Open source, community-curated, no algorithms optimizing for engagement</li>
+          </ul>
+        </section>
+
+        {/* Section nav */}
+        <nav className="text-left" aria-label="Page sections">
+          <ul className="flex flex-wrap gap-2 text-sm">
+            {[
+              ['#basics', 'Basics'],
+              ['#algorithm', 'Algorithm'],
+              ['#personalization', 'Personalization'],
+              ['#community', 'Community'],
+              ['#platforms', 'Platforms'],
+              ['#faq', 'FAQ'],
+            ].map(([href, label]) => (
+              <li key={href}>
+                <a href={href} className="inline-block px-3 py-1.5 rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700 hover:text-zinc-900 dark:hover:text-white transition-colors">
+                  {label}
+                </a>
+              </li>
+            ))}
+          </ul>
+        </nav>
+
         {/* The basics */}
-        <section className="text-left">
+        <section id="basics" className="text-left scroll-mt-20">
           <h2 className="text-2xl font-bold text-zinc-900 dark:text-white mb-6">
             The basics
           </h2>
@@ -80,7 +112,7 @@ export default function HowItWorks() {
         </section>
 
         {/* The algorithm */}
-        <section className="text-left">
+        <section id="algorithm" className="text-left scroll-mt-20">
           <h2 className="text-2xl font-bold text-zinc-900 dark:text-white mb-6">
             How the algorithm picks a page
           </h2>
@@ -149,7 +181,7 @@ export default function HowItWorks() {
         </section>
 
         {/* Personalization */}
-        <section className="text-left">
+        <section id="personalization" className="text-left scroll-mt-20">
           <h2 className="text-2xl font-bold text-zinc-900 dark:text-white mb-6">
             How personalization works
           </h2>
@@ -209,7 +241,7 @@ export default function HowItWorks() {
         </section>
 
         {/* Community */}
-        <section className="text-left">
+        <section id="community" className="text-left scroll-mt-20">
           <h2 className="text-2xl font-bold text-zinc-900 dark:text-white mb-6">
             The community layer
           </h2>
@@ -258,7 +290,7 @@ export default function HowItWorks() {
         </section>
 
         {/* Platforms */}
-        <section className="text-left">
+        <section id="platforms" className="text-left scroll-mt-20">
           <h2 className="text-2xl font-bold text-zinc-900 dark:text-white mb-6">
             Where you can roam
           </h2>
@@ -319,7 +351,7 @@ export default function HowItWorks() {
         </section>
 
         {/* FAQ */}
-        <section className="text-left">
+        <section id="faq" className="text-left scroll-mt-20">
           <h2 className="text-2xl font-bold text-zinc-900 dark:text-white mb-6">
             Frequently asked questions
           </h2>

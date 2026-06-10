@@ -3,7 +3,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/server';
 import { Avatar } from '@/components/UI';
-import { FollowButton } from './FollowButton';
+import { FollowButton } from '@/components/FollowButton';
 import { CopyProfileLink } from './CopyProfileLink';
 
 export const revalidate = 60;

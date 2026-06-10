@@ -1,11 +1,10 @@
 package app.roam.android
 
-import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
-import android.os.Build
+import android.net.Uri
 import androidx.core.app.NotificationCompat
 import app.roam.android.data.repository.RoamRepository
 import app.roam.android.data.supabase
@@ -34,7 +33,6 @@ class FCMService : FirebaseMessagingService() {
 
     override fun onCreate() {
         super.onCreate()
-        createNotificationChannel()
         // Deferred registration: if a token was stored before auth was ready, register it now
         registerPendingTokenIfReady()
     }
@@ -86,19 +84,22 @@ class FCMService : FirebaseMessagingService() {
             }
 
             val repo = RoamRepository()
-            val success = runCatching { repo.registerPushToken(pendingToken) }.isSuccess
-            if (success) {
-                prefs.edit().remove(PENDING_TOKEN_KEY).apply()
-                Sentry.addBreadcrumb(Breadcrumb().apply {
-                    this.message = "FCM token registered with server"
-                    this.level = SentryLevel.INFO
-                })
-            } else {
-                Sentry.addBreadcrumb(Breadcrumb().apply {
-                    this.message = "FCM token registration failed"
-                    this.level = SentryLevel.WARNING
-                })
-            }
+            runCatching { repo.registerPushToken(pendingToken) }
+                .onSuccess {
+                    prefs.edit().remove(PENDING_TOKEN_KEY).apply()
+                    android.util.Log.d("FCMService", "FCM token registered with server")
+                    Sentry.addBreadcrumb(Breadcrumb().apply {
+                        this.message = "FCM token registered with server"
+                        this.level = SentryLevel.INFO
+                    })
+                }
+                .onFailure { e ->
+                    android.util.Log.e("FCMService", "FCM token registration failed: ${e.message}", e)
+                    Sentry.addBreadcrumb(Breadcrumb().apply {
+                        this.message = "FCM token registration failed"
+                        this.level = SentryLevel.WARNING
+                    })
+                }
             // On failure, keep the pending token for next attempt
         }
     }
@@ -152,7 +153,10 @@ class FCMService : FirebaseMessagingService() {
         val intent = Intent(this, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
             putExtra("from_notification", true)
-            data["url"]?.let { putExtra("notification_url", it) }
+            data["url"]?.let { url ->
+                putExtra("notification_url", url)
+                setData(Uri.parse(url)) // Set data URI so MainActivity.handleDeepLink sees it
+            }
         }
 
         val pendingIntent = PendingIntent.getActivity(
@@ -177,23 +181,5 @@ class FCMService : FirebaseMessagingService() {
             (NOTIFY_ID_BASE + System.currentTimeMillis().toInt()).and(0xFFFF),
             notification,
         )
-    }
-
-    private fun createNotificationChannel() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel = NotificationChannel(
-                CHANNEL_ID,
-                "Notifications",
-                NotificationManager.IMPORTANCE_DEFAULT
-            ).apply {
-                description = "Notifications about your submissions, followers, and activity"
-                // Keep sound null for a silent channel — the FCM payload
-                // specifies sound: 'default' on the android config which will
-                // override this for system-managed (background) notifications.
-                setSound(null, null)
-            }
-            val manager = getSystemService(NotificationManager::class.java)
-            manager.createNotificationChannel(channel)
-        }
     }
 }

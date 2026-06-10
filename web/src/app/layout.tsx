@@ -10,7 +10,9 @@ import { AuthProvider } from "@/components/AuthProvider";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { CookieBanner } from "@/components/CookieBanner";
-import { WebsiteSchema } from "@/components/StructuredData";
+import { WebsiteSchema } from "@/components/JsonLd";
+import { Breadcrumbs } from "@/components/Breadcrumbs";
+import { PageTransition } from "@/components/PageTransition";
 import { createClient } from "@/lib/supabase/server";
 
 const geistSans = Geist({
@@ -69,6 +71,8 @@ export default async function RootLayout({
                 Skip to content
               </a>
               <Header />
+              <PageTransition />
+              <Breadcrumbs />
               <main id="main-content" className="flex-1">
                 {children}
               </main>

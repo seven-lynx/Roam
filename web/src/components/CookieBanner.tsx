@@ -1,3 +1,10 @@
+/**
+ * CookieBanner — GDPR-compliant consent banner for session cookie.
+ *
+ * Trigger logic: On mount, checks localStorage for 'roam-cookie-consent'.
+ * If absent, shows a fixed bottom banner. On accept, sets the key and hides.
+ * Never shown if localStorage is unavailable (e.g. SSR / privacy mode).
+ */
 'use client';
 
 import { useState, useEffect } from 'react';

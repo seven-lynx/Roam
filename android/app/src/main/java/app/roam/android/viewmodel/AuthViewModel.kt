@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import android.util.Log
 import app.roam.android.data.repository.RoamRepository
 import app.roam.android.data.supabase
+import com.google.firebase.messaging.FirebaseMessaging
 import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.auth.status.SessionStatus
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -12,6 +13,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
 
 sealed interface AuthState {
     /** Still determining — show a splash/loading indicator */
@@ -47,6 +49,22 @@ class AuthViewModel(
                 }
                 Log.d(TAG, "→ AuthState = $next")
                 _authState.value = next
+
+                if (next == AuthState.Authenticated || next == AuthState.NeedsOnboarding) {
+                    registerPushToken()
+                }
+            }
+        }
+    }
+
+    private fun registerPushToken() {
+        viewModelScope.launch {
+            runCatching {
+                val token = FirebaseMessaging.getInstance().token.await()
+                repo.registerPushToken(token)
+                Log.d(TAG, "Push token registered successfully")
+            }.onFailure { e ->
+                Log.e(TAG, "Failed to register push token", e)
             }
         }
     }

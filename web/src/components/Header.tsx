@@ -15,9 +15,20 @@ export function Header() {
   const supabase = createClient();
   const [menuOpen, setMenuOpen] = useState(false);
   const [profileMenu, setProfileMenu] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const mobileMenuRef = useRef<HTMLDivElement>(null);
   const pathname = usePathname();
+
+  // Track scroll position for shadow effect
+  useEffect(() => {
+    function handleScroll() {
+      setScrolled(window.scrollY > 4);
+    }
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    handleScroll();
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -67,9 +78,11 @@ export function Header() {
     || '?';
   const [avatarBg, avatarFg] = avatarPalette(avatarName);
 
+  const headerShadow = scrolled ? 'shadow-sm' : '';
+
   if (loading) {
     return (
-      <header className="border-b border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950">
+      <header className={`border-b border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 ${headerShadow}`}>
         <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
           <Link href="/" className="flex items-center gap-2 font-bold text-2xl text-zinc-900 dark:text-white">
             <Image src="/icon-512.png" alt="Roam" width={32} height={32} />
@@ -82,7 +95,7 @@ export function Header() {
 
   if (!session) {
     return (
-      <header className="border-b border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 sticky top-0 z-50">
+      <header className={`border-b border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 sticky top-0 z-50 transition-shadow duration-200 ${headerShadow}`}>
         <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
           <Link href="/" className="flex items-center gap-2 font-bold text-2xl text-zinc-900 dark:text-white">
             <Image src="/icon-512.png" alt="Roam" width={32} height={32} />
@@ -109,9 +122,9 @@ export function Header() {
   }
 
   return (
-    <header className="border-b border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 sticky top-0 z-50">
+    <header className={`border-b border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 sticky top-0 z-50 transition-shadow duration-200 ${headerShadow}`}>
       <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
-        <Link href="/profile" className="flex items-center gap-2 font-bold text-2xl text-zinc-900 dark:text-white">
+        <Link href="/" className="flex items-center gap-2 font-bold text-2xl text-zinc-900 dark:text-white">
           <Image src="/icon-512.png" alt="Roam" width={32} height={32} />
           Roam
         </Link>
@@ -120,6 +133,9 @@ export function Header() {
         <nav className="hidden md:flex items-center gap-6">
           <ThemeToggle />
           <NotificationBell />
+          <Link href="/submit" className="text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white transition-colors">
+            Share a link
+          </Link>
           <Link href="/profile" className="text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white transition-colors">
             Profile
           </Link>

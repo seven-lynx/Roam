@@ -1,6 +1,10 @@
 package app.roam.android.ui.screen
 
+import android.Manifest
 import android.content.Intent
+import android.os.Build
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.browser.customtabs.CustomTabsIntent
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
@@ -74,6 +78,22 @@ fun MainScreen(
     var currentTab by rememberSaveable { mutableStateOf(RoamTab.Roam.route) }
     val focusModeEnabled by vm.focusModeEnabled.collectAsState()
     val hasRatedUp by vm.hasRatedUp.collectAsState()
+
+    // Request notification permission on Android 13+
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        val launcher = rememberLauncherForActivityResult(
+            ActivityResultContracts.RequestPermission()
+        ) { isGranted ->
+            if (isGranted) {
+                android.util.Log.d("MainScreen", "Notification permission granted")
+            } else {
+                android.util.Log.d("MainScreen", "Notification permission denied")
+            }
+        }
+        LaunchedEffect(Unit) {
+            launcher.launch(Manifest.permission.POST_NOTIFICATIONS)
+        }
+    }
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),

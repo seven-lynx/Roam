@@ -1,9 +1,32 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from './supabase/client';
 import { useAuth } from '@/components/AuthProvider';
+
+export type ToastVariant = 'error' | 'success' | 'info';
+
+export interface ToastState {
+  message: string;
+  variant: ToastVariant;
+}
+
+export function useToast(duration = 4000) {
+  const [toast, setToast] = useState<ToastState | null>(null);
+
+  const showToast = useCallback(
+    (message: string, variant: ToastVariant = 'info') => {
+      setToast({ message, variant });
+      setTimeout(() => setToast(null), duration);
+    },
+    [duration]
+  );
+
+  const dismiss = useCallback(() => setToast(null), []);
+
+  return { toast, showToast, dismiss };
+}
 
 export type { Profile } from '@/components/AuthProvider';
 

@@ -1,11 +1,15 @@
 package app.roam.android
 
 import android.app.Application
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.content.Context
+import android.os.Build
 import app.roam.android.BuildConfig
 import app.roam.android.data.supabase
 import app.roam.android.util.Env
 import app.roam.android.worker.TokenRefreshWorker
-import io.sentry.android.SentryAndroid
+import io.sentry.android.core.SentryAndroid
 
 class RoamApplication : Application() {
 
@@ -62,5 +66,21 @@ class RoamApplication : Application() {
 
         // Schedule silent token refresh every 12 h (idempotent — KEEP policy)
         TokenRefreshWorker.schedule(this)
+
+        createNotificationChannel()
+    }
+
+    private fun createNotificationChannel() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val name = "Roam Notifications"
+            val descriptionText = "Notifications for new content and updates"
+            val importance = NotificationManager.IMPORTANCE_DEFAULT
+            val channel = NotificationChannel("roam_notifications", name, importance).apply {
+                description = descriptionText
+            }
+            val notificationManager: NotificationManager =
+                getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            notificationManager.createNotificationChannel(channel)
+        }
     }
 }
