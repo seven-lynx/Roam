@@ -85,7 +85,7 @@ export function SavedUrlsManager({ userId, initialSavedUrls }: Props) {
   return (
     <section>
       <div className="flex items-baseline justify-between mb-3">
-        <h2 className="text-base font-semibold text-zinc-900 dark:text-white">Saved for later</h2>
+        <h2 className="text-base font-semibold text-zinc-900 dark:text-white">Saved URLs</h2>
         <p className="text-xs text-zinc-400">Expires after 30 days · max 50</p>
       </div>
 

@@ -429,7 +429,7 @@ export function SettingsClient({
         )}
 
         {/* Account */}
-        <Section title="Account">
+        <Section title="Profile">
           <div className="flex flex-col gap-3 text-sm">
             <div className="flex justify-between items-center py-2 border-b border-zinc-100 dark:border-zinc-800">
               <span className="text-zinc-500 dark:text-zinc-400">Email</span>
