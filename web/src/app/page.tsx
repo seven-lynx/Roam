@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import { createClient } from "@/lib/supabase/server";
+import { TopSites } from "@/components/TopSites";
 
 export default async function Home() {
   const supabase = await createClient();
@@ -94,6 +95,9 @@ export default async function Home() {
             </div>
           </div>
         </div>
+
+        {/* Top-rated sites */}
+        <TopSites />
 
         {/* Features */}
         <div className="w-full border-t border-zinc-200 dark:border-zinc-800 pt-10 mt-4">
