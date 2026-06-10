@@ -528,7 +528,7 @@ class RoamRepository {
                         eq("user_id", userId)
                     }
                     order("created_at", Order.DESCENDING)
-                    limit(limit)
+                    limit(limit.toLong())
                 }
                 .decodeList<AppNotification>()
         }.getOrDefault(emptyList())
@@ -548,6 +548,19 @@ class RoamRepository {
         }
     }
 
+    /** Deletes a single notification by ID. Only allows deletion of the current user's notifications. */
+    suspend fun deleteNotification(notificationId: String) {
+        val userId = supabase.auth.currentUserOrNull()?.id ?: return
+        runCatching {
+            supabase.postgrest.from("notifications").delete {
+                filter {
+                    eq("id", notificationId)
+                    eq("user_id", userId)
+                }
+            }
+        }
+    }
+
     // ── Push tokens ──────────────────────────────────────────────────────────
 
     /** Registers an FCM token for the current user. Called by FCMService on token refresh. */
@@ -561,6 +574,19 @@ class RoamRepository {
                     "token" to token,
                 )
             )
+        }
+    }
+
+    /** Deletes all Android push tokens for the current user. Called when notifications are disabled. */
+    suspend fun unregisterPushTokens() {
+        val userId = supabase.auth.currentUserOrNull()?.id ?: return
+        runCatching {
+            supabase.postgrest.from("push_tokens").delete {
+                filter {
+                    eq("user_id", userId)
+                    eq("platform", "android")
+                }
+            }
         }
     }
 

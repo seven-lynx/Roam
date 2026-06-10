@@ -1,5 +1,11 @@
 package app.roam.android.ui.screen
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -9,13 +15,16 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.OpenInBrowser
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -27,6 +36,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -71,6 +83,7 @@ private fun getNotificationIcon(type: String): String = when (type) {
 fun NotificationsScreen(
     vm: MainViewModel,
     onNavigateBack: () -> Unit,
+    onNavigateToUrl: ((String) -> Unit)? = null,
 ) {
     val notifications by vm.notifications.collectAsState()
     val notificationsLoading by vm.notificationsLoading.collectAsState()
@@ -130,7 +143,7 @@ fun NotificationsScreen(
                 )
                 Spacer(Modifier.height(8.dp))
                 Text(
-                    "You'll be notified when your URL submissions are reviewed.",
+                    "You'll be notified about your submissions, followers, and other activity.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -142,7 +155,11 @@ fun NotificationsScreen(
                     .padding(innerPadding),
             ) {
                 items(notifications, key = { it.id }) { notif ->
-                    NotificationRow(notification = notif)
+                    NotificationRow(
+                        notification = notif,
+                        onDelete = { vm.deleteNotification(notif.id) },
+                        onNavigateToUrl = onNavigateToUrl,
+                    )
                 }
             }
         }
@@ -150,7 +167,12 @@ fun NotificationsScreen(
 }
 
 @Composable
-private fun NotificationRow(notification: AppNotification) {
+private fun NotificationRow(
+    notification: AppNotification,
+    onDelete: () -> Unit,
+    onNavigateToUrl: ((String) -> Unit)?,
+) {
+    var expanded by remember { mutableStateOf(false) }
     val isUnread = !notification.read
     val surfaceColor = if (isUnread) {
         MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
@@ -158,59 +180,105 @@ private fun NotificationRow(notification: AppNotification) {
         Color.Transparent
     }
 
-    Row(
+    val notificationUrl = notification.data?.url
+
+    Column(
         modifier = Modifier
             .fillMaxWidth()
+            .clickable { expanded = !expanded }
             .padding(horizontal = 16.dp, vertical = 10.dp),
-        verticalAlignment = Alignment.Top,
     ) {
-        Text(
-            getNotificationIcon(notification.type),
-            style = MaterialTheme.typography.titleMedium,
-            modifier = Modifier.padding(top = 2.dp),
-        )
-        Spacer(Modifier.width(12.dp))
-        Column(modifier = Modifier.weight(1f)) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text(
-                    notification.title,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = if (isUnread) MaterialTheme.colorScheme.onSurface
-                    else MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f),
-                )
-                if (isUnread) {
-                    Spacer(Modifier.width(8.dp))
-                    androidx.compose.foundation.Canvas(
-                        modifier = Modifier.size(8.dp),
-                    ) {
-                        drawCircle(
-                            color = MaterialTheme.colorScheme.primary,
-                            radius = 4.dp.toPx(),
-                        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.Top,
+        ) {
+            Text(
+                getNotificationIcon(notification.type),
+                style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier.padding(top = 2.dp),
+            )
+            Spacer(Modifier.width(12.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        notification.title,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = if (isUnread) MaterialTheme.colorScheme.onSurface
+                        else MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = if (expanded) Int.MAX_VALUE else 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f),
+                    )
+                    if (isUnread) {
+                        val dotColor = MaterialTheme.colorScheme.primary
+                        Spacer(Modifier.width(8.dp))
+                        androidx.compose.foundation.Canvas(
+                            modifier = Modifier.size(8.dp),
+                        ) {
+                            drawCircle(
+                                color = dotColor,
+                                radius = 4.dp.toPx(),
+                            )
+                        }
                     }
                 }
-            }
-            if (notification.body != null) {
-                Spacer(Modifier.height(2.dp))
+                // Body always visible; expands to full text when tapped
+                if (notification.body != null) {
+                    Spacer(Modifier.height(2.dp))
+                    Text(
+                        notification.body,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = if (expanded) Int.MAX_VALUE else 2,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+                Spacer(Modifier.height(4.dp))
                 Text(
-                    notification.body,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
+                    formatTimeAgo(notification.createdAt),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
                 )
             }
-            Spacer(Modifier.height(4.dp))
-            Text(
-                formatTimeAgo(notification.createdAt),
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
-            )
+
+            // Delete button
+            IconButton(
+                onClick = onDelete,
+                modifier = Modifier.size(36.dp),
+            ) {
+                Icon(
+                    Icons.Filled.Delete,
+                    contentDescription = "Delete notification",
+                    modifier = Modifier.size(18.dp),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                )
+            }
+        }
+
+        // Expanded section: "Open link" button if the notification has a URL
+        AnimatedVisibility(
+            visible = expanded && notificationUrl != null && onNavigateToUrl != null,
+            enter = expandVertically() + fadeIn(),
+            exit = shrinkVertically() + fadeOut(),
+        ) {
+            TextButton(
+                onClick = { onNavigateToUrl?.invoke(notificationUrl!!) },
+                modifier = Modifier
+                    .padding(start = 48.dp, top = 4.dp),
+            ) {
+                Icon(
+                    Icons.Filled.OpenInBrowser,
+                    contentDescription = null,
+                    modifier = Modifier.size(16.dp),
+                )
+                Spacer(Modifier.width(6.dp))
+                Text(
+                    "Open in Roam",
+                    style = MaterialTheme.typography.labelMedium,
+                )
+            }
         }
     }
 }

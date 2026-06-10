@@ -182,6 +182,10 @@ fun MainScreen(
                 NotificationsScreen(
                     vm = vm,
                     onNavigateBack = { currentTab = RoamTab.Settings.route },
+                    onNavigateToUrl = { url ->
+                        vm.navigateTo(url)
+                        currentTab = RoamTab.Roam.route
+                    },
                 )
             }
         }

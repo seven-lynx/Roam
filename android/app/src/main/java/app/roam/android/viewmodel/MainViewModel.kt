@@ -77,6 +77,7 @@ class MainViewModel(
     private val TRANSLATE_LANG_KEY = "translate_language"
     private val SHEET_GESTURE_MODE_KEY = "sheet_gesture_mode"  // "slide" or "tap"
     private val PREFETCH_WEBVIEW_KEY  = "prefetch_webview"
+    private val NOTIFICATIONS_ENABLED_KEY = "notifications_enabled"
     private val URL_HISTORY_KEY = "url_history"
     private val MAX_HISTORY_ENTRIES = 100
 
@@ -333,6 +334,33 @@ class MainViewModel(
     /** Counts of pages roamed and submitted by the current user */
     private val _profileStats = MutableStateFlow(ProfileStats())
     val profileStats: StateFlow<ProfileStats> = _profileStats.asStateFlow()
+
+    /** Whether push notifications are enabled */
+    private val _notificationsEnabled = MutableStateFlow(prefs.getBoolean(NOTIFICATIONS_ENABLED_KEY, true))
+    val notificationsEnabled: StateFlow<Boolean> = _notificationsEnabled.asStateFlow()
+
+    fun setNotificationsEnabled(enabled: Boolean) {
+        _notificationsEnabled.value = enabled
+        prefs.edit().putBoolean(NOTIFICATIONS_ENABLED_KEY, enabled).apply()
+        // Sync push token state with the server so the push-notify edge
+        // function knows whether to deliver push messages for this user.
+        viewModelScope.launch {
+            if (enabled) {
+                // Re-register the current FCM token (if we have one stored).
+                // FCMService stores the pending token in "roam_fcm" prefs.
+                val fcmPrefs = getApplication<android.app.Application>()
+                    .getSharedPreferences("roam_fcm", android.content.Context.MODE_PRIVATE)
+                val token = fcmPrefs.getString("pending_fcm_token", null)
+                if (token != null) {
+                    runCatching { repo.registerPushToken(token) }
+                }
+            } else {
+                // Delete all Android push tokens so the edge function stops
+                // sending push messages to this user.
+                runCatching { repo.unregisterPushTokens() }
+            }
+        }
+    }
 
     /** Unread notification count */
     private val _unreadNotificationCount = MutableStateFlow(0)
@@ -1136,6 +1164,16 @@ class MainViewModel(
         viewModelScope.launch {
             runCatching { repo.markAllNotificationsRead() }
         }
+    }
+
+    /** Deletes a single notification locally and on the server. */
+    fun deleteNotification(notificationId: String) {
+        _notifications.value = _notifications.value.filter { it.id != notificationId }
+        viewModelScope.launch {
+            runCatching { repo.deleteNotification(notificationId) }
+        }
+        // Refresh unread count since we may have just deleted an unread one
+        fetchUnreadNotificationCount()
     }
 
     fun showTransientToast(message: String) {
