@@ -101,6 +101,9 @@ export function Header() {
           <Link href="/settings" className="text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white transition-colors">
             Settings
           </Link>
+          <Link href="/how-it-works" className="text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white transition-colors">
+            How It Works
+          </Link>
         </nav>
 
         {/* Avatar dropdown */}
