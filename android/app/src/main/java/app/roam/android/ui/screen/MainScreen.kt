@@ -123,6 +123,7 @@ fun MainScreen(
                     onNavigateToSaved = { currentTab = RoamTab.Saved.route },
                     onNavigateToProfile = { currentTab = RoamTab.Profile.route },
                     onNavigateToHistory = { currentTab = RoamTab.History.route },
+                    onNavigateToNotifications = { currentTab = "notifications" },
                     onNavigateToRoam = { currentTab = RoamTab.Roam.route },
                 )
             }
@@ -170,6 +171,17 @@ fun MainScreen(
                         vm.navigateTo(url)
                         currentTab = RoamTab.Roam.route
                     },
+                )
+            }
+
+            AnimatedVisibility(
+                visible = currentTab == "notifications",
+                enter = fadeIn(animationSpec = spring()),
+                exit = fadeOut(animationSpec = spring()),
+            ) {
+                NotificationsScreen(
+                    vm = vm,
+                    onNavigateBack = { currentTab = RoamTab.Settings.route },
                 )
             }
         }

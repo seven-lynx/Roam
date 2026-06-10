@@ -1,6 +1,7 @@
 ﻿package app.roam.android.data.repository
 
 import app.roam.android.data.supabase
+import app.roam.android.model.AppNotification
 import app.roam.android.model.CategoryItem
 import app.roam.android.model.Collection
 import app.roam.android.model.CollectionItem
@@ -499,6 +500,53 @@ class RoamRepository {
     private data class CategoryIdRow(
         @SerialName("category_id") val categoryId: String,
     )
+
+    // ── Notifications ───────────────────────────────────────────────────────
+
+    /** Fetches unread notification count for the current user. Returns 0 on error. */
+    suspend fun getUnreadNotificationCount(): Int {
+        val userId = supabase.auth.currentUserOrNull()?.id ?: return 0
+        return runCatching {
+            supabase.postgrest.from("notifications")
+                .select(Columns.list("id")) {
+                    filter {
+                        eq("user_id", userId)
+                        eq("read", false)
+                    }
+                }
+                .decodeList<IdRow>().size
+        }.getOrDefault(0)
+    }
+
+    /** Fetches recent notifications for the current user. */
+    suspend fun getNotifications(limit: Int = 20): List<AppNotification> {
+        val userId = supabase.auth.currentUserOrNull()?.id ?: return emptyList()
+        return runCatching {
+            supabase.postgrest.from("notifications")
+                .select {
+                    filter {
+                        eq("user_id", userId)
+                    }
+                    order("created_at", Order.DESCENDING)
+                    limit(limit)
+                }
+                .decodeList<AppNotification>()
+        }.getOrDefault(emptyList())
+    }
+
+    /** Marks all unread notifications as read for the current user. */
+    suspend fun markAllNotificationsRead() {
+        val userId = supabase.auth.currentUserOrNull()?.id ?: return
+        runCatching {
+            supabase.postgrest.from("notifications")
+                .update({ set("read", true) }) {
+                    filter {
+                        eq("user_id", userId)
+                        eq("read", false)
+                    }
+                }
+        }
+    }
 
     @Serializable
     private data class UserCategoryInsertRow(

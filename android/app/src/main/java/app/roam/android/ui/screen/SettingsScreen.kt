@@ -66,6 +66,7 @@ fun SettingsScreen(
     onNavigateToSaved: () -> Unit = {},
     onNavigateToProfile: () -> Unit = {},
     onNavigateToHistory: () -> Unit = {},
+    onNavigateToNotifications: () -> Unit = {},
     onNavigateToRoam: () -> Unit = {},
 ) {
     val skipPaywalled by vm.skipPaywalled.collectAsState()
@@ -158,6 +159,12 @@ fun SettingsScreen(
                 title = "Browsing history",
                 subtitle = "Pages you've visited",
                 onClick = onNavigateToHistory,
+            )
+
+            SettingsActionRow(
+                title = "Notifications",
+                subtitle = "Updates about your submissions",
+                onClick = onNavigateToNotifications,
             )
 
             HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))

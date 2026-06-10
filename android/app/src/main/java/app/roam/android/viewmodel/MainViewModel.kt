@@ -18,6 +18,7 @@ import app.roam.android.model.SavedUrl
 import app.roam.android.model.UrlHistoryEntry
 import app.roam.android.model.deserializeHistory
 import app.roam.android.model.serializeHistory
+import app.roam.android.model.AppNotification
 import app.roam.android.model.UserProfile
 import app.roam.android.util.connectivityFlow
 import io.github.jan.supabase.exceptions.UnauthorizedRestException
@@ -332,6 +333,18 @@ class MainViewModel(
     /** Counts of pages roamed and submitted by the current user */
     private val _profileStats = MutableStateFlow(ProfileStats())
     val profileStats: StateFlow<ProfileStats> = _profileStats.asStateFlow()
+
+    /** Unread notification count */
+    private val _unreadNotificationCount = MutableStateFlow(0)
+    val unreadNotificationCount: StateFlow<Int> = _unreadNotificationCount.asStateFlow()
+
+    /** List of recent notifications */
+    private val _notifications = MutableStateFlow<List<AppNotification>>(emptyList())
+    val notifications: StateFlow<List<AppNotification>> = _notifications.asStateFlow()
+
+    /** True while notifications are being fetched */
+    private val _notificationsLoading = MutableStateFlow(false)
+    val notificationsLoading: StateFlow<Boolean> = _notificationsLoading.asStateFlow()
 
     /** Toggles profile public/private. */
     fun toggleProfilePublic() {
@@ -1095,6 +1108,36 @@ class MainViewModel(
     }
 
     /** Shows a 4-second toast via the existing submitToast flow. */
+    /** Fetches unread count on init and when entering subscribed screens. */
+    fun fetchUnreadNotificationCount() {
+        viewModelScope.launch {
+            if (!repo.hasSession()) return@launch
+            runCatching {
+                _unreadNotificationCount.value = repo.getUnreadNotificationCount()
+            }
+        }
+    }
+
+    /** Loads recent notifications for the notifications screen. */
+    fun loadNotifications() {
+        viewModelScope.launch {
+            _notificationsLoading.value = true
+            runCatching {
+                _notifications.value = repo.getNotifications()
+            }
+            _notificationsLoading.value = false
+        }
+    }
+
+    /** Marks all notifications as read and clears the unread count. */
+    fun markAllNotificationsRead() {
+        _unreadNotificationCount.value = 0
+        _notifications.value = _notifications.value.map { it.copy(read = true) }
+        viewModelScope.launch {
+            runCatching { repo.markAllNotificationsRead() }
+        }
+    }
+
     fun showTransientToast(message: String) {
         _submitToast.value = message
         viewModelScope.launch {
