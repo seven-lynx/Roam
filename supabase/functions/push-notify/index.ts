@@ -42,7 +42,7 @@ async function getFCMAccessToken(serviceAccountJson: string): Promise<string | n
 
     // Create JWT header
     const header = {
-      alg: 'HS256',
+      alg: 'RS256',
       typ: 'JWT',
     }
 
@@ -59,22 +59,33 @@ async function getFCMAccessToken(serviceAccountJson: string): Promise<string | n
     const b64 = (obj: Record<string, unknown>) =>
       btoa(JSON.stringify(obj)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
 
-    // Sign with HMAC-SHA256 using the private key
-    const encoder = new TextEncoder()
-    const keyData = encoder.encode(sa.private_key)
-    const message = encoder.encode(`${b64(header)}.${b64(claims)}`)
+    // Import RSA private key from PKCS#8 PEM
+    const pemHeader = '-----BEGIN PRIVATE KEY-----\n'
+    const pemFooter = '\n-----END PRIVATE KEY-----\n'
+    const pemContents = sa.private_key
+      .replace(pemHeader, '')
+      .replace(pemFooter, '')
+      .replace(/\s/g, '')
+
+    const binaryDer = Uint8Array.from(atob(pemContents), c => c.charCodeAt(0))
 
     const key = await crypto.subtle.importKey(
-      'raw',
-      keyData,
-      { name: 'HMAC', hash: 'SHA-256' },
+      'pkcs8',
+      binaryDer,
+      { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' },
       false,
       ['sign'],
     )
 
-    const signature = await crypto.subtle.sign('HMAC', key, message)
-    const sigBytes = new Uint8Array(signature)
-    const sigB64 = btoa(String.fromCharCode(...sigBytes))
+    const encoder = new TextEncoder()
+    const message = encoder.encode(`${b64(header)}.${b64(claims)}`)
+
+    const signature = await crypto.subtle.sign(
+      { name: 'RSASSA-PKCS1-v1_5' },
+      key,
+      message,
+    )
+    const sigB64 = btoa(String.fromCharCode(...new Uint8Array(signature)))
       .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
 
     const jwt = `${b64(header)}.${b64(claims)}.${sigB64}`
@@ -295,11 +306,14 @@ async function encryptPayload(
     ['deriveBits'],
   )
 
+  // Generate a random 16-byte salt for key derivation (per RFC 8291)
+  const salt = crypto.getRandomValues(new Uint8Array(16))
+
   // HKDF: combine shared secret + auth to derive PRK
   // Then derive encryption key and nonce
   const info = encoder.encode('Content-Encoding: aes128gcm\0')
 
-  // IKM = shared_secret + auth_bytes (per RFC 8291)
+  // IKM = shared_secret || auth_secret (per RFC 8291)
   const ikm = new Uint8Array(sharedSecret.byteLength + authBytes.length)
   ikm.set(new Uint8Array(sharedSecret), 0)
   ikm.set(authBytes, sharedSecret.byteLength)
@@ -314,7 +328,7 @@ async function encryptPayload(
 
   // Derive 32 bytes: first 16 = content encryption key, next 16 = nonce
   const prk = await crypto.subtle.deriveBits(
-    { name: 'HKDF', hash: 'SHA-256', salt: authBytes.buffer as ArrayBuffer, info },
+    { name: 'HKDF', hash: 'SHA-256', salt: salt.buffer as ArrayBuffer, info },
     ikmKey,
     256,
   )
@@ -333,19 +347,37 @@ async function encryptPayload(
   )
 
   const plainBytes = encoder.encode(plaintext)
+
+  // Prepend 0x00 + 0x00 as padding delimiter (RFC 8188 section 2)
+  const paddedPlain = new Uint8Array(plainBytes.length + 2)
+  paddedPlain.set(plainBytes, 0)
+  paddedPlain[plainBytes.length] = 0x00
+  paddedPlain[plainBytes.length + 1] = 0x00
+
   const ciphertext = await crypto.subtle.encrypt(
     { name: 'AES-GCM', iv: nonce, tagLength: 128 },
     aesKey,
-    plainBytes,
+    paddedPlain,
   )
 
-  // Build the result: salt (16 bytes) + ephemeral pub key length (2 bytes) + pub key + ciphertext
-  // But actually the Web Push protocol prepends the salt, key length, and public key.
-  // For AES128GCM with a 16-byte nonce, we need a different structure.
-  // Simplified: just return ciphertext + pub key as a concatenated Uint8Array
-  const result = new Uint8Array(ephemeralPubBytes.length + ciphertext.byteLength)
-  result.set(ephemeralPubBytes, 0)
-  result.set(new Uint8Array(ciphertext), ephemeralPubBytes.length)
+  // Build the Web Push payload per RFC 8188/8291:
+  // salt (16 bytes) | recordsize (4 bytes, big-endian) | keyid length (1 byte) | keyid (varies) | ciphertext
+  const recordSize = 4096
+  const rs = new Uint8Array(4)
+  // Record size in big-endian, left-shifted 1 bit with MSB = 1 per RFC 8188
+  new DataView(rs.buffer).setUint32(0, recordSize, false)
+
+  const keyidLen = new Uint8Array([0]) // empty keyid = 0x00
+
+  const result = new Uint8Array(
+    salt.length + rs.length + keyidLen.length + 0 + ciphertext.byteLength
+  )
+  let offset = 0
+  result.set(salt, offset); offset += salt.length
+  result.set(rs, offset); offset += rs.length
+  result.set(keyidLen, offset); offset += keyidLen.length
+  // keyid is empty, so nothing to copy
+  result.set(new Uint8Array(ciphertext), offset)
 
   return result
 }

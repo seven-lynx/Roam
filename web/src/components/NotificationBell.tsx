@@ -67,6 +67,15 @@ export function NotificationBell() {
     }
   }
 
+  // Register service worker on mount (required for push notifications)
+  useEffect(() => {
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js').catch(() => {
+        // SW registration failed silently — push won't work but app still functions
+      });
+    }
+  }, []);
+
   // Fetch unread count on mount + check push permission
   useEffect(() => {
     fetchUnreadCount();

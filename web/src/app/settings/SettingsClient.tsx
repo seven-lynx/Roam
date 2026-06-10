@@ -239,7 +239,7 @@ export function SettingsClient({
             user_id: user.id,
             platform: 'web',
             token: JSON.stringify(sub.toJSON()),
-          });
+          }, { onConflict: 'user_id,platform' });
         }
         setPushEnabled(true);
       } catch {
