@@ -11,6 +11,10 @@ import app.roam.android.data.repository.RoamRepository
 import app.roam.android.data.supabase
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
+import io.sentry.Sentry
+import io.sentry.Breadcrumb
+import io.sentry.SentryLevel
+import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.auth.status.SessionStatus
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -44,6 +48,11 @@ class FCMService : FirebaseMessagingService() {
         super.onNewToken(token)
         val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         prefs.edit().putString(PENDING_TOKEN_KEY, token).apply()
+        Sentry.addBreadcrumb(Breadcrumb().apply {
+            this.message = "FCM token received"
+            this.level = SentryLevel.INFO
+            this.setData("token_prefix", token.take(10))
+        })
         registerPendingTokenIfReady()
     }
 
@@ -80,6 +89,15 @@ class FCMService : FirebaseMessagingService() {
             val success = runCatching { repo.registerPushToken(pendingToken) }.isSuccess
             if (success) {
                 prefs.edit().remove(PENDING_TOKEN_KEY).apply()
+                Sentry.addBreadcrumb(Breadcrumb().apply {
+                    this.message = "FCM token registered with server"
+                    this.level = SentryLevel.INFO
+                })
+            } else {
+                Sentry.addBreadcrumb(Breadcrumb().apply {
+                    this.message = "FCM token registration failed"
+                    this.level = SentryLevel.WARNING
+                })
             }
             // On failure, keep the pending token for next attempt
         }
@@ -112,6 +130,11 @@ class FCMService : FirebaseMessagingService() {
             ?: remoteMessage.data["body"]
             ?: return // nothing to show
 
+        Sentry.addBreadcrumb(Breadcrumb().apply {
+            this.message = "FCM push message received"
+            this.level = SentryLevel.INFO
+            this.setData("title", title)
+        })
         showNotification(title, body, remoteMessage.data)
     }
 

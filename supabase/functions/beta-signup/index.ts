@@ -10,6 +10,7 @@
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { clientIp, rateLimit } from '../_shared/rate-limit.ts'
+import { initSentry } from '../_shared/sentry.ts'
 
 const RATE_LIMIT = 5
 const WINDOW_MS = 10 * 60_000 // 10 minutes
@@ -29,6 +30,9 @@ function json(body: unknown, status = 200) {
     headers: { ...corsHeaders, 'Content-Type': 'application/json' },
   })
 }
+
+// Sentry reporting — silently disabled if SENTRY_DSN is not set
+const report = initSentry('beta-signup')
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
@@ -84,6 +88,7 @@ Deno.serve(async (req) => {
       return json({ ok: true, message: "You're already on the list!" })
     }
     console.error('[beta-signup] Insert error:', error.message)
+    report(error.message, 'error', { operation: 'beta-signup-insert' })
     return json({ error: 'Something went wrong — please try again' }, 500)
   }
 

@@ -22,6 +22,12 @@ CLAUDE.md
 !.env.example
 local.properties
 
+# ── Google / Firebase services (SENSITIVE) ──────────────────────────────────────
+**/google-services.json
+**/google-services*.json
+**/GoogleService-Info.plist
+*firebase-adminsdk*.json
+
 # ── Scripts (proprietary sources & seed pool) ────────────────────────────────
 scripts/
 

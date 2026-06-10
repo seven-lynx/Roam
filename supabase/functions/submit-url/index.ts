@@ -8,8 +8,12 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { corsHeaders } from '../_shared/cors.ts'
 import { normalizeUrl } from '../_shared/normalise.ts'
 import { validateRequired } from '../_shared/env.ts'
+import { initSentry } from '../_shared/sentry.ts'
 
 const RATE_LIMIT = 10
+
+// Sentry reporting — silently disabled if SENTRY_DSN is not set
+const report = initSentry('submit-url')
 
 // Validate required environment variables at startup
 const env = validateRequired([
@@ -60,6 +64,7 @@ async function checkSafeBrowsing(url: string, apiKey: string): Promise<{ safe: b
   } catch (err) {
     const errorMsg = err instanceof Error ? err.message : String(err)
     console.error('Safe Browsing API network error', { url, error: errorMsg })
+    report(err, 'error', { url, api: 'safe-browsing' })
     return {
       safe: false,
       error: `Network error contacting Safe Browsing API: ${errorMsg}`,
@@ -103,7 +108,10 @@ Deno.serve(async (req) => {
     .eq('submitted_by', user.id)
     .gte('created_at', oneHourAgo)
 
-  if (countError) return json({ error: 'Internal error' }, 500)
+  if (countError) {
+    report(countError.message, 'error', { operation: 'rate-limit-check' })
+    return json({ error: 'Internal error' }, 500)
+  }
   if ((count ?? 0) >= RATE_LIMIT) {
     return json({ error: 'Rate limit exceeded — max 10 submissions per hour' }, 429)
   }
@@ -125,6 +133,7 @@ Deno.serve(async (req) => {
     .maybeSingle()
   if (existingUrlErr) {
     console.error('duplicate url lookup failed', existingUrlErr)
+    report(existingUrlErr.message, 'error', { url: normalized, operation: 'duplicate-url-lookup' })
     return json({ error: 'Internal error' }, 500)
   }
   if (existingUrl) {
@@ -147,6 +156,7 @@ Deno.serve(async (req) => {
     .maybeSingle()
   if (existingQueueErr) {
     console.error('duplicate queue lookup failed', existingQueueErr)
+    report(existingQueueErr.message, 'error', { url: normalized, operation: 'duplicate-queue-lookup' })
     return json({ error: 'Internal error' }, 500)
   }
   if (existingQueue) {
@@ -192,6 +202,7 @@ Deno.serve(async (req) => {
 
   if (profileError) {
     console.error('Failed to upsert profile row for FK', { userId: user.id, error: profileError })
+    report(profileError.message, 'error', { userId: user.id, operation: 'profile-upsert' })
     return json({ error: 'Internal error' }, 500)
   }
 
@@ -216,7 +227,10 @@ Deno.serve(async (req) => {
     ...(categoryHint ? { reviewer_note: categoryHint } : {}),
   })
 
-  if (insertError) return json({ error: insertError.message }, 500)
+  if (insertError) {
+    report(insertError.message, 'error', { url: normalized, operation: 'moderation-insert' })
+    return json({ error: insertError.message }, 500)
+  }
   return json({ ok: true, message: 'URL submitted for review' }, 201)
 })
 

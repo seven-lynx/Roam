@@ -144,10 +144,8 @@ if (watch) {
   console.log('[roam] Watching for changes… (Ctrl+C to stop)');
 } else {
   // Build all entry points; upload source maps to Sentry if auth token is present
-  const canUploadMaps = !firefox && sentryDsn && sentryAuthToken;
-  if (!canUploadMaps && sentryAuthToken) {
-    console.warn('[roam] Skipping Sentry source map upload for Firefox build.');
-  } else if (!sentryAuthToken) {
+  const canUploadMaps = sentryDsn && sentryAuthToken;
+  if (!sentryAuthToken) {
     console.warn('[roam] SENTRY_AUTH_TOKEN not set — source maps will NOT be uploaded to Sentry.');
   }
 

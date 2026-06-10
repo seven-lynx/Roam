@@ -13,6 +13,7 @@
 //   6. Logs to email_log table
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { initSentry } from '../_shared/sentry.ts'
 
 // ═══════════════════════════════════════════════════════════════════════════
 // CORS — admin-only endpoint, restrict to our web app
@@ -29,6 +30,9 @@ function json(body: unknown, status = 200) {
     headers: { ...corsHeaders, 'Content-Type': 'application/json' },
   })
 }
+
+// Sentry reporting — silently disabled if SENTRY_DSN is not set
+const report = initSentry('send-bulk-email')
 
 // ═══════════════════════════════════════════════════════════════════════════
 // Simple Markdown → HTML renderer
@@ -165,6 +169,7 @@ Deno.serve(async (req: Request) => {
 
   if (settingsError) {
     console.error('[send-bulk-email] Failed to query user_settings:', settingsError.message)
+    report(settingsError.message, 'error', { operation: 'query-user-settings' })
     return json({ error: 'Failed to query recipients' }, 500)
   }
 
@@ -188,6 +193,7 @@ Deno.serve(async (req: Request) => {
 
     if (authError) {
       console.error('[send-bulk-email] Failed to list users:', authError.message)
+      report(authError.message, 'error', { operation: 'list-users', page })
       return json({ error: 'Failed to resolve user emails' }, 500)
     }
 
@@ -207,8 +213,8 @@ Deno.serve(async (req: Request) => {
   for (const uid of userIds) {
     const email = emailMap.get(uid)
     if (!email) continue
-    const token = await createUnsubscribeToken(uid, serviceRoleKey)
-    recipients.push({ userId: uid, email, unsubscribeToken: token })
+    const unsubscribeToken = await createUnsubscribeToken(uid, serviceRoleKey)
+    recipients.push({ userId: uid, email, unsubscribeToken })
   }
 
   if (recipients.length === 0) {
@@ -252,11 +258,17 @@ Deno.serve(async (req: Request) => {
         const result = await response.json()
         if (!response.ok) {
           console.error(`[send-bulk-email] Failed to send to ${recip.email}:`, result)
+          report(`Resend API error for ${recip.email}: ${result?.message ?? 'Unknown error'}`, 'warning', {
+            email: recip.email,
+            resendStatus: response.status,
+            operation: 'resend-send',
+          })
           return { success: false, userId: recip.userId, email: recip.email, error: result?.message ?? 'Unknown error' }
         }
         return { success: true, userId: recip.userId, email: recip.email }
       } catch (err) {
         console.error(`[send-bulk-email] Error sending to ${recip.email}:`, err)
+        report(err, 'warning', { email: recip.email, operation: 'resend-fetch' })
         return { success: false, userId: recip.userId, email: recip.email, error: String(err) }
       }
     })
@@ -283,6 +295,7 @@ Deno.serve(async (req: Request) => {
 
   if (logError) {
     console.error('[send-bulk-email] Failed to log send:', logError.message)
+    report(logError.message, 'warning', { operation: 'email-log-insert' })
   }
 
   return json({

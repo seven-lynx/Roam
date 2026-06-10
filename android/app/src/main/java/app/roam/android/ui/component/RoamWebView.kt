@@ -43,6 +43,9 @@ import androidx.compose.foundation.Image
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import app.roam.android.viewmodel.WebNavCommand
+import io.sentry.Sentry
+import io.sentry.Breadcrumb
+import io.sentry.SentryLevel
 import kotlinx.coroutines.flow.Flow
 
 // Schemes the WebView is allowed to load. Everything else (intent://, market://,
@@ -345,6 +348,12 @@ fun RoamWebView(
                     }
                     webViewClient = object : WebViewClient() {
                         override fun onPageStarted(view: WebView, url: String, favicon: Bitmap?) {
+                            Sentry.addBreadcrumb(Breadcrumb().apply {
+                                this.message = "WebView load started"
+                                this.category = "navigation"
+                                this.level = SentryLevel.INFO
+                                this.setData("url", url.take(120))
+                            })
                             onLoadingChanged(true)
                         }
                         // Fires when the first frame is rendered — the page is visually
@@ -360,6 +369,12 @@ fun RoamWebView(
                             onUrlChanged(loadedUrl)
                             loadError = false
                             onLoadingChanged(false)
+                            Sentry.addBreadcrumb(Breadcrumb().apply {
+                                this.message = "WebView load finished"
+                                this.category = "navigation"
+                                this.level = SentryLevel.INFO
+                                this.setData("url", loadedUrl.take(120))
+                            })
                             showSnapshot = false
                             snapshotBitmap = null
                             // Inject a self-contained scroll-memory script that saves/restores
@@ -383,6 +398,13 @@ fun RoamWebView(
                             if (request.isForMainFrame) {
                                 loadError = true
                                 onLoadingChanged(false)
+                                Sentry.addBreadcrumb(Breadcrumb().apply {
+                                    this.message = "WebView load error"
+                                    this.category = "navigation"
+                                    this.level = SentryLevel.ERROR
+                                    this.setData("error_code", error.errorCode)
+                                    this.setData("error_desc", error.description?.toString()?.take(200) ?: "unknown")
+                                })
                             }
                         }
                         // The renderer process was killed. On some devices (Samsung One UI 6),
@@ -390,6 +412,12 @@ fun RoamWebView(
                         // AndroidRuntimeException. Show the error UI instead of trying to
                         // recreate the WebView — it recovers after a fresh roam.
                         override fun onRenderProcessGone(view: WebView, detail: RenderProcessGoneDetail): Boolean {
+                            Sentry.addBreadcrumb(Breadcrumb().apply {
+                                this.message = "WebView renderer process killed"
+                                this.category = "navigation"
+                                this.level = SentryLevel.ERROR
+                                this.setData("renderer_priority_at_exit", detail.rendererPriorityAtExit)
+                            })
                             Handler(Looper.getMainLooper()).post {
                                 webViewRef.value = null
                                 showSnapshot = false
@@ -420,6 +448,7 @@ fun RoamWebView(
                     // Huawei) and server-side redirects still route through this path.
                     // Without this override, non-http schemes can fire ACTION_VIEW intents
                     // that open the system browser or other apps.
+                    @Deprecated("Deprecated in Java", ReplaceWith("shouldOverrideUrlLoading(view, request)"))
                     @Suppress("DEPRECATION")
                     override fun shouldOverrideUrlLoading(view: WebView, url: String): Boolean {
                         val scheme = try { android.net.Uri.parse(url).scheme } catch (_: Exception) { null }
@@ -512,6 +541,7 @@ fun BackgroundPrefetchWebView(
 
                             // Deprecated overload — OEM WebView implementations may route
                             // server-side redirects through this path.
+                            @Deprecated("Deprecated in Java", ReplaceWith("shouldOverrideUrlLoading(view, request)"))
                             @Suppress("DEPRECATION")
                             override fun shouldOverrideUrlLoading(view: WebView, url: String): Boolean {
                                 return true

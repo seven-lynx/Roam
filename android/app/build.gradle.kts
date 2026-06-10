@@ -4,7 +4,7 @@ plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.plugin.compose")
     id("org.jetbrains.kotlin.plugin.serialization")
-    id("io.sentry.android.gradle") version "6.9.0"
+    id("io.sentry.android.gradle") version "4.16.0"
     id("com.google.gms.google-services")
 }
 
@@ -124,7 +124,7 @@ dependencies {
     implementation("io.coil-kt.coil3:coil-network-okhttp:3.1.0")
 
     // Error tracking
-    implementation("io.sentry:sentry-android:7.22.1")
+    implementation("io.sentry:sentry-android:8.4.0")
 
     // Firebase Cloud Messaging (push notifications)
     implementation("com.google.firebase:firebase-messaging-ktx:24.1.0")
@@ -151,6 +151,9 @@ sentry {
     // Upload source maps to Sentry for readable stack traces.
     // Requires SENTRY_AUTH_TOKEN env var at release build time (CI only).
     // Set to false locally to skip the upload step.
-    autoUploadProguardMapping.set(System.getenv("SENTRY_AUTH_TOKEN") != null)
+    autoUploadProguardMapping.set(
+        System.getenv("SENTRY_AUTH_TOKEN") != null ||
+        localProperties.getProperty("SENTRY_AUTH_TOKEN") != null
+    )
     uploadNativeSymbols.set(false)
 }

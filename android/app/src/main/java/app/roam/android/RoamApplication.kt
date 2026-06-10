@@ -5,7 +5,7 @@ import app.roam.android.BuildConfig
 import app.roam.android.data.supabase
 import app.roam.android.util.Env
 import app.roam.android.worker.TokenRefreshWorker
-import io.sentry.android.core.SentryAndroid
+import io.sentry.android.SentryAndroid
 
 class RoamApplication : Application() {
 

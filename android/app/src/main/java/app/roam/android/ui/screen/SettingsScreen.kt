@@ -86,6 +86,7 @@ fun SettingsScreen(
     var languageFilterDropdownExpanded by remember { mutableStateOf(false) }
     var focusCategoryDropdownExpanded by remember { mutableStateOf(false) }
     var focusSubcategoryDropdownExpanded by remember { mutableStateOf(false) }
+    val notificationsEnabled by vm.notificationsEnabled.collectAsState()
     val currentUrl by vm.currentUrl.collectAsState()
     val savedConfirmation by vm.savedConfirmation.collectAsState()
 
@@ -163,8 +164,15 @@ fun SettingsScreen(
 
             SettingsActionRow(
                 title = "Notifications",
-                subtitle = "Updates about your submissions",
+                subtitle = "Updates about your activity",
                 onClick = onNavigateToNotifications,
+            )
+
+            SettingsToggleRow(
+                title = "Push notifications",
+                subtitle = "Receive notifications about submissions, followers, and activity",
+                checked = notificationsEnabled,
+                onCheckedChange = { vm.setNotificationsEnabled(it) },
             )
 
             HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
