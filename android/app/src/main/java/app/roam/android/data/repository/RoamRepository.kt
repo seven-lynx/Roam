@@ -574,6 +574,8 @@ class RoamRepository {
                     "token" to token,
                 )
             )
+        }.onFailure { e ->
+            android.util.Log.e("RoamRepository", "Failed to register push token: ${e.message}", e)
         }
     }
 

@@ -33,6 +33,64 @@ function json(body: unknown, status = 200) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
+// Sentry reporting — lightweight fetch to Sentry's envelope API
+// ═══════════════════════════════════════════════════════════════════════════
+const SENTRY_DSN = Deno.env.get('SENTRY_DSN')
+const SENTRY_RELEASE = Deno.env.get('SENTRY_RELEASE') || 'push-notify'
+
+function parseSentryDsn(dsn: string) {
+  const match = dsn.match(
+    /^https?:\/\/([a-f0-9]+)@([^/]+)\/(\d+)$/,
+  )
+  if (!match) return null
+  return { key: match[1], host: match[2], projectId: match[3] }
+}
+
+async function reportToSentry(
+  error: Error | string,
+  level: 'error' | 'warning' = 'error',
+  extra?: Record<string, unknown>,
+) {
+  if (!SENTRY_DSN) return
+  const parsed = parseSentryDsn(SENTRY_DSN)
+  if (!parsed) return
+
+  const eventId = crypto.randomUUID()
+  const envelopeBody = {
+    event_id: eventId,
+    timestamp: new Date().toISOString(),
+    level,
+    platform: 'javascript',
+    release: SENTRY_RELEASE,
+    environment: Deno.env.get('SUPABASE_ENV') ?? 'production',
+    exception: {
+      values: [
+        {
+          type: typeof error === 'string' ? 'Error' : error.name,
+          value: typeof error === 'string' ? error : error.message,
+        },
+      ],
+    },
+    extra,
+  }
+
+  const envelope = `${JSON.stringify({ event_id: eventId })}\n${JSON.stringify({ type: 'event' })}\n${JSON.stringify(envelopeBody)}\n`
+
+  try {
+    await fetch(
+      `https://${parsed.host}/api/${parsed.projectId}/envelope/`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-sentry-envelope' },
+        body: envelope,
+      },
+    )
+  } catch {
+    // Sentry delivery failure must not cascade into the function failing
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
 // FCM: exchange service account JSON for OAuth2 access token
 // ═══════════════════════════════════════════════════════════════════════════
 async function getFCMAccessToken(serviceAccountJson: string): Promise<string | null> {
@@ -466,18 +524,33 @@ Deno.serve(async (req: Request) => {
       sentCount += results.filter(r => r.ok).length
       failCount += results.filter(r => !r.ok).length
 
-      // Clean up expired FCM tokens (not found = 404)
+      // Clean up expired FCM tokens (HTTP 404 = stale/unregistered token)
       for (const r of results) {
         if (!r.ok) {
-          // Could check token status more precisely, but for now just track failures
+          adminClient
+            .from('push_tokens')
+            .delete()
+            .eq('id', r.token.id)
+            .then(
+              () => console.log('[push-notify] Removed stale FCM token:', r.token.token.slice(0, 20)),
+              (delErr) => console.error('[push-notify] Failed to remove stale FCM token:', delErr),
+            )
         }
       }
     } else {
-      console.error('[push-notify] Could not get FCM access token – skipping Android push')
+      const authMsg = '[push-notify] Could not get FCM access token – skipping Android push'
+      console.error(authMsg)
+      reportToSentry(authMsg, 'error', { tokenCount: androidTokens.length })
       failCount += androidTokens.length
     }
-  } else if (androidTokens.length > 0) {
-    console.log('[push-notify] Skipping Android push: FCM not configured (missing env vars)')
+    } else if (androidTokens.length > 0) {
+    const msg = '[push-notify] Skipping Android push: FCM not configured (missing env vars)'
+    console.error(msg)
+    reportToSentry(msg, 'error', {
+      hasServiceAccount: !!fcmServiceAccount,
+      hasProjectId: !!fcmProjectId,
+      tokenCount: androidTokens.length,
+    })
   }
 
   // ── Send to Web via Web Push ─────────────────────────────────────────────
