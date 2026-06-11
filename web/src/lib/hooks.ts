@@ -121,9 +121,9 @@ export function useAuthStateChange(callback: (event: 'SIGNED_IN' | 'SIGNED_OUT',
   const supabase = useMemo(() => createClient(), []);
   // Stable reference to the callback to avoid re-subscribing on every render
   const callbackRef = useRef(callback);
-  callbackRef.current = callback;
 
   useEffect(() => {
+    callbackRef.current = callback;
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
       if (event === 'SIGNED_IN') callbackRef.current('SIGNED_IN', null);
       else if (event === 'SIGNED_OUT') callbackRef.current('SIGNED_OUT', null);
