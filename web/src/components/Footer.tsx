@@ -15,7 +15,7 @@ export function Footer() {
               Roam
             </Link>
             <p className="text-sm text-zinc-500 dark:text-zinc-400 leading-relaxed">
-              Discover a random corner of the web. Community-curated, no algorithms.
+              Discover a random corner of the web. Curated by the community, personalized to your taste.
             </p>
           </div>
 
