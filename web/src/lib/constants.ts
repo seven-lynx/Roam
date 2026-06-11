@@ -6,6 +6,7 @@
 export const EXTENSION_URLS = {
   chrome: 'https://chromewebstore.google.com/detail/ojgphkdgkefokhjnojkddhalnlbajfpc?utm_source=roam-web',
   firefox: 'https://addons.mozilla.org/firefox/addon/roam-the-web/',
+  android: 'https://play.google.com/store/apps/details?id=app.roam.android',
 } as const;
 
 /** App base URL used for share links */
