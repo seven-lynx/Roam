@@ -42,3 +42,15 @@ a[rel*="noopener"]:visited {
   background: linear-gradient(90deg, #f59e0b, #3b82f6);
   transition: width 200ms ease;
 }
+
+/* Card hover lift — used across the site for interactive cards */
+.card-hover {
+  transition: all 0.2s ease;
+}
+.card-hover:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px -5px rgba(0, 0, 0, 0.08), 0 4px 10px -5px rgba(0, 0, 0, 0.04);
+}
+.dark .card-hover:hover {
+  box-shadow: 0 8px 25px -5px rgba(0, 0, 0, 0.3), 0 4px 10px -5px rgba(0, 0, 0, 0.2);
+}
