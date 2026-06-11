@@ -124,11 +124,11 @@ export function useAuthStateChange(callback: (event: 'SIGNED_IN' | 'SIGNED_OUT',
   callbackRef.current = callback;
 
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === 'SIGNED_IN') callbackRef.current('SIGNED_IN', session);
-      else if (event === 'SIGNED_OUT') callbackRef.current('SIGNED_OUT', session);
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+      if (event === 'SIGNED_IN') callbackRef.current('SIGNED_IN', null);
+      else if (event === 'SIGNED_OUT') callbackRef.current('SIGNED_OUT', null);
     });
 
     return () => subscription.unsubscribe();
-  }, [supabase]);
+  }, [supabase, callback]);
 }
