@@ -21,15 +21,17 @@ export function BarChart({ data, color = 'bg-blue-500', maxWidth = '100%', showV
     <div className="flex flex-col gap-1" style={{ maxWidth }}>
       {data.map((item) => (
         <div key={item.label} className="flex items-center gap-2 text-xs">
-          <span className="w-36 truncate text-right text-zinc-500 dark:text-zinc-400 shrink-0">{item.label}</span>
-          <div className="flex-1 bg-zinc-100 dark:bg-zinc-800 rounded h-4 overflow-hidden">
+          <span className="w-20 sm:w-36 truncate text-right text-zinc-500 dark:text-zinc-400 shrink-0" title={item.label}>
+            {item.label}
+          </span>
+          <div className="flex-1 bg-zinc-100 dark:bg-zinc-800 rounded h-4 overflow-hidden min-w-0">
             <div
-              className={`${color} rounded h-4 transition-all duration-300`}
-              style={{ width: `${(item.value / max) * 100}%` }}
+              className={`${color} rounded h-4 transition-all duration-300 min-w-[2px]`}
+              style={{ width: `${Math.max((item.value / max) * 100, 0.5)}%` }}
             />
           </div>
           {showValue && (
-            <span className="w-6 text-right text-zinc-700 dark:text-zinc-300 tabular-nums shrink-0">
+            <span className="w-10 sm:w-12 text-right text-zinc-700 dark:text-zinc-300 tabular-nums shrink-0">
               {item.value.toLocaleString()}
             </span>
           )}
@@ -99,8 +101,8 @@ interface SectionCardProps {
 
 export function SectionCard({ title, description, children, danger }: SectionCardProps) {
   return (
-    <div className={`rounded-xl border p-6 ${danger ? 'border-red-200 dark:border-red-900' : 'border-zinc-200 dark:border-zinc-800'}`}>
-      <h2 className={`text-lg font-semibold mb-1 ${danger ? 'text-red-600 dark:text-red-400' : 'text-zinc-900 dark:text-white'}`}>
+    <div className={`rounded-xl border p-4 sm:p-6 ${danger ? 'border-red-200 dark:border-red-900' : 'border-zinc-200 dark:border-zinc-800'}`}>
+      <h2 className={`text-base sm:text-lg font-semibold mb-1 ${danger ? 'text-red-600 dark:text-red-400' : 'text-zinc-900 dark:text-white'}`}>
         {title}
       </h2>
       {description && <p className="text-xs text-zinc-400 dark:text-zinc-500 mb-4">{description}</p>}

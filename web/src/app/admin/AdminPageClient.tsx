@@ -55,18 +55,18 @@ const NAV_ITEMS: NavItem[] = [
   { id: "beta", label: "Beta Signups", icon: "\uD83D\uDD0C", color: "bg-emerald-600" },
 ];
 
-// Lazy-loaded views
 const AdminAnalytics = dynamic(() => import("./views/AdminAnalytics"), { loading: () => <LoadingView /> });
 const AdminEmail = dynamic(() => import("./views/AdminEmail"), { loading: () => <LoadingView /> });
 
 function LoadingView() {
-  return <div className="text-center text-zinc-500 py-16">Loading...</div>;
+  return <div className="text-center text-zinc-500 py-12">Loading...</div>;
 }
 
 export default function AdminPageClient() {
   const searchParams = useSearchParams();
   const initialView = (searchParams.get("view") as ViewType | null) || "queue";
   const [view, setView] = useState<ViewType>(initialView);
+  const [menuOpen, setMenuOpen] = useState(false);
 
   // Shared state
   const [queueItems, setQueueItems] = useState<QueueItem[]>([]);
@@ -194,7 +194,6 @@ export default function AdminPageClient() {
     }
   }, [view, loadReports, loadBeta, loadEmail]);
 
-  // Load categories on mount
   useEffect(() => {
     (async () => {
       const supabase = (await import("@/lib/supabase/client")).createClient();
@@ -221,127 +220,137 @@ export default function AdminPageClient() {
     return true;
   });
 
+  const currentNav = NAV_ITEMS.find((n) => n.id === view) ?? NAV_ITEMS[0];
+
+  const handleNavSelect = (id: ViewType) => {
+    setView(id);
+    setMenuOpen(false);
+  };
+
   return (
-    <main className="min-h-screen bg-white dark:bg-zinc-950">
-      <div className="max-w-7xl mx-auto px-6 py-12 flex flex-col gap-8">
+    <main className="min-h-screen bg-white dark:bg-zinc-950 pb-20">
+      <div className="mx-auto px-4 sm:px-6 py-4 sm:py-8 flex flex-col gap-4 sm:gap-6 max-w-4xl">
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-zinc-900 dark:text-white">Admin Dashboard</h1>
-            <p className="mt-1 text-zinc-500 dark:text-zinc-400 text-sm">Manage submissions and view analytics</p>
+            <h1 className="text-xl sm:text-3xl font-bold text-zinc-900 dark:text-white">Admin Dashboard</h1>
+            <p className="mt-0.5 text-zinc-500 dark:text-zinc-400 text-xs sm:text-sm">Manage submissions and view analytics</p>
           </div>
           <Link
             href="/admin/dashboard"
-            className="rounded-lg bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 px-4 py-2 text-sm font-medium hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors"
+            className="rounded-lg bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 px-3 py-1.5 sm:px-4 sm:py-2 text-xs sm:text-sm font-medium hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors"
           >
             System Dashboard
           </Link>
         </div>
 
         {/* Quick stats bar */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4">
           <StatCard label="Pending" value={statusCounts.pending} color="text-amber-600 dark:text-amber-400" />
           <StatCard label="Reports" value={reportedLinks.length} color="text-red-600 dark:text-red-400" />
-          <StatCard label="Beta Signups" value={betaSignups.length} color="text-emerald-600 dark:text-emerald-400" />
+          <StatCard label="Beta" value={betaSignups.length} color="text-emerald-600 dark:text-emerald-400" />
           <StatCard label="All Time" value={queueItems.length} />
         </div>
 
-        <div className="flex gap-8">
-          {/* Sidebar */}
-          <nav className="hidden md:flex flex-col gap-1 w-48 shrink-0">
-            {NAV_ITEMS.map((item) => (
-              <button
-                key={item.id}
-                onClick={() => setView(item.id)}
-                className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${
-                  view === item.id
-                    ? "bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-white shadow-sm"
-                    : "text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-50 dark:hover:bg-zinc-900"
-                }`}
-              >
-                <span>{item.icon}</span>
-                <span>{item.label}</span>
-                {item.id === "queue" && statusCounts.pending > 0 && (
-                  <span className="ml-auto flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full bg-amber-500 text-white text-[10px] font-bold">
-                    {statusCounts.pending}
-                  </span>
-                )}
-              </button>
-            ))}
-          </nav>
-
-          {/* Mobile nav tabs */}
-          <div className="md:hidden flex gap-2 overflow-x-auto pb-2">
-            {NAV_ITEMS.map((item) => (
-              <button
-                key={item.id}
-                onClick={() => setView(item.id)}
-                className={`shrink-0 flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  view === item.id
-                    ? "bg-zinc-900 dark:bg-white text-white dark:text-zinc-900"
-                    : "bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300"
-                }`}
-              >
-                <span>{item.icon}</span>
-                <span>{item.label}</span>
-              </button>
-            ))}
-          </div>
-
-          {/* Content panel */}
-          <div className="flex-1 min-w-0">
-            {view === "queue" && (
-              <QueueView
-                items={queueItems}
-                loading={queueLoading}
-                filteredItems={filteredItems}
-                statusFilter={statusFilter}
-                setStatusFilter={setStatusFilter}
-                searchQuery={searchQuery}
-                setSearchQuery={setSearchQuery}
-                sortBy={sortBy}
-                setSortBy={setSortBy}
-                statusCounts={statusCounts}
-                onSelectItem={setSelectedItem}
-              />
+        {/* Mobile menu dropdown */}
+        <div className="relative">
+          <button
+            onClick={() => setMenuOpen(!menuOpen)}
+            className="flex items-center gap-2 w-full rounded-xl border border-zinc-200 dark:border-zinc-800 px-4 py-3 text-sm font-medium bg-zinc-50 dark:bg-zinc-900 text-zinc-900 dark:text-white hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+          >
+            <span>{currentNav.icon}</span>
+            <span>{currentNav.label}</span>
+            {view === "queue" && statusCounts.pending > 0 && (
+              <span className="ml-2 flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full bg-amber-500 text-white text-[10px] font-bold">
+                {statusCounts.pending}
+              </span>
             )}
+            <span className="ml-auto text-zinc-400 text-lg leading-none">{menuOpen ? "▴" : "▾"}</span>
+          </button>
 
-            {view === "analytics" && <AdminAnalytics />}
+          {menuOpen && (
+            <div className="absolute top-full left-0 right-0 mt-1 z-30 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-lg overflow-hidden">
+              {NAV_ITEMS.map((item) => (
+                <button
+                  key={item.id}
+                  onClick={() => handleNavSelect(item.id)}
+                  className={`flex items-center gap-3 w-full px-4 py-3 text-sm font-medium transition-colors ${
+                    view === item.id
+                      ? "bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-white"
+                      : "text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800/50"
+                  }`}
+                >
+                  <span>{item.icon}</span>
+                  <span>{item.label}</span>
+                  {item.id === "queue" && statusCounts.pending > 0 && (
+                    <span className="ml-auto flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full bg-amber-500 text-white text-[10px] font-bold">
+                      {statusCounts.pending}
+                    </span>
+                  )}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
 
-            {view === "reports" && (
-              <ReportsView
-                reportedLinks={reportedLinks}
-                loading={reportsLoading}
-                restoringId={restoringId}
-                onRestore={restoreLink}
-              />
-            )}
+        {/* Backdrop for menu */}
+        {menuOpen && (
+          <div className="fixed inset-0 z-20" onClick={() => setMenuOpen(false)} />
+        )}
 
-            {view === "beta" && (
-              <BetaView
-                signups={betaSignups}
-                loading={betaLoading}
-                deletingId={deletingBetaId}
-                onDelete={deleteSignup}
-              />
-            )}
+        {/* Content */}
+        <div>
+          {view === "queue" && (
+            <QueueView
+              items={queueItems}
+              loading={queueLoading}
+              filteredItems={filteredItems}
+              statusFilter={statusFilter}
+              setStatusFilter={setStatusFilter}
+              searchQuery={searchQuery}
+              setSearchQuery={setSearchQuery}
+              sortBy={sortBy}
+              setSortBy={setSortBy}
+              statusCounts={statusCounts}
+              onSelectItem={setSelectedItem}
+            />
+          )}
 
-            {view === "email" && (
-              <AdminEmail
-                subject={emailSubject}
-                body={emailBody}
-                sending={emailSending}
-                result={emailResult}
-                error={emailError}
-                notificationCount={notificationCount}
-                logs={emailLogs}
-                logsLoading={emailLogsLoading}
-                onSubjectChange={setEmailSubject}
-                onBodyChange={setEmailBody}
-                onSend={handleSendEmail}
-              />
-            )}
-          </div>
+          {view === "analytics" && <AdminAnalytics />}
+
+          {view === "reports" && (
+            <ReportsView
+              reportedLinks={reportedLinks}
+              loading={reportsLoading}
+              restoringId={restoringId}
+              onRestore={restoreLink}
+            />
+          )}
+
+          {view === "beta" && (
+            <BetaView
+              signups={betaSignups}
+              loading={betaLoading}
+              deletingId={deletingBetaId}
+              onDelete={deleteSignup}
+            />
+          )}
+
+          {view === "email" && (
+            <AdminEmail
+              subject={emailSubject}
+              body={emailBody}
+              sending={emailSending}
+              result={emailResult}
+              error={emailError}
+              notificationCount={notificationCount}
+              logs={emailLogs}
+              logsLoading={emailLogsLoading}
+              onSubjectChange={setEmailSubject}
+              onBodyChange={setEmailBody}
+              onSend={handleSendEmail}
+            />
+          )}
         </div>
       </div>
 
@@ -377,73 +386,97 @@ function QueueView({
   statusCounts: Record<string, number>;
   onSelectItem: (item: QueueItem | null) => void;
 }) {
+  const [filtersOpen, setFiltersOpen] = useState(false);
+
   return (
-    <div className="flex flex-col gap-6">
-      {/* Filters */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-end">
-        <div className="flex gap-2 flex-wrap">
-          {(["all", "pending", "approved", "rejected"] as const).map((status) => (
-            <button
-              key={status}
-              onClick={() => setStatusFilter(status)}
-              className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                statusFilter === status
-                  ? "bg-blue-600 text-white"
-                  : "bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700"
-              }`}
-            >
-              {status === "all"
-                ? `All (${statusCounts.all})`
-                : `${status.charAt(0).toUpperCase() + status.slice(1)} (${statusCounts[status]})`}
-            </button>
-          ))}
+    <div className="flex flex-col gap-4">
+      {/* Search bar */}
+      <input
+        type="text"
+        placeholder="Search URL, title..."
+        value={searchQuery}
+        onChange={(e) => setSearchQuery(e.target.value)}
+        className="w-full rounded-xl border border-zinc-200 dark:border-zinc-700 px-4 py-2.5 text-sm bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white placeholder:text-zinc-400"
+      />
+
+      {/* Filters toggle */}
+      <button
+        onClick={() => setFiltersOpen(!filtersOpen)}
+        className="flex items-center gap-2 text-xs font-medium text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-300 transition-colors self-start"
+      >
+        <span>{filtersOpen ? "▴" : "▾"}</span>
+        <span>Filters & Sort</span>
+        {statusFilter !== "all" && (
+          <span className="rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 px-2 py-0.5 text-[10px]">
+            {statusFilter}
+          </span>
+        )}
+      </button>
+
+      {filtersOpen && (
+        <div className="flex flex-col gap-3 rounded-xl border border-zinc-200 dark:border-zinc-800 p-4 bg-zinc-50 dark:bg-zinc-900/50">
+          {/* Status chips */}
+          <div className="flex gap-1.5 flex-wrap">
+            {(["all", "pending", "approved", "rejected"] as const).map((status) => (
+              <button
+                key={status}
+                onClick={() => setStatusFilter(status)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                  statusFilter === status
+                    ? "bg-blue-600 text-white"
+                    : "bg-white dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 border border-zinc-200 dark:border-zinc-700 hover:bg-zinc-100 dark:hover:bg-zinc-700"
+                }`}
+              >
+                {status === "all"
+                  ? `All (${statusCounts.all})`
+                  : `${status.charAt(0).toUpperCase() + status.slice(1)} (${statusCounts[status]})`}
+              </button>
+            ))}
+          </div>
+
+          {/* Sort */}
+          <select
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value as "newest" | "oldest")}
+            className="rounded-lg border border-zinc-200 dark:border-zinc-700 px-3 py-1.5 text-xs bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white"
+          >
+            <option value="newest">Newest first</option>
+            <option value="oldest">Oldest first</option>
+          </select>
         </div>
-        <input
-          type="text"
-          placeholder="Search URL, title..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="flex-1 rounded-lg border border-zinc-200 dark:border-zinc-700 px-4 py-2 text-sm bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white placeholder:text-zinc-400"
-        />
-        <select
-          value={sortBy}
-          onChange={(e) => setSortBy(e.target.value as "newest" | "oldest")}
-          className="rounded-lg border border-zinc-200 dark:border-zinc-700 px-4 py-2 text-sm bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white"
-        >
-          <option value="newest">Newest first</option>
-          <option value="oldest">Oldest first</option>
-        </select>
-      </div>
+      )}
 
       {/* List */}
       {loading ? (
-        <div className="text-center text-zinc-500 py-16">Loading...</div>
+        <div className="text-center text-zinc-500 py-12">Loading...</div>
       ) : filteredItems.length === 0 ? (
-        <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 p-8 text-center text-zinc-400 text-sm">
+        <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 p-6 text-center text-zinc-400 text-sm">
           No submissions found.
         </div>
       ) : (
-        <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-2">
           {filteredItems.map((item) => (
             <button
               key={item.id}
               onClick={() => onSelectItem(item)}
-              className="flex flex-col gap-2 rounded-xl border border-zinc-200 dark:border-zinc-800 px-5 py-4 hover:bg-zinc-50 dark:hover:bg-zinc-900/50 transition-colors text-left card-hover"
+              className="flex flex-col gap-2 rounded-xl border border-zinc-200 dark:border-zinc-800 px-4 py-3 hover:bg-zinc-50 dark:hover:bg-zinc-900/50 transition-colors text-left active:scale-[0.99]"
             >
-              <div className="flex items-start justify-between gap-4">
+              <div className="flex items-start justify-between gap-3">
                 <div className="flex-1 min-w-0">
                   <a
                     href={item.url}
                     target="_blank"
                     rel="noopener noreferrer"
                     onClick={(e) => e.stopPropagation()}
-                    className="text-sm font-medium text-blue-600 dark:text-blue-400 hover:underline break-all"
+                    className="text-sm font-medium text-blue-600 dark:text-blue-400 hover:underline break-all line-clamp-2"
                   >
                     {item.url}
                   </a>
-                  {item.title && <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">{item.title}</p>}
+                  {item.title && (
+                    <p className="mt-1 text-xs text-zinc-600 dark:text-zinc-400 line-clamp-2">{item.title}</p>
+                  )}
                 </div>
-                <span className={`whitespace-nowrap text-xs font-medium px-2 py-1 rounded ${
+                <span className={`shrink-0 text-[10px] font-semibold px-2 py-1 rounded ${
                   item.status === "approved"
                     ? "bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400"
                     : item.status === "rejected"
@@ -453,8 +486,8 @@ function QueueView({
                   {item.status}
                 </span>
               </div>
-              <span className="text-xs text-zinc-400">
-                      {item.created_at ? new Date(item.created_at).toLocaleString('en-US', { timeZone: 'America/New_York', timeZoneName: 'short' }) : '—'}
+              <span className="text-[10px] text-zinc-400">
+                {item.created_at ? new Date(item.created_at).toLocaleString('en-US', { timeZone: 'America/New_York', timeZoneName: 'short' }) : '—'}
               </span>
             </button>
           ))}
@@ -473,50 +506,42 @@ function ReportsView({ reportedLinks, loading, restoringId, onRestore }: {
   onRestore: (id: string) => void;
 }) {
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-3">
       <h2 className="text-lg font-semibold text-zinc-900 dark:text-white">Dead Link Reports</h2>
-      <p className="text-xs text-zinc-400 dark:text-zinc-500 -mt-3">URLs reported as broken, sorted by report count</p>
+      <p className="text-xs text-zinc-400 dark:text-zinc-500 -mt-2">URLs reported as broken, sorted by report count</p>
+
       {loading ? (
-        <div className="text-center text-zinc-500 py-16">Loading...</div>
+        <div className="text-center text-zinc-500 py-12">Loading...</div>
       ) : reportedLinks.length === 0 ? (
-        <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 p-8 text-center text-zinc-400 text-sm">No dead link reports yet.</div>
+        <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 p-6 text-center text-zinc-400 text-sm">
+          No dead link reports yet.
+        </div>
       ) : (
-        <div className="overflow-x-auto rounded-xl border border-zinc-200 dark:border-zinc-800">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900">
-                <th className="text-left py-3 px-4 font-semibold text-zinc-700 dark:text-zinc-300">URL</th>
-                <th className="text-center py-3 px-4 font-semibold text-zinc-700 dark:text-zinc-300 w-20">Reports</th>
-                <th className="text-left py-3 px-4 font-semibold text-zinc-700 dark:text-zinc-300 w-36">Last reported</th>
-                <th className="text-center py-3 px-4 font-semibold text-zinc-700 dark:text-zinc-300 w-24">Status</th>
-                <th className="py-3 px-4 w-24"></th>
-              </tr>
-            </thead>
-            <tbody>
-              {reportedLinks.map((r) => (
-                <tr key={r.url_id} className="border-b border-zinc-100 dark:border-zinc-800 last:border-0">
-                  <td className="py-3 px-4">
-                    <a href={r.url} target="_blank" rel="noopener noreferrer" className="text-blue-600 dark:text-blue-400 hover:underline break-all text-xs">{r.url}</a>
-                    {r.title && <p className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">{r.title}</p>}
-                  </td>
-                  <td className="text-center py-3 px-4 font-semibold text-zinc-900 dark:text-white">{r.report_count}</td>
-                  <td className="py-3 px-4 text-xs text-zinc-500 whitespace-nowrap">{r.reported_at ? new Date(r.reported_at).toLocaleDateString('en-US', { timeZone: 'America/New_York' }) : '—'}</td>
-                  <td className="text-center py-3 px-4">
-                    <span className={`text-xs font-medium px-2 py-1 rounded ${r.inactive ? "bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400" : "bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400"}`}>
-                      {r.inactive ? "Inactive" : "Active"}
-                    </span>
-                  </td>
-                  <td className="py-3 px-4 text-center">
-                    {r.inactive && (
-                      <button onClick={() => onRestore(r.url_id)} disabled={restoringId === r.url_id}
-                        className="text-xs px-3 py-1.5 rounded-lg bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700 disabled:opacity-50 transition-colors"
-                      >{restoringId === r.url_id ? "…" : "Restore"}</button>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <div className="flex flex-col gap-2">
+          {reportedLinks.map((r) => (
+            <div key={r.url_id} className="rounded-xl border border-zinc-200 dark:border-zinc-800 p-3">
+              <a href={r.url} target="_blank" rel="noopener noreferrer" className="text-sm font-medium text-blue-600 dark:text-blue-400 hover:underline break-all">
+                {r.url}
+              </a>
+              {r.title && <p className="mt-1 text-xs text-zinc-600 dark:text-zinc-400">{r.title}</p>}
+              <div className="flex items-center justify-between mt-2 text-xs">
+                <div className="flex items-center gap-3 text-zinc-500 dark:text-zinc-400">
+                  <span><strong className="text-zinc-700 dark:text-zinc-300">{r.report_count}</strong> reports</span>
+                  <span>{r.reported_at ? new Date(r.reported_at).toLocaleDateString('en-US', { timeZone: 'America/New_York' }) : '—'}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className={`text-[10px] font-medium px-2 py-0.5 rounded ${r.inactive ? "bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400" : "bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400"}`}>
+                    {r.inactive ? "Inactive" : "Active"}
+                  </span>
+                  {r.inactive && (
+                    <button onClick={() => onRestore(r.url_id)} disabled={restoringId === r.url_id}
+                      className="text-[10px] px-2 py-1 rounded-lg bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700 disabled:opacity-50 transition-colors"
+                    >{restoringId === r.url_id ? "…" : "Restore"}</button>
+                  )}
+                </div>
+              </div>
+            </div>
+          ))}
         </div>
       )}
     </div>
@@ -532,50 +557,40 @@ function BetaView({ signups, loading, deletingId, onDelete }: {
   onDelete: (id: number) => void;
 }) {
   return (
-    <div className="flex flex-col gap-6">
-      <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 p-6">
-        <div className="flex items-center justify-between mb-4">
+    <div className="flex flex-col gap-4">
+      <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 p-4 sm:p-6">
+        <div className="flex items-center justify-between mb-3">
           <div>
             <h2 className="text-lg font-semibold text-zinc-900 dark:text-white">Beta Signups</h2>
             <p className="text-xs text-zinc-400 dark:text-zinc-500">Emails submitted via /android-beta</p>
           </div>
           {signups.length > 0 && (
-            <div className="rounded-lg bg-emerald-50 dark:bg-emerald-900/20 px-4 py-2 text-center">
-              <div className="text-2xl font-bold tabular-nums text-emerald-700 dark:text-emerald-300">{signups.length}</div>
-              <div className="text-xs text-emerald-600 dark:text-emerald-400">total</div>
+            <div className="rounded-lg bg-emerald-50 dark:bg-emerald-900/20 px-3 py-1.5 text-center shrink-0">
+              <div className="text-xl font-bold tabular-nums text-emerald-700 dark:text-emerald-300">{signups.length}</div>
+              <div className="text-[10px] text-emerald-600 dark:text-emerald-400">total</div>
             </div>
           )}
         </div>
+
         {loading ? (
           <div className="text-center text-zinc-500 py-8">Loading...</div>
         ) : signups.length === 0 ? (
           <div className="rounded-lg border border-zinc-100 dark:border-zinc-800 p-6 text-center text-zinc-400 text-sm">No signups yet.</div>
         ) : (
-          <div className="overflow-x-auto rounded-lg border border-zinc-200 dark:border-zinc-700">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900">
-                  <th className="text-left py-3 px-4 font-semibold text-zinc-700 dark:text-zinc-300">Email</th>
-                  <th className="text-right py-3 px-4 font-semibold text-zinc-700 dark:text-zinc-300 w-48">Signed up</th>
-                  <th className="py-3 px-4 w-24"></th>
-                </tr>
-              </thead>
-              <tbody>
-                {signups.map((s) => (
-                  <tr key={s.id} className="border-b border-zinc-100 dark:border-zinc-800 last:border-0">
-                    <td className="py-3 px-4 font-mono text-xs text-zinc-700 dark:text-zinc-300">{s.email}</td>
-                    <td className="py-3 px-4 text-right text-xs text-zinc-500 whitespace-nowrap">
-                      {s.created_at ? new Date(s.created_at).toLocaleString('en-US', { timeZone: 'America/New_York', timeZoneName: 'short' }) : '—'}
-                    </td>
-                    <td className="py-3 px-4 text-center">
-                      <button onClick={() => onDelete(s.id)} disabled={deletingId === s.id}
-                        className="text-xs px-3 py-1.5 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/40 disabled:opacity-50 transition-colors"
-                      >{deletingId === s.id ? "…" : "Delete"}</button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="flex flex-col gap-1.5">
+            {signups.map((s) => (
+              <div key={s.id} className="flex items-center justify-between py-2.5 px-3 rounded-lg bg-zinc-50 dark:bg-zinc-900/50">
+                <div className="flex-1 min-w-0">
+                  <span className="font-mono text-xs text-zinc-700 dark:text-zinc-300 break-all">{s.email}</span>
+                  <span className="block text-[10px] text-zinc-400 mt-0.5">
+                    {s.created_at ? new Date(s.created_at).toLocaleString('en-US', { timeZone: 'America/New_York', timeZoneName: 'short' }) : '—'}
+                  </span>
+                </div>
+                <button onClick={() => onDelete(s.id)} disabled={deletingId === s.id}
+                  className="shrink-0 ml-3 text-xs px-3 py-1.5 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/40 disabled:opacity-50 transition-colors"
+                >{deletingId === s.id ? "…" : "Delete"}</button>
+              </div>
+            ))}
           </div>
         )}
       </div>
