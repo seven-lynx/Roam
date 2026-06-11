@@ -5,10 +5,17 @@ import { createClient } from "@/lib/supabase/server";
 import { SiteShowcase } from "@/components/SiteShowcase";
 import { TopSites } from "@/components/TopSites";
 import { AuthErrorBanner } from "@/components/AuthErrorBanner";
+import { RandomPageButton } from "@/components/RandomPageButton";
 
 export default async function Home() {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  let user: null | { id: string } = null;
+  try {
+    const supabase = await createClient();
+    const { data } = await supabase.auth.getUser();
+    user = data.user ?? null;
+  } catch {
+    // Supabase unavailable — render the page without auth state
+  }
 
   return (
     <>
@@ -139,6 +146,34 @@ export default async function Home() {
         </Suspense>
       </section>
 
+      {/* ── Featured Collections ─────────────────────────── */}
+      <Suspense fallback={null}>
+        <FeaturedCollections />
+      </Suspense>
+
+      {/* ── Try a random page (non-logged-in visitors) ────── */}
+      {!user && (
+        <section className="max-w-6xl mx-auto px-6 pb-20 text-center">
+          <div className="rounded-2xl border border-amber-200 dark:border-amber-800/40 bg-amber-50/50 dark:bg-amber-900/10 p-10">
+            <h2 className="text-2xl font-bold text-zinc-900 dark:text-white mb-3">
+              Ready to explore?
+            </h2>
+            <p className="text-zinc-500 dark:text-zinc-400 mb-6 max-w-md mx-auto">
+              Sign up to get personalised recommendations, or try a random curated page right now.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-3 justify-center">
+              <Link
+                href="/signup"
+                className="inline-flex items-center justify-center rounded-full bg-amber-500 hover:bg-amber-400 px-8 py-3 text-white font-semibold text-base transition-colors"
+              >
+                Get started
+              </Link>
+              <RandomPageButton />
+            </div>
+          </div>
+        </section>
+      )}
+
       {/* ── Downloads ─────────────────────────────────────── */}
       <section id="downloads" className="max-w-6xl mx-auto px-6 pb-20 scroll-mt-20">
         <h2 className="text-3xl font-bold text-zinc-900 dark:text-white text-center mb-10">
@@ -250,3 +285,59 @@ function TopSitesSkeleton() {
     </div>
   );
 }
+
+/** Featured collections carousel — server-side fetch */
+async function FeaturedCollections() {
+  let supabase;
+  try {
+    supabase = await createClient();
+  } catch {
+    return null; // silently skip if Supabase is down
+  }
+
+  const { data: collections } = await supabase
+    .from('collections')
+    .select('id, name, slug, profiles(username, display_name)')
+    .order('created_at', { ascending: false })
+    .limit(6);
+
+  if (!collections || collections.length === 0) return null;
+
+  return (
+    <section className="max-w-6xl mx-auto px-6 pb-20">
+      <div className="flex items-center justify-between mb-8">
+        <h2 className="text-3xl font-bold text-zinc-900 dark:text-white">Featured Collections</h2>
+        <Link
+          href="/collections"
+          className="text-sm font-medium text-amber-600 dark:text-amber-400 hover:underline"
+        >
+          View all →
+        </Link>
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        {collections.map((col) => {
+          const owner = col.profiles as unknown as { username: string; display_name: string } | null;
+          return (
+            <Link
+              key={col.id}
+              href={`/collections/${col.slug}`}
+              className="flex flex-col justify-between rounded-xl border border-zinc-200 dark:border-zinc-800 p-5 hover:bg-zinc-50 dark:hover:bg-zinc-900 transition-colors group"
+            >
+              <div>
+                <h3 className="text-base font-semibold text-zinc-900 dark:text-white group-hover:underline">
+                  {col.name}
+                </h3>
+                {owner && (
+                  <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
+                    by {owner.display_name || owner.username}
+                  </p>
+                )}
+              </div>
+            </Link>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+

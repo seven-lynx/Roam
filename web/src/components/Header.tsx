@@ -104,7 +104,7 @@ export function Header() {
         </Link>
 
         {/* Desktop nav */}
-        <nav className="hidden md:flex items-center gap-6 ml-8">
+          <nav className="hidden md:flex items-center gap-6 ml-8">
           {session ? (
             <>
               <Link
@@ -118,6 +118,16 @@ export function Header() {
                 How It Works
               </Link>
               <Link
+                href="/collections"
+                className={`text-sm font-medium transition-colors ${
+                  pathname === '/collections'
+                    ? 'text-zinc-900 dark:text-white border-b-2 border-zinc-900 dark:border-white pb-0.5'
+                    : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white'
+                }`}
+              >
+                Collections
+              </Link>
+              <Link
                 href="/profile"
                 className={`text-sm font-medium transition-colors ${
                   pathname === '/profile'
@@ -129,16 +139,28 @@ export function Header() {
               </Link>
             </>
           ) : (
-            <Link
-              href="/how-it-works"
-              className={`text-sm font-medium transition-colors ${
-                pathname === '/how-it-works'
-                  ? 'text-zinc-900 dark:text-white border-b-2 border-zinc-900 dark:border-white pb-0.5'
-                  : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white'
-              }`}
-            >
-              How It Works
-            </Link>
+            <>
+              <Link
+                href="/how-it-works"
+                className={`text-sm font-medium transition-colors ${
+                  pathname === '/how-it-works'
+                    ? 'text-zinc-900 dark:text-white border-b-2 border-zinc-900 dark:border-white pb-0.5'
+                    : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white'
+                }`}
+              >
+                How It Works
+              </Link>
+              <Link
+                href="/collections"
+                className={`text-sm font-medium transition-colors ${
+                  pathname === '/collections'
+                    ? 'text-zinc-900 dark:text-white border-b-2 border-zinc-900 dark:border-white pb-0.5'
+                    : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white'
+                }`}
+              >
+                Collections
+              </Link>
+            </>
           )}
         </nav>
 
@@ -228,6 +250,9 @@ export function Header() {
         <nav ref={mobileMenuRef} className="md:hidden border-t border-zinc-200 dark:border-zinc-800 py-4 px-6 flex flex-col gap-4">
           <Link href="/how-it-works" className="text-zinc-700 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white">
             How It Works
+          </Link>
+          <Link href="/collections" className="text-zinc-700 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white">
+            Collections
           </Link>
           {session ? (
             <>
