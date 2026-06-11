@@ -44,14 +44,19 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const supabase = await createClient();
-  // Use getUser() (server-validated) rather than getSession() (trusts client cookie
-  // without re-validating the JWT). Then fetch the session only if the user is real,
-  // so AuthProvider starts in the correct state immediately without a loading flash.
-  const { data: { user } } = await supabase.auth.getUser();
-  const session = user
-    ? (await supabase.auth.getSession()).data.session
-    : null;
+  let session = null;
+  try {
+    const supabase = await createClient();
+    // Use getUser() (server-validated) rather than getSession() (trusts client cookie
+    // without re-validating the JWT). Then fetch the session only if the user is real,
+    // so AuthProvider starts in the correct state immediately without a loading flash.
+    const { data: { user } } = await supabase.auth.getUser();
+    session = user
+      ? (await supabase.auth.getSession()).data.session
+      : null;
+  } catch {
+    // Supabase unavailable — render without auth state
+  }
 
   return (
     <html
