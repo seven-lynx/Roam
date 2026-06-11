@@ -79,7 +79,7 @@ function CollectionsError() {
     <div className="min-h-[calc(100vh-8rem)] bg-white dark:bg-zinc-950 flex flex-col items-center justify-center px-6 py-16 text-center">
       <h1 className="text-3xl font-bold text-zinc-900 dark:text-white">Collections</h1>
       <p className="mt-3 text-zinc-500 dark:text-zinc-400 max-w-md">
-        Couldn't load collections right now. Please try again later.
+        Could not load collections right now. Please try again later.
       </p>
       <Link
         href="/"

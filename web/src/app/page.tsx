@@ -1,6 +1,5 @@
 import { Suspense } from "react";
 import Link from "next/link";
-import Image from "next/image";
 import { createClient } from "@/lib/supabase/server";
 import { SiteShowcase } from "@/components/SiteShowcase";
 import { TopSites } from "@/components/TopSites";
