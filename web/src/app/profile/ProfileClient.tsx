@@ -135,10 +135,11 @@ export function ProfileClient({ userId, email, profile, allCategories, allSubcat
   }
 
   const initial = email[0]?.toUpperCase() ?? '?';
+  const displayName = profile?.username ?? email;
 
-  const tabs: { key: Tab; label: string }[] = [
-    { key: 'collections', label: 'Collections' },
-    { key: 'saved', label: 'Saved URLs' },
+  const tabs: { key: Tab; label: string; count?: number }[] = [
+    { key: 'collections', label: 'Collections', count: initialCollections.length },
+    { key: 'saved', label: 'Saved', count: initialSavedUrls.length },
     { key: 'about', label: 'About' },
   ];
 
@@ -147,61 +148,97 @@ export function ProfileClient({ userId, email, profile, allCategories, allSubcat
       {/* Username gate for new OAuth users */}
       {!profile?.username && <UsernamePrompt />}
 
-      <div className="max-w-2xl mx-auto px-6 py-12 flex flex-col gap-10">
-        {/* Header */}
-        <div className="flex items-center gap-5">
-          <div className="flex items-center justify-center w-16 h-16 rounded-full bg-zinc-200 dark:bg-zinc-800 text-2xl font-bold text-zinc-900 dark:text-white shrink-0">
+      <div className="max-w-2xl mx-auto px-6 py-12 flex flex-col gap-8">
+        {/* ── Profile Header Card ──────────────────────── */}
+        <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 p-6 flex flex-col sm:flex-row items-start gap-5">
+          {/* Avatar */}
+          <div className="flex items-center justify-center w-16 h-16 rounded-full bg-gradient-to-br from-amber-400 to-amber-500 text-white text-2xl font-bold shrink-0">
             {initial}
           </div>
-          <div className="flex-1">
-            <h1 className="text-2xl font-bold text-zinc-900 dark:text-white">
-              {profile?.username ?? email}
+
+          {/* Info */}
+          <div className="flex-1 min-w-0">
+            <h1 className="text-xl font-bold text-zinc-900 dark:text-white">
+              {displayName}
             </h1>
-            <p className="text-sm text-zinc-500 dark:text-zinc-400">{email}</p>
             {profile?.username && (
-              <div className="flex items-center gap-2 mt-1">
+              <p className="text-sm text-zinc-500 dark:text-zinc-400">@{profile.username}</p>
+            )}
+            {bio && !editingBio && (
+              <p className="text-sm text-zinc-600 dark:text-zinc-400 mt-2 line-clamp-2">{bio}</p>
+            )}
+
+            {/* Stats row */}
+            <div className="flex items-center gap-4 mt-4">
+              <div className="text-center">
+                <div className="text-lg font-bold text-zinc-900 dark:text-white tabular-nums">{initialCollections.length}</div>
+                <div className="text-xs text-zinc-400">Collections</div>
+              </div>
+              <div className="w-px h-8 bg-zinc-200 dark:bg-zinc-800" />
+              <div className="text-center">
+                <div className="text-lg font-bold text-zinc-900 dark:text-white tabular-nums">{initialSavedUrls.length}</div>
+                <div className="text-xs text-zinc-400">Saved URLs</div>
+              </div>
+              <div className="w-px h-8 bg-zinc-200 dark:bg-zinc-800" />
+              <div className="text-center">
+                <div className="text-lg font-bold text-zinc-900 dark:text-white">
+                  {isPublic ? '🌐' : '🔒'}
+                </div>
+                <div className="text-xs text-zinc-400">{isPublic ? 'Public' : 'Private'}</div>
+              </div>
+            </div>
+
+            {/* Action links */}
+            {profile?.username && (
+              <div className="flex items-center gap-3 mt-4">
                 <Link
                   href={`/u/${profile.username}`}
-                  className="text-xs text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors"
+                  className="text-xs text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-300 transition-colors"
                 >
-                  roamtheweb.app/u/{profile.username} ↗
+                  View public profile ↗
                 </Link>
                 <button
                   onClick={copyProfileLink}
-                  className="text-xs text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors"
-                  title="Copy profile link"
+                  className="text-xs text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-300 transition-colors"
                 >
-                  🔗
+                  Copy link 🔗
                 </button>
               </div>
             )}
           </div>
-          <Link
-            href="/submit"
-            className="shrink-0 rounded-lg border border-zinc-300 dark:border-zinc-700 px-4 py-2 text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors"
-          >
-            + Submit URL
-          </Link>
+
+          {/* Edit actions */}
+          <div className="flex items-center gap-2 shrink-0">
+            <Link
+              href="/settings"
+              className="rounded-lg border border-zinc-300 dark:border-zinc-700 px-4 py-2 text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors"
+            >
+              Settings
+            </Link>
+          </div>
         </div>
 
-        {/* Tab bar */}
-        <div className="flex border-b border-zinc-200 dark:border-zinc-800 -mb-4">
+        {/* ── Tab bar ─────────────────────────────────── */}
+        <div className="flex items-center gap-2 border-b border-zinc-200 dark:border-zinc-800">
           {tabs.map(tab => (
             <button
               key={tab.key}
               onClick={() => setActiveTab(tab.key)}
-              className={`px-4 py-2.5 text-sm font-medium transition-colors border-b-2 -mb-[2px] ${
+              className={`px-4 py-2.5 text-sm font-medium transition-colors border-b-2 -mb-[2px] flex items-center gap-2 ${
                 activeTab === tab.key
-                  ? 'border-zinc-900 dark:border-white text-zinc-900 dark:text-white'
+                  ? 'border-amber-500 text-zinc-900 dark:text-white'
                   : 'border-transparent text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-300'
               }`}
             >
               {tab.label}
+              {tab.count !== undefined && (
+                <span className="text-xs text-zinc-400 tabular-nums">({tab.count})</span>
+              )}
             </button>
           ))}
         </div>
 
-        {/* Tab content */}
+        {/* ── Tab content ──────────────────────────────── */}
         {activeTab === 'collections' && (
           <CollectionsManager userId={userId} initialCollections={initialCollections} />
         )}
@@ -318,7 +355,7 @@ export function ProfileClient({ userId, email, profile, allCategories, allSubcat
             </section>
 
             {/* Get the app */}
-            <section className="rounded-2xl border border-zinc-200 dark:border-zinc-800 p-6">
+            <section className="rounded-2xl border border-zinc-200 dark:border-zinc-800 p-6 card-hover">
               <h2 className="text-base font-semibold text-zinc-900 dark:text-white mb-1">Start exploring</h2>
               <p className="text-sm text-zinc-500 dark:text-zinc-400 mb-5">
                 Install Roam on your browser or phone to start discovering the web.
@@ -328,10 +365,10 @@ export function ProfileClient({ userId, email, profile, allCategories, allSubcat
                   <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wide">Browser extension</p>
                   <div className="flex gap-3">
                     <a
-                      href="https://chromewebstore.google.com/detail/ojgphkdgkefokhjnojkddhalnlbajfpc"
+                      href="https://chromewebstore.google.com/detail/ojgphkdgkefokhjnojkddhalnlbajfpc?utm_source=roam-web"
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-sm font-semibold text-blue-600 hover:underline"
+                      className="text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white transition-colors"
                     >
                       Chrome →
                     </a>
@@ -339,7 +376,7 @@ export function ProfileClient({ userId, email, profile, allCategories, allSubcat
                       href="https://addons.mozilla.org/firefox/addon/roam-the-web/"
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-sm font-semibold text-blue-600 hover:underline"
+                      className="text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white transition-colors"
                     >
                       Firefox →
                     </a>
@@ -347,14 +384,15 @@ export function ProfileClient({ userId, email, profile, allCategories, allSubcat
                 </div>
                 <div className="flex flex-col gap-2">
                   <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wide">Android app</p>
-                  <span className="text-sm text-zinc-400 dark:text-zinc-500">Coming soon to Google Play</span>
+                  <Link href="/android-beta" className="text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white transition-colors">
+                    Join the beta →
+                  </Link>
                 </div>
               </div>
             </section>
           </div>
         )}
 
-        {/* Error */}
         {error && (
           <p className="text-sm text-red-600">{error}</p>
         )}
