@@ -15,6 +15,18 @@ interface SettingsClientProps {
   initialSkipPaywalled: boolean;
 }
 
+type SettingsTab = 'account' | 'notifications' | 'language' | 'discovery' | 'security' | 'data' | 'danger';
+
+const TABS: { id: SettingsTab; label: string; icon: string; danger?: boolean }[] = [
+  { id: 'account', label: 'Account', icon: '👤' },
+  { id: 'notifications', label: 'Notifications', icon: '🔔' },
+  { id: 'language', label: 'Language', icon: '🌐' },
+  { id: 'discovery', label: 'Discovery', icon: '🎯' },
+  { id: 'security', label: 'Security', icon: '🔒' },
+  { id: 'data', label: 'Data & Privacy', icon: '📁' },
+  { id: 'danger', label: 'Danger Zone', icon: '⚠️', danger: true },
+];
+
 // ── Two-step delete modal ─────────────────────────────────────────────────
 function DeleteModal({ onClose, onConfirm, loading }: { onClose: () => void; onConfirm: () => void; loading: boolean }) {
   const [step, setStep] = useState<1 | 2>(1);
@@ -126,6 +138,7 @@ export function SettingsClient({
   const router = useRouter();
   const supabase = createClient();
   const isEmailUser = provider === 'email';
+  const [tab, setTab] = useState<SettingsTab>('account');
 
   // Notification toggle
   const [notifications, setNotifications] = useState(initialNotifications);
@@ -161,6 +174,10 @@ export function SettingsClient({
   const [savingSettings, setSavingSettings] = useState(false);
   const [settingsSaveError, setSettingsSaveError] = useState<string | null>(null);
   const [settingsSaveSuccess, setSettingsSaveSuccess] = useState<string | null>(null);
+
+  // Debounce auto-save
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isDirtyRef = useRef(false);
 
   // Track whether local state has changed from initial values
   const isDirty =
@@ -215,24 +232,17 @@ export function SettingsClient({
     }
   }
 
-  // Debounce auto-save: persists settings 2s after last change
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const isDirtyRef = useRef(false);
-
+  // Debounce auto-save
   useEffect(() => {
     if (!isDirty) {
       isDirtyRef.current = false;
       return;
     }
     isDirtyRef.current = true;
-
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => {
-      if (isDirtyRef.current) {
-        handleSaveSettings();
-      }
+      if (isDirtyRef.current) handleSaveSettings();
     }, 2_000);
-
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
@@ -250,17 +260,12 @@ export function SettingsClient({
     } catch { /* ignore */ }
   }
 
-  // Check push permission on mount
-  useEffect(() => {
-    checkPushPermission();
-  }, []);
+  useEffect(() => { checkPushPermission(); }, []);
 
   async function handlePushToggle() {
     setPushLoading(true);
     setPushError(null);
-
     if (pushEnabled) {
-      // Disable push
       try {
         const reg = await navigator.serviceWorker.getRegistration();
         if (reg) {
@@ -268,60 +273,24 @@ export function SettingsClient({
           if (sub) {
             await sub.unsubscribe();
             const { data: { user } } = await supabase.auth.getUser();
-            if (user) {
-              await supabase
-                .from('push_tokens')
-                .delete()
-                .eq('user_id', user.id)
-                .eq('platform', 'web');
-            }
+            if (user) await supabase.from('push_tokens').delete().eq('user_id', user.id).eq('platform', 'web');
           }
         }
         setPushEnabled(false);
-      } catch {
-        setPushError('Failed to disable push notifications');
-      }
+      } catch { setPushError('Failed to disable push notifications'); }
     } else {
-      // Enable push
       try {
         const permission = await Notification.requestPermission();
-        if (permission !== 'granted') {
-          setPushError('Notification permission was denied. Please allow notifications in your browser settings.');
-          setPushLoading(false);
-          return;
-        }
-
+        if (permission !== 'granted') { setPushError('Permission denied'); setPushLoading(false); return; }
         const reg = await navigator.serviceWorker.getRegistration();
-        if (!reg) {
-          setPushError('Service worker not registered. Try refreshing the page.');
-          setPushLoading(false);
-          return;
-        }
-
+        if (!reg) { setPushError('Service worker not registered'); setPushLoading(false); return; }
         const key = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
-        if (!key) {
-          setPushError('Push notifications are not configured yet.');
-          setPushLoading(false);
-          return;
-        }
-
-        const sub = await reg.pushManager.subscribe({
-          userVisibleOnly: true,
-          applicationServerKey: urlBase64ToUint8Array(key) as unknown as BufferSource,
-        });
-
+        if (!key) { setPushError('Push not configured'); setPushLoading(false); return; }
+        const sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: urlBase64ToUint8Array(key) as unknown as BufferSource });
         const { data: { user } } = await supabase.auth.getUser();
-        if (user) {
-          await supabase.from('push_tokens').upsert({
-            user_id: user.id,
-            platform: 'web',
-            token: JSON.stringify(sub.toJSON()),
-          }, { onConflict: 'user_id,platform' });
-        }
+        if (user) await supabase.from('push_tokens').upsert({ user_id: user.id, platform: 'web', token: JSON.stringify(sub.toJSON()) }, { onConflict: 'user_id,platform' });
         setPushEnabled(true);
-      } catch {
-        setPushError('Failed to enable push notifications');
-      }
+      } catch { setPushError('Failed to enable push notifications'); }
     }
     setPushLoading(false);
   }
@@ -353,9 +322,7 @@ export function SettingsClient({
     } catch (err) {
       Sentry.captureException(err, { tags: { context: 'password-change' } });
       setPasswordFormError(err instanceof Error ? err.message : 'Failed to update password');
-    } finally {
-      setPasswordLoading(false);
-    }
+    } finally { setPasswordLoading(false); }
   }
 
   async function handleExportData() {
@@ -364,14 +331,8 @@ export function SettingsClient({
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) throw new Error('No session');
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/export-user`,
-        { headers: { Authorization: `Bearer ${session.access_token}` } }
-      );
-      if (!response.ok) {
-        const body = await response.json().catch(() => ({}));
-        throw new Error(body.error ?? 'Export failed');
-      }
+      const response = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/export-user`, { headers: { Authorization: `Bearer ${session.access_token}` } });
+      if (!response.ok) { const body = await response.json().catch(() => ({})); throw new Error(body.error ?? 'Export failed'); }
       const blob = await response.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -381,9 +342,7 @@ export function SettingsClient({
     } catch (err) {
       Sentry.captureException(err, { tags: { context: 'export-data' } });
       setGlobalError(err instanceof Error ? err.message : 'Failed to export data');
-    } finally {
-      setExportLoading(false);
-    }
+    } finally { setExportLoading(false); }
   }
 
   async function handleDeleteAccount() {
@@ -391,17 +350,8 @@ export function SettingsClient({
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) throw new Error('No session');
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/delete-user`,
-        {
-          method: 'POST',
-          headers: { Authorization: `Bearer ${session.access_token}`, 'Content-Type': 'application/json' },
-        }
-      );
-      if (!response.ok) {
-        const body = await response.json().catch(() => ({}));
-        throw new Error(body.error ?? 'Failed to delete account');
-      }
+      const response = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/delete-user`, { method: 'POST', headers: { Authorization: `Bearer ${session.access_token}`, 'Content-Type': 'application/json' } });
+      if (!response.ok) { const body = await response.json().catch(() => ({})); throw new Error(body.error ?? 'Failed to delete account'); }
       await supabase.auth.signOut();
       router.replace('/');
     } catch (err) {
@@ -412,213 +362,219 @@ export function SettingsClient({
     }
   }
 
-  const passwordFormValid =
-    newPassword && confirmPassword && !passwordError && !confirmError && passwordStrength !== 'weak';
+  const passwordFormValid = newPassword && confirmPassword && !passwordError && !confirmError && passwordStrength !== 'weak';
 
   return (
     <div className="min-h-[calc(100vh-8rem)] bg-white dark:bg-zinc-950">
       {showDeleteModal && (
-        <DeleteModal
-          onClose={() => setShowDeleteModal(false)}
-          onConfirm={handleDeleteAccount}
-          loading={deleteLoading}
-        />
+        <DeleteModal onClose={() => setShowDeleteModal(false)} onConfirm={handleDeleteAccount} loading={deleteLoading} />
       )}
 
-      <div className="max-w-2xl mx-auto px-6 py-12 flex flex-col gap-6">
+      <div className="max-w-5xl mx-auto px-6 py-12 flex flex-col gap-8">
         <h1 className="text-2xl font-bold text-zinc-900 dark:text-white">Settings</h1>
 
         {globalError && (
           <p className="text-sm text-red-600 bg-red-50 dark:bg-red-950/40 rounded-lg px-4 py-2">{globalError}</p>
         )}
 
-        {/* Save settings */}
-        {isDirty && (
-          <div className="flex flex-col gap-2">
-            <button
-              type="button"
-              onClick={handleSaveSettings}
-              disabled={savingSettings}
-              className="rounded-lg bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 py-2.5 text-sm font-semibold hover:opacity-90 disabled:opacity-40 transition-opacity"
-            >
-              {savingSettings ? 'Saving…' : 'Save settings'}
-            </button>
-            {settingsSaveError && (
-              <p className="text-sm text-red-600 bg-red-50 dark:bg-red-950/40 rounded-lg px-4 py-2">{settingsSaveError}</p>
-            )}
-            {settingsSaveSuccess && (
-              <p className="text-sm text-green-600 bg-green-50 dark:bg-green-950/40 rounded-lg px-4 py-2">{settingsSaveSuccess}</p>
-            )}
-          </div>
-        )}
+        <div className="flex flex-col md:flex-row gap-8">
+          {/* Sidebar */}
+          <nav className="flex md:flex-col gap-1 md:w-48 shrink-0 overflow-x-auto md:overflow-x-visible pb-2 md:pb-0">
+            {TABS.map((t) => (
+              <button
+                key={t.id}
+                onClick={() => setTab(t.id)}
+                className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium whitespace-nowrap transition-all ${
+                  tab === t.id
+                    ? 'bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-white shadow-sm'
+                    : t.danger
+                      ? 'text-red-500 dark:text-red-400 hover:text-red-600 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-950/30'
+                      : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-50 dark:hover:bg-zinc-900'
+                }`}
+              >
+                <span>{t.icon}</span>
+                <span>{t.label}</span>
+              </button>
+            ))}
+          </nav>
 
-        {/* Account */}
-        <Section title="Profile">
-          <div className="flex flex-col gap-3 text-sm">
-            <div className="flex justify-between items-center py-2 border-b border-zinc-100 dark:border-zinc-800">
-              <span className="text-zinc-500 dark:text-zinc-400">Email</span>
-              <span className="font-medium text-zinc-900 dark:text-white">{email}</span>
-            </div>
-            <div className="flex justify-between items-center py-2">
-              <span className="text-zinc-500 dark:text-zinc-400">Sign-in method</span>
-              <span className="font-medium text-zinc-900 dark:text-white capitalize">
-                {provider === 'email' ? 'Email & password' : provider}
-              </span>
-            </div>
-          </div>
-        </Section>
-
-        {/* Notifications */}
-        <Section title="Notifications">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-zinc-900 dark:text-white">Email notifications</p>
-              <p className="text-xs text-zinc-500 dark:text-zinc-400">Receive updates about your submissions and activity.</p>
-            </div>
-            <Toggle checked={notifications} onChange={handleNotificationsToggle} disabled={false} />
-          </div>
-          <div className="flex items-center justify-between mt-4">
-            <div>
-              <p className="text-sm font-medium text-zinc-900 dark:text-white">Push notifications</p>
-              <p className="text-xs text-zinc-500 dark:text-zinc-400">Receive notifications on your device even when the browser is closed.</p>
-            </div>
-            <Toggle checked={pushEnabled} onChange={handlePushToggle} disabled={pushLoading} />
-          </div>
-          {pushError && (
-            <p className="text-xs text-red-600 mt-2">{pushError}</p>
-          )}
-        </Section>
-
-        {/* Language preferences */}
-        <Section title="Language">
-          <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-3">
-            Choose which languages you want to see content in. English is always included.
-          </p>
-          <div className="flex flex-wrap gap-2">
-            {LANGUAGES.map(lang => {
-              const selected = languages.includes(lang.code);
-              const isEnglish = lang.code === 'en';
-              return (
+          {/* Content */}
+          <div className="flex-1 min-w-0">
+            {/* Save settings bar — shown on any dirty tab */}
+            {isDirty && (
+              <div className="flex flex-col gap-2 mb-6">
                 <button
-                  key={lang.code}
                   type="button"
-                  disabled={isEnglish}
-                  onClick={() => handleLanguageToggle(lang.code)}
-                  className={`rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
-                    selected
-                      ? 'bg-zinc-900 dark:bg-white text-white dark:text-zinc-900'
-                      : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700'
-                  } ${isEnglish ? 'opacity-60 cursor-not-allowed' : ''}`}
+                  onClick={handleSaveSettings}
+                  disabled={savingSettings}
+                  className="rounded-lg bg-amber-500 hover:bg-amber-400 text-white py-2.5 text-sm font-semibold transition-colors disabled:opacity-40"
                 >
-                  {lang.label}
+                  {savingSettings ? 'Saving…' : 'Save settings'}
                 </button>
-              );
-            })}
-          </div>
-        </Section>
+                {settingsSaveError && <p className="text-sm text-red-600 bg-red-50 dark:bg-red-950/40 rounded-lg px-4 py-2">{settingsSaveError}</p>}
+                {settingsSaveSuccess && <p className="text-sm text-green-600 bg-green-50 dark:bg-green-950/40 rounded-lg px-4 py-2">{settingsSaveSuccess}</p>}
+              </div>
+            )}
 
-        {/* Discovery */}
-        <Section title="Discovery">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-zinc-900 dark:text-white">Skip paywalled sites</p>
-              <p className="text-xs text-zinc-500 dark:text-zinc-400">Hide pages from NYT, WSJ, The Atlantic, and similar paywalled publications.</p>
-            </div>
-            <Toggle checked={skipPaywalled} onChange={handleSkipPaywalledToggle} disabled={false} />
-          </div>
-        </Section>
-
-        {/* Security — email users only */}
-        <Section title="Security">
-          {isEmailUser ? (
-            <form onSubmit={handleUpdatePassword} className="flex flex-col gap-4" noValidate>
-              <div className="flex flex-col gap-1.5">
-                <label htmlFor="new-password" className="text-sm font-medium text-zinc-700 dark:text-zinc-300">New password</label>
-                <input
-                  id="new-password"
-                  type="password"
-                  autoComplete="new-password"
-                  value={newPassword}
-                  onChange={e => handlePasswordChange(e.target.value)}
-                  className={`w-full rounded-lg border px-4 py-2.5 text-sm bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:focus:ring-white ${passwordError ? 'border-red-500' : 'border-zinc-300 dark:border-zinc-700'}`}
-                />
-                {newPassword && (
-                  <div className="flex items-center gap-2">
-                    <div className="flex-1 h-1 rounded-full bg-zinc-200 dark:bg-zinc-700">
-                      <div
-                        className={`h-1 rounded-full transition-all ${getPasswordStrengthColor(passwordStrength)}`}
-                        style={{ width: { weak: '25%', fair: '50%', good: '75%', strong: '100%' }[passwordStrength] }}
-                      />
-                    </div>
-                    <span className="text-xs text-zinc-500">{getPasswordStrengthLabel(passwordStrength)}</span>
+            {/* ── Account Tab ─────────────────────────────── */}
+            {tab === 'account' && (
+              <Section title="Account">
+                <div className="flex flex-col gap-3 text-sm">
+                  <div className="flex justify-between items-center py-2 border-b border-zinc-100 dark:border-zinc-800">
+                    <span className="text-zinc-500 dark:text-zinc-400">Email</span>
+                    <span className="font-medium text-zinc-900 dark:text-white">{email}</span>
                   </div>
+                  <div className="flex justify-between items-center py-2">
+                    <span className="text-zinc-500 dark:text-zinc-400">Sign-in method</span>
+                    <span className="font-medium text-zinc-900 dark:text-white capitalize">
+                      {provider === 'email' ? 'Email & password' : provider}
+                    </span>
+                  </div>
+                </div>
+              </Section>
+            )}
+
+            {/* ── Notifications Tab ──────────────────────── */}
+            {tab === 'notifications' && (
+              <Section title="Notifications">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-zinc-900 dark:text-white">Email notifications</p>
+                    <p className="text-xs text-zinc-500 dark:text-zinc-400">Receive updates about your submissions and activity.</p>
+                  </div>
+                  <Toggle checked={notifications} onChange={handleNotificationsToggle} />
+                </div>
+                <div className="flex items-center justify-between mt-4">
+                  <div>
+                    <p className="text-sm font-medium text-zinc-900 dark:text-white">Push notifications</p>
+                    <p className="text-xs text-zinc-500 dark:text-zinc-400">Receive notifications on your device even when the browser is closed.</p>
+                  </div>
+                  <Toggle checked={pushEnabled} onChange={handlePushToggle} disabled={pushLoading} />
+                </div>
+                {pushError && <p className="text-xs text-red-600 mt-2">{pushError}</p>}
+              </Section>
+            )}
+
+            {/* ── Language Tab ─────────────────────────────── */}
+            {tab === 'language' && (
+              <Section title="Language">
+                <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-3">
+                  Choose which languages you want to see content in. English is always included.
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {LANGUAGES.map(lang => {
+                    const selected = languages.includes(lang.code);
+                    const isEnglish = lang.code === 'en';
+                    return (
+                      <button
+                        key={lang.code}
+                        type="button"
+                        disabled={isEnglish}
+                        onClick={() => handleLanguageToggle(lang.code)}
+                        className={`rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
+                          selected
+                            ? 'bg-zinc-900 dark:bg-white text-white dark:text-zinc-900'
+                            : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700'
+                        } ${isEnglish ? 'opacity-60 cursor-not-allowed' : ''}`}
+                      >
+                        {lang.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </Section>
+            )}
+
+            {/* ── Discovery Tab ──────────────────────────── */}
+            {tab === 'discovery' && (
+              <Section title="Discovery">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-zinc-900 dark:text-white">Skip paywalled sites</p>
+                    <p className="text-xs text-zinc-500 dark:text-zinc-400">Hide pages from NYT, WSJ, The Atlantic, and similar paywalled publications.</p>
+                  </div>
+                  <Toggle checked={skipPaywalled} onChange={handleSkipPaywalledToggle} />
+                </div>
+              </Section>
+            )}
+
+            {/* ── Security Tab ──────────────────────────── */}
+            {tab === 'security' && (
+              <Section title="Security">
+                {isEmailUser ? (
+                  <form onSubmit={handleUpdatePassword} className="flex flex-col gap-4" noValidate>
+                    <div className="flex flex-col gap-1.5">
+                      <label htmlFor="new-password" className="text-sm font-medium text-zinc-700 dark:text-zinc-300">New password</label>
+                      <input id="new-password" type="password" autoComplete="new-password" value={newPassword}
+                        onChange={e => handlePasswordChange(e.target.value)}
+                        className={`w-full rounded-lg border px-4 py-2.5 text-sm bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:focus:ring-white ${passwordError ? 'border-red-500' : 'border-zinc-300 dark:border-zinc-700'}`}
+                      />
+                      {newPassword && (
+                        <div className="flex items-center gap-2">
+                          <div className="flex-1 h-1 rounded-full bg-zinc-200 dark:bg-zinc-700">
+                            <div className={`h-1 rounded-full transition-all ${getPasswordStrengthColor(passwordStrength)}`}
+                              style={{ width: { weak: '25%', fair: '50%', good: '75%', strong: '100%' }[passwordStrength] }}
+                            />
+                          </div>
+                          <span className="text-xs text-zinc-500">{getPasswordStrengthLabel(passwordStrength)}</span>
+                        </div>
+                      )}
+                      {passwordError && <p className="text-xs text-red-600">{passwordError}</p>}
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                      <label htmlFor="confirm-password" className="text-sm font-medium text-zinc-700 dark:text-zinc-300">Confirm password</label>
+                      <input id="confirm-password" type="password" autoComplete="new-password" value={confirmPassword}
+                        onChange={e => handleConfirmChange(e.target.value)}
+                        className={`w-full rounded-lg border px-4 py-2.5 text-sm bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:focus:ring-white ${confirmError ? 'border-red-500' : 'border-zinc-300 dark:border-zinc-700'}`}
+                      />
+                      {confirmError && <p className="text-xs text-red-600">{confirmError}</p>}
+                    </div>
+                    {passwordFormError && <p className="text-sm text-red-600">{passwordFormError}</p>}
+                    {passwordSuccess && <p className="text-sm text-green-600 dark:text-green-400">{passwordSuccess}</p>}
+                    <button type="submit" disabled={passwordLoading || !passwordFormValid}
+                      className="rounded-lg bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 py-2.5 text-sm font-semibold hover:opacity-90 disabled:opacity-40 transition-opacity"
+                    >{passwordLoading ? 'Updating…' : 'Update password'}</button>
+                  </form>
+                ) : (
+                  <p className="text-sm text-zinc-500 dark:text-zinc-400">
+                    You signed in with <strong className="text-zinc-700 dark:text-zinc-300 capitalize">{provider}</strong>.
+                    Password management is handled by your {provider === 'google' ? 'Google' : 'GitHub'} account.
+                  </p>
                 )}
-                {passwordError && <p className="text-xs text-red-600">{passwordError}</p>}
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <label htmlFor="confirm-password" className="text-sm font-medium text-zinc-700 dark:text-zinc-300">Confirm password</label>
-                <input
-                  id="confirm-password"
-                  type="password"
-                  autoComplete="new-password"
-                  value={confirmPassword}
-                  onChange={e => handleConfirmChange(e.target.value)}
-                  className={`w-full rounded-lg border px-4 py-2.5 text-sm bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:focus:ring-white ${confirmError ? 'border-red-500' : 'border-zinc-300 dark:border-zinc-700'}`}
-                />
-                {confirmError && <p className="text-xs text-red-600">{confirmError}</p>}
-              </div>
-              {passwordFormError && <p className="text-sm text-red-600">{passwordFormError}</p>}
-              {passwordSuccess && <p className="text-sm text-green-600 dark:text-green-400">{passwordSuccess}</p>}
-              <button
-                type="submit"
-                disabled={passwordLoading || !passwordFormValid}
-                className="rounded-lg bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 py-2.5 text-sm font-semibold hover:opacity-90 disabled:opacity-40 transition-opacity"
-              >
-                {passwordLoading ? 'Updating…' : 'Update password'}
-              </button>
-            </form>
-          ) : (
-            <p className="text-sm text-zinc-500 dark:text-zinc-400">
-              You signed in with <strong className="text-zinc-700 dark:text-zinc-300 capitalize">{provider}</strong>.
-              Password management is handled by your {provider === 'google' ? 'Google' : 'GitHub'} account.
-            </p>
-          )}
-        </Section>
+              </Section>
+            )}
 
-        {/* Data & Privacy */}
-        <Section title="Data & Privacy">
-          <p className="text-sm text-zinc-500 dark:text-zinc-400 mb-4">
-            Download all your data (profile, ratings) as a JSON file.
-          </p>
-          <button
-            type="button"
-            onClick={handleExportData}
-            disabled={exportLoading}
-            className="w-full rounded-lg border border-zinc-300 dark:border-zinc-700 py-2.5 text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 disabled:opacity-50 transition-colors"
-          >
-            {exportLoading ? 'Preparing download…' : 'Download my data'}
-          </button>
-        </Section>
+            {/* ── Data Tab ──────────────────────────────── */}
+            {tab === 'data' && (
+              <Section title="Data & Privacy">
+                <p className="text-sm text-zinc-500 dark:text-zinc-400 mb-4">
+                  Download all your data (profile, ratings) as a JSON file.
+                </p>
+                <button type="button" onClick={handleExportData} disabled={exportLoading}
+                  className="w-full rounded-lg border border-zinc-300 dark:border-zinc-700 py-2.5 text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 disabled:opacity-50 transition-colors"
+                >{exportLoading ? 'Preparing download…' : 'Download my data'}</button>
+              </Section>
+            )}
 
-        {/* Danger zone */}
-        <Section title="Danger zone" danger>
-          <div className="flex flex-col gap-4">
-            <div>
-              <p className="text-sm text-zinc-600 dark:text-zinc-400 mb-3">
-                Permanently delete your account and all associated data. This action cannot be undone.
-                For help, contact{' '}
-                <a href="mailto:legal@roamtheweb.app" className="underline">legal@roamtheweb.app</a>.
-              </p>
-              <button
-                type="button"
-                onClick={() => setShowDeleteModal(true)}
-                className="w-full rounded-lg bg-red-600 text-white py-2.5 text-sm font-semibold hover:bg-red-700 transition-colors"
-              >
-                Delete my account
-              </button>
-            </div>
+            {/* ── Danger Tab ────────────────────────────── */}
+            {tab === 'danger' && (
+              <Section title="Danger Zone" danger>
+                <div className="flex flex-col gap-4">
+                  <div>
+                    <p className="text-sm text-zinc-600 dark:text-zinc-400 mb-3">
+                      Permanently delete your account and all associated data. This action cannot be undone.
+                      For help, contact{' '}
+                      <a href="mailto:legal@roamtheweb.app" className="underline">legal@roamtheweb.app</a>.
+                    </p>
+                    <button type="button" onClick={() => setShowDeleteModal(true)}
+                      className="w-full rounded-lg bg-red-600 text-white py-2.5 text-sm font-semibold hover:bg-red-700 transition-colors"
+                    >Delete my account</button>
+                  </div>
+                </div>
+              </Section>
+            )}
           </div>
-        </Section>
+        </div>
       </div>
     </div>
   );
