@@ -93,7 +93,7 @@ export function SavedUrlsManager({ userId, initialSavedUrls }: Props) {
         <div className="text-center py-8">
           <p className="text-3xl mb-3">🔖</p>
           <p className="text-sm text-zinc-600 dark:text-zinc-400 font-medium">
-            No saved pages yet
+              You haven't saved any URLs yet
           </p>
           <p className="text-xs text-zinc-400 mt-1">
             Install the browser extension to bookmark pages while you browse.

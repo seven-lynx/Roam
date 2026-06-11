@@ -454,7 +454,7 @@ function QueueView({
                 </span>
               </div>
               <span className="text-xs text-zinc-400">
-                {new Date(item.created_at ?? '').toLocaleString('en-US', { timeZone: 'America/New_York', timeZoneName: 'short' })}
+                      {item.created_at ? new Date(item.created_at).toLocaleString('en-US', { timeZone: 'America/New_York', timeZoneName: 'short' }) : '—'}
               </span>
             </button>
           ))}
@@ -500,7 +500,7 @@ function ReportsView({ reportedLinks, loading, restoringId, onRestore }: {
                     {r.title && <p className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">{r.title}</p>}
                   </td>
                   <td className="text-center py-3 px-4 font-semibold text-zinc-900 dark:text-white">{r.report_count}</td>
-                  <td className="py-3 px-4 text-xs text-zinc-500 whitespace-nowrap">{new Date(r.reported_at).toLocaleDateString('en-US', { timeZone: 'America/New_York' })}</td>
+                  <td className="py-3 px-4 text-xs text-zinc-500 whitespace-nowrap">{r.reported_at ? new Date(r.reported_at).toLocaleDateString('en-US', { timeZone: 'America/New_York' }) : '—'}</td>
                   <td className="text-center py-3 px-4">
                     <span className={`text-xs font-medium px-2 py-1 rounded ${r.inactive ? "bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400" : "bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400"}`}>
                       {r.inactive ? "Inactive" : "Active"}
@@ -565,7 +565,7 @@ function BetaView({ signups, loading, deletingId, onDelete }: {
                   <tr key={s.id} className="border-b border-zinc-100 dark:border-zinc-800 last:border-0">
                     <td className="py-3 px-4 font-mono text-xs text-zinc-700 dark:text-zinc-300">{s.email}</td>
                     <td className="py-3 px-4 text-right text-xs text-zinc-500 whitespace-nowrap">
-                      {new Date(s.created_at).toLocaleString('en-US', { timeZone: 'America/New_York', timeZoneName: 'short' })}
+                      {s.created_at ? new Date(s.created_at).toLocaleString('en-US', { timeZone: 'America/New_York', timeZoneName: 'short' }) : '—'}
                     </td>
                     <td className="py-3 px-4 text-center">
                       <button onClick={() => onDelete(s.id)} disabled={deletingId === s.id}

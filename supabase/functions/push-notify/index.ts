@@ -178,7 +178,7 @@ async function sendFCM(
   data: Record<string, string>,
   accessToken: string,
   projectId: string,
-): Promise<boolean> {
+): Promise<{ ok: boolean; status: number }> {
   try {
     const response = await fetch(
       `https://fcm.googleapis.com/v1/projects/${projectId}/messages:send`,
@@ -216,12 +216,12 @@ async function sendFCM(
       } else {
         console.error('[push-notify] FCM send failed:', response.status, err.slice(0, 200))
       }
-      return false
+      return { ok: false, status: response.status }
     }
-    return true
+    return { ok: true, status: response.status }
   } catch (err) {
     console.error('[push-notify] FCM send error:', err)
-    return false
+    return { ok: false, status: 0 }
   }
 }
 
@@ -233,7 +233,7 @@ async function sendWebPush(
   payload: string,
   vapidPublicKey: string,
   vapidPrivateKey: string,
-): Promise<boolean> {
+): Promise<{ ok: boolean; status: number }> {
   try {
     // Encode VAPID JWT
     const encoder = new TextEncoder()
@@ -294,12 +294,12 @@ async function sendWebPush(
         const err = await response.text()
         console.error('[push-notify] Web Push send failed:', status, err.slice(0, 200))
       }
-      return false
+      return { ok: false, status }
     }
-    return true
+    return { ok: true, status: response.status }
   } catch (err) {
     console.error('[push-notify] Web Push send error:', err)
-    return false
+    return { ok: false, status: 0 }
   }
 }
 
@@ -422,8 +422,9 @@ async function encryptPayload(
   // salt (16 bytes) | recordsize (4 bytes, big-endian) | keyid length (1 byte) | keyid (varies) | ciphertext
   const recordSize = 4096
   const rs = new Uint8Array(4)
-  // Record size in big-endian, left-shifted 1 bit with MSB = 1 per RFC 8188
-  new DataView(rs.buffer).setUint32(0, recordSize, false)
+  // Record size in big-endian with MSB set to 1 per RFC 8188 §2
+  // The MSB (bit 31) MUST be 1; the remaining 31 bits encode the actual size
+  new DataView(rs.buffer).setUint32(0, recordSize | 0x80000000, false)
 
   const keyidLen = new Uint8Array([0]) // empty keyid = 0x00
 
@@ -517,16 +518,17 @@ Deno.serve(async (req: Request) => {
     if (accessToken) {
       const results = await Promise.all(
         androidTokens.map(async (t) => {
-          const ok = await sendFCM(t.token, notification, data, accessToken, fcmProjectId)
-          return { token: t, ok }
+          const result = await sendFCM(t.token, notification, data, accessToken, fcmProjectId)
+          return { token: t, ...result }
         }),
       )
       sentCount += results.filter(r => r.ok).length
       failCount += results.filter(r => !r.ok).length
 
-      // Clean up expired FCM tokens (HTTP 404 = stale/unregistered token)
+      // Clean up expired FCM tokens — only delete on HTTP 404 (stale/unregistered token).
+      // Transient errors (500, 503, network timeouts) should NOT trigger deletion.
       for (const r of results) {
-        if (!r.ok) {
+        if (!r.ok && r.status === 404) {
           adminClient
             .from('push_tokens')
             .delete()
@@ -568,19 +570,20 @@ Deno.serve(async (req: Request) => {
       webTokens.map(async (t) => {
         try {
           const sub = JSON.parse(t.token) as { endpoint: string; keys: { p256dh: string; auth: string } }
-          const ok = await sendWebPush(sub, pushPayload, vapidPublicKey, vapidPrivateKey)
-          return { token: t, ok }
+          const result = await sendWebPush(sub, pushPayload, vapidPublicKey, vapidPrivateKey)
+          return { token: t, ...result }
         } catch {
-          return { token: t, ok: false }
+          return { token: t, ok: false, status: 0 }
         }
       }),
     )
     sentCount += results.filter(r => r.ok).length
     failCount += results.filter(r => !r.ok).length
 
-    // Clean up expired web push subscriptions (410 Gone)
+    // Clean up expired web push subscriptions — only delete on HTTP 410 Gone.
+    // Transient errors (500, 503, network timeouts) should NOT trigger deletion.
     for (const r of results) {
-      if (!r.ok) {
+      if (!r.ok && r.status === 410) {
         await adminClient
           .from('push_tokens')
           .delete()

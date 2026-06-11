@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from './supabase/client';
 import { useAuth } from '@/components/AuthProvider';
@@ -14,16 +14,32 @@ export interface ToastState {
 
 export function useToast(duration = 4000) {
   const [toast, setToast] = useState<ToastState | null>(null);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Clean up any pending timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (timerRef.current !== null) clearTimeout(timerRef.current);
+    };
+  }, []);
 
   const showToast = useCallback(
     (message: string, variant: ToastVariant = 'info') => {
       setToast({ message, variant });
-      setTimeout(() => setToast(null), duration);
+      if (timerRef.current !== null) clearTimeout(timerRef.current);
+      timerRef.current = setTimeout(() => {
+        setToast(null);
+        timerRef.current = null;
+      }, duration);
     },
     [duration]
   );
 
-  const dismiss = useCallback(() => setToast(null), []);
+  const dismiss = useCallback(() => {
+    if (timerRef.current !== null) clearTimeout(timerRef.current);
+    timerRef.current = null;
+    setToast(null);
+  }, []);
 
   return { toast, showToast, dismiss };
 }
@@ -46,7 +62,8 @@ export function useProfile() {
  * Hook to get user's followed categories
  */
 export function useUserCategories() {
-  const supabase = createClient();
+  // Memoize the Supabase client to prevent re-creation on every render
+  const supabase = useMemo(() => createClient(), []);
   const { session, loading: sessionLoading } = useSession();
   const [categories, setCategories] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
@@ -55,6 +72,7 @@ export function useUserCategories() {
     if (sessionLoading || !session?.user.id) return;
 
     setLoading(true);
+    let cancelled = false;
     (async () => {
       try {
         const { data } = await supabase
@@ -62,12 +80,16 @@ export function useUserCategories() {
           .select('category_id')
           .eq('user_id', session.user.id);
 
-        setCategories(data?.map(d => d.category_id) || []);
+        if (!cancelled) {
+          setCategories(data?.map(d => d.category_id) || []);
+        }
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     })();
-  }, [supabase, session, sessionLoading]);
+
+    return () => { cancelled = true; };
+  }, [supabase, session?.user.id, sessionLoading]);
 
   return { categories, loading };
 }
@@ -95,14 +117,18 @@ export function useRequireAuth() {
  * Fires the callback whenever the user's session changes.
  */
 export function useAuthStateChange(callback: (event: 'SIGNED_IN' | 'SIGNED_OUT', session: unknown) => void) {
-  const supabase = createClient();
+  // Memoize the Supabase client to prevent re-creation on every render
+  const supabase = useMemo(() => createClient(), []);
+  // Stable reference to the callback to avoid re-subscribing on every render
+  const callbackRef = useRef(callback);
+  callbackRef.current = callback;
 
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
-      if (event === 'SIGNED_IN') callback('SIGNED_IN', null);
-      else if (event === 'SIGNED_OUT') callback('SIGNED_OUT', null);
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_IN') callbackRef.current('SIGNED_IN', session);
+      else if (event === 'SIGNED_OUT') callbackRef.current('SIGNED_OUT', session);
     });
 
     return () => subscription.unsubscribe();
-  }, [supabase, callback]);
+  }, [supabase]);
 }

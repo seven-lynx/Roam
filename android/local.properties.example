@@ -4,6 +4,9 @@
 SUPABASE_URL=https://your-project-ref.supabase.co
 SUPABASE_ANON_KEY=your-anon-key-here
 SENTRY_DSN=https://your-sentry-dsn@oNNNNNN.ingest.sentry.io/NNNNNNN
+SENTRY_AUTH_TOKEN=your-sentry-auth-token-here
+SENTRY_ORG=your-organization-slug
+SENTRY_PROJECT=your-project-slug
 
 # Release signing — do NOT put these in local.properties.
 # Store them in ~/.gradle/gradle.properties instead (outside the repo):

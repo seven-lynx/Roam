@@ -73,7 +73,7 @@ export function CollectionsManager({ userId, initialCollections }: Props) {
   async function createCollection() {
     const name = newName.trim();
     if (!name) {
-      setCreateError('Collection name cannot be empty.');
+      setCreateError('Collection name is required');
       return;
     }
     if (name.length < 2) {

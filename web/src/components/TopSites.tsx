@@ -75,23 +75,16 @@ export async function TopSites({ userId }: { userId?: string | null }) {
         })}
       </div>
 
-      <div className="mt-4 text-center">
-        {userId ? (
-          <Link
-            href="/signup?mode=discover"
-            className="text-sm text-blue-600 hover:underline font-medium"
-          >
-            Discover the web →
-          </Link>
-        ) : (
+      {!userId && (
+        <div className="mt-4 text-center">
           <Link
             href="/signup"
             className="text-sm text-blue-600 hover:underline font-medium"
           >
             Sign up to discover more →
           </Link>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }

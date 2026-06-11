@@ -74,15 +74,16 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
 
-    kotlin {
-        compilerOptions {
-            jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
-        }
-    }
 
     buildFeatures {
         compose = true
         buildConfig = true
+    }
+}
+
+kotlin {
+    compilerOptions {
+        jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
     }
 }
 
@@ -148,14 +149,26 @@ dependencies {
 }
 
 sentry {
-    // Upload source maps to Sentry for readable stack traces.
+    // Upload ProGuard/R8 mapping files to Sentry for readable stack traces.
     // Requires SENTRY_ORG, SENTRY_PROJECT, and SENTRY_AUTH_TOKEN to be set
     // in local.properties or as environment variables.
-    // If any are missing, we skip the upload step to avoid build failures.
-    val hasSentryInfo = (localProperties.getProperty("SENTRY_AUTH_TOKEN") != null || System.getenv("SENTRY_AUTH_TOKEN") != null) &&
-                        (localProperties.getProperty("SENTRY_ORG") != null || System.getenv("SENTRY_ORG") != null) &&
-                        (localProperties.getProperty("SENTRY_PROJECT") != null || System.getenv("SENTRY_PROJECT") != null)
+    val sentryAuthToken = localProperties.getProperty("SENTRY_AUTH_TOKEN") ?: System.getenv("SENTRY_AUTH_TOKEN")
+    val sentryOrg = localProperties.getProperty("SENTRY_ORG") ?: System.getenv("SENTRY_ORG")
+    val sentryProject = localProperties.getProperty("SENTRY_PROJECT") ?: System.getenv("SENTRY_PROJECT")
+    val sentryUrl = localProperties.getProperty("SENTRY_URL") ?: System.getenv("SENTRY_URL")
+
+    // The user's account is in the US region (as seen in the DSN).
+    // Using the regional URL explicitly often resolves 403 Forbidden errors for upload tasks.
+    url.set(sentryUrl ?: "https://us.sentry.io/")
+
+    val hasSentryInfo = sentryAuthToken != null && sentryOrg != null && sentryProject != null
+    if (hasSentryInfo) {
+        authToken.set(sentryAuthToken)
+        org.set(sentryOrg)
+        projectName.set(sentryProject)
+    }
 
     autoUploadProguardMapping.set(hasSentryInfo)
+    includeProguardMapping.set(true)
     uploadNativeSymbols.set(false)
 }
