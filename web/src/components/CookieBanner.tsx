@@ -4,13 +4,20 @@
  * Trigger logic: On mount, checks localStorage for 'roam-cookie-consent'.
  * If absent, shows a fixed bottom banner. On accept, sets the key and hides.
  * Never shown if localStorage is unavailable (e.g. SSR / privacy mode).
+ *
+ * On accept, fires the optional onConsent callback so parent can gate
+ * analytics/tracking behind consent.
  */
 'use client';
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 
-export function CookieBanner() {
+interface CookieBannerProps {
+  onConsent?: () => void;
+}
+
+export function CookieBanner({ onConsent }: CookieBannerProps) {
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
@@ -31,6 +38,7 @@ export function CookieBanner() {
       // ignore storage errors
     }
     setVisible(false);
+    onConsent?.();
   }
 
   return (

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import * as Sentry from '@sentry/nextjs';
@@ -162,6 +162,83 @@ export function SettingsClient({
   const [settingsSaveError, setSettingsSaveError] = useState<string | null>(null);
   const [settingsSaveSuccess, setSettingsSaveSuccess] = useState<string | null>(null);
 
+  // Track whether local state has changed from initial values
+  const isDirty =
+    notifications !== initialNotifications ||
+    skipPaywalled !== initialSkipPaywalled ||
+    JSON.stringify([...languages].sort()) !== JSON.stringify([...initialLanguages].sort());
+
+  // ── Handlers ───────────────────────────────────────────────────────────
+  function handleLanguageToggle(code: string) {
+    setSettingsSaveError(null);
+    setSettingsSaveSuccess(null);
+    const next = languages.includes(code)
+      ? languages.filter(c => c !== code)
+      : [...languages, code];
+    const safe = next.includes('en') ? next : [...next, 'en'];
+    setLanguages(safe);
+  }
+
+  function handleSkipPaywalledToggle() {
+    setSettingsSaveError(null);
+    setSettingsSaveSuccess(null);
+    setSkipPaywalled(v => !v);
+  }
+
+  function handleNotificationsToggle() {
+    setSettingsSaveError(null);
+    setSettingsSaveSuccess(null);
+    setNotifications(v => !v);
+  }
+
+  async function handleSaveSettings() {
+    setSavingSettings(true);
+    setSettingsSaveError(null);
+    setSettingsSaveSuccess(null);
+    try {
+      const { error } = await supabase.from('user_settings').upsert(
+        {
+          user_id: userId,
+          email_notifications: notifications,
+          preferred_languages: languages,
+          skip_paywalled: skipPaywalled,
+        },
+        { onConflict: 'user_id' }
+      );
+      if (error) throw error;
+      setSettingsSaveSuccess('Settings saved successfully.');
+    } catch (err) {
+      Sentry.captureException(err, { tags: { context: 'save-settings' } });
+      setSettingsSaveError(err instanceof Error ? err.message : 'Failed to save settings.');
+    } finally {
+      setSavingSettings(false);
+    }
+  }
+
+  // Debounce auto-save: persists settings 2s after last change
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isDirtyRef = useRef(false);
+
+  useEffect(() => {
+    if (!isDirty) {
+      isDirtyRef.current = false;
+      return;
+    }
+    isDirtyRef.current = true;
+
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      if (isDirtyRef.current) {
+        handleSaveSettings();
+      }
+    }, 2_000);
+
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [notifications, skipPaywalled, languages]);
+
   async function checkPushPermission() {
     if (!('Notification' in window) || !('serviceWorker' in navigator)) return;
     try {
@@ -247,59 +324,6 @@ export function SettingsClient({
       }
     }
     setPushLoading(false);
-  }
-
-  // Track whether local state has changed from initial values
-  const isDirty =
-    notifications !== initialNotifications ||
-    skipPaywalled !== initialSkipPaywalled ||
-    JSON.stringify([...languages].sort()) !== JSON.stringify([...initialLanguages].sort());
-
-  // ── Handlers ───────────────────────────────────────────────────────────
-  function handleLanguageToggle(code: string) {
-    setSettingsSaveError(null);
-    setSettingsSaveSuccess(null);
-    const next = languages.includes(code)
-      ? languages.filter(c => c !== code)
-      : [...languages, code];
-    const safe = next.includes('en') ? next : [...next, 'en'];
-    setLanguages(safe);
-  }
-
-  function handleSkipPaywalledToggle() {
-    setSettingsSaveError(null);
-    setSettingsSaveSuccess(null);
-    setSkipPaywalled(v => !v);
-  }
-
-  function handleNotificationsToggle() {
-    setSettingsSaveError(null);
-    setSettingsSaveSuccess(null);
-    setNotifications(v => !v);
-  }
-
-  async function handleSaveSettings() {
-    setSavingSettings(true);
-    setSettingsSaveError(null);
-    setSettingsSaveSuccess(null);
-    try {
-      const { error } = await supabase.from('user_settings').upsert(
-        {
-          user_id: userId,
-          email_notifications: notifications,
-          preferred_languages: languages,
-          skip_paywalled: skipPaywalled,
-        },
-        { onConflict: 'user_id' }
-      );
-      if (error) throw error;
-      setSettingsSaveSuccess('Settings saved successfully.');
-    } catch (err) {
-      Sentry.captureException(err, { tags: { context: 'save-settings' } });
-      setSettingsSaveError(err instanceof Error ? err.message : 'Failed to save settings.');
-    } finally {
-      setSavingSettings(false);
-    }
   }
 
   function handlePasswordChange(value: string) {

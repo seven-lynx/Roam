@@ -59,6 +59,14 @@ export default async function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
       suppressHydrationWarning
     >
+      <head>
+        {/* Anti-FOUC script: prevent theme flash by setting dark class before paint */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var e=localStorage.getItem("theme");if(e==="dark"||(e!=="light"&&window.matchMedia("(prefers-color-scheme:dark)").matches))document.documentElement.classList.add("dark")}catch(e){}})()`,
+          }}
+        />
+      </head>
       <body className="min-h-full flex flex-col">
         <WebsiteSchema />
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>

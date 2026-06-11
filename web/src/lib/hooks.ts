@@ -89,3 +89,20 @@ export function useRequireAuth() {
 
   return { isReady, session };
 }
+
+/**
+ * Hook to subscribe to auth state changes (sign in / sign out).
+ * Fires the callback whenever the user's session changes.
+ */
+export function useAuthStateChange(callback: (event: 'SIGNED_IN' | 'SIGNED_OUT', session: unknown) => void) {
+  const supabase = createClient();
+
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+      if (event === 'SIGNED_IN') callback('SIGNED_IN', null);
+      else if (event === 'SIGNED_OUT') callback('SIGNED_OUT', null);
+    });
+
+    return () => subscription.unsubscribe();
+  }, [supabase, callback]);
+}

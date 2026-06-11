@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
 import Link from 'next/link';
+import { extractDomain, getFaviconUrl } from '@/lib/url-utils';
 
 interface TopSite {
   id: string;
@@ -24,7 +25,7 @@ async function getTopSites(): Promise<TopSite[]> {
   return (data ?? []) as TopSite[];
 }
 
-export async function TopSites() {
+export async function TopSites({ userId }: { userId?: string | null }) {
   const sites = await getTopSites();
 
   if (sites.length === 0) return null;
@@ -38,10 +39,7 @@ export async function TopSites() {
 
       <div className="grid gap-3">
         {sites.map((site) => {
-          const domain = (() => {
-            try { return new URL(site.original_url).hostname.replace(/^www\./, ''); }
-            catch { return site.domain || site.original_url; }
-          })();
+          const domain = extractDomain(site.original_url) || site.domain || site.original_url;
 
           return (
             <a
@@ -53,7 +51,7 @@ export async function TopSites() {
             >
               {/* Favicon */}
               <img
-                src={`https://www.google.com/s2/favicons?domain=${encodeURIComponent(domain)}&sz=32`}
+                src={getFaviconUrl(domain, 32)}
                 alt=""
                 width={20}
                 height={20}
@@ -78,12 +76,21 @@ export async function TopSites() {
       </div>
 
       <div className="mt-4 text-center">
-        <Link
-          href="/signup"
-          className="text-sm text-blue-600 hover:underline font-medium"
-        >
-          Sign up to discover more →
-        </Link>
+        {userId ? (
+          <Link
+            href="/signup?mode=discover"
+            className="text-sm text-blue-600 hover:underline font-medium"
+          >
+            Discover the web →
+          </Link>
+        ) : (
+          <Link
+            href="/signup"
+            className="text-sm text-blue-600 hover:underline font-medium"
+          >
+            Sign up to discover more →
+          </Link>
+        )}
       </div>
     </div>
   );

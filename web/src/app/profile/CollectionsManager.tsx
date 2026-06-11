@@ -72,7 +72,14 @@ export function CollectionsManager({ userId, initialCollections }: Props) {
 
   async function createCollection() {
     const name = newName.trim();
-    if (!name) return;
+    if (!name) {
+      setCreateError('Collection name cannot be empty.');
+      return;
+    }
+    if (name.length < 2) {
+      setCreateError('Collection name must be at least 2 characters.');
+      return;
+    }
     setCreating(true);
     setCreateError(null);
     const slug = makeSlug(name);

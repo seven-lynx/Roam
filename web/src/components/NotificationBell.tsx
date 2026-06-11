@@ -80,6 +80,10 @@ export function NotificationBell() {
   useEffect(() => {
     fetchUnreadCount();
     checkPushState();
+
+    // Poll for new notifications every 30 seconds
+    const interval = setInterval(fetchUnreadCount, 30_000);
+    return () => clearInterval(interval);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

@@ -90,9 +90,23 @@ export function SavedUrlsManager({ userId, initialSavedUrls }: Props) {
       </div>
 
       {items.length === 0 ? (
-        <p className="text-sm text-zinc-500 dark:text-zinc-400">
-          Nothing saved yet. Use the browser extension to bookmark pages while browsing.
-        </p>
+        <div className="text-center py-8">
+          <p className="text-3xl mb-3">🔖</p>
+          <p className="text-sm text-zinc-600 dark:text-zinc-400 font-medium">
+            No saved pages yet
+          </p>
+          <p className="text-xs text-zinc-400 mt-1">
+            Install the browser extension to bookmark pages while you browse.
+          </p>
+          <a
+            href="https://chromewebstore.google.com/detail/ojgphkdgkefokhjnojkddhalnlbajfpc?utm_source=roam-web"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-block mt-3 text-xs text-blue-600 hover:underline font-medium"
+          >
+            Get the Chrome extension →
+          </a>
+        </div>
       ) : (
         <>
           {/* Selection bar */}

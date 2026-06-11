@@ -1,5 +1,24 @@
-// Service worker for push notifications
+// Service worker for push notifications — v2.0.0
 // Registered by the NotificationBell component when user enables push.
+
+const CACHE_KEY = 'roam-sw-v2';
+
+self.addEventListener('install', (event) => {
+  // Activate immediately — don't wait for old tabs to close
+  event.waitUntil(self.skipWaiting());
+});
+
+self.addEventListener('activate', (event) => {
+  // Claim all clients so the new SW takes control immediately
+  event.waitUntil(
+    clients.claim().then(() => {
+      // Clear any old caches from previous SW versions
+      return caches.keys().then((keys) =>
+        Promise.all(keys.filter((k) => k !== CACHE_KEY).map((k) => caches.delete(k)))
+      );
+    })
+  );
+});
 
 self.addEventListener('push', (event) => {
   if (!event.data) return;
