@@ -120,6 +120,23 @@ export function NotificationBell() {
     setOpen(v => !v);
   }
 
+  async function clearAll() {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      await supabase
+        .from('notifications')
+        .delete()
+        .eq('user_id', user.id);
+
+      setUnreadCount(0);
+      setNotifications([]);
+    } catch {
+      // silently ignore
+    }
+  }
+
   async function markAllRead() {
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -179,14 +196,24 @@ export function NotificationBell() {
         <div className="absolute right-0 mt-2 w-80 bg-white dark:bg-zinc-900 rounded-lg shadow-lg border border-zinc-200 dark:border-zinc-800 z-50 max-h-96 overflow-hidden flex flex-col">
           <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-200 dark:border-zinc-800">
             <h3 className="text-sm font-semibold text-zinc-900 dark:text-white">Notifications</h3>
-            {unreadCount > 0 && (
-              <button
-                onClick={markAllRead}
-                className="text-xs text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300 transition-colors"
-              >
-                Mark all read
-              </button>
-            )}
+            <div className="flex items-center gap-3">
+              {notifications.length > 0 && (
+                <button
+                  onClick={clearAll}
+                  className="text-xs text-red-400 hover:text-red-600 transition-colors"
+                >
+                  Clear all
+                </button>
+              )}
+              {unreadCount > 0 && (
+                <button
+                  onClick={markAllRead}
+                  className="text-xs text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300 transition-colors"
+                >
+                  Mark all read
+                </button>
+              )}
+            </div>
           </div>
 
           <div className="overflow-y-auto flex-1">
@@ -197,34 +224,49 @@ export function NotificationBell() {
                 <p className="text-xs mt-1">You&rsquo;ll be notified when your URL submissions are reviewed.</p>
               </div>
             ) : (
-              notifications.map((n) => (
-                <div
-                  key={n.id}
-                  className={`px-4 py-3 border-b border-zinc-100 dark:border-zinc-800 last:border-b-0 transition-colors ${
-                    !n.read ? 'bg-blue-50/50 dark:bg-blue-950/20' : ''
-                  }`}
-                >
-                  <div className="flex gap-3">
-                    <span className="text-lg flex-shrink-0 mt-0.5">{getIcon(n.type)}</span>
-                    <div className="flex-1 min-w-0">
-                      <p className={`text-sm ${!n.read ? 'font-semibold text-zinc-900 dark:text-white' : 'text-zinc-700 dark:text-zinc-300'}`}>
-                        {n.title}
-                      </p>
-                      {n.body && (
-                        <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5 line-clamp-2">
-                          {n.body}
+notifications.map((n) => {
+                  const linkUrl = typeof n.data?.url === 'string' ? n.data.url : null
+                  const Content = (
+                    <div className="flex gap-3">
+                      <span className="text-lg flex-shrink-0 mt-0.5">{getIcon(n.type)}</span>
+                      <div className="flex-1 min-w-0">
+                        <p className={`text-sm ${!n.read ? 'font-semibold text-zinc-900 dark:text-white' : 'text-zinc-700 dark:text-zinc-300'}`}>
+                          {n.title}
                         </p>
+                        {n.body && (
+                          <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5 line-clamp-2">
+                            {n.body}
+                          </p>
+                        )}
+                        <p className="text-[10px] text-zinc-400 dark:text-zinc-500 mt-1">
+                          {timeAgo(n.created_at)}
+                        </p>
+                      </div>
+                      {!n.read && (
+                        <span className="flex-shrink-0 w-2 h-2 rounded-full bg-blue-500 mt-1.5" />
                       )}
-                      <p className="text-[10px] text-zinc-400 dark:text-zinc-500 mt-1">
-                        {timeAgo(n.created_at)}
-                      </p>
                     </div>
-                    {!n.read && (
-                      <span className="flex-shrink-0 w-2 h-2 rounded-full bg-blue-500 mt-1.5" />
-                    )}
-                  </div>
-                </div>
-              ))
+                  )
+                  const className = `block px-4 py-3 border-b border-zinc-100 dark:border-zinc-800 last:border-b-0 transition-colors hover:bg-zinc-50 dark:hover:bg-zinc-800/50 ${
+                    !n.read ? 'bg-blue-50/50 dark:bg-blue-950/20' : ''
+                  }`
+
+                  return linkUrl ? (
+                    <a
+                      key={n.id}
+                      href={linkUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className={className}
+                    >
+                      {Content}
+                    </a>
+                  ) : (
+                    <div key={n.id} className={className}>
+                      {Content}
+                    </div>
+                  )
+                })
             )}
           </div>
         </div>
