@@ -8,29 +8,12 @@ import { RandomPageButton } from "@/components/RandomPageButton";
 
 export default async function Home() {
   let user: null | { id: string } = null;
-  let urlCount: number | null = null;
   try {
     const supabase = await createClient();
     const { data } = await supabase.auth.getUser();
     user = data.user ?? null;
-
-    // Fetch live count of approved URLs
-    const { count } = await supabase
-      .from('urls')
-      .select('*', { count: 'exact', head: true })
-      .eq('status', 'approved');
-    urlCount = count ?? 0;
   } catch {
     // Supabase unavailable — render the page without auth state
-  }
-
-  /** Format a number with K+ suffix (e.g., 12400 → "12K+") */
-  function fmtK(n: number): string {
-    if (n >= 1000) {
-      const k = Math.floor(n / 1000);
-      return `${k}K+`;
-    }
-    return `${n}+`;
   }
 
   return (
@@ -103,7 +86,7 @@ export default async function Home() {
               <div className="flex items-center gap-6 mt-10 justify-center lg:justify-start">
                 <div className="text-center">
                   <div className="text-2xl font-bold text-zinc-900 dark:text-white">
-                    {urlCount !== null ? fmtK(urlCount) : '12K+'}
+                    1.6 million
                   </div>
                   <div className="text-xs text-zinc-400 mt-0.5">Curated URLs</div>
                 </div>
@@ -114,8 +97,8 @@ export default async function Home() {
                 </div>
                 <div className="w-px h-10 bg-zinc-200 dark:bg-zinc-800" />
                 <div className="text-center">
-                  <div className="text-2xl font-bold text-zinc-900 dark:text-white">Ext</div>
-                  <div className="text-xs text-zinc-400 mt-0.5">Browser + Android</div>
+                  <div className="text-2xl font-bold text-zinc-900 dark:text-white">4.2 million</div>
+                  <div className="text-xs text-zinc-400 mt-0.5">Total page ratings</div>
                 </div>
               </div>
             </div>
