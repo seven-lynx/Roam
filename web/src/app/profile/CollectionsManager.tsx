@@ -39,6 +39,9 @@ export function CollectionsManager({ userId, initialCollections }: Props) {
   const [createError, setCreateError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
+  const [renamingId, setRenamingId] = useState<string | null>(null);
+  const [renameText, setRenameText] = useState('');
+  const [renaming, setRenaming] = useState(false);
 
   async function loadItems(collectionId: string) {
     setLoadingItems(true);
@@ -113,6 +116,38 @@ export function CollectionsManager({ userId, initialCollections }: Props) {
     if (expandedId === id) { setExpandedId(null); setExpandedItems([]); }
   }
 
+  function startRename(col: CollectionRow) {
+    setRenamingId(col.id);
+    setRenameText(col.name);
+  }
+
+  function cancelRename() {
+    setRenamingId(null);
+    setRenameText('');
+  }
+
+  async function saveRename(col: CollectionRow) {
+    const name = renameText.trim();
+    if (!name || name.length < 2 || name === col.name) {
+      cancelRename();
+      return;
+    }
+    setRenaming(true);
+    const slug = `${name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')}-${crypto.randomUUID().slice(0, 8)}`;
+    const { error: err } = await supabase
+      .from('collections')
+      .update({ name, slug })
+      .eq('id', col.id)
+      .eq('user_id', userId);
+    setRenaming(false);
+    if (err) { setError(err.message); return; }
+    setCollections(prev =>
+      prev.map(c => c.id === col.id ? { ...c, name, slug } : c)
+    );
+    setRenamingId(null);
+    setRenameText('');
+  }
+
   async function togglePublic(col: CollectionRow) {
     const { error: err } = await supabase
       .from('collections')
@@ -177,14 +212,30 @@ export function CollectionsManager({ userId, initialCollections }: Props) {
             <li key={col.id} className="rounded-xl border border-zinc-200 dark:border-zinc-800 overflow-hidden">
               {/* Header row */}
               <div className="flex items-center gap-2 px-4 py-3">
-                <button
-                  onClick={() => toggleExpand(col.id)}
-                  className="flex-1 text-left flex items-center gap-2 min-w-0"
-                >
-                  <span className="text-sm font-medium text-zinc-900 dark:text-white truncate">{col.name}</span>
-                  <span className="shrink-0 text-xs text-zinc-400">{col.item_count}</span>
-                  <span className="shrink-0 text-xs text-zinc-400">{expandedId === col.id ? '▲' : '▼'}</span>
-                </button>
+                {renamingId === col.id ? (
+                  <input
+                    value={renameText}
+                    onChange={e => setRenameText(e.target.value)}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter') void saveRename(col);
+                      if (e.key === 'Escape') cancelRename();
+                    }}
+                    onBlur={() => void saveRename(col)}
+                    maxLength={80}
+                    disabled={renaming}
+                    className="flex-1 rounded border border-zinc-300 dark:border-zinc-700 px-2 py-1 text-sm bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:focus:ring-white min-w-0"
+                    autoFocus
+                  />
+                ) : (
+                  <button
+                    onClick={() => toggleExpand(col.id)}
+                    className="flex-1 text-left flex items-center gap-2 min-w-0"
+                  >
+                    <span className="text-sm font-medium text-zinc-900 dark:text-white truncate">{col.name}</span>
+                    <span className="shrink-0 text-xs text-zinc-400">{col.item_count}</span>
+                    <span className="shrink-0 text-xs text-zinc-400">{expandedId === col.id ? '▲' : '▼'}</span>
+                  </button>
+                )}
 
                 <span className={`shrink-0 text-xs px-2 py-0.5 rounded-full ${
                   col.is_public
@@ -201,6 +252,16 @@ export function CollectionsManager({ userId, initialCollections }: Props) {
                     className="shrink-0 text-xs text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 transition-colors"
                   >
                     {copied === col.id ? '✓' : '🔗'}
+                  </button>
+                )}
+
+                {renamingId !== col.id && (
+                  <button
+                    onClick={() => startRename(col)}
+                    title="Rename collection"
+                    className="shrink-0 text-xs text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 transition-colors"
+                  >
+                    Rename
                   </button>
                 )}
 
