@@ -320,9 +320,10 @@ async function FeaturedCollections() {
     return null; // silently skip if Supabase is down
   }
 
-  const { data: collections } = await supabase
+    const { data: collections } = await supabase
     .from('collections')
     .select('id, name, slug, profiles(username, display_name)')
+    .eq('is_public', true)
     .order('created_at', { ascending: false })
     .limit(6);
 

@@ -20,6 +20,7 @@ export default async function CollectionsPage() {
   const { data: collections } = await supabase
     .from('collections')
     .select('id, name, slug, created_at, profiles(username, display_name)')
+    .eq('is_public', true)
     .order('created_at', { ascending: false })
     .limit(50);
 
