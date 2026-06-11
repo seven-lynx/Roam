@@ -8,12 +8,32 @@ import { RandomPageButton } from "@/components/RandomPageButton";
 
 export default async function Home() {
   let user: null | { id: string } = null;
+  let ratingCount: number | null = null;
   try {
     const supabase = await createClient();
     const { data } = await supabase.auth.getUser();
     user = data.user ?? null;
+
+    // Fetch live count of total ratings
+    const { count } = await supabase
+      .from('ratings')
+      .select('*', { count: 'exact', head: true });
+    ratingCount = count ?? 0;
   } catch {
     // Supabase unavailable — render the page without auth state
+  }
+
+  /** Format a number with K/M suffix */
+  function fmtCount(n: number): string {
+    if (n >= 1000000) {
+      const m = (n / 1000000).toFixed(1);
+      return `${m} million`;
+    }
+    if (n >= 1000) {
+      const k = (n / 1000).toFixed(1);
+      return `${k}K`;
+    }
+    return `${n}`;
   }
 
   return (
@@ -97,7 +117,9 @@ export default async function Home() {
                 </div>
                 <div className="w-px h-10 bg-zinc-200 dark:bg-zinc-800" />
                 <div className="text-center">
-                  <div className="text-2xl font-bold text-zinc-900 dark:text-white">4.2 million</div>
+                  <div className="text-2xl font-bold text-zinc-900 dark:text-white">
+                    {ratingCount !== null ? fmtCount(ratingCount) : '4.2 million'}
+                  </div>
                   <div className="text-xs text-zinc-400 mt-0.5">Total page ratings</div>
                 </div>
               </div>
