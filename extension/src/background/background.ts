@@ -15,12 +15,16 @@ declare const __SUPABASE_URL__: string;
 // Validate env vars at SW startup. Throws (crashing the SW with a clear message) if missing.
 validateEnvironment();
 
-const PREFETCH_KEY = 'prefetch';
+const PREFETCH_KEY = 'prefetch_queue';
 const PREFETCH_TTL = 5 * 60 * 1000; // 5 minutes
+const PREFETCH_TARGET = 3; // number of URLs to keep buffered (matching Android hot queue)
+const RECENT_DOMAINS_KEY = 'recent_domains';
+const RECENT_DOMAINS_MAX = 5; // up to 5 recent domains to exclude
+const RECENT_DOMAINS_TTL = 2 * 60 * 1000; // 2 minutes per entry
+const RATING_QUEUE_KEY = 'pending_ratings';
+const RATING_FLUSH_BATCH = 10; // max ratings to flush at once
 
 // Deduplicates concurrent prefetch calls within a single SW activation.
-// If the popup is opened and Roam is clicked before the prefetch completes,
-// roam() awaits this promise instead of issuing a second parallel API call.
 let prefetchInFlight: Promise<void> | null = null;
 
 // ── URL normaliser ────────────────────────────────────────────────────────────
@@ -44,14 +48,150 @@ function getDomain(url: string): string | null {
     const u = new URL(url);
     let domain = u.hostname.toLowerCase();
     if (domain.startsWith('www.')) domain = domain.slice(4);
-    // Extract registrable domain (last 2 parts) to block all subdomains together
-    // e.g., "username.itch.io" → "itch.io", "github.com" → "github.com"
     const parts = domain.split('.');
-    if (parts.length >= 3) {
-      return parts.slice(-2).join('.');
-    }
+    if (parts.length >= 3) return parts.slice(-2).join('.');
     return domain;
   } catch { return null; }
+}
+
+// ── Retry helper ──────────────────────────────────────────────────────────────
+async function withRetry<T>(fn: () => Promise<T>, maxAttempts = 3, baseDelay = 500): Promise<T> {
+  let lastError: unknown;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      return await fn();
+    } catch (err) {
+      lastError = err;
+      if (attempt >= maxAttempts) break;
+      // Only retry on network/timeout errors, not 4xx
+      const msg = (err instanceof Error ? err.message : String(err)).toLowerCase();
+      if (msg.includes('timeout') || msg.includes('fetch') || msg.includes('network') || msg.includes('abort')) {
+        await new Promise(r => setTimeout(r, baseDelay * attempt));
+        continue;
+      }
+      break;
+    }
+  }
+  throw lastError;
+}
+
+// ── Badge helpers ─────────────────────────────────────────────────────────────
+async function updateBadge(): Promise<void> {
+  const stored = await chrome.storage.session.get(PREFETCH_KEY);
+  const queue = (stored[PREFETCH_KEY] as { data: RoamData; cachedAt: number }[] | undefined) ?? [];
+  const fresh = queue.filter(e => Date.now() - e.cachedAt < PREFETCH_TTL);
+  const count = fresh.length;
+  if (count > 0) {
+    chrome.action.setBadgeText({ text: String(count) });
+    chrome.action.setBadgeBackgroundColor({ color: '#6366f1' }); // Indigo-500
+  } else {
+    chrome.action.setBadgeText({ text: '' });
+  }
+}
+
+// ── Recent domains helpers ────────────────────────────────────────────────────
+async function getRecentDomains(): Promise<string[]> {
+  const stored = await chrome.storage.local.get(RECENT_DOMAINS_KEY);
+  const entries = (stored[RECENT_DOMAINS_KEY] ?? []) as { domain: string; ts: number }[];
+  const now = Date.now();
+  const fresh = entries.filter(e => now - e.ts < RECENT_DOMAINS_TTL).map(e => e.domain);
+  return fresh.slice(0, RECENT_DOMAINS_MAX);
+}
+
+async function addRecentDomain(domain: string): Promise<void> {
+  const stored = await chrome.storage.local.get(RECENT_DOMAINS_KEY);
+  const entries = (stored[RECENT_DOMAINS_KEY] ?? []) as { domain: string; ts: number }[];
+  const now = Date.now();
+  const fresh = entries.filter(e => now - e.ts < RECENT_DOMAINS_TTL && e.domain !== domain);
+  fresh.push({ domain, ts: now });
+  while (fresh.length > RECENT_DOMAINS_MAX) fresh.shift();
+  await chrome.storage.local.set({ [RECENT_DOMAINS_KEY]: fresh });
+}
+
+// ── Prefetch queue helpers ────────────────────────────────────────────────────
+async function getPrefetchQueue(): Promise<{ data: RoamData; cachedAt: number }[]> {
+  const stored = await chrome.storage.session.get(PREFETCH_KEY);
+  const queue = (stored[PREFETCH_KEY] as { data: RoamData; cachedAt: number }[] | undefined) ?? [];
+  return queue.filter(e => Date.now() - e.cachedAt < PREFETCH_TTL);
+}
+
+async function savePrefetchQueue(queue: { data: RoamData; cachedAt: number }[]): Promise<void> {
+  await chrome.storage.session.set({ [PREFETCH_KEY]: queue });
+  void updateBadge();
+}
+
+async function popFromPrefetch(): Promise<RoamData | null> {
+  const queue = await getPrefetchQueue();
+  if (queue.length === 0) return null;
+  const entry = queue.shift()!;
+  await savePrefetchQueue(queue);
+  return entry.data;
+}
+
+async function fillPrefetch(): Promise<void> {
+  const queue = await getPrefetchQueue();
+  const needed = PREFETCH_TARGET - queue.length;
+  if (needed <= 0) return;
+
+  const recentDomains = await getRecentDomains();
+  const existingDomains = new Set(queue.map(e => getDomain(e.data.url)).filter(Boolean));
+
+  const promises: Promise<Response<RoamData>>[] = [];
+  for (let i = 0; i < needed; i++) {
+    const body: Record<string, unknown> = {};
+    if (recentDomains.length > 0) body.exclude_domains = recentDomains;
+    promises.push(callRoamApi(body));
+  }
+
+  const results = await Promise.allSettled(promises);
+  for (const r of results) {
+    if (r.status === 'fulfilled' && r.value.ok && r.value.data.url) {
+      const domain = getDomain(r.value.data.url);
+      if (domain && existingDomains.has(domain)) continue;
+      queue.push({ data: r.value.data, cachedAt: Date.now() });
+      if (domain) existingDomains.add(domain);
+    }
+  }
+  await savePrefetchQueue(queue);
+}
+
+// ── Offline rating queue ──────────────────────────────────────────────────────
+async function getPendingRatings(): Promise<{ url_id: string; vote: 1 | -1 }[]> {
+  const stored = await chrome.storage.local.get(RATING_QUEUE_KEY);
+  return (stored[RATING_QUEUE_KEY] ?? []) as { url_id: string; vote: 1 | -1 }[];
+}
+
+async function savePendingRatings(ratings: { url_id: string; vote: 1 | -1 }[]): Promise<void> {
+  await chrome.storage.local.set({ [RATING_QUEUE_KEY]: ratings });
+}
+
+async function queueFailedRating(url_id: string, vote: 1 | -1): Promise<void> {
+  const ratings = await getPendingRatings();
+  // Deduplicate
+  if (!ratings.some(r => r.url_id === url_id)) {
+    ratings.push({ url_id, vote });
+    await savePendingRatings(ratings);
+  }
+}
+
+async function flushPendingRatings(): Promise<void> {
+  const ratings = await getPendingRatings();
+  if (ratings.length === 0) return;
+
+  const batch = ratings.slice(0, RATING_FLUSH_BATCH);
+  const supabase = getSupabase();
+  let remaining = batch.slice();
+
+  for (const r of batch) {
+    try {
+      const { error } = await supabase.functions.invoke('rate', { body: { url_id: r.url_id, value: r.vote } });
+      if (!error) remaining = remaining.filter(x => x.url_id !== r.url_id);
+    } catch { /* keep in queue for next flush */ }
+  }
+
+  // Save the ones that failed + any not in the batch
+  const unprocessed = ratings.slice(RATING_FLUSH_BATCH);
+  await savePendingRatings([...remaining, ...unprocessed]);
 }
 
 // ── Global error capture ──────────────────────────────────────────────────────
@@ -64,11 +204,27 @@ self.addEventListener('error', (event) => {
 });
 
 // ── Message router ────────────────────────────────────────────────────────────
-// Pre-warm the prefetch cache on browser startup and extension install/update,
-// so the first popup open after a browser restart is already near-instant.
 chrome.runtime.onStartup.addListener(() => { prefetchNext(); });
 chrome.runtime.onInstalled.addListener(() => { prefetchNext(); });
-chrome.runtime.onConnect.addListener((_port) => { prefetchNext(); });
+chrome.runtime.onConnect.addListener((_port) => {
+  prefetchNext();
+  flushPendingRatings(); // flush ratings whenever popup opens
+});
+
+// Keyboard shortcut: Roam without opening popup
+chrome.commands.onCommand.addListener(async (command) => {
+  if (command === 'roam') {
+    try {
+      const result = await roam();
+      if (result.ok && result.data.url) {
+        const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+        if (tab?.id) chrome.tabs.update(tab.id, { url: result.data.url });
+      }
+    } catch (err) {
+      Sentry.captureException(err, { tags: { context: 'command-roam' } });
+    }
+  }
+});
 
 chrome.runtime.onMessage.addListener(
   (message: Request, _sender, sendResponse: (r: Response) => void) => {
@@ -136,14 +292,10 @@ async function getState(): Promise<Response<StateData>> {
   if (error) return { ok: false, error: error.message };
   if (!session) return { ok: true, data: { signedIn: false } };
 
-  // With autoRefreshToken disabled, refresh manually when the access token
-  // has expired or is about to (within 60 s). This is the only place refresh
-  // needs to happen — getState() is always the first call the popup makes.
   const expiresAt = (session as any).expires_at as number | undefined ?? 0;
   if (expiresAt <= Math.floor(Date.now() / 1000) + 60) {
     const { data: refreshed, error: rErr } = await getSupabase().auth.refreshSession();
     if (rErr) {
-      // Refresh token invalid/expired — clear storage and prompt re-auth.
       await clearAuthStorage();
       return { ok: true, data: { signedIn: false } };
     }
@@ -177,10 +329,6 @@ async function signInWithEmail(email: string, password: string): Promise<Respons
 }
 
 async function signUpWithEmail(email: string, password: string): Promise<Response<{ needsVerification: boolean }>> {
-  // Email confirmation links open in the user's default browser. Pointing them
-  // at the web app's auth callback lets the link resolve to a real success
-  // page — once the email is confirmed, the user can return to the extension
-  // and sign in with their password.
   const { data, error } = await getSupabase().auth.signUp({
     email,
     password,
@@ -235,6 +383,19 @@ async function getUserCategories(): Promise<Response<{ categoryIds: string[] }>>
   return { ok: true, data: { categoryIds: (data || []).map((r: any) => r.category_id) } };
 }
 
+async function setUserCategories(categoryIds: string[]): Promise<Response<null>> {
+  const session = (await getSupabase().auth.getSession()).data.session;
+  if (!session) return { ok: false, error: "You're not signed in. Please sign in and try again." };
+  const { error: delError } = await getSupabase().from('user_categories').delete().eq('user_id', session.user.id);
+  if (delError) return { ok: false, error: "Couldn't save your categories. Please try again." };
+  if (categoryIds.length > 0) {
+    const rows = categoryIds.map((id) => ({ user_id: session.user.id, category_id: id }));
+    const { error: insError } = await getSupabase().from('user_categories').insert(rows);
+    if (insError) return { ok: false, error: "Couldn't save your categories. Please try again." };
+  }
+  return { ok: true, data: null };
+}
+
 async function getUserInterests(): Promise<Response<{ mode: 'pillars' | 'topics'; pillarIds: string[]; topicIds: string[] }>> {
   const session = (await getSupabase().auth.getSession()).data.session;
   if (!session) return { ok: false, error: "You're not signed in. Please sign in and try again." };
@@ -252,14 +413,14 @@ async function getUserInterests(): Promise<Response<{ mode: 'pillars' | 'topics'
   return { ok: true, data: { mode: 'pillars', pillarIds: pillarRows.map((r: any) => r.category_id), topicIds: [] } };
 }
 
-async function getAllSubcategories(): Promise<Response<import('../lib/messages').SubcategoryItem[]>> {
+async function getAllSubcategories(): Promise<Response<SubcategoryItem[]>> {
   try {
     const { data, error } = await getSupabase()
       .from('subcategories')
       .select('id, name, category_id, sort_order')
       .order('sort_order');
     if (error || !data) return { ok: true, data: [] };
-    return { ok: true, data: data as import('../lib/messages').SubcategoryItem[] };
+    return { ok: true, data: data as SubcategoryItem[] };
   } catch {
     return { ok: true, data: [] };
   }
@@ -271,7 +432,6 @@ async function setUserInterests(pillarIds: string[], topicIds: string[]): Promis
   const { error: delError } = await getSupabase().from('user_categories').delete().eq('user_id', session.user.id);
   if (delError) return { ok: false, error: "Couldn't save your preferences. Please try again." };
   if (topicIds.length > 0) {
-    // Topics mode: look up category_id for each topic
     const { data: scData, error: scError } = await getSupabase()
       .from('subcategories')
       .select('id, category_id')
@@ -291,34 +451,48 @@ async function setUserInterests(pillarIds: string[], topicIds: string[]): Promis
 
 // ── Roam ──────────────────────────────────────────────────────────────────────
 async function callRoamApi(body: Record<string, unknown> = {}): Promise<Response<RoamData>> {
-  const storage = await chrome.storage.local.get('lastRoamDomain');
-  const excludeDomain = storage.lastRoamDomain ?? null;
-  const { data, error } = await getSupabase().functions.invoke('roam', {
-    body: { ...(excludeDomain ? { exclude_domain: excludeDomain } : {}), ...body },
-  });
-  if (error) {
-    const status = (error as any).context?.status;
-    if (status === 404) return { ok: true, data: { url: '' } as RoamData };
-    try {
-      const parsed = await (error as any).context?.json?.();
-      if ((parsed as any)?.error) return { ok: false, error: (parsed as any).error };
-    } catch { /* ignore */ }
-    return { ok: false, error: error.message };
+  const recentDomains = await getRecentDomains();
+
+  // Merge recent domains into the exclude_domains array if provided,
+  // or add as single exclude_domain for backward compat
+  const mergedBody = { ...body };
+  if (recentDomains.length > 0) {
+    const existing = (body.exclude_domains as string[] | undefined) ?? [];
+    mergedBody.exclude_domains = [...new Set([...existing, ...recentDomains])];
   }
-  if (data?.error) return { ok: false, error: data.error };
-  const newDomain = getDomain(data.url);
-  if (newDomain) await chrome.storage.local.set({ lastRoamDomain: newDomain });
-  return { ok: true, data: data as RoamData };
+
+  const invoker = async () => {
+    const supabase = getSupabase();
+    const { data, error } = await supabase.functions.invoke('roam', { body: mergedBody });
+    if (error) {
+      const status = (error as any).context?.status;
+      if (status === 404) return { ok: true, data: { url: '' } } as Response<RoamData>;
+      let parsed: { error?: string } | null = null;
+      try { parsed = await (error as any).context?.json?.(); } catch { /* ignore */ }
+      if (parsed?.error) return { ok: false, error: parsed.error } as Response<RoamData>;
+      return { ok: false, error: error.message } as Response<RoamData>;
+    }
+    if (data?.error) return { ok: false, error: data.error } as Response<RoamData>;
+    return { ok: true, data: data as RoamData } as Response<RoamData>;
+  };
+
+  try {
+    const result = await withRetry(invoker, 3, 500);
+    if (result.ok && result.data.url) {
+      const domain = getDomain(result.data.url);
+      if (domain) await addRecentDomain(domain);
+    }
+    return result;
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : 'Discovery failed. Please try again.' };
+  }
 }
 
 async function prefetchNext(): Promise<void> {
-  if (prefetchInFlight) return; // already running — don't double-fetch
+  if (prefetchInFlight) return;
   prefetchInFlight = (async () => {
     try {
-      const result = await callRoamApi();
-      if (result.ok && result.data.url) {
-        await chrome.storage.session.set({ [PREFETCH_KEY]: { data: result.data, cachedAt: Date.now() } });
-      }
+      await fillPrefetch();
     } catch { /* never block the popup */ }
     finally { prefetchInFlight = null; }
   })();
@@ -327,32 +501,30 @@ async function prefetchNext(): Promise<void> {
 async function roam(categoryId?: string, subcategoryId?: string): Promise<Response<RoamData>> {
   const hasFocus = categoryId || subcategoryId;
 
+  // Try prefetch queue first
   if (!hasFocus) {
-    const stored = await chrome.storage.session.get(PREFETCH_KEY);
-    const cached = stored[PREFETCH_KEY] as { data: RoamData; cachedAt: number } | undefined;
-    if (cached && Date.now() - cached.cachedAt < PREFETCH_TTL) {
-      await chrome.storage.session.remove(PREFETCH_KEY);
-      prefetchNext(); // fire-and-forget — restock for next click
-      const translatedUrl = await maybeTranslate(cached.data.url);
+    const cached = await popFromPrefetch();
+    if (cached) {
+      prefetchNext(); // fire-and-forget — restock
+      const translatedUrl = await maybeTranslate(cached.url);
       await chrome.storage.session.set({ auto_translate: false });
-      return { ok: true, data: { ...cached.data, url: translatedUrl } };
+      return { ok: true, data: { ...cached, url: translatedUrl } };
     }
-    // Cache miss — if a prefetch is already in flight, await it rather than
-    // issuing a second parallel API call (happens when user clicks Roam fast).
+
+    // Cache miss — if a prefetch is already in flight, await it
     if (prefetchInFlight) {
       await prefetchInFlight;
-      const stored2 = await chrome.storage.session.get(PREFETCH_KEY);
-      const cached2 = stored2[PREFETCH_KEY] as { data: RoamData; cachedAt: number } | undefined;
-      if (cached2 && Date.now() - cached2.cachedAt < PREFETCH_TTL) {
-        await chrome.storage.session.remove(PREFETCH_KEY);
+      const cached2 = await popFromPrefetch();
+      if (cached2) {
         prefetchNext();
-        const translatedUrl2 = await maybeTranslate(cached2.data.url);
+        const translatedUrl2 = await maybeTranslate(cached2.url);
         await chrome.storage.session.set({ auto_translate: false });
-        return { ok: true, data: { ...cached2.data, url: translatedUrl2 } };
+        return { ok: true, data: { ...cached2, url: translatedUrl2 } };
       }
     }
   }
 
+  // Live fetch
   const body: Record<string, unknown> = {};
   if (categoryId) body.category_id = categoryId;
   if (subcategoryId) body.subcategory_id = subcategoryId;
@@ -367,33 +539,42 @@ async function roam(categoryId?: string, subcategoryId?: string): Promise<Respon
 }
 
 async function roamCollection(collectionId: string): Promise<Response<RoamData>> {
-  const { data, error } = await getSupabase().functions.invoke('roam', { body: { collection_id: collectionId } });
-  if (error) return { ok: false, error: error.message };
-  if (data?.error) return { ok: false, error: data.error };
-  const newDomain = getDomain(data.url);
-  if (newDomain) await chrome.storage.local.set({ lastRoamDomain: newDomain });
-  const translatedUrl = await maybeTranslate(data.url);
-  return { ok: true, data: { ...data, url: translatedUrl } as RoamData };
+  const result = await callRoamApi({ collection_id: collectionId });
+  if (result.ok && result.data.url) {
+    const translatedUrl = await maybeTranslate(result.data.url);
+    return { ok: true, data: { ...result.data, url: translatedUrl } };
+  }
+  return result;
 }
 
 async function roamCategory(categoryId: string): Promise<Response<RoamData>> {
-  const { data, error } = await getSupabase().functions.invoke('roam', { body: { category_id: categoryId } });
-  if (error) return { ok: false, error: error.message };
-  if (data?.error) return { ok: false, error: data.error };
-  const newDomain = getDomain(data.url);
-  if (newDomain) await chrome.storage.local.set({ lastRoamDomain: newDomain });
-  const translatedUrl = await maybeTranslate(data.url);
-  return { ok: true, data: { ...data, url: translatedUrl } as RoamData };
+  const result = await callRoamApi({ category_id: categoryId });
+  if (result.ok && result.data.url) {
+    const translatedUrl = await maybeTranslate(result.data.url);
+    return { ok: true, data: { ...result.data, url: translatedUrl } };
+  }
+  return result;
 }
 
 // ── Rate / Check / Submit ─────────────────────────────────────────────────────
 async function rate(url_id: string, vote: 1 | -1): Promise<Response<null>> {
-  const { data, error } = await getSupabase().functions.invoke('rate', { body: { url_id, value: vote } });
-  if (error) return { ok: false, error: error.message };
-  if (data?.error) return { ok: false, error: data.error };
-  // Clear prefetch cache to prevent serving stale suppressed URLs
-  await chrome.storage.session.remove(PREFETCH_KEY);
-  return { ok: true, data: null };
+  const supabase = getSupabase();
+  try {
+    const { data, error } = await supabase.functions.invoke('rate', { body: { url_id, value: vote } });
+    if (error) {
+      // Network error — queue for retry
+      await queueFailedRating(url_id, vote);
+      return { ok: false, error: error.message };
+    }
+    if (data?.error) return { ok: false, error: data.error };
+    // Clear prefetch cache to prevent serving stale suppressed URLs
+    await chrome.storage.session.remove(PREFETCH_KEY);
+    return { ok: true, data: null };
+  } catch {
+    // Network-level failure — queue for retry
+    await queueFailedRating(url_id, vote);
+    return { ok: false, error: 'Rating queued for retry.' };
+  }
 }
 
 async function checkUrl(url: string): Promise<Response<CheckUrlData>> {
@@ -414,8 +595,6 @@ async function submitUrl(url: string, categoryId: string): Promise<Response<{ du
   if (!categoryId || !UUID_RE.test(categoryId)) return { ok: false, error: 'Invalid category selection.' };
   const { data, error } = await getSupabase().functions.invoke('submit-url', { body: { url, category_id: categoryId } });
   if (error) {
-    // supabase-js wraps the JSON body in FunctionsHttpError.context (Response).
-    // Read it so we can surface a "duplicate" outcome (HTTP 409) distinctly.
     type FnErr = Error & { context?: Response };
     const ctx = (error as FnErr).context;
     let body: { error?: string; message?: string; duplicate?: boolean } | null = null;
@@ -445,9 +624,7 @@ async function saveLater(url: string, title?: string): Promise<Response<null>> {
         { onConflict: 'user_id,url' }
       );
     if (!error) return { ok: true, data: null };
-    // Fall through to local storage on DB error
   }
-  // Fallback: local storage (unsigned-in or DB error)
   const storage = await chrome.storage.local.get('saved_urls');
   const saved = (storage.saved_urls || []) as string[];
   if (!saved.includes(url)) { saved.push(url); await chrome.storage.local.set({ saved_urls: saved }); }
@@ -516,8 +693,6 @@ async function setAutoTranslate(enabled: boolean): Promise<Response<null>> {
 }
 
 // ── Translate URL helper ──────────────────────────────────────────────────────
-// Wraps a URL in Google Translate when auto-translate is enabled.
-// Toggle state is session-scoped (ephemeral); language preference is persistent.
 async function maybeTranslate(url: string): Promise<string> {
   const [session, local] = await Promise.all([
     chrome.storage.session.get('auto_translate'),
@@ -541,8 +716,6 @@ async function getCollections(): Promise<Response<Collection[]>> {
 async function createCollection(name: string): Promise<Response<Collection>> {
   const session = (await getSupabase().auth.getSession()).data.session;
   if (!session) return { ok: false, error: "You're not signed in. Please sign in and try again." };
-  // Route through the `collection` edge function so slug namespacing, validation,
-  // and the per-user uniqueness rules stay identical across surfaces.
   const { data, error } = await getSupabase().functions.invoke('collection', {
     body: { action: 'create', name },
   });
@@ -563,8 +736,6 @@ async function addUrlToCollection(url: string, collectionId: string): Promise<Re
     if (createError) return { ok: false, error: "Couldn't add to collection. Please try again." };
     urlId = newUrl.id;
   }
-  // Route through the `collection` edge function so the 10K per-collection cap
-  // and duplicate handling are enforced server-side.
   const { data, error: addError } = await getSupabase().functions.invoke('collection', {
     body: { action: 'add_item', collection_id: collectionId, url_id: urlId },
   });

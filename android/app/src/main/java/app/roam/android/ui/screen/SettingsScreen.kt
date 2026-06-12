@@ -39,6 +39,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -47,8 +48,12 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
 import app.roam.android.BuildConfig
+import app.roam.android.data.supabase
 import app.roam.android.model.SubcategoryItem
 import app.roam.android.viewmodel.MainViewModel
+import io.github.jan.supabase.auth.auth
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 // Constants to avoid recreating lists on every recomposition
 private val AVAILABLE_LANGUAGES = listOf(
@@ -68,6 +73,7 @@ fun SettingsScreen(
     onNavigateToHistory: () -> Unit = {},
     onNavigateToNotifications: () -> Unit = {},
     onNavigateToRoam: () -> Unit = {},
+    onNavigateToAdmin: () -> Unit = {},
 ) {
     val skipPaywalled by vm.skipPaywalled.collectAsState()
     val webDarkMode by vm.webDarkMode.collectAsState()
@@ -89,6 +95,36 @@ fun SettingsScreen(
     val notificationsEnabled by vm.notificationsEnabled.collectAsState()
     val currentUrl by vm.currentUrl.collectAsState()
     val savedConfirmation by vm.savedConfirmation.collectAsState()
+
+    // Admin gate: tap the Version row 5 times within 3 seconds to unlock.
+    var versionTapCount by remember { mutableStateOf(0) }
+    var versionTapResetJob by remember { mutableStateOf<kotlinx.coroutines.Job?>(null) }
+    val scope = rememberCoroutineScope()
+    fun onVersionTap() {
+        val newCount = versionTapCount + 1
+        versionTapCount = newCount
+        versionTapResetJob?.cancel()
+        versionTapResetJob = scope.launch {
+            delay(3000L)
+            versionTapCount = 0
+        }
+        if (newCount >= 5) {
+            versionTapCount = 0
+            versionTapResetJob?.cancel()
+            // Only unlock for the admin user. The admin user ID is compared at runtime
+            // against the currently signed-in Supabase user — no other user can enter.
+            val currentUserId = runCatching {
+                supabase.auth.currentUserOrNull()?.id
+            }.getOrNull()
+            // Replace "YOUR_ADMIN_USER_UUID" with the admin's Supabase auth user ID string.
+            // This UUID identifies you uniquely. It is not a secret — the real security
+            // is handled by the web admin panel's service-role-key requirement.
+            if (currentUserId == "a559a4be-05c3-46c7-9497-23d49bbeaa5f") {
+                vm.setAdminMode(true)
+                onNavigateToRoam()
+            }
+        }
+    }
 
     if (showSignOutDialog) {
         AlertDialog(
@@ -516,6 +552,7 @@ fun SettingsScreen(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .clickable(onClick = { onVersionTap() })
                     .padding(horizontal = 16.dp, vertical = 12.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {

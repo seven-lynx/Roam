@@ -166,7 +166,6 @@ async function checkAndRouteAfterSignIn(): Promise<void> {
     sendToBackground<SubcategoryItem[]>({ type: 'GET_ALL_SUBCATEGORIES' }),
     chrome.storage.session.get(['auto_translate']),
   ]);
-  el<HTMLInputElement>('toggle-translate').checked = sessionPrefs.auto_translate === true;
   const categoryItems = allCats.ok && allCats.data.length > 0 ? allCats.data : FALLBACK_CATEGORIES;
   loadedCategories = categoryItems;
   if (allSubcats.ok) loadedSubcategories = allSubcats.data;
@@ -485,8 +484,6 @@ document.addEventListener('DOMContentLoaded', () => {
     roamBtn.textContent = 'Roam';
     if (!res.ok) { showError(res.error); return; }
     if (!res.data?.url) { showState('noresults'); return; }
-    // Background has already reset auto_translate; sync the UI toggle
-    el<HTMLInputElement>('toggle-translate').checked = false;
     if (tab?.id) chrome.tabs.update(tab.id, { url: res.data.url });
     window.close();
   });
@@ -952,34 +949,41 @@ document.addEventListener('DOMContentLoaded', () => {
     await sendToBackground({ type: 'SET_PAYWALL_PREF', skip: checked });
   });
 
-  // ── Auto-translate toggle ─────────────────────────────────────────────────
-  el<HTMLInputElement>('toggle-translate').addEventListener('change', async (e) => {
-    const checked = (e.target as HTMLInputElement).checked;
-    await sendToBackground({ type: 'SET_AUTO_TRANSLATE', enabled: checked });
-    // Immediately translate or un-translate the current tab
+  // ── Translate this page (one-shot button) ───────────────────────────────
+  el('btn-translate-page').addEventListener('click', async () => {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     if (!tab?.id || !tab.url) return;
-
-    if (checked) {
-      // Don't double-wrap a page that's already going through Translate
-      if (!tab.url.startsWith('https://translate.google.com/translate')) {
-        const lang = el<HTMLSelectElement>('select-translate-lang').value;
-        const translated = `https://translate.google.com/translate?sl=auto&tl=${encodeURIComponent(lang)}&u=${encodeURIComponent(tab.url)}`;
-        chrome.tabs.update(tab.id, { url: translated });
-        window.close();
-      }
+    // Don't double-wrap a page that's already going through Translate
+    if (tab.url.startsWith('https://translate.google.com/translate')) {
+      // Strip the wrapper and go back to the raw URL
+      try {
+        const raw = new URL(tab.url).searchParams.get('u');
+        if (raw) {
+          chrome.tabs.update(tab.id, { url: raw });
+          window.close();
+        }
+      } catch { /* ignore */ }
     } else {
-      // Strip the Translate wrapper and navigate back to the raw URL
-      if (tab.url.startsWith('https://translate.google.com/translate')) {
-        try {
-          const raw = new URL(tab.url).searchParams.get('u');
-          if (raw) {
-            chrome.tabs.update(tab.id, { url: raw });
-            window.close();
-          }
-        } catch { /* ignore malformed URL */ }
-      }
-    }  });
+      const targetLang = el<HTMLSelectElement>('select-discovery-lang').value;
+      const translated = `https://translate.google.com/translate?sl=auto&tl=${encodeURIComponent(targetLang)}&u=${encodeURIComponent(tab.url)}`;
+      chrome.tabs.update(tab.id, { url: translated });
+      window.close();
+    }
+  });
+
+  // ── Discovery language preference ────────────────────────────────────────
+  // Load saved language on boot
+  (async () => {
+    const stored = await chrome.storage.local.get('preferred_languages');
+    const langs = stored.preferred_languages as string[] | undefined;
+    if (langs && langs.length > 0 && langs[0] !== 'en') {
+      el<HTMLSelectElement>('select-discovery-lang').value = langs[0];
+    }
+  })();
+  el<HTMLSelectElement>('select-discovery-lang').addEventListener('change', async (e) => {
+    const lang = (e.target as HTMLSelectElement).value;
+    await sendToBackground({ type: 'SET_LANGUAGE_PREF', languages: [lang] });
+  });
   // ── Focus mode ──────────────────────────────────────────────────────────────────
   el<HTMLInputElement>('toggle-focus').addEventListener('change', (e) => {
     focusModeEnabled = (e.target as HTMLInputElement).checked;
@@ -1045,19 +1049,11 @@ document.addEventListener('DOMContentLoaded', () => {
       ]
     );
   });
-  // ── Translate language picker ─────────────────────────────────────────────
-  // Load saved preferences from storage
-  chrome.storage.local.get(['skip_paywalled', 'translate_language'], (stored) => {
+  // ── Paywall toggle: load saved preference ────────────────────────────────
+  chrome.storage.local.get(['skip_paywalled'], (stored) => {
     if (stored.skip_paywalled) {
       el<HTMLInputElement>('toggle-paywall').checked = true;
     }
-    const lang = (stored.translate_language as string) ?? 'en';
-    el<HTMLSelectElement>('select-translate-lang').value = lang;
-  });
-
-  el<HTMLSelectElement>('select-translate-lang').addEventListener('change', async (e) => {
-    const lang = (e.target as HTMLSelectElement).value;
-    await chrome.storage.local.set({ translate_language: lang });
   });
 });
 

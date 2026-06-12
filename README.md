@@ -14,8 +14,8 @@ Press the button and land on a real page, curated by real users, matched to what
 |---|---|
 | Supabase backend | ✅ Live |
 | Web app | ✅ Live |
-| Browser extension (Chrome + Firefox) | ✅ Live |
-| Android app | ⏳ Play Store submission pending |
+| Browser extension (Chrome + Firefox) | ✅ Live — published on Chrome Web Store and Firefox AMO |
+| Android app | ✅ Live — published on Google Play Store |
 
 ---
 
@@ -45,7 +45,7 @@ The discovery function runs directly in PostgreSQL. When you press the button, i
 - Topic affinity: upvoting a topic more often increases how frequently it appears (up to 2× weight; floor 0.4×). Downvoting doesn't hide a topic — it just dials the weight back slightly. Calibrated per subcategory.
 - Domain muting: two downvotes from the same domain triggers a 30-day auto-mute
 - Language filter, paywall opt-out
-- Subcategories: the system tracks your preferences within 20+ subcategories (e.g., Science, Art, Gaming) for more granular personalization
+- Subcategories: the system tracks your preferences within 72 subcategories across 8 category pillars for granular personalization
 
 **Community**
 - URL submission with moderation queue and duplicate detection
@@ -56,6 +56,7 @@ The discovery function runs directly in PostgreSQL. When you press the button, i
 - Public or private collections, saved with one tap
 - Follow users, browse their activity
 - Profile pages with stats (pages rated, submitted, followers)
+- Pillar vs. topic interest selection — toggle between broad category discovery or specific subcategory focus
 
 ---
 
@@ -65,27 +66,30 @@ The discovery function runs directly in PostgreSQL. When you press the button, i
 
 Deliberately non-intrusive. Click, roam, rate, close — nothing is injected into pages you visit.
 
-- Hot queue of 3 pre-fetched URLs for instant clicks; a background warming queue keeps it full
+- Prefetch cache (chrome.storage.session) for near-instant navigation
 - Detects and rates the page you're currently viewing
 - Chrome (MV3) and Firefox (MV3)
-- Source maps uploaded to Sentry on each build
+- Event-driven service worker architecture — no background loops
 
 ### Android app
 
 - In-app browser so you don't have to leave
-- Offline reading queue
+- Prefetch pipeline for instant card-to-card navigation
 - Browsing history screen with search and filtering
+- Push notifications for new features and updates
 - Material Design 3 / Jetpack Compose
 - Android 8.0+ (SDK 26), target SDK 35
 - Google OAuth or email/password sign-in
+- Offline rating queue with automatic flush on reconnect
 
 
 ### Web
 
 - Account management portal, onboarding, and admin moderation
 - Next.js 16 / TypeScript / Tailwind CSS, deployed on Vercel
+- 15-card admin analytics dashboard with request-time caching
 
-See [web/README.md](web/README.md) for the authoritative route map and UI spec.
+See [web/README.md](web/README.md) for the current route map and UI spec.
 
 ---
 
@@ -95,7 +99,7 @@ See [web/README.md](web/README.md) for the authoritative route map and UI spec.
 
 The database does the heavy lifting. Discovery runs as a `plpgsql` RPC (`roam()`) invoked via a Deno Edge Function. Row-Level Security enforces all access control at the database level. Every successful discovery is tracked via `serve_count` for analytics.
 
-Edge Functions (Deno) handle operations that need more than a simple query: `roam`, `rate`, `submit-url`, `save-url`, `collection`, `follow`, `profile`, `feedback`, `report-url`, `log-failed-urls`, `delete-user`, `export-user`, `beta-signup`, `send-bulk-email`.
+Edge Functions (Deno) handle operations that need more than a simple query: `roam`, `rate`, `submit-url`, `save-url`, `collection`, `follow`, `profile`, `feedback`, `report-url`, `log-failed-urls`, `delete-user`, `export-user`, `beta-signup`, `send-bulk-email`, `push-notify`.
 
 **Key tables:**
 
@@ -105,19 +109,25 @@ Edge Functions (Deno) handle operations that need more than a simple query: `roa
 | `ratings` | Per-user votes |
 | `seen_urls` | Tracks what each user has already been served |
 | `user_interest_scores` | Per-user, per-subcategory calibration weights |
+| `user_category_scores` | Per-user, per-category calibration (for unsegmented URLs) |
+| `interest_pair_scores` | Adjacent-category pair scoring for serendipity |
 | `user_domain_cooldowns` | 30-minute per-session domain cooldown |
 | `user_suppressed_domains` | 30-day domain suppression (from repeated downvotes) |
 | `collections` / `collection_items` | User-saved lists |
 | `profiles` / `follows` | Social layer |
 | `moderation_queue` | Submitted URLs pending review |
+| `moderation_audit_log` | Immutable log of admin moderation decisions |
+| `url_reports` | User reports of broken/dead links |
+| `push_tokens` / `notifications` | Push notification infrastructure (Android) |
+| `beta_signups` / `feedback` | Waitlist signups and in-app feedback |
 
 ### Browser extension
 
-Service worker architecture (MV3). `background.ts` owns all state and logic; `popup.ts` is purely UI; `callback.ts` detects the current tab URL for in-context rating.
+Event-driven service worker architecture (MV3). `background.ts` owns all state and logic; `popup.ts` is purely UI; `callback.ts` handles OAuth PKCE callback. Prefetch cache in `chrome.storage.session` delivers near-instant navigation.
 
 ### Android
 
-Kotlin + Jetpack Compose + Supabase Kotlin SDK. MVVM pattern with ViewModels and a data repository layer.
+Kotlin + Jetpack Compose + Supabase Kotlin SDK. Single-activity MVVM with `MainViewModel` owning all discovery, profile, settings, and collection state. `RoamRepository` handles all Supabase calls. Prefetch pipeline keeps the next URL cached for instant card-to-card swiping.
 
 ---
 
@@ -126,9 +136,9 @@ Kotlin + Jetpack Compose + Supabase Kotlin SDK. MVVM pattern with ViewModels and
 ```
 roam/
 ├── supabase/
-│   ├── migrations/         # 40+ SQL migrations
-│   └── functions/          # Deno Edge Functions
-│       └── _shared/        # CORS headers, auth helpers
+│   ├── migrations/         # 50+ SQL migrations
+│   └── functions/          # 15 Deno Edge Functions
+│       └── _shared/        # CORS, auth helpers, rate limiting, Sentry
 │
 ├── web/                    # Next.js app (Vercel)
 │   └── src/
@@ -140,16 +150,20 @@ roam/
 │   └── src/
 │       ├── background/     # Service worker
 │       ├── popup/          # UI
-│       ├── callback/       # Content script
-│       └── lib/            # Queue, Supabase client
+│       ├── callback/       # OAuth callback page
+│       └── lib/            # Supabase client, messages
 │
 ├── android/                # Kotlin + Compose app
 │   └── app/src/main/java/app/roam/android/
-│       ├── ui/             # Compose screens
+│       ├── ui/             # Compose screens & components
 │       ├── viewmodel/
-│       └── data/
+│       ├── data/
+│       └── model/
 │
-└── docs/                   # Audit docs, reports, etc.
+├── scripts/                # Content seeders & utilities
+│   └── lib/                # Shared seeding library
+│
+└── docs/                   # Audit docs, reports, roadmap, API reference
 ```
 
 ---
@@ -177,20 +191,10 @@ supabase functions deploy # deploys all edge functions
 cd extension
 pnpm install
 pnpm build   # outputs to dist/ (Chrome) and dist-firefox/
-pnpm watch   # rebuild on change
-```
+pnpm dev     # watch mode
 
-**Load in Chrome:** `chrome://extensions` → Developer mode → Load unpacked → `dist/`
-
-**Load in Firefox:** `about:debugging` → This Firefox → Load Temporary Add-on → `dist-firefox/manifest.json`
-
-**Debug:**
-```
-# Service worker console
-chrome://extensions → Roam → Inspect views → service worker
-
-# Popup console
-Click extension icon → Right click → Inspect popup
+# Load in Chrome: chrome://extensions → Developer mode → Load unpacked → dist/
+# Load in Firefox: about:debugging → This Firefox → Load Temporary Add-on → dist-firefox/manifest.json
 ```
 
 ### Web
@@ -234,18 +238,21 @@ Open in Android Studio and run, or from the command line:
 ```
 NEXT_PUBLIC_SUPABASE_URL=
 NEXT_PUBLIC_SUPABASE_ANON_KEY=
-DATABASE_URL=            # server-side only
+NEXT_PUBLIC_SENTRY_DSN=
+SENTRY_AUTH_TOKEN=         # server-side only, for source maps
 ```
 
 **Android** (`local.properties`):
 ```
 SUPABASE_URL=
 SUPABASE_ANON_KEY=
+SENTRY_DSN=
 ```
 
 **Edge Function secrets:**
 ```bash
 supabase secrets set SENTRY_DSN=https://...
+supabase secrets set SAFE_BROWSING_API_KEY=...
 supabase secrets list
 ```
 
@@ -254,9 +261,10 @@ supabase secrets list
 ## Tests
 
 ```bash
-cd extension && pnpm test
-cd web && pnpm test
-cd android && ./gradlew test
+cd extension && pnpm test       # Vitest (16 tests)
+cd web && pnpm test             # Jest (19 tests)
+cd web && pnpm test:ci          # Jest CI (coverage + no-watch)
+cd android && ./gradlew test    # JUnit (6 tests)
 cd android && ./gradlew connectedAndroidTest   # requires emulator
 ```
 
@@ -266,7 +274,7 @@ cd android && ./gradlew connectedAndroidTest   # requires emulator
 
 All platforms report errors to Sentry. The Supabase dashboard covers slow queries, function invocations, and storage usage.
 
-Sentry: https://7-lynx.sentry.io/projects/roam-extension
+Sentry: https://7-lynx.sentry.io/projects/
 
 ---
 
@@ -278,7 +286,7 @@ Sentry: https://7-lynx.sentry.io/projects/roam-extension
 
 **Android won't build** — run `./gradlew clean` and re-sync. Check `local.properties` has valid credentials.
 
-**Queue not refilling** — confirm the service worker is alive at `chrome://serviceworkers` and check for errors in the extension's background console.
+**Pop-up appears blank after install** — the service worker may not have started yet. Open the popup once, wait 2 seconds, and try again.
 
 ---
 

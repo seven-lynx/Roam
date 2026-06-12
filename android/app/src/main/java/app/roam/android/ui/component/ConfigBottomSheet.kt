@@ -54,6 +54,8 @@ fun ConfigBottomSheet(
     onRemoveSavedUrl: (url: String) -> Unit,
     onReportBrokenLink: () -> Unit,
     onNavigateSavedUrl: (url: String) -> Unit,
+    adminModeEnabled: Boolean = false,
+    onAdminNavigateToUrl: (String) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     var collectionPickerOpen by remember { mutableStateOf(false) }
@@ -61,6 +63,7 @@ fun ConfigBottomSheet(
     var newCollectionDialogOpen by remember { mutableStateOf(false) }
     var newCollectionName by remember { mutableStateOf("") }
     var translateDialogOpen by remember { mutableStateOf(false) }
+    var adminUrlInput by remember { mutableStateOf("") }
 
     // Language list for the translate picker
     val translateLanguages = listOf(
@@ -188,6 +191,77 @@ fun ConfigBottomSheet(
                     color = MaterialTheme.colorScheme.error,
                     modifier = Modifier.fillMaxWidth(),
                 )
+            }
+
+            // ── Section 3: Admin (unlocked via Settings → tap version 5×) ──
+            if (adminModeEnabled) {
+                Spacer(modifier = Modifier.height(8.dp))
+                HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "\uD83D\uDD12 Admin",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                )
+
+                // URL loader
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 8.dp, vertical = 4.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    OutlinedTextField(
+                        value = adminUrlInput,
+                        onValueChange = { adminUrlInput = it },
+                        label = { Text("Load URL in Roam") },
+                        placeholder = { Text("https://example.com") },
+                        singleLine = true,
+                        modifier = Modifier.weight(1f),
+                    )
+                    OutlinedButton(
+                        onClick = {
+                            val trimmed = adminUrlInput.trim()
+                            if (trimmed.isNotBlank()) {
+                                onAdminNavigateToUrl(trimmed)
+                                adminUrlInput = ""
+                            }
+                        },
+                        enabled = adminUrlInput.isNotBlank(),
+                    ) {
+                        Text("Go")
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(4.dp))
+
+                // Quick links to web admin panels (open inside Roam)
+                TextButton(
+                    onClick = { onAdminNavigateToUrl("https://roamtheweb.app/admin?view=queue") },
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
+                ) {
+                    Text("\uD83D\uDEC3 Moderation Queue ↗", modifier = Modifier.fillMaxWidth())
+                }
+                TextButton(
+                    onClick = { onAdminNavigateToUrl("https://roamtheweb.app/admin?view=analytics") },
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
+                ) {
+                    Text("\uD83D\uDCCA Analytics ↗", modifier = Modifier.fillMaxWidth())
+                }
+                TextButton(
+                    onClick = { onAdminNavigateToUrl("https://roamtheweb.app/admin?view=reports") },
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
+                ) {
+                    Text("\uD83D\uDEAB Dead Links ↗", modifier = Modifier.fillMaxWidth())
+                }
+                TextButton(
+                    onClick = { onAdminNavigateToUrl("https://roamtheweb.app/admin?view=beta") },
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
+                ) {
+                    Text("\uD83D\uDD0C Beta Signups ↗", modifier = Modifier.fillMaxWidth())
+                }
             }
 
             // ── Section 4: Saved for later ───────────────────────────────────

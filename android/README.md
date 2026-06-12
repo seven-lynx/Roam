@@ -130,10 +130,11 @@ cd android
 
 ## Key Features
 
-### Gesture-Based Discovery (Material Design 3)
-- **Swipe right** to like a page
-- **Swipe left** to skip
-- **Swipe down** for page details (title, source, image preview)
+### Button-Based Navigation (Material Design 3)
+- **Thumbs Up** to like a page
+- **Thumbs Down** to skip
+- **Roam** to load a new random URL
+- **Settings** to access preferences, saved pages, history, and profile
 - Full Material Design 3 polish with native Android look & feel (rebuilt Stage 14, May 2026)
 
 ### Navigation

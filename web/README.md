@@ -1,6 +1,6 @@
 # Roam Web Platform
 
-The Next.js 16 web application for Roam. The web surface is the account-management hub: onboarding, auth, profile, settings, privacy/terms, and the admin moderation area.
+The Next.js 16 web application for Roam. The web surface is the account-management hub: onboarding, auth, profile, settings, privacy/terms, collections, public profiles, and the admin moderation area.
 
 ## Tech Stack
 
@@ -9,6 +9,7 @@ The Next.js 16 web application for Roam. The web surface is the account-manageme
 - **TypeScript 5** for type safety
 - **Tailwind CSS 4** for styling
 - **Supabase SSR client** for authentication and data access
+- **next-themes** for dark mode
 - **Jest 29.7.0** for testing
 - **Sentry** for error tracking
 - **Vercel** for deployment
@@ -16,46 +17,61 @@ The Next.js 16 web application for Roam. The web surface is the account-manageme
 ## Features
 
 ### Onboarding
-- **Create account** — Google OAuth or email/password
-- **Pick interests** — select the categories you care about
+- **Create account** — Google OAuth, GitHub OAuth, or email/password
+- **Pick interests** — select categories you care about (pillar or topic mode)
 - **Email verification** — confirmation flow for email sign-up
 
 ### Account hub
-- **Profile** — view and edit public profile details
-- **Settings** — auth, privacy, and account danger-zone controls
-- **Password reset** — request and complete password changes
-- **Privacy / Terms** — public legal pages
+- **Profile** — view and edit public profile details, manage collections and saved URLs
+- **Settings** — discovery mode, email notifications, appearance (light/dark/system), change password, data export, account deletion
+- **Password reset** — request and complete password changes via `/forgot-password` and `/auth/reset-password`
+
+### Social & Collections
+- **Public profiles** (`/u/[username]`) — view user profiles with activity and collections
+- **Collections** (`/collections/[slug]`) — public collection browsing
+- **Follow/unfollow** — manage follows from profile pages
 
 ### Admin
-- **Moderation queue** — review and approve/reject submissions
-- **Submission details** — inspect metadata and Safe Browsing results
-- **Search / filtering** — work the queue efficiently
-- **Dashboard statistics** — 15 stat cards (content, engagement, users) with request-time caching; use the Refresh button to clear
-- **Undo / refresh** — correct mistakes and reload live data
+- **Moderation queue** — review and approve/reject submissions with detail view, filtering, search, sort
+- **Undo decisions** — re-open previously decided items
+- **Dashboard statistics** — 15 stat cards (content, engagement, users) with request-time caching
+- **Dead links tab** — review user-reported broken links
+
+### Other
+- **URL submission** (`/submit`) — submit new URLs for moderation
+- **How It Works** (`/how-it-works`) — product tour
+- **Android Beta** (`/android-beta`) — beta tester sign-up
+- **Privacy / Terms** — public legal pages
 
 ## Route Map
 
 | Route | Type | Auth required | Purpose |
 |---|---|---|---|
 | `/` | Server Component | No | Landing page |
-| `/join` | Client Component | No | Create account / sign in |
-| `/auth/callback` | Server Component | No | OAuth code exchange + routing |
+| `/join` | Client Component | No | Create account / sign in (tabbed OAuth + email) |
+| `/signup` | Client Component | No | Alternative sign-up entry point |
+| `/auth/callback` | Route handler | No | OAuth code exchange + routing |
+| `/auth/verify-email` | Client Component | No | Email confirmation screen with resend |
 | `/forgot-password` | Client Component | No | Request password reset email |
 | `/auth/reset-password` | Client Component | No | Set new password from email link |
 | `/u/[username]` | Server Component | No | Public user profile + activity |
-| `/c/[slug]` | Server Component | No | Public collection view |
+| `/collections/[slug]` | Server Component | No | Public collection view |
+| `/collections` | Client Component | No | Browse all public collections |
 | `/submit` | Client Component | No | Submit new URL for moderation |
-| `/profile` | Server shell + Client island | Yes | View / edit profile and categories |
+| `/profile` | Server shell + Client island | Yes | View / edit profile, collections, and saved URLs |
 | `/settings` | Client Component | Yes | Preferences and account controls |
-| `/admin` | Server shell + Client Component | Yes (admin role) | Moderation queue |
+| `/admin` | Server shell + Client Component | Yes (admin role) | Moderation queue + analytics |
+| `/how-it-works` | Server Component | No | Product overview and features |
+| `/android-beta` | Client Component | No | Android beta sign-up page |
 | `/privacy` | Server Component | No | Privacy policy |
 | `/terms` | Server Component | No | Terms of service |
+| `/api/unsubscribe` | Route handler | No | Email notification unsubscribe |
 
 ## Development Setup
 
 ### Prerequisites
 - Node.js 20+ and pnpm 10+
-- .env.local file with required variables (see below)
+- `.env.local` file with required variables (see below)
 
 ### Environment Variables
 
@@ -91,28 +107,44 @@ web/
 ├── src/
 │   ├── app/               # Next.js App Router pages and layouts
 │   │   ├── admin/         # Admin moderation dashboard (protected)
-│   │   ├── auth/          # OAuth callback + password reset
-│   │   ├── join/          # Sign-up / sign-in page
-│   │   ├── profile/       # Profile view + edit shell
-│   │   ├── settings/      # User account settings
+│   │   ├── api/           # API route handlers
+│   │   ├── auth/          # OAuth callback, verify-email, reset-password
+│   │   ├── collections/   # Public collection listing + [slug] detail
+│   │   ├── forgot-password/
+│   │   ├── how-it-works/  # Product tour
 │   │   ├── privacy/       # Privacy Policy
-│   │   └── terms/         # Terms of Service
+│   │   ├── profile/       # Profile view + edit (protected)
+│   │   ├── settings/      # User account settings (protected)
+│   │   ├── signup/        # Alternative sign-up flow
+│   │   ├── submit/        # URL submission
+│   │   ├── terms/         # Terms of Service
+│   │   ├── u/             # Public user profiles ([username])
+│   │   └── android-beta/  # Beta program sign-up
 │   ├── components/        # Reusable React components
-│   │   └── ErrorBoundary.tsx  # Catches render-time errors
+│   │   ├── Header.tsx     # Navigation header (server component)
+│   │   ├── Footer.tsx     # Site footer
+│   │   ├── ErrorBoundary.tsx
+│   │   ├── FeedbackWidget.tsx
+│   │   ├── ThemeToggle.tsx
+│   │   └── ...
 │   ├── lib/
 │   │   ├── supabase/      # Supabase client factories
 │   │   │   ├── client.ts  # Client-side Supabase instance
 │   │   │   ├── server.ts  # Server-side Supabase instance
 │   │   │   └── shared.ts  # Shared validation
-│   │   └── env.ts         # Environment variable validation
+│   │   ├── env.ts         # Environment variable validation
+│   │   ├── hooks.ts       # Shared React hooks
+│   │   ├── logger.ts      # Structured logging + Sentry
+│   │   ├── constants.ts   # Shared constants
+│   │   └── interests.ts   # Interest/category utilities
 │   ├── globals.css        # Tailwind CSS imports
-│   └── layout.tsx         # Root layout with error boundary
+│   └── layout.tsx         # Root layout with ThemeProvider + ErrorBoundary
 ├── public/                # Static assets (logos, icons)
-├── .env.local            # Local environment variables (not committed)
-├── jest.config.ts        # Jest testing configuration
-├── next.config.ts        # Next.js configuration
-├── tsconfig.json         # TypeScript configuration
-└── package.json          # Dependencies
+├── jest.config.js         # Jest testing configuration
+├── jest.setup.js          # Test environment setup
+├── next.config.ts         # Next.js configuration (with Sentry)
+├── tsconfig.json          # TypeScript configuration
+└── package.json           # Dependencies
 ```
 
 ## Key Files
@@ -124,13 +156,16 @@ web/
 
 ### Pages
 - **`src/app/admin/page.tsx`** — Server-side auth check, redirects non-admins
-- **`src/app/admin/AdminPageClient.tsx`** — Client-side queue UI with filtering, search, sorting
-- **`src/app/admin/ModerationDetail.tsx`** — Modal for detailed submission review
-- **`src/app/layout.tsx`** — Root layout wrapping all pages with ErrorBoundary
+- **`src/app/admin/AdminPageClient.tsx`** — Client-side queue UI with filtering, search, sorting, tabs
+- **`src/app/admin/ModerationDetail.tsx`** — Modal for detailed submission review and undo
+- **`src/app/layout.tsx`** — Root layout wrapping all pages with ErrorBoundary and ThemeProvider
+- **`src/app/profile/page.tsx`** — Server shell with parallel data fetch, hands off to ProfileClient
+- **`src/app/auth/callback/route.ts`** — OAuth code exchange, routes new vs returning users
 
 ### Utilities
 - **`src/lib/env.ts`** — Validates NEXT_PUBLIC_* env vars at module import time
 - **`src/components/ErrorBoundary.tsx`** — React class component catching render-time errors
+- **`src/lib/logger.ts`** — Structured logging with Sentry integration and PII sanitization
 
 ## Common Tasks
 
@@ -143,6 +178,7 @@ web/
 ### Query Data
 ```typescript
 // Browser (client.ts)
+import { createClient } from '@/lib/supabase/client';
 const supabase = createClient();
 const { data, error } = await supabase
   .from('urls')
@@ -150,6 +186,7 @@ const { data, error } = await supabase
   .limit(10);
 
 // Server (server.ts)
+import { createClient } from '@/lib/supabase/server';
 const supabase = await createClient();
 const { data, error } = await supabase
   .from('urls')
@@ -164,8 +201,8 @@ const { data, error } = await supabase
 
 ### Test
 ```bash
-pnpm test          # Run all tests
-pnpm test --watch  # Watch mode
+pnpm test          # Run all tests (watch mode)
+pnpm test:ci       # CI mode (coverage + no-watch)
 pnpm test --coverage
 ```
 
@@ -212,7 +249,7 @@ describe('myFunction', () => {
 Deployed automatically to Vercel on every push to `main` branch.
 
 ### Before deploying:
-1. Ensure all tests pass: `pnpm test`
+1. Ensure all tests pass: `pnpm test:ci`
 2. Check for TypeScript errors: `pnpm tsc --noEmit`
 3. Review your changes: `git diff origin/main`
 
@@ -254,4 +291,4 @@ pnpm dev -- -p 3001
 - [Supabase Documentation](https://supabase.com/docs)
 - [Tailwind CSS](https://tailwindcss.com/docs)
 - [Sentry for JavaScript](https://docs.sentry.io/platforms/javascript/)
-
+- [Main project README](../README.md) — architecture overview

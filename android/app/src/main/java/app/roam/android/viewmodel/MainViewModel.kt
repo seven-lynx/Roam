@@ -150,6 +150,16 @@ class MainViewModel(
     private val _showConfigSheet = MutableStateFlow(false)
     val showConfigSheet: StateFlow<Boolean> = _showConfigSheet.asStateFlow()
 
+    /** Whether admin features are unlocked in the config bottom sheet.
+     *  Persists in-memory until the app process is killed or the user signs out.
+     *  Not written to SharedPreferences — ephemeral by design. */
+    private val _adminModeEnabled = MutableStateFlow(false)
+    val adminModeEnabled: StateFlow<Boolean> = _adminModeEnabled.asStateFlow()
+
+    fun setAdminMode(enabled: Boolean) {
+        _adminModeEnabled.value = enabled
+    }
+
     /** User preference: skip paywalled sites */
     private val _skipPaywalled = MutableStateFlow(false)
     val skipPaywalled: StateFlow<Boolean> = _skipPaywalled.asStateFlow()

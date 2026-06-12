@@ -27,15 +27,24 @@ Deno.serve(async (req) => {
     } catch {
       return json({ error: 'Invalid JSON' }, 400)
     }
-    const collectionId  = typeof body.collection_id  === 'string' ? body.collection_id  : null
-    const excludeDomain = typeof body.exclude_domain  === 'string' ? body.exclude_domain : null
-    const categoryId    = typeof body.category_id     === 'string' ? body.category_id    : null
-    const subcategoryId = typeof body.subcategory_id  === 'string' ? body.subcategory_id : null
+    const collectionId   = typeof body.collection_id   === 'string' ? body.collection_id   : null
+    const excludeDomain  = typeof body.exclude_domain  === 'string' ? body.exclude_domain  : null
+    const excludeDomains = Array.isArray(body.exclude_domains) && body.exclude_domains.length > 0 ? (body.exclude_domains as string[]).filter((d: unknown): d is string => typeof d === 'string') : null
+    const categoryId     = typeof body.category_id      === 'string' ? body.category_id     : null
+    const subcategoryId  = typeof body.subcategory_id   === 'string' ? body.subcategory_id  : null
     const rpcParams: Record<string, unknown> = { p_user_id: user.id }
-    if (collectionId)  rpcParams.p_collection_id  = collectionId
-    if (excludeDomain) rpcParams.p_exclude_domain = excludeDomain
-    if (categoryId)    rpcParams.p_category_id    = categoryId
-    if (subcategoryId) rpcParams.p_subcategory_id = subcategoryId
+    if (collectionId)   rpcParams.p_collection_id   = collectionId
+    // Prefer exclude_domains (array) over exclude_domain (single string) for multi-domain exclusion.
+    // If both are provided, merge them so the single domain isn't lost.
+    if (excludeDomains) {
+      const merged = excludeDomain ? [...new Set([...excludeDomains, excludeDomain])] : excludeDomains
+      rpcParams.p_exclude_domains = merged
+    } else if (excludeDomain) {
+      // Backward-compat: wrap single domain in array so the RPC gets consistent input
+      rpcParams.p_exclude_domains = [excludeDomain]
+    }
+    if (categoryId)     rpcParams.p_category_id     = categoryId
+    if (subcategoryId)  rpcParams.p_subcategory_id  = subcategoryId
     const { data, error } = await supabase.rpc('roam', rpcParams)
     if (error) {
       console.error('roam RPC error', error.code, error.message)

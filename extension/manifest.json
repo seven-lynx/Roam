@@ -27,6 +27,16 @@
     "type": "module"
   },
 
+  "commands": {
+    "roam": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+R",
+        "mac": "MacCtrl+Shift+R"
+      },
+      "description": "Roam to a new page"
+    }
+  },
+
   "permissions": [
     "tabs",
     "storage",
