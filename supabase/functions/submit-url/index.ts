@@ -15,13 +15,16 @@ const RATE_LIMIT = 10
 // Sentry reporting — silently disabled if SENTRY_DSN is not set
 const report = initSentry('submit-url')
 
-// Validate required environment variables at startup
+// Validate required environment variables at startup.
+// SAFE_BROWSING_API_KEY is optional — if missing, Safe Browsing checks are skipped.
 const env = validateRequired([
   'SUPABASE_URL',
   'SUPABASE_ANON_KEY',
-  'SAFE_BROWSING_API_KEY',
 ])
-const SAFE_BROWSING_API_KEY = env.SAFE_BROWSING_API_KEY
+const SAFE_BROWSING_API_KEY = Deno.env.get('SAFE_BROWSING_API_KEY') || null
+if (!SAFE_BROWSING_API_KEY) {
+  console.warn('[submit-url] SAFE_BROWSING_API_KEY not configured — Safe Browsing checks will be skipped')
+}
 
 async function checkSafeBrowsing(url: string, apiKey: string): Promise<{ safe: boolean; error?: string }> {
   try {
@@ -167,23 +170,24 @@ Deno.serve(async (req) => {
   }
 
   // ── Safe Browsing check ───────────────────────────────────────────────────
-  // The API key is verified at boot above. Safe Browsing failures (network,
-  // quota, API errors) return 503. Detections (malicious URL) return 422.
-  const sbResult = await checkSafeBrowsing(normalized, SAFE_BROWSING_API_KEY)
-  
-  if (sbResult.error) {
-    console.warn('Safe Browsing API unavailable', { url: normalized, error: sbResult.error })
-    return json(
-      { error: 'Safe Browsing check temporarily unavailable — please try again shortly' },
-      503,
-    )
-  }
+  // Skip if the API key is not configured.
+  if (SAFE_BROWSING_API_KEY) {
+    const sbResult = await checkSafeBrowsing(normalized, SAFE_BROWSING_API_KEY)
+    
+    if (sbResult.error) {
+      console.warn('Safe Browsing API unavailable', { url: normalized, error: sbResult.error })
+      return json(
+        { error: 'Safe Browsing check temporarily unavailable — please try again shortly' },
+        503,
+      )
+    }
 
-  if (!sbResult.safe) {
-    return json(
-      { error: "This URL couldn't be submitted — it may be flagged for safety reasons" },
-      422,
-    )
+    if (!sbResult.safe) {
+      return json(
+        { error: "This URL couldn't be submitted — it may be flagged for safety reasons" },
+        422,
+      )
+    }
   }
 
   // ── Ensure profile row exists ─────────────────────────────────────────────

@@ -162,6 +162,29 @@ export default async function Home() {
         </div>
       </section>
 
+      {/* ── Submit a URL CTA (logged-in users) ────────────── */}
+      {user && (
+        <section className="max-w-6xl mx-auto px-6 pb-20">
+          <div className="rounded-2xl border border-amber-200 dark:border-amber-800/40 bg-gradient-to-br from-amber-50 to-amber-100/50 dark:from-amber-900/10 dark:to-amber-950/20 p-8 md:p-10 flex flex-col md:flex-row items-center gap-6">
+            <div className="flex-1 text-center md:text-left">
+              <h2 className="text-2xl font-bold text-zinc-900 dark:text-white mb-2">
+                Found something worth sharing?
+              </h2>
+              <p className="text-zinc-500 dark:text-zinc-400 max-w-md">
+                Submit a page to our community-curated catalog. Real people review every submission to keep quality high.
+              </p>
+            </div>
+            <Link
+              href="/submit"
+              className="shrink-0 inline-flex items-center gap-2 rounded-full bg-amber-500 hover:bg-amber-400 px-8 py-3 text-white font-semibold text-base transition-colors"
+            >
+              <span className="text-lg">+</span>
+              Submit a URL
+            </Link>
+          </div>
+        </section>
+      )}
+
       {/* ── Top-rated sites ──────────────────────────────── */}
       <section className="max-w-6xl mx-auto px-6 pb-20">
         <Suspense fallback={<TopSitesSkeleton />}>

@@ -52,7 +52,7 @@ export default function FeedbackWidget() {
     <>
       <button
         onClick={openModal}
-        className="hover:text-zinc-600 dark:hover:text-zinc-400 transition-colors"
+        className="hover:text-zinc-600 dark:hover:text-zinc-400 transition-colors cursor-pointer"
       >
         Feedback
       </button>

@@ -128,6 +128,16 @@ export function Header() {
                 Collections
               </Link>
               <Link
+                href="/submit"
+                className={`text-sm font-medium transition-colors ${
+                  pathname === '/submit'
+                    ? 'text-amber-600 dark:text-amber-400 border-b-2 border-amber-500 pb-0.5'
+                    : 'text-amber-600 dark:text-amber-400 hover:text-amber-500'
+                }`}
+              >
+                + Submit
+              </Link>
+              <Link
                 href="/profile"
                 className={`text-sm font-medium transition-colors ${
                   pathname === '/profile'
@@ -256,6 +266,9 @@ export function Header() {
           </Link>
           {session ? (
             <>
+              <Link href="/submit" className="text-amber-600 dark:text-amber-400 font-medium hover:text-amber-500">
+                + Submit a URL
+              </Link>
               <Link href="/profile" className="text-zinc-700 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white">
                 Profile
               </Link>
