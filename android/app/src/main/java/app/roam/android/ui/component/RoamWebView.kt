@@ -167,6 +167,7 @@ fun RoamWebView(
     onLoadingChanged: (Boolean) -> Unit = {},
     onPageVisible: () -> Unit = {},  // Fires at first paint (onPageCommitVisible)
     onPageFinishedForPrefetch: () -> Unit = {},  // Fires on go page finish so cache-warmer can start
+    onRecovering: (Boolean) -> Unit = {},  // Fires when WebView is recovering from renderer death
     navCommandsFlow: Flow<WebNavCommand>? = null,
     clearCookiesFlow: Flow<Unit>? = null,
 ) {
@@ -221,6 +222,7 @@ fun RoamWebView(
                     val wv = webViewRef.value ?: return@LifecycleEventObserver
                     // If the renderer was killed while backgrounded, the WebView url is null.
                     if (wv.url.isNullOrEmpty()) {
+                        onRecovering(true)
                         showSnapshot = true
                         if (!savedState.isEmpty) {
                             wv.restoreState(savedState)
@@ -369,6 +371,7 @@ fun RoamWebView(
                             onUrlChanged(loadedUrl)
                             loadError = false
                             onLoadingChanged(false)
+                            onRecovering(false)
                             Sentry.addBreadcrumb(Breadcrumb().apply {
                                 this.message = "WebView load finished"
                                 this.category = "navigation"
@@ -423,6 +426,7 @@ fun RoamWebView(
                                 showSnapshot = false
                                 snapshotBitmap = null
                                 loadError = true
+                                onRecovering(false)
                             }
                             return true
                         }

@@ -9,6 +9,8 @@ import androidx.compose.runtime.Composable
 private val DarkColors = darkColorScheme(
     background = Zinc900,
     surface = Zinc800,
+    surfaceVariant = Zinc800,
+    surfaceContainer = Zinc800,
     onBackground = White,
     onSurface = White,
     primary = White,

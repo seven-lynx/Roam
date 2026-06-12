@@ -53,7 +53,11 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
+import android.webkit.CookieManager
+import io.github.jan.supabase.auth.auth
+import app.roam.android.BuildConfig
 import app.roam.android.MainActivity
+import app.roam.android.data.supabase
 import app.roam.android.ui.component.BottomBar
 import app.roam.android.ui.component.BackgroundPrefetchWebView
 import app.roam.android.ui.component.ConfigBottomSheet
@@ -208,6 +212,7 @@ fun MainScreen(
                     },
                 )
             }
+
         }
     }
 }
@@ -240,6 +245,7 @@ private fun DiscoverTab(
     val jsEnabled by vm.jsEnabled.collectAsState()
     val sheetGestureMode by vm.sheetGestureMode.collectAsState()
     val showConfigSheet by vm.showConfigSheet.collectAsState()
+    val adminModeEnabled by vm.adminModeEnabled.collectAsState()
     val prefetchWebView by vm.prefetchWebView.collectAsState()
     val nextPrefetchUrl by vm.nextPrefetchUrl.collectAsState()
 
@@ -263,8 +269,11 @@ private fun DiscoverTab(
     var webViewLoading by rememberSaveable { mutableStateOf(value = false) }
     var lastLoadedUrl by remember { mutableStateOf<String?>(null) }
     var loadingMessage by remember { mutableStateOf(pickRandomMessage()) }
+    // True while the WebView is recovering from renderer death — the loading overlay
+    // stays up so the user never sees a white blank screen during the reload.
+    var webViewRecovering by remember { mutableStateOf(false) }
     // Cycle the loading message with individual random durations while the overlay is visible
-    val showOverlay = rawUrl == null || (state is RoamState.Loading)
+    val showOverlay = rawUrl == null || (state is RoamState.Loading) || webViewRecovering
     LaunchedEffect(showOverlay) {
         if (showOverlay) {
             loadingMessage = pickRandomMessage()
@@ -453,6 +462,31 @@ private fun DiscoverTab(
                     vm.reportBrokenLink()
                     scope.launch { scaffoldState.bottomSheetState.partialExpand() }
                 },
+                adminModeEnabled = adminModeEnabled,
+                onAdminNavigateToUrl = { url ->
+                    scope.launch {
+                        try {
+                            val session = supabase.auth.currentSessionOrNull()
+                            if (session != null) {
+                                val supabaseHost =
+                                    android.net.Uri.parse(BuildConfig.SUPABASE_URL).host ?: ""
+                                val projectRef = supabaseHost.substringBefore(".supabase.co")
+                                val sessionPayload = android.util.Base64.encodeToString(
+                                    """{"access_token":"${session.accessToken}","refresh_token":"${session.refreshToken}","expires_at":${session.expiresAt.epochSeconds},"token_type":"bearer","user":{"id":"${session.user?.id ?: ""}"}}""".toByteArray(),
+                                    android.util.Base64.NO_WRAP,
+                                )
+                                val cookieManager = CookieManager.getInstance()
+                                cookieManager.setCookie(
+                                    "roamtheweb.app",
+                                    "sb-$projectRef-auth-token=$sessionPayload; Path=/; Secure; HttpOnly; SameSite=Lax",
+                                )
+                                cookieManager.flush()
+                            }
+                        } catch (_: Exception) { }
+                        vm.navigateTo(url)
+                        scaffoldState.bottomSheetState.partialExpand()
+                    }
+                },
             )
             } // Surface
         },
@@ -626,6 +660,9 @@ private fun DiscoverTab(
                     webViewLoading = false
                     lastLoadedUrl = currentUrl
                 },
+                onRecovering = { recovering ->
+                    webViewRecovering = recovering
+                },
                 // Trigger proactive cache warming: as soon as the current page
                 // finishes loading, tell the ViewModel to expose the next URL
                 // so the hidden prefetch WebView can start warming it now,
@@ -637,8 +674,9 @@ private fun DiscoverTab(
                 clearCookiesFlow = vm.clearCookiesFlow,
             )
 
-            // Loading overlay — shown while fetching a URL or the WebView is rendering it
-            if (rawUrl == null || isRoaming) {
+            // Loading overlay — shown while fetching a URL, the WebView is rendering it,
+            // or the WebView is recovering from renderer death after backgrounding.
+            if (showOverlay) {
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
