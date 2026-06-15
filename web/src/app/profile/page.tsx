@@ -48,8 +48,8 @@ export default async function ProfilePage() {
   const badgesResult = unwrap(6) as Record<string, unknown>;
 
   const profile = profileResult.data;
-  const allCategories = ((categoriesResult.data ?? []) as Record<string, unknown>[]).map((c: Record<string, unknown>) => ({ id: c.id, label: c.name, emoji: c.icon }));
-  const allSubcategories = ((subcategoriesResult.data ?? []) as Record<string, unknown>[]).map((s: Record<string, unknown>) => ({ id: s.id, name: s.name, category_id: s.category_id }));
+  const allCategories = ((categoriesResult.data ?? []) as Record<string, unknown>[]).map((c: Record<string, unknown>) => ({ id: c.id as string, label: c.name as string, emoji: c.icon as string }));
+  const allSubcategories = ((subcategoriesResult.data ?? []) as Record<string, unknown>[]).map((s: Record<string, unknown>) => ({ id: s.id as string, name: s.name as string, category_id: s.category_id as string }));
   const userCategoryRows = (userCategoriesResult.data ?? []) as Record<string, unknown>[];
   const userCategoryIds = userCategoryRows.filter(r => r.subcategory_id == null).map(r => r.category_id as string);
   const userTopicIds = userCategoryRows.filter(r => r.subcategory_id != null).map(r => r.subcategory_id as string);
