@@ -32,23 +32,14 @@ export default async function PublicProfilePage({ params }: Props) {
   const { username } = await params;
   const supabase = await createClient();
 
-  const results = await Promise.allSettled([
-    supabase
-      .from('profiles')
-      .select('id, username, display_name, bio, avatar_url, created_at, xp_total, level, streak_days, max_streak, badge_count')
-      .eq('username', username)
-      .eq('is_public', true)
-      .single(),
-    supabase.rpc('get_user_badges', { p_user_id: '' }), // placeholder — we'll use profile.id after we have it
-  ]);
+  // Fetch core profile using only existing columns
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('id, username, display_name, bio, avatar_url, created_at')
+    .eq('username', username)
+    .eq('is_public', true)
+    .single();
 
-  const unwrap = (index: number) => {
-    const r = results[index];
-    return r.status === 'fulfilled' ? (r.value as Record<string, unknown>) : { data: null, error: null };
-  };
-
-  const profileResult = unwrap(0);
-  const profile = profileResult.data as Record<string, unknown> | null;
   if (!profile) notFound();
 
   const { data: { user: viewer } } = await supabase.auth.getUser();
@@ -75,10 +66,18 @@ export default async function PublicProfilePage({ params }: Props) {
       })()
     : [0, 0, 'none' as const];
 
-  // Fetch badges with the correct user ID
-  const badgesResult = await supabase.rpc('get_user_badges', { p_user_id: profile.id })
-    .then(r => r, () => ({ data: null, error: null }));
-  const badges: BadgeData[] = (badgesResult.data ?? []) as unknown as BadgeData[];
+  // Try to fetch gamification data — these RPC/columns may not exist yet
+  const [gamificationResult, badgesResult] = await Promise.allSettled([
+    supabase.from('profiles')
+      .select('xp_total, level, streak_days, max_streak, badge_count')
+      .eq('id', profile.id)
+      .single(),
+    supabase.rpc('get_user_badges', { p_user_id: profile.id }),
+  ]);
+
+  const gamification = gamificationResult.status === 'fulfilled' ? gamificationResult.value.data : null;
+  const badgesRaw = badgesResult.status === 'fulfilled' ? badgesResult.value.data : null;
+  const badges: BadgeData[] = (badgesRaw ?? []) as unknown as BadgeData[];
   const unlockedBadges = badges.filter(b => b.is_unlocked);
 
   const { data: collections } = await supabase
@@ -99,36 +98,42 @@ export default async function PublicProfilePage({ params }: Props) {
   ).values()];
 
   const joinedDate = profile.created_at
-    ? new Date(profile.created_at as string).toLocaleDateString('en-US', { year: 'numeric', month: 'short' })
+    ? new Date(profile.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'short' })
     : null;
+
+  const xpTotal = gamification?.xp_total ?? 0;
+  const level = gamification?.level ?? 1;
+  const streakDays = gamification?.streak_days ?? 0;
+  const maxStreak = gamification?.max_streak ?? 0;
+  const badgeCount = gamification?.badge_count ?? 0;
 
   return (
     <div className="min-h-[calc(100vh-8rem)] bg-white dark:bg-zinc-950">
       <div className="max-w-2xl mx-auto px-6 py-12 flex flex-col gap-10">
 
         <div className="flex items-center gap-5">
-          <Avatar name={(profile.display_name as string) || (profile.username as string)} size="lg" />
+          <Avatar name={profile.display_name || profile.username} size="lg" />
           <div className="flex-1">
             <h1 className="text-2xl font-bold text-zinc-900 dark:text-white">
-              {(profile.display_name as string) || (profile.username as string)}
+              {profile.display_name || profile.username}
             </h1>
-            <p className="text-sm text-zinc-500 dark:text-zinc-400">@{profile.username as string}</p>
+            <p className="text-sm text-zinc-500 dark:text-zinc-400">@{profile.username}</p>
             <div className="flex items-center gap-1 mt-1">
-              <CopyProfileLink username={profile.username as string} />
+              <CopyProfileLink username={profile.username} />
             </div>
           </div>
           {viewer && viewer.id !== profile.id && (
-            <FollowButton targetUserId={profile.id as string} initialStatus={followStatus} />
+            <FollowButton targetUserId={profile.id} initialStatus={followStatus} />
           )}
         </div>
 
-        {((profile.xp_total as number) ?? 0) > 0 && (
+        {xpTotal > 0 && (
           <LevelProgress
-            level={(profile.level as number) ?? 1}
-            xpTotal={(profile.xp_total as number) ?? 0}
-            streakDays={(profile.streak_days as number) ?? 0}
-            maxStreak={(profile.max_streak as number) ?? 0}
-            badgeCount={(profile.badge_count as number) ?? 0}
+            level={level}
+            xpTotal={xpTotal}
+            streakDays={streakDays}
+            maxStreak={maxStreak}
+            badgeCount={badgeCount}
           />
         )}
 
@@ -139,7 +144,7 @@ export default async function PublicProfilePage({ params }: Props) {
         </section>
 
         {profile.bio && (
-          <section><p className="text-sm text-zinc-600 dark:text-zinc-300 leading-relaxed">{profile.bio as string}</p></section>
+          <section><p className="text-sm text-zinc-600 dark:text-zinc-300 leading-relaxed">{profile.bio}</p></section>
         )}
 
         {interests.length > 0 && (
