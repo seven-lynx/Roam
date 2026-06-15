@@ -21,9 +21,9 @@ export default async function ProfilePage() {
 
   const thirtyDaysAgo = thirtyDaysAgoISO();
 
-  const [profileResult, categoriesResult, subcategoriesResult, userCategoriesResult, collectionsResult, savedUrlsResult, badgesResult] =
+  const [profileResult, categoriesResult, subcategoriesResult, userCategoriesResult, collectionsResult, savedUrlsResult] =
     await Promise.all([
-      supabase.from('profiles').select('id, username, display_name, bio, avatar_url, is_public, xp_total, level, streak_days, max_streak, badge_count').eq('id', user.id).single(),
+      supabase.from('profiles').select('id, username, display_name, bio, avatar_url, is_public').eq('id', user.id).single(),
       supabase.from('categories').select('id, name, icon, sort_order').order('sort_order'),
       supabase.from('subcategories').select('id, name, category_id, sort_order').order('sort_order'),
       supabase.from('user_categories').select('category_id, subcategory_id').eq('user_id', user.id),
@@ -39,7 +39,6 @@ export default async function ProfilePage() {
         .gt('saved_at', thirtyDaysAgo)
         .order('saved_at', { ascending: false })
         .limit(50),
-      supabase.rpc('get_user_badges', { p_user_id: user.id }).throwOnError(),
     ]);
 
   const profile = profileResult.data;
@@ -70,7 +69,6 @@ export default async function ProfilePage() {
       initialTopicIds={userTopicIds}
       initialCollections={collections}
       initialSavedUrls={savedUrls}
-      initialBadges={(badgesResult.data ?? []) as Record<string, unknown>[]}
     />
   );
 }
