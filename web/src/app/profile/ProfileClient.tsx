@@ -18,7 +18,7 @@ import { BadgeDisplay } from '@/components/badges/BadgeDisplay';
 import type { BadgeData } from '@/components/badges/BadgeDisplay';
 
 type Category = { id: string; label: string; emoji: string };
-type Profile = {
+export type Profile = {
   id: string;
   username: string | null;
   email?: string;

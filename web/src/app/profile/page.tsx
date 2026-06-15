@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation';
 import type { Metadata } from 'next';
 import { createClient } from '@/lib/supabase/server';
-import { ProfileClient } from './ProfileClient';
+import { ProfileClient, type Profile } from './ProfileClient';
 import type { CollectionRow } from './CollectionsManager';
 import type { SavedUrlRow } from './SavedUrlsManager';
 
@@ -68,7 +68,7 @@ export default async function ProfilePage() {
     <ProfileClient
       userId={user.id}
       email={user.email ?? ''}
-      profile={profile as Record<string, unknown> | null}
+      profile={profile as Profile}
       allCategories={allCategories}
       allSubcategories={allSubcategories}
       initialCategoryIds={userCategoryIds}
