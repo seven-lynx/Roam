@@ -64,7 +64,12 @@ Deno.serve(async (req) => {
     if (!row) {
       return json({ error: 'No more URLs to discover' }, 404)
     }
-    return json({
+
+    // ── Gamification: Fire-and-forget async calls ─────────────────────
+    // Run streak update, XP award, and badge evaluation in parallel
+    // but don't block the response. Ignore failures — gamification is
+    // non-critical for the core roam experience.
+    const roamResult = {
       id:           row.id,
       url:          row.url,
       title:        row.title,
@@ -72,7 +77,26 @@ Deno.serve(async (req) => {
       og_image_url: row.og_image_url,
       category_id:  row.category_id ?? row.subcategory_id ?? null,
       wilson_score: row.wilson_score,
-    })
+    }
+
+    // Fire-and-forget: don't await these
+    supabase.rpc('update_streak', { p_user_id: user.id }).then(
+      () => {},
+      (e: unknown) => { console.error('streak update failed', e) }
+    )
+    supabase.rpc('award_xp', { p_user_id: user.id, p_action: 'roam', p_metadata: { url_id: row.id } }).then(
+      () => {},
+      (e: unknown) => { console.error('xp award failed', e) }
+    )
+    // Evaluate badges after a short delay to let XP commit
+    setTimeout(() => {
+      supabase.rpc('evaluate_badges', { p_user_id: user.id }).then(
+        () => {},
+        (e: unknown) => { console.error('badge evaluation failed', e) }
+      )
+    }, 500)
+
+    return json(roamResult)
   } catch (e) {
     console.error('roam handler uncaught error', e)
     return json({ error: 'Discovery failed. Please try again.' }, 500)

@@ -13,6 +13,9 @@ import type { SavedUrlRow } from './SavedUrlsManager';
 import { InterestPicker } from '@/components/InterestPicker';
 import type { Subcategory } from '@/components/InterestPicker';
 import { saveUserInterests, type InterestMode } from '@/lib/interests';
+import { LevelProgress } from '@/components/badges/LevelProgress';
+import { BadgeDisplay } from '@/components/badges/BadgeDisplay';
+import type { BadgeData } from '@/components/badges/BadgeDisplay';
 
 type Category = { id: string; label: string; emoji: string };
 type Profile = {
@@ -22,6 +25,11 @@ type Profile = {
   bio?: string | null;
   avatar_url?: string | null;
   is_public?: boolean;
+  xp_total?: number;
+  level?: number;
+  streak_days?: number;
+  max_streak?: number;
+  badge_count?: number;
 } | null;
 
 interface ProfileClientProps {
@@ -34,11 +42,12 @@ interface ProfileClientProps {
   initialTopicIds: string[];
   initialCollections: CollectionRow[];
   initialSavedUrls: SavedUrlRow[];
+  initialBadges?: Record<string, unknown>[];
 }
 
-type Tab = 'collections' | 'saved' | 'about';
+type Tab = 'collections' | 'saved' | 'badges' | 'about';
 
-export function ProfileClient({ userId, email, profile, allCategories, allSubcategories, initialCategoryIds, initialTopicIds, initialCollections, initialSavedUrls }: ProfileClientProps) {
+export function ProfileClient({ userId, email, profile, allCategories, allSubcategories, initialCategoryIds, initialTopicIds, initialCollections, initialSavedUrls, initialBadges }: ProfileClientProps) {
   const supabase = createClient();
 
   const [activeTab, setActiveTab] = useState<Tab>('collections');
@@ -65,6 +74,27 @@ export function ProfileClient({ userId, email, profile, allCategories, allSubcat
   const [interestsSaved, setInterestsSaved] = useState(false);
 
   const [error, setError] = useState<string | null>(null);
+
+  const badges: BadgeData[] = (initialBadges ?? []).map((b: Record<string, unknown>) => ({
+    id: b.id as string,
+    slug: b.slug as string,
+    name: b.name as string,
+    description: b.description as string,
+    icon: b.icon as string,
+    category: b.category as string,
+    tier: b.tier as number,
+    required_count: b.required_count as number | null,
+    is_unlocked: b.is_unlocked as boolean,
+    unlocked_at: b.unlocked_at as string | null,
+    progress_current: b.progress_current as number,
+    is_hidden: b.is_hidden as boolean,
+    is_gift_only: b.is_gift_only as boolean,
+    xp_reward: b.xp_reward as number,
+    parent_badge_slug: b.parent_badge_slug as string | null,
+    granted_by: b.granted_by as string | null,
+  }));
+
+  const unlockedCount = badges.filter(b => b.is_unlocked).length;
 
   async function saveBio() {
     setBioLoading(true);
@@ -140,6 +170,7 @@ export function ProfileClient({ userId, email, profile, allCategories, allSubcat
   const tabs: { key: Tab; label: string; count?: number }[] = [
     { key: 'collections', label: 'Collections', count: initialCollections.length },
     { key: 'saved', label: 'Saved', count: initialSavedUrls.length },
+    { key: 'badges', label: 'Badges', count: unlockedCount },
     { key: 'about', label: 'About' },
   ];
 
@@ -149,6 +180,15 @@ export function ProfileClient({ userId, email, profile, allCategories, allSubcat
       {!profile?.username && <UsernamePrompt />}
 
       <div className="max-w-2xl mx-auto px-6 py-12 flex flex-col gap-8">
+        {/* ── Level Progress Card ──────────────────────── */}
+        <LevelProgress
+          level={profile?.level ?? 1}
+          xpTotal={profile?.xp_total ?? 0}
+          streakDays={profile?.streak_days ?? 0}
+          maxStreak={profile?.max_streak ?? 0}
+          badgeCount={profile?.badge_count ?? 0}
+        />
+
         {/* ── Profile Header Card ──────────────────────── */}
         <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 p-6 flex flex-col sm:flex-row items-start gap-5">
           {/* Avatar */}
@@ -219,12 +259,12 @@ export function ProfileClient({ userId, email, profile, allCategories, allSubcat
         </div>
 
         {/* ── Tab bar ─────────────────────────────────── */}
-        <div className="flex items-center gap-2 border-b border-zinc-200 dark:border-zinc-800">
+        <div className="flex items-center gap-2 border-b border-zinc-200 dark:border-zinc-800 overflow-x-auto">
           {tabs.map(tab => (
             <button
               key={tab.key}
               onClick={() => setActiveTab(tab.key)}
-              className={`px-4 py-2.5 text-sm font-medium transition-colors border-b-2 -mb-[2px] flex items-center gap-2 ${
+              className={`px-4 py-2.5 text-sm font-medium transition-colors border-b-2 -mb-[2px] flex items-center gap-2 whitespace-nowrap ${
                 activeTab === tab.key
                   ? 'border-amber-500 text-zinc-900 dark:text-white'
                   : 'border-transparent text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-300'
@@ -245,6 +285,23 @@ export function ProfileClient({ userId, email, profile, allCategories, allSubcat
 
         {activeTab === 'saved' && (
           <SavedUrlsManager userId={userId} initialSavedUrls={initialSavedUrls} />
+        )}
+
+        {activeTab === 'badges' && (
+          <div>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-base font-semibold text-zinc-900 dark:text-white">
+                Badges ({unlockedCount} unlocked)
+              </h2>
+              <Link
+                href="/badges"
+                className="text-xs text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-300 transition-colors"
+              >
+                View all badges →
+              </Link>
+            </div>
+            <BadgeDisplay badges={badges} showLocked={true} />
+          </div>
         )}
 
         {activeTab === 'about' && (

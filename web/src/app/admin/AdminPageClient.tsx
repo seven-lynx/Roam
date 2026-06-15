@@ -8,6 +8,7 @@ import { StatCard } from "./components/StatCard";
 import { getAdminQueue, getAdminReports, getBetaSignups, deleteBetaSignup, restoreLinkAdmin, getNotificationCount, getEmailLogs, sendBulkEmail } from "./actions";
 import type { BetaSignup, EmailLogEntry } from "./actions";
 import ModerationDetail from "./ModerationDetail";
+import { AdminBadges } from "./views/AdminBadges";
 
 type QueueItem = {
   id: string;
@@ -38,7 +39,7 @@ type ReportedLink = {
 type Category = { id: string; name: string };
 type Subcategory = { id: string; name: string; category_id: string };
 
-type ViewType = "queue" | "analytics" | "reports" | "beta" | "email";
+type ViewType = "queue" | "analytics" | "reports" | "beta" | "email" | "badges";
 
 interface NavItem {
   id: ViewType;
@@ -50,6 +51,7 @@ interface NavItem {
 const NAV_ITEMS: NavItem[] = [
   { id: "queue", label: "Moderation", icon: "\uD83D\uDEC3", color: "bg-blue-600" },
   { id: "analytics", label: "Analytics", icon: "\uD83D\uDCCA", color: "bg-violet-600" },
+  { id: "badges", label: "Badges", icon: "\uD83C\uDFC5", color: "bg-purple-600" },
   { id: "reports", label: "Dead Links", icon: "\uD83D\uDEAB", color: "bg-red-600" },
   { id: "email", label: "Email", icon: "\uD83D\uDCE7", color: "bg-amber-600" },
   { id: "beta", label: "Beta Signups", icon: "\uD83D\uDD0C", color: "bg-emerald-600" },
@@ -68,7 +70,6 @@ export default function AdminPageClient() {
   const [view, setView] = useState<ViewType>(initialView);
   const [menuOpen, setMenuOpen] = useState(false);
 
-  // Shared state
   const [queueItems, setQueueItems] = useState<QueueItem[]>([]);
   const [queueLoading, setQueueLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState<"all" | "pending" | "approved" | "rejected">("all");
@@ -78,17 +79,14 @@ export default function AdminPageClient() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [allSubcategories, setAllSubcategories] = useState<Subcategory[]>([]);
 
-  // Reports state
   const [reportedLinks, setReportedLinks] = useState<ReportedLink[]>([]);
   const [reportsLoading, setReportsLoading] = useState(false);
   const [restoringId, setRestoringId] = useState<string | null>(null);
 
-  // Beta state
   const [betaSignups, setBetaSignups] = useState<BetaSignup[]>([]);
   const [betaLoading, setBetaLoading] = useState(false);
   const [deletingBetaId, setDeletingBetaId] = useState<number | null>(null);
 
-  // Email state
   const [emailSubject, setEmailSubject] = useState("");
   const [emailBody, setEmailBody] = useState("");
   const [emailSending, setEmailSending] = useState(false);
@@ -230,7 +228,6 @@ export default function AdminPageClient() {
   return (
     <main className="min-h-screen bg-white dark:bg-zinc-950 pb-20">
       <div className="mx-auto px-4 sm:px-6 py-4 sm:py-8 flex flex-col gap-4 sm:gap-6 max-w-4xl">
-        {/* Header */}
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-xl sm:text-3xl font-bold text-zinc-900 dark:text-white">Admin Dashboard</h1>
@@ -244,7 +241,6 @@ export default function AdminPageClient() {
           </Link>
         </div>
 
-        {/* Quick stats bar */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4">
           <StatCard label="Pending" value={statusCounts.pending} color="text-amber-600 dark:text-amber-400" />
           <StatCard label="Reports" value={reportedLinks.length} color="text-red-600 dark:text-red-400" />
@@ -252,7 +248,6 @@ export default function AdminPageClient() {
           <StatCard label="All Time" value={queueItems.length} />
         </div>
 
-        {/* Mobile menu dropdown */}
         <div className="relative">
           <button
             onClick={() => setMenuOpen(!menuOpen)}
@@ -293,306 +288,163 @@ export default function AdminPageClient() {
           )}
         </div>
 
-        {/* Backdrop for menu */}
         {menuOpen && (
           <div className="fixed inset-0 z-20" onClick={() => setMenuOpen(false)} />
         )}
 
-        {/* Content */}
         <div>
           {view === "queue" && (
             <QueueView
-              items={queueItems}
-              loading={queueLoading}
-              filteredItems={filteredItems}
-              statusFilter={statusFilter}
-              setStatusFilter={setStatusFilter}
-              searchQuery={searchQuery}
-              setSearchQuery={setSearchQuery}
-              sortBy={sortBy}
-              setSortBy={setSortBy}
-              statusCounts={statusCounts}
-              onSelectItem={setSelectedItem}
+              items={queueItems} loading={queueLoading} filteredItems={filteredItems}
+              statusFilter={statusFilter} setStatusFilter={setStatusFilter}
+              searchQuery={searchQuery} setSearchQuery={setSearchQuery}
+              sortBy={sortBy} setSortBy={setSortBy}
+              statusCounts={statusCounts} onSelectItem={setSelectedItem}
             />
           )}
-
           {view === "analytics" && <AdminAnalytics />}
-
+{view === "badges" && <AdminBadges />}
           {view === "reports" && (
-            <ReportsView
-              reportedLinks={reportedLinks}
-              loading={reportsLoading}
-              restoringId={restoringId}
-              onRestore={restoreLink}
-            />
+            <ReportsView reportedLinks={reportedLinks} loading={reportsLoading} restoringId={restoringId} onRestore={restoreLink} />
           )}
-
           {view === "beta" && (
-            <BetaView
-              signups={betaSignups}
-              loading={betaLoading}
-              deletingId={deletingBetaId}
-              onDelete={deleteSignup}
-            />
+            <BetaView signups={betaSignups} loading={betaLoading} deletingId={deletingBetaId} onDelete={deleteSignup} />
           )}
-
           {view === "email" && (
             <AdminEmail
-              subject={emailSubject}
-              body={emailBody}
-              sending={emailSending}
-              result={emailResult}
-              error={emailError}
-              notificationCount={notificationCount}
-              logs={emailLogs}
-              logsLoading={emailLogsLoading}
-              onSubjectChange={setEmailSubject}
-              onBodyChange={setEmailBody}
-              onSend={handleSendEmail}
+              subject={emailSubject} body={emailBody} sending={emailSending}
+              result={emailResult} error={emailError} notificationCount={notificationCount}
+              logs={emailLogs} logsLoading={emailLogsLoading}
+              onSubjectChange={setEmailSubject} onBodyChange={setEmailBody} onSend={handleSendEmail}
             />
           )}
         </div>
       </div>
 
-      {/* Detail modal */}
       {view === "queue" && selectedItem && (
-        <ModerationDetail
-          item={selectedItem}
-          onClose={() => setSelectedItem(null)}
-          onUpdate={loadQueue}
-          categories={categories}
-          allSubcategories={allSubcategories}
-        />
+        <ModerationDetail item={selectedItem} onClose={() => setSelectedItem(null)} onUpdate={loadQueue} categories={categories} allSubcategories={allSubcategories} />
       )}
     </main>
   );
 }
 
-// ── Queue View ─────────────────────────────────────────────────────────────
-
 function QueueView({
   items, loading, filteredItems, statusFilter, setStatusFilter,
   searchQuery, setSearchQuery, sortBy, setSortBy, statusCounts, onSelectItem,
 }: {
-  items: QueueItem[];
-  loading: boolean;
-  filteredItems: QueueItem[];
-  statusFilter: string;
-  setStatusFilter: (v: "all" | "pending" | "approved" | "rejected") => void;
-  searchQuery: string;
-  setSearchQuery: (v: string) => void;
-  sortBy: string;
-  setSortBy: (v: "newest" | "oldest") => void;
-  statusCounts: Record<string, number>;
-  onSelectItem: (item: QueueItem | null) => void;
+  items: QueueItem[]; loading: boolean; filteredItems: QueueItem[];
+  statusFilter: string; setStatusFilter: (v: "all" | "pending" | "approved" | "rejected") => void;
+  searchQuery: string; setSearchQuery: (v: string) => void;
+  sortBy: string; setSortBy: (v: "newest" | "oldest") => void;
+  statusCounts: Record<string, number>; onSelectItem: (item: QueueItem | null) => void;
 }) {
   const [filtersOpen, setFiltersOpen] = useState(false);
-
   return (
     <div className="flex flex-col gap-4">
-      {/* Search bar */}
-      <input
-        type="text"
-        placeholder="Search URL, title..."
-        value={searchQuery}
+      <input type="text" placeholder="Search URL, title..." value={searchQuery}
         onChange={(e) => setSearchQuery(e.target.value)}
         className="w-full rounded-xl border border-zinc-200 dark:border-zinc-700 px-4 py-2.5 text-sm bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white placeholder:text-zinc-400"
       />
-
-      {/* Filters toggle */}
-      <button
-        onClick={() => setFiltersOpen(!filtersOpen)}
+      <button onClick={() => setFiltersOpen(!filtersOpen)}
         className="flex items-center gap-2 text-xs font-medium text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-300 transition-colors self-start"
       >
-        <span>{filtersOpen ? "▴" : "▾"}</span>
-        <span>Filters & Sort</span>
-        {statusFilter !== "all" && (
-          <span className="rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 px-2 py-0.5 text-[10px]">
-            {statusFilter}
-          </span>
-        )}
+        <span>{filtersOpen ? "▴" : "▾"}</span><span>Filters & Sort</span>
+        {statusFilter !== "all" && <span className="rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 px-2 py-0.5 text-[10px]">{statusFilter}</span>}
       </button>
-
       {filtersOpen && (
         <div className="flex flex-col gap-3 rounded-xl border border-zinc-200 dark:border-zinc-800 p-4 bg-zinc-50 dark:bg-zinc-900/50">
-          {/* Status chips */}
           <div className="flex gap-1.5 flex-wrap">
             {(["all", "pending", "approved", "rejected"] as const).map((status) => (
-              <button
-                key={status}
-                onClick={() => setStatusFilter(status)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-                  statusFilter === status
-                    ? "bg-blue-600 text-white"
-                    : "bg-white dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 border border-zinc-200 dark:border-zinc-700 hover:bg-zinc-100 dark:hover:bg-zinc-700"
-                }`}
-              >
-                {status === "all"
-                  ? `All (${statusCounts.all})`
-                  : `${status.charAt(0).toUpperCase() + status.slice(1)} (${statusCounts[status]})`}
-              </button>
+              <button key={status} onClick={() => setStatusFilter(status)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${statusFilter === status ? "bg-blue-600 text-white" : "bg-white dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 border border-zinc-200 dark:border-zinc-700 hover:bg-zinc-100 dark:hover:bg-zinc-700"}`}
+              >{status === "all" ? `All (${statusCounts.all})` : `${status.charAt(0).toUpperCase() + status.slice(1)} (${statusCounts[status]})`}</button>
             ))}
           </div>
-
-          {/* Sort */}
-          <select
-            value={sortBy}
-            onChange={(e) => setSortBy(e.target.value as "newest" | "oldest")}
+          <select value={sortBy} onChange={(e) => setSortBy(e.target.value as "newest" | "oldest")}
             className="rounded-lg border border-zinc-200 dark:border-zinc-700 px-3 py-1.5 text-xs bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white"
+          ><option value="newest">Newest first</option><option value="oldest">Oldest first</option></select>
+        </div>
+      )}
+      {loading ? <div className="text-center text-zinc-500 py-12">Loading...</div>
+      : filteredItems.length === 0 ? <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 p-6 text-center text-zinc-400 text-sm">No submissions found.</div>
+      : <div className="flex flex-col gap-2">
+        {filteredItems.map((item) => (
+          <button key={item.id} onClick={() => onSelectItem(item)}
+            className="flex flex-col gap-2 rounded-xl border border-zinc-200 dark:border-zinc-800 px-4 py-3 hover:bg-zinc-50 dark:hover:bg-zinc-900/50 transition-colors text-left active:scale-[0.99]"
           >
-            <option value="newest">Newest first</option>
-            <option value="oldest">Oldest first</option>
-          </select>
-        </div>
-      )}
-
-      {/* List */}
-      {loading ? (
-        <div className="text-center text-zinc-500 py-12">Loading...</div>
-      ) : filteredItems.length === 0 ? (
-        <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 p-6 text-center text-zinc-400 text-sm">
-          No submissions found.
-        </div>
-      ) : (
-        <div className="flex flex-col gap-2">
-          {filteredItems.map((item) => (
-            <button
-              key={item.id}
-              onClick={() => onSelectItem(item)}
-              className="flex flex-col gap-2 rounded-xl border border-zinc-200 dark:border-zinc-800 px-4 py-3 hover:bg-zinc-50 dark:hover:bg-zinc-900/50 transition-colors text-left active:scale-[0.99]"
-            >
-              <div className="flex items-start justify-between gap-3">
-                <div className="flex-1 min-w-0">
-                  <a
-                    href={item.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    onClick={(e) => e.stopPropagation()}
-                    className="text-sm font-medium text-blue-600 dark:text-blue-400 hover:underline break-all line-clamp-2"
-                  >
-                    {item.url}
-                  </a>
-                  {item.title && (
-                    <p className="mt-1 text-xs text-zinc-600 dark:text-zinc-400 line-clamp-2">{item.title}</p>
-                  )}
-                </div>
-                <span className={`shrink-0 text-[10px] font-semibold px-2 py-1 rounded ${
-                  item.status === "approved"
-                    ? "bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400"
-                    : item.status === "rejected"
-                      ? "bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400"
-                      : "bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400"
-                }`}>
-                  {item.status}
-                </span>
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex-1 min-w-0">
+                <a href={item.url} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}
+                  className="text-sm font-medium text-blue-600 dark:text-blue-400 hover:underline break-all line-clamp-2">{item.url}</a>
+                {item.title && <p className="mt-1 text-xs text-zinc-600 dark:text-zinc-400 line-clamp-2">{item.title}</p>}
               </div>
-              <span className="text-[10px] text-zinc-400">
-                {item.created_at ? new Date(item.created_at).toLocaleString('en-US', { timeZone: 'America/New_York', timeZoneName: 'short' }) : '—'}
-              </span>
-            </button>
-          ))}
-        </div>
-      )}
+              <span className={`shrink-0 text-[10px] font-semibold px-2 py-1 rounded ${
+                item.status === "approved" ? "bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400"
+                : item.status === "rejected" ? "bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400"
+                : "bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400"}`}>{item.status}</span>
+            </div>
+            <span className="text-[10px] text-zinc-400">{item.created_at ? new Date(item.created_at).toLocaleString('en-US', { timeZone: 'America/New_York', timeZoneName: 'short' }) : '—'}</span>
+          </button>
+        ))}
+      </div>}
     </div>
   );
 }
 
-// ── Reports View ────────────────────────────────────────────────────────────
-
 function ReportsView({ reportedLinks, loading, restoringId, onRestore }: {
-  reportedLinks: ReportedLink[];
-  loading: boolean;
-  restoringId: string | null;
-  onRestore: (id: string) => void;
+  reportedLinks: ReportedLink[]; loading: boolean; restoringId: string | null; onRestore: (id: string) => void;
 }) {
   return (
     <div className="flex flex-col gap-3">
       <h2 className="text-lg font-semibold text-zinc-900 dark:text-white">Dead Link Reports</h2>
       <p className="text-xs text-zinc-400 dark:text-zinc-500 -mt-2">URLs reported as broken, sorted by report count</p>
-
-      {loading ? (
-        <div className="text-center text-zinc-500 py-12">Loading...</div>
-      ) : reportedLinks.length === 0 ? (
-        <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 p-6 text-center text-zinc-400 text-sm">
-          No dead link reports yet.
-        </div>
-      ) : (
-        <div className="flex flex-col gap-2">
-          {reportedLinks.map((r) => (
-            <div key={r.url_id} className="rounded-xl border border-zinc-200 dark:border-zinc-800 p-3">
-              <a href={r.url} target="_blank" rel="noopener noreferrer" className="text-sm font-medium text-blue-600 dark:text-blue-400 hover:underline break-all">
-                {r.url}
-              </a>
-              {r.title && <p className="mt-1 text-xs text-zinc-600 dark:text-zinc-400">{r.title}</p>}
-              <div className="flex items-center justify-between mt-2 text-xs">
-                <div className="flex items-center gap-3 text-zinc-500 dark:text-zinc-400">
-                  <span><strong className="text-zinc-700 dark:text-zinc-300">{r.report_count}</strong> reports</span>
-                  <span>{r.reported_at ? new Date(r.reported_at).toLocaleDateString('en-US', { timeZone: 'America/New_York' }) : '—'}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className={`text-[10px] font-medium px-2 py-0.5 rounded ${r.inactive ? "bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400" : "bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400"}`}>
-                    {r.inactive ? "Inactive" : "Active"}
-                  </span>
-                  {r.inactive && (
-                    <button onClick={() => onRestore(r.url_id)} disabled={restoringId === r.url_id}
-                      className="text-[10px] px-2 py-1 rounded-lg bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700 disabled:opacity-50 transition-colors"
-                    >{restoringId === r.url_id ? "…" : "Restore"}</button>
-                  )}
-                </div>
+      {loading ? <div className="text-center text-zinc-500 py-12">Loading...</div>
+      : reportedLinks.length === 0 ? <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 p-6 text-center text-zinc-400 text-sm">No dead link reports yet.</div>
+      : <div className="flex flex-col gap-2">
+        {reportedLinks.map((r) => (
+          <div key={r.url_id} className="rounded-xl border border-zinc-200 dark:border-zinc-800 p-3">
+            <a href={r.url} target="_blank" rel="noopener noreferrer" className="text-sm font-medium text-blue-600 dark:text-blue-400 hover:underline break-all">{r.url}</a>
+            {r.title && <p className="mt-1 text-xs text-zinc-600 dark:text-zinc-400">{r.title}</p>}
+            <div className="flex items-center justify-between mt-2 text-xs">
+              <div className="flex items-center gap-3 text-zinc-500 dark:text-zinc-400">
+                <span><strong className="text-zinc-700 dark:text-zinc-300">{r.report_count}</strong> reports</span>
+                <span>{r.reported_at ? new Date(r.reported_at).toLocaleDateString('en-US', { timeZone: 'America/New_York' }) : '—'}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className={`text-[10px] font-medium px-2 py-0.5 rounded ${r.inactive ? "bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400" : "bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400"}`}>{r.inactive ? "Inactive" : "Active"}</span>
+                {r.inactive && <button onClick={() => onRestore(r.url_id)} disabled={restoringId === r.url_id} className="text-[10px] px-2 py-1 rounded-lg bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700 disabled:opacity-50 transition-colors">{restoringId === r.url_id ? "…" : "Restore"}</button>}
               </div>
             </div>
-          ))}
-        </div>
-      )}
+          </div>
+        ))}
+      </div>}
     </div>
   );
 }
 
-// ── Beta View ───────────────────────────────────────────────────────────────
-
 function BetaView({ signups, loading, deletingId, onDelete }: {
-  signups: BetaSignup[];
-  loading: boolean;
-  deletingId: number | null;
-  onDelete: (id: number) => void;
+  signups: BetaSignup[]; loading: boolean; deletingId: number | null; onDelete: (id: number) => void;
 }) {
   return (
     <div className="flex flex-col gap-4">
       <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 p-4 sm:p-6">
         <div className="flex items-center justify-between mb-3">
-          <div>
-            <h2 className="text-lg font-semibold text-zinc-900 dark:text-white">Beta Signups</h2>
-            <p className="text-xs text-zinc-400 dark:text-zinc-500">Emails submitted via /android-beta</p>
-          </div>
-          {signups.length > 0 && (
-            <div className="rounded-lg bg-emerald-50 dark:bg-emerald-900/20 px-3 py-1.5 text-center shrink-0">
-              <div className="text-xl font-bold tabular-nums text-emerald-700 dark:text-emerald-300">{signups.length}</div>
-              <div className="text-[10px] text-emerald-600 dark:text-emerald-400">total</div>
-            </div>
-          )}
+          <div><h2 className="text-lg font-semibold text-zinc-900 dark:text-white">Beta Signups</h2><p className="text-xs text-zinc-400 dark:text-zinc-500">Emails submitted via /android-beta</p></div>
+          {signups.length > 0 && <div className="rounded-lg bg-emerald-50 dark:bg-emerald-900/20 px-3 py-1.5 text-center shrink-0"><div className="text-xl font-bold tabular-nums text-emerald-700 dark:text-emerald-300">{signups.length}</div><div className="text-[10px] text-emerald-600 dark:text-emerald-400">total</div></div>}
         </div>
-
-        {loading ? (
-          <div className="text-center text-zinc-500 py-8">Loading...</div>
-        ) : signups.length === 0 ? (
-          <div className="rounded-lg border border-zinc-100 dark:border-zinc-800 p-6 text-center text-zinc-400 text-sm">No signups yet.</div>
-        ) : (
-          <div className="flex flex-col gap-1.5">
-            {signups.map((s) => (
-              <div key={s.id} className="flex items-center justify-between py-2.5 px-3 rounded-lg bg-zinc-50 dark:bg-zinc-900/50">
-                <div className="flex-1 min-w-0">
-                  <span className="font-mono text-xs text-zinc-700 dark:text-zinc-300 break-all">{s.email}</span>
-                  <span className="block text-[10px] text-zinc-400 mt-0.5">
-                    {s.created_at ? new Date(s.created_at).toLocaleString('en-US', { timeZone: 'America/New_York', timeZoneName: 'short' }) : '—'}
-                  </span>
-                </div>
-                <button onClick={() => onDelete(s.id)} disabled={deletingId === s.id}
-                  className="shrink-0 ml-3 text-xs px-3 py-1.5 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/40 disabled:opacity-50 transition-colors"
-                >{deletingId === s.id ? "…" : "Delete"}</button>
+        {loading ? <div className="text-center text-zinc-500 py-8">Loading...</div>
+        : signups.length === 0 ? <div className="rounded-lg border border-zinc-100 dark:border-zinc-800 p-6 text-center text-zinc-400 text-sm">No signups yet.</div>
+        : <div className="flex flex-col gap-1.5">
+          {signups.map((s) => (
+            <div key={s.id} className="flex items-center justify-between py-2.5 px-3 rounded-lg bg-zinc-50 dark:bg-zinc-900/50">
+              <div className="flex-1 min-w-0">
+                <span className="font-mono text-xs text-zinc-700 dark:text-zinc-300 break-all">{s.email}</span>
+                <span className="block text-[10px] text-zinc-400 mt-0.5">{s.created_at ? new Date(s.created_at).toLocaleString('en-US', { timeZone: 'America/New_York', timeZoneName: 'short' }) : '—'}</span>
               </div>
-            ))}
-          </div>
-        )}
+              <button onClick={() => onDelete(s.id)} disabled={deletingId === s.id} className="shrink-0 ml-3 text-xs px-3 py-1.5 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/40 disabled:opacity-50 transition-colors">{deletingId === s.id ? "…" : "Delete"}</button>
+            </div>
+          ))}
+        </div>}
       </div>
     </div>
   );

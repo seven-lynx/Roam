@@ -12,4 +12,9 @@ data class UserProfile(
     @SerialName("avatar_url") val avatarUrl: String? = null,
     @SerialName("is_public") val isPublic: Boolean = true,
     @SerialName("created_at") val createdAt: String = "",
+    @SerialName("xp_total") val xpTotal: Long = 0,
+    val level: Int = 1,
+    @SerialName("streak_days") val streakDays: Int = 0,
+    @SerialName("max_streak") val maxStreak: Int = 0,
+    @SerialName("badge_count") val badgeCount: Int = 0,
 )

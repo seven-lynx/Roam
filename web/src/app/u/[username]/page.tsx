@@ -5,6 +5,9 @@ import { createClient } from '@/lib/supabase/server';
 import { Avatar } from '@/components/UI';
 import { FollowButton } from './FollowButton';
 import { CopyProfileLink } from './CopyProfileLink';
+import { BadgeDisplay } from '@/components/badges/BadgeDisplay';
+import type { BadgeData } from '@/components/badges/BadgeDisplay';
+import { LevelProgress } from '@/components/badges/LevelProgress';
 
 export const revalidate = 60;
 
@@ -35,20 +38,18 @@ export default async function PublicProfilePage({ params }: Props) {
 
   const { data: profile } = await supabase
     .from('profiles')
-    .select('id, username, display_name, bio, avatar_url, created_at')
+    .select('id, username, display_name, bio, avatar_url, created_at, xp_total, level, streak_days, max_streak, badge_count')
     .eq('username', username)
     .eq('is_public', true)
     .single();
 
   if (!profile) notFound();
 
-  // Get the viewing user (null if not signed in)
   const { data: { user: viewer } } = await supabase.auth.getUser();
 
-  // Fetch follower/following counts via the profile Edge Function
+  // Fetch follower/following counts
   const [followerCount, followingCount, followStatus] = viewer
     ? await (async () => {
-        // Call profile Edge Function for counts
         const baseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
         const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
         const profileUrl = `${baseUrl}/functions/v1/profile?username=${encodeURIComponent(username)}`;
@@ -56,24 +57,24 @@ export default async function PublicProfilePage({ params }: Props) {
           headers: { Authorization: `Bearer ${(await supabase.auth.getSession()).data.session?.access_token ?? anonKey}` },
         });
         const profileData = profileRes.ok ? await profileRes.json() : null;
-
-        // Check current follow relationship
         const { data: followRow } = await supabase
           .from('follows')
           .select('is_pending')
           .eq('follower_id', viewer.id)
           .eq('following_id', profile.id)
           .single();
-
         let status: 'none' | 'following' | 'pending' = 'none';
         if (followRow?.is_pending === true) status = 'pending';
         else if (followRow?.is_pending === false) status = 'following';
-
         return [profileData?.follower_count ?? 0, profileData?.following_count ?? 0, status] as const;
       })()
     : [0, 0, 'none' as const];
 
-  // RLS handles visibility: owner sees all, followers see followed-private, others see public only.
+  // Fetch badges (only unlocked, for public viewing)
+  const { data: badgesData } = await supabase.rpc('get_user_badges', { p_user_id: profile.id }).throwOnError();
+  const badges: BadgeData[] = (badgesData ?? []) as unknown as BadgeData[];
+  const unlockedBadges = badges.filter(b => b.is_unlocked);
+
   const { data: collections } = await supabase
     .from('collections')
     .select('id, name, slug, created_at')
@@ -112,12 +113,18 @@ export default async function PublicProfilePage({ params }: Props) {
             </div>
           </div>
           {viewer && viewer.id !== profile.id && (
-            <FollowButton
-              targetUserId={profile.id}
-              initialStatus={followStatus}
-            />
+            <FollowButton targetUserId={profile.id} initialStatus={followStatus} />
           )}
         </div>
+
+        {/* Level progress card */}
+        <LevelProgress
+          level={profile.level ?? 1}
+          xpTotal={profile.xp_total ?? 0}
+          streakDays={profile.streak_days ?? 0}
+          maxStreak={profile.max_streak ?? 0}
+          badgeCount={profile.badge_count ?? 0}
+        />
 
         {/* Stats */}
         <section className="flex items-center gap-6 text-sm">
@@ -159,6 +166,18 @@ export default async function PublicProfilePage({ params }: Props) {
                 </span>
               ))}
             </div>
+          </section>
+        )}
+
+        {/* Badges */}
+        {unlockedBadges.length > 0 && (
+          <section>
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-base font-semibold text-zinc-900 dark:text-white">
+                Badges ({unlockedBadges.length})
+              </h2>
+            </div>
+            <BadgeDisplay badges={badges} showLocked={false} compact />
           </section>
         )}
 

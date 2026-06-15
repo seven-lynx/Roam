@@ -54,7 +54,7 @@ You can use Roam freely under the MIT License if:
 
 If your use case falls into the categories above, contact us to discuss licensing terms and pricing:
 
-**Email:** `licensing@7-lynx.com`
+**Email:** `developer@roamtheweb.app`
 
 Include:
 - Your name and company

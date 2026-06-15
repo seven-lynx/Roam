@@ -49,6 +49,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import app.roam.android.model.Badge
+import app.roam.android.ui.component.LevelProgressBar
 import app.roam.android.viewmodel.MainViewModel
 import kotlinx.coroutines.delay
 
@@ -58,6 +60,7 @@ fun ProfileScreen(
     vm: MainViewModel,
     onNavigateBack: () -> Unit = {},
     onSignOut: () -> Unit,
+    onNavigateToBadges: () -> Unit = {},
 ) {
     val profile by vm.profile.collectAsState()
     val userCategoryIds by vm.userCategoryIds.collectAsState()
@@ -71,23 +74,25 @@ fun ProfileScreen(
     val profileSaveError by vm.profileSaveError.collectAsState()
     val profileIsPublic by vm.profileIsPublic.collectAsState()
     val profileInterestsError by vm.profileInterestsError.collectAsState()
+    val badges by vm.badges.collectAsState()
 
-    // Group subcategories by parent category
     val subcatsByCategory = subcategories.groupBy { it.categoryId }
 
     LaunchedEffect(Unit) { vm.loadProfile() }
 
-    // Local edit state — re-seeded once the profile loads
     var username by remember(profile?.username) { mutableStateOf(profile?.username ?: "") }
     var displayName by remember(profile?.displayName) { mutableStateOf(profile?.displayName ?: "") }
     var bio by remember(profile?.bio) { mutableStateOf(profile?.bio ?: "") }
 
-    // Debounced auto-save: cancels and restarts on every keystroke
     LaunchedEffect(username, displayName, bio) {
         if (profile == null) return@LaunchedEffect
         delay(800)
         vm.onProfileFieldChanged(username, displayName, bio.ifBlank { null })
     }
+
+    // Show unlocked badges compactly
+    val unlockedBadges = badges.filter { it.isUnlocked }
+    val lockedInProgress = badges.filter { !it.isUnlocked && it.progressCurrent > 0 }
 
     Scaffold(
         topBar = {
@@ -113,9 +118,16 @@ fun ProfileScreen(
         ) {
             Spacer(Modifier.height(8.dp))
 
-            // Stylized initial avatar — color derived deterministically from display name.
-            // Guard against empty strings: if both displayName and username are blank,
-            // fall back to "?" to avoid NoSuchElementException (ROAM-ANDROID-N).
+            // Level progress card
+            LevelProgressBar(
+                level = profile?.level ?: 1,
+                xpTotal = profile?.xpTotal ?: 0,
+                streakDays = profile?.streakDays ?: 0,
+                maxStreak = profile?.maxStreak ?: 0,
+                badgeCount = profile?.badgeCount ?: 0,
+            )
+
+            // Avatar
             val avatarName = (profile?.displayName?.takeIf { it.isNotBlank() }
                 ?: profile?.username?.takeIf { it.isNotBlank() }
                 ?: "?").trim()
@@ -135,9 +147,7 @@ fun ProfileScreen(
                 )
             }
 
-            // Stats row — shown once profile is loaded.
-            // Guard createdAt: if it's empty/blank, show "—" to prevent
-            // NoSuchElementException from string operations on empty sequences.
+            // Stats row
             if (profile != null) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -155,7 +165,7 @@ fun ProfileScreen(
 
             HorizontalDivider()
 
-            // Profile save error (e.g. duplicate username)
+            // Profile save error
             if (profileSaveError != null) {
                 Text(
                     text = profileSaveError ?: "",
@@ -165,7 +175,7 @@ fun ProfileScreen(
                 )
             }
 
-            // Interests load failure with retry
+            // Interests load failure
             if (profileInterestsError != null) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -183,6 +193,64 @@ fun ProfileScreen(
                     }
                 }
             }
+
+            // Badges section
+            if (unlockedBadges.isNotEmpty()) {
+                HorizontalDivider()
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        "Badges (${unlockedBadges.size})",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                    TextButton(onClick = onNavigateToBadges) {
+                        Text("View all →")
+                    }
+                }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    unlockedBadges.take(6).forEach { badge ->
+                        BadgeMini(badge = badge)
+                    }
+                    if (unlockedBadges.size > 6) {
+                        Text(
+                            "+${unlockedBadges.size - 6}",
+                            modifier = Modifier
+                                .padding(4.dp)
+                                .align(Alignment.CenterVertically),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                        )
+                    }
+                }
+            }
+
+            // In-progress badges
+            if (lockedInProgress.isNotEmpty()) {
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    "In Progress",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                    modifier = Modifier.align(Alignment.Start),
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    lockedInProgress.take(4).forEach { badge ->
+                        BadgeMini(badge = badge)
+                    }
+                }
+            }
+
+            HorizontalDivider()
 
             // Profile visibility toggle
             Row(
@@ -233,7 +301,7 @@ fun ProfileScreen(
 
             HorizontalDivider()
 
-            // Interest chips — pillar or topic mode
+            // Interests
             Text(
                 text = "Interests",
                 style = MaterialTheme.typography.labelLarge,
@@ -331,9 +399,27 @@ fun ProfileScreen(
 }
 
 @Composable
+private fun BadgeMini(badge: Badge) {
+    Column(
+        modifier = Modifier.padding(4.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Text(
+            text = if (badge.isHidden && !badge.isUnlocked) "\u2753" else badge.icon,
+            fontSize = 20.sp,
+        )
+        if (badge.requiredCount != null && !badge.isUnlocked) {
+            Text(
+                text = "${badge.progressCurrent}/${badge.requiredCount}",
+                fontSize = 9.sp,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f),
+            )
+        }
+    }
+}
+
+@Composable
 private fun StatCell(label: String, value: String) {
-    // Guard against empty string values that could trigger NoSuchElementException
-    // in Compose's Text rendering (ROAM-ANDROID-N).
     val safeValue = value.ifBlank { "\u2014" }
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Text(safeValue, style = MaterialTheme.typography.titleLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -348,16 +434,16 @@ private fun StatCell(label: String, value: String) {
 }
 
 private val AVATAR_COLORS = listOf(
-    Color(0xFFE53935), // rose
-    Color(0xFFF4511E), // orange
-    Color(0xFFF6BF26), // amber
-    Color(0xFF33B679), // emerald
-    Color(0xFF0B8043), // teal
-    Color(0xFF039BE5), // sky
-    Color(0xFF3F51B5), // blue
-    Color(0xFF7986CB), // violet
-    Color(0xFF8E24AA), // purple
-    Color(0xFFD81B60), // pink
+    Color(0xFFE53935),
+    Color(0xFFF4511E),
+    Color(0xFFF6BF26),
+    Color(0xFF33B679),
+    Color(0xFF0B8043),
+    Color(0xFF039BE5),
+    Color(0xFF3F51B5),
+    Color(0xFF7986CB),
+    Color(0xFF8E24AA),
+    Color(0xFFD81B60),
 )
 
 private fun avatarColorFor(name: String): Color {

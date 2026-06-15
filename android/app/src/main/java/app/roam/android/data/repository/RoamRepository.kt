@@ -2,6 +2,7 @@
 
 import app.roam.android.data.supabase
 import app.roam.android.model.AppNotification
+import app.roam.android.model.Badge
 import app.roam.android.model.CategoryItem
 import app.roam.android.model.Collection
 import app.roam.android.model.CollectionItem
@@ -469,6 +470,16 @@ class RoamRepository {
                 .decodeList<IdRow>().size
         }.getOrDefault(0)
         return roamed to submitted
+    }
+
+    suspend fun getBadges(): List<Badge> {
+        supabase.auth.currentUserOrNull() ?: return emptyList()
+        return runCatching {
+            supabase.postgrest
+                .from("badges")
+                .select()
+                .decodeList<Badge>()
+        }.getOrDefault(emptyList())
     }
 
     // ── Private helpers ───────────────────────────────────────────────────────

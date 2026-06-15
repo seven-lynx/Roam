@@ -9,6 +9,7 @@ import android.os.VibratorManager
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import app.roam.android.data.repository.RoamRepository
+import app.roam.android.model.Badge
 import app.roam.android.model.CategoryItem
 import app.roam.android.model.SubcategoryItem
 import app.roam.android.model.Collection
@@ -344,6 +345,16 @@ class MainViewModel(
     /** Counts of pages roamed and submitted by the current user */
     private val _profileStats = MutableStateFlow(ProfileStats())
     val profileStats: StateFlow<ProfileStats> = _profileStats.asStateFlow()
+
+    /** User's earned and in-progress badges */
+    private val _badges = MutableStateFlow<List<Badge>>(emptyList())
+    val badges: StateFlow<List<Badge>> = _badges.asStateFlow()
+
+    private val _badgesLoading = MutableStateFlow(false)
+    val badgesLoading: StateFlow<Boolean> = _badgesLoading.asStateFlow()
+
+    private val _badgesError = MutableStateFlow<String?>(null)
+    val badgesError: StateFlow<String?> = _badgesError.asStateFlow()
 
     /** Whether push notifications are enabled */
     private val _notificationsEnabled = MutableStateFlow(prefs.getBoolean(NOTIFICATIONS_ENABLED_KEY, true))
@@ -1229,11 +1240,23 @@ class MainViewModel(
         roam()
     }
 
+    fun loadBadges() {
+        viewModelScope.launch {
+            _badgesLoading.value = true
+            _badgesError.value = null
+            runCatching { repo.getBadges() }
+                .onSuccess { _badges.value = it }
+                .onFailure { _badgesError.value = it.message ?: "Failed to load badges" }
+            _badgesLoading.value = false
+        }
+    }
+
     // ── Profile (14.6) ────────────────────────────────────────────────────────
 
     /** Loads profile, user categories, and stats in parallel. */
     fun loadProfile() {
         _profileInterestsError.value = null
+        loadBadges()
         viewModelScope.launch {
             runCatching { _profile.value = repo.getProfile() }
         }
