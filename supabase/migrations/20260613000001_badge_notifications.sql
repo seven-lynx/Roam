@@ -278,7 +278,7 @@ BEGIN
   -- ── Level-up notification ─────────────────────────────────────────────────
   IF v_level > v_prev_level THEN
     INSERT INTO public.notifications (user_id, type, title, body, data)
-    VALUES (p_user_id, 'level_up', '\uD83C\uDF89 Level Up! You\'re now Level ' || v_level, 'Keep roaming to earn more badges and XP!', jsonb_build_object('level', v_level, 'rank', ''));
+    VALUES (p_user_id, 'level_up', '🎉 Level Up! You''re now Level ' || v_level, 'Keep roaming to earn more badges and XP!', jsonb_build_object('level', v_level, 'rank', ''));
   END IF;
 
 END;
