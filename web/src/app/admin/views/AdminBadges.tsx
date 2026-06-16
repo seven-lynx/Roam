@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { createClient } from '@/lib/supabase/client';
+import { grantBadgeAdmin } from '@/app/admin/actions';
 
 type BadgeRow = {
   id: string;
@@ -98,27 +99,9 @@ export function AdminBadges() {
     setGiftResult(null);
     setGiftError(null);
     try {
-      const supabase = createClient();
-      const { data: userData } = await supabase
-        .from('profiles')
-        .select('id')
-        .eq('username', giftUsername)
-        .single();
-      
-      if (!userData) {
-        setGiftError('User not found');
-        setGiftLoading(false);
-        return;
-      }
-
-      const { data: { session } } = await supabase.auth.getSession();
-      const { data, error: grantError } = await supabase.rpc('grant_badge', {
-        p_user_id: userData.id,
-        p_badge_slug: giftBadgeSlug,
-        p_granted_by: session?.user.id,
-      });
-      if (grantError) throw new Error(grantError.message);
-      setGiftResult(`Badge "${giftBadgeSlug}" granted to @${giftUsername}!`);
+      const { data, error } = await grantBadgeAdmin(giftUsername, giftBadgeSlug);
+      if (error) throw new Error(error);
+      setGiftResult(data?.message ?? `Badge "${giftBadgeSlug}" granted to @${giftUsername}!`);
       setGiftUsername('');
       setGiftBadgeSlug('');
     } catch (e) {

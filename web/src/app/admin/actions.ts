@@ -215,6 +215,43 @@ export async function restoreLinkAdmin(urlId: string): Promise<{ error: string |
   return { error: error ? error.message : null };
 }
 
+// ─── Badges ───────────────────────────────────────────────────────────────────
+
+export async function grantBadgeAdmin(
+  username: string,
+  badgeSlug: string,
+): Promise<{ data: { message: string } | null; error: string | null }> {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !serviceKey) return { data: null, error: "Server misconfiguration" };
+
+  const admin = createClient(url, serviceKey, {
+    auth: { autoRefreshToken: false, persistSession: false },
+  });
+
+  // Look up the user by username
+  const { data: profile } = await admin
+    .from("profiles")
+    .select("id")
+    .eq("username", username)
+    .single();
+
+  if (!profile) return { data: null, error: "User not found" };
+
+  // Find the admin user who is granting (use the first admin account for audit trail)
+  const { data: { users } } = await admin.auth.admin.listUsers({ perPage: 1 });
+  const grantedBy = users?.[0]?.id ?? profile.id;
+
+  const { data, error } = await admin.rpc("grant_badge", {
+    p_user_id: profile.id,
+    p_badge_slug: badgeSlug,
+    p_granted_by: grantedBy,
+  });
+
+  if (error) return { data: null, error: error.message };
+  return { data: { message: `Badge "${badgeSlug}" granted to @${username}!` }, error: null };
+}
+
 // ─── Email: types ────────────────────────────────────────────────────────────
 
 export type EmailLogEntry = {
