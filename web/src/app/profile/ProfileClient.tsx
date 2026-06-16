@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import { useToast } from '@/lib/hooks';
@@ -16,6 +16,7 @@ import { saveUserInterests, type InterestMode } from '@/lib/interests';
 import { LevelProgress } from '@/components/badges/LevelProgress';
 import { BadgeDisplay } from '@/components/badges/BadgeDisplay';
 import type { BadgeData } from '@/components/badges/BadgeDisplay';
+import { BadgeUnlockProvider, useBadgeUnlock } from '@/components/badges/BadgeUnlockToast';
 
 type Category = { id: string; label: string; emoji: string };
 export type Profile = {
@@ -174,7 +175,13 @@ export function ProfileClient({ userId, email, profile, allCategories, allSubcat
     { key: 'about', label: 'About' },
   ];
 
+  // Recently-unlocked badge detection: toast badges unlocked in the last 5 minutes
+  // Wrapped in BadgeUnlockProvider so useBadgeUnlock has context access
+  const badgeStableKey = badges.map(b => b.id + (b.is_unlocked ? '1' : '0')).join(',');
+
   return (
+    <BadgeUnlockProvider>
+    <RecentlyUnlockedToaster badges={badges} stableKey={badgeStableKey} />
     <div className="min-h-[calc(100vh-8rem)] bg-white dark:bg-zinc-950">
       {/* Username gate for new OAuth users */}
       {!profile?.username && <UsernamePrompt />}
@@ -460,5 +467,24 @@ export function ProfileClient({ userId, email, profile, allCategories, allSubcat
         <Toast message={toast.message} variant={toast.variant} onDismiss={dismiss} />
       )}
     </div>
+    </BadgeUnlockProvider>
   );
+}
+
+// Inner component that lives inside BadgeUnlockProvider so it can call useBadgeUnlock
+function RecentlyUnlockedToaster({ badges, stableKey }: { badges: BadgeData[]; stableKey: string }) {
+  const { enqueue } = useBadgeUnlock();
+  useEffect(() => {
+    const fiveMinutesAgo = Date.now() - 5 * 60 * 1000;
+    for (const badge of badges) {
+      if (badge.is_unlocked && badge.unlocked_at && !badge.is_hidden) {
+        const unlockedTime = new Date(badge.unlocked_at).getTime();
+        if (unlockedTime > fiveMinutesAgo) {
+          enqueue(badge);
+        }
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stableKey]);
+  return null;
 }

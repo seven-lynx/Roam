@@ -112,22 +112,12 @@ export function AdminBadges() {
       }
 
       const { data: { session } } = await supabase.auth.getSession();
-      const token = session?.access_token;
-      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-      const res = await fetch(`${supabaseUrl}/rest/v1/rpc/grant_badge`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          p_user_id: userData.id,
-          p_badge_slug: giftBadgeSlug,
-          p_granted_by: session?.user.id,
-        }),
+      const { data, error: grantError } = await supabase.rpc('grant_badge', {
+        p_user_id: userData.id,
+        p_badge_slug: giftBadgeSlug,
+        p_granted_by: session?.user.id,
       });
-      const result = await res.json();
-      if (!res.ok) throw new Error(result.message || 'Failed');
+      if (grantError) throw new Error(grantError.message);
       setGiftResult(`Badge "${giftBadgeSlug}" granted to @${giftUsername}!`);
       setGiftUsername('');
       setGiftBadgeSlug('');

@@ -235,6 +235,20 @@ Deno.serve(async (req) => {
     report(insertError.message, 'error', { url: normalized, operation: 'moderation-insert' })
     return json({ error: insertError.message }, 500)
   }
+
+  // ── Gamification: Fire-and-forget XP + badge evaluation ──────────────────
+  supabase.rpc('award_xp', { p_user_id: user.id, p_action: 'submit_url', p_metadata: { url: normalized } }).then(
+    () => {},
+    (e: unknown) => { console.error('xp award failed (submit-url)', e) }
+  )
+  // Evaluate badges after a short delay to let XP commit
+  setTimeout(() => {
+    supabase.rpc('evaluate_badges', { p_user_id: user.id }).then(
+      () => {},
+      (e: unknown) => { console.error('badge evaluation failed (submit-url)', e) }
+    )
+  }, 500)
+
   return json({ ok: true, message: 'URL submitted for review' }, 201)
 })
 
