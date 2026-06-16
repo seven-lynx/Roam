@@ -242,7 +242,7 @@ export async function grantBadgeAdmin(
   const { data: { users } } = await admin.auth.admin.listUsers({ perPage: 1 });
   const grantedBy = users?.[0]?.id ?? profile.id;
 
-  const { data, error } = await admin.rpc("grant_badge", {
+  const { error } = await admin.rpc("grant_badge", {
     p_user_id: profile.id,
     p_badge_slug: badgeSlug,
     p_granted_by: grantedBy,
