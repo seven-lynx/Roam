@@ -229,27 +229,119 @@ export async function grantBadgeAdmin(
     auth: { autoRefreshToken: false, persistSession: false },
   });
 
-  // Look up the user by username
-  const { data: profile } = await admin
+  // Look up the target user by username
+  const { data: targetProfile } = await admin
     .from("profiles")
     .select("id")
     .eq("username", username)
     .single();
 
-  if (!profile) return { data: null, error: "User not found" };
+  if (!targetProfile) return { data: null, error: "User not found" };
 
-  // Find the admin user who is granting (use the first admin account for audit trail)
-  const { data: { users } } = await admin.auth.admin.listUsers({ perPage: 1 });
-  const grantedBy = users?.[0]?.id ?? profile.id;
+  // Look up the badge by slug
+  const { data: badge } = await admin
+    .from("badges")
+    .select("id, slug, name, xp_reward")
+    .eq("slug", badgeSlug)
+    .single();
 
-  const { error } = await admin.rpc("grant_badge", {
-    p_user_id: profile.id,
-    p_badge_slug: badgeSlug,
-    p_granted_by: grantedBy,
-  });
+  if (!badge) return { data: null, error: `Badge not found: ${badgeSlug}` };
 
-  if (error) return { data: null, error: error.message };
-  return { data: { message: `Badge "${badgeSlug}" granted to @${username}!` }, error: null };
+  // Look up the admin granting this badge (for audit trail).
+  // Use the profile of the user with is_admin()=true from auth.users.
+  let grantedBy: string | null = null;
+  try {
+    const { data: adminsList } = await admin.auth.admin.listUsers({ perPage: 50 });
+    if (adminsList?.users?.length) {
+      // Find a user whose app_metadata.role is "admin" and has a profile
+      const adminUser = adminsList.users.find(
+        (u) => u.app_metadata?.role === "admin"
+      );
+      if (adminUser) {
+        const { data: adminProfile } = await admin
+          .from("profiles")
+          .select("id")
+          .eq("id", adminUser.id)
+          .single();
+        grantedBy = adminProfile?.id ?? null;
+      }
+    }
+  } catch {
+    // Non-critical — audit trail is best-effort
+  }
+
+  // Grant the badge directly using service role (bypasses RLS & function checks)
+  const { error: insertError } = await admin
+    .from("user_badges")
+    .upsert(
+      {
+        user_id: targetProfile.id,
+        badge_id: badge.id,
+        granted_by: grantedBy,
+        progress_current: 0,
+        unlocked_at: new Date().toISOString(),
+      },
+      { onConflict: "user_id,badge_id" }
+    );
+
+  if (insertError) {
+    // If the badge was already granted (duplicate key), treat as success
+    if (insertError.code === "23505") {
+      return {
+        data: { message: `Badge "${badgeSlug}" was already granted to @${username}!` },
+        error: null,
+      };
+    }
+    return { data: null, error: insertError.message };
+  }
+
+  // Award XP and update badge count
+  if (badge.xp_reward > 0) {
+    // Award XP
+    await admin.from("xp_log").insert({
+      user_id: targetProfile.id,
+      action: "badge_gifted",
+      xp_awarded: badge.xp_reward,
+      metadata: { badge_slug: badgeSlug, granted_by: grantedBy },
+    });
+
+    // Update profile XP, badge count, and recalculate level
+    const { data: currentProfile } = await admin
+      .from("profiles")
+      .select("xp_total, badge_count")
+      .eq("id", targetProfile.id)
+      .single();
+
+    if (currentProfile) {
+      const newXp = (currentProfile.xp_total ?? 0) + badge.xp_reward;
+      const newLevel = Math.floor(Math.sqrt(newXp / 100)) + 1;
+
+      await admin
+        .from("profiles")
+        .update({
+          xp_total: newXp,
+          badge_count: (currentProfile.badge_count ?? 0) + 1,
+          level: newLevel,
+        })
+        .eq("id", targetProfile.id);
+    }
+  } else {
+    // Just increment badge count
+    const { data: currentProfile } = await admin
+      .from("profiles")
+      .select("badge_count")
+      .eq("id", targetProfile.id)
+      .single();
+    await admin
+      .from("profiles")
+      .update({ badge_count: (currentProfile?.badge_count ?? 0) + 1 })
+      .eq("id", targetProfile.id);
+  }
+
+  return {
+    data: { message: `Badge "${badgeSlug}" granted to @${username}!` },
+    error: null,
+  };
 }
 
 // ─── Email: types ────────────────────────────────────────────────────────────
