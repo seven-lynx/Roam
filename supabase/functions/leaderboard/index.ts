@@ -92,7 +92,8 @@ Deno.serve(async (req) => {
   }
 })
 
-async function refreshSnapshot(supabase: ReturnType<typeof createClient>, period: string) {
+// deno-lint-ignore no-explicit-any
+async function refreshSnapshot(supabase: any, period: string) {
   const snapshotAt = new Date().toISOString()
 
   let xpQuery = supabase.from('xp_log').select('user_id, xp_awarded')
