@@ -37,6 +37,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -166,11 +167,9 @@ private fun LeaderboardRow(entry: LeaderboardEntry) {
                 modifier = Modifier
                     .size(40.dp)
                     .clip(CircleShape)
-                    .then(
-                        Modifier.drawWithContent {
-                            drawCircle(Color(0xFF7C3AED))
-                        }
-                    ),
+                    .drawBehind {
+                        drawCircle(Color(0xFF7C3AED))
+                    },
                 contentAlignment = Alignment.Center,
             ) {
                 Text(initial, color = Color.White, fontWeight = FontWeight.Bold)

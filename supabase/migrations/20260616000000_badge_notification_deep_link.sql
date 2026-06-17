@@ -1,22 +1,19 @@
 -- =============================================================================
--- Badge notification types for the notifications table
+-- Badge notification deep-link: add profile URL to badge/level-up push payloads
 -- =============================================================================
--- Adds badge_unlocked and level_up to the notification type check constraint,
--- and modifies evaluate_badges() to insert notification rows when badges are
--- earned. The existing push-notify edge function (triggered via database webhook
--- on notifications INSERT) automatically sends FCM/Web Push.
+-- The existing evaluate_badges() function inserts notifications but does not
+-- include a "url" in the data JSON. Without a URL, the push-notify edge
+-- function cannot include a deep link in the FCM/Web Push payload, so tapping
+-- a badge-earned or level-up notification just opens the app/web to the home
+-- page instead of the user's public profile.
+--
+-- This migration re-creates evaluate_badges() to:
+--   1. Fetch the user's username from profiles
+--   2. Build a profile URL (https://roamtheweb.app/u/<username>)
+--   3. Include that URL in every badge_unlocked and level_up notification
 -- =============================================================================
 
--- ── 1. Expand notification type CHECK constraint ──────────────────────────────
-ALTER TABLE public.notifications
-  DROP CONSTRAINT IF EXISTS notifications_type_check;
-
-ALTER TABLE public.notifications
-  ADD CONSTRAINT notifications_type_check
-  CHECK (type IN ('url_approved', 'url_rejected', 'new_follower', 'badge_unlocked', 'level_up'));
-
--- ── 2. Update evaluate_badges to insert notifications ─────────────────────────
--- Recreate the function with notification insertion added.
+-- Recreate the function with URL deep-link support.
 CREATE OR REPLACE FUNCTION public.evaluate_badges(p_user_id UUID)
 RETURNS TABLE(
   badge_id       UUID,

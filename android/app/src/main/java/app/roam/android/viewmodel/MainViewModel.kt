@@ -356,6 +356,26 @@ class MainViewModel(
     private val _badgesError = MutableStateFlow<String?>(null)
     val badgesError: StateFlow<String?> = _badgesError.asStateFlow()
 
+    private val _leaderboard = MutableStateFlow<List<app.roam.android.model.LeaderboardEntry>>(emptyList())
+    val leaderboard: StateFlow<List<app.roam.android.model.LeaderboardEntry>> = _leaderboard.asStateFlow()
+
+    private val _leaderboardLoading = MutableStateFlow(false)
+    val leaderboardLoading: StateFlow<Boolean> = _leaderboardLoading.asStateFlow()
+
+    private val _leaderboardError = MutableStateFlow<String?>(null)
+    val leaderboardError: StateFlow<String?> = _leaderboardError.asStateFlow()
+
+    fun loadLeaderboard(period: String) {
+        viewModelScope.launch {
+            _leaderboardLoading.value = true
+            _leaderboardError.value = null
+            runCatching { repo.getLeaderboard(period) }
+                .onSuccess { _leaderboard.value = it }
+                .onFailure { _leaderboardError.value = it.message ?: "Failed to load leaderboard" }
+            _leaderboardLoading.value = false
+        }
+    }
+
     /** Whether push notifications are enabled */
     private val _notificationsEnabled = MutableStateFlow(prefs.getBoolean(NOTIFICATIONS_ENABLED_KEY, true))
     val notificationsEnabled: StateFlow<Boolean> = _notificationsEnabled.asStateFlow()

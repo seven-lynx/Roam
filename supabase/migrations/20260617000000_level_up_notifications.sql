@@ -1,32 +1,222 @@
 -- =============================================================================
--- Badge notification types for the notifications table
+-- Level-up push notifications: award_xp / grant_badge now emit level_up events
 -- =============================================================================
--- Adds badge_unlocked and level_up to the notification type check constraint,
--- and modifies evaluate_badges() to insert notification rows when badges are
--- earned. The existing push-notify edge function (triggered via database webhook
--- on notifications INSERT) automatically sends FCM/Web Push.
+-- Previously, award_xp() silently updated the profile level when XP crossed a
+-- threshold but never inserted a notifications row.  Similarly, grant_badge()
+-- re-calculated the level after awarding gift XP but was silent.  Only
+-- evaluate_badges() emitted level_up, which missed level gains from pure XP
+-- actions (roam, save, submit, etc.) and from admin-gifted badges.
+--
+-- This migration replaces:
+--   1. award_xp()     – adds a level_up notification
+--   2. grant_badge()  – adds badge_unlocked + level_up notifications
+--   3. evaluate_badges() – no logic change; re-created only to keep the
+--      latest version (20260616000000) in one authoritative file for clarity
 -- =============================================================================
 
--- ── 1. Expand notification type CHECK constraint ──────────────────────────────
-ALTER TABLE public.notifications
-  DROP CONSTRAINT IF EXISTS notifications_type_check;
+-- ═════════════════════════════════════════════════════════════════════════════
+-- 1. award_xp — now emits level_up notification
+-- ═════════════════════════════════════════════════════════════════════════════
+CREATE OR REPLACE FUNCTION public.award_xp(
+  p_user_id   UUID,
+  p_action    TEXT,
+  p_metadata  JSONB DEFAULT '{}'::jsonb
+)
+RETURNS TABLE(new_xp_total BIGINT, new_level INT, xp_awarded INT)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+  v_xp        INT;
+  v_new_xp    BIGINT;
+  v_new_lvl   INT;
+  v_cur_lvl   INT;
+  v_username  TEXT;
+  v_profile_url TEXT;
+BEGIN
+  SELECT xp INTO v_xp FROM public.xp_actions WHERE action = p_action;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Unknown action: %', p_action;
+  END IF;
 
-ALTER TABLE public.notifications
-  ADD CONSTRAINT notifications_type_check
-  CHECK (type IN ('url_approved', 'url_rejected', 'new_follower', 'badge_unlocked', 'level_up'));
+  INSERT INTO public.xp_log (user_id, action, xp_awarded, metadata)
+  VALUES (p_user_id, p_action, v_xp, p_metadata);
 
--- ── 2. Update evaluate_badges to insert notifications ─────────────────────────
--- Recreate the function with notification insertion added.
+  INSERT INTO public.user_daily_activity (user_id, date, xp_earned)
+  VALUES (p_user_id, CURRENT_DATE, v_xp)
+  ON CONFLICT (user_id, date)
+  DO UPDATE SET xp_earned = user_daily_activity.xp_earned + v_xp;
+
+  -- Capture level before the XP bump
+  SELECT level, username INTO v_cur_lvl, v_username
+    FROM public.profiles WHERE id = p_user_id;
+
+  UPDATE public.profiles
+    SET xp_total = xp_total + v_xp
+  WHERE id = p_user_id
+  RETURNING xp_total INTO v_new_xp;
+
+  v_new_lvl := public.calculate_level(v_new_xp);
+
+  IF v_new_lvl > v_cur_lvl THEN
+    UPDATE public.profiles SET level = v_new_lvl WHERE id = p_user_id;
+
+    v_profile_url := 'https://roamtheweb.app/u/' || v_username;
+
+    INSERT INTO public.notifications (user_id, type, title, body, data)
+    VALUES (
+      p_user_id,
+      'level_up',
+      '🎉 Level Up! You''re now Level ' || v_new_lvl,
+      'Keep roaming to earn more badges and XP!',
+      jsonb_build_object(
+        'level', v_new_lvl,
+        'rank', '',
+        'url', v_profile_url
+      )
+    );
+  END IF;
+
+  xp_awarded   := v_xp;
+  new_xp_total := v_new_xp;
+  new_level    := v_new_lvl;
+  RETURN NEXT;
+END;
+$$;
+
+REVOKE EXECUTE ON FUNCTION public.award_xp(UUID, TEXT, JSONB) FROM PUBLIC, anon;
+GRANT  EXECUTE ON FUNCTION public.award_xp(UUID, TEXT, JSONB) TO authenticated, service_role;
+
+
+-- ═════════════════════════════════════════════════════════════════════════════
+-- 2. grant_badge — now emits badge_unlocked + level_up notifications
+-- ═════════════════════════════════════════════════════════════════════════════
+CREATE OR REPLACE FUNCTION public.grant_badge(
+  p_user_id    UUID,
+  p_badge_slug TEXT,
+  p_granted_by UUID
+)
+RETURNS TABLE(
+  badge_id         UUID,
+  badge_slug       TEXT,
+  badge_name       TEXT,
+  badge_icon       TEXT,
+  badge_category   TEXT,
+  badge_xp_reward  INT
+)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+  v_badge       RECORD;
+  v_cur_lvl     INT;
+  v_new_xp      BIGINT;
+  v_new_lvl     INT;
+  v_username    TEXT;
+  v_profile_url TEXT;
+BEGIN
+  SELECT * INTO v_badge FROM public.badges WHERE slug = p_badge_slug;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Badge not found: %', p_badge_slug;
+  END IF;
+
+  INSERT INTO public.user_badges (user_id, badge_id, granted_by, progress_current)
+  VALUES (p_user_id, v_badge.id, p_granted_by, 0)
+  ON CONFLICT DO NOTHING;
+
+  IF FOUND THEN
+    -- Fetch username for notification deep-links
+    SELECT username INTO v_username FROM public.profiles WHERE id = p_user_id;
+    v_profile_url := 'https://roamtheweb.app/u/' || v_username;
+
+    -- Emit badge_unlocked notification
+    INSERT INTO public.notifications (user_id, type, title, body, data)
+    VALUES (
+      p_user_id,
+      'badge_unlocked',
+      v_badge.icon || ' Badge Unlocked: ' || v_badge.name,
+      v_badge.description,
+      jsonb_build_object(
+        'badge_slug', v_badge.slug,
+        'badge_icon', v_badge.icon,
+        'badge_name', v_badge.name,
+        'xp_reward',  v_badge.xp_reward,
+        'url',        v_profile_url
+      )
+    );
+
+    IF v_badge.xp_reward > 0 THEN
+      -- Capture level before XP bump
+      SELECT level INTO v_cur_lvl FROM public.profiles WHERE id = p_user_id;
+
+      INSERT INTO public.xp_log (user_id, action, xp_awarded, metadata)
+      VALUES (
+        p_user_id, 'badge_gifted', v_badge.xp_reward,
+        jsonb_build_object('badge_slug', p_badge_slug, 'granted_by', p_granted_by)
+      );
+
+      UPDATE public.profiles
+        SET xp_total   = xp_total + v_badge.xp_reward,
+            badge_count = badge_count + 1,
+            level       = public.calculate_level(xp_total + v_badge.xp_reward)
+      WHERE id = p_user_id
+      RETURNING xp_total INTO v_new_xp;
+
+      v_new_lvl := public.calculate_level(v_new_xp);
+
+      IF v_new_lvl > v_cur_lvl THEN
+        INSERT INTO public.notifications (user_id, type, title, body, data)
+        VALUES (
+          p_user_id,
+          'level_up',
+          '🎉 Level Up! You''re now Level ' || v_new_lvl,
+          'Keep roaming to earn more badges and XP!',
+          jsonb_build_object(
+            'level', v_new_lvl,
+            'rank',  '',
+            'url',   v_profile_url
+          )
+        );
+      END IF;
+    ELSE
+      UPDATE public.profiles
+        SET badge_count = badge_count + 1
+      WHERE id = p_user_id;
+    END IF;
+
+    badge_id        := v_badge.id;
+    badge_slug      := v_badge.slug;
+    badge_name      := v_badge.name;
+    badge_icon      := v_badge.icon;
+    badge_category  := v_badge.category;
+    badge_xp_reward := v_badge.xp_reward;
+    RETURN NEXT;
+  END IF;
+END;
+$$;
+
+REVOKE EXECUTE ON FUNCTION public.grant_badge(UUID, TEXT, UUID) FROM PUBLIC, anon;
+GRANT  EXECUTE ON FUNCTION public.grant_badge(UUID, TEXT, UUID) TO authenticated, service_role;
+
+
+-- ═════════════════════════════════════════════════════════════════════════════
+-- 3. evaluate_badges — re-create latest version (no logic change vs 20260616000000)
+--    This is included so the function definition lives in a single file.
+--    The logic is identical to the last migration — badge_unlocked and level_up
+--    notifications are emitted inside this function.
+-- ═════════════════════════════════════════════════════════════════════════════
 CREATE OR REPLACE FUNCTION public.evaluate_badges(p_user_id UUID)
 RETURNS TABLE(
-  badge_id       UUID,
-  badge_slug     TEXT,
-  badge_name     TEXT,
-  badge_description TEXT,
-  badge_icon     TEXT,
-  badge_category TEXT,
-  badge_tier     SMALLINT,
-  badge_xp_reward INT
+  badge_id           UUID,
+  badge_slug         TEXT,
+  badge_name         TEXT,
+  badge_description  TEXT,
+  badge_icon         TEXT,
+  badge_category     TEXT,
+  badge_tier         SMALLINT,
+  badge_xp_reward    INT
 )
 LANGUAGE plpgsql
 SECURITY DEFINER
@@ -85,7 +275,6 @@ BEGIN
     FROM public.profiles p WHERE p.id = p_user_id;
   v_prev_level := v_level;
   v_account_age_days := EXTRACT(DAY FROM now() - v_account_age_days)::INT;
-  -- Build the user's public profile URL for notification deep-linking
   v_profile_url := 'https://roamtheweb.app/u/' || v_username;
   SELECT COALESCE(roam_count, 0), COALESCE(save_count, 0)
     INTO v_today_roam, v_today_save
@@ -202,7 +391,6 @@ BEGIN
         v_badge_xp_awarded := v_badge_xp_awarded + v_badge.xp_reward;
         v_new_count := v_new_count + 1;
 
-        -- ── Insert notification for badge unlock ─────────────────────────
         INSERT INTO public.notifications (user_id, type, title, body, data)
         VALUES (
           p_user_id,
@@ -280,7 +468,7 @@ BEGIN
   SELECT xp_total, public.calculate_level(xp_total) INTO v_xp_total, v_level FROM public.profiles WHERE id = p_user_id;
   UPDATE public.profiles SET level = v_level WHERE id = p_user_id AND level <> v_level;
 
-  -- ── Level-up notification ─────────────────────────────────────────────────
+  -- ── Level-up notification (for level gains caused by badge XP) ─────────────
   IF v_level > v_prev_level THEN
     INSERT INTO public.notifications (user_id, type, title, body, data)
     VALUES (p_user_id, 'level_up', '🎉 Level Up! You''re now Level ' || v_level, 'Keep roaming to earn more badges and XP!', jsonb_build_object('level', v_level, 'rank', '', 'url', v_profile_url));

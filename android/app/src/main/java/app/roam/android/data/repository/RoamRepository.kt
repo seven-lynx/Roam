@@ -12,6 +12,7 @@ import app.roam.android.model.SubcategoryItem
 import app.roam.android.model.UserProfile
 import app.roam.android.model.UserSettings
 import io.github.jan.supabase.auth.auth
+import io.github.jan.supabase.auth.status.SessionStatus
 import io.github.jan.supabase.functions.functions
 import io.github.jan.supabase.postgrest.postgrest
 import io.github.jan.supabase.postgrest.query.Columns
@@ -39,10 +40,44 @@ class RoamRepository {
 
     private val json = Json { ignoreUnknownKeys = true }
 
+    private companion object {
+        private const val TAG = "RoamRepository"
+    }
+
     /** Returns true if a user session is currently active and authenticated. */
     fun hasSession(): Boolean {
         val status = supabase.auth.sessionStatus.value
-        return status is io.github.jan.supabase.auth.status.SessionStatus.Authenticated
+        return status is SessionStatus.Authenticated
+    }
+
+    /**
+     * Attempts to ensure the user has a valid authenticated session before making
+     * an API call. If the session is not authenticated (e.g. access token expired),
+     * attempts a one-time refresh. Returns true if the session is now authenticated.
+     *
+     * Does NOT throw — callers should check the return value and decide how to handle
+     * the failure (e.g. throw IllegalStateException so the ViewModel surfaces
+     * "Session expired").
+     */
+    private suspend fun ensureAuthenticated(): Boolean {
+        val status = supabase.auth.sessionStatus.value
+        if (status is SessionStatus.Authenticated) return true
+
+        android.util.Log.w(TAG, "Session not authenticated ($status); attempting refresh")
+        return try {
+            supabase.auth.refreshSession()
+            val newStatus = supabase.auth.sessionStatus.value
+            if (newStatus is SessionStatus.Authenticated) {
+                android.util.Log.d(TAG, "Session refresh succeeded")
+                true
+            } else {
+                android.util.Log.w(TAG, "Session refresh completed but status is $newStatus")
+                false
+            }
+        } catch (e: Exception) {
+            android.util.Log.e(TAG, "Session refresh failed", e)
+            false
+        }
     }
 
     /**
@@ -62,11 +97,13 @@ class RoamRepository {
             categoryId?.let { put("category_id", it) }
             subcategoryId?.let { put("subcategory_id", it) }
         }
-        
-        // Debug session state
-        val status = supabase.auth.sessionStatus.value
-        if (status !is io.github.jan.supabase.auth.status.SessionStatus.Authenticated) {
-            android.util.Log.w("RoamRepository", "roam() called without Authenticated status: $status")
+
+        // Verify session is valid before the API call. This catches expired tokens
+        // early and attempts a refresh, so we don't rely solely on supabase-kt's
+        // internal 401 → retry mechanism throwing UnauthorizedRestException.
+        if (!ensureAuthenticated()) {
+            val status = supabase.auth.sessionStatus.value
+            throw IllegalStateException("Session not authenticated: $status")
         }
 
         val response = supabase.functions.invoke("roam", body = body)
@@ -480,6 +517,18 @@ class RoamRepository {
                 .select()
                 .decodeList<Badge>()
         }.getOrDefault(emptyList())
+    }
+
+    /**
+     * Fetches the leaderboard for a given [period] (weekly, monthly, all_time).
+     * Calls the 'leaderboard' edge function.
+     */
+    suspend fun getLeaderboard(period: String): List<app.roam.android.model.LeaderboardEntry> {
+        val body = buildJsonObject {
+            put("period", period)
+        }
+        val response = supabase.functions.invoke("leaderboard", body = body)
+        return json.decodeFromString(response.body())
     }
 
     // ── Private helpers ───────────────────────────────────────────────────────

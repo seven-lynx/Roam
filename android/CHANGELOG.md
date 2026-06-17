@@ -2,6 +2,15 @@
 
 All notable changes to the Roam Android app.
 
+## [1.0.14] - 2026-06-11
+
+### Added
+- Achievements & gamification system — Earn badges and XP as you discover and rate URLs. Track your progress with an in-app level bar, badge gallery, and leaderboard. Badge unlocks trigger celebratory toasts, and level-up notifications arrive via push.
+- Badges, leaderboard, and profile screens — Dedicated screens for browsing earned badges, viewing the community leaderboard, and inspecting your own (or others') profile with badges and level progress.
+
+### Fixed
+- White screen flash on unlock and cold start — The app no longer flashes a white screen when resuming from background or launching cold. A matching theme background is shown immediately, eliminating the jarring flash before the WebView renders.
+
 ## [1.0.13] - 2026-06-10
 
 ### Added

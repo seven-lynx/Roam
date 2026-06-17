@@ -99,9 +99,17 @@ class AuthViewModel(
         _authState.value = AuthState.Authenticated
     }
 
-    fun signOut() {
-        viewModelScope.launch {
-            runCatching { supabase.auth.signOut() }
+    /** Sign out of the current session. Clears server-side tokens and local state.
+     *  Suspends until the operation completes so callers can verify the result. */
+    suspend fun signOut() {
+        try {
+            supabase.auth.signOut()
+            Log.d(TAG, "Signed out successfully")
+        } catch (e: Exception) {
+            Log.e(TAG, "Sign out API call failed; clearing local session anyway", e)
+            // If the sign-out API call fails (network error, already-expired token, etc.),
+            // still clear the local session so the user isn't stuck in an error loop.
+            supabase.auth.clearSession()
         }
     }
 }

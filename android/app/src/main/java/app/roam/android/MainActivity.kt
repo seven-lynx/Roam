@@ -66,7 +66,15 @@ class MainActivity : ComponentActivity() {
                     AuthState.Authenticated -> MainScreen(
                         vm = mainVm,
                         activity = this,
-                        onSignOut = { authVm.signOut() },
+                        onSignOut = {
+                            lifecycleScope.launch {
+                                // Clear WebView cookies and cache so stale Supabase session
+                                // cookies don't conflict with the native PKCE token layer.
+                                android.webkit.CookieManager.getInstance().removeAllCookies(null)
+                                android.webkit.CookieManager.getInstance().flush()
+                                authVm.signOut()
+                            }
+                        },
                     )
                 }
             }

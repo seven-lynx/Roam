@@ -241,12 +241,16 @@ Deno.serve(async (req) => {
     () => {},
     (e: unknown) => { console.error('xp award failed (submit-url)', e) }
   )
-  // Evaluate badges after a short delay to let XP commit
-  setTimeout(() => {
-    supabase.rpc('evaluate_badges', { p_user_id: user.id }).then(
-      () => {},
-      (e: unknown) => { console.error('badge evaluation failed (submit-url)', e) }
-    )
+  // Evaluate badges after a short delay to let XP commit.
+  // Deno keeps the isolate alive while timers/promises are pending, giving
+  // award_xp + evaluate_badges enough time to commit notifications + trigger
+  // the push-notify webhook.
+  setTimeout(async () => {
+    try {
+      await supabase.rpc('evaluate_badges', { p_user_id: user.id })
+    } catch (e: unknown) {
+      console.error('badge evaluation failed (submit-url)', e)
+    }
   }, 500)
 
   return json({ ok: true, message: 'URL submitted for review' }, 201)

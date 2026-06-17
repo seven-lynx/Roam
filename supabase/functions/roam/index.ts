@@ -79,7 +79,9 @@ Deno.serve(async (req) => {
       wilson_score: row.wilson_score,
     }
 
-    // Fire-and-forget: don't await these
+    // Fire-and-forget: don't await these — but we MUST await badge evaluation
+    // so that the notification INSERT + push-notify webhook have time to fire
+    // before the Deno Deploy isolate is frozen.
     supabase.rpc('update_streak', { p_user_id: user.id }).then(
       () => {},
       (e: unknown) => { console.error('streak update failed', e) }
@@ -88,12 +90,17 @@ Deno.serve(async (req) => {
       () => {},
       (e: unknown) => { console.error('xp award failed', e) }
     )
-    // Evaluate badges after a short delay to let XP commit
-    setTimeout(() => {
-      supabase.rpc('evaluate_badges', { p_user_id: user.id }).then(
-        () => {},
-        (e: unknown) => { console.error('badge evaluation failed', e) }
-      )
+
+    // Return response immediately so the user isn't blocked. Deno keeps the
+    // isolate alive while timers/promises are pending, giving award_xp +
+    // evaluate_badges enough time to commit notifications + trigger the
+    // push-notify webhook.
+    setTimeout(async () => {
+      try {
+        await supabase.rpc('evaluate_badges', { p_user_id: user.id })
+      } catch (e: unknown) {
+        console.error('badge evaluation failed', e)
+      }
     }, 500)
 
     return json(roamResult)
