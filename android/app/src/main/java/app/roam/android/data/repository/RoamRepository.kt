@@ -51,33 +51,62 @@ class RoamRepository {
     }
 
     /**
-     * Attempts to ensure the user has a valid authenticated session before making
-     * an API call. If the session is not authenticated (e.g. access token expired),
-     * attempts a one-time refresh. Returns true if the session is now authenticated.
+     * Attempts to ensure the user has a valid authenticated session with an actual
+     * access token before making an API call.
      *
-     * Does NOT throw — callers should check the return value and decide how to handle
-     * the failure (e.g. throw IllegalStateException so the ViewModel surfaces
-     * "Session expired").
+     * supabase-kt's sessionStatus can become Authenticated before the access token
+     * is persisted to SharedPreferences. If we call functions.invoke() during that
+     * window, the library sends a header-less request → 401 → UnauthorizedRestException.
+     *
+     * This function checks both the sessionStatus AND that currentAccessTokenOrNull()
+     * returns a non-null token. If the token is missing despite Authenticated status,
+     * it retries for up to 2 seconds (the library is asynchronously persisting the
+     * token to storage in the background).
+     *
+     * If the session is not authenticated, attempts a one-time refresh.
+     *
+     * Returns true if a valid access token is now available.
      */
     private suspend fun ensureAuthenticated(): Boolean {
         val status = supabase.auth.sessionStatus.value
-        if (status is SessionStatus.Authenticated) return true
 
-        android.util.Log.w(TAG, "Session not authenticated ($status); attempting refresh")
-        return try {
-            supabase.auth.refreshSession()
-            val newStatus = supabase.auth.sessionStatus.value
-            if (newStatus is SessionStatus.Authenticated) {
-                android.util.Log.d(TAG, "Session refresh succeeded")
-                true
-            } else {
-                android.util.Log.w(TAG, "Session refresh completed but status is $newStatus")
+        // Not authenticated at all — attempt recovery via refresh
+        if (status !is SessionStatus.Authenticated) {
+            android.util.Log.w(TAG, "Session not authenticated ($status); attempting refresh")
+            return try {
+                supabase.auth.refreshCurrentSession()
+                verifyTokenAvailable()
+            } catch (e: Exception) {
+                android.util.Log.e(TAG, "Session refresh failed", e)
                 false
             }
-        } catch (e: Exception) {
-            android.util.Log.e(TAG, "Session refresh failed", e)
-            false
         }
+
+        // Status says Authenticated, but the token may not have landed in storage yet.
+        return verifyTokenAvailable()
+    }
+
+    /**
+     * Checks that currentAccessTokenOrNull() returns a non-null value. If the token
+     * hasn't materialized yet (race with SharedPreferences write after PKCE callback),
+     * retries with short delays for up to 2 seconds.
+     */
+    private suspend fun verifyTokenAvailable(): Boolean {
+        repeat(10) { attempt ->
+            val token = supabase.auth.currentAccessTokenOrNull()
+            if (token != null) {
+                if (attempt > 0) {
+                    android.util.Log.d(TAG, "Access token became available after ${attempt * 200}ms")
+                }
+                return true
+            }
+            if (attempt < 9) {
+                android.util.Log.w(TAG, "Session is Authenticated but access token is null — waiting for persistence (attempt ${attempt + 1})")
+                kotlinx.coroutines.delay(200)
+            }
+        }
+        android.util.Log.e(TAG, "Access token still null after 2s wait despite Authenticated status")
+        return false
     }
 
     /**
@@ -98,9 +127,10 @@ class RoamRepository {
             subcategoryId?.let { put("subcategory_id", it) }
         }
 
-        // Verify session is valid before the API call. This catches expired tokens
-        // early and attempts a refresh, so we don't rely solely on supabase-kt's
-        // internal 401 → retry mechanism throwing UnauthorizedRestException.
+        // Verify session is valid AND the access token is actually available
+        // before the API call. This prevents the race where sessionStatus says
+        // "Authenticated" but the token hasn't been persisted to SharedPreferences yet,
+        // causing functions.invoke() to send a header-less request → 401.
         if (!ensureAuthenticated()) {
             val status = supabase.auth.sessionStatus.value
             throw IllegalStateException("Session not authenticated: $status")
