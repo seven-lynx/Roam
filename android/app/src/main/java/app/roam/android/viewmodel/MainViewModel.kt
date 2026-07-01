@@ -80,6 +80,8 @@ class MainViewModel(
     private val PREFETCH_WEBVIEW_KEY  = "prefetch_webview"
     private val NOTIFICATIONS_ENABLED_KEY = "notifications_enabled"
     private val URL_HISTORY_KEY = "url_history"
+    private val APP_THEME_KEY = "app_theme"  // "system", "dark", "light"
+    private val WALKTHROUGH_SEEN_KEY = "walkthrough_seen"
     private val MAX_HISTORY_ENTRIES = 100
 
     private val _state = MutableStateFlow<RoamState>(RoamState.Idle)
@@ -172,6 +174,28 @@ class MainViewModel(
     fun setWebDarkMode(enabled: Boolean) {
         _webDarkMode.value = enabled
         prefs.edit().putBoolean(WEB_DARK_KEY, enabled).apply()
+    }
+
+    /** User preference: app theme mode ("system", "dark", "light") */
+    private val _appTheme = MutableStateFlow(prefs.getString(APP_THEME_KEY, "system") ?: "system")
+    val appTheme: StateFlow<String> = _appTheme.asStateFlow()
+
+    fun setAppTheme(theme: String) {
+        _appTheme.value = theme
+        prefs.edit().putString(APP_THEME_KEY, theme).apply()
+    }
+
+    /** Returns true if the user has already seen the feature walkthrough. */
+    fun hasSeenWalkthrough(): Boolean = prefs.getBoolean(WALKTHROUGH_SEEN_KEY, false)
+
+    /** Marks the feature walkthrough as seen (persisted). */
+    fun markWalkthroughSeen() {
+        prefs.edit().putBoolean(WALKTHROUGH_SEEN_KEY, true).apply()
+    }
+
+    /** Resets the walkthrough flag so it shows again on the next main-screen visit. */
+    fun resetWalkthrough() {
+        prefs.edit().remove(WALKTHROUGH_SEEN_KEY).apply()
     }
 
     /** True while the current URL is wrapped through Google Translate. */
@@ -552,12 +576,13 @@ class MainViewModel(
 
             _state.value = RoamState.Loading
             
-            // Wait for session to be fully ready before the network call.
-            // If the app just launched, it might take a few hundred ms for the
-            // SharedPreferences session to be restored and status to flip to Authenticated.
+            // Wait for the session to be fully ready before making the network call.
+            // ensureAuthenticated() inside repo.roam() also handles the Initializing
+            // case with its own wait loop — this is just an early exit to avoid
+            // churning through retries when the session clearly isn't ready yet.
             var sessionWaitAttempts = 0
-            while (!repo.hasSession() && sessionWaitAttempts < 10) {
-                delay(100)
+            while (!repo.hasSession() && sessionWaitAttempts < 40) {
+                delay(250)
                 sessionWaitAttempts++
             }
 
@@ -589,9 +614,11 @@ class MainViewModel(
                 lastException = outcome.exceptionOrNull()
                 // Don't retry offline errors — they won't resolve with retries
                 if (lastException != null && isOfflineError(lastException)) break
-                // IllegalStateException: no refresh token — session is gone entirely.
-                if (lastException is IllegalStateException) break
-                
+                // Note: IllegalStateException (token unavailable) is now prevented upstream
+                // by the hasValidToken() wait loop above, so we let all 3 attempts fire rather
+                // than bailing early — a second attempt usually succeeds if the token
+                // materialized between attempts.
+
                 // If we get an UnauthorizedRestException (like "Invalid JWT"),
                 // it might be a transient state where the anon key was used as bearer.
                 // We'll let it retry.
@@ -622,11 +649,20 @@ class MainViewModel(
                     || e.message?.contains("No address associated", ignoreCase = true) == true
                     || e.message?.contains("Unknown host", ignoreCase = true) == true
                 
+                // The UUID syntax error ("invalid input syntax for type uuid: ''") means
+                // Supabase's runtime validated a JWT with an empty sub claim — this is a
+                // transient state caused by the refresh-token race fix, not a real sign-out.
+                // Show a non-alarmist retry message instead of "Session expired".
+                val isUuidSyntaxError = e is UnauthorizedRestException &&
+                    e.message?.contains("invalid input syntax for type uuid", ignoreCase = true) == true
                 val msg = when {
                     isDnsError -> "Network unreachable. Check WiFi/cellular connection."
                     isTimeout -> "Request timed out. Check your network connection."
+                    isUuidSyntaxError -> "Couldn't connect to your account. Please retry."
                     e is UnauthorizedRestException -> "Session expired. Please sign in again."
-                    e is IllegalStateException -> "Session expired. Please sign in again."
+                    // IllegalStateException means the local token never materialized — not
+                    // necessarily an expired session. Retry is more useful than signing out.
+                    e is IllegalStateException -> "Couldn't connect to your account. Please retry."
                     isOffline -> "You appear to be offline. Please check your connection."
                     else -> e.message ?: "Something went wrong. Please try again."
                 }
@@ -1223,6 +1259,26 @@ class MainViewModel(
             delay(4000)
             if (_submitToast.value == message) _submitToast.value = null
         }
+    }
+
+    /**
+     * Resets discovery state so the next sign-in triggers a fresh roam rather than
+     * showing a stale page from the previous session. Called on sign-out.
+     *
+     * Cancels any in-flight roam/prefetch jobs, clears the URL queues, and resets
+     * all transient UI state to its initial values so [DiscoverTab]'s LaunchedEffect
+     * (which watches for RoamState.Idle) fires a new roam() automatically.
+     */
+    fun resetForNewSession() {
+        roamJob?.cancel()
+        prefetchJob?.cancel()
+        viewModelScope.launch { prefetchMutex.withLock { hotQueue.clear(); warmQueue.clear() } }
+        _state.value = RoamState.Idle
+        _rawUrl.value = null
+        _currentUrl.value = null
+        _nextPrefetchUrl.value = null
+        _hasRatedUp.value = false
+        _adminModeEnabled.value = false
     }
 
     fun roamWithinCategory() {

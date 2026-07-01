@@ -61,6 +61,7 @@ import app.roam.android.data.supabase
 import app.roam.android.ui.component.BottomBar
 import app.roam.android.ui.component.BackgroundPrefetchWebView
 import app.roam.android.ui.component.ConfigBottomSheet
+import app.roam.android.ui.component.FeatureWalkthrough
 import app.roam.android.ui.component.pickRandomMessage
 import app.roam.android.ui.component.RoamTab
 import app.roam.android.ui.component.RoamWebView
@@ -128,6 +129,7 @@ fun MainScreen(
 
             // DiscoverTab is always in the composition tree — WebView is never destroyed
             DiscoverTab(vm = vm, activity = activity, onSignOut = {
+                vm.resetForNewSession()
                 onSignOut()
                 currentTab = RoamTab.Roam.route
             }, onNavigateToSaved = { currentTab = RoamTab.Saved.route })
@@ -141,6 +143,7 @@ fun MainScreen(
                 SettingsScreen(
                     vm = vm,
                     onSignOut = {
+                        vm.resetForNewSession()
                         onSignOut()
                         currentTab = RoamTab.Roam.route
                     },
@@ -177,6 +180,7 @@ fun MainScreen(
                     vm = vm,
                     onNavigateBack = { currentTab = RoamTab.Settings.route },
                     onSignOut = {
+                        vm.resetForNewSession()
                         onSignOut()
                         currentTab = RoamTab.Roam.route
                     },
@@ -249,8 +253,11 @@ private fun DiscoverTab(
     val prefetchWebView by vm.prefetchWebView.collectAsState()
     val nextPrefetchUrl by vm.nextPrefetchUrl.collectAsState()
 
-    // Only auto-roam on first entry (Idle = fresh app launch).
-    LaunchedEffect(Unit) { if (vm.state.value is RoamState.Idle) vm.roam() }
+    // Auto-roam whenever state becomes Idle:
+    //   - On first entry (fresh app launch, initial Idle state)
+    //   - After sign-out: resetForNewSession() sets state back to Idle, so re-signing in
+    //     triggers a fresh roam without requiring the user to tap the button manually.
+    LaunchedEffect(state) { if (state is RoamState.Idle) vm.roam() }
 
     // skipHiddenState must be false so that the sheet can animate to Hidden when the
     // BottomSheetScaffold is recomposed. With skipHiddenState=true, Compose throws
@@ -721,6 +728,13 @@ private fun DiscoverTab(
             categories = categories,
             onSubmit = { submittedUrl, categoryId -> vm.submitUrl(submittedUrl, categoryId) },
             onDismiss = { vm.closeSubmitSheet() },
+        )
+    }
+
+    // Feature walkthrough overlay — shown once after first sign-in
+    if (!vm.hasSeenWalkthrough()) {
+        FeatureWalkthrough(
+            onDismiss = { vm.markWalkthroughSeen() },
         )
     }
 }

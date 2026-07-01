@@ -46,15 +46,20 @@ class MainActivity : ComponentActivity() {
         }
         setContent {
             val authState by authVm.authState.collectAsState()
+            val appTheme by mainVm.appTheme.collectAsState()
             val webDarkMode by mainVm.webDarkMode.collectAsState()
-            // Force dark theme while on the login/splash screen so enableEdgeToEdge()
-            // paints a dark window background rather than the system default white.
-            // When authenticated, use the user's webDarkMode preference.
-            val forceDark = when (authState) {
+            // Determine dark theme based on user's app theme preference.
+            // "system" follows device setting, "dark" forces dark, "light" forces light.
+            // Unauthenticated/loading states force dark for a polished splash/onboarding look.
+            val isDarkTheme = when (authState) {
                 AuthState.Unauthenticated, AuthState.Loading -> true
-                AuthState.NeedsOnboarding, AuthState.Authenticated -> webDarkMode
+                else -> when (appTheme) {
+                    "dark" -> true
+                    "light" -> false
+                    else -> androidx.compose.foundation.isSystemInDarkTheme() // "system"
+                }
             }
-            RoamTheme(darkTheme = forceDark) {
+            RoamTheme(darkTheme = isDarkTheme) {
                 Log.d(TAG, "AuthState = $authState")
                 when (authState) {
                     AuthState.Loading -> SplashScreen()

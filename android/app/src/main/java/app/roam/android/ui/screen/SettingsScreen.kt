@@ -92,6 +92,7 @@ fun SettingsScreen(
     var languageFilterDropdownExpanded by remember { mutableStateOf(false) }
     var focusCategoryDropdownExpanded by remember { mutableStateOf(false) }
     var focusSubcategoryDropdownExpanded by remember { mutableStateOf(false) }
+    val appTheme by vm.appTheme.collectAsState()
     val notificationsEnabled by vm.notificationsEnabled.collectAsState()
     val currentUrl by vm.currentUrl.collectAsState()
     val savedConfirmation by vm.savedConfirmation.collectAsState()
@@ -316,6 +317,68 @@ fun SettingsScreen(
 
             SectionHeader("Browser Features")
 
+            SectionHeader("Appearance")
+
+            var themeDropdownExpanded by remember { mutableStateOf(false) }
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("Theme", style = MaterialTheme.typography.bodyLarge)
+                    Text(
+                        "App color scheme",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                    )
+                }
+                Box {
+                    OutlinedButton(onClick = { themeDropdownExpanded = true }) {
+                        Text(
+                            when (appTheme) {
+                                "dark" -> "Dark"
+                                "light" -> "Light"
+                                else -> "System"
+                            }
+                        )
+                    }
+                    DropdownMenu(
+                        expanded = themeDropdownExpanded,
+                        onDismissRequest = { themeDropdownExpanded = false },
+                    ) {
+                        DropdownMenuItem(
+                            text = { Text("System") },
+                            onClick = {
+                                vm.setAppTheme("system")
+                                themeDropdownExpanded = false
+                            },
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Dark") },
+                            onClick = {
+                                vm.setAppTheme("dark")
+                                themeDropdownExpanded = false
+                            },
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Light") },
+                            onClick = {
+                                vm.setAppTheme("light")
+                                themeDropdownExpanded = false
+                            },
+                        )
+                    }
+                }
+            }
+
+            Spacer(Modifier.height(8.dp))
+            HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+            Spacer(Modifier.height(8.dp))
+
+            SectionHeader("Browser Features")
+
             SettingsToggleRow(
                 title = "Dark mode",
                 subtitle = "Apply dark theme to web pages",
@@ -515,10 +578,38 @@ fun SettingsScreen(
             )
 
             SettingsActionRow(
+                title = "Rate this app",
+                subtitle = "Leave a review on Google Play",
+                onClick = {
+                    val intent = Intent(Intent.ACTION_VIEW).apply {
+                        data = "https://play.google.com/store/apps/details?id=app.roam.android".toUri()
+                        setPackage("com.android.vending")
+                    }
+                    runCatching { context.startActivity(intent) }
+                        .onFailure {
+                            // Fallback: open in browser if Play Store app isn't available
+                            val browserIntent = Intent(Intent.ACTION_VIEW).apply {
+                                data = "https://play.google.com/store/apps/details?id=app.roam.android".toUri()
+                            }
+                            context.startActivity(Intent.createChooser(browserIntent, "Rate Roam"))
+                        }
+                },
+            )
+
+            SettingsActionRow(
                 title = "Report dead link",
                 subtitle = currentUrl ?: "No page loaded",
                 onClick = {
                     vm.reportBrokenLink()
+                    onNavigateToRoam()
+                },
+            )
+
+            SettingsActionRow(
+                title = "View the tour again",
+                subtitle = "Replay the feature walkthrough",
+                onClick = {
+                    vm.resetWalkthrough()
                     onNavigateToRoam()
                 },
             )
