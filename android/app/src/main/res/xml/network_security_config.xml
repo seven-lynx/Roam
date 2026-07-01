@@ -1,7 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Allow HTTPS to all hosts; block all cleartext HTTP -->
+<!-- Roam is a web-discovery browser: it must load arbitrary third-party pages,
+     including http-only sites and https pages that redirect to http (common on the
+     older web this app surfaces). Cleartext is permitted for displayed content;
+     the app's own Supabase API is always called over explicit https URLs. -->
 <network-security-config>
-    <base-config cleartextTrafficPermitted="false">
+    <base-config cleartextTrafficPermitted="true">
         <trust-anchors>
             <certificates src="system" />
         </trust-anchors>
