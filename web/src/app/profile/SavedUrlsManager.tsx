@@ -2,6 +2,7 @@
 
 import { useState, useMemo, useEffect } from 'react';
 import { createClient } from '@/lib/supabase/client';
+import { ShareUrlButton } from '@/components/ShareUrlButton';
 import type { CollectionRow } from './CollectionsManager';
 
 export interface SavedUrlRow {
@@ -9,6 +10,7 @@ export interface SavedUrlRow {
   url: string;
   title: string;
   saved_at: string;
+  url_id?: string;  // Optional: the actual URL record ID for sharing
 }
 
 interface Props {
@@ -187,14 +189,23 @@ export function SavedUrlsManager({ userId, initialSavedUrls }: Props) {
                       )}
                     </p>
                   </a>
-                  <button
-                    onClick={() => void remove(item.id)}
-                    aria-label="Remove saved page"
-                    title="Remove"
-                    className="shrink-0 text-zinc-400 hover:text-red-500 transition-colors text-sm"
-                  >
-                    ✕
-                  </button>
+                  <div className="flex items-center gap-2 shrink-0">
+                    {item.url_id && (
+                      <ShareUrlButton
+                        urlId={item.url_id}
+                        urlTitle={item.title || item.url}
+                        className="text-xs"
+                      />
+                    )}
+                    <button
+                      onClick={() => void remove(item.id)}
+                      aria-label="Remove saved page"
+                      title="Remove"
+                      className="text-zinc-400 hover:text-red-500 transition-colors text-sm"
+                    >
+                      ✕
+                    </button>
+                  </div>
                 </li>
               );
             })}

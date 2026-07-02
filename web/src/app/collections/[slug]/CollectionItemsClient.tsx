@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { ShareUrlButton } from '@/components/ShareUrlButton';
 import type { CollectionItem } from './types';
 
 export function CollectionItemsHeader({
@@ -43,12 +44,12 @@ export function CollectionItemsList({ items }: { items: CollectionItem[] }) {
           catch { return url.original_url; }
         })();
         return (
-          <li key={item.id}>
+          <li key={item.id} className="flex gap-3 group">
             <a
               href={url.original_url}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex gap-3 px-4 py-3 rounded-lg border border-zinc-200 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-900 transition-colors group"
+              className="flex-1 flex gap-3 px-4 py-3 rounded-lg border border-zinc-200 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-900 transition-colors"
             >
               {url.og_image_url && (
                 // eslint-disable-next-line @next/next/no-img-element -- external OG images cannot use next/image
@@ -85,6 +86,13 @@ export function CollectionItemsList({ items }: { items: CollectionItem[] }) {
                 <span>{url.upvotes}</span>
               </div>
             </a>
+            <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+              <ShareUrlButton
+                urlId={url.id}
+                urlTitle={url.title || url.original_url}
+                className="text-xs"
+              />
+            </div>
           </li>
         );
       })}

@@ -1,6 +1,9 @@
 ﻿package app.roam.android.data.repository
 
+import android.util.Log
 import app.roam.android.data.supabase
+import io.github.jan.supabase.postgrest.query.Columns
+import io.github.jan.supabase.postgrest.query.Order
 import app.roam.android.model.AppNotification
 import app.roam.android.model.Badge
 import app.roam.android.model.CategoryItem
@@ -15,14 +18,17 @@ import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.auth.status.SessionStatus
 import io.github.jan.supabase.functions.functions
 import io.github.jan.supabase.postgrest.postgrest
-import io.github.jan.supabase.postgrest.query.Columns
-import io.github.jan.supabase.postgrest.query.Order
 import io.ktor.client.call.body
 import io.ktor.client.statement.bodyAsText
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.json.Json
+import kotlinx.serialization.decodeFromString
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.add
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
@@ -38,75 +44,16 @@ sealed interface SubmitResult {
 
 class RoamRepository {
 
-    private val json = Json { ignoreUnknownKeys = true }
-
-    private companion object {
-        private const val TAG = "RoamRepository"
+    private val json = kotlinx.serialization.json.Json {
+        ignoreUnknownKeys = true
+        isLenient = true
+        explicitNulls = false
     }
 
     /** Returns true if a user session is currently active and authenticated. */
     fun hasSession(): Boolean {
         val status = supabase.auth.sessionStatus.value
-        return status is SessionStatus.Authenticated
-    }
-
-    /**
-     * Attempts to ensure the user has a valid authenticated session with an actual
-     * access token before making an API call.
-     *
-     * supabase-kt's sessionStatus can become Authenticated before the access token
-     * is persisted to SharedPreferences. If we call functions.invoke() during that
-     * window, the library sends a header-less request → 401 → UnauthorizedRestException.
-     *
-     * This function checks both the sessionStatus AND that currentAccessTokenOrNull()
-     * returns a non-null token. If the token is missing despite Authenticated status,
-     * it retries for up to 2 seconds (the library is asynchronously persisting the
-     * token to storage in the background).
-     *
-     * If the session is not authenticated, attempts a one-time refresh.
-     *
-     * Returns true if a valid access token is now available.
-     */
-    private suspend fun ensureAuthenticated(): Boolean {
-        val status = supabase.auth.sessionStatus.value
-
-        // Not authenticated at all — attempt recovery via refresh
-        if (status !is SessionStatus.Authenticated) {
-            android.util.Log.w(TAG, "Session not authenticated ($status); attempting refresh")
-            return try {
-                supabase.auth.refreshCurrentSession()
-                verifyTokenAvailable()
-            } catch (e: Exception) {
-                android.util.Log.e(TAG, "Session refresh failed", e)
-                false
-            }
-        }
-
-        // Status says Authenticated, but the token may not have landed in storage yet.
-        return verifyTokenAvailable()
-    }
-
-    /**
-     * Checks that currentAccessTokenOrNull() returns a non-null value. If the token
-     * hasn't materialized yet (race with SharedPreferences write after PKCE callback),
-     * retries with short delays for up to 2 seconds.
-     */
-    private suspend fun verifyTokenAvailable(): Boolean {
-        repeat(10) { attempt ->
-            val token = supabase.auth.currentAccessTokenOrNull()
-            if (token != null) {
-                if (attempt > 0) {
-                    android.util.Log.d(TAG, "Access token became available after ${attempt * 200}ms")
-                }
-                return true
-            }
-            if (attempt < 9) {
-                android.util.Log.w(TAG, "Session is Authenticated but access token is null — waiting for persistence (attempt ${attempt + 1})")
-                kotlinx.coroutines.delay(200)
-            }
-        }
-        android.util.Log.e(TAG, "Access token still null after 2s wait despite Authenticated status")
-        return false
+        return status is io.github.jan.supabase.auth.status.SessionStatus.Authenticated
     }
 
     /**
@@ -126,14 +73,10 @@ class RoamRepository {
             categoryId?.let { put("category_id", it) }
             subcategoryId?.let { put("subcategory_id", it) }
         }
-
-        // Verify session is valid AND the access token is actually available
-        // before the API call. This prevents the race where sessionStatus says
-        // "Authenticated" but the token hasn't been persisted to SharedPreferences yet,
-        // causing functions.invoke() to send a header-less request → 401.
-        if (!ensureAuthenticated()) {
-            val status = supabase.auth.sessionStatus.value
-            throw IllegalStateException("Session not authenticated: $status")
+        // Debug session state
+        val status = supabase.auth.sessionStatus.value
+        if (status !is io.github.jan.supabase.auth.status.SessionStatus.Authenticated) {
+            android.util.Log.w("RoamRepository", "roam() called without Authenticated status: $status")
         }
 
         val response = supabase.functions.invoke("roam", body = body)
@@ -564,10 +507,10 @@ class RoamRepository {
     // ── Private helpers ───────────────────────────────────────────────────────
 
     @Serializable
-    private data class IdRow(val id: String)
+    data class IdRow(val id: String)
 
     @Serializable
-    private data class ProfileUpdateRow(
+    data class ProfileUpdateRow(
         val id: String,
         val username: String,
         @SerialName("display_name") val displayName: String,
@@ -575,19 +518,19 @@ class RoamRepository {
     )
 
     @Serializable
-    private data class UserCategoryFullRow(
+    data class UserCategoryFullRow(
         @SerialName("user_id") val userId: String,
         @SerialName("category_id") val categoryId: String,
         @SerialName("subcategory_id") val subcategoryId: String? = null,
     )
 
     @Serializable
-    private data class TopicIdRow(
+    data class TopicIdRow(
         @SerialName("subcategory_id") val subcategoryId: String? = null,
     )
 
     @Serializable
-    private data class CategoryIdRow(
+    data class CategoryIdRow(
         @SerialName("category_id") val categoryId: String,
     )
 
@@ -679,7 +622,7 @@ class RoamRepository {
     }
 
     @Serializable
-    private data class UserCategoryInsertRow(
+    data class UserCategoryInsertRow(
         @SerialName("user_id") val userId: String,
         @SerialName("category_id") val categoryId: String,
     )

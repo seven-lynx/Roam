@@ -70,38 +70,40 @@ Deno.serve(async (req) => {
     // but don't block the response. Ignore failures — gamification is
     // non-critical for the core roam experience.
     const roamResult = {
-      id:           row.id,
-      url:          row.url,
-      title:        row.title,
-      description:  row.description,
-      og_image_url: row.og_image_url,
-      category_id:  row.category_id ?? row.subcategory_id ?? null,
-      wilson_score: row.wilson_score,
+      id:             row.id,
+      url:            row.url,
+      title:          row.title,
+      description:    row.description,
+      og_image_url:   row.og_image_url,
+      category_id:    row.category_id ?? null,
+      subcategory_id: row.subcategory_id ?? null,
+      wilson_score:   row.wilson_score,
     }
 
-    // Fire-and-forget: don't await these — but we MUST await badge evaluation
-    // so that the notification INSERT + push-notify webhook have time to fire
-    // before the Deno Deploy isolate is frozen.
+    // Fire-and-forget gamification: streak, XP, then badge evaluation in sequence.
+    // All three are chained so evaluate_badges runs after award_xp commits,
+    // but none of them block the response that goes back to the user.
+    //
+    // IMPORTANT: do NOT use setTimeout here. A pending setTimeout keeps the Deno
+    // Deploy isolate alive for an extra 500 ms after the Response is returned,
+    // during which Supabase's edge proxy can reset the HTTP/2 connection, causing
+    // OkHttp on Android to throw "unexpected end of stream" even though the
+    // response body was already fully sent. Chained .then() promises avoid this.
     supabase.rpc('update_streak', { p_user_id: user.id }).then(
       () => {},
       (e: unknown) => { console.error('streak update failed', e) }
     )
-    supabase.rpc('award_xp', { p_user_id: user.id, p_action: 'roam', p_metadata: { url_id: row.id } }).then(
-      () => {},
-      (e: unknown) => { console.error('xp award failed', e) }
-    )
-
-    // Return response immediately so the user isn't blocked. Deno keeps the
-    // isolate alive while timers/promises are pending, giving award_xp +
-    // evaluate_badges enough time to commit notifications + trigger the
-    // push-notify webhook.
-    setTimeout(async () => {
-      try {
-        await supabase.rpc('evaluate_badges', { p_user_id: user.id })
-      } catch (e: unknown) {
-        console.error('badge evaluation failed', e)
-      }
-    }, 500)
+    // Chain evaluate_badges after award_xp so XP is committed before badge
+    // thresholds are checked. Errors are logged but never bubble up.
+    supabase.rpc('award_xp', { p_user_id: user.id, p_action: 'roam', p_metadata: { url_id: row.id } })
+      .then(
+        () => supabase.rpc('evaluate_badges', { p_user_id: user.id }),
+        (e: unknown) => { console.error('xp award failed', e) }
+      )
+      .then(
+        () => {},
+        (e: unknown) => { console.error('badge evaluation failed', e) }
+      )
 
     return json(roamResult)
   } catch (e) {

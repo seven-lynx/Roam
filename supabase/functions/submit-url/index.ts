@@ -237,21 +237,19 @@ Deno.serve(async (req) => {
   }
 
   // ── Gamification: Fire-and-forget XP + badge evaluation ──────────────────
-  supabase.rpc('award_xp', { p_user_id: user.id, p_action: 'submit_url', p_metadata: { url: normalized } }).then(
-    () => {},
-    (e: unknown) => { console.error('xp award failed (submit-url)', e) }
-  )
-  // Evaluate badges after a short delay to let XP commit.
-  // Deno keeps the isolate alive while timers/promises are pending, giving
-  // award_xp + evaluate_badges enough time to commit notifications + trigger
-  // the push-notify webhook.
-  setTimeout(async () => {
-    try {
-      await supabase.rpc('evaluate_badges', { p_user_id: user.id })
-    } catch (e: unknown) {
-      console.error('badge evaluation failed (submit-url)', e)
-    }
-  }, 500)
+  // Chain award_xp → evaluate_badges as plain Promise chains so Deno does NOT
+  // keep the HTTP/2 connection open after the response is sent.
+  // (setTimeout kept the isolate alive 500ms post-response, causing Supabase's
+  // proxy to reset the HTTP/2 connection → OkHttp "unexpected end of stream".)
+  supabase.rpc('award_xp', { p_user_id: user.id, p_action: 'submit_url', p_metadata: { url: normalized } })
+    .then(
+      () => supabase.rpc('evaluate_badges', { p_user_id: user.id }),
+      (e: unknown) => { console.error('xp award failed (submit-url)', e) }
+    )
+    .then(
+      () => {},
+      (e: unknown) => { console.error('badge evaluation failed (submit-url)', e) }
+    )
 
   return json({ ok: true, message: 'URL submitted for review' }, 201)
 })

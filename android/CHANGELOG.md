@@ -2,6 +2,19 @@
 
 All notable changes to the Roam Android app.
 
+## [1.0.16] - 2026-07-01
+
+### Fixed
+- Discovery returning duplicate URLs — The roam() RPC had been replaced with a primitive stub that didn't record seen URLs or apply domain cooldowns, causing the same top-scored URLs to repeat indefinitely. Restored the full v24 discovery algorithm with TABLESAMPLE variety, weighted-random ordering, interest scoring, and proper seen-URL tracking.
+- WebView blocked cleartext HTTP — The network security config blocked all cleartext traffic, preventing pages served over http and https→http redirects (common on legacy web) from loading. Now allows cleartext for displayed content while Roam's own API traffic remains encrypted over https.
+
+## [1.0.15] - 2026-06-12
+
+### Added
+- New application icon — Updated the launcher icon with the new Roam logo branding across all densities.
+- Leaderboard refinements — Added a period selector (Weekly, Monthly, All Time) to the leaderboard and improved visual feedback with rank emojis and XP tracking.
+- Bottom bar interaction feedback — Added temporary haptic-style visual feedback when liking or skipping pages to make interactions feel more responsive.
+
 ## [1.0.14] - 2026-06-11
 
 ### Added
