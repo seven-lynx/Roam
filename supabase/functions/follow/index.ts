@@ -3,10 +3,8 @@
 //
 // Actions:
 //   follow   — { action, following_id }
-//              If the target profile is private, inserts with is_pending = true.
+//              Follows are always immediate; no approval required.
 //   unfollow — { action, following_id }
-//   accept   — { action, follower_id }  (current user accepts an incoming request)
-//   reject   — { action, follower_id }  (current user rejects an incoming request)
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { corsHeaders } from '../_shared/cors.ts'
@@ -34,26 +32,17 @@ Deno.serve(async (req) => {
     case 'follow': {
       const { following_id } = body
       if (typeof following_id !== 'string') return json({ error: 'following_id is required' }, 400)
-
-      // Check whether the target profile is private
-      const { data: target } = await supabase
-        .from('profiles')
-        .select('is_public')
-        .eq('id', following_id)
-        .single()
-
-      // Default to public if profile not found (edge case guard)
-      const is_pending = !(target?.is_public ?? true)
+      if (following_id === user.id) return json({ error: 'Cannot follow yourself' }, 400)
 
       const { error } = await supabase
         .from('follows')
-        .insert({ follower_id: user.id, following_id, is_pending })
+        .insert({ follower_id: user.id, following_id, is_pending: false })
 
       if (error) {
         if (error.code === '23505') return json({ error: 'Already following this user' }, 409)
         return json({ error: error.message }, 500)
       }
-      return json({ ok: true, is_pending }, 201)
+      return json({ ok: true }, 201)
     }
 
     // ── Unfollow ─────────────────────────────────────────────────────────────
@@ -66,40 +55,6 @@ Deno.serve(async (req) => {
         .delete()
         .eq('follower_id', user.id)
         .eq('following_id', following_id)
-
-      if (error) return json({ error: error.message }, 500)
-      return json({ ok: true })
-    }
-
-    // ── Accept follow request ─────────────────────────────────────────────────
-    case 'accept': {
-      // current user is the one being followed (following_id = user.id)
-      const { follower_id } = body
-      if (typeof follower_id !== 'string') return json({ error: 'follower_id is required' }, 400)
-
-      const { error } = await supabase
-        .from('follows')
-        .update({ is_pending: false })
-        .eq('follower_id', follower_id)
-        .eq('following_id', user.id)
-        .eq('is_pending', true)
-
-      if (error) return json({ error: error.message }, 500)
-      return json({ ok: true })
-    }
-
-    // ── Reject follow request ─────────────────────────────────────────────────
-    case 'reject': {
-      // current user removes a pending request aimed at them
-      const { follower_id } = body
-      if (typeof follower_id !== 'string') return json({ error: 'follower_id is required' }, 400)
-
-      const { error } = await supabase
-        .from('follows')
-        .delete()
-        .eq('follower_id', follower_id)
-        .eq('following_id', user.id)
-        .eq('is_pending', true)
 
       if (error) return json({ error: error.message }, 500)
       return json({ ok: true })

@@ -33,21 +33,32 @@ export function FollowSection({ profileId, followerCount, followingCount }: Foll
     setViewMode(mode);
     setLoading(true);
 
-    const column = mode === 'followers' ? 'follower_id' : 'following_id';
-    const joinColumn = mode === 'followers' ? 'following_id' : 'follower_id';
+    // Step 1: Get user IDs from follows
+    // (follows references auth.users, not public.profiles, so cannot auto-join)
+    const filterColumn = mode === 'followers' ? 'following_id' : 'follower_id';
+    const selectColumn = mode === 'followers' ? 'follower_id' : 'following_id';
 
-    const { data } = await supabase
+    const { data: followRows } = await supabase
       .from('follows')
-      .select(`profiles:${column}(id, username, display_name)`)
-      .eq(joinColumn, profileId)
-      .eq('is_pending', false)
+      .select(selectColumn)
+      .eq(filterColumn, profileId)
       .order('created_at', { ascending: false });
 
-    const resolved: FollowUser[] = (data ?? [])
-      .map((row: Record<string, unknown>) => row.profiles as FollowUser | null)
-      .filter((u: FollowUser | null): u is FollowUser => u !== null && u.username != null);
+    const userIds = (followRows ?? []).map((r: Record<string, string>) => r[selectColumn]).filter(Boolean);
 
-    setUsers(resolved);
+    if (userIds.length === 0) {
+      setUsers([]);
+      setLoading(false);
+      return;
+    }
+
+    // Step 2: Fetch profiles for those user IDs
+    const { data: profileRows } = await supabase
+      .from('profiles')
+      .select('id, username, display_name')
+      .in('id', userIds);
+
+    setUsers((profileRows ?? []) as FollowUser[]);
     setLoading(false);
   }
 

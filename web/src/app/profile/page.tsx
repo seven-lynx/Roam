@@ -31,8 +31,8 @@ export default async function ProfilePage() {
     supabase.from('collections').select('id, name, slug, is_public, item_count:collection_items(count)').eq('user_id', user.id).order('created_at', { ascending: false }),
     supabase.from('saved_urls').select('id, url, title, saved_at').eq('user_id', user.id).gt('saved_at', thirtyDaysAgo).order('saved_at', { ascending: false }).limit(50),
     supabase.rpc('get_user_badges', { p_user_id: user.id }),
-    supabase.from('follows').select('*', { count: 'exact', head: true }).eq('following_id', user.id).eq('is_pending', false),
-    supabase.from('follows').select('*', { count: 'exact', head: true }).eq('follower_id', user.id).eq('is_pending', false),
+    supabase.from('follows').select('*', { count: 'exact', head: true }).eq('following_id', user.id),
+    supabase.from('follows').select('*', { count: 'exact', head: true }).eq('follower_id', user.id),
   ]);
 
   // Helper: safely unwrap a settled promise result

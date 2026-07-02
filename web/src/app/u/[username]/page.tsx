@@ -56,13 +56,11 @@ export default async function PublicProfilePage({ params }: Props) {
         const profileData = profileRes.ok ? await profileRes.json() : null;
         const { data: followRow } = await supabase
           .from('follows')
-          .select('is_pending')
+          .select('id')
           .eq('follower_id', viewer.id)
           .eq('following_id', profile.id)
           .maybeSingle();
-        let status: 'none' | 'following' | 'pending' = 'none';
-        if (followRow?.is_pending === true) status = 'pending';
-        else if (followRow?.is_pending === false) status = 'following';
+        const status: 'none' | 'following' = followRow ? 'following' : 'none';
         return [profileData?.follower_count ?? 0, profileData?.following_count ?? 0, status] as const;
       })()
     : [0, 0, 'none' as const];

@@ -5,12 +5,12 @@ import { createClient } from '@/lib/supabase/client';
 
 interface FollowButtonProps {
   targetUserId: string;
-  initialStatus: 'none' | 'following' | 'pending';
+  initialStatus: 'none' | 'following';
 }
 
 export function FollowButton({ targetUserId, initialStatus }: FollowButtonProps) {
   const supabase = createClient();
-  const [status, setStatus] = useState(initialStatus);
+  const [status, setStatus] = useState<'none' | 'following'>(initialStatus);
   const [loading, setLoading] = useState(false);
 
   // On mount, fetch the true follow status client-side so RLS sees the correct auth.uid().
@@ -27,9 +27,7 @@ export function FollowButton({ targetUserId, initialStatus }: FollowButtonProps)
         .eq('following_id', targetUserId)
         .maybeSingle();
 
-      if (followRow?.is_pending === true) {
-        setStatus('pending');
-      } else if (followRow?.is_pending === false) {
+      if (followRow != null) {
         setStatus('following');
       } else {
         setStatus('none');
@@ -41,15 +39,12 @@ export function FollowButton({ targetUserId, initialStatus }: FollowButtonProps)
     setLoading(true);
     try {
       if (status === 'none') {
-        // Follow
-        const { data, error } = await supabase.functions.invoke('follow', {
+        const { error } = await supabase.functions.invoke('follow', {
           body: { action: 'follow', following_id: targetUserId },
         });
         if (error) throw error;
-        const newStatus = data?.status ?? (data?.is_pending ? 'pending' : 'following');
-        setStatus(newStatus);
+        setStatus('following');
       } else {
-        // Unfollow (works for both 'following' and 'pending')
         const { error } = await supabase.functions.invoke('follow', {
           body: { action: 'unfollow', following_id: targetUserId },
         });
@@ -61,7 +56,7 @@ export function FollowButton({ targetUserId, initialStatus }: FollowButtonProps)
     }
   }
 
-  const label = status === 'following' ? 'Following' : status === 'pending' ? 'Requested' : 'Follow';
+  const label = status === 'following' ? 'Following' : 'Follow';
   const variant = status === 'none'
     ? 'bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 hover:opacity-90'
     : 'border border-zinc-300 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800';
