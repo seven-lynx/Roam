@@ -36,6 +36,12 @@ Deno.serve(async (req) => {
     .upsert({ user_id: user.id, url_id, value }, { onConflict: 'user_id,url_id' })
 
   if (error) return json({ error: error.message }, 500)
+
+  // Fire-and-forget badge evaluation — chained .then() avoids keeping the
+  // Deno isolate alive (unlike setTimeout) while still running after the DB write.
+  supabase.rpc('evaluate_badges', { p_user_id: user.id })
+    .then(() => {}, (e: unknown) => { console.error('badge evaluation failed', e) })
+
   return json({ ok: true })
 })
 

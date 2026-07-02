@@ -42,6 +42,23 @@ Deno.serve(async (req) => {
         if (error.code === '23505') return json({ error: 'Already following this user' }, 409)
         return json({ error: error.message }, 500)
       }
+
+      // Fire-and-forget badge evaluation. Chained .then() avoids keeping the
+      // Deno isolate alive (unlike setTimeout).
+      //
+      // The follower can call evaluate_badges for themselves (social-butterfly badges).
+      // For the followed user (influencer badges) we need a service-role client
+      // because evaluate_badges rejects calls where auth.uid() != p_user_id.
+      supabase.rpc('evaluate_badges', { p_user_id: user.id })
+        .then(() => {}, (e: unknown) => { console.error('badge evaluation failed (follower)', e) })
+
+      const supabaseAdmin = createClient(
+        Deno.env.get('SUPABASE_URL')!,
+        Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+      )
+      supabaseAdmin.rpc('evaluate_badges', { p_user_id: following_id })
+        .then(() => {}, (e: unknown) => { console.error('badge evaluation failed (followed)', e) })
+
       return json({ ok: true }, 201)
     }
 

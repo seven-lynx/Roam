@@ -86,6 +86,11 @@ Deno.serve(async (req) => {
         if (error.code === '23505') return json({ error: 'A collection with that name already exists' }, 409)
         return json({ error: error.message }, 500)
       }
+
+      // Fire-and-forget badge evaluation — first-collection / curator badges.
+      supabase.rpc('evaluate_badges', { p_user_id: user.id })
+        .then(() => {}, (e: unknown) => { console.error('badge evaluation failed', e) })
+
       return json(data, 201)
     }
 
@@ -184,6 +189,11 @@ Deno.serve(async (req) => {
         if (insertError.code === '23505') return json({ error: 'This URL is already in the collection' }, 409)
         return json({ error: insertError.message }, 500)
       }
+
+      // Fire-and-forget badge evaluation — pack-rat / public-curator badges.
+      supabase.rpc('evaluate_badges', { p_user_id: user.id })
+        .then(() => {}, (e: unknown) => { console.error('badge evaluation failed', e) })
+
       return json({ ok: true }, 201)
     }
 
