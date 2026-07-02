@@ -86,6 +86,25 @@ export async function proxy(request: NextRequest) {
       }
     }
 
+    // Protect /moderator — accessible to admins and moderators
+    if (pathname.startsWith('/moderator')) {
+      if (!user) {
+        const url = new URL('/signup', request.url)
+        url.searchParams.set('mode', 'signin')
+        return NextResponse.redirect(url)
+      }
+
+      const role =
+        typeof user?.app_metadata === 'object' &&
+        user.app_metadata !== null
+          ? (user.app_metadata as Record<string, unknown>)?.role
+          : undefined;
+
+      if (role !== 'admin' && role !== 'moderator') {
+        return NextResponse.redirect(new URL('/', request.url))
+      }
+    }
+
     return supabaseResponse
   } catch (error) {
     // Catch any unexpected errors in middleware

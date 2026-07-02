@@ -470,6 +470,7 @@ private fun DiscoverTab(
                     scope.launch { scaffoldState.bottomSheetState.partialExpand() }
                 },
                 adminModeEnabled = adminModeEnabled,
+                isModerator = vm.isModerator.collectAsState().value,
                 onAdminNavigateToUrl = { url ->
                     scope.launch {
                         try {

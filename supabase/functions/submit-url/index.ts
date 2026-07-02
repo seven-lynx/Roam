@@ -220,6 +220,10 @@ Deno.serve(async (req) => {
 
   const validSubcategoryId = typeof subcategory_id === 'string' && subcategory_id ? subcategory_id : null
 
+  // Moderators and admins get their submissions auto-approved
+  const isTrusted = (user.app_metadata?.role === 'admin' || user.app_metadata?.role === 'moderator')
+  const submissionStatus = isTrusted ? 'approved' : 'pending'
+
   const { error: insertError } = await supabase.from('moderation_queue').insert({
     url: normalized,
     title: typeof title === 'string' ? title : null,
@@ -227,9 +231,26 @@ Deno.serve(async (req) => {
     subcategory_id: validSubcategoryId,
     submitted_by: user.id,
     safe_browsing_passed: true,
-    status: 'pending',
+    status: submissionStatus,
+    reviewed_by: isTrusted ? user.id : null,
     ...(categoryHint ? { reviewer_note: categoryHint } : {}),
   })
+
+  // For trusted users, immediately upsert into the live catalog
+  if (!insertError && isTrusted) {
+    const adminClient2 = adminUrl && serviceKey ? createClient(adminUrl, serviceKey) : supabase
+    await adminClient2.from('urls').upsert(
+      {
+        url: normalized,
+        original_url: normalized,
+        approved: true,
+        title: typeof title === 'string' ? title : null,
+        description: typeof description === 'string' ? description : null,
+        subcategory_id: validSubcategoryId,
+      },
+      { onConflict: 'url' },
+    )
+  }
 
   if (insertError) {
     report(insertError.message, 'error', { url: normalized, operation: 'moderation-insert' })

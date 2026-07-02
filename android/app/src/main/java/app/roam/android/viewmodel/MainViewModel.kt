@@ -163,6 +163,24 @@ class MainViewModel(
         _adminModeEnabled.value = enabled
     }
 
+    /** True when the signed-in user has app_metadata.role = 'moderator'.
+     *  Set on session load; cleared on sign-out. Not persisted. */
+    private val _isModerator = MutableStateFlow(false)
+    val isModerator: StateFlow<Boolean> = _isModerator.asStateFlow()
+
+    /** Reads app_metadata.role from the current session JWT and updates [isModerator]. */
+    fun checkUserRole() {
+        val role = try {
+            app.roam.android.data.supabase.auth.currentUserOrNull()
+                ?.appMetadata
+                ?.get("role")
+                ?.let { (it as? kotlinx.serialization.json.JsonPrimitive)?.contentOrNull }
+        } catch (_: Exception) { null }
+        _isModerator.value = role == "moderator"
+        // Admins get admin mode automatically — no tap required
+        if (role == "admin") _adminModeEnabled.value = true
+    }
+
     /** User preference: skip paywalled sites */
     private val _skipPaywalled = MutableStateFlow(false)
     val skipPaywalled: StateFlow<Boolean> = _skipPaywalled.asStateFlow()
@@ -499,6 +517,10 @@ class MainViewModel(
         // in the prefill loop consume OkHttp connection slots and starve the main
         // roam() request if they kick off unconditionally.
         if (_prefetchWebView.value) startPrefillQueue()
+
+        // Check the user's role (moderator / admin) from the JWT so the UI can
+        // auto-unlock the appropriate panel without any tap sequence.
+        if (repo.hasSession()) checkUserRole()
 
         // Sync saved-for-later list from the server so saves from the web app
         // and other devices are visible without a reinstall.
@@ -1279,6 +1301,7 @@ class MainViewModel(
         _nextPrefetchUrl.value = null
         _hasRatedUp.value = false
         _adminModeEnabled.value = false
+        _isModerator.value = false
     }
 
     fun roamWithinCategory() {

@@ -55,6 +55,7 @@ fun ConfigBottomSheet(
     onReportBrokenLink: () -> Unit,
     onNavigateSavedUrl: (url: String) -> Unit,
     adminModeEnabled: Boolean = false,
+    isModerator: Boolean = false,
     onAdminNavigateToUrl: (String) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
@@ -193,7 +194,36 @@ fun ConfigBottomSheet(
                 )
             }
 
-            // ── Section 3: Admin (unlocked via Settings → tap version 5×) ──
+            // ── Section 3: Moderator (auto-unlocked from JWT role) ──────────
+            if (isModerator && !adminModeEnabled) {
+                Spacer(modifier = Modifier.height(8.dp))
+                HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "🛡️ Moderator",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                )
+                TextButton(
+                    onClick = { onAdminNavigateToUrl("https://roamtheweb.app/moderator?view=queue") },
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
+                ) { Text("🛂 Moderation Queue ↗", modifier = Modifier.fillMaxWidth()) }
+                TextButton(
+                    onClick = { onAdminNavigateToUrl("https://roamtheweb.app/moderator?view=analytics") },
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
+                ) { Text("📊 Analytics ↗", modifier = Modifier.fillMaxWidth()) }
+                TextButton(
+                    onClick = { onAdminNavigateToUrl("https://roamtheweb.app/moderator?view=badges") },
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
+                ) { Text("🏅 Badges ↗", modifier = Modifier.fillMaxWidth()) }
+                TextButton(
+                    onClick = { onAdminNavigateToUrl("https://roamtheweb.app/moderator?view=reports") },
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
+                ) { Text("🚫 Dead Links ↗", modifier = Modifier.fillMaxWidth()) }
+            }
+
+            // ── Section 4: Admin (unlocked via Settings → tap version 5×) ──
             if (adminModeEnabled) {
                 Spacer(modifier = Modifier.height(8.dp))
                 HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))

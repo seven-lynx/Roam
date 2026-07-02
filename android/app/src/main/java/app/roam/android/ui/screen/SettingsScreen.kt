@@ -39,7 +39,6 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -48,14 +47,17 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
 import app.roam.android.BuildConfig
-import app.roam.android.data.supabase
 import app.roam.android.model.SubcategoryItem
 import app.roam.android.viewmodel.MainViewModel
-import io.github.jan.supabase.auth.auth
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 
 // Constants to avoid recreating lists on every recomposition
+private val TRANSLATE_LANGUAGES = listOf(
+    "en" to "English", "fr" to "Français", "de" to "Deutsch",
+    "it" to "Italiano", "es" to "Español", "pt" to "Português",
+    "nl" to "Nederlands", "pl" to "Polski", "ja" to "日本語",
+    "zh" to "中文", "ru" to "Русский", "ko" to "한국어",
+)
+
 private val AVAILABLE_LANGUAGES = listOf(
     "en" to "English", "fr" to "Français", "de" to "Deutsch",
     "it" to "Italiano", "es" to "Español", "pt" to "Português",
@@ -71,12 +73,12 @@ fun SettingsScreen(
     onNavigateToSaved: () -> Unit = {},
     onNavigateToProfile: () -> Unit = {},
     onNavigateToHistory: () -> Unit = {},
-    onNavigateToNotifications: () -> Unit = {},
     onNavigateToRoam: () -> Unit = {},
-    onNavigateToAdmin: () -> Unit = {},
 ) {
     val skipPaywalled by vm.skipPaywalled.collectAsState()
     val webDarkMode by vm.webDarkMode.collectAsState()
+    val autoTranslate by vm.autoTranslate.collectAsState()
+    val translateLanguage by vm.translateLanguage.collectAsState()
     val preferredLanguages by vm.preferredLanguages.collectAsState()
     val jsEnabled by vm.jsEnabled.collectAsState()
     val prefetchWebView by vm.prefetchWebView.collectAsState()
@@ -89,43 +91,13 @@ fun SettingsScreen(
     val context = LocalContext.current
     var showSignOutDialog by remember { mutableStateOf(value = false) }
     var showSubmitUrlDialog by remember { mutableStateOf(false) }
+    var translateDropdownExpanded by remember { mutableStateOf(false) }
     var languageFilterDropdownExpanded by remember { mutableStateOf(false) }
     var focusCategoryDropdownExpanded by remember { mutableStateOf(false) }
     var focusSubcategoryDropdownExpanded by remember { mutableStateOf(false) }
-    val appTheme by vm.appTheme.collectAsState()
-    val notificationsEnabled by vm.notificationsEnabled.collectAsState()
+    val translateLanguageLabel = TRANSLATE_LANGUAGES.firstOrNull { it.first == translateLanguage }?.second ?: "English"
     val currentUrl by vm.currentUrl.collectAsState()
     val savedConfirmation by vm.savedConfirmation.collectAsState()
-
-    // Admin gate: tap the Version row 5 times within 3 seconds to unlock.
-    var versionTapCount by remember { mutableStateOf(0) }
-    var versionTapResetJob by remember { mutableStateOf<kotlinx.coroutines.Job?>(null) }
-    val scope = rememberCoroutineScope()
-    fun onVersionTap() {
-        val newCount = versionTapCount + 1
-        versionTapCount = newCount
-        versionTapResetJob?.cancel()
-        versionTapResetJob = scope.launch {
-            delay(3000L)
-            versionTapCount = 0
-        }
-        if (newCount >= 5) {
-            versionTapCount = 0
-            versionTapResetJob?.cancel()
-            // Only unlock for the admin user. The admin user ID is compared at runtime
-            // against the currently signed-in Supabase user — no other user can enter.
-            val currentUserId = runCatching {
-                supabase.auth.currentUserOrNull()?.id
-            }.getOrNull()
-            // Replace "YOUR_ADMIN_USER_UUID" with the admin's Supabase auth user ID string.
-            // This UUID identifies you uniquely. It is not a secret — the real security
-            // is handled by the web admin panel's service-role-key requirement.
-            if (currentUserId == "a559a4be-05c3-46c7-9497-23d49bbeaa5f") {
-                vm.setAdminMode(true)
-                onNavigateToRoam()
-            }
-        }
-    }
 
     if (showSignOutDialog) {
         AlertDialog(
@@ -197,19 +169,6 @@ fun SettingsScreen(
                 title = "Browsing history",
                 subtitle = "Pages you've visited",
                 onClick = onNavigateToHistory,
-            )
-
-            SettingsActionRow(
-                title = "Notifications",
-                subtitle = "Updates about your activity",
-                onClick = onNavigateToNotifications,
-            )
-
-            SettingsToggleRow(
-                title = "Push notifications",
-                subtitle = "Receive notifications about submissions, followers, and activity",
-                checked = notificationsEnabled,
-                onCheckedChange = { vm.setNotificationsEnabled(it) },
             )
 
             HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
@@ -317,74 +276,54 @@ fun SettingsScreen(
 
             SectionHeader("Browser Features")
 
-            SectionHeader("Appearance")
-
-            var themeDropdownExpanded by remember { mutableStateOf(false) }
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text("Theme", style = MaterialTheme.typography.bodyLarge)
-                    Text(
-                        "App color scheme",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
-                    )
-                }
-                Box {
-                    OutlinedButton(onClick = { themeDropdownExpanded = true }) {
-                        Text(
-                            when (appTheme) {
-                                "dark" -> "Dark"
-                                "light" -> "Light"
-                                else -> "System"
-                            }
-                        )
-                    }
-                    DropdownMenu(
-                        expanded = themeDropdownExpanded,
-                        onDismissRequest = { themeDropdownExpanded = false },
-                    ) {
-                        DropdownMenuItem(
-                            text = { Text("System") },
-                            onClick = {
-                                vm.setAppTheme("system")
-                                themeDropdownExpanded = false
-                            },
-                        )
-                        DropdownMenuItem(
-                            text = { Text("Dark") },
-                            onClick = {
-                                vm.setAppTheme("dark")
-                                themeDropdownExpanded = false
-                            },
-                        )
-                        DropdownMenuItem(
-                            text = { Text("Light") },
-                            onClick = {
-                                vm.setAppTheme("light")
-                                themeDropdownExpanded = false
-                            },
-                        )
-                    }
-                }
-            }
-
-            Spacer(Modifier.height(8.dp))
-            HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
-            Spacer(Modifier.height(8.dp))
-
-            SectionHeader("Browser Features")
-
             SettingsToggleRow(
                 title = "Dark mode",
                 subtitle = "Apply dark theme to web pages",
                 checked = webDarkMode,
                 onCheckedChange = { vm.setWebDarkMode(it) },
             )
+
+            SettingsToggleRow(
+                title = "Auto-translate",
+                subtitle = "Translate pages via Google Translate",
+                checked = autoTranslate,
+                onCheckedChange = { 
+                    vm.setAutoTranslate(it)
+                    // Close dropdown when toggling to avoid UI issues
+                    translateDropdownExpanded = false
+                },
+            )
+
+            // Language selector only shown when auto-translate is enabled
+            if (autoTranslate) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text("Translate to", style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
+                    Box {
+                        OutlinedButton(onClick = { translateDropdownExpanded = !translateDropdownExpanded }) {
+                            Text(translateLanguageLabel)
+                        }
+                        DropdownMenu(
+                            expanded = translateDropdownExpanded,
+                            onDismissRequest = { translateDropdownExpanded = false },
+                        ) {
+                            TRANSLATE_LANGUAGES.forEach { (code, label) ->
+                                DropdownMenuItem(
+                                    text = { Text(label) },
+                                    onClick = {
+                                        vm.setTranslateLanguage(code)
+                                        translateDropdownExpanded = false
+                                    },
+                                )
+                            }
+                        }
+                    }
+                }
+            }
 
             SettingsToggleRow(
                 title = "JavaScript",
@@ -578,38 +517,10 @@ fun SettingsScreen(
             )
 
             SettingsActionRow(
-                title = "Rate this app",
-                subtitle = "Leave a review on Google Play",
-                onClick = {
-                    val intent = Intent(Intent.ACTION_VIEW).apply {
-                        data = "https://play.google.com/store/apps/details?id=app.roam.android".toUri()
-                        setPackage("com.android.vending")
-                    }
-                    runCatching { context.startActivity(intent) }
-                        .onFailure {
-                            // Fallback: open in browser if Play Store app isn't available
-                            val browserIntent = Intent(Intent.ACTION_VIEW).apply {
-                                data = "https://play.google.com/store/apps/details?id=app.roam.android".toUri()
-                            }
-                            context.startActivity(Intent.createChooser(browserIntent, "Rate Roam"))
-                        }
-                },
-            )
-
-            SettingsActionRow(
                 title = "Report dead link",
                 subtitle = currentUrl ?: "No page loaded",
                 onClick = {
                     vm.reportBrokenLink()
-                    onNavigateToRoam()
-                },
-            )
-
-            SettingsActionRow(
-                title = "View the tour again",
-                subtitle = "Replay the feature walkthrough",
-                onClick = {
-                    vm.resetWalkthrough()
                     onNavigateToRoam()
                 },
             )
@@ -640,10 +551,17 @@ fun SettingsScreen(
                 },
             )
 
+            var versionTapCount by remember { mutableIntStateOf(0) }
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clickable(onClick = { onVersionTap() })
+                    .clickable {
+                        versionTapCount++
+                        if (versionTapCount >= 5) {
+                            versionTapCount = 0
+                            vm.setAdminMode(true)
+                        }
+                    }
                     .padding(horizontal = 16.dp, vertical = 12.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {

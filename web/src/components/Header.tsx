@@ -158,6 +158,16 @@ export function Header() {
                 Following
               </Link>
               <Link
+                href="/people"
+                className={`text-sm font-medium transition-colors ${
+                  pathname === '/people'
+                    ? 'text-zinc-900 dark:text-white border-b-2 border-zinc-900 dark:border-white pb-0.5'
+                    : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white'
+                }`}
+              >
+                People
+              </Link>
+              <Link
                 href="/leaderboard"
                 className={`text-sm font-medium transition-colors ${
                   pathname === '/leaderboard'
@@ -244,6 +254,13 @@ export function Header() {
                       Following
                     </Link>
                     <Link
+                      href="/people"
+                      onClick={() => setProfileMenu(false)}
+                      className="block px-4 py-2 text-sm text-zinc-900 dark:text-white hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                    >
+                      Find people
+                    </Link>
+                    <Link
                       href="/settings"
                       onClick={() => setProfileMenu(false)}
                       className="block px-4 py-2 text-sm text-zinc-900 dark:text-white hover:bg-zinc-100 dark:hover:bg-zinc-800"
@@ -314,6 +331,9 @@ export function Header() {
               </Link>
               <Link href="/following" className="text-zinc-700 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white">
                 Following
+              </Link>
+              <Link href="/people" className="text-zinc-700 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white">
+                Find people
               </Link>
               <Link href="/profile" className="text-zinc-700 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white">
                 Profile
