@@ -17,6 +17,7 @@ import { LevelProgress } from '@/components/badges/LevelProgress';
 import { BadgeDisplay } from '@/components/badges/BadgeDisplay';
 import type { BadgeData } from '@/components/badges/BadgeDisplay';
 import { BadgeUnlockProvider, useBadgeUnlock } from '@/components/badges/BadgeUnlockToast';
+import { FollowList } from './FollowList';
 
 type Category = { id: string; label: string; emoji: string };
 export type Profile = {
@@ -44,11 +45,13 @@ interface ProfileClientProps {
   initialCollections: CollectionRow[];
   initialSavedUrls: SavedUrlRow[];
   initialBadges?: Record<string, unknown>[];
+  followerCount: number;
+  followingCount: number;
 }
 
-type Tab = 'collections' | 'saved' | 'badges' | 'about';
+type Tab = 'collections' | 'saved' | 'badges' | 'following' | 'about';
 
-export function ProfileClient({ userId, email, profile, allCategories, allSubcategories, initialCategoryIds, initialTopicIds, initialCollections, initialSavedUrls, initialBadges }: ProfileClientProps) {
+export function ProfileClient({ userId, email, profile, allCategories, allSubcategories, initialCategoryIds, initialTopicIds, initialCollections, initialSavedUrls, initialBadges, followerCount, followingCount }: ProfileClientProps) {
   const supabase = createClient();
 
   const [activeTab, setActiveTab] = useState<Tab>('collections');
@@ -172,6 +175,7 @@ export function ProfileClient({ userId, email, profile, allCategories, allSubcat
     { key: 'collections', label: 'Collections', count: initialCollections.length },
     { key: 'saved', label: 'Saved', count: initialSavedUrls.length },
     { key: 'badges', label: 'Badges', count: unlockedCount },
+    { key: 'following', label: 'Following', count: followingCount + followerCount },
     { key: 'about', label: 'About' },
   ];
 
@@ -308,6 +312,23 @@ export function ProfileClient({ userId, email, profile, allCategories, allSubcat
               </Link>
             </div>
             <BadgeDisplay badges={badges} showLocked={true} />
+          </div>
+        )}
+
+        {activeTab === 'following' && (
+          <div className="flex flex-col gap-6">
+            <section>
+              <h2 className="text-base font-semibold text-zinc-900 dark:text-white mb-4">
+                Following ({followingCount})
+              </h2>
+              <FollowList userId={userId} mode="following" />
+            </section>
+            <section>
+              <h2 className="text-base font-semibold text-zinc-900 dark:text-white mb-4">
+                Followers ({followerCount})
+              </h2>
+              <FollowList userId={userId} mode="followers" />
+            </section>
           </div>
         )}
 

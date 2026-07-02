@@ -31,6 +31,8 @@ export default async function ProfilePage() {
     supabase.from('collections').select('id, name, slug, is_public, item_count:collection_items(count)').eq('user_id', user.id).order('created_at', { ascending: false }),
     supabase.from('saved_urls').select('id, url, title, saved_at').eq('user_id', user.id).gt('saved_at', thirtyDaysAgo).order('saved_at', { ascending: false }).limit(50),
     supabase.rpc('get_user_badges', { p_user_id: user.id }),
+    supabase.from('follows').select('*', { count: 'exact', head: true }).eq('following_id', user.id).eq('is_pending', false),
+    supabase.from('follows').select('*', { count: 'exact', head: true }).eq('follower_id', user.id).eq('is_pending', false),
   ]);
 
   // Helper: safely unwrap a settled promise result
@@ -45,6 +47,8 @@ export default async function ProfilePage() {
   const userCategoriesResult = unwrap(3) as Record<string, unknown>;
   const collectionsResult = unwrap(4) as Record<string, unknown>;
   const savedUrlsResult = unwrap(5) as Record<string, unknown>;
+  const followerResult = results[7];
+  const followingResult = results[8];
   const badgesResult = unwrap(6) as Record<string, unknown>;
 
   const profile = profileResult.data;
@@ -76,6 +80,8 @@ export default async function ProfilePage() {
       initialCollections={collections}
       initialSavedUrls={savedUrls}
       initialBadges={(badgesResult.data ?? []) as Record<string, unknown>[]}
+      followerCount={followerResult.status === 'fulfilled' ? (followerResult.value as { count: number }).count ?? 0 : 0}
+      followingCount={followingResult.status === 'fulfilled' ? (followingResult.value as { count: number }).count ?? 0 : 0}
     />
   );
 }

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { createClient } from '@/lib/supabase/client';
 
 interface FollowButtonProps {
@@ -13,21 +13,45 @@ export function FollowButton({ targetUserId, initialStatus }: FollowButtonProps)
   const [status, setStatus] = useState(initialStatus);
   const [loading, setLoading] = useState(false);
 
+  // On mount, fetch the true follow status client-side so RLS sees the correct auth.uid().
+  // This corrects any stale/cached SSR state and resolves ISR cache-auth mismatches.
+  useEffect(() => {
+    (async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data: followRow } = await supabase
+        .from('follows')
+        .select('is_pending')
+        .eq('follower_id', user.id)
+        .eq('following_id', targetUserId)
+        .maybeSingle();
+
+      if (followRow?.is_pending === true) {
+        setStatus('pending');
+      } else if (followRow?.is_pending === false) {
+        setStatus('following');
+      } else {
+        setStatus('none');
+      }
+    })();
+  }, [supabase, targetUserId]);
+
   async function handleClick() {
     setLoading(true);
     try {
       if (status === 'none') {
         // Follow
         const { data, error } = await supabase.functions.invoke('follow', {
-          body: { action: 'follow', target_user_id: targetUserId },
+          body: { action: 'follow', following_id: targetUserId },
         });
         if (error) throw error;
-        const newStatus = data?.status ?? 'following';
+        const newStatus = data?.status ?? (data?.is_pending ? 'pending' : 'following');
         setStatus(newStatus);
       } else {
         // Unfollow (works for both 'following' and 'pending')
         const { error } = await supabase.functions.invoke('follow', {
-          body: { action: 'unfollow', target_user_id: targetUserId },
+          body: { action: 'unfollow', following_id: targetUserId },
         });
         if (error) throw error;
         setStatus('none');

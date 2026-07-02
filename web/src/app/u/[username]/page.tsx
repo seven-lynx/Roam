@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { createClient } from '@/lib/supabase/server';
 import { Avatar } from '@/components/UI';
 import { FollowButton } from './FollowButton';
+import { FollowSection } from './FollowSection';
 import { CopyProfileLink } from './CopyProfileLink';
 import { BadgeDisplay } from '@/components/badges/BadgeDisplay';
 import type { BadgeData } from '@/components/badges/BadgeDisplay';
@@ -58,7 +59,7 @@ export default async function PublicProfilePage({ params }: Props) {
           .select('is_pending')
           .eq('follower_id', viewer.id)
           .eq('following_id', profile.id)
-          .single();
+          .maybeSingle();
         let status: 'none' | 'following' | 'pending' = 'none';
         if (followRow?.is_pending === true) status = 'pending';
         else if (followRow?.is_pending === false) status = 'following';
@@ -137,11 +138,13 @@ export default async function PublicProfilePage({ params }: Props) {
           />
         )}
 
-        <section className="flex items-center gap-6 text-sm">
-          <div className="text-center"><p className="font-semibold text-zinc-900 dark:text-white">{followerCount}</p><p className="text-zinc-400">followers</p></div>
-          <div className="text-center"><p className="font-semibold text-zinc-900 dark:text-white">{followingCount}</p><p className="text-zinc-400">following</p></div>
-          {joinedDate && <div className="text-center"><p className="font-semibold text-zinc-900 dark:text-white">{joinedDate}</p><p className="text-zinc-400">joined</p></div>}
-        </section>
+        <FollowSection profileId={profile.id} followerCount={followerCount} followingCount={followingCount} />
+
+        {joinedDate && (
+          <section className="text-sm">
+            <div className="text-center"><p className="font-semibold text-zinc-900 dark:text-white">{joinedDate}</p><p className="text-zinc-400">joined</p></div>
+          </section>
+        )}
 
         {profile.bio && (
           <section><p className="text-sm text-zinc-600 dark:text-zinc-300 leading-relaxed">{profile.bio}</p></section>
