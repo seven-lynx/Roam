@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import Image from 'next/image';
 import { createClient } from '@/lib/supabase/client';
 
 interface Recipient {
@@ -128,10 +129,12 @@ export function ShareRecipientSearch({ onSelectRecipient, selectedRecipient }: P
         <div className="mb-3 p-3 rounded-md bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 flex items-center justify-between">
           <div className="flex items-center gap-2">
             {selectedRecipient.avatar_url && (
-              <img
+              <Image
                 src={selectedRecipient.avatar_url}
                 alt={selectedRecipient.username}
-                className="w-6 h-6 rounded-full"
+                width={24}
+                height={24}
+                className="rounded-full"
               />
             )}
             <div>
@@ -203,10 +206,12 @@ export function ShareRecipientSearch({ onSelectRecipient, selectedRecipient }: P
                     transition-colors flex items-center gap-3"
                 >
                   {recipient.avatar_url && (
-                    <img
+                    <Image
                       src={recipient.avatar_url}
                       alt={recipient.username}
-                      className="w-8 h-8 rounded-full flex-shrink-0"
+                      width={32}
+                      height={32}
+                      className="rounded-full flex-shrink-0"
                     />
                   )}
                   <div className="flex-1 min-w-0">
