@@ -14,15 +14,34 @@ interface FollowSectionProps {
   profileId: string;
   followerCount: number;
   followingCount: number;
+  // Bump this version to trigger a live count re-fetch after a follow/unfollow
+  followVersion?: number;
 }
 
 type ViewMode = 'stats' | 'followers' | 'following';
 
-export function FollowSection({ profileId, followerCount, followingCount }: FollowSectionProps) {
+export function FollowSection({ profileId, followerCount: initialFollowerCount, followingCount: initialFollowingCount, followVersion = 0 }: FollowSectionProps) {
   const supabase = createClient();
   const [viewMode, setViewMode] = useState<ViewMode>('stats');
   const [users, setUsers] = useState<FollowUser[]>([]);
   const [loading, setLoading] = useState(false);
+  // Live counts — start from SSR values, update after follow/unfollow
+  const [followerCount, setFollowerCount] = useState(initialFollowerCount);
+  const [followingCount, setFollowingCount] = useState(initialFollowingCount);
+  const [lastVersion, setLastVersion] = useState(followVersion);
+
+  // Re-fetch live counts when followVersion changes (i.e. after a follow/unfollow)
+  if (followVersion !== lastVersion) {
+    setLastVersion(followVersion);
+    void (async () => {
+      const [{ count: fc }, { count: ing }] = await Promise.all([
+        supabase.from('follows').select('*', { count: 'exact', head: true }).eq('following_id', profileId),
+        supabase.from('follows').select('*', { count: 'exact', head: true }).eq('follower_id', profileId),
+      ]);
+      if (fc !== null) setFollowerCount(fc);
+      if (ing !== null) setFollowingCount(ing);
+    })();
+  }
 
   async function showList(mode: 'followers' | 'following') {
     if (viewMode === mode) {

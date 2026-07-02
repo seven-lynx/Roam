@@ -6,9 +6,10 @@ import { createClient } from '@/lib/supabase/client';
 interface FollowButtonProps {
   targetUserId: string;
   initialStatus: 'none' | 'following';
+  onFollowChange?: () => void;
 }
 
-export function FollowButton({ targetUserId, initialStatus }: FollowButtonProps) {
+export function FollowButton({ targetUserId, initialStatus, onFollowChange }: FollowButtonProps) {
   const supabase = createClient();
   const [status, setStatus] = useState<'none' | 'following'>(initialStatus);
   const [loading, setLoading] = useState(false);
@@ -51,6 +52,7 @@ export function FollowButton({ targetUserId, initialStatus }: FollowButtonProps)
         if (error) throw error;
         setStatus('none');
       }
+      onFollowChange?.();
     } finally {
       setLoading(false);
     }

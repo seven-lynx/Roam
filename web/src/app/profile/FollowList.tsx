@@ -25,33 +25,47 @@ export function FollowList({ userId, mode }: FollowListProps) {
     setLoading(true);
     setError(null);
 
-    const column = mode === 'followers' ? 'follower_id' : 'following_id';
-    const joinColumn = mode === 'followers' ? 'following_id' : 'follower_id';
+    const filterColumn = mode === 'followers' ? 'following_id' : 'follower_id';
+    const selectColumn = mode === 'followers' ? 'follower_id' : 'following_id';
 
-    // We need the OTHER user's profile, so for followers we join on follower_id,
-    // for following we join on following_id.
-    const { data, error: queryError } = await supabase
+    // Step 1: Get user IDs from follows
+    // (follows.follower_id/following_id reference auth.users, not public.profiles,
+    //  so Supabase cannot auto-join via FK — do it manually)
+    const { data: followRows, error: followError } = await supabase
       .from('follows')
-      .select(`profiles:${column}(id, username, display_name)`)
-      .eq(joinColumn, userId)
-      .eq('is_pending', false)
+      .select(selectColumn)
+      .eq(filterColumn, userId)
       .order('created_at', { ascending: false });
 
-    if (queryError) {
-      setError(queryError.message);
+    if (followError) {
+      setError(followError.message);
       setLoading(false);
       return;
     }
 
-    // profiles returned as a single object (via the join), not an array
-    const resolved: FollowUser[] = (data ?? [])
-      .map((row: Record<string, unknown>) => {
-        const p = row.profiles as FollowUser | null;
-        return p ?? null;
-      })
-      .filter((u: FollowUser | null): u is FollowUser => u !== null && u.username != null);
+    const userIds = (followRows ?? [])
+      .map((r: Record<string, string>) => r[selectColumn])
+      .filter(Boolean);
 
-    setUsers(resolved);
+    if (userIds.length === 0) {
+      setUsers([]);
+      setLoading(false);
+      return;
+    }
+
+    // Step 2: Fetch profiles for those user IDs
+    const { data: profileRows, error: profileError } = await supabase
+      .from('profiles')
+      .select('id, username, display_name')
+      .in('id', userIds);
+
+    if (profileError) {
+      setError(profileError.message);
+      setLoading(false);
+      return;
+    }
+
+    setUsers((profileRows ?? []) as FollowUser[]);
     setLoading(false);
   }, [supabase, userId, mode]);
 

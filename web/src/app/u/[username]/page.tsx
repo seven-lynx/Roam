@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/server';
 import { Avatar } from '@/components/UI';
 import { FollowButton } from './FollowButton';
 import { FollowSection } from './FollowSection';
+import { FollowInteractionZone } from './FollowInteractionZone';
 import { CopyProfileLink } from './CopyProfileLink';
 import { BadgeDisplay } from '@/components/badges/BadgeDisplay';
 import type { BadgeData } from '@/components/badges/BadgeDisplay';
@@ -121,8 +122,16 @@ export default async function PublicProfilePage({ params }: Props) {
               <CopyProfileLink username={profile.username} />
             </div>
           </div>
-          {viewer && viewer.id !== profile.id && (
-            <FollowButton targetUserId={profile.id} initialStatus={followStatus} />
+          {viewer && viewer.id !== profile.id ? (
+            <FollowInteractionZone
+              targetUserId={profile.id}
+              initialStatus={followStatus}
+              profileId={profile.id}
+              followerCount={followerCount}
+              followingCount={followingCount}
+            />
+          ) : (
+            <FollowSection profileId={profile.id} followerCount={followerCount} followingCount={followingCount} />
           )}
         </div>
 
@@ -135,8 +144,6 @@ export default async function PublicProfilePage({ params }: Props) {
             badgeCount={badgeCount}
           />
         )}
-
-        <FollowSection profileId={profile.id} followerCount={followerCount} followingCount={followingCount} />
 
         {joinedDate && (
           <section className="text-sm">
