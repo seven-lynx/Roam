@@ -96,12 +96,19 @@ fun FeatureWalkthrough(
                 .padding(32.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            // Skip button in top-right corner
+            // Close button in top-right corner — "Skip" on non-last steps, "X" on last
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.End,
             ) {
-                if (!isLastStep) {
+                if (isLastStep) {
+                    IconButton(onClick = onDismiss) {
+                        Icon(
+                            imageVector = Icons.Filled.Close,
+                            contentDescription = "Close tour",
+                        )
+                    }
+                } else {
                     TextButton(onClick = onDismiss) {
                         Text("Skip")
                     }
