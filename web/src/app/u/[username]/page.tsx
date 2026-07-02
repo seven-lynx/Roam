@@ -2,11 +2,7 @@ import { notFound } from 'next/navigation';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/server';
-import { Avatar } from '@/components/UI';
-import { FollowButton } from './FollowButton';
-import { FollowSection } from './FollowSection';
-import { FollowInteractionZone } from './FollowInteractionZone';
-import { CopyProfileLink } from './CopyProfileLink';
+import { PublicProfileHeader } from './PublicProfileHeader';
 import { BadgeDisplay } from '@/components/badges/BadgeDisplay';
 import type { BadgeData } from '@/components/badges/BadgeDisplay';
 import { LevelProgress } from '@/components/badges/LevelProgress';
@@ -111,29 +107,13 @@ export default async function PublicProfilePage({ params }: Props) {
     <div className="min-h-[calc(100vh-8rem)] bg-white dark:bg-zinc-950">
       <div className="max-w-2xl mx-auto px-6 py-12 flex flex-col gap-10">
 
-        <div className="flex items-center gap-5">
-          <Avatar name={profile.display_name || profile.username} size="lg" />
-          <div className="flex-1">
-            <h1 className="text-2xl font-bold text-zinc-900 dark:text-white">
-              {profile.display_name || profile.username}
-            </h1>
-            <p className="text-sm text-zinc-500 dark:text-zinc-400">@{profile.username}</p>
-            <div className="flex items-center gap-1 mt-1">
-              <CopyProfileLink username={profile.username} />
-            </div>
-          </div>
-          {viewer && viewer.id !== profile.id ? (
-            <FollowInteractionZone
-              targetUserId={profile.id}
-              initialStatus={followStatus}
-              profileId={profile.id}
-              followerCount={followerCount}
-              followingCount={followingCount}
-            />
-          ) : (
-            <FollowSection profileId={profile.id} followerCount={followerCount} followingCount={followingCount} />
-          )}
-        </div>
+        <PublicProfileHeader
+          profile={{ id: profile.id, username: profile.username, display_name: profile.display_name ?? null }}
+          viewer={viewer}
+          initialStatus={followStatus}
+          followerCount={followerCount}
+          followingCount={followingCount}
+        />
 
         {xpTotal > 0 && (
           <LevelProgress

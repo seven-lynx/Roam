@@ -1,6 +1,6 @@
-'use client';
+﻿'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import Link from 'next/link';
 
@@ -14,7 +14,6 @@ interface FollowSectionProps {
   profileId: string;
   followerCount: number;
   followingCount: number;
-  // Bump this version to trigger a live count re-fetch after a follow/unfollow
   followVersion?: number;
 }
 
@@ -25,14 +24,12 @@ export function FollowSection({ profileId, followerCount: initialFollowerCount, 
   const [viewMode, setViewMode] = useState<ViewMode>('stats');
   const [users, setUsers] = useState<FollowUser[]>([]);
   const [loading, setLoading] = useState(false);
-  // Live counts — start from SSR values, update after follow/unfollow
   const [followerCount, setFollowerCount] = useState(initialFollowerCount);
   const [followingCount, setFollowingCount] = useState(initialFollowingCount);
-  const [lastVersion, setLastVersion] = useState(followVersion);
 
-  // Re-fetch live counts when followVersion changes (i.e. after a follow/unfollow)
-  if (followVersion !== lastVersion) {
-    setLastVersion(followVersion);
+  // Re-fetch live counts whenever followVersion increments (after follow/unfollow)
+  useEffect(() => {
+    if (followVersion === 0) return;
     void (async () => {
       const [{ count: fc }, { count: ing }] = await Promise.all([
         supabase.from('follows').select('*', { count: 'exact', head: true }).eq('following_id', profileId),
@@ -41,7 +38,8 @@ export function FollowSection({ profileId, followerCount: initialFollowerCount, 
       if (fc !== null) setFollowerCount(fc);
       if (ing !== null) setFollowingCount(ing);
     })();
-  }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [followVersion]);
 
   async function showList(mode: 'followers' | 'following') {
     if (viewMode === mode) {
@@ -52,8 +50,6 @@ export function FollowSection({ profileId, followerCount: initialFollowerCount, 
     setViewMode(mode);
     setLoading(true);
 
-    // Step 1: Get user IDs from follows
-    // (follows references auth.users, not public.profiles, so cannot auto-join)
     const filterColumn = mode === 'followers' ? 'following_id' : 'follower_id';
     const selectColumn = mode === 'followers' ? 'follower_id' : 'following_id';
 
@@ -71,7 +67,6 @@ export function FollowSection({ profileId, followerCount: initialFollowerCount, 
       return;
     }
 
-    // Step 2: Fetch profiles for those user IDs
     const { data: profileRows } = await supabase
       .from('profiles')
       .select('id, username, display_name')
