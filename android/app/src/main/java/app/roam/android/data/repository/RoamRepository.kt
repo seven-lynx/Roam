@@ -49,6 +49,65 @@ class RoamRepository {
     }
 
     /**
+     * Attempts to ensure the user has a valid authenticated session with an actual
+     * access token before making an API call.
+     *
+     * supabase-kt's sessionStatus can become Authenticated before the access token
+     * is persisted to SharedPreferences. If we call functions.invoke() during that
+     * window, the library sends a header-less request → 401 → UnauthorizedRestException.
+     *
+     * This function checks both the sessionStatus AND that currentAccessTokenOrNull()
+     * returns a non-null token. If the token is missing despite Authenticated status,
+     * it retries for up to 2 seconds (the library is asynchronously persisting the
+     * token to storage in the background).
+     *
+     * If the session is not authenticated, attempts a one-time refresh.
+     *
+     * Returns true if a valid access token is now available.
+     */
+    private suspend fun ensureAuthenticated(): Boolean {
+        val status = supabase.auth.sessionStatus.value
+
+        // Not authenticated at all — attempt recovery via refresh
+        if (status !is io.github.jan.supabase.auth.status.SessionStatus.Authenticated) {
+            android.util.Log.w("RoamRepository", "Session not authenticated ($status); attempting refresh")
+            return try {
+                supabase.auth.refreshCurrentSession()
+                verifyTokenAvailable()
+            } catch (e: Exception) {
+                android.util.Log.e("RoamRepository", "Session refresh failed", e)
+                false
+            }
+        }
+
+        // Status says Authenticated, but the token may not have landed in storage yet.
+        return verifyTokenAvailable()
+    }
+
+    /**
+     * Checks that currentAccessTokenOrNull() returns a non-null value. If the token
+     * hasn't materialized yet (race with SharedPreferences write after PKCE callback),
+     * retries with short delays for up to 2 seconds.
+     */
+    private suspend fun verifyTokenAvailable(): Boolean {
+        repeat(10) { attempt ->
+            val token = supabase.auth.currentAccessTokenOrNull()
+            if (token != null) {
+                if (attempt > 0) {
+                    android.util.Log.d("RoamRepository", "Access token became available after ${attempt * 200}ms")
+                }
+                return true
+            }
+            if (attempt < 9) {
+                android.util.Log.w("RoamRepository", "Session is Authenticated but access token is null — waiting for persistence (attempt ${attempt + 1})")
+                kotlinx.coroutines.delay(200)
+            }
+        }
+        android.util.Log.e("RoamRepository", "Access token still null after 2s wait despite Authenticated status")
+        return false
+    }
+
+    /**
      * Calls POST /functions/v1/roam.
      * Optionally restricts to a specific collection, subcategory, or category.
      * Returns null on 404 (pool exhausted).
@@ -65,10 +124,14 @@ class RoamRepository {
             categoryId?.let { put("category_id", it) }
             subcategoryId?.let { put("subcategory_id", it) }
         }
-        // Debug session state
-        val status = supabase.auth.sessionStatus.value
-        if (status !is io.github.jan.supabase.auth.status.SessionStatus.Authenticated) {
-            android.util.Log.w("RoamRepository", "roam() called without Authenticated status: $status")
+
+        // Verify session is valid AND the access token is actually available
+        // before the API call. This prevents the race where sessionStatus says
+        // "Authenticated" but the token hasn't been persisted to SharedPreferences yet,
+        // causing functions.invoke() to send a header-less request → 401.
+        if (!ensureAuthenticated()) {
+            val status = supabase.auth.sessionStatus.value
+            throw IllegalStateException("Session not authenticated: $status")
         }
 
         val response = supabase.functions.invoke("roam", body = body)
