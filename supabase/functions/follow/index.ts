@@ -7,11 +7,12 @@
 //   unfollow — { action, following_id }
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-import { corsHeaders } from '../_shared/cors.ts'
+import { getCorsHeaders } from '../_shared/cors.ts'
 
 Deno.serve(async (req) => {
-  if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
-  if (req.method !== 'POST') return json({ error: 'Method not allowed' }, 405)
+  const headers = getCorsHeaders(req.headers.get('origin'))
+  if (req.method === 'OPTIONS') return new Response('ok', { headers })
+  if (req.method !== 'POST') return json({ error: 'Method not allowed' }, 405, headers)
 
   const supabase = createClient(
     Deno.env.get('SUPABASE_URL')!,
@@ -82,9 +83,10 @@ Deno.serve(async (req) => {
   }
 })
 
-function json(body: unknown, status = 200) {
+function json(body: unknown, status = 200, responseHeaders?: Record<string, string>) {
+  const h = responseHeaders ?? getCorsHeaders(null);
   return new Response(JSON.stringify(body), {
     status,
-    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    headers: { ...h, 'Content-Type': 'application/json' },
   })
 }
