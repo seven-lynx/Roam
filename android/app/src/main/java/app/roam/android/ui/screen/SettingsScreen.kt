@@ -551,6 +551,7 @@ fun SettingsScreen(
                 },
             )
 
+            val isModerator by vm.isModerator.collectAsState()
             var versionTapCount by remember { mutableIntStateOf(0) }
             Row(
                 modifier = Modifier
@@ -559,7 +560,8 @@ fun SettingsScreen(
                         versionTapCount++
                         if (versionTapCount >= 5) {
                             versionTapCount = 0
-                            vm.setAdminMode(true)
+                            if (isModerator) vm.setModeratorMode(true)
+                            else vm.setAdminMode(true)
                         }
                     }
                     .padding(horizontal = 16.dp, vertical = 12.dp),

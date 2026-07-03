@@ -56,6 +56,7 @@ fun ConfigBottomSheet(
     onNavigateSavedUrl: (url: String) -> Unit,
     adminModeEnabled: Boolean = false,
     isModerator: Boolean = false,
+    moderatorModeEnabled: Boolean = false,
     onAdminNavigateToUrl: (String) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
@@ -194,8 +195,8 @@ fun ConfigBottomSheet(
                 )
             }
 
-            // ── Section 3: Moderator (auto-unlocked from JWT role) ──────────
-            if (isModerator && !adminModeEnabled) {
+            // ── Section 3: Moderator (unlocked via Settings → tap version 5×) ──
+            if (moderatorModeEnabled && !adminModeEnabled) {
                 Spacer(modifier = Modifier.height(8.dp))
                 HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
                 Spacer(modifier = Modifier.height(8.dp))

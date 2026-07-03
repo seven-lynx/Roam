@@ -163,6 +163,15 @@ class MainViewModel(
         _adminModeEnabled.value = enabled
     }
 
+    /** Whether the moderator bottom-sheet section is unlocked (tap version 5× in Settings).
+     *  Only set for users whose role is 'moderator'. Cleared on sign-out. */
+    private val _moderatorModeEnabled = MutableStateFlow(false)
+    val moderatorModeEnabled: StateFlow<Boolean> = _moderatorModeEnabled.asStateFlow()
+
+    fun setModeratorMode(enabled: Boolean) {
+        _moderatorModeEnabled.value = enabled
+    }
+
     /** True when the signed-in user has app_metadata.role = 'moderator'.
      *  Set on session load; cleared on sign-out. Not persisted. */
     private val _isModerator = MutableStateFlow(false)
@@ -1301,6 +1310,7 @@ class MainViewModel(
         _nextPrefetchUrl.value = null
         _hasRatedUp.value = false
         _adminModeEnabled.value = false
+        _moderatorModeEnabled.value = false
         _isModerator.value = false
     }
 

@@ -471,6 +471,7 @@ private fun DiscoverTab(
                 },
                 adminModeEnabled = adminModeEnabled,
                 isModerator = vm.isModerator.collectAsState().value,
+                moderatorModeEnabled = vm.moderatorModeEnabled.collectAsState().value,
                 onAdminNavigateToUrl = { url ->
                     scope.launch {
                         try {
