@@ -76,9 +76,10 @@ export async function getScrapeSuggestions(): Promise<{
 
 export async function scrapeUrl(
   url: string,
-  categoryId: string | null,
+  categoryIds: string[],
   subcategoryId: string | null,
-): Promise<{ data: { id: string; url: string; title: string | null } | null; error: string | null }> {
+  tags: string[],
+): Promise<{ data: { id: string; url: string; title: string | null; tags: string[]; category_ids: string[] } | null; error: string | null }> {
   const user = await getModerator();
   if (!user) return { data: null, error: "Forbidden" };
 
@@ -93,7 +94,7 @@ export async function scrapeUrl(
       "Content-Type": "application/json",
       "Authorization": `Bearer ${session.access_token}`,
     },
-    body: JSON.stringify({ url, category_id: categoryId, subcategory_id: subcategoryId }),
+    body: JSON.stringify({ url, category_ids: categoryIds, subcategory_id: subcategoryId, tags }),
   });
 
   const body = await res.json();
