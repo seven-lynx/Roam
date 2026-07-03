@@ -53,23 +53,38 @@ export function FollowButton({ targetUserId, initialStatus, onFollowChange }: Fo
     setError(null);
     setLoading(true);
     try {
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (userError || !user) {
+        setError('Please log in again');
+        setLoading(false);
+        return;
+      }
+
       if (status === 'none') {
-        const { error: invokeError } = await supabase.functions.invoke('follow', {
-          body: { action: 'follow', following_id: targetUserId },
-        });
-        if (invokeError) {
-          console.error('[FollowButton] Follow failed:', invokeError);
-          setError(typeof invokeError === 'string' ? invokeError : invokeError.message ?? 'Failed to follow');
+        const { error: insertError } = await supabase
+          .from('follows')
+          .insert({ follower_id: user.id, following_id: targetUserId, is_pending: false });
+
+        if (insertError) {
+          console.error('[FollowButton] Follow insert failed:', insertError);
+          if (insertError.code === '23505') {
+            setStatus('following'); // already following — treat as success
+          } else {
+            setError(insertError.message);
+          }
           return;
         }
         setStatus('following');
       } else {
-        const { error: invokeError } = await supabase.functions.invoke('follow', {
-          body: { action: 'unfollow', following_id: targetUserId },
-        });
-        if (invokeError) {
-          console.error('[FollowButton] Unfollow failed:', invokeError);
-          setError(typeof invokeError === 'string' ? invokeError : invokeError.message ?? 'Failed to unfollow');
+        const { error: deleteError } = await supabase
+          .from('follows')
+          .delete()
+          .eq('follower_id', user.id)
+          .eq('following_id', targetUserId);
+
+        if (deleteError) {
+          console.error('[FollowButton] Unfollow delete failed:', deleteError);
+          setError(deleteError.message);
           return;
         }
         setStatus('none');
