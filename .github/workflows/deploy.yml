@@ -31,6 +31,7 @@ jobs:
       - name: Deploy Edge Functions
         working-directory: ./supabase
         run: |
+          supabase link --project-ref ${{ secrets.SUPABASE_PROJECT_ID }}
           supabase functions deploy roam
           supabase functions deploy rate
           supabase functions deploy submit-url
