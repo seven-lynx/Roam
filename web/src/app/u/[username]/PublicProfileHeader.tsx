@@ -44,7 +44,7 @@ export function PublicProfileHeader({
             <CopyProfileLink username={profile.username} />
           </div>
         </div>
-        {!isOwnProfile && viewer && (
+        {!isOwnProfile && (
           <FollowButton
             targetUserId={profile.id}
             initialStatus={initialStatus}

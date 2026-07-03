@@ -7,7 +7,7 @@ import { BadgeDisplay } from '@/components/badges/BadgeDisplay';
 import type { BadgeData } from '@/components/badges/BadgeDisplay';
 import { LevelProgress } from '@/components/badges/LevelProgress';
 
-export const revalidate = 60;
+export const dynamic = 'force-dynamic';
 
 interface Props {
   params: Promise<{ username: string }>;
