@@ -1,11 +1,12 @@
 // Extension background service workers (chrome-extension://, moz-extension://) bypass
 // browser CORS entirely and do not require an Access-Control-Allow-Origin header.
 // Web origins allowed:
-//   - Production:  https://roamtheweb.app
+//   - Production:  https://roamtheweb.app, https://www.roamtheweb.app
 //   - Vercel previews: https://*.vercel.app
 //   - Local dev:   http://localhost:3000
 const ALLOWED_ORIGINS = [
   'https://roamtheweb.app',
+  'https://www.roamtheweb.app',
   'http://localhost:3000',
 ];
 
@@ -26,9 +27,8 @@ export function getCorsHeaders(origin: string | null): Record<string, string> {
 
 // Backward-compatible static export for existing consumers
 export const corsHeaders = {
-  'Access-Control-Allow-Origin': 'https://roamtheweb.app',
+  'Access-Control-Allow-Origin': ALLOWED_ORIGINS[0],
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
   'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
   'Vary': 'Origin',
 };
-
