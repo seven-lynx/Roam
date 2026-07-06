@@ -2,7 +2,7 @@
 // Returns top 50 users by XP for the given period.
 // Optionally refreshes the snapshot if it's stale (> 1 hour old).
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-import { corsHeaders } from '../_shared/cors.ts'
+import { getCorsHeaders } from '../_shared/cors.ts'
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
 const SUPABASE_ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY')!
@@ -21,8 +21,9 @@ interface LeaderboardEntry {
 }
 
 Deno.serve(async (req) => {
+  const headers = getCorsHeaders(req.headers.get('origin'))
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { status: 200, headers: corsHeaders })
+    return new Response('ok', { headers })
   }
 
   const url = new URL(req.url)
@@ -166,6 +167,6 @@ async function refreshSnapshot(supabase: any, period: string) {
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    headers: { ...getCorsHeaders(null), 'Content-Type': 'application/json' },
   })
 }
