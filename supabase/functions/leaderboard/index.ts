@@ -21,15 +21,15 @@ interface LeaderboardEntry {
 }
 
 Deno.serve(async (req) => {
-  const headers = getCorsHeaders(req.headers.get('origin'))
+  const corsHeaders = getCorsHeaders(req.headers.get('origin'))
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers })
+    return new Response('ok', { headers: corsHeaders })
   }
 
   const url = new URL(req.url)
   const period = url.searchParams.get('period') || 'all_time'
   if (!['weekly', 'monthly', 'all_time'].includes(period)) {
-    return json({ error: 'Invalid period. Use weekly, monthly, or all_time.' }, 400)
+    return json(corsHeaders, { error: 'Invalid period. Use weekly, monthly, or all_time.' }, 400)
   }
 
   try {
@@ -86,10 +86,10 @@ Deno.serve(async (req) => {
       }
     })
 
-    return json({ period, entries, updated_at: new Date().toISOString() })
+    return json(corsHeaders, { period, entries, updated_at: new Date().toISOString() })
   } catch (e) {
     console.error('leaderboard error', e)
-    return json({ error: 'Failed to fetch leaderboard' }, 500)
+    return json(corsHeaders, { error: 'Failed to fetch leaderboard' }, 500)
   }
 })
 
@@ -164,9 +164,9 @@ async function refreshSnapshot(supabase: any, period: string) {
   }
 }
 
-function json(body: unknown, status = 200) {
+function json(corsHeaders: Record<string, string>, body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { ...getCorsHeaders(null), 'Content-Type': 'application/json' },
+    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
   })
 }
