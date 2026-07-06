@@ -41,6 +41,7 @@ jobs:
           supabase functions deploy save-url
           supabase functions deploy feedback
           supabase functions deploy log-failed-urls
+          supabase functions deploy leaderboard
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
 
