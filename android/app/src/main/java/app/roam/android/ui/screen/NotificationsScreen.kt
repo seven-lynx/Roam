@@ -75,7 +75,23 @@ private fun getNotificationIcon(type: String): String = when (type) {
     "url_approved" -> "\u2705"
     "url_rejected" -> "\u274C"
     "new_follower" -> "\uD83D\uDC64"
+    "badge_unlocked" -> "\uD83C\uDFC5"
+    "level_up" -> "\u2B06\uFE0F"
     else -> "\uD83D\uDD14"
+}
+
+/**
+ * Resolves a navigation deep-link from a notification.
+ * Returns a relative path (e.g. "/u/alice") for in-app navigation,
+ * or a full URL (e.g. "https://example.com") for browser fallback.
+ */
+private fun resolveNotificationUrl(notification: AppNotification): String? {
+    return when (notification.type) {
+        "url_approved", "url_rejected" -> notification.data?.url
+        "new_follower" -> notification.data?.followerUsername?.let { "/u/$it" }
+        "badge_unlocked", "level_up" -> notification.data?.vProfileUrl
+        else -> null
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -180,7 +196,7 @@ private fun NotificationRow(
         Color.Transparent
     }
 
-    val notificationUrl = notification.data?.url
+    val notificationUrl = resolveNotificationUrl(notification)
 
     Column(
         modifier = Modifier
@@ -257,12 +273,18 @@ private fun NotificationRow(
             }
         }
 
-        // Expanded section: "Open link" button if the notification has a URL
+        // Expanded section: "Open link" button if the notification has a deep-link
         AnimatedVisibility(
             visible = expanded && notificationUrl != null && onNavigateToUrl != null,
             enter = expandVertically() + fadeIn(),
             exit = shrinkVertically() + fadeOut(),
         ) {
+            val label = when (notification.type) {
+                "new_follower" -> "View profile"
+                "badge_unlocked" -> "View badges"
+                "level_up" -> "View profile"
+                else -> "Open in Roam"
+            }
             TextButton(
                 onClick = { onNavigateToUrl?.invoke(notificationUrl!!) },
                 modifier = Modifier
@@ -275,7 +297,7 @@ private fun NotificationRow(
                 )
                 Spacer(Modifier.width(6.dp))
                 Text(
-                    "Open in Roam",
+                    label,
                     style = MaterialTheme.typography.labelMedium,
                 )
             }

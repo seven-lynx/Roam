@@ -4,8 +4,8 @@ import android.content.Intent
 import android.net.Uri
 import androidx.browser.customtabs.CustomTabsIntent
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -27,9 +27,9 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -37,6 +37,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -73,6 +74,7 @@ fun SettingsScreen(
     onNavigateToSaved: () -> Unit = {},
     onNavigateToProfile: () -> Unit = {},
     onNavigateToHistory: () -> Unit = {},
+    onNavigateToNotifications: () -> Unit = {},
     onNavigateToRoam: () -> Unit = {},
 ) {
     val skipPaywalled by vm.skipPaywalled.collectAsState()
@@ -82,6 +84,7 @@ fun SettingsScreen(
     val preferredLanguages by vm.preferredLanguages.collectAsState()
     val jsEnabled by vm.jsEnabled.collectAsState()
     val prefetchWebView by vm.prefetchWebView.collectAsState()
+    val notificationsEnabled by vm.notificationsEnabled.collectAsState()
     val sheetGestureMode by vm.sheetGestureMode.collectAsState()
     val categories by vm.categories.collectAsState()
     val subcategories by vm.subcategories.collectAsState()
@@ -169,6 +172,19 @@ fun SettingsScreen(
                 title = "Browsing history",
                 subtitle = "Pages you've visited",
                 onClick = onNavigateToHistory,
+            )
+
+            SettingsActionRow(
+                title = "Notifications",
+                subtitle = "Manage your alerts",
+                onClick = onNavigateToNotifications,
+            )
+
+            SettingsToggleRow(
+                title = "Push notifications",
+                subtitle = "Receive alerts for your activity",
+                checked = notificationsEnabled,
+                onCheckedChange = { vm.setNotificationsEnabled(it) },
             )
 
             HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))

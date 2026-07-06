@@ -269,8 +269,8 @@ async function _dispatch(req: Request): Promise<Response> {
     case 'CHECK_URL':             return checkUrl(req.url);
     case 'SUBMIT_URL':            return submitUrl(req.url, req.categoryId);
     case 'SAVE_LATER':            return saveLater(req.url, req.title);
-    case 'GET_SAVED_URLS':         return getSavedUrls();
-    case 'REMOVE_SAVED_URL':       return removeSavedUrl(req.savedUrlId);
+    case 'GET_SAVED_URLS':        return getSavedUrls();
+    case 'REMOVE_SAVED_URL':      return removeSavedUrl(req.savedUrlId);
     case 'SET_PAYWALL_PREF':      return setPaywallPref(req.skip);
     case 'SET_LANGUAGE_PREF':     return setLanguagePref(req.languages);
     case 'SET_DISCOVERY_MODE':    return setDiscoveryMode(req.mode);
@@ -282,6 +282,10 @@ async function _dispatch(req: Request): Promise<Response> {
     case 'SEND_FEEDBACK':         return sendFeedback(req.message, req.email, req.platform);
     case 'REPORT_URL':            return reportUrl(req.url_id);
     case 'GET_SUBCATEGORIES':     return getSubcategories(req.categoryId);
+    case 'SET_PROFILE_PUBLIC':    return setProfilePublic(req.isPublic);
+    case 'GET_PROFILE_PUBLIC':    return getProfilePublic();
+    case 'SHARE_URL_WITH_USER':   return shareUrlWithUser(req.url, req.recipientId);
+    case 'GET_SHARE_RECIPIENTS':  return getShareRecipients(req.search);
     default:                      return { ok: false, error: 'Something went wrong. Please try again.' };
   }
 }
@@ -453,8 +457,6 @@ async function setUserInterests(pillarIds: string[], topicIds: string[]): Promis
 async function callRoamApi(body: Record<string, unknown> = {}): Promise<Response<RoamData>> {
   const recentDomains = await getRecentDomains();
 
-  // Merge recent domains into the exclude_domains array if provided,
-  // or add as single exclude_domain for backward compat
   const mergedBody = { ...body };
   if (recentDomains.length > 0) {
     const existing = (body.exclude_domains as string[] | undefined) ?? [];
@@ -501,17 +503,15 @@ async function prefetchNext(): Promise<void> {
 async function roam(categoryId?: string, subcategoryId?: string): Promise<Response<RoamData>> {
   const hasFocus = categoryId || subcategoryId;
 
-  // Try prefetch queue first
   if (!hasFocus) {
     const cached = await popFromPrefetch();
     if (cached) {
-      prefetchNext(); // fire-and-forget — restock
+      prefetchNext();
       const translatedUrl = await maybeTranslate(cached.url);
       await chrome.storage.session.set({ auto_translate: false });
       return { ok: true, data: { ...cached, url: translatedUrl } };
     }
 
-    // Cache miss — if a prefetch is already in flight, await it
     if (prefetchInFlight) {
       await prefetchInFlight;
       const cached2 = await popFromPrefetch();
@@ -524,7 +524,6 @@ async function roam(categoryId?: string, subcategoryId?: string): Promise<Respon
     }
   }
 
-  // Live fetch
   const body: Record<string, unknown> = {};
   if (categoryId) body.category_id = categoryId;
   if (subcategoryId) body.subcategory_id = subcategoryId;
@@ -562,16 +561,13 @@ async function rate(url_id: string, vote: 1 | -1): Promise<Response<null>> {
   try {
     const { data, error } = await supabase.functions.invoke('rate', { body: { url_id, value: vote } });
     if (error) {
-      // Network error — queue for retry
       await queueFailedRating(url_id, vote);
       return { ok: false, error: error.message };
     }
     if (data?.error) return { ok: false, error: data.error };
-    // Clear prefetch cache to prevent serving stale suppressed URLs
     await chrome.storage.session.remove(PREFETCH_KEY);
     return { ok: true, data: null };
   } catch {
-    // Network-level failure — queue for retry
     await queueFailedRating(url_id, vote);
     return { ok: false, error: 'Rating queued for retry.' };
   }
@@ -789,6 +785,89 @@ async function reportUrl(url_id: string): Promise<Response<null>> {
     return { ok: false, error: (err as any).error ?? "Couldn't report the link. Please try again." };
   }
   return { ok: true, data: null };
+}
+
+// ── Profile privacy settings ──────────────────────────────────────────────────
+async function setProfilePublic(isPublic: boolean): Promise<Response<null>> {
+  const session = (await getSupabase().auth.getSession()).data.session;
+  if (!session) return { ok: false, error: 'Not signed in.' };
+  const { error } = await getSupabase()
+    .from('profiles')
+    .update({ is_public: isPublic })
+    .eq('id', session.user.id);
+  if (error) return { ok: false, error: error.message };
+  return { ok: true, data: null };
+}
+
+async function getProfilePublic(): Promise<Response<{ is_public: boolean; username: string }>> {
+  const session = (await getSupabase().auth.getSession()).data.session;
+  if (!session) return { ok: false, error: 'Not signed in.' };
+  const { data, error } = await getSupabase()
+    .from('profiles')
+    .select('is_public, username')
+    .eq('id', session.user.id)
+    .single();
+  if (error || !data) return { ok: false, error: 'Profile not found.' };
+  return {
+    ok: true,
+    data: { is_public: data.is_public, username: data.username },
+  };
+}
+
+// ── URL sharing ───────────────────────────────────────────────────────────────
+async function shareUrlWithUser(url: string, recipientId: string): Promise<Response<{ share_id?: string; message?: string }>> {
+  const session = (await getSupabase().auth.getSession()).data.session;
+  if (!session) return { ok: false, error: 'Not signed in.' };
+  const normalized = normalizeUrl(url);
+  if (!normalized) return { ok: false, error: 'Invalid URL.' };
+
+  let urlId: string | undefined;
+  const { data: urlData } = await getSupabase()
+    .from('urls')
+    .select('id')
+    .eq('url', normalized)
+    .eq('approved', true)
+    .maybeSingle();
+  urlId = urlData?.id;
+
+  if (!urlId) {
+    const withSlash = normalized.endsWith('/') ? normalized : normalized + '/';
+    const { data: altData } = await getSupabase()
+      .from('urls')
+      .select('id')
+      .eq('url', withSlash)
+      .eq('approved', true)
+      .maybeSingle();
+    urlId = altData?.id;
+  }
+
+  if (!urlId) {
+    const { data: newUrl, error: createError } = await getSupabase()
+      .from('urls')
+      .insert({ url: normalized, original_url: normalized, approved: false, source: 'user_submission' })
+      .select('id')
+      .single();
+    if (createError) return { ok: false, error: "Couldn't create URL record." };
+    urlId = newUrl.id;
+  }
+
+  const { data, error } = await getSupabase().functions.invoke('share-url', {
+    body: { action: 'share', recipient_id: recipientId, url_id: urlId },
+  });
+  if (error) return { ok: false, error: error.message };
+  if (data?.error) return { ok: false, error: data.error };
+  return { ok: true, data: { share_id: data?.share_id, message: data?.message } };
+}
+
+async function getShareRecipients(search?: string): Promise<Response<Array<{ user_id: string; username: string; display_name: string | null; avatar_url: string | null; relationship: string }>>> {
+  const session = (await getSupabase().auth.getSession()).data.session;
+  if (!session) return { ok: false, error: 'Not signed in.' };
+  const { data, error } = await getSupabase().functions.invoke('share-url', {
+    body: { action: 'recipients', search: search || undefined },
+  });
+  if (error) return { ok: false, error: error.message };
+  if (data?.error) return { ok: false, error: data.error };
+  return { ok: true, data: (data?.recipients ?? []) as any[] };
 }
 
 console.log('[roam] background service worker started');

@@ -22,6 +22,7 @@ import app.roam.android.model.serializeHistory
 import app.roam.android.model.AppNotification
 import app.roam.android.model.UserProfile
 import app.roam.android.util.connectivityFlow
+import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.exceptions.UnauthorizedRestException
 import io.sentry.Sentry
 import java.io.IOException
@@ -47,6 +48,8 @@ import kotlinx.coroutines.withTimeout
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.JsonPrimitive
 
 sealed interface WebNavCommand {
     object Back : WebNavCommand
@@ -75,6 +78,7 @@ class MainViewModel(
     private val SAVED_KEY = "saved_urls"
     private val WEB_DARK_KEY = "web_dark_mode"
     private val JS_ENABLED_KEY = "js_enabled"
+    private val AUTO_TRANSLATE_KEY = "auto_translate"
     private val TRANSLATE_LANG_KEY = "translate_language"
     private val SHEET_GESTURE_MODE_KEY = "sheet_gesture_mode"  // "slide" or "tap"
     private val PREFETCH_WEBVIEW_KEY  = "prefetch_webview"
@@ -183,7 +187,7 @@ class MainViewModel(
             app.roam.android.data.supabase.auth.currentUserOrNull()
                 ?.appMetadata
                 ?.get("role")
-                ?.let { (it as? kotlinx.serialization.json.JsonPrimitive)?.contentOrNull }
+                ?.let { (it as? JsonPrimitive)?.contentOrNull }
         } catch (_: Exception) { null }
         _isModerator.value = role == "moderator"
         // Admins get admin mode automatically — no tap required
@@ -210,6 +214,23 @@ class MainViewModel(
     fun setAppTheme(theme: String) {
         _appTheme.value = theme
         prefs.edit().putString(APP_THEME_KEY, theme).apply()
+    }
+
+    /** User preference: auto-translate pages */
+    private val _autoTranslate = MutableStateFlow(prefs.getBoolean(AUTO_TRANSLATE_KEY, false))
+    val autoTranslate: StateFlow<Boolean> = _autoTranslate.asStateFlow()
+
+    fun setAutoTranslate(enabled: Boolean) {
+        _autoTranslate.value = enabled
+        prefs.edit().putBoolean(AUTO_TRANSLATE_KEY, enabled).apply()
+        // If enabling, immediately translate the current page
+        if (enabled) {
+            val raw = _rawUrl.value ?: return
+            _currentUrl.value = translateUrl(raw)
+        } else {
+            // If disabling, revert to the raw URL
+            _currentUrl.value = _rawUrl.value
+        }
     }
 
     /** Returns true if the user has already seen the feature walkthrough. */

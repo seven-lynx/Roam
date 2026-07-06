@@ -35,7 +35,11 @@ export type Request =
   | { type: 'SAVE_SESSION'; accessToken: string; refreshToken: string }
   | { type: 'GET_PROFILE' }
   | { type: 'SEND_FEEDBACK'; message: string; email?: string; platform: string }
-  | { type: 'REPORT_URL'; url_id: string };
+  | { type: 'REPORT_URL'; url_id: string }
+  | { type: 'SET_PROFILE_PUBLIC'; isPublic: boolean }
+  | { type: 'SHARE_URL_WITH_USER'; url: string; recipientId: string }
+  | { type: 'GET_SHARE_RECIPIENTS'; search?: string }
+  | { type: 'GET_PROFILE_PUBLIC' };
 
 export type Response<T = unknown> =
   | { ok: true; data: T }

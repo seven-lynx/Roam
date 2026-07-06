@@ -5,7 +5,7 @@ import { createClient } from '@/lib/supabase/client';
 
 interface Notification {
   id: string;
-  type: 'url_approved' | 'url_rejected' | 'new_follower';
+  type: 'url_approved' | 'url_rejected' | 'new_follower' | 'badge_unlocked' | 'level_up';
   title: string;
   body: string | null;
   data: Record<string, unknown>;
@@ -35,21 +35,6 @@ export function NotificationBell() {
   const [open, setOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  async function checkPushState() {
-    try {
-      if (!('Notification' in window) || !('serviceWorker' in navigator)) return;
-      const perm = Notification.permission;
-      if (perm === 'granted') {
-        const reg = await navigator.serviceWorker.getRegistration();
-        if (reg) {
-          const sub = await reg.pushManager.getSubscription();
-          // pushEnabled is intentionally unused on the bell — check only updates state for future use
-          void sub;
-        }
-      }
-    } catch { /* ignore */ }
-  }
-
   async function fetchUnreadCount() {
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -76,10 +61,9 @@ export function NotificationBell() {
     }
   }, []);
 
-  // Fetch unread count on mount + check push permission
+  // Fetch unread count on mount + poll
   useEffect(() => {
     fetchUnreadCount();
-    checkPushState();
 
     // Poll for new notifications every 30 seconds
     const interval = setInterval(fetchUnreadCount, 30_000);
@@ -160,6 +144,8 @@ export function NotificationBell() {
       case 'url_approved': return '✅';
       case 'url_rejected': return '❌';
       case 'new_follower': return '👤';
+      case 'badge_unlocked': return '🏅';
+      case 'level_up': return '⬆️';
       default: return '🔔';
     }
   }
@@ -225,7 +211,15 @@ export function NotificationBell() {
               </div>
             ) : (
 notifications.map((n) => {
-                  const linkUrl = typeof n.data?.url === 'string' ? n.data.url : null
+                  const linkUrl =
+                    typeof n.data?.url === 'string' ? n.data.url :
+                    n.type === 'new_follower' && typeof n.data?.follower_username === 'string'
+                      ? `/u/${n.data.follower_username}` :
+                    n.type === 'badge_unlocked' && typeof n.data?.v_profile_url === 'string'
+                      ? n.data.v_profile_url :
+                    n.type === 'level_up' && typeof n.data?.v_profile_url === 'string'
+                      ? n.data.v_profile_url :
+                    null
                   const Content = (
                     <div className="flex gap-3">
                       <span className="text-lg flex-shrink-0 mt-0.5">{getIcon(n.type)}</span>
@@ -251,16 +245,27 @@ notifications.map((n) => {
                     !n.read ? 'bg-blue-50/50 dark:bg-blue-950/20' : ''
                   }`
 
+                  const isExternal = linkUrl && (linkUrl.startsWith('http://') || linkUrl.startsWith('https://'))
                   return linkUrl ? (
-                    <a
-                      key={n.id}
-                      href={linkUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className={className}
-                    >
-                      {Content}
-                    </a>
+                    isExternal ? (
+                      <a
+                        key={n.id}
+                        href={linkUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className={className}
+                      >
+                        {Content}
+                      </a>
+                    ) : (
+                      <a
+                        key={n.id}
+                        href={linkUrl}
+                        className={className}
+                      >
+                        {Content}
+                      </a>
+                    )
                   ) : (
                     <div key={n.id} className={className}>
                       {Content}

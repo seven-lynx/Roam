@@ -150,6 +150,8 @@ export function SettingsClient({
   const [skipPaywalled, setSkipPaywalled] = useState(initialSkipPaywalled);
 
   // Password change (email users only)
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [currentPasswordError, setCurrentPasswordError] = useState<string | null>(null);
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [passwordStrength, setPasswordStrength] = useState<'weak' | 'fair' | 'good' | 'strong'>('weak');
@@ -315,10 +317,21 @@ export function SettingsClient({
     setPasswordFormError(null);
     setPasswordSuccess(null);
     try {
+      // Re-authenticate with current password first (AAL2 requirement)
+      const { error: reauthError } = await supabase.auth.signInWithPassword({
+        email,
+        password: currentPassword,
+      });
+      if (reauthError) {
+        setCurrentPasswordError('Current password is incorrect.');
+        setPasswordLoading(false);
+        return;
+      }
+
       const { error: err } = await supabase.auth.updateUser({ password: newPassword });
       if (err) { setPasswordFormError(err.message); return; }
       setPasswordSuccess('Password updated.');
-      setNewPassword(''); setConfirmPassword('');
+      setCurrentPassword(''); setNewPassword(''); setConfirmPassword('');
     } catch (err) {
       Sentry.captureException(err, { tags: { context: 'password-change' } });
       setPasswordFormError(err instanceof Error ? err.message : 'Failed to update password');
@@ -362,7 +375,7 @@ export function SettingsClient({
     }
   }
 
-  const passwordFormValid = newPassword && confirmPassword && !passwordError && !confirmError && passwordStrength !== 'weak';
+  const passwordFormValid = currentPassword && newPassword && confirmPassword && !passwordError && !confirmError && passwordStrength !== 'weak';
 
   return (
     <div className="min-h-[calc(100vh-8rem)] bg-white dark:bg-zinc-950">
@@ -503,6 +516,17 @@ export function SettingsClient({
               <Section title="Security">
                 {isEmailUser ? (
                   <form onSubmit={handleUpdatePassword} className="flex flex-col gap-4" noValidate>
+                    <div className="flex flex-col gap-1.5">
+                      <label htmlFor="current-password" className="text-sm font-medium text-zinc-700 dark:text-zinc-300">Current password</label>
+                      <input id="current-password" type="password" autoComplete="current-password" value={currentPassword}
+                        onChange={e => {
+                          setCurrentPassword(e.target.value);
+                          setCurrentPasswordError(null);
+                        }}
+                        className={`w-full rounded-lg border px-4 py-2.5 text-sm bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:focus:ring-white ${currentPasswordError ? 'border-red-500' : 'border-zinc-300 dark:border-zinc-700'}`}
+                      />
+                      {currentPasswordError && <p className="text-xs text-red-600">{currentPasswordError}</p>}
+                    </div>
                     <div className="flex flex-col gap-1.5">
                       <label htmlFor="new-password" className="text-sm font-medium text-zinc-700 dark:text-zinc-300">New password</label>
                       <input id="new-password" type="password" autoComplete="new-password" value={newPassword}
