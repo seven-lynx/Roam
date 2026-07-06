@@ -5,7 +5,10 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { getCorsHeaders } from '../_shared/cors.ts'
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
-const SUPABASE_ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY')!
+const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+
+// Admin client bypasses RLS for aggregating across all users
+const adminClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
 
 interface LeaderboardEntry {
   rank: number
@@ -33,14 +36,8 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const supabase = createClient(
-      SUPABASE_URL,
-      SUPABASE_ANON_KEY,
-      { global: { headers: { Authorization: req.headers.get('Authorization') ?? '' } } },
-    )
-
     // Check if we have a fresh snapshot (< 1 hour old)
-    const { data: existing } = await supabase
+    const { data: existing } = await adminClient
       .from('leaderboard_snapshots')
       .select('snapshot_at')
       .eq('period', period)
@@ -51,11 +48,11 @@ Deno.serve(async (req) => {
       (Date.now() - new Date(existing[0].snapshot_at).getTime()) > 60 * 60 * 1000
 
     if (isStale) {
-      await refreshSnapshot(supabase, period)
+      await refreshSnapshot(period)
     }
 
     // Fetch the latest snapshot
-    const { data: rankings, error } = await supabase
+    const { data: rankings, error } = await adminClient
       .from('leaderboard_snapshots')
       .select(`
         rank,
@@ -93,11 +90,10 @@ Deno.serve(async (req) => {
   }
 })
 
-// deno-lint-ignore no-explicit-any
-async function refreshSnapshot(supabase: any, period: string) {
+async function refreshSnapshot(period: string) {
   const snapshotAt = new Date().toISOString()
 
-  let xpQuery = supabase.from('xp_log').select('user_id, xp_awarded')
+  let xpQuery = adminClient.from('xp_log').select('user_id, xp_awarded')
 
   if (period === 'weekly') {
     const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
@@ -121,7 +117,7 @@ async function refreshSnapshot(supabase: any, period: string) {
   }
 
   // Get badge counts
-  const { data: badgeData } = await supabase
+  const { data: badgeData } = await adminClient
     .from('user_badges')
     .select('user_id')
     .not('unlocked_at', 'is', null)
@@ -145,10 +141,10 @@ async function refreshSnapshot(supabase: any, period: string) {
 
   if (sorted.length > 0) {
     // Clear old snapshot for this period
-    await supabase.from('leaderboard_snapshots').delete().eq('period', period)
+    await adminClient.from('leaderboard_snapshots').delete().eq('period', period)
 
     // Insert new snapshot
-    const { error: insertError } = await supabase.from('leaderboard_snapshots').insert(
+    const { error: insertError } = await adminClient.from('leaderboard_snapshots').insert(
       sorted.map((s) => ({
         period,
         user_id: s.user_id,
