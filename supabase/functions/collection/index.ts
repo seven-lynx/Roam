@@ -87,9 +87,16 @@ Deno.serve(async (req) => {
         return json({ error: error.message }, 500)
       }
 
-      // Fire-and-forget badge evaluation — first-collection / curator badges.
-      supabase.rpc('evaluate_badges', { p_user_id: user.id })
-        .then(() => {}, (e: unknown) => { console.error('badge evaluation failed', e) })
+      // Fire-and-forget XP + badge evaluation — create_collection XP + first-collection / curator badges.
+      supabase.rpc('award_xp', { p_user_id: user.id, p_action: 'create_collection', p_metadata: { collection_id: data.id } })
+        .then(
+          () => supabase.rpc('evaluate_badges', { p_user_id: user.id }),
+          (e: unknown) => { console.error('xp award failed (collection-create)', e) }
+        )
+        .then(
+          () => {},
+          (e: unknown) => { console.error('badge evaluation failed (collection-create)', e) }
+        )
 
       return json(data, 201)
     }

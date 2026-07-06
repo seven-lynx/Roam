@@ -44,10 +44,17 @@ Deno.serve(async (req) => {
       )
     if (error) return json({ error: error.message }, 500)
 
-    // Fire-and-forget badge evaluation — chained .then() avoids keeping the
+    // Fire-and-forget XP + badge evaluation — chained .then() avoids keeping the
     // Deno isolate alive (unlike setTimeout) while still running after the DB write.
-    supabase.rpc('evaluate_badges', { p_user_id: user.id })
-      .then(() => {}, (e: unknown) => { console.error('badge evaluation failed', e) })
+    supabase.rpc('award_xp', { p_user_id: user.id, p_action: 'save_url', p_metadata: { url } })
+      .then(
+        () => supabase.rpc('evaluate_badges', { p_user_id: user.id }),
+        (e: unknown) => { console.error('xp award failed (save-url)', e) }
+      )
+      .then(
+        () => {},
+        (e: unknown) => { console.error('badge evaluation failed (save-url)', e) }
+      )
 
     return json({ ok: true })
   }
