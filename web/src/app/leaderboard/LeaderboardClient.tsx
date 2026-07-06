@@ -40,17 +40,30 @@ export function LeaderboardClient() {
         const { data: { session } } = await supabase.auth.getSession();
         const token = session?.access_token;
         const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-        const res = await fetch(
-          `${supabaseUrl}/functions/v1/leaderboard?period=${period}`,
-          {
-            headers: token ? { Authorization: `Bearer ${token}` } : {},
-          }
-        );
+        const fetchUrl = `${supabaseUrl}/functions/v1/leaderboard?period=${period}`;
+
+        console.log('[leaderboard] Fetching:', fetchUrl, '| hasToken:', !!token);
+
+        const res = await fetch(fetchUrl, {
+          headers: {
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+        });
+
+        console.log('[leaderboard] Response status:', res.status, '| type:', res.type);
+
         const data = await res.json();
-        if (!res.ok) throw new Error(data.error || 'Failed to load leaderboard');
+        if (!res.ok) {
+          console.error('[leaderboard] API error:', data);
+          throw new Error(data.error || `HTTP ${res.status}: Failed to load leaderboard`);
+        }
+
+        console.log('[leaderboard] Entries received:', data?.entries?.length ?? 0);
         setEntries(data?.entries ?? []);
       } catch (e) {
-        setError(e instanceof Error ? e.message : 'Failed to load leaderboard');
+        const msg = e instanceof Error ? e.message : 'Failed to load leaderboard';
+        console.error('[leaderboard] Fetch failed:', e);
+        setError(msg);
       } finally {
         setLoading(false);
       }
