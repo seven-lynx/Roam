@@ -2,6 +2,38 @@
 
 All notable changes to the Roam Android app.
 
+## [1.1.0] - 2026-07-06
+
+### Added
+- Social features — Follow/unfollow users, view public profiles, search users, and share URLs with friends directly from the app.
+- "You" tab — A new hub replacing the Settings bottom bar icon. View your level, XP, streak, follower/following counts, and badges at a glance, with quick access to all account and social screens.
+- Profile screen — View any user's public profile including bio, badges, collections, and follower/following counts. Follow or unfollow with a single tap.
+- Activity feed — See what people you follow are discovering and rating in real time, powered by a new server-side activity tracking system.
+- Share with a friend — Send the current page to a follower via the config sheet. Recipients get a push notification.
+- User search — Search for users by username to find and follow new curators.
+- Copy profile link — Copy your public profile URL to share outside the app.
+- Open in Roam Web — Opens roamtheweb.app inside the app with automatic sign-in via session cookie injection.
+- Follower/following lists — Tap follower or following counts on the You tab to expand an inline list and navigate to user profiles.
+
+### Changed
+- Bottom bar — "Settings" replaced with "You" as the primary hub for account, social, and app configuration.
+- Config bottom sheet — Added "Share with a friend" action. "Category preferences" now opens the native profile screen instead of the web app.
+- Leaderboard — Tapping a user row now navigates to their public profile.
+- Settings screen — Streamlined to browser and discovery configuration only. Profile, saved URLs, history, and notifications moved to the You hub.
+
+### Fixed
+- Leaderboard — Fixed crash caused by incorrect JSON response parsing (the Edge Function returns a wrapper object, not a bare array).
+- Leaderboard — Top-3 highlighting now uses theme-aware colors readable in both light and dark mode.
+- Badges — Badge counts now correctly use the `get_user_badges` RPC instead of querying the bare badges definitions table.
+- Leaderboard privacy — Private profiles no longer appear in leaderboard rankings. The Edge Function now filters by `is_public = true`.
+- User search privacy — Only public profiles appear in user search results.
+- XP farming — Tab switching no longer triggers duplicate roam calls and XP awards. Added client-side debounce (1s) on the Roam button.
+- XP consistency — Level now automatically stays in sync with XP via a database trigger. XP no longer appears to "jump up and down" — it only ever increases.
+
+### Backend
+- User activity system — New `user_activity` table with automatic triggers on ratings, URL submissions, and collection creation. Powers the cross-platform activity feed via the `get_activity_feed` RPC.
+- Leaderboard privacy filter — Edge Function now excludes private profiles from all leaderboard periods.
+
 ## [1.0.16] - 2026-07-01
 
 ### Fixed
