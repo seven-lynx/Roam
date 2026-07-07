@@ -1,5 +1,6 @@
 ﻿package app.roam.android.data.repository
 
+import androidx.core.net.toUri
 import app.roam.android.data.supabase
 import app.roam.android.model.AppNotification
 import app.roam.android.model.Badge
@@ -18,6 +19,7 @@ import io.github.jan.supabase.postgrest.query.Columns
 import io.github.jan.supabase.postgrest.query.Order
 import io.ktor.client.call.body
 import io.ktor.client.statement.bodyAsText
+import io.ktor.http.headersOf
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
@@ -117,12 +119,14 @@ class RoamRepository {
         excludeDomain: String? = null,
         categoryId: String? = null,
         subcategoryId: String? = null,
+        prefetch: Boolean = false,
     ): RoamUrl? {
         val body = buildJsonObject {
             collectionId?.let { put("collection_id", it) }
             excludeDomain?.let { put("exclude_domain", it) }
             categoryId?.let { put("category_id", it) }
             subcategoryId?.let { put("subcategory_id", it) }
+            if (prefetch) put("prefetch", true)
         }
 
         // Verify session is valid AND the access token is actually available
@@ -157,6 +161,14 @@ class RoamRepository {
      * [url] is required; [subcategoryId] is the user-selected category chip.
      */
     suspend fun submitUrl(url: String, categoryId: String? = null, subcategoryId: String? = null): SubmitResult {
+        // Verify session is valid AND the access token is actually available
+        // before the API call. This prevents the race where sessionStatus says
+        // "Authenticated" but the token hasn't been persisted to SharedPreferences yet,
+        // causing functions.invoke() to send a header-less request → 401.
+        if (!ensureAuthenticated()) {
+            val status = supabase.auth.sessionStatus.value
+            return SubmitResult.Failed("Session not authenticated: $status")
+        }
         val body = buildJsonObject {
             put("url", url)
             categoryId?.let { put("category_id", it) }
@@ -370,6 +382,7 @@ class RoamRepository {
 
     /** Saves a URL to the server-side saved_urls table. */
     suspend fun saveUrl(url: String, title: String, urlId: String? = null) {
+        if (!ensureAuthenticated()) return
         val body = buildJsonObject {
             put("action", "save")
             put("url", url)
@@ -537,26 +550,28 @@ class RoamRepository {
         return roamed to submitted
     }
 
+    /** Fetches the current user's badge progress via the get_user_badges RPC. */
     suspend fun getBadges(): List<Badge> {
-        supabase.auth.currentUserOrNull() ?: return emptyList()
+        val userId = supabase.auth.currentUserOrNull()?.id ?: return emptyList()
         return runCatching {
             supabase.postgrest
-                .from("badges")
-                .select()
+                .rpc("get_user_badges", buildJsonObject { put("p_user_id", userId) })
                 .decodeList<Badge>()
         }.getOrDefault(emptyList())
     }
 
     /**
      * Fetches the leaderboard for a given [period] (weekly, monthly, all_time).
-     * Calls the 'leaderboard' edge function.
+     * Calls the 'leaderboard' edge function which returns { period, entries, updated_at }.
      */
     suspend fun getLeaderboard(period: String): List<app.roam.android.model.LeaderboardEntry> {
         val body = buildJsonObject {
             put("period", period)
         }
         val response = supabase.functions.invoke("leaderboard", body = body)
-        return json.decodeFromString(response.body())
+        val text = runCatching { response.bodyAsText() }.getOrNull() ?: "{}"
+        val wrapper = json.decodeFromString<LeaderboardResponse>(text)
+        return wrapper.entries
     }
 
     // ── Private helpers ───────────────────────────────────────────────────────
@@ -635,6 +650,196 @@ class RoamRepository {
                 }
         }
     }
+
+    // ── Follow system ──────────────────────────────────────────────────────
+
+    /** Follows a user. Calls the follow Edge Function for immediate follow + badge evaluation. */
+    suspend fun follow(targetUserId: String) {
+        val body = buildJsonObject {
+            put("action", "follow")
+            put("following_id", targetUserId)
+        }
+        supabase.functions.invoke("follow", body = body)
+    }
+
+    /** Unfollows a user via the follow Edge Function. */
+    suspend fun unfollow(targetUserId: String) {
+        val body = buildJsonObject {
+            put("action", "unfollow")
+            put("following_id", targetUserId)
+        }
+        supabase.functions.invoke("follow", body = body)
+    }
+
+    /**
+     * Checks whether the current user is following [targetUserId].
+     * Returns "following" or "none".
+     */
+    suspend fun getFollowStatus(targetUserId: String): String {
+        val userId = supabase.auth.currentUserOrNull()?.id ?: return "none"
+        val result = supabase.postgrest
+            .from("follows")
+            .select(Columns.list("id")) {
+                filter {
+                    eq("follower_id", userId)
+                    eq("following_id", targetUserId)
+                }
+                limit(1)
+            }
+            .decodeList<IdRow>()
+        return if (result.isNotEmpty()) "following" else "none"
+    }
+
+    /** Returns the follower count for [userId]. */
+    suspend fun getFollowerCount(userId: String): Int {
+        return supabase.postgrest
+            .from("follows")
+            .select(Columns.list("id")) {
+                filter { eq("following_id", userId) }
+            }
+            .decodeList<IdRow>().size
+    }
+
+    /** Returns the following count for [userId]. */
+    suspend fun getFollowingCount(userId: String): Int {
+        return supabase.postgrest
+            .from("follows")
+            .select(Columns.list("id")) {
+                filter { eq("follower_id", userId) }
+            }
+            .decodeList<IdRow>().size
+    }
+
+    /** Returns the list of users following [userId], newest first. */
+    suspend fun getFollowers(userId: String): List<app.roam.android.model.FollowUser> {
+        val followRows = supabase.postgrest
+            .from("follows")
+            .select(Columns.list("follower_id")) {
+                filter { eq("following_id", userId) }
+                order("created_at", Order.DESCENDING)
+            }
+            .decodeList<FollowerIdRow>()
+
+        val followerIds = followRows.mapNotNull { it.followerId }
+        if (followerIds.isEmpty()) return emptyList()
+
+        return supabase.postgrest
+            .from("profiles")
+            .select(Columns.list("id", "username", "display_name", "avatar_url")) {
+                filter { isIn("id", followerIds) }
+            }
+            .decodeList<app.roam.android.model.FollowUser>()
+    }
+
+    /** Returns the list of users [userId] is following, newest first. */
+    suspend fun getFollowing(userId: String): List<app.roam.android.model.FollowUser> {
+        val followRows = supabase.postgrest
+            .from("follows")
+            .select(Columns.list("following_id")) {
+                filter { eq("follower_id", userId) }
+                order("created_at", Order.DESCENDING)
+            }
+            .decodeList<FollowingIdRow>()
+
+        val followingIds = followRows.mapNotNull { it.followingId }
+        if (followingIds.isEmpty()) return emptyList()
+
+        return supabase.postgrest
+            .from("profiles")
+            .select(Columns.list("id", "username", "display_name", "avatar_url")) {
+                filter { isIn("id", followingIds) }
+            }
+            .decodeList<app.roam.android.model.FollowUser>()
+    }
+
+    // ── Public profiles ─────────────────────────────────────────────────────
+
+    /**
+     * Fetches a user's public profile via the profile Edge Function.
+     * Returns follower/following counts, public collections, badges, and gamification data.
+     * Returns null for non-existent or private profiles.
+     */
+    suspend fun getPublicProfile(username: String): app.roam.android.model.PublicProfile? {
+        val baseUrl = supabase.supabaseUrl.toUri()
+        val url = "$baseUrl/functions/v1/profile?username=${java.net.URLEncoder.encode(username, "UTF-8")}"
+        val token = supabase.auth.currentAccessTokenOrNull()
+        val headers = if (token != null) headersOf("Authorization", "Bearer $token") else headersOf()
+        return runCatching {
+            val response = supabase.functions.invoke(url, body = buildJsonObject {}, headers = headers)
+            json.decodeFromString<app.roam.android.model.PublicProfile>(response.bodyAsText())
+        }.getOrNull()
+    }
+
+    // ── User search ─────────────────────────────────────────────────────────
+
+    /** Searches for users by username or display name. Returns up to 20 matches. */
+    suspend fun searchUsers(query: String): List<app.roam.android.model.FollowUser> {
+        if (query.isBlank()) return emptyList()
+        return supabase.postgrest
+            .from("profiles")
+            .select(Columns.list("id", "username", "display_name", "avatar_url")) {
+                filter {
+                    ilike("username", "%$query%")
+                    eq("is_public", true)
+                }
+                order("username", Order.ASCENDING)
+                limit(20)
+            }
+            .decodeList<app.roam.android.model.FollowUser>()
+    }
+
+    // ── Share URL with user ─────────────────────────────────────────────────
+
+    /** Sends a URL to another user. Triggers a push notification. */
+    suspend fun shareUrl(recipientId: String, urlId: String) {
+        val body = buildJsonObject {
+            put("action", "share")
+            put("recipient_id", recipientId)
+            put("url_id", urlId)
+        }
+        supabase.functions.invoke("share-url", body = body)
+    }
+
+    /** Returns users the current user can share URLs with (followers + search). */
+    suspend fun getShareRecipients(query: String? = null): List<ShareRecipientRow> {
+        val userId = supabase.auth.currentUserOrNull()?.id ?: return emptyList()
+        val body = buildJsonObject {
+            put("action", "recipients")
+            query?.let { put("q", it) }
+        }
+        val response = supabase.functions.invoke("share-url", body = body)
+        return json.decodeFromString(response.bodyAsText())
+    }
+
+    @Serializable
+    data class ShareRecipientRow(
+        val id: String,
+        val username: String,
+        @SerialName("display_name") val displayName: String = "",
+    )
+
+    // ── Activity feed ────────────────────────────────────────────────────────
+
+    /** Fetches the activity feed from followed users via the get_activity_feed RPC. */
+    suspend fun getActivityFeed(limit: Int = 30): List<app.roam.android.model.ActivityFeedItem> {
+        supabase.auth.currentUserOrNull() ?: return emptyList()
+        return runCatching {
+            supabase.postgrest
+                .rpc("get_activity_feed", buildJsonObject { put("p_limit", limit.toString()) })
+                .decodeList<app.roam.android.model.ActivityFeedItem>()
+        }.getOrDefault(emptyList())
+    }
+
+    @Serializable
+    private data class LeaderboardResponse(
+        val entries: List<app.roam.android.model.LeaderboardEntry> = emptyList(),
+    )
+
+    @Serializable
+    data class FollowerIdRow(@SerialName("follower_id") val followerId: String)
+
+    @Serializable
+    data class FollowingIdRow(@SerialName("following_id") val followingId: String)
 
     /** Deletes a single notification by ID. Only allows deletion of the current user's notifications. */
     suspend fun deleteNotification(notificationId: String) {

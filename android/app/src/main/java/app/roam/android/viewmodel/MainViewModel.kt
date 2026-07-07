@@ -437,6 +437,68 @@ class MainViewModel(
     private val _leaderboardError = MutableStateFlow<String?>(null)
     val leaderboardError: StateFlow<String?> = _leaderboardError.asStateFlow()
 
+    // ── Social: follow system ──────────────────────────────────────────────
+
+    private val _followerCount = MutableStateFlow(0)
+    val followerCount: StateFlow<Int> = _followerCount.asStateFlow()
+
+    private val _followingCount = MutableStateFlow(0)
+    val followingCount: StateFlow<Int> = _followingCount.asStateFlow()
+
+    private val _followers = MutableStateFlow<List<app.roam.android.model.FollowUser>>(emptyList())
+    val followers: StateFlow<List<app.roam.android.model.FollowUser>> = _followers.asStateFlow()
+
+    private val _following = MutableStateFlow<List<app.roam.android.model.FollowUser>>(emptyList())
+    val following: StateFlow<List<app.roam.android.model.FollowUser>> = _following.asStateFlow()
+
+    private val _followListsLoading = MutableStateFlow(false)
+    val followListsLoading: StateFlow<Boolean> = _followListsLoading.asStateFlow()
+
+    private val _publicProfile = MutableStateFlow<app.roam.android.model.PublicProfile?>(null)
+    val publicProfile: StateFlow<app.roam.android.model.PublicProfile?> = _publicProfile.asStateFlow()
+
+    private val _publicProfileLoading = MutableStateFlow(false)
+    val publicProfileLoading: StateFlow<Boolean> = _publicProfileLoading.asStateFlow()
+
+    private val _publicProfileError = MutableStateFlow<String?>(null)
+    val publicProfileError: StateFlow<String?> = _publicProfileError.asStateFlow()
+
+    private val _followStatus = MutableStateFlow("none")
+    val followStatus: StateFlow<String> = _followStatus.asStateFlow()
+
+    private val _followLoading = MutableStateFlow(false)
+    val followLoading: StateFlow<Boolean> = _followLoading.asStateFlow()
+
+    // ── Social: share URL ──────────────────────────────────────────────────
+
+    private val _showShareUrlSheet = MutableStateFlow(false)
+    val showShareUrlSheet: StateFlow<Boolean> = _showShareUrlSheet.asStateFlow()
+
+    private val _shareRecipients = MutableStateFlow<List<app.roam.android.model.FollowUser>>(emptyList())
+    val shareRecipients: StateFlow<List<app.roam.android.model.FollowUser>> = _shareRecipients.asStateFlow()
+
+    private val _shareRecipientsLoading = MutableStateFlow(false)
+    val shareRecipientsLoading: StateFlow<Boolean> = _shareRecipientsLoading.asStateFlow()
+
+    // ── Social: user search ────────────────────────────────────────────────
+
+    private val _userSearchResults = MutableStateFlow<List<app.roam.android.model.FollowUser>>(emptyList())
+    val userSearchResults: StateFlow<List<app.roam.android.model.FollowUser>> = _userSearchResults.asStateFlow()
+
+    private val _userSearchLoading = MutableStateFlow(false)
+    val userSearchLoading: StateFlow<Boolean> = _userSearchLoading.asStateFlow()
+
+    // ── Activity feed ──────────────────────────────────────────────────────
+
+    private val _activityFeed = MutableStateFlow<List<app.roam.android.model.ActivityFeedItem>>(emptyList())
+    val activityFeed: StateFlow<List<app.roam.android.model.ActivityFeedItem>> = _activityFeed.asStateFlow()
+
+    private val _activityFeedLoading = MutableStateFlow(false)
+    val activityFeedLoading: StateFlow<Boolean> = _activityFeedLoading.asStateFlow()
+
+    private val _activityFeedError = MutableStateFlow<String?>(null)
+    val activityFeedError: StateFlow<String?> = _activityFeedError.asStateFlow()
+
     fun loadLeaderboard(period: String) {
         viewModelScope.launch {
             _leaderboardLoading.value = true
@@ -515,6 +577,9 @@ class MainViewModel(
      *  concurrent API calls from racing and overwriting each other's results. */
     private var roamJob: Job? = null
 
+    /** Timestamp of the last user-initiated roam for client-side cooldown. */
+    private var lastRoamMillis = 0L
+
     // ── Connectivity + offline queue (14.9) ───────────────────────────────────
 
     /** True when the device has an active internet connection */
@@ -587,6 +652,11 @@ class MainViewModel(
     fun roam(excludeDomain: String? = null) {
         haptic(getApplication())
         _hasRatedUp.value = false
+
+        // ── Client-side debounce: ignore rapid-fire taps within 1 second ──────
+        val now = System.currentTimeMillis()
+        if (now - lastRoamMillis < 1000L) return
+        lastRoamMillis = now
 
         // Default to excluding the current domain so the bottom-bar Roam button
         // behaves the same as Thumbs Down / Report Broken Link — otherwise the
@@ -783,6 +853,7 @@ class MainViewModel(
                                         excludeDomain = excludeDomain,
                                         categoryId = if (_focusModeEnabled.value) _focusCategoryId.value else null,
                                         subcategoryId = if (_focusModeEnabled.value) _focusSubcategoryId.value else null,
+                                        prefetch = true,
                                     )
                                 }.getOrNull()
                             }
@@ -1388,7 +1459,15 @@ class MainViewModel(
         _profileInterestsError.value = null
         loadBadges()
         viewModelScope.launch {
-            runCatching { _profile.value = repo.getProfile() }
+            runCatching {
+                _profile.value = repo.getProfile()
+                // After loading profile, fetch social stats
+                val userId = _profile.value?.id
+                if (userId != null) {
+                    _followerCount.value = repo.getFollowerCount(userId)
+                    _followingCount.value = repo.getFollowingCount(userId)
+                }
+            }
         }
         viewModelScope.launch {
             // Wait for the session to be fully authenticated before querying
@@ -1633,5 +1712,200 @@ class MainViewModel(
             t = t.cause
         }
         return false
+    }
+
+    // ── Social: Follow system (methods) ───────────────────────────────────
+
+    /** Loads follower and following counts for the current user. Called from loadProfile(). */
+    fun loadProfileSocial() {
+        val userId = _profile.value?.id ?: return
+        viewModelScope.launch {
+            runCatching {
+                val fc = repo.getFollowerCount(userId)
+                val fg = repo.getFollowingCount(userId)
+                _followerCount.value = fc
+                _followingCount.value = fg
+            }
+        }
+    }
+
+    /** Loads the list of followers for a given user. */
+    fun loadFollowers(userId: String) {
+        viewModelScope.launch {
+            _followListsLoading.value = true
+            runCatching { _followers.value = repo.getFollowers(userId) }
+            _followListsLoading.value = false
+        }
+    }
+
+    /** Loads the list of users a given user is following. */
+    fun loadFollowing(userId: String) {
+        viewModelScope.launch {
+            _followListsLoading.value = true
+            runCatching { _following.value = repo.getFollowing(userId) }
+            _followListsLoading.value = false
+        }
+    }
+
+    /** Loads a user's public profile by username. */
+    fun loadPublicProfile(username: String) {
+        _publicProfileLoading.value = true
+        _publicProfileError.value = null
+        _publicProfile.value = null
+        viewModelScope.launch {
+            val result = runCatching { repo.getPublicProfile(username) }
+            result.onSuccess { profile ->
+                _publicProfile.value = profile
+                if (profile != null) {
+                    _followStatus.value = repo.getFollowStatus(profile.id)
+                }
+            }
+            result.onFailure {
+                _publicProfileError.value = it.message ?: "Failed to load profile"
+            }
+            _publicProfileLoading.value = false
+        }
+    }
+
+    /** Follows a user (immediate — no pending/approval flow). */
+    fun followUser(targetUserId: String) {
+        _followLoading.value = true
+        viewModelScope.launch {
+            runCatching { repo.follow(targetUserId) }
+                .onSuccess {
+                    _followStatus.value = "following"
+                    val current = _publicProfile.value
+                    if (current != null) {
+                        _publicProfile.value = current.copy(followerCount = current.followerCount + 1)
+                    }
+                    _followerCount.value = _followerCount.value + 1
+                }
+                .onFailure { showTransientToast("Couldn't follow: ${it.message}") }
+            _followLoading.value = false
+        }
+    }
+
+    /** Unfollows a user. */
+    fun unfollowUser(targetUserId: String) {
+        _followLoading.value = true
+        viewModelScope.launch {
+            runCatching { repo.unfollow(targetUserId) }
+                .onSuccess {
+                    _followStatus.value = "none"
+                    val current = _publicProfile.value
+                    if (current != null && current.followerCount > 0) {
+                        _publicProfile.value = current.copy(followerCount = current.followerCount - 1)
+                    }
+                    if (_followerCount.value > 0) _followerCount.value = _followerCount.value - 1
+                }
+                .onFailure { showTransientToast("Couldn't unfollow: ${it.message}") }
+            _followLoading.value = false
+        }
+    }
+
+    // ── Social: Share URL (methods) ───────────────────────────────────────
+
+    fun openShareUrlSheet() {
+        _showShareUrlSheet.value = true
+        loadShareRecipients()
+    }
+
+    fun closeShareUrlSheet() {
+        _showShareUrlSheet.value = false
+    }
+
+    private fun loadShareRecipients(query: String? = null) {
+        viewModelScope.launch {
+            _shareRecipientsLoading.value = true
+            runCatching {
+                val rows = repo.getShareRecipients(query)
+                _shareRecipients.value = rows.map { r ->
+                    app.roam.android.model.FollowUser(
+                        id = r.id, username = r.username, displayName = r.displayName
+                    )
+                }
+            }
+            _shareRecipientsLoading.value = false
+        }
+    }
+
+    /** Shares the current URL with another user. */
+    fun shareUrlWithUser(recipientId: String) {
+        val loaded = _state.value as? RoamState.Loaded ?: return
+        viewModelScope.launch {
+            runCatching { repo.shareUrl(recipientId, loaded.roamUrl.id) }
+                .onSuccess {
+                    showTransientToast("Sent!")
+                    closeShareUrlSheet()
+                }
+                .onFailure { showTransientToast("Couldn't send: ${it.message}") }
+        }
+    }
+
+    // ── Social: User search ────────────────────────────────────────────────
+
+    fun searchUsers(query: String) {
+        if (query.isBlank()) {
+            _userSearchResults.value = emptyList()
+            return
+        }
+        viewModelScope.launch {
+            _userSearchLoading.value = true
+            runCatching { _userSearchResults.value = repo.searchUsers(query) }
+            _userSearchLoading.value = false
+        }
+    }
+
+    // ── Activity feed ──────────────────────────────────────────────────────
+
+    fun loadActivityFeed() {
+        viewModelScope.launch {
+            _activityFeedLoading.value = true
+            _activityFeedError.value = null
+            runCatching { _activityFeed.value = repo.getActivityFeed() }
+                .onFailure { _activityFeedError.value = it.message ?: "Failed to load activity" }
+            _activityFeedLoading.value = false
+        }
+    }
+
+    // ── Web navigation with auto sign-in ──────────────────────────────────
+
+    /**
+     * Navigates the WebView to [url], automatically injecting the Supabase
+     * session cookie if the URL is on roamtheweb.app so the user is signed in.
+     */
+    fun navigateToWeb(url: String) {
+        if (url.contains("roamtheweb.app")) {
+            app.roam.android.util.WebAuthUtil.injectSession()
+        }
+        navigateTo(url)
+    }
+
+    /** Returns the current user's public profile URL. */
+    fun getOwnProfileUrl(): String {
+        val username = _profile.value?.username ?: return "https://roamtheweb.app"
+        return "https://roamtheweb.app/u/$username"
+    }
+
+    /** Sets the username that should be navigated to when MainScreen loads (from deep link). */
+    fun setPendingProfileUsername(username: String) {
+        _pendingProfileUsername.value = username
+    }
+
+    fun consumePendingProfileUsername(): String? {
+        val u = _pendingProfileUsername.value
+        _pendingProfileUsername.value = null
+        return u
+    }
+
+    private val _pendingProfileUsername = MutableStateFlow<String?>(null)
+
+    /** Copies the current user's profile URL to clipboard (expects Context from UI layer). */
+    fun copyProfileLink(context: Context) {
+        val username = _profile.value?.username ?: return
+        val url = "https://roamtheweb.app/u/$username"
+        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+        clipboard.setPrimaryClip(android.content.ClipData.newPlainText("profile link", url))
+        showTransientToast("Profile link copied")
     }
 }

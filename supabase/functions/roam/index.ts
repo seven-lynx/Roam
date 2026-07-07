@@ -80,30 +80,47 @@ Deno.serve(async (req) => {
       wilson_score:   row.wilson_score,
     }
 
-    // Fire-and-forget gamification: streak, XP, then badge evaluation in sequence.
-    // All three are chained so evaluate_badges runs after award_xp commits,
-    // but none of them block the response that goes back to the user.
+    // ── Gamification: Fire-and-forget async calls ──────────────────────────
+    // Run streak update, XP award, and badge evaluation in parallel
+    // but don't block the response. Ignore failures — gamification is
+    // non-critical for the core roam experience.
     //
     // IMPORTANT: do NOT use setTimeout here. A pending setTimeout keeps the Deno
     // Deploy isolate alive for an extra 500 ms after the Response is returned,
     // during which Supabase's edge proxy can reset the HTTP/2 connection, causing
     // OkHttp on Android to throw "unexpected end of stream" even though the
     // response body was already fully sent. Chained .then() promises avoid this.
-    supabase.rpc('update_streak', { p_user_id: user.id }).then(
-      () => {},
-      (e: unknown) => { console.error('streak update failed', e) }
-    )
-    // Chain evaluate_badges after award_xp so XP is committed before badge
-    // thresholds are checked. Errors are logged but never bubble up.
-    supabase.rpc('award_xp', { p_user_id: user.id, p_action: 'roam', p_metadata: { url_id: row.id } })
-      .then(
-        () => supabase.rpc('evaluate_badges', { p_user_id: user.id }),
-        (e: unknown) => { console.error('xp award failed', e) }
-      )
-      .then(
+    //
+    // Skip gamification when this is a prefetch call (prefetch=true in body) so
+    // the Android prefill queue doesn't award infinite XP in the background.
+    const isPrefetch = body.prefetch === true
+
+    if (!isPrefetch) {
+      // Idempotency key prevents double-awarding XP for the same URL+user within
+      // the same minute — handles retries and race conditions.
+      const idemKey = `roam:${row.id}:${user.id}:${Math.floor(Date.now() / 60000)}`
+
+      supabase.rpc('update_streak', { p_user_id: user.id }).then(
         () => {},
-        (e: unknown) => { console.error('badge evaluation failed', e) }
+        (e: unknown) => { console.error('streak update failed', e) }
       )
+      // Chain evaluate_badges after award_xp so XP is committed before badge
+      // thresholds are checked. Errors are logged but never bubble up.
+      supabase.rpc('award_xp', {
+        p_user_id: user.id,
+        p_action: 'roam',
+        p_metadata: { url_id: row.id },
+        p_idempotency_key: idemKey,
+      })
+        .then(
+          () => supabase.rpc('evaluate_badges', { p_user_id: user.id }),
+          (e: unknown) => { console.error('xp award failed', e) }
+        )
+        .then(
+          () => {},
+          (e: unknown) => { console.error('badge evaluation failed', e) }
+        )
+    }
 
     return json(roamResult)
   } catch (e) {

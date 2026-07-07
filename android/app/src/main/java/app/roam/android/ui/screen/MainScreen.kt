@@ -3,10 +3,9 @@ package app.roam.android.ui.screen
 import android.Manifest
 import android.content.Intent
 import android.os.Build
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.browser.customtabs.CustomTabsIntent
-import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.fadeIn
@@ -23,17 +22,19 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material3.BottomSheetScaffold
-import androidx.compose.material3.SheetValue
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.rememberBottomSheetScaffoldState
-import androidx.compose.material3.rememberStandardBottomSheetState
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberBottomSheetScaffoldState
+import androidx.compose.material3.rememberStandardBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -44,29 +45,23 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.KeyboardArrowUp
-import androidx.compose.material3.Icon
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
-import android.webkit.CookieManager
-import io.github.jan.supabase.auth.auth
-import app.roam.android.BuildConfig
 import app.roam.android.MainActivity
-import app.roam.android.data.supabase
-import app.roam.android.ui.component.BottomBar
 import app.roam.android.ui.component.BackgroundPrefetchWebView
+import app.roam.android.ui.component.BottomBar
 import app.roam.android.ui.component.ConfigBottomSheet
 import app.roam.android.ui.component.FeatureWalkthrough
-import app.roam.android.ui.component.pickRandomMessage
 import app.roam.android.ui.component.RoamTab
 import app.roam.android.ui.component.RoamWebView
-import app.roam.android.ui.screen.HistoryScreen
+import app.roam.android.ui.component.ShareUrlBottomSheet
 import app.roam.android.ui.component.SubmitBottomSheet
+import app.roam.android.ui.component.UserSearchSheet
+import app.roam.android.ui.component.pickRandomMessage
 import app.roam.android.viewmodel.MainViewModel
 import app.roam.android.viewmodel.RoamState
 import kotlinx.coroutines.delay
@@ -77,27 +72,30 @@ fun MainScreen(
     vm: MainViewModel,
     activity: MainActivity,
     onSignOut: () -> Unit = {},
+    onNavigateToInterests: () -> Unit = {},
 ) {
     val context = LocalContext.current
-    // Track the active tab without NavController so DiscoverTab is never destroyed
     var currentTab by rememberSaveable { mutableStateOf(RoamTab.Roam.route) }
+    var viewedUsername by rememberSaveable { mutableStateOf<String?>(null) }
+    var showUserSearch by remember { mutableStateOf(false) }
     val focusModeEnabled by vm.focusModeEnabled.collectAsState()
     val hasRatedUp by vm.hasRatedUp.collectAsState()
 
-    // Request notification permission on Android 13+
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
         val launcher = rememberLauncherForActivityResult(
             ActivityResultContracts.RequestPermission()
         ) { isGranted ->
-            if (isGranted) {
-                android.util.Log.d("MainScreen", "Notification permission granted")
-            } else {
-                android.util.Log.d("MainScreen", "Notification permission denied")
-            }
+            if (isGranted) android.util.Log.d("MainScreen", "Notification permission granted")
+            else android.util.Log.d("MainScreen", "Notification permission denied")
         }
-        LaunchedEffect(Unit) {
-            launcher.launch(Manifest.permission.POST_NOTIFICATIONS)
-        }
+        LaunchedEffect(Unit) { launcher.launch(Manifest.permission.POST_NOTIFICATIONS) }
+    }
+
+    // Sign out handler
+    val doSignOut: () -> Unit = {
+        vm.resetForNewSession()
+        onSignOut()
+        currentTab = RoamTab.Roam.route
     }
 
     Scaffold(
@@ -114,109 +112,182 @@ fun MainScreen(
             )
         },
     ) { innerPadding ->
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding),
-        ) {
-            // System back button navigation between tabs
-            BackHandler(enabled = currentTab == RoamTab.Settings.route) { currentTab = RoamTab.Roam.route }
-            BackHandler(enabled = currentTab == RoamTab.Profile.route) { currentTab = RoamTab.Settings.route }
-            // SavedScreen's own BackHandler fires first when a collection is open;
-            // this one fires when at the top-level saved list.
-            BackHandler(enabled = currentTab == RoamTab.Saved.route) { currentTab = RoamTab.Settings.route }
-            BackHandler(enabled = currentTab == RoamTab.History.route) { currentTab = RoamTab.Settings.route }
+        Box(Modifier.fillMaxSize().padding(innerPadding)) {
+            BackHandler(enabled = currentTab != RoamTab.Roam.route) { currentTab = RoamTab.Roam.route }
 
-            // DiscoverTab is always in the composition tree — WebView is never destroyed
-            DiscoverTab(vm = vm, activity = activity, onSignOut = {
-                vm.resetForNewSession()
-                onSignOut()
-                currentTab = RoamTab.Roam.route
-            }, onNavigateToSaved = { currentTab = RoamTab.Saved.route })
+            // DiscoverTab always alive
+            DiscoverTab(
+                vm = vm,
+                activity = activity,
+                onSignOut = doSignOut,
+                onNavigateToSaved = { currentTab = RoamTab.Saved.route },
+                onNavigateToInterests = onNavigateToInterests,
+            )
 
-            // Other tabs slide in as full-screen overlays on top of the WebView
+            // ── You tab (hub) ──────────────────────────────────────
+            AnimatedVisibility(
+                visible = currentTab == RoamTab.You.route,
+                enter = fadeIn(spring()),
+                exit = fadeOut(spring()),
+            ) {
+                YouScreen(
+                    vm = vm,
+                    onSignOut = doSignOut,
+                    onNavigateToProfile = { currentTab = RoamTab.Profile.route },
+                    onNavigateToSaved = { currentTab = RoamTab.Saved.route },
+                    onNavigateToHistory = { currentTab = RoamTab.History.route },
+                    onNavigateToNotifications = { currentTab = RoamTab.Notifications.route },
+                    onNavigateToBadges = { currentTab = "badges" },
+                    onNavigateToLeaderboard = { currentTab = "leaderboard" },
+                    onNavigateToActivityFeed = { currentTab = "activity_feed" },
+                    onNavigateToSettings = { currentTab = RoamTab.Settings.route },
+                    onNavigateToPublicProfile = { username ->
+                        viewedUsername = username
+                        currentTab = RoamTab.PublicProfile.route
+                    },
+                    onNavigateToRoam = { currentTab = RoamTab.Roam.route },
+                    onOpenUserSearch = { showUserSearch = true },
+                )
+            }
+
+            // ── Settings ───────────────────────────────────────────
             AnimatedVisibility(
                 visible = currentTab == RoamTab.Settings.route,
-                enter = fadeIn(animationSpec = spring()),
-                exit = fadeOut(animationSpec = spring()),
+                enter = fadeIn(spring()),
+                exit = fadeOut(spring()),
             ) {
                 SettingsScreen(
                     vm = vm,
-                    onSignOut = {
-                        vm.resetForNewSession()
-                        onSignOut()
-                        currentTab = RoamTab.Roam.route
-                    },
+                    onSignOut = doSignOut,
                     onNavigateToSaved = { currentTab = RoamTab.Saved.route },
                     onNavigateToProfile = { currentTab = RoamTab.Profile.route },
                     onNavigateToHistory = { currentTab = RoamTab.History.route },
-                    onNavigateToNotifications = { currentTab = "notifications" },
+                    onNavigateToNotifications = { currentTab = RoamTab.Notifications.route },
                     onNavigateToRoam = { currentTab = RoamTab.Roam.route },
                 )
             }
 
-
+            // ── Saved ──────────────────────────────────────────────
             AnimatedVisibility(
                 visible = currentTab == RoamTab.Saved.route,
-                enter = fadeIn(animationSpec = spring()),
-                exit = fadeOut(animationSpec = spring()),
+                enter = fadeIn(spring()),
+                exit = fadeOut(spring()),
             ) {
                 SavedScreen(
                     vm = vm,
-                    onNavigateBack = { currentTab = RoamTab.Settings.route },
-                    onNavigateToUrl = { url ->
-                        vm.navigateTo(url)
-                        currentTab = RoamTab.Roam.route
-                    },
+                    onNavigateBack = { currentTab = RoamTab.You.route },
+                    onNavigateToUrl = { url -> vm.navigateToWeb(url); currentTab = RoamTab.Roam.route },
                 )
             }
 
+            // ── Profile ────────────────────────────────────────────
             AnimatedVisibility(
                 visible = currentTab == RoamTab.Profile.route,
-                enter = fadeIn(animationSpec = spring()),
-                exit = fadeOut(animationSpec = spring()),
+                enter = fadeIn(spring()),
+                exit = fadeOut(spring()),
             ) {
                 ProfileScreen(
                     vm = vm,
-                    onNavigateBack = { currentTab = RoamTab.Settings.route },
-                    onSignOut = {
-                        vm.resetForNewSession()
-                        onSignOut()
-                        currentTab = RoamTab.Roam.route
-                    },
+                    onNavigateBack = { currentTab = RoamTab.You.route },
+                    onSignOut = doSignOut,
+                    onNavigateToBadges = { currentTab = "badges" },
                 )
             }
 
+            // ── History ────────────────────────────────────────────
             AnimatedVisibility(
                 visible = currentTab == RoamTab.History.route,
-                enter = fadeIn(animationSpec = spring()),
-                exit = fadeOut(animationSpec = spring()),
+                enter = fadeIn(spring()),
+                exit = fadeOut(spring()),
             ) {
                 HistoryScreen(
                     vm = vm,
-                    onNavigateBack = { currentTab = RoamTab.Settings.route },
-                    onNavigateToUrl = { url ->
-                        vm.navigateTo(url)
-                        currentTab = RoamTab.Roam.route
-                    },
+                    onNavigateBack = { currentTab = RoamTab.You.route },
+                    onNavigateToUrl = { url -> vm.navigateTo(url); currentTab = RoamTab.Roam.route },
                 )
             }
 
+            // ── Notifications ──────────────────────────────────────
             AnimatedVisibility(
-                visible = currentTab == "notifications",
-                enter = fadeIn(animationSpec = spring()),
-                exit = fadeOut(animationSpec = spring()),
+                visible = currentTab == RoamTab.Notifications.route,
+                enter = fadeIn(spring()),
+                exit = fadeOut(spring()),
             ) {
                 NotificationsScreen(
                     vm = vm,
-                    onNavigateBack = { currentTab = RoamTab.Settings.route },
-                    onNavigateToUrl = { url ->
-                        vm.navigateTo(url)
-                        currentTab = RoamTab.Roam.route
+                    onNavigateBack = { currentTab = RoamTab.You.route },
+                    onNavigateToUrl = { url -> vm.navigateTo(url); currentTab = RoamTab.Roam.route },
+                )
+            }
+
+            // ── Activity Feed ──────────────────────────────────────
+            AnimatedVisibility(
+                visible = currentTab == "activity_feed",
+                enter = fadeIn(spring()),
+                exit = fadeOut(spring()),
+            ) {
+                ActivityFeedScreen(
+                    vm = vm,
+                    onNavigateBack = { currentTab = RoamTab.You.route },
+                    onNavigateToProfile = { username ->
+                        viewedUsername = username
+                        currentTab = RoamTab.PublicProfile.route
+                    },
+                    onNavigateToUrl = { url -> vm.navigateToWeb(url); currentTab = RoamTab.Roam.route },
+                )
+            }
+
+            // ── Badges ─────────────────────────────────────────────
+            AnimatedVisibility(
+                visible = currentTab == "badges",
+                enter = fadeIn(spring()),
+                exit = fadeOut(spring()),
+            ) {
+                BadgesScreen(vm = vm, onNavigateBack = { currentTab = RoamTab.You.route })
+            }
+
+            // ── Leaderboard ────────────────────────────────────────
+            AnimatedVisibility(
+                visible = currentTab == "leaderboard",
+                enter = fadeIn(spring()),
+                exit = fadeOut(spring()),
+            ) {
+                LeaderboardScreen(
+                    vm = vm,
+                    onNavigateBack = { currentTab = RoamTab.You.route },
+                    onNavigateToProfile = { username ->
+                        viewedUsername = username
+                        currentTab = RoamTab.PublicProfile.route
                     },
                 )
             }
 
+            // ── Public Profile ─────────────────────────────────────
+            AnimatedVisibility(
+                visible = currentTab == RoamTab.PublicProfile.route && viewedUsername != null,
+                enter = fadeIn(spring()),
+                exit = fadeOut(spring()),
+            ) {
+                PublicProfileScreen(
+                    vm = vm,
+                    username = viewedUsername!!,
+                    onNavigateBack = { currentTab = RoamTab.You.route },
+                    onNavigateToUrl = { url -> vm.navigateTo(url); currentTab = RoamTab.Roam.route },
+                )
+            }
+
+            // ── User Search Sheet ──────────────────────────────────
+            if (showUserSearch) {
+                UserSearchSheet(
+                    vm = vm,
+                    onDismiss = { showUserSearch = false },
+                    onSelectUser = { username ->
+                        showUserSearch = false
+                        viewedUsername = username
+                        currentTab = RoamTab.PublicProfile.route
+                    },
+                )
+            }
         }
     }
 }
@@ -230,6 +301,7 @@ private fun DiscoverTab(
     activity: MainActivity,
     onSignOut: () -> Unit = {},
     onNavigateToSaved: () -> Unit = {},
+    onNavigateToInterests: () -> Unit = {},
 ) {
     val context = LocalContext.current
 
@@ -252,93 +324,59 @@ private fun DiscoverTab(
     val adminModeEnabled by vm.adminModeEnabled.collectAsState()
     val prefetchWebView by vm.prefetchWebView.collectAsState()
     val nextPrefetchUrl by vm.nextPrefetchUrl.collectAsState()
+    val showShareUrlSheet by vm.showShareUrlSheet.collectAsState()
 
-    // Auto-roam whenever state becomes Idle:
-    //   - On first entry (fresh app launch, initial Idle state)
-    //   - After sign-out: resetForNewSession() sets state back to Idle, so re-signing in
-    //     triggers a fresh roam without requiring the user to tap the button manually.
-    LaunchedEffect(state) { if (state is RoamState.Idle) vm.roam() }
-
-    // skipHiddenState must be false so that the sheet can animate to Hidden when the
-    // BottomSheetScaffold is recomposed. With skipHiddenState=true, Compose throws
-    // IllegalStateException: "Attempted to animate to hidden when skipHiddenState
-    // was enabled" if any event (back press, configuration change) triggers hiding.
-    val scaffoldState = rememberBottomSheetScaffoldState(
-        bottomSheetState = rememberStandardBottomSheetState(
-            skipHiddenState = false
-        )
-    )
-    val scope = rememberCoroutineScope()
-
-    // lastLoadedUrl tracks what the WebView has actually finished rendering (or reached 70% progress).
-    // When currentUrl advances ahead of it (new URL set by ViewModel), the overlay stays up immediately
-    // without waiting for onPageStarted to fire in the next frame.
-    var webViewLoading by rememberSaveable { mutableStateOf(value = false) }
-    var lastLoadedUrl by remember { mutableStateOf<String?>(null) }
-    var loadingMessage by remember { mutableStateOf(pickRandomMessage()) }
-    // True while the WebView is recovering from renderer death — the loading overlay
-    // stays up so the user never sees a white blank screen during the reload.
-    var webViewRecovering by remember { mutableStateOf(false) }
-    // Cycle the loading message with individual random durations while the overlay is visible
-    val showOverlay = rawUrl == null || (state is RoamState.Loading) || webViewRecovering
-    LaunchedEffect(showOverlay) {
-        if (showOverlay) {
-            loadingMessage = pickRandomMessage()
-            while (true) {
-                delay(loadingMessage.displayDurationMs)
-                loadingMessage = pickRandomMessage()
+    var initialRoamDone by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        if (!initialRoamDone) {
+            initialRoamDone = true
+            if (state is RoamState.Idle || state is RoamState.Loaded || currentUrl == null) {
+                vm.roam()
             }
         }
     }
 
-    // Only show the loading overlay when loading the roam URL. If the user navigates to a different URL
-    // (by clicking a link), don't show the overlay — they're exploring, not waiting for a new roam.
+    val scaffoldState = rememberBottomSheetScaffoldState(
+        bottomSheetState = rememberStandardBottomSheetState(skipHiddenState = false)
+    )
+    val scope = rememberCoroutineScope()
+
+    var webViewLoading by rememberSaveable { mutableStateOf(false) }
+    var lastLoadedUrl by remember { mutableStateOf<String?>(null) }
+    var loadingMessage by remember { mutableStateOf(pickRandomMessage()) }
+    var webViewRecovering by remember { mutableStateOf(false) }
+    val showOverlay = rawUrl == null || (state is RoamState.Loading) || webViewRecovering
+    LaunchedEffect(showOverlay) {
+        if (showOverlay) {
+            loadingMessage = pickRandomMessage()
+            while (true) { delay(loadingMessage.displayDurationMs); loadingMessage = pickRandomMessage() }
+        }
+    }
+
     val loaded = state as? RoamState.Loaded
-    val isRoaming = state is RoamState.Loading || 
-                    (currentUrl == loaded?.roamUrl?.url && (webViewLoading || (currentUrl != lastLoadedUrl)))
+    val isRoaming = state is RoamState.Loading ||
+        (currentUrl == loaded?.roamUrl?.url && (webViewLoading || (currentUrl != lastLoadedUrl)))
     val categoryName: String? = loaded?.roamUrl?.categoryId
         ?.let { catId -> categories.firstOrNull { it.id == catId }?.let { "${it.icon} ${it.name}" } }
     val subcategoryName: String? = loaded?.roamUrl?.subcategoryId
         ?.let { subId -> subcategories.firstOrNull { it.id == subId }?.name }
     val domain: String? = rawUrl?.let { it.toUri().host?.removePrefix("www.") }
 
-    // Persist last-known values so they stay visible between roams
     var lastCategoryName by remember { mutableStateOf<String?>(null) }
     var lastSubcategoryName by remember { mutableStateOf<String?>(null) }
     var lastDomain by remember { mutableStateOf<String?>(null) }
 
-    if (!isRoaming) {
-        categoryName?.let { lastCategoryName = it }
-        subcategoryName?.let { lastSubcategoryName = it }
-        domain?.let { lastDomain = it }
-    } else {
-        lastCategoryName = null
-        lastSubcategoryName = null
-        lastDomain = null
-    }
-    val displayCategory    = if (!isRoaming) categoryName    ?: lastCategoryName    else null
+    if (!isRoaming) { categoryName?.let { lastCategoryName = it }; subcategoryName?.let { lastSubcategoryName = it }; domain?.let { lastDomain = it } }
+    else { lastCategoryName = null; lastSubcategoryName = null; lastDomain = null }
+    val displayCategory = if (!isRoaming) categoryName ?: lastCategoryName else null
     val displaySubcategory = if (!isRoaming) subcategoryName ?: lastSubcategoryName else null
-    val displayDomain      = if (!isRoaming) domain          ?: lastDomain          else null
+    val displayDomain = if (!isRoaming) domain ?: lastDomain else null
 
-    // Sync sheet expansion when ViewModel state changes.
-    // Catch IllegalStateException specifically: when a configuration change or back press
-    // causes the scaffold to hide the sheet while we're still trying to animate, the
-    // IllegalStateException "Attempted to animate to hidden when skipHiddenState was enabled"
-    // would otherwise crash the app (ROAM-ANDROID-J).
     LaunchedEffect(showConfigSheet) {
         try {
-            if (showConfigSheet) {
-                scaffoldState.bottomSheetState.expand()
-            } else {
-                // Collapse to peek height (can't fully hide with sheetPeekHeight enabled)
-                scaffoldState.bottomSheetState.partialExpand()
-            }
-        } catch (_: IllegalStateException) {
-            // State transition conflict — sheet was already being hidden by the scaffold.
-            // Harmless; the visual state will resolve on the next recomposition.
-        } catch (_: Exception) {
-            // Silently handle any other unexpected state transition errors
-        }
+            if (showConfigSheet) scaffoldState.bottomSheetState.expand()
+            else scaffoldState.bottomSheetState.partialExpand()
+        } catch (_: Exception) { }
     }
 
     BottomSheetScaffold(
@@ -349,394 +387,143 @@ private fun DiscoverTab(
         sheetTonalElevation = 0.dp,
         sheetSwipeEnabled = sheetGestureMode == "slide",
         sheetDragHandle = {
-            // Full-width invisible hit area so drag works everywhere across the bump
             if (sheetGestureMode == "tap") {
-                // Tap mode: clickable handle to toggle sheet
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable {
-                            if (showConfigSheet) {
-                                vm.closeConfigSheet()
-                            } else {
-                                vm.openConfigSheet()
-                            }
-                        },
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .width(44.dp)
-                            .background(
-                                color = MaterialTheme.colorScheme.surfaceContainer,
-                                shape = RoundedCornerShape(topStart = 8.dp, topEnd = 8.dp),
-                            )
-                            .padding(top = 4.dp, bottom = 2.dp),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Icon(
-                            imageVector = Icons.Filled.KeyboardArrowUp,
-                            contentDescription = "Open menu",
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(12.dp),
-                        )
+                Box(Modifier.fillMaxWidth().clickable { if (showConfigSheet) vm.closeConfigSheet() else vm.openConfigSheet() }, contentAlignment = Alignment.Center) {
+                    Box(Modifier.width(44.dp).background(MaterialTheme.colorScheme.surfaceContainer, RoundedCornerShape(topStart = 8.dp, topEnd = 8.dp)).padding(top = 4.dp, bottom = 2.dp), contentAlignment = Alignment.Center) {
+                        Icon(Icons.Filled.KeyboardArrowUp, "Open menu", tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(12.dp))
                     }
                 }
             } else {
-                // Slide mode: default drag handle behavior
-                Box(
-                    modifier = Modifier.fillMaxWidth(),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .width(44.dp)
-                            .background(
-                                color = MaterialTheme.colorScheme.surfaceContainer,
-                                shape = RoundedCornerShape(topStart = 8.dp, topEnd = 8.dp),
-                            )
-                            .padding(top = 4.dp, bottom = 2.dp),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Icon(
-                            imageVector = Icons.Filled.KeyboardArrowUp,
-                            contentDescription = "Open menu",
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(12.dp),
-                        )
+                Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                    Box(Modifier.width(44.dp).background(MaterialTheme.colorScheme.surfaceContainer, RoundedCornerShape(topStart = 8.dp, topEnd = 8.dp)).padding(top = 4.dp, bottom = 2.dp), contentAlignment = Alignment.Center) {
+                        Icon(Icons.Filled.KeyboardArrowUp, "Open menu", tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(12.dp))
                     }
                 }
             }
         },
         sheetContent = {
-            Surface(
-                modifier = Modifier.fillMaxWidth(),
-                color = MaterialTheme.colorScheme.surfaceContainer,
-                shape = RoundedCornerShape(0.dp),
-            ) {
-            ConfigBottomSheet(
-                currentUrl = currentUrl,
-                collections = collections,
-                savedUrls = savedUrls,
-                isTranslated = vm.isTranslated,
-                onToggleTranslation = { vm.toggleTranslation() },
-                onTranslate = { lang -> vm.translateTo(lang) },
-                onSaveForLater = { vm.saveForLater() },
-                onShare = {
-                    val shareIntent = Intent(Intent.ACTION_SEND).apply {
-                        type = "text/plain"
-                        putExtra(Intent.EXTRA_TEXT, currentUrl ?: "")
-                    }
-                    activity.startActivity(Intent.createChooser(shareIntent, null))
-                },
-                onAddToCollection = { collectionId -> vm.addCurrentUrlToCollection(collectionId) },
-                onCreateCollectionAndAdd = { name -> vm.createCollectionAndAdd(name) },
-                onRoamWithinCategory = {
-                    vm.roamWithinCategory()
-                    scope.launch { scaffoldState.bottomSheetState.partialExpand() }
-                },
-                onRoamCollection = { collectionId ->
-                    vm.roamCollection(collectionId)
-                    scope.launch { scaffoldState.bottomSheetState.partialExpand() }
-                },
-                onManageCollections = {
-                    onNavigateToSaved()
-                    scope.launch { scaffoldState.bottomSheetState.partialExpand() }
-                },
-                onCategoryPrefs = {
-                    CustomTabsIntent.Builder().build()
-                        .launchUrl(activity, "https://roamtheweb.app/profile".toUri())
-                    scope.launch { scaffoldState.bottomSheetState.partialExpand() }
-                },
-                onNavBack = {
-                    vm.webNavBack()
-                    scope.launch { scaffoldState.bottomSheetState.partialExpand() }
-                },
-                onNavForward = {
-                    vm.webNavForward()
-                    scope.launch { scaffoldState.bottomSheetState.partialExpand() }
-                },
-                onNavReload = {
-                    vm.webNavReload()
-                    scope.launch { scaffoldState.bottomSheetState.partialExpand() }
-                },
-                onRemoveSavedUrl = { url -> vm.removeSavedUrl(url) },
-                onNavigateSavedUrl = { url ->
-                    vm.navigateTo(url)
-                    scope.launch { scaffoldState.bottomSheetState.partialExpand() }
-                },
-                onReportBrokenLink = {
-                    vm.reportBrokenLink()
-                    scope.launch { scaffoldState.bottomSheetState.partialExpand() }
-                },
-                adminModeEnabled = adminModeEnabled,
-                isModerator = vm.isModerator.collectAsState().value,
-                moderatorModeEnabled = vm.moderatorModeEnabled.collectAsState().value,
-                onAdminNavigateToUrl = { url ->
-                    scope.launch {
-                        try {
-                            val session = supabase.auth.currentSessionOrNull()
-                            if (session != null) {
-                                val supabaseHost =
-                                    android.net.Uri.parse(BuildConfig.SUPABASE_URL).host ?: ""
-                                val projectRef = supabaseHost.substringBefore(".supabase.co")
-                                val sessionPayload = android.util.Base64.encodeToString(
-                                    """{"access_token":"${session.accessToken}","refresh_token":"${session.refreshToken}","expires_at":${session.expiresAt.epochSeconds},"token_type":"bearer","user":{"id":"${session.user?.id ?: ""}"}}""".toByteArray(),
-                                    android.util.Base64.NO_WRAP,
-                                )
-                                val cookieManager = CookieManager.getInstance()
-                                cookieManager.setCookie(
-                                    "roamtheweb.app",
-                                    "sb-$projectRef-auth-token=$sessionPayload; Path=/; Secure; HttpOnly; SameSite=Lax",
-                                )
-                                cookieManager.flush()
-                            }
-                        } catch (_: Exception) { }
-                        vm.navigateTo(url)
-                        scaffoldState.bottomSheetState.partialExpand()
-                    }
-                },
-            )
-            } // Surface
+            Surface(Modifier.fillMaxWidth(), color = MaterialTheme.colorScheme.surfaceContainer, shape = RoundedCornerShape(0.dp)) {
+                ConfigBottomSheet(
+                    currentUrl = currentUrl,
+                    collections = collections,
+                    savedUrls = savedUrls,
+                    isTranslated = vm.isTranslated,
+                    onToggleTranslation = { vm.toggleTranslation() },
+                    onTranslate = { lang -> vm.translateTo(lang) },
+                    onSaveForLater = { vm.saveForLater() },
+                    onShare = {
+                        val si = Intent(Intent.ACTION_SEND).apply { type = "text/plain"; putExtra(Intent.EXTRA_TEXT, currentUrl ?: "") }
+                        activity.startActivity(Intent.createChooser(si, null))
+                    },
+                    onShareWithFriend = { vm.openShareUrlSheet() },
+                    onAddToCollection = { cid -> vm.addCurrentUrlToCollection(cid) },
+                    onCreateCollectionAndAdd = { name -> vm.createCollectionAndAdd(name) },
+                    onRoamWithinCategory = { vm.roamWithinCategory(); scope.launch { scaffoldState.bottomSheetState.partialExpand() } },
+                    onRoamCollection = { cid -> vm.roamCollection(cid); scope.launch { scaffoldState.bottomSheetState.partialExpand() } },
+                    onManageCollections = { onNavigateToSaved(); scope.launch { scaffoldState.bottomSheetState.partialExpand() } },
+                    onCategoryPrefs = { onNavigateToInterests(); scope.launch { scaffoldState.bottomSheetState.partialExpand() } },
+                    onNavBack = { vm.webNavBack(); scope.launch { scaffoldState.bottomSheetState.partialExpand() } },
+                    onNavForward = { vm.webNavForward(); scope.launch { scaffoldState.bottomSheetState.partialExpand() } },
+                    onNavReload = { vm.webNavReload(); scope.launch { scaffoldState.bottomSheetState.partialExpand() } },
+                    onRemoveSavedUrl = { url -> vm.removeSavedUrl(url) },
+                    onNavigateSavedUrl = { url -> vm.navigateTo(url); scope.launch { scaffoldState.bottomSheetState.partialExpand() } },
+                    onReportBrokenLink = { vm.reportBrokenLink(); scope.launch { scaffoldState.bottomSheetState.partialExpand() } },
+                    adminModeEnabled = adminModeEnabled,
+                    isModerator = vm.isModerator.collectAsState().value,
+                    moderatorModeEnabled = vm.moderatorModeEnabled.collectAsState().value,
+                    onAdminNavigateToUrl = { url ->
+                        scope.launch {
+                            try {
+                                app.roam.android.util.WebAuthUtil.injectSession()
+                            } catch (_: Exception) { }
+                            vm.navigateTo(url)
+                            scaffoldState.bottomSheetState.partialExpand()
+                        }
+                    },
+                )
+            }
         },
         sheetPeekHeight = 15.dp,
     ) { contentPadding ->
-        Column(modifier = Modifier.fillMaxSize().padding(top = contentPadding.calculateTopPadding())) {
-
-            // ── Status bar ───────────────────────────────────────────────────────
-        Surface(
-            modifier = Modifier.fillMaxWidth(),
-            color = MaterialTheme.colorScheme.surfaceVariant,
-            tonalElevation = 2.dp,
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                when {
-                    state is RoamState.Error -> {
-                        Text(
-                            "\u26A0 ${(state as RoamState.Error).message}",
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.error,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.weight(1f),
-                        )
-                        TextButton(onClick = { vm.roam() }) {
-                            Text("Retry", style = MaterialTheme.typography.labelMedium)
+        Column(Modifier.fillMaxSize().padding(top = contentPadding.calculateTopPadding())) {
+            Surface(Modifier.fillMaxWidth(), color = MaterialTheme.colorScheme.surfaceVariant, tonalElevation = 2.dp) {
+                Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    when {
+                        state is RoamState.Error -> {
+                            Text("\u26A0 ${(state as RoamState.Error).message}", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.error, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+                            TextButton(onClick = { vm.roam() }) { Text("Retry", style = MaterialTheme.typography.labelMedium) }
                         }
-                    }
-                    state is RoamState.Exhausted -> {
-                        Text(
-                            "You've seen everything \u2014 adjust categories in Settings",
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                    }
-                    !isOnline -> {
-                        Text(
-                            "\u26A0 Offline \u2014 ratings queued",
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                    else -> {
-                        if (isRoaming) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(14.dp),
-                                strokeWidth = 2.dp,
-                                color = MaterialTheme.colorScheme.primary,
-                            )
-                            Spacer(Modifier.width(8.dp))
-                            Text(
-                                "Roaming\u2026",
-                                style = MaterialTheme.typography.labelMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        } else {
-                            val parts = listOfNotNull(displayCategory, displayDomain)
-                            Text(
-                                text = if (parts.isEmpty()) "Roam" else parts.joinToString(" \u00B7 "),
-                                style = MaterialTheme.typography.labelMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                                modifier = Modifier.weight(1f),
-                            )
-                            displaySubcategory?.let {
-                                Text(
-                                    text = it,
-                                    style = MaterialTheme.typography.labelMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                )
+                        state is RoamState.Exhausted -> Text("You've seen everything \u2014 adjust categories in Settings", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        !isOnline -> Text("\u26A0 Offline \u2014 ratings queued", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        else -> {
+                            if (isRoaming) {
+                                CircularProgressIndicator(Modifier.size(14.dp), strokeWidth = 2.dp, color = MaterialTheme.colorScheme.primary)
+                                Spacer(Modifier.width(8.dp))
+                                Text("Roaming\u2026", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            } else {
+                                val parts = listOfNotNull(displayCategory, displayDomain)
+                                Text(if (parts.isEmpty()) "Roam" else parts.joinToString(" \u00B7 "), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+                                displaySubcategory?.let { Text(it, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f), maxLines = 1, overflow = TextOverflow.Ellipsis) }
                             }
                         }
                     }
                 }
             }
-        }
 
-        // ── Status messages (top) ─────────────────────────────────────────────
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(MaterialTheme.colorScheme.surfaceContainer),
-        ) {
-            // "Saved!" confirmation message
-            if (savedConfirmation) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(MaterialTheme.colorScheme.secondaryContainer)
-                        .padding(horizontal = 16.dp, vertical = 10.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Text(
-                        "Saved for later",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSecondaryContainer,
-                    )
-                }
-            }
-
-            // "Reported" confirmation message
-            if (reportConfirmation) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(MaterialTheme.colorScheme.secondaryContainer)
-                        .padding(horizontal = 16.dp, vertical = 10.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Text(
-                        "Dead link reported \u2014 loading next page",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSecondaryContainer,
-                    )
-                }
-            }
-
-            // Submit result message
-            submitToast?.let { msg ->
-                val isError = msg.startsWith("Couldn't")
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(
-                            if (isError) MaterialTheme.colorScheme.errorContainer
-                            else MaterialTheme.colorScheme.secondaryContainer
-                        )
-                        .padding(horizontal = 16.dp, vertical = 10.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Text(
-                        msg,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = if (isError) MaterialTheme.colorScheme.onErrorContainer
-                                else MaterialTheme.colorScheme.onSecondaryContainer,
-                    )
-                }
-            }
-        }
-
-        // ── WebView area ─────────────────────────────────────────────────────
-        Box(
-            modifier = Modifier
-                .weight(1f)
-                .fillMaxWidth(),
-        ) {
-            RoamWebView(
-                url = currentUrl,
-                modifier = Modifier.fillMaxSize(),
-                darkMode = webDarkMode,
-                jsEnabled = jsEnabled,
-                onUrlChanged = { vm.onWebViewUrlChanged(it) },
-                onLoadError = { vm.roam() },
-                onLoadingChanged = { loading ->
-                    webViewLoading = loading
-                    if (!loading) lastLoadedUrl = currentUrl
-                },
-                // Hide the loading overlay as soon as the first frame paints
-                // (onPageCommitVisible), not when all JS finishes (onPageFinished).
-                onPageVisible = {
-                    webViewLoading = false
-                    lastLoadedUrl = currentUrl
-                },
-                onRecovering = { recovering ->
-                    webViewRecovering = recovering
-                },
-                // Trigger proactive cache warming: as soon as the current page
-                // finishes loading, tell the ViewModel to expose the next URL
-                // so the hidden prefetch WebView can start warming it now,
-                // while the user is still reading.
-                onPageFinishedForPrefetch = {
-                    vm.onPageFinishedForPrefetch()
-                },
-                navCommandsFlow = vm.webNavFlow,
-                clearCookiesFlow = vm.clearCookiesFlow,
-            )
-
-            // Loading overlay — shown while fetching a URL, the WebView is rendering it,
-            // or the WebView is recovering from renderer death after backgrounding.
-            if (showOverlay) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(MaterialTheme.colorScheme.background),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(40.dp),
-                            strokeWidth = 3.dp,
-                            color = MaterialTheme.colorScheme.primary,
-                        )
-                        Spacer(Modifier.size(16.dp))
-                        Text(
-                            text = loadingMessage.text,
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
+            Column(Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surfaceContainer)) {
+                if (savedConfirmation) Row(Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.secondaryContainer).padding(horizontal = 16.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) { Text("Saved for later", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSecondaryContainer) }
+                if (reportConfirmation) Row(Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.secondaryContainer).padding(horizontal = 16.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) { Text("Dead link reported \u2014 loading next page", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSecondaryContainer) }
+                submitToast?.let { msg ->
+                    val isErr = msg.startsWith("Couldn't")
+                    Row(Modifier.fillMaxWidth().background(if (isErr) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.secondaryContainer).padding(horizontal = 16.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Text(msg, style = MaterialTheme.typography.bodySmall, color = if (isErr) MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.onSecondaryContainer)
                     }
                 }
             }
 
-            // Background cache-warmer — only active when the user has enabled the setting.
-            // Loads the next queued URL in a hidden 1×1dp WebView so it's already cached
-            // when the user taps Roam, eliminating most of the visible overlay delay.
-            if (prefetchWebView && nextPrefetchUrl != null) {
-                BackgroundPrefetchWebView(
-                    url = nextPrefetchUrl!!,
-                    jsEnabled = jsEnabled,
+            Box(Modifier.weight(1f).fillMaxWidth()) {
+                RoamWebView(
+                    url = currentUrl,
+                    modifier = Modifier.fillMaxSize(),
                     darkMode = webDarkMode,
+                    jsEnabled = jsEnabled,
+                    onUrlChanged = { vm.onWebViewUrlChanged(it) },
+                    onLoadError = { vm.roam() },
+                    onLoadingChanged = { loading -> webViewLoading = loading; if (!loading) lastLoadedUrl = currentUrl },
+                    onPageVisible = { webViewLoading = false; lastLoadedUrl = currentUrl },
+                    onRecovering = { recovering -> webViewRecovering = recovering },
+                    onPageFinishedForPrefetch = { vm.onPageFinishedForPrefetch() },
+                    navCommandsFlow = vm.webNavFlow,
+                    clearCookiesFlow = vm.clearCookiesFlow,
                 )
+
+                if (showOverlay) {
+                    Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background), contentAlignment = Alignment.Center) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            CircularProgressIndicator(Modifier.size(40.dp), strokeWidth = 3.dp, color = MaterialTheme.colorScheme.primary)
+                            Spacer(Modifier.size(16.dp))
+                            Text(loadingMessage.text, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                    }
+                }
+
+                if (prefetchWebView && nextPrefetchUrl != null) {
+                    BackgroundPrefetchWebView(url = nextPrefetchUrl!!, jsEnabled = jsEnabled, darkMode = webDarkMode)
+                }
             }
-
-
         }
     }
-}
 
     if (showSubmitSheet) {
-        SubmitBottomSheet(
-            url = rawUrl ?: currentUrl,
-            categories = categories,
-            onSubmit = { submittedUrl, categoryId -> vm.submitUrl(submittedUrl, categoryId) },
-            onDismiss = { vm.closeSubmitSheet() },
-        )
+        SubmitBottomSheet(url = rawUrl ?: currentUrl, categories = categories, onSubmit = { submittedUrl, categoryId -> vm.submitUrl(submittedUrl, categoryId) }, onDismiss = { vm.closeSubmitSheet() })
     }
 
-    // Feature walkthrough overlay — shown once after first sign-in
+    // Share URL with friend sheet
+    if (showShareUrlSheet) {
+        ShareUrlBottomSheet(vm = vm, onDismiss = { vm.closeShareUrlSheet() })
+    }
+
     if (!vm.hasSeenWalkthrough()) {
-        FeatureWalkthrough(
-            onDismiss = { vm.markWalkthroughSeen() },
-        )
+        FeatureWalkthrough(onDismiss = { vm.markWalkthroughSeen() })
     }
 }

@@ -88,7 +88,14 @@ Deno.serve(async (req) => {
       }
 
       // Fire-and-forget XP + badge evaluation — create_collection XP + first-collection / curator badges.
-      supabase.rpc('award_xp', { p_user_id: user.id, p_action: 'create_collection', p_metadata: { collection_id: data.id } })
+      // Idempotency key prevents double-awarding XP on retried requests.
+      const idemKey = `create_collection:${data.id}:${user.id}`
+      supabase.rpc('award_xp', {
+        p_user_id: user.id,
+        p_action: 'create_collection',
+        p_metadata: { collection_id: data.id },
+        p_idempotency_key: idemKey,
+      })
         .then(
           () => supabase.rpc('evaluate_badges', { p_user_id: user.id }),
           (e: unknown) => { console.error('xp award failed (collection-create)', e) }

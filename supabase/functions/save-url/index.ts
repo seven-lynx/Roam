@@ -36,6 +36,14 @@ Deno.serve(async (req) => {
     const urlId = typeof body.url_id === 'string' ? body.url_id      : null
     if (!url) return json({ error: 'url is required' }, 400)
 
+    // First, check if this URL is already saved so we only award XP on new saves
+    const { data: existing } = await supabase
+      .from('saved_urls')
+      .select('url')
+      .eq('user_id', user.id)
+      .eq('url', url)
+      .maybeSingle()
+
     const { error } = await supabase
       .from('saved_urls')
       .upsert(
@@ -44,17 +52,25 @@ Deno.serve(async (req) => {
       )
     if (error) return json({ error: error.message }, 500)
 
-    // Fire-and-forget XP + badge evaluation — chained .then() avoids keeping the
-    // Deno isolate alive (unlike setTimeout) while still running after the DB write.
-    supabase.rpc('award_xp', { p_user_id: user.id, p_action: 'save_url', p_metadata: { url } })
-      .then(
-        () => supabase.rpc('evaluate_badges', { p_user_id: user.id }),
-        (e: unknown) => { console.error('xp award failed (save-url)', e) }
-      )
-      .then(
-        () => {},
-        (e: unknown) => { console.error('badge evaluation failed (save-url)', e) }
-      )
+    // Only award XP on first save, not re-saves of the same URL.
+    // Use idempotency key to prevent double-awards from retried requests.
+    if (!existing) {
+      const idemKey = `save_url:${urlId ?? url}:${user.id}`
+      supabase.rpc('award_xp', {
+        p_user_id: user.id,
+        p_action: 'save_url',
+        p_metadata: { url, url_id: urlId },
+        p_idempotency_key: idemKey,
+      })
+        .then(
+          () => supabase.rpc('evaluate_badges', { p_user_id: user.id }),
+          (e: unknown) => { console.error('xp award failed (save-url)', e) }
+        )
+        .then(
+          () => {},
+          (e: unknown) => { console.error('badge evaluation failed (save-url)', e) }
+        )
+    }
 
     return json({ ok: true })
   }
