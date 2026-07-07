@@ -56,6 +56,11 @@ Deno.serve(async (req) => {
     // Use idempotency key to prevent double-awards from retried requests.
     if (!existing) {
       const idemKey = `save_url:${urlId ?? url}:${user.id}`
+      // Record today's activity so the user's streak is maintained
+      supabase.rpc('record_daily_activity', { p_user_id: user.id }).then(
+        () => {},
+        (e: unknown) => { console.error('record_daily_activity failed (save-url)', e) }
+      )
       supabase.rpc('award_xp', {
         p_user_id: user.id,
         p_action: 'save_url',

@@ -101,7 +101,7 @@ export default async function PublicProfilePage({ params }: Props) {
   const level = gamification?.level ?? 1;
   const streakDays = gamification?.streak_days ?? 0;
   const maxStreak = gamification?.max_streak ?? 0;
-  const badgeCount = gamification?.badge_count ?? 0;
+  const badgeCount = unlockedBadges.length;
 
   return (
     <div className="min-h-[calc(100vh-8rem)] bg-white dark:bg-zinc-950">

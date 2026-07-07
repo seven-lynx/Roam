@@ -118,13 +118,13 @@ fun ProfileScreen(
         ) {
             Spacer(Modifier.height(8.dp))
 
-            // Level progress card
+            // Level progress card — use unlocked badges count for consistency
             LevelProgressBar(
                 level = profile?.level ?: 1,
                 xpTotal = profile?.xpTotal ?: 0,
                 streakDays = profile?.streakDays ?: 0,
                 maxStreak = profile?.maxStreak ?: 0,
-                badgeCount = profile?.badgeCount ?: 0,
+                badgeCount = unlockedBadges.size,
             )
 
             // Avatar

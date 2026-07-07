@@ -50,6 +50,13 @@ Deno.serve(async (req) => {
       // The follower can call evaluate_badges for themselves (social-butterfly badges).
       // For the followed user (influencer badges) we need a service-role client
       // because evaluate_badges rejects calls where auth.uid() != p_user_id.
+
+      // Record today's activity so the user's streak is maintained
+      supabase.rpc('record_daily_activity', { p_user_id: user.id }).then(
+        () => {},
+        (e: unknown) => { console.error('record_daily_activity failed (follow)', e) }
+      )
+
       supabase.rpc('evaluate_badges', { p_user_id: user.id })
         .then(() => {}, (e: unknown) => { console.error('badge evaluation failed (follower)', e) })
 

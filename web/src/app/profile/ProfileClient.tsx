@@ -197,7 +197,7 @@ export function ProfileClient({ userId, email, profile, allCategories, allSubcat
           xpTotal={profile?.xp_total ?? 0}
           streakDays={profile?.streak_days ?? 0}
           maxStreak={profile?.max_streak ?? 0}
-          badgeCount={profile?.badge_count ?? 0}
+          badgeCount={unlockedCount}
         />
 
         {/* ── Profile Header Card ──────────────────────── */}

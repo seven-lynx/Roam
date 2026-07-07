@@ -159,9 +159,15 @@ fun PublicProfileScreen(
 
                     Spacer(Modifier.height(12.dp))
 
-                    // Level/XP
+                    // Level/XP — use unlocked badges count for consistency
                     if (profile.xpTotal > 0) {
-                        LevelProgressBar(level = profile.level, xpTotal = profile.xpTotal, streakDays = profile.streakDays, maxStreak = profile.maxStreak, badgeCount = profile.badgeCount)
+                        LevelProgressBar(
+                            level = profile.level,
+                            xpTotal = profile.xpTotal,
+                            streakDays = profile.streakDays,
+                            maxStreak = profile.maxStreak,
+                            badgeCount = profile.badges.count { it.isUnlocked }
+                        )
                         Spacer(Modifier.height(8.dp))
                     }
 

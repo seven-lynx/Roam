@@ -65,13 +65,14 @@ Deno.serve(async (req) => {
 
   const { data: profile, error: profileError } = await userClient
     .from('profiles')
-    .select('id, username, display_name, bio, avatar_url, is_public, created_at')
+    .select('id, username, display_name, bio, avatar_url, is_public, created_at, xp_total, level, streak_days, max_streak, badge_count')
     .eq('username', username)
     .single()
 
   if (profileError || !profile) return json({ error: 'Profile not found' }, 404)
 
-  const [followersRes, followingRes, collectionsRes] = await Promise.allSettled([
+  // Fetch badges using admin client so they're always visible on public profiles
+  const [followersRes, followingRes, collectionsRes, badgesRes, collectionsWithCountRes] = await Promise.allSettled([
     adminClient
       .from('follows')
       .select('*', { count: 'exact', head: true })
@@ -88,18 +89,38 @@ Deno.serve(async (req) => {
       .eq('user_id', profile.id)
       .eq('is_public', true)
       .order('created_at', { ascending: false }),
+    adminClient.rpc('get_user_badges', { p_user_id: profile.id }),
+    // Get collection count separately for the collectionsCount field
+    adminClient
+      .from('collections')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', profile.id)
+      .eq('is_public', true),
   ])
 
   // Extract results from Promise.allSettled, handling failures gracefully
   const followers = followersRes.status === 'fulfilled' ? followersRes.value.count ?? 0 : 0;
   const following = followingRes.status === 'fulfilled' ? followingRes.value.count ?? 0 : 0;
   const collections = collectionsRes.status === 'fulfilled' ? collectionsRes.value.data ?? [] : [];
+  const badges = badgesRes.status === 'fulfilled' ? badgesRes.value.data ?? [] : [];
+  const collectionsCount = collectionsWithCountRes.status === 'fulfilled' ? collectionsWithCountRes.value.count ?? 0 : 0;
+
+  // Sync badge count if it drifted
+  const actualBadgeCount = Array.isArray(badges) ? badges.filter((b: Record<string, unknown>) => b.is_unlocked).length : 0;
+  if (actualBadgeCount !== (profile.badge_count ?? 0)) {
+    adminClient.rpc('sync_profile_badge_count', { p_user_id: profile.id }).then(
+      () => {},
+      (e: unknown) => { console.error('sync_profile_badge_count failed', e) }
+    )
+  }
 
   return json({
     ...profile,
     follower_count: followers,
     following_count: following,
+    collections_count: collectionsCount,
     collections,
+    badges,
   })
 })
 

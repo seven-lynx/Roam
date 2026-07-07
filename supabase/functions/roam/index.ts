@@ -100,8 +100,16 @@ Deno.serve(async (req) => {
       // the same minute — handles retries and race conditions.
       const idemKey = `roam:${row.id}:${user.id}:${Math.floor(Date.now() / 60000)}`
 
+      // Await streak update so errors are visible and we know it ran
       supabase.rpc('update_streak', { p_user_id: user.id }).then(
-        () => {},
+        (result: unknown) => {
+          const r = result as { data?: { streak_days?: number; max_streak?: number } }
+          if (r?.data) {
+            console.log(
+              `streak updated: ${r.data.streak_days} days (best: ${r.data.max_streak})`
+            )
+          }
+        },
         (e: unknown) => { console.error('streak update failed', e) }
       )
       // Award XP for the roam. Badge evaluation is no longer chained here —

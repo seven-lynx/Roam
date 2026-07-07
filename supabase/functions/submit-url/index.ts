@@ -263,6 +263,13 @@ Deno.serve(async (req) => {
   // keep the HTTP/2 connection open after the response is sent.
   // (setTimeout kept the isolate alive 500ms post-response, causing Supabase's
   // proxy to reset the HTTP/2 connection → OkHttp "unexpected end of stream".)
+
+  // Record today's activity so the user's streak is maintained
+  supabase.rpc('record_daily_activity', { p_user_id: user.id }).then(
+    () => {},
+    (e: unknown) => { console.error('record_daily_activity failed (submit-url)', e) }
+  )
+
   supabase.rpc('award_xp', { p_user_id: user.id, p_action: 'submit_url', p_metadata: { url: normalized } })
     .then(
       () => supabase.rpc('evaluate_badges', { p_user_id: user.id }),
