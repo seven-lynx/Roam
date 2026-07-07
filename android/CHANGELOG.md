@@ -2,7 +2,7 @@
 
 All notable changes to the Roam Android app.
 
-## [1.1.0] - 2026-07-06
+## [1.1.2] - 2026-07-06
 
 ### Added
 - Social features — Follow/unfollow users, view public profiles, search users, and share URLs with friends directly from the app.
