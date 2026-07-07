@@ -1,0 +1,12 @@
+What's new in 1.1.0:
+
+• Social features — follow users, view profiles, and share URLs with friends
+• New "You" tab — your level, XP, badges, and followers at a glance
+• Activity feed — see what people you follow are discovering
+• User search — find people by username
+• Profile screen — view anyone's public profile with badges and collections
+• Follower/following lists — tap counts to expand
+• Share with a friend — send pages to followers via the config sheet
+• Leaderboard now links to profiles — tap any row
+• Top-3 leaderboard styling works in dark mode
+• Private profiles no longer appear in search or leaderboard

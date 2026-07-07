@@ -18,7 +18,7 @@ const WINDOW_MS = 60_000
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
-  if (req.method !== 'GET') return json({ error: 'Method not allowed' }, 405)
+  if (req.method !== 'GET' && req.method !== 'POST') return json({ error: 'Method not allowed' }, 405)
 
   const ip = clientIp(req)
   const limit = rateLimit(`profile:${ip}`, RATE_LIMIT, WINDOW_MS)
@@ -37,8 +37,18 @@ Deno.serve(async (req) => {
   }
 
   const url = new URL(req.url)
-  const username = url.searchParams.get('username')
-  if (!username) return json({ error: 'username query parameter is required' }, 400)
+  let username = url.searchParams.get('username')
+
+  // Fallback: read from POST JSON body (Android app uses functions.invoke which sends POST).
+  // The web app uses GET with query params; the Android app sends POST with a JSON body.
+  if (!username && req.method === 'POST') {
+    try {
+      const body = await req.json()
+      username = body?.username
+    } catch { /* body not JSON or empty — fall through to error below */ }
+  }
+
+  if (!username) return json({ error: 'username parameter is required (provide as ?username= or JSON body)' }, 400)
 
   // User-context client: respects RLS on profiles (hides private profiles)
   const userClient = createClient(

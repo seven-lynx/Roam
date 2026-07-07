@@ -1,6 +1,30 @@
-# Changelog
+ # Changelog
 
 All notable changes to the Roam Android app.
+
+## [1.1.3] - 2026-07-07
+
+### Fixed
+- Background/foreground URL drift — WebView no longer restores stale URLs from before process death. Changed savedState Bundle from `rememberSaveable` to `remember` so the ViewModel remains the single source of truth for current navigation, eliminating the "current URL changes after switching apps" bug.
+- Duplicate history entries — Fixed URL history recording from both `roam()` and `onWebViewUrlChanged()` firing for the same navigation. Combined with the URL drift fix, this eliminates 2-3 duplicate entries per page visit.
+- Inflated XP — Same root cause as duplicate history (spurious page reloads on resume). Fixed by the URL drift resolution above.
+- Admin/mod menu buttons — Moderator links previously pointed to `/moderator?view=...` (a non-existent route, returning 404). All links now use the correct `/admin?view=...` paths. Merged admin and moderator sections into a single combined panel with role-correct heading. Added Badges, Email, and Beta Signups links for admins. Admin-only URL loader field.
+- Webapp sign-in in WebView — Fixed race condition where the session cookie wasn't propagated before the WebView started loading roamtheweb.app pages, causing blank/unauthenticated views. WebAuthUtil now retries session retrieval (3 attempts, 200ms delay), sets explicit Max-Age cookie expiry based on JWT lifetime, and added `injectSessionAndWait()` with a 300ms post-flush delay for atomic navigation + auth.
+- Public profiles failing to load — Fixed two bugs: (1) `getPublicProfile()` in the repository was passing a malformed full URL to `functions.invoke()` instead of the function name + body pattern used by every other method, causing all requests to fail silently. (2) The profile edge function only read `username` from GET query params, but the Android SDK sends POST with a JSON body — now accepts both.
+- Public profile blank screen — Added explicit fallback state for when the profile is null but not in a loading/error state, showing a "Couldn't load this profile" message with a Retry button. Added Sentry exception capture to the profile load failure path for observability.
+- URLs opening in external browser — Restored three critical WebView containment guards that were missing: `onCreateWindow` override to capture `window.open()` and `target="_blank"` links inside the same WebView; scheme blocking in `shouldOverrideUrlLoading` to block `intent://`, `market://`, `tel:`, and other non-http schemes; and the deprecated `shouldOverrideUrlLoading(String)` overload for OEM WebViews (Samsung, Huawei) and server-side redirects.
+- Admin mode security — Regular users can no longer unlock admin mode by tapping version 5× in Settings. Admin mode is now exclusively auto-enabled by `checkUserRole()` when the JWT contains `role=admin`. Moderator mode still unlocks via tap for JWT-verified moderators.
+
+### Changed
+- Config bottom sheet — Admin and moderator panels merged into a single section with a dynamic heading ("🔒 Admin" vs "🛡️ Moderator"). All actionable links now use verified `/admin?view=...` routes.
+- Cookie injection — WebAuthUtil retries up to 3 times with 200ms delays if Supabase session isn't available on first call, handles token propagation race at app startup.
+- Public profile screen — Added Retry button to both error and null-profile states for self-recovery without navigating away.
+
+### Web
+- Admin dashboard — Added `ModeratorRedirect` component that redirects `/moderator` → `/admin`, so old deep links from previous app versions don't 404.
+
+### Backend
+- Profile edge function — Now accepts both GET (query params) and POST (JSON body) so both the web app and Android app can use the same endpoint.
 
 ## [1.1.2] - 2026-07-06
 

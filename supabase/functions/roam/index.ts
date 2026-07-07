@@ -104,8 +104,9 @@ Deno.serve(async (req) => {
         () => {},
         (e: unknown) => { console.error('streak update failed', e) }
       )
-      // Chain evaluate_badges after award_xp so XP is committed before badge
-      // thresholds are checked. Errors are logged but never bubble up.
+      // Award XP for the roam. Badge evaluation is no longer chained here —
+      // it runs on-demand via the profile/badges pages instead, saving 15+
+      // COUNT(*) queries per roam press. Errors are logged but never bubble up.
       supabase.rpc('award_xp', {
         p_user_id: user.id,
         p_action: 'roam',
@@ -113,12 +114,8 @@ Deno.serve(async (req) => {
         p_idempotency_key: idemKey,
       })
         .then(
-          () => supabase.rpc('evaluate_badges', { p_user_id: user.id }),
-          (e: unknown) => { console.error('xp award failed', e) }
-        )
-        .then(
           () => {},
-          (e: unknown) => { console.error('badge evaluation failed', e) }
+          (e: unknown) => { console.error('xp award failed', e) }
         )
     }
 

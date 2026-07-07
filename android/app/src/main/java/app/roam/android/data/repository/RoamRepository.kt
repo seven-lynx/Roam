@@ -760,12 +760,9 @@ class RoamRepository {
      * Returns null for non-existent or private profiles.
      */
     suspend fun getPublicProfile(username: String): app.roam.android.model.PublicProfile? {
-        val baseUrl = supabase.supabaseUrl.toUri()
-        val url = "$baseUrl/functions/v1/profile?username=${java.net.URLEncoder.encode(username, "UTF-8")}"
-        val token = supabase.auth.currentAccessTokenOrNull()
-        val headers = if (token != null) headersOf("Authorization", "Bearer $token") else headersOf()
+        val body = buildJsonObject { put("username", username) }
         return runCatching {
-            val response = supabase.functions.invoke(url, body = buildJsonObject {}, headers = headers)
+            val response = supabase.functions.invoke("profile", body = body)
             json.decodeFromString<app.roam.android.model.PublicProfile>(response.bodyAsText())
         }.getOrNull()
     }

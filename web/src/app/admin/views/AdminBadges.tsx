@@ -42,7 +42,7 @@ export function AdminBadges() {
       const supabase = createClient();
       const { data: badgeData } = await supabase
         .from('badges')
-        .select('*')
+        .select('id, slug, name, description, icon, category, tier, required_count, is_hidden, is_gift_only, xp_reward, created_at')
         .order('category')
         .order('tier');
       

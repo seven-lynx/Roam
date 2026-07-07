@@ -1207,6 +1207,16 @@ class MainViewModel(
     }
 
     /**
+     * Navigates to [url] after first injecting the Supabase session cookie and
+     * waiting for the CookieManager to flush. Prevents the "loads before auth" race
+     * that causes blank/unauthorized pages on roamtheweb.app.
+     */
+    fun navigateToWebWithAuth(url: String) {
+        app.roam.android.util.WebAuthUtil.injectSessionAndWait()
+        navigateTo(url)
+    }
+
+    /**
      * Looks up each URL in [urls] in the database, then adds each found entry
      * to the given collection.
      */
@@ -1762,6 +1772,7 @@ class MainViewModel(
             }
             result.onFailure {
                 _publicProfileError.value = it.message ?: "Failed to load profile"
+                Sentry.captureException(it)
             }
             _publicProfileLoading.value = false
         }

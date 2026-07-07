@@ -568,6 +568,10 @@ fun SettingsScreen(
             )
 
             val isModerator by vm.isModerator.collectAsState()
+            // Admin mode is auto-enabled by checkUserRole() in the ViewModel init
+            // when the JWT contains role=admin. Moderator mode is unlocked by tapping
+            // version 5× (only works for users with JWT role=moderator).
+            // Regular users cannot unlock admin mode via the tap sequence.
             var versionTapCount by remember { mutableIntStateOf(0) }
             Row(
                 modifier = Modifier
@@ -577,7 +581,6 @@ fun SettingsScreen(
                         if (versionTapCount >= 5) {
                             versionTapCount = 0
                             if (isModerator) vm.setModeratorMode(true)
-                            else vm.setAdminMode(true)
                         }
                     }
                     .padding(horizontal = 16.dp, vertical = 12.dp),

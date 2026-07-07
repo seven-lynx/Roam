@@ -46,7 +46,7 @@ export function AuthProvider({ initialSession, children }: AuthProviderProps) {
     async function loadProfile(userId: string) {
       const { data } = await supabase
         .from('profiles')
-        .select('*')
+        .select('id, username, email, bio, avatar_url')
         .eq('id', userId)
         .single();
       setProfile(data ?? null);

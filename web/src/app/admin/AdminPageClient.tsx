@@ -64,6 +64,19 @@ function LoadingView() {
   return <div className="text-center text-zinc-500 py-12">Loading...</div>;
 }
 
+/**
+ * Redirects /moderator to /admin so old moderator shortcut links in the Android
+ * app (which pointed to /moderator?view=...) don't 404.
+ */
+export function ModeratorRedirect() {
+  "use client";
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    window.location.replace(`/admin${params.toString() ? `?${params.toString()}` : ""}`);
+  }, []);
+  return <LoadingView />;
+}
+
 export default function AdminPageClient() {
   const searchParams = useSearchParams();
   const initialView = (searchParams.get("view") as ViewType | null) || "queue";

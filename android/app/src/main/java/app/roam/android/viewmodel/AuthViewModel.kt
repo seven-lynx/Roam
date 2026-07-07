@@ -112,4 +112,8 @@ class AuthViewModel(
             supabase.auth.clearSession()
         }
     }
+
+    fun setStatus(status: AuthState) {
+        _authState.value = status
+    }
 }

@@ -22,8 +22,8 @@ android {
         applicationId = "app.roam.android"
         minSdk = 26
         targetSdk = 35
-        versionCode = 19
-        versionName = "1.0.16"
+        versionCode = 24
+        versionName = "1.1.3"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
@@ -46,6 +46,9 @@ android {
         release {
             isMinifyEnabled = true
             isShrinkResources = true
+            ndk {
+                debugSymbolLevel = "FULL"
+            }
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
@@ -131,6 +134,7 @@ dependencies {
     implementation("com.google.firebase:firebase-messaging")
 
     // Baseline profiles — install AOT-compiled profile on first launch
+    implementation("androidx.fragment:fragment-ktx:1.8.6")
     implementation("androidx.profileinstaller:profileinstaller:1.3.1")
 
     // Test

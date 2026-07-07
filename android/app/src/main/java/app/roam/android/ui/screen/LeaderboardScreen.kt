@@ -1,5 +1,6 @@
-package app.roam.android.ui.screen
+ package app.roam.android.ui.screen
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -13,6 +14,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -50,6 +52,7 @@ import app.roam.android.viewmodel.MainViewModel
 fun LeaderboardScreen(
     vm: MainViewModel,
     onNavigateBack: () -> Unit = {},
+    onNavigateToProfile: (String) -> Unit = {},
 ) {
     val leaderboard by vm.leaderboard.collectAsState()
     val leaderboardLoading by vm.leaderboardLoading.collectAsState()
@@ -116,7 +119,7 @@ fun LeaderboardScreen(
                     modifier = Modifier.padding(bottom = 16.dp),
                 ) {
                     items(leaderboard) { entry ->
-                        LeaderboardRow(entry = entry)
+                        LeaderboardRow(entry = entry, onClick = { onNavigateToProfile(entry.username) })
                     }
                 }
             }
@@ -125,16 +128,17 @@ fun LeaderboardScreen(
 }
 
 @Composable
-private fun LeaderboardRow(entry: LeaderboardEntry) {
+private fun LeaderboardRow(entry: LeaderboardEntry, onClick: () -> Unit = {}) {
     val isTop3 = entry.rank <= 3
     val rankEmoji = when (entry.rank) { 1 -> "\uD83E\uDD47"; 2 -> "\uD83E\uDD48"; 3 -> "\uD83E\uDD49"; else -> null }
     val initial = (entry.displayName ?: entry.username).firstOrNull()?.uppercase() ?: "?"
 
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier.fillMaxWidth().clickable { onClick() },
         colors = CardDefaults.cardColors(
-            containerColor = if (isTop3) Color(0xFFFFF8E1) else MaterialTheme.colorScheme.surface,
+            containerColor = if (isTop3) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f) else MaterialTheme.colorScheme.surface,
         ),
+        border = if (isTop3) BorderStroke(1.dp, MaterialTheme.colorScheme.tertiary.copy(alpha = 0.5f)) else null,
         shape = RoundedCornerShape(12.dp),
         elevation = CardDefaults.cardElevation(if (isTop3) 2.dp else 0.dp),
     ) {

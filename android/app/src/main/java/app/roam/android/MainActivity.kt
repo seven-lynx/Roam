@@ -34,8 +34,8 @@ class MainActivity : ComponentActivity() {
     private val mainVm: MainViewModel by viewModels()
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        super.onCreate(savedInstanceState)
         // Wait for Supabase to finish restoring its session from SharedPreferences before
         // attempting the PKCE code exchange. If we call handleDeeplinks() while the Auth
         // plugin is still in Initializing state, the code_verifier hasn't been loaded yet
@@ -80,6 +80,9 @@ class MainActivity : ComponentActivity() {
                                 authVm.signOut()
                             }
                         },
+                        onNavigateToInterests = {
+                            authVm.setStatus(AuthState.NeedsOnboarding)
+                        }
                     )
                 }
             }
@@ -120,6 +123,15 @@ class MainActivity : ComponentActivity() {
         } else {
             // Standard web URL or other deep link (e.g. from notification)
             Log.d(TAG, "Processing non-auth deep link: $uri")
+            // If it's a user profile URL, navigate to the public profile screen
+            if (rawUri.contains("/u/")) {
+                val username = rawUri.substringAfterLast("/")
+                    .substringBefore("?").substringBefore("#") 
+                if (username.isNotBlank()) {
+                    mainVm.setPendingProfileUsername(username)
+                    return
+                }
+            }
             mainVm.navigateTo(rawUri)
         }
     }

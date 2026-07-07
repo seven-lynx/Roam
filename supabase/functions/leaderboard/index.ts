@@ -51,7 +51,7 @@ Deno.serve(async (req) => {
       await refreshSnapshot(period)
     }
 
-    // Fetch the latest snapshot
+    // Fetch the latest snapshot — only public profiles
     const { data: rankings, error } = await adminClient
       .from('leaderboard_snapshots')
       .select(`
@@ -59,15 +59,21 @@ Deno.serve(async (req) => {
         user_id,
         xp_earned,
         badge_count,
-        profiles!inner(username, display_name, avatar_url, xp_total, level, streak_days)
+        profiles!inner(username, display_name, avatar_url, xp_total, level, streak_days, is_public)
       `)
       .eq('period', period)
+      .eq('profiles.is_public', true)
       .order('rank', { ascending: true })
       .limit(50)
 
     if (error) throw error
 
-    const entries: LeaderboardEntry[] = (rankings || []).map((r: Record<string, unknown>) => {
+    const entries: LeaderboardEntry[] = (rankings || [])
+      .filter((r: Record<string, unknown>) => {
+        const profile = (r.profiles || {}) as Record<string, unknown>
+        return profile.is_public !== false
+      })
+      .map((r: Record<string, unknown>) => {
       const profile = (r.profiles || {}) as Record<string, unknown>
       return {
         rank: r.rank as number,

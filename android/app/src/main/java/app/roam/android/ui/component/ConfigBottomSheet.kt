@@ -42,6 +42,7 @@ fun ConfigBottomSheet(
     onTranslate: (language: String) -> Unit,
     onSaveForLater: () -> Unit,
     onShare: () -> Unit,
+    onShareWithFriend: () -> Unit = {},
     onAddToCollection: (collectionId: String) -> Unit,
     onCreateCollectionAndAdd: (name: String) -> Unit,
     onRoamWithinCategory: () -> Unit,
@@ -120,6 +121,13 @@ fun ConfigBottomSheet(
             }
 
             TextButton(
+                onClick = onShareWithFriend,
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
+            ) {
+                Text("Share with a friend", modifier = Modifier.fillMaxWidth())
+            }
+
+            TextButton(
                 onClick = { collectionPickerMode = "add"; collectionPickerOpen = true },
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
             ) {
@@ -175,13 +183,6 @@ fun ConfigBottomSheet(
                 Text("Manage collections ↗", modifier = Modifier.fillMaxWidth())
             }
 
-            TextButton(
-                onClick = onCategoryPrefs,
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
-            ) {
-                Text("Category preferences ↗", modifier = Modifier.fillMaxWidth())
-            }
-
             Spacer(modifier = Modifier.height(4.dp))
 
             TextButton(
@@ -195,80 +196,52 @@ fun ConfigBottomSheet(
                 )
             }
 
-            // ── Section 3: Moderator (unlocked via Settings → tap version 5×) ──
-            if (moderatorModeEnabled && !adminModeEnabled) {
+            // ── Section 3: Admin / Moderator (unlocked via JWT role or Settings → tap version 5×) ──
+            if (adminModeEnabled || (moderatorModeEnabled && !adminModeEnabled)) {
                 Spacer(modifier = Modifier.height(8.dp))
                 HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    text = "🛡️ Moderator",
+                    text = if (adminModeEnabled) "\uD83D\uDD12 Admin" else "\uD83D\uDEE1\uFE0F Moderator",
                     style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                )
-                TextButton(
-                    onClick = { onAdminNavigateToUrl("https://roamtheweb.app/moderator?view=queue") },
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
-                ) { Text("🛂 Moderation Queue ↗", modifier = Modifier.fillMaxWidth()) }
-                TextButton(
-                    onClick = { onAdminNavigateToUrl("https://roamtheweb.app/moderator?view=analytics") },
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
-                ) { Text("📊 Analytics ↗", modifier = Modifier.fillMaxWidth()) }
-                TextButton(
-                    onClick = { onAdminNavigateToUrl("https://roamtheweb.app/moderator?view=badges") },
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
-                ) { Text("🏅 Badges ↗", modifier = Modifier.fillMaxWidth()) }
-                TextButton(
-                    onClick = { onAdminNavigateToUrl("https://roamtheweb.app/moderator?view=reports") },
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
-                ) { Text("🚫 Dead Links ↗", modifier = Modifier.fillMaxWidth()) }
-            }
-
-            // ── Section 4: Admin (unlocked via Settings → tap version 5×) ──
-            if (adminModeEnabled) {
-                Spacer(modifier = Modifier.height(8.dp))
-                HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    text = "\uD83D\uDD12 Admin",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.error,
+                    color = if (adminModeEnabled) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
                 )
 
-                // URL loader
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 8.dp, vertical = 4.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    OutlinedTextField(
-                        value = adminUrlInput,
-                        onValueChange = { adminUrlInput = it },
-                        label = { Text("Load URL in Roam") },
-                        placeholder = { Text("https://example.com") },
-                        singleLine = true,
-                        modifier = Modifier.weight(1f),
-                    )
-                    OutlinedButton(
-                        onClick = {
-                            val trimmed = adminUrlInput.trim()
-                            if (trimmed.isNotBlank()) {
-                                onAdminNavigateToUrl(trimmed)
-                                adminUrlInput = ""
-                            }
-                        },
-                        enabled = adminUrlInput.isNotBlank(),
+                // URL loader (admin only)
+                if (adminModeEnabled) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 8.dp, vertical = 4.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Text("Go")
+                        OutlinedTextField(
+                            value = adminUrlInput,
+                            onValueChange = { adminUrlInput = it },
+                            label = { Text("Load URL in Roam") },
+                            placeholder = { Text("https://example.com") },
+                            singleLine = true,
+                            modifier = Modifier.weight(1f),
+                        )
+                        OutlinedButton(
+                            onClick = {
+                                val trimmed = adminUrlInput.trim()
+                                if (trimmed.isNotBlank()) {
+                                    onAdminNavigateToUrl(trimmed)
+                                    adminUrlInput = ""
+                                }
+                            },
+                            enabled = adminUrlInput.isNotBlank(),
+                        ) {
+                            Text("Go")
+                        }
                     }
+                    Spacer(modifier = Modifier.height(4.dp))
                 }
 
-                Spacer(modifier = Modifier.height(4.dp))
-
-                // Quick links to web admin panels (open inside Roam)
+                // Quick links to web admin panels (all use /admin paths, not /moderator)
                 TextButton(
                     onClick = { onAdminNavigateToUrl("https://roamtheweb.app/admin?view=queue") },
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
@@ -282,16 +255,30 @@ fun ConfigBottomSheet(
                     Text("\uD83D\uDCCA Analytics ↗", modifier = Modifier.fillMaxWidth())
                 }
                 TextButton(
+                    onClick = { onAdminNavigateToUrl("https://roamtheweb.app/admin?view=badges") },
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
+                ) {
+                    Text("\uD83C\uDFC5 Badges ↗", modifier = Modifier.fillMaxWidth())
+                }
+                TextButton(
                     onClick = { onAdminNavigateToUrl("https://roamtheweb.app/admin?view=reports") },
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
                 ) {
                     Text("\uD83D\uDEAB Dead Links ↗", modifier = Modifier.fillMaxWidth())
                 }
-                TextButton(
-                    onClick = { onAdminNavigateToUrl("https://roamtheweb.app/admin?view=beta") },
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
-                ) {
-                    Text("\uD83D\uDD0C Beta Signups ↗", modifier = Modifier.fillMaxWidth())
+                if (adminModeEnabled) {
+                    TextButton(
+                        onClick = { onAdminNavigateToUrl("https://roamtheweb.app/admin?view=email") },
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
+                    ) {
+                        Text("\uD83D\uDCE7 Email ↗", modifier = Modifier.fillMaxWidth())
+                    }
+                    TextButton(
+                        onClick = { onAdminNavigateToUrl("https://roamtheweb.app/admin?view=beta") },
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
+                    ) {
+                        Text("\uD83D\uDD0C Beta Signups ↗", modifier = Modifier.fillMaxWidth())
+                    }
                 }
             }
 

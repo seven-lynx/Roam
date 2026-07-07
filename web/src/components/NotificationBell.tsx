@@ -42,7 +42,8 @@ export function NotificationBell() {
 
       const { count, error } = await supabase
         .from('notifications')
-        .select('*', { count: 'exact', head: true })
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', user.id)
         .eq('read', false);
 
       if (error) return;
@@ -61,13 +62,42 @@ export function NotificationBell() {
     }
   }, []);
 
-  // Fetch unread count on mount + poll
+  // Subscribe to realtime notification inserts instead of polling
   useEffect(() => {
-    fetchUnreadCount();
+    async function setupRealtime() {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
 
-    // Poll for new notifications every 30 seconds
-    const interval = setInterval(fetchUnreadCount, 30_000);
-    return () => clearInterval(interval);
+      // Initial fetch
+      fetchUnreadCount();
+
+      // Subscribe to new notifications for this user via Realtime
+      const channel = supabase
+        .channel('notification-changes')
+        .on(
+          'postgres_changes',
+          {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'notifications',
+            filter: `user_id=eq.${user.id}`,
+          },
+          () => {
+            // Increment unread count when a new notification arrives
+            setUnreadCount(c => c + 1);
+          },
+        )
+        .subscribe();
+
+      return () => {
+        supabase.removeChannel(channel);
+      };
+    }
+
+    const cleanup = setupRealtime();
+    return () => {
+      cleanup.then(fn => fn?.());
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -84,9 +114,13 @@ export function NotificationBell() {
 
   async function fetchNotifications() {
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
       const { data, error } = await supabase
         .from('notifications')
-        .select('*')
+        .select('id, type, title, body, data, read, created_at')
+        .eq('user_id', user.id)
         .order('created_at', { ascending: false })
         .limit(20);
 

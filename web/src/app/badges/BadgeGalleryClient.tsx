@@ -42,7 +42,7 @@ export function BadgeGalleryClient() {
           // Fallback: fetch public badge definitions
           const { data, error: err } = await supabase
             .from('badges')
-            .select('*')
+            .select('id, slug, name, description, icon, category, tier, xp_reward, parent_badge_slug, is_gift_only, is_hidden')
             .eq('is_hidden', false)
             .order('category');
           if (err) throw new Error(err.message);

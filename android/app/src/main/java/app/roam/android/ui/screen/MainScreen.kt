@@ -433,10 +433,7 @@ private fun DiscoverTab(
                     moderatorModeEnabled = vm.moderatorModeEnabled.collectAsState().value,
                     onAdminNavigateToUrl = { url ->
                         scope.launch {
-                            try {
-                                app.roam.android.util.WebAuthUtil.injectSession()
-                            } catch (_: Exception) { }
-                            vm.navigateTo(url)
+                            vm.navigateToWebWithAuth(url)
                             scaffoldState.bottomSheetState.partialExpand()
                         }
                     },

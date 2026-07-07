@@ -24,6 +24,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.key
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -43,118 +44,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import app.roam.android.viewmodel.WebNavCommand
-import io.sentry.Sentry
-import io.sentry.Breadcrumb
-import io.sentry.SentryLevel
 import kotlinx.coroutines.flow.Flow
-
-// Schemes the WebView is allowed to load. Everything else (intent://, market://,
-// tel:, etc.) is blocked to prevent escaping into external apps.
-private val ALLOWED_SCHEMES = setOf("http", "https", "about", "data", "blob")
-
-// Self-contained JavaScript that saves and restores scroll position per-URL using
-// localStorage. Runs entirely in the WebView's JS context with no Android lifecycle
-// dependencies — eliminates the async race conditions of the old evaluateJavascript +
-// rememberSaveable approach.
-//
-// Mechanism:
-//  1. On page load, check localStorage for a saved scroll anchor for this URL. If
-//     found, poll requestAnimationFrame until the document height reaches the saved
-//     value, then scrollTo(0, savedY). This prevents the script from scrolling to a
-//     position the page hasn't reached yet (dynamic content, lazy images, etc.).
-//  2. On every scroll event, save { y, height, url } to localStorage immediately
-//     (skipped only when y hasn't changed — eliminates the 200ms debounce race
-//     condition where the user could background the app before the debounce fired,
-//     causing the 1st scroll position to be restored instead of the 2nd).
-//  3. On beforeunload, immediately save the final scroll position.
-//
-// localStorage is disk-backed and survives WebView renderer process death — unlike
-// sessionStorage which is wiped when Android kills the renderer in the background.
-// It is scoped to origin — no cross-site leaks.
-private const val ROAM_SCROLL_MEMORY_SCRIPT = """
-(function(){
-  'use strict';
-  var STORAGE_KEY = '__roam_scroll__';
-  var MAX_POLL_ATTEMPTS = 60; // 60 * ~100ms = 6s max wait
-  var _lastSavedY = -1; // guard: skip redundant writes when y hasn't changed
-
-  function getScrollData() {
-    return { y: window.scrollY || window.pageYOffset || 0,
-             height: Math.max(document.body.scrollHeight, document.documentElement.scrollHeight, 0) };
-  }
-
-  function saveScroll() {
-    try {
-      var data = getScrollData();
-      // Skip write if scroll position hasn't changed since last save
-      if (data.y === _lastSavedY) return;
-      _lastSavedY = data.y;
-      data.url = location.href;
-      var store = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
-      store[data.url] = data;
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(store));
-    } catch(e) { /* localStorage may be unavailable in some contexts */ }
-  }
-
-  function loadAndRestore() {
-    try {
-      var store = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
-      var entry = store[location.href];
-      if (!entry || !entry.y) return;
-      var targetY = entry.y;
-      var targetHeight = entry.height;
-      var pollCount = 0;
-
-      function tryScroll() {
-        var currentHeight = Math.max(document.body.scrollHeight, document.documentElement.scrollHeight, 0);
-        // Page has grown to at least the saved height, or we've polled long enough
-        if (currentHeight >= targetHeight || pollCount >= MAX_POLL_ATTEMPTS) {
-          window.scrollTo(0, Math.min(targetY, currentHeight));
-        } else {
-          pollCount++;
-          requestAnimationFrame(tryScroll);
-        }
-      }
-
-      // Delay first attempt by one frame so initial layout completes
-      requestAnimationFrame(tryScroll);
-    } catch(e) { /* no-op */ }
-  }
-
-  // Expose save/restore globally so Android can call them via evaluateJavascript
-  // when the app is backgrounded/foregrounded and no native load event fires.
-  window.__roam_saveScroll = saveScroll;
-  window.__roam_restoreScroll = loadAndRestore;
-
-  // Save immediately on every scroll (no debounce) so the latest position is
-  // always persisted before Android can suspend the JS thread on backgrounding.
-  // The _lastSavedY guard prevents redundant localStorage writes on events
-  // where scrollY hasn't changed (e.g. scrollend/overscroll rubber-banding).
-  window.addEventListener('scroll', saveScroll, { passive: true });
-
-  // Final save before navigating away
-  window.addEventListener('beforeunload', saveScroll);
-
-  // Also save on pagehide — some browsers fire this instead of beforeunload
-  // when the page enters the back-forward cache, and it fires synchronously
-  // on app backgrounding in WebView contexts that support it.
-  window.addEventListener('pagehide', saveScroll);
-
-  // Restore on load
-  if (document.readyState === 'complete') {
-    loadAndRestore();
-  } else {
-    window.addEventListener('load', loadAndRestore, { once: true });
-  }
-
-  // Belt-and-suspenders: if the page is restored from the back-forward cache
-  // (e.g. after app backgrounding on some OEM WebViews), pageshow fires but
-  // load does not. The persisted property indicates a bfcache restore.
-  window.addEventListener('pageshow', function(e) {
-    if (e.persisted) loadAndRestore();
-  });
-})();
-"""
 
 @Composable
 fun RoamWebView(
@@ -165,30 +55,33 @@ fun RoamWebView(
     onUrlChanged: (String) -> Unit = {},
     onLoadError: () -> Unit = {},
     onLoadingChanged: (Boolean) -> Unit = {},
-    onPageVisible: () -> Unit = {},  // Fires at first paint (onPageCommitVisible)
-    onPageFinishedForPrefetch: () -> Unit = {},  // Fires on go page finish so cache-warmer can start
-    onRecovering: (Boolean) -> Unit = {},  // Fires when WebView is recovering from renderer death
+    onPageVisible: () -> Unit = {},
+    onRecovering: (Boolean) -> Unit = {},
+    onPageFinishedForPrefetch: () -> Unit = {},
     navCommandsFlow: Flow<WebNavCommand>? = null,
     clearCookiesFlow: Flow<Unit>? = null,
 ) {
     var loadError by remember { mutableStateOf(value = false) }
-    // Persists WebView back/forward history + current URL across process death
-    val savedState = rememberSaveable { Bundle() }
+    // Non-persisted Bundle for live session recovery only (renderer death while app
+    // is alive). Previously rememberSaveable restored stale URLs across process
+    // death recreation, causing the WebView to navigate away from the ViewModel's
+    // current URL on resume.
+    val savedState = remember { Bundle() }
     // Hold a stable reference so lifecycle observer can reach it
     val webViewRef = remember { mutableStateOf<WebView?>(null) }
     // Keep a stable url reference for use inside the lifecycle observer
     val urlRef = remember { mutableStateOf(url) }
-    // Track the URL we've told the WebView to load so the update block doesn't
-    // re-issue loadUrl() on every recomposition while the WebView is still loading
-    // the old page (webView.url lags behind during navigation, causing an infinite
-    // load loop).
-    var commandedUrl by remember { mutableStateOf(url) }
+    // The last URL we commanded the WebView to load. Used to detect silent URL
+    // drift after process death (when restoreState brings back a stale page).
+    var lastCommittedUrl by remember { mutableStateOf<String?>(null) }
     LaunchedEffect(url) {
         urlRef.value = url
         // Reset the error state whenever we get a new URL to try.
         // This ensures that "Try next page" can actually escape the error screen.
         loadError = false
     }
+    // Scroll position saved on pause, restored after the page reloads
+    val savedScrollY = rememberSaveable { mutableIntStateOf(0) }
     // Snapshot of the last visible viewport — shown as an overlay while the page reloads
     // after renderer death, eliminating the white-screen flash.
     var snapshotBitmap by remember { mutableStateOf<Bitmap?>(null) }
@@ -220,51 +113,50 @@ fun RoamWebView(
             when (event) {
                 Lifecycle.Event.ON_RESUME -> {
                     val wv = webViewRef.value ?: return@LifecycleEventObserver
+                    wv.onResume()
+                    wv.resumeTimers()
                     // If the renderer was killed while backgrounded, the WebView url is null.
+                    // Restore saved state first; fall back to reloading the current url.
                     if (wv.url.isNullOrEmpty()) {
-                        onRecovering(true)
                         showSnapshot = true
+                        onRecovering(true)
                         if (!savedState.isEmpty) {
                             wv.restoreState(savedState)
                         } else {
                             urlRef.value?.let { wv.loadUrl(it) }
                         }
-                    }
-                    // Force-restore scroll position for the surviving-renderer case.
-                    // The JS script only restores on load/pageshow — neither of which
-                    // fire when the renderer survives backgrounding. Calling the exposed
-                    // global __roam_restoreScroll forces an immediate restore from
-                    // localStorage, regardless of whether a native load event occurred.
-                    //
-                    // Issue a delayed second restore ~150ms later to catch cases where
-                    // the WebView hasn't finished its internal resume layout dance
-                    // (window inset animations, renderer thaw, etc.) when the first
-                    // attempt fires. The restore is idempotent — if the first call
-                    // already succeeded, the second is a no-op.
-                    if (jsEnabled) {
-                        wv.evaluateJavascript("window.__roam_restoreScroll && window.__roam_restoreScroll()", null)
-                        Handler(Looper.getMainLooper()).postDelayed({
-                            wv.evaluateJavascript("window.__roam_restoreScroll && window.__roam_restoreScroll()", null)
-                        }, 150L)
+                    } else {
+                        // WebView is alive — restore scroll position saved during ON_PAUSE.
+                        // restoreState is the WebView's native mechanism for restoring nav
+                        // history + scroll, and handles internal timing correctly.
+                        if (!savedState.isEmpty) {
+                            wv.restoreState(savedState)
+                        }
+                        // Fallback: manual scroll restoration via postDelayed. We capture
+                        // savedScrollY as a local val BEFORE resetting so the lambda uses
+                        // the correct value (not the zero it gets reset to on the next line).
+                        // The 300ms delay gives the WebView time to finish its internal
+                        // resume/layout cycle triggered by resumeTimers().
+                        val sy = savedScrollY.intValue
+                        savedScrollY.intValue = 0
+                        if (sy > 0) {
+                            wv.postDelayed({
+                                wv.scrollTo(0, sy)
+                            }, 300)
+                        }
                     }
                 }
                 Lifecycle.Event.ON_PAUSE -> {
-                    webViewRef.value?.let { wv ->
-                        // Belt-and-suspenders: force-save the current scroll position.
-                        // The injected script saves on every scroll event immediately,
-                        // but if the user backgrounds mid-scroll the last scroll event
-                        // may have already fired. This call guarantees the absolute final
-                        // position is persisted before Android suspends the WebView.
-                        if (jsEnabled) {
-                            wv.evaluateJavascript("window.__roam_saveScroll && window.__roam_saveScroll()", null)
-                        }
-                        if ((wv.width > 0) && (wv.height > 0)) {
-                            val bmp = createBitmap(wv.width, wv.height, Bitmap.Config.ARGB_8888)
-                            wv.draw(Canvas(bmp))
+                    webViewRef.value?.let {
+                        if ((it.width > 0) && (it.height > 0)) {
+                            val bmp = createBitmap(it.width, it.height, Bitmap.Config.ARGB_8888)
+                            it.draw(Canvas(bmp))
                             snapshotBitmap = bmp
                         }
-                        // Native saveState covers the back/forward stack when JS is disabled.
-                        wv.saveState(savedState)
+                        savedScrollY.intValue = it.scrollY
+                        it.saveState(savedState)
+                        it.onPause()
+                        it.pauseTimers()
                     }
                 }
                 else -> {}
@@ -314,11 +206,8 @@ fun RoamWebView(
                         setSupportZoom(true)
                         builtInZoomControls = true
                         displayZoomControls = false
-                        userAgentString = "Mozilla/5.0 (Linux; Android 10; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36"
                         allowFileAccess = false
                         allowContentAccess = false
-                        @Suppress("DEPRECATION")
-                        setOffscreenPreRaster(true)
                     }
                     if (darkMode) {
                         if (WebViewFeature.isFeatureSupported(WebViewFeature.ALGORITHMIC_DARKENING)) {
@@ -329,69 +218,59 @@ fun RoamWebView(
                         }
                     }
                     webChromeClient = object : WebChromeClient() {
-                // When a page calls window.open() or a link has target="_blank",
-                // Android calls onCreateWindow. The default implementation returns
-                // false, which fires an ACTION_VIEW intent and opens the URL in
-                // the system browser. We override it to reuse the same WebView,
-                // keeping all navigation inside Roam.
-                override fun onCreateWindow(
-                    view: WebView,
-                    isDialog: Boolean,
-                    isUserGesture: Boolean,
-                    resultMsg: android.os.Message,
-                ): Boolean {
-                    val transport = resultMsg.obj as? WebView.WebViewTransport
-                    if (transport != null) {
-                        transport.webView = view
-                        resultMsg.sendToTarget()
-                    }
-                    return true
-                }
+                        // When a page calls window.open() or a link has target="_blank",
+                        // Android calls onCreateWindow. The default implementation returns
+                        // false, which fires an ACTION_VIEW intent and opens the URL in
+                        // the system browser. We override it to reuse the same WebView,
+                        // keeping all navigation inside Roam.
+                        override fun onCreateWindow(
+                            view: WebView,
+                            isDialog: Boolean,
+                            isUserGesture: Boolean,
+                            resultMsg: android.os.Message,
+                        ): Boolean {
+                            val transport = resultMsg.obj as? WebView.WebViewTransport
+                            if (transport != null) {
+                                transport.webView = view
+                                resultMsg.sendToTarget()
+                            }
+                            return true
+                        }
                     }
                     webViewClient = object : WebViewClient() {
+                        // Track redirect count per page load to break infinite redirect loops.
+                        // Some sites (Outside, Bloomberg, etc.) detect mismatched or old
+                        // User-Agents and bounce between mobile/desktop subdomains or
+                        // consent walls, creating chains of 20+ redirects that the WebView
+                        // would otherwise faithfully follow until hitting its internal limit.
+                        private var redirectCount = 0
+                        private var lastRedirectHost: String? = null
+
                         override fun onPageStarted(view: WebView, url: String, favicon: Bitmap?) {
-                            Sentry.addBreadcrumb(Breadcrumb().apply {
-                                this.message = "WebView load started"
-                                this.category = "navigation"
-                                this.level = SentryLevel.INFO
-                                this.setData("url", url.take(120))
-                            })
+                            // Reset redirect tracking on each new top-level navigation
+                            if (favicon != null || redirectCount == 0) {
+                                redirectCount = 0
+                                lastRedirectHost = null
+                            }
                             onLoadingChanged(true)
                         }
-                        // Fires when the first frame is rendered — the page is visually
-                        // present even if JS/CSS hasn't finished. This lets the loading
-                        // overlay disappear ~0.5-2s earlier than waiting for onPageFinished.
-                        override fun onPageCommitVisible(view: WebView, url: String) {
-                            if (url == commandedUrl || commandedUrl == null) {
-                                onPageVisible()
-                            }
-                        }
                         override fun onPageFinished(view: WebView, loadedUrl: String) {
-                            commandedUrl = loadedUrl
+                            // Page loaded successfully — reset the counter
+                            redirectCount = 0
+                            lastRedirectHost = null
                             onUrlChanged(loadedUrl)
                             loadError = false
                             onLoadingChanged(false)
-                            onRecovering(false)
-                            Sentry.addBreadcrumb(Breadcrumb().apply {
-                                this.message = "WebView load finished"
-                                this.category = "navigation"
-                                this.level = SentryLevel.INFO
-                                this.setData("url", loadedUrl.take(120))
-                            })
                             showSnapshot = false
                             snapshotBitmap = null
-                            // Inject a self-contained scroll-memory script that saves/restores
-                            // scroll position from localStorage. This runs entirely in the
-                            // JS context with zero Android lifecycle race conditions.
-                            // When jsEnabled is false, the script is not injected and
-                            // restoreState/saveState (native Android WebView session) handles
-                            // scroll via the lifecycle observers instead.
-                            if (jsEnabled) {
-                                view.evaluateJavascript(ROAM_SCROLL_MEMORY_SCRIPT, null)
-                            }
-                            // Tell the ViewModel the page finished so it can start warming
-                            // the cache for the next URL while the user reads.
+                            onPageVisible()
+                            onRecovering(false)
                             onPageFinishedForPrefetch()
+                            val sy = savedScrollY.intValue
+                            if (sy > 0) {
+                                view.post { view.scrollTo(0, sy) }
+                                savedScrollY.intValue = 0
+                            }
                         }
                         override fun onReceivedError(
                             view: WebView,
@@ -399,15 +278,10 @@ fun RoamWebView(
                             error: WebResourceError,
                         ) {
                             if (request.isForMainFrame) {
+                                redirectCount = 0
+                                lastRedirectHost = null
                                 loadError = true
                                 onLoadingChanged(false)
-                                Sentry.addBreadcrumb(Breadcrumb().apply {
-                                    this.message = "WebView load error"
-                                    this.category = "navigation"
-                                    this.level = SentryLevel.ERROR
-                                    this.setData("error_code", error.errorCode)
-                                    this.setData("error_desc", error.description?.toString()?.take(200) ?: "unknown")
-                                })
                             }
                         }
                         // The renderer process was killed. On some devices (Samsung One UI 6),
@@ -415,52 +289,72 @@ fun RoamWebView(
                         // AndroidRuntimeException. Show the error UI instead of trying to
                         // recreate the WebView — it recovers after a fresh roam.
                         override fun onRenderProcessGone(view: WebView, detail: RenderProcessGoneDetail): Boolean {
-                            Sentry.addBreadcrumb(Breadcrumb().apply {
-                                this.message = "WebView renderer process killed"
-                                this.category = "navigation"
-                                this.level = SentryLevel.ERROR
-                                this.setData("renderer_priority_at_exit", detail.rendererPriorityAtExit())
-                            })
                             Handler(Looper.getMainLooper()).post {
                                 webViewRef.value = null
                                 showSnapshot = false
                                 snapshotBitmap = null
                                 loadError = true
-                                onRecovering(false)
                             }
                             return true
                         }
-                    // Keep all URL navigation within the WebView, including links with
-                    // target="_blank" or window.open(). This ensures history and discovered URLs
-                    // always open inside Roam, never in an external browser.
-                    override fun shouldOverrideUrlLoading(
-                        view: WebView,
-                        request: WebResourceRequest,
-                    ): Boolean {
-                        val scheme = request.url.scheme
-                        // Block Android intent:// and other non-http schemes that would
-                        // launch external apps (e.g. market://, tel:, mailto: via intent).
-                        if (scheme != null && scheme !in ALLOWED_SCHEMES) {
-                            return true
+                        // Keep all URL navigation within the WebView. Block non-http
+                        // schemes (intent://, market://, tel:, sms:, etc.) that would
+                        // launch external apps. All http/https URLs load normally inside
+                        // the WebView without ever delegating to the system browser.
+                        override fun shouldOverrideUrlLoading(
+                            view: WebView,
+                            request: WebResourceRequest,
+                        ): Boolean {
+                            val scheme = request.url.scheme
+                            if (scheme != null && scheme !in setOf("http", "https", "about", "data", "blob")) {
+                                return true // Block external app schemes
+                            }
+                            // Break redirect loops: if the same host is targeted 10+ times
+                            // in a row, abort the load so the WebView doesn't exhaust its
+                            // internal redirect budget and show a cryptic error page.
+                            val host = request.url.host
+                            if (host != null && host == lastRedirectHost) {
+                                redirectCount++
+                                if (redirectCount >= 10) {
+                                    android.util.Log.w("RoamWebView", "Redirect loop detected on $host — aborting")
+                                    loadError = true
+                                    onLoadingChanged(false)
+                                    return true // Cancel the navigation
+                                }
+                            } else {
+                                lastRedirectHost = host
+                                redirectCount = 1
+                            }
+                            return false // Load normally in WebView
                         }
-                        // Return false to let the WebView load all http/https URLs normally.
-                        // This prevents delegation to the system browser.
-                        return false
-                    }
 
-                    // Deprecated overload — some OEM WebView implementations (Samsung,
-                    // Huawei) and server-side redirects still route through this path.
-                    // Without this override, non-http schemes can fire ACTION_VIEW intents
-                    // that open the system browser or other apps.
-                    @Deprecated("Deprecated in Java", ReplaceWith("shouldOverrideUrlLoading(view, request)"))
-                    @Suppress("DEPRECATION")
-                    override fun shouldOverrideUrlLoading(view: WebView, url: String): Boolean {
-                        val scheme = try { android.net.Uri.parse(url).scheme } catch (_: Exception) { null }
-                        if (scheme != null && scheme !in ALLOWED_SCHEMES) {
-                            return true
+                        // Deprecated overload — some OEM WebView implementations (Samsung,
+                        // Huawei) and server-side redirects still route through this path.
+                        // Without this override, non-http schemes can fire ACTION_VIEW
+                        // intents that open the system browser or other apps.
+                        @Deprecated("Deprecated in Java", ReplaceWith("shouldOverrideUrlLoading(view, request)"))
+                        @Suppress("DEPRECATION")
+                        override fun shouldOverrideUrlLoading(view: WebView, url: String): Boolean {
+                            val scheme = try { android.net.Uri.parse(url).scheme } catch (_: Exception) { null }
+                            if (scheme != null && scheme !in setOf("http", "https", "about", "data", "blob")) {
+                                return true
+                            }
+                            // Also check redirect loops on the deprecated path
+                            val host = try { android.net.Uri.parse(url).host } catch (_: Exception) { null }
+                            if (host != null && host == lastRedirectHost) {
+                                redirectCount++
+                                if (redirectCount >= 10) {
+                                    android.util.Log.w("RoamWebView", "Redirect loop detected on $host (legacy path) — aborting")
+                                    loadError = true
+                                    onLoadingChanged(false)
+                                    return true
+                                }
+                            } else {
+                                lastRedirectHost = host
+                                redirectCount = 1
+                            }
+                            return false
                         }
-                        return false
-                    }
                     }
                     // Restore saved session (back/forward stack + scroll) or load fresh
                     if (!savedState.isEmpty) {
@@ -484,12 +378,12 @@ fun RoamWebView(
         update = { webView ->
             if (webView is WebView) {
                 webViewRef.value = webView
+                webView.saveState(savedState)
                 if (webView.settings.javaScriptEnabled != jsEnabled) {
                     webView.settings.javaScriptEnabled = jsEnabled
                     webView.settings.domStorageEnabled = jsEnabled
                     webView.reload()
-                } else if (commandedUrl != url || loadError) {
-                    commandedUrl = url
+                } else if (webView.url != url || loadError) {
                     loadError = false
                     onLoadingChanged(true)
                     webView.loadUrl(url)
@@ -531,25 +425,18 @@ fun BackgroundPrefetchWebView(
             factory = { context ->
                 try {
                     WebView(context).apply {
-                        // Prevent the prefetch WebView from navigating to other URLs or
-                        // opening the system browser. This WebView only exists to warm the
-                        // disk cache for a single URL.
+                        // Block all navigation — this WebView only exists to warm the
+                        // disk cache. Any window.open(), target="_blank", or navigation
+                        // must be suppressed so it never opens the system browser.
                         webViewClient = object : WebViewClient() {
                             override fun shouldOverrideUrlLoading(
                                 view: WebView,
                                 request: WebResourceRequest,
-                            ): Boolean {
-                                // Block all navigation — this is a cache warmer, not a browser.
-                                return true
-                            }
+                            ): Boolean = true // Block all navigation
 
-                            // Deprecated overload — OEM WebView implementations may route
-                            // server-side redirects through this path.
                             @Deprecated("Deprecated in Java", ReplaceWith("shouldOverrideUrlLoading(view, request)"))
                             @Suppress("DEPRECATION")
-                            override fun shouldOverrideUrlLoading(view: WebView, url: String): Boolean {
-                                return true
-                            }
+                            override fun shouldOverrideUrlLoading(view: WebView, url: String): Boolean = true
                         }
                         webChromeClient = object : WebChromeClient() {
                             override fun onCreateWindow(
@@ -557,27 +444,17 @@ fun BackgroundPrefetchWebView(
                                 isDialog: Boolean,
                                 isUserGesture: Boolean,
                                 resultMsg: android.os.Message,
-                            ): Boolean {
-                                // Suppress window.open() — don't let the prefetch WebView
-                                // fire intents or open the system browser.
-                                return true
-                            }
+                            ): Boolean = true // Suppress window.open()
                         }
                         settings.apply {
                             @Suppress("SetJavaScriptEnabled")
                             javaScriptEnabled = jsEnabled
                             domStorageEnabled = jsEnabled
                             cacheMode = android.webkit.WebSettings.LOAD_CACHE_ELSE_NETWORK
-                            userAgentString = "Mozilla/5.0 (Linux; Android 10; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36"
                             allowFileAccess = false
-                        allowContentAccess = false
-                        // Tell the Chromium renderer to raster tiles even while the
-                        // WebView is offscreen, so the page is fully painted when it
-                        // becomes visible. Small GPU cost for a meaningful visual win.
-                        @Suppress("DEPRECATION")
-                        setOffscreenPreRaster(true)
-                    }
-                    if (darkMode) {
+                            allowContentAccess = false
+                        }
+                        if (darkMode) {
                             if (WebViewFeature.isFeatureSupported(WebViewFeature.ALGORITHMIC_DARKENING)) {
                                 WebSettingsCompat.setAlgorithmicDarkeningAllowed(settings, true)
                             } else if (WebViewFeature.isFeatureSupported(WebViewFeature.FORCE_DARK)) {
@@ -585,7 +462,7 @@ fun BackgroundPrefetchWebView(
                                 WebSettingsCompat.setForceDark(settings, WebSettingsCompat.FORCE_DARK_ON)
                             }
                         }
-                                        loadUrl(url)
+                        loadUrl(url)
                     }
                 } catch (t: Throwable) {
                     android.util.Log.e("RoamWebView", "Failed to create prefetch WebView", t)

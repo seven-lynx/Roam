@@ -25,10 +25,13 @@ import androidx.compose.ui.Modifier
 enum class RoamTab(val route: String) {
     Roam("discover"),
     Settings("settings"),
-    // Accessible via Settings, not bottom bar
+    // Other tabs accessible via YouScreen, not bottom bar
+    You("you"),
     Saved("saved"),
     Profile("profile"),
     History("history"),
+    PublicProfile("public_profile"),
+    Notifications("notifications"),
 }
 
 @Composable
@@ -85,7 +88,6 @@ fun BottomBar(
             selected = currentRoute == RoamTab.Roam.route,
             onClick = {
                 if (currentRoute == RoamTab.Roam.route) {
-                    // Already on Roam tab — load a new URL
                     onRoam()
                 } else {
                     onNavigate(RoamTab.Roam.route)
@@ -109,21 +111,21 @@ fun BottomBar(
             },
         )
 
-        // Settings
+        // You (was Settings)
         NavigationBarItem(
-            selected = currentRoute == RoamTab.Settings.route,
+            selected = currentRoute == RoamTab.You.route,
             onClick = {
-                if (currentRoute != RoamTab.Settings.route) {
-                    onNavigate(RoamTab.Settings.route)
+                if (currentRoute != RoamTab.You.route) {
+                    onNavigate(RoamTab.You.route)
                 }
             },
             icon = {
                 Icon(
-                    if (currentRoute == RoamTab.Settings.route) Icons.Filled.Settings else Icons.Outlined.Settings,
-                    contentDescription = "Settings",
+                    if (currentRoute == RoamTab.You.route) Icons.Filled.Settings else Icons.Outlined.Settings,
+                    contentDescription = "You",
                 )
             },
-            label = { Text("Settings", style = MaterialTheme.typography.labelSmall) },
+            label = { Text("You", style = MaterialTheme.typography.labelSmall) },
         )
 
         // Thumbs Up

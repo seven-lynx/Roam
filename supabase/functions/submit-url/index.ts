@@ -5,7 +5,7 @@
 // Approved URLs move to the moderation queue for admin review.
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-import { corsHeaders } from '../_shared/cors.ts'
+import { getCorsHeaders } from '../_shared/cors.ts'
 import { normalizeUrl } from '../_shared/normalise.ts'
 import { validateRequired } from '../_shared/env.ts'
 import { initSentry } from '../_shared/sentry.ts'
@@ -76,7 +76,8 @@ async function checkSafeBrowsing(url: string, apiKey: string): Promise<{ safe: b
 }
 
 Deno.serve(async (req) => {
-  if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
+  const origin = req.headers.get('Origin')
+  if (req.method === 'OPTIONS') return new Response('ok', { headers: getCorsHeaders(origin) })
   if (req.method !== 'POST') return json({ error: 'Method not allowed' }, 405)
 
   const supabase = createClient(
@@ -278,6 +279,6 @@ Deno.serve(async (req) => {
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    headers: { ...getCorsHeaders(origin), 'Content-Type': 'application/json' },
   })
 }
