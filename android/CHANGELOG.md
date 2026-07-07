@@ -1,8 +1,22 @@
  # Changelog
-
-All notable changes to the Roam Android app.
-
-## [1.1.3] - 2026-07-07
+ 
+ All notable changes to the Roam Android app.
+ 
+ ## [1.1.4] - 2026-07-07
+ 
+ ### Fixed
+ - Badge count inconsistency — Profile pages (both web and Android) now show a single, consistent badge count derived from actual unlocked badges. Fixed `profile.badge_count` denormalized counter drifting from `user_badges` due to missing `unlocked_at` timestamps on badge inserts. All four profile views (own profile, public profile on both platforms) now share the same source of truth.
+ - Streak days always showing 0 — `update_streak()` was only called from the Roam edge function with silent error suppression. Added `record_daily_activity()` helper and now maintain streaks from all user actions: roaming, saving URLs, submitting URLs, and following users. Profile edge function now returns gamification data including `streak_days`, `max_streak`, `xp_total`, `level`, and badges.
+ 
+ ### Backend
+ - Added `sync_profile_badge_count()` function — reconciles `profiles.badge_count` with actual locked badges and runs after every `evaluate_badges()` call
+ - Added `record_daily_activity()` helper — ensures `user_daily_activity` row exists for today, then calls `update_streak()`; called from roam, save-url, submit-url, and follow edge functions
+ - Fixed `evaluate_badges()` — now explicitly sets `unlocked_at = now()` on all badge unlocks to prevent future drift
+ - Hardened `update_streak()` with better NULL handling
+ - New migration repairs existing `user_badges` rows with `NULL unlocked_at` and syncs all `profile.badge_count` values
+ - Profile edge function now returns gamification data (`xp_total`, `level`, `streak_days`, `max_streak`, `badge_count`), badges array, and `collections_count`
+ 
+ ## [1.1.3] - 2026-07-07
 
 ### Fixed
 - Background/foreground URL drift — WebView no longer restores stale URLs from before process death. Changed savedState Bundle from `rememberSaveable` to `remember` so the ViewModel remains the single source of truth for current navigation, eliminating the "current URL changes after switching apps" bug.
