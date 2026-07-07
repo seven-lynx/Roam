@@ -11,7 +11,7 @@
 -- and orders by roam_score_static DESC. This composite index eliminates the sort
 -- and makes the index-only scan possible.
 -- ---------------------------------------------------------------------------
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_urls_roam_hotpath
+CREATE INDEX IF NOT EXISTS idx_urls_roam_hotpath
   ON public.urls (approved, inactive, language, category_id, roam_score_static DESC)
   INCLUDE (id, url, title, description, og_image_url, subcategory_id, domain, wilson_score)
   WHERE approved = TRUE AND inactive = FALSE;
@@ -19,7 +19,7 @@ CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_urls_roam_hotpath
 -- ---------------------------------------------------------------------------
 -- 2. Index for seen_urls lookup by user (used on every roam)
 -- ---------------------------------------------------------------------------
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_seen_urls_user_seen
+CREATE INDEX IF NOT EXISTS idx_seen_urls_user_seen
   ON public.seen_urls (user_id, seen_at DESC)
   INCLUDE (url_id);
 
@@ -27,14 +27,14 @@ CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_seen_urls_user_seen
 -- 3. Index for notifications unread count (used by realtime now, but still useful
 --    for initial fetch and for push notifications)
 -- ---------------------------------------------------------------------------
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_notifications_unread
+CREATE INDEX IF NOT EXISTS idx_notifications_unread
   ON public.notifications (user_id, read, created_at DESC)
   WHERE read = FALSE;
 
 -- ---------------------------------------------------------------------------
 -- 4. Index for collection_items join (collection mode roam)
 -- ---------------------------------------------------------------------------
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_collection_items_url
+CREATE INDEX IF NOT EXISTS idx_collection_items_url
   ON public.collection_items (collection_id, url_id);
 
 -- ---------------------------------------------------------------------------
@@ -97,15 +97,14 @@ GRANT EXECUTE ON FUNCTION public.refresh_daily_stats() TO service_role;
 -- ---------------------------------------------------------------------------
 -- 6. Index for leaderboard ranking (avoids full-table sort)
 -- ---------------------------------------------------------------------------
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_profiles_leaderboard
+CREATE INDEX IF NOT EXISTS idx_profiles_leaderboard
   ON public.profiles (level DESC, xp_total DESC, badge_count DESC)
-  INCLUDE (username, display_name, avatar_url)
-  WHERE is_private = FALSE;
+  INCLUDE (username, display_name, avatar_url);
 
 -- ---------------------------------------------------------------------------
 -- 7. Index for user_activity feed queries
 -- ---------------------------------------------------------------------------
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_user_activity_created
+CREATE INDEX IF NOT EXISTS idx_user_activity_created
   ON public.user_activity (created_at DESC, user_id);
 
 -- ---------------------------------------------------------------------------
