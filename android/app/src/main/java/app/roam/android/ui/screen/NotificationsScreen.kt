@@ -77,6 +77,7 @@ private fun getNotificationIcon(type: String): String = when (type) {
     "new_follower" -> "\uD83D\uDC64"
     "badge_unlocked" -> "\uD83C\uDFC5"
     "level_up" -> "\u2B06\uFE0F"
+    "url_shared" -> "\uD83D\uDCCE"
     else -> "\uD83D\uDD14"
 }
 
@@ -90,6 +91,7 @@ private fun resolveNotificationUrl(notification: AppNotification): String? {
         "url_approved", "url_rejected" -> notification.data?.url
         "new_follower" -> notification.data?.followerUsername?.let { "/u/$it" }
         "badge_unlocked", "level_up" -> notification.data?.vProfileUrl
+        "url_shared" -> notification.data?.url
         else -> null
     }
 }
@@ -283,6 +285,7 @@ private fun NotificationRow(
                 "new_follower" -> "View profile"
                 "badge_unlocked" -> "View badges"
                 "level_up" -> "View profile"
+                "url_shared" -> "Open in Roam"
                 else -> "Open in Roam"
             }
             TextButton(

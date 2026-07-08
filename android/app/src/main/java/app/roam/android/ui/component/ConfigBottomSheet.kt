@@ -66,6 +66,7 @@ fun ConfigBottomSheet(
     var newCollectionDialogOpen by remember { mutableStateOf(false) }
     var newCollectionName by remember { mutableStateOf("") }
     var translateDialogOpen by remember { mutableStateOf(false) }
+    var shareDialogOpen by remember { mutableStateOf(false) }
     var adminUrlInput by remember { mutableStateOf("") }
 
     // Language list for the translate picker
@@ -114,17 +115,10 @@ fun ConfigBottomSheet(
             }
 
             TextButton(
-                onClick = onShare,
+                onClick = { shareDialogOpen = true },
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
             ) {
                 Text("Share", modifier = Modifier.fillMaxWidth())
-            }
-
-            TextButton(
-                onClick = onShareWithFriend,
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
-            ) {
-                Text("Share with a friend", modifier = Modifier.fillMaxWidth())
             }
 
             TextButton(
@@ -196,93 +190,7 @@ fun ConfigBottomSheet(
                 )
             }
 
-            // ── Section 3: Admin / Moderator (unlocked via JWT role or Settings → tap version 5×) ──
-            if (adminModeEnabled || (moderatorModeEnabled && !adminModeEnabled)) {
-                Spacer(modifier = Modifier.height(8.dp))
-                HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    text = if (adminModeEnabled) "\uD83D\uDD12 Admin" else "\uD83D\uDEE1\uFE0F Moderator",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = if (adminModeEnabled) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                )
-
-                // URL loader (admin only)
-                if (adminModeEnabled) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 8.dp, vertical = 4.dp),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        OutlinedTextField(
-                            value = adminUrlInput,
-                            onValueChange = { adminUrlInput = it },
-                            label = { Text("Load URL in Roam") },
-                            placeholder = { Text("https://example.com") },
-                            singleLine = true,
-                            modifier = Modifier.weight(1f),
-                        )
-                        OutlinedButton(
-                            onClick = {
-                                val trimmed = adminUrlInput.trim()
-                                if (trimmed.isNotBlank()) {
-                                    onAdminNavigateToUrl(trimmed)
-                                    adminUrlInput = ""
-                                }
-                            },
-                            enabled = adminUrlInput.isNotBlank(),
-                        ) {
-                            Text("Go")
-                        }
-                    }
-                    Spacer(modifier = Modifier.height(4.dp))
-                }
-
-                // Quick links to web admin panels (all use /admin paths, not /moderator)
-                TextButton(
-                    onClick = { onAdminNavigateToUrl("https://roamtheweb.app/admin?view=queue") },
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
-                ) {
-                    Text("\uD83D\uDEC3 Moderation Queue ↗", modifier = Modifier.fillMaxWidth())
-                }
-                TextButton(
-                    onClick = { onAdminNavigateToUrl("https://roamtheweb.app/admin?view=analytics") },
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
-                ) {
-                    Text("\uD83D\uDCCA Analytics ↗", modifier = Modifier.fillMaxWidth())
-                }
-                TextButton(
-                    onClick = { onAdminNavigateToUrl("https://roamtheweb.app/admin?view=badges") },
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
-                ) {
-                    Text("\uD83C\uDFC5 Badges ↗", modifier = Modifier.fillMaxWidth())
-                }
-                TextButton(
-                    onClick = { onAdminNavigateToUrl("https://roamtheweb.app/admin?view=reports") },
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
-                ) {
-                    Text("\uD83D\uDEAB Dead Links ↗", modifier = Modifier.fillMaxWidth())
-                }
-                if (adminModeEnabled) {
-                    TextButton(
-                        onClick = { onAdminNavigateToUrl("https://roamtheweb.app/admin?view=email") },
-                        modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
-                    ) {
-                        Text("\uD83D\uDCE7 Email ↗", modifier = Modifier.fillMaxWidth())
-                    }
-                    TextButton(
-                        onClick = { onAdminNavigateToUrl("https://roamtheweb.app/admin?view=beta") },
-                        modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
-                    ) {
-                        Text("\uD83D\uDD0C Beta Signups ↗", modifier = Modifier.fillMaxWidth())
-                    }
-                }
-            }
-
-            // ── Section 4: Saved for later ───────────────────────────────────
+            // ── Section 3: Saved for later ───────────────────────────────────
             if (savedUrls.isNotEmpty()) {
                 Spacer(modifier = Modifier.height(8.dp))
                 HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
@@ -391,6 +299,40 @@ fun ConfigBottomSheet(
             confirmButton = {},
             dismissButton = {
                 TextButton(onClick = { translateDialogOpen = false }) { Text("Cancel") }
+            },
+        )
+    }
+
+    // ── Share picker dialog ───────────────────────────────────────────────
+    if (shareDialogOpen) {
+        AlertDialog(
+            onDismissRequest = { shareDialogOpen = false },
+            title = { Text("Share this page") },
+            text = {
+                Column {
+                    TextButton(
+                        onClick = {
+                            shareDialogOpen = false
+                            onShare()
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text("Share via…", modifier = Modifier.fillMaxWidth())
+                    }
+                    TextButton(
+                        onClick = {
+                            shareDialogOpen = false
+                            onShareWithFriend()
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text("Send to a Roam user", modifier = Modifier.fillMaxWidth())
+                    }
+                }
+            },
+            confirmButton = {},
+            dismissButton = {
+                TextButton(onClick = { shareDialogOpen = false }) { Text("Cancel") }
             },
         )
     }

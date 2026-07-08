@@ -32,4 +32,9 @@ data class AppNotificationData(
     @SerialName("new_level") val newLevel: Int? = null,
     // Shared deep-link (badge_unlocked, level_up)
     @SerialName("v_profile_url") val vProfileUrl: String? = null,
+    // URL share notification (url_shared)
+    @SerialName("sender_username") val senderUsername: String? = null,
+    @SerialName("sender_id") val senderId: String? = null,
+    @SerialName("url_title") val urlTitle: String? = null,
+    @SerialName("share_id") val shareId: String? = null,
 )
