@@ -326,11 +326,11 @@ private fun DiscoverTab(
     val nextPrefetchUrl by vm.nextPrefetchUrl.collectAsState()
     val showShareUrlSheet by vm.showShareUrlSheet.collectAsState()
 
-    var initialRoamDone by remember { mutableStateOf(false) }
+    var initialRoamDone by rememberSaveable { mutableStateOf(false) }
     LaunchedEffect(Unit) {
         if (!initialRoamDone) {
             initialRoamDone = true
-            if (state is RoamState.Idle || state is RoamState.Loaded || currentUrl == null) {
+            if (state is RoamState.Idle || currentUrl == null) {
                 vm.roam()
             }
         }
