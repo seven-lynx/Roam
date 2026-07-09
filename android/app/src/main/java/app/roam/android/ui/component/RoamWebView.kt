@@ -122,29 +122,19 @@ fun RoamWebView(
                         onRecovering(true)
                         if (!savedState.isEmpty) {
                             wv.restoreState(savedState)
+                            // restoreState may trigger a page load; defer scroll restoration
+                            // to onPageFinished where savedScrollY will still be available.
                         } else {
                             urlRef.value?.let { wv.loadUrl(it) }
                         }
-                    } else {
-                        // WebView is alive — restore scroll position saved during ON_PAUSE.
-                        // restoreState is the WebView's native mechanism for restoring nav
-                        // history + scroll, and handles internal timing correctly.
-                        if (!savedState.isEmpty) {
-                            wv.restoreState(savedState)
-                        }
-                        // Fallback: manual scroll restoration via postDelayed. We capture
-                        // savedScrollY as a local val BEFORE resetting so the lambda uses
-                        // the correct value (not the zero it gets reset to on the next line).
-                        // The 300ms delay gives the WebView time to finish its internal
-                        // resume/layout cycle triggered by resumeTimers().
-                        val sy = savedScrollY.intValue
-                        savedScrollY.intValue = 0
-                        if (sy > 0) {
-                            wv.postDelayed({
-                                wv.scrollTo(0, sy)
-                            }, 300)
-                        }
                     }
+                    // When WebView is alive, do NOT call restoreState — it can fire
+                    // onPageStarted/onPageFinished on some OEM implementations (Samsung,
+                    // Huawei, Xiaomi), which races with the onPageFinished scroll-restore
+                    // path and causes savedScrollY to be consumed to zero before the
+                    // postDelayed fires. The live WebView retains its page content and
+                    // scroll position natively after resumeTimers(); no manual scrollTo
+                    // is needed.
                 }
                 Lifecycle.Event.ON_PAUSE -> {
                     webViewRef.value?.let {
@@ -378,7 +368,6 @@ fun RoamWebView(
         update = { webView ->
             if (webView is WebView) {
                 webViewRef.value = webView
-                webView.saveState(savedState)
                 if (webView.settings.javaScriptEnabled != jsEnabled) {
                     webView.settings.javaScriptEnabled = jsEnabled
                     webView.settings.domStorageEnabled = jsEnabled
