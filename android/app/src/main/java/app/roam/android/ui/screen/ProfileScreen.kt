@@ -2,6 +2,7 @@ package app.roam.android.ui.screen
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -50,6 +51,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.roam.android.model.Badge
+import app.roam.android.ui.component.BadgeDetailDialog
 import app.roam.android.ui.component.LevelProgressBar
 import app.roam.android.viewmodel.MainViewModel
 import kotlinx.coroutines.delay
@@ -93,6 +95,11 @@ fun ProfileScreen(
     // Show unlocked badges compactly
     val unlockedBadges = badges.filter { it.isUnlocked }
     val lockedInProgress = badges.filter { !it.isUnlocked && it.progressCurrent > 0 }
+
+    var selectedBadge by remember { mutableStateOf<Badge?>(null) }
+    selectedBadge?.let { badge ->
+        BadgeDetailDialog(badge = badge, onDismiss = { selectedBadge = null })
+    }
 
     Scaffold(
         topBar = {
@@ -216,7 +223,7 @@ fun ProfileScreen(
                     horizontalArrangement = Arrangement.spacedBy(4.dp),
                 ) {
                     unlockedBadges.take(6).forEach { badge ->
-                        BadgeMini(badge = badge)
+                        BadgeMini(badge = badge, onClick = { selectedBadge = badge })
                     }
                     if (unlockedBadges.size > 6) {
                         Text(
@@ -245,7 +252,7 @@ fun ProfileScreen(
                     horizontalArrangement = Arrangement.spacedBy(4.dp),
                 ) {
                     lockedInProgress.take(4).forEach { badge ->
-                        BadgeMini(badge = badge)
+                        BadgeMini(badge = badge, onClick = { selectedBadge = badge })
                     }
                 }
             }
@@ -399,9 +406,9 @@ fun ProfileScreen(
 }
 
 @Composable
-private fun BadgeMini(badge: Badge) {
+private fun BadgeMini(badge: Badge, onClick: () -> Unit = {}) {
     Column(
-        modifier = Modifier.padding(4.dp),
+        modifier = Modifier.padding(4.dp).clickable { onClick() },
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Text(

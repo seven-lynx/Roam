@@ -283,9 +283,10 @@ Deno.serve(async (req) => {
   return json({ ok: true, message: 'URL submitted for review' }, 201)
 })
 
-function json(body: unknown, status = 200) {
+function json(body: unknown, status = 200, responseHeaders?: Record<string, string>) {
+  const h = responseHeaders ?? getCorsHeaders(null);
   return new Response(JSON.stringify(body), {
     status,
-    headers: { ...getCorsHeaders(origin), 'Content-Type': 'application/json' },
+    headers: { ...h, 'Content-Type': 'application/json' },
   })
 }

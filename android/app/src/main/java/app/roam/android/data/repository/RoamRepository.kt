@@ -797,23 +797,53 @@ class RoamRepository {
         supabase.functions.invoke("share-url", body = body)
     }
 
-    /** Returns users the current user can share URLs with (followers + search). */
-    suspend fun getShareRecipients(query: String? = null): List<ShareRecipientRow> {
+    /** Returns users the current user can share URLs with (mutual follows: followers + following). */
+    suspend fun getShareRecipients(query: String? = null): List<app.roam.android.model.FollowUser> {
         val userId = supabase.auth.currentUserOrNull()?.id ?: return emptyList()
-        val body = buildJsonObject {
-            put("action", "recipients")
-            query?.let { put("q", it) }
-        }
-        val response = supabase.functions.invoke("share-url", body = body)
-        return json.decodeFromString(response.bodyAsText())
-    }
 
-    @Serializable
-    data class ShareRecipientRow(
-        val id: String,
-        val username: String,
-        @SerialName("display_name") val displayName: String = "",
-    )
+        // People I follow
+        val followingIds = supabase.postgrest
+            .from("follows")
+            .select(Columns.list("following_id")) {
+                filter {
+                    eq("follower_id", userId)
+                    eq("is_pending", false)
+                }
+            }
+            .decodeList<FollowingIdRow>()
+            .mapNotNull { it.followingId }
+
+        // People who follow me
+        val followerIds = supabase.postgrest
+            .from("follows")
+            .select(Columns.list("follower_id")) {
+                filter {
+                    eq("following_id", userId)
+                    eq("is_pending", false)
+                }
+            }
+            .decodeList<FollowerIdRow>()
+            .mapNotNull { it.followerId }
+
+        val allIds = (followingIds + followerIds).distinct()
+        if (allIds.isEmpty()) return emptyList()
+
+        val results = supabase.postgrest
+            .from("profiles")
+            .select(Columns.list("id", "username", "display_name", "avatar_url")) {
+                filter {
+                    isIn("id", allIds)
+                }
+                order("username", Order.ASCENDING)
+            }
+            .decodeList<app.roam.android.model.FollowUser>()
+
+        return if (query != null && query.isNotBlank()) {
+            results.filter { it.username.contains(query, ignoreCase = true) || (it.displayName?.contains(query, ignoreCase = true) == true) }
+        } else {
+            results
+        }
+    }
 
     // ── Activity feed ────────────────────────────────────────────────────────
 
@@ -883,5 +913,108 @@ class RoamRepository {
         @SerialName("user_id") val userId: String,
         @SerialName("category_id") val categoryId: String,
     )
+
+    // ── Admin / Moderator ─────────────────────────────────────────────────────
+
+    /**
+     * Fetches the moderation queue via the admin-moderation edge function.
+     * Requires JWT with app_metadata.role = 'admin' or 'moderator'.
+     */
+    suspend fun getAdminQueue(): List<app.roam.android.model.AdminQueueItem> {
+        if (!ensureAuthenticated()) return emptyList()
+        val body = buildJsonObject { put("action", "list") }
+        val response = supabase.functions.invoke("admin-moderation", body = body)
+        if (response.status.value == 404) return emptyList()
+        return runCatching {
+            json.decodeFromString<List<app.roam.android.model.AdminQueueItem>>(response.bodyAsText())
+        }.getOrDefault(emptyList())
+    }
+
+    /** Approves a pending submission — calls admin-moderation edge function. */
+    suspend fun approveSubmission(id: String): app.roam.android.model.AdminActionResponse {
+        val body = buildJsonObject {
+            put("action", "approve")
+            put("id", id)
+        }
+        return runCatching {
+            val response = supabase.functions.invoke("admin-moderation", body = body)
+            json.decodeFromString<app.roam.android.model.AdminActionResponse>(response.bodyAsText())
+        }.getOrElse {
+            app.roam.android.model.AdminActionResponse(ok = false, error = it.message)
+        }
+    }
+
+    /** Rejects a pending submission — calls admin-moderation edge function. */
+    suspend fun rejectSubmission(id: String): app.roam.android.model.AdminActionResponse {
+        val body = buildJsonObject {
+            put("action", "reject")
+            put("id", id)
+        }
+        return runCatching {
+            val response = supabase.functions.invoke("admin-moderation", body = body)
+            json.decodeFromString<app.roam.android.model.AdminActionResponse>(response.bodyAsText())
+        }.getOrElse {
+            app.roam.android.model.AdminActionResponse(ok = false, error = it.message)
+        }
+    }
+
+    /** Fetches aggregated admin stats (pending/approved/rejected counts + reports). */
+    suspend fun getAdminStats(): app.roam.android.model.AdminStats {
+        val body = buildJsonObject { put("action", "stats") }
+        return runCatching {
+            val response = supabase.functions.invoke("admin-moderation", body = body)
+            json.decodeFromString<app.roam.android.model.AdminStats>(response.bodyAsText())
+        }.getOrDefault(app.roam.android.model.AdminStats())
+    }
+
+    /** Fetches dead link reports via the admin-moderation edge function. */
+    suspend fun getAdminReports(): List<app.roam.android.model.AdminReportItem> {
+        val body = buildJsonObject { put("action", "reports") }
+        return runCatching {
+            val response = supabase.functions.invoke("admin-moderation", body = body)
+            json.decodeFromString<List<app.roam.android.model.AdminReportItem>>(response.bodyAsText())
+        }.getOrDefault(emptyList())
+    }
+
+    /** Restores a reported (inactive) link by setting inactive=false on the URL. */
+    suspend fun restoreReportedLink(urlId: String): app.roam.android.model.AdminActionResponse {
+        val body = buildJsonObject {
+            put("action", "restore")
+            put("url_id", urlId)
+        }
+        return runCatching {
+            val response = supabase.functions.invoke("admin-moderation", body = body)
+            json.decodeFromString<app.roam.android.model.AdminActionResponse>(response.bodyAsText())
+        }.getOrElse {
+            app.roam.android.model.AdminActionResponse(ok = false, error = it.message)
+        }
+    }
+
+    /** Fetches beta signups from the public beta_signups table (admin only). */
+    suspend fun getBetaSignups(): List<app.roam.android.model.AdminBetaSignup> {
+        // Beta signups are fetched via a direct postgrest query using the admin
+        // role. Since the JWT carries app_metadata.role, RLS policies allow
+        // admin users to read from beta_signups.
+        return runCatching {
+            supabase.postgrest
+                .from("beta_signups")
+                .select(Columns.list("id", "email", "created_at")) {
+                    order("created_at", io.github.jan.supabase.postgrest.query.Order.DESCENDING)
+                }
+                .decodeList<app.roam.android.model.AdminBetaSignup>()
+        }.getOrDefault(emptyList())
+    }
+
+    /** Deletes a beta signup by ID (admin only). */
+    suspend fun deleteBetaSignup(id: Int): app.roam.android.model.AdminActionResponse {
+        return runCatching {
+            supabase.postgrest.from("beta_signups").delete {
+                filter { eq("id", id) }
+            }
+            app.roam.android.model.AdminActionResponse(ok = true, message = "Deleted")
+        }.getOrElse {
+            app.roam.android.model.AdminActionResponse(ok = false, error = it.message)
+        }
+    }
 
 }

@@ -1829,12 +1829,7 @@ class MainViewModel(
         viewModelScope.launch {
             _shareRecipientsLoading.value = true
             runCatching {
-                val rows = repo.getShareRecipients(query)
-                _shareRecipients.value = rows.map { r ->
-                    app.roam.android.model.FollowUser(
-                        id = r.id, username = r.username, displayName = r.displayName
-                    )
-                }
+                _shareRecipients.value = repo.getShareRecipients(query)
             }
             _shareRecipientsLoading.value = false
         }
@@ -1919,4 +1914,110 @@ class MainViewModel(
         clipboard.setPrimaryClip(android.content.ClipData.newPlainText("profile link", url))
         showTransientToast("Profile link copied")
     }
+
+    // ── Admin / Moderator ─────────────────────────────────────────────────────
+
+    private val _adminQueue = MutableStateFlow<List<app.roam.android.model.AdminQueueItem>>(emptyList())
+    val adminQueue: StateFlow<List<app.roam.android.model.AdminQueueItem>> = _adminQueue.asStateFlow()
+
+    private val _adminQueueLoading = MutableStateFlow(false)
+    val adminQueueLoading: StateFlow<Boolean> = _adminQueueLoading.asStateFlow()
+
+    private val _adminReports = MutableStateFlow<List<app.roam.android.model.AdminReportItem>>(emptyList())
+    val adminReports: StateFlow<List<app.roam.android.model.AdminReportItem>> = _adminReports.asStateFlow()
+
+    private val _adminReportsLoading = MutableStateFlow(false)
+    val adminReportsLoading: StateFlow<Boolean> = _adminReportsLoading.asStateFlow()
+
+    private val _adminBetaSignups = MutableStateFlow<List<app.roam.android.model.AdminBetaSignup>>(emptyList())
+    val adminBetaSignups: StateFlow<List<app.roam.android.model.AdminBetaSignup>> = _adminBetaSignups.asStateFlow()
+
+    private val _adminBetaLoading = MutableStateFlow(false)
+    val adminBetaLoading: StateFlow<Boolean> = _adminBetaLoading.asStateFlow()
+
+    private val _adminStats = MutableStateFlow<app.roam.android.model.AdminStats?>(null)
+    val adminStats: StateFlow<app.roam.android.model.AdminStats?> = _adminStats.asStateFlow()
+
+    private val _adminActionLoading = MutableStateFlow(false)
+    val adminActionLoading: StateFlow<Boolean> = _adminActionLoading.asStateFlow()
+
+    fun loadAdminQueue() {
+        viewModelScope.launch {
+            _adminQueueLoading.value = true
+            runCatching { _adminQueue.value = repo.getAdminQueue() }
+            _adminQueueLoading.value = false
+        }
+    }
+
+    fun loadAdminStats() {
+        viewModelScope.launch {
+            runCatching { _adminStats.value = repo.getAdminStats() }
+        }
+    }
+
+    fun loadAdminReports() {
+        viewModelScope.launch {
+            _adminReportsLoading.value = true
+            runCatching { _adminReports.value = repo.getAdminReports() }
+            _adminReportsLoading.value = false
+        }
+    }
+
+    fun loadAdminBetaSignups() {
+        viewModelScope.launch {
+            _adminBetaLoading.value = true
+            runCatching { _adminBetaSignups.value = repo.getBetaSignups() }
+            _adminBetaLoading.value = false
+        }
+    }
+
+    fun approveSubmission(id: String) {
+        viewModelScope.launch {
+            _adminActionLoading.value = true
+            val result = repo.approveSubmission(id)
+            _adminActionLoading.value = false
+            if (result.ok) {
+                loadAdminQueue()
+                loadAdminStats()
+            } else {
+                showTransientToast(result.error ?: "Failed to approve")
+            }
+        }
+    }
+
+    fun rejectSubmission(id: String) {
+        viewModelScope.launch {
+            _adminActionLoading.value = true
+            val result = repo.rejectSubmission(id)
+            _adminActionLoading.value = false
+            if (result.ok) {
+                loadAdminQueue()
+                loadAdminStats()
+            } else {
+                showTransientToast(result.error ?: "Failed to reject")
+            }
+        }
+    }
+
+    fun restoreReportedLink(urlId: String) {
+        viewModelScope.launch {
+            _adminActionLoading.value = true
+            val result = repo.restoreReportedLink(urlId)
+            _adminActionLoading.value = false
+            if (result.ok) loadAdminReports()
+            else showTransientToast(result.error ?: "Failed to restore")
+        }
+    }
+
+    fun deleteBetaSignup(id: Int) {
+        viewModelScope.launch {
+            val result = repo.deleteBetaSignup(id)
+            if (result.ok) {
+                _adminBetaSignups.value = _adminBetaSignups.value.filter { it.id != id }
+            } else {
+                showTransientToast(result.error ?: "Failed to delete")
+            }
+        }
+    }
+
 }

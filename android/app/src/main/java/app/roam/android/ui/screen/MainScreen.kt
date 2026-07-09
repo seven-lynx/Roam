@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -55,8 +56,8 @@ import app.roam.android.MainActivity
 import app.roam.android.ui.component.BackgroundPrefetchWebView
 import app.roam.android.ui.component.BottomBar
 import app.roam.android.ui.component.ConfigBottomSheet
-import app.roam.android.ui.component.FeatureWalkthrough
 import app.roam.android.ui.component.RoamTab
+import app.roam.android.ui.component.Tour
 import app.roam.android.ui.component.RoamWebView
 import app.roam.android.ui.component.ShareUrlBottomSheet
 import app.roam.android.ui.component.SubmitBottomSheet
@@ -66,6 +67,7 @@ import app.roam.android.viewmodel.MainViewModel
 import app.roam.android.viewmodel.RoamState
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlin.time.Duration.Companion.milliseconds
 
 @Composable
 fun MainScreen(
@@ -113,13 +115,15 @@ fun MainScreen(
         },
     ) { innerPadding ->
         Box(Modifier.fillMaxSize().padding(innerPadding)) {
-            BackHandler(enabled = currentTab != RoamTab.Roam.route) { currentTab = RoamTab.Roam.route }
+            BackHandler(enabled = currentTab != RoamTab.Roam.route) {
+                currentTab = RoamTab.Roam.route
+            }
 
             // DiscoverTab always alive
             DiscoverTab(
                 vm = vm,
                 activity = activity,
-                onSignOut = doSignOut,
+                onNavigate = { currentTab = it },
                 onNavigateToSaved = { currentTab = RoamTab.Saved.route },
                 onNavigateToInterests = onNavigateToInterests,
             )
@@ -147,6 +151,7 @@ fun MainScreen(
                     },
                     onNavigateToRoam = { currentTab = RoamTab.Roam.route },
                     onOpenUserSearch = { showUserSearch = true },
+                    onNavigateToAdmin = { currentTab = RoamTab.Admin.route },
                 )
             }
 
@@ -176,7 +181,10 @@ fun MainScreen(
                 SavedScreen(
                     vm = vm,
                     onNavigateBack = { currentTab = RoamTab.You.route },
-                    onNavigateToUrl = { url -> vm.navigateToWeb(url); currentTab = RoamTab.Roam.route },
+                    onNavigateToUrl = { url ->
+                        vm.navigateToWeb(url)
+                        currentTab = RoamTab.Roam.route
+                    },
                 )
             }
 
@@ -203,7 +211,10 @@ fun MainScreen(
                 HistoryScreen(
                     vm = vm,
                     onNavigateBack = { currentTab = RoamTab.You.route },
-                    onNavigateToUrl = { url -> vm.navigateTo(url); currentTab = RoamTab.Roam.route },
+                    onNavigateToUrl = { url ->
+                        vm.navigateTo(url)
+                        currentTab = RoamTab.Roam.route
+                    },
                 )
             }
 
@@ -216,7 +227,10 @@ fun MainScreen(
                 NotificationsScreen(
                     vm = vm,
                     onNavigateBack = { currentTab = RoamTab.You.route },
-                    onNavigateToUrl = { url -> vm.navigateTo(url); currentTab = RoamTab.Roam.route },
+                    onNavigateToUrl = { url ->
+                        vm.navigateTo(url)
+                        currentTab = RoamTab.Roam.route
+                    },
                 )
             }
 
@@ -233,7 +247,10 @@ fun MainScreen(
                         viewedUsername = username
                         currentTab = RoamTab.PublicProfile.route
                     },
-                    onNavigateToUrl = { url -> vm.navigateToWeb(url); currentTab = RoamTab.Roam.route },
+                    onNavigateToUrl = { url ->
+                        vm.navigateToWeb(url)
+                        currentTab = RoamTab.Roam.route
+                    },
                 )
             }
 
@@ -272,7 +289,34 @@ fun MainScreen(
                     vm = vm,
                     username = viewedUsername!!,
                     onNavigateBack = { currentTab = RoamTab.You.route },
-                    onNavigateToUrl = { url -> vm.navigateTo(url); currentTab = RoamTab.Roam.route },
+                    onNavigateToUrl = { url ->
+                        vm.navigateTo(url)
+                        currentTab = RoamTab.Roam.route
+                    },
+                )
+            }
+
+            // ── Admin / Moderator Panel ─────────────────────────────
+            val adminModeEnabled by vm.adminModeEnabled.collectAsState()
+            val moderatorModeEnabled by vm.moderatorModeEnabled.collectAsState()
+            val openInBrowser: (String) -> Unit = { url ->
+                val intent = Intent(Intent.ACTION_VIEW, url.toUri())
+                activity.startActivity(intent)
+            }
+            AnimatedVisibility(
+                visible = currentTab == RoamTab.Admin.route && (adminModeEnabled || moderatorModeEnabled),
+                enter = fadeIn(spring()),
+                exit = fadeOut(spring()),
+            ) {
+                AdminScreen(
+                    vm = vm,
+                    isAdmin = adminModeEnabled,
+                    onNavigateToRoam = { currentTab = RoamTab.Roam.route },
+                    onNavigateToWeb = { url ->
+                        vm.navigateToWeb(url)
+                        currentTab = RoamTab.Roam.route
+                    },
+                    onOpenInBrowser = openInBrowser,
                 )
             }
 
@@ -288,6 +332,15 @@ fun MainScreen(
                     },
                 )
             }
+
+            // ── Interactive Tour (top-level, survives tab switches) ──
+            if (!vm.hasSeenWalkthrough()) {
+                Tour(
+                    onDismiss = { vm.markWalkthroughSeen() },
+                    onNavigateToYouTab = { currentTab = RoamTab.You.route },
+                    onOpenConfigSheet = { vm.openConfigSheet() },
+                )
+            }
         }
     }
 }
@@ -299,12 +352,12 @@ fun MainScreen(
 private fun DiscoverTab(
     vm: MainViewModel,
     activity: MainActivity,
-    onSignOut: () -> Unit = {},
+    onNavigate: (String) -> Unit,
     onNavigateToSaved: () -> Unit = {},
     onNavigateToInterests: () -> Unit = {},
 ) {
-    val context = LocalContext.current
-
+    // No-op usage to suppress unused parameter warning while keeping the API consistent
+    LaunchedEffect(onNavigate) { /* no-op */ }
     val state by vm.state.collectAsState()
     val currentUrl by vm.currentUrl.collectAsState()
     val rawUrl by vm.rawUrl.collectAsState()
@@ -337,7 +390,7 @@ private fun DiscoverTab(
     }
 
     val scaffoldState = rememberBottomSheetScaffoldState(
-        bottomSheetState = rememberStandardBottomSheetState(skipHiddenState = false)
+        bottomSheetState = rememberStandardBottomSheetState(skipHiddenState = true)
     )
     val scope = rememberCoroutineScope()
 
@@ -345,17 +398,19 @@ private fun DiscoverTab(
     var lastLoadedUrl by remember { mutableStateOf<String?>(null) }
     var loadingMessage by remember { mutableStateOf(pickRandomMessage()) }
     var webViewRecovering by remember { mutableStateOf(false) }
-    val showOverlay = rawUrl == null || (state is RoamState.Loading) || webViewRecovering
+    val loaded = state as? RoamState.Loaded
+    val isRoaming = state is RoamState.Loading ||
+            (currentUrl == loaded?.roamUrl?.url && (webViewLoading || (currentUrl != lastLoadedUrl)))
+    val showOverlay = rawUrl == null || isRoaming || webViewRecovering
     LaunchedEffect(showOverlay) {
         if (showOverlay) {
             loadingMessage = pickRandomMessage()
-            while (true) { delay(loadingMessage.displayDurationMs); loadingMessage = pickRandomMessage() }
+            while (true) {
+                delay(loadingMessage.displayDurationMs.milliseconds)
+                loadingMessage = pickRandomMessage()
+            }
         }
     }
-
-    val loaded = state as? RoamState.Loaded
-    val isRoaming = state is RoamState.Loading ||
-        (currentUrl == loaded?.roamUrl?.url && (webViewLoading || (currentUrl != lastLoadedUrl)))
     val categoryName: String? = loaded?.roamUrl?.categoryId
         ?.let { catId -> categories.firstOrNull { it.id == catId }?.let { "${it.icon} ${it.name}" } }
     val subcategoryName: String? = loaded?.roamUrl?.subcategoryId
@@ -388,21 +443,61 @@ private fun DiscoverTab(
         sheetSwipeEnabled = sheetGestureMode == "slide",
         sheetDragHandle = {
             if (sheetGestureMode == "tap") {
-                Box(Modifier.fillMaxWidth().clickable { if (showConfigSheet) vm.closeConfigSheet() else vm.openConfigSheet() }, contentAlignment = Alignment.Center) {
-                    Box(Modifier.width(44.dp).background(MaterialTheme.colorScheme.surfaceContainer, RoundedCornerShape(topStart = 8.dp, topEnd = 8.dp)).padding(top = 4.dp, bottom = 2.dp), contentAlignment = Alignment.Center) {
-                        Icon(Icons.Filled.KeyboardArrowUp, "Open menu", tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(12.dp))
+                Box(
+                    Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 48.dp)
+                        .clickable {
+                            if (showConfigSheet) vm.closeConfigSheet() else vm.openConfigSheet()
+                        },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Box(
+                        Modifier
+                            .width(56.dp)
+                            .background(
+                                MaterialTheme.colorScheme.surfaceContainer,
+                                RoundedCornerShape(topStart = 8.dp, topEnd = 8.dp)
+                            )
+                            .padding(top = 6.dp, bottom = 4.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            Icons.Filled.KeyboardArrowUp,
+                            "Open menu",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(16.dp)
+                        )
                     }
                 }
             } else {
                 Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                    Box(Modifier.width(44.dp).background(MaterialTheme.colorScheme.surfaceContainer, RoundedCornerShape(topStart = 8.dp, topEnd = 8.dp)).padding(top = 4.dp, bottom = 2.dp), contentAlignment = Alignment.Center) {
-                        Icon(Icons.Filled.KeyboardArrowUp, "Open menu", tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(12.dp))
+                    Box(
+                        Modifier
+                            .width(56.dp)
+                            .background(
+                                MaterialTheme.colorScheme.surfaceContainer,
+                                RoundedCornerShape(topStart = 8.dp, topEnd = 8.dp)
+                            )
+                            .padding(top = 6.dp, bottom = 4.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            Icons.Filled.KeyboardArrowUp,
+                            "Open menu",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(16.dp)
+                        )
                     }
                 }
             }
         },
         sheetContent = {
-            Surface(Modifier.fillMaxWidth(), color = MaterialTheme.colorScheme.surfaceContainer, shape = RoundedCornerShape(0.dp)) {
+            Surface(
+                Modifier.fillMaxWidth(),
+                color = MaterialTheme.colorScheme.surfaceContainer,
+                shape = RoundedCornerShape(0.dp)
+            ) {
                 ConfigBottomSheet(
                     currentUrl = currentUrl,
                     collections = collections,
@@ -432,10 +527,11 @@ private fun DiscoverTab(
                     isModerator = vm.isModerator.collectAsState().value,
                     moderatorModeEnabled = vm.moderatorModeEnabled.collectAsState().value,
                     onAdminNavigateToUrl = { url ->
-                        scope.launch {
-                            vm.navigateToWebWithAuth(url)
-                            scaffoldState.bottomSheetState.partialExpand()
-                        }
+                        // Open admin panels in the system browser instead of the
+                        // WebView — avoids Google OAuth "Use secure browsers" block.
+                        val intent = Intent(Intent.ACTION_VIEW, android.net.Uri.parse(url))
+                        activity.startActivity(intent)
+                        scope.launch { scaffoldState.bottomSheetState.partialExpand() }
                     },
                 )
             }
@@ -443,7 +539,11 @@ private fun DiscoverTab(
         sheetPeekHeight = 15.dp,
     ) { contentPadding ->
         Column(Modifier.fillMaxSize().padding(top = contentPadding.calculateTopPadding())) {
-            Surface(Modifier.fillMaxWidth(), color = MaterialTheme.colorScheme.surfaceVariant, tonalElevation = 2.dp) {
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                color = MaterialTheme.colorScheme.surfaceVariant,
+                tonalElevation = 2.dp,
+            ) {
                 Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                     when {
                         state is RoamState.Error -> {
@@ -518,9 +618,5 @@ private fun DiscoverTab(
     // Share URL with friend sheet
     if (showShareUrlSheet) {
         ShareUrlBottomSheet(vm = vm, onDismiss = { vm.closeShareUrlSheet() })
-    }
-
-    if (!vm.hasSeenWalkthrough()) {
-        FeatureWalkthrough(onDismiss = { vm.markWalkthroughSeen() })
     }
 }

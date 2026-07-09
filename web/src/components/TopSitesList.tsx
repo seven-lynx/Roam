@@ -30,6 +30,7 @@ export function TopSitesList({ sites, userId }: Props) {
               className="flex items-center gap-4 rounded-xl border border-zinc-200 dark:border-zinc-800 px-4 py-3 hover:bg-zinc-50 dark:hover:bg-zinc-900 transition-colors group"
             >
               {/* Favicon */}
+              {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={getFaviconUrl(domain, 32)}
                 alt=""

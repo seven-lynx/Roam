@@ -29,6 +29,20 @@ function el<T extends HTMLElement>(id: string): T {
 
 type AppState = 'signedout' | 'auth' | 'email-auth' | 'categories' | 'error' | 'noresults' | 'main' | 'feedback' | 'saved';
 
+// Report engagement on the previous URL before requesting the next Roam.
+// Fire-and-forget — never blocks navigation.
+async function reportCurrentEngagement(): Promise<void> {
+  try {
+    const stored = await chrome.storage.session.get('current_url');
+    const current = stored.current_url as { url_id: string; served_at: number } | undefined;
+    if (!current) return;
+    // Clear immediately so we don't double-report
+    chrome.storage.session.remove('current_url').catch(() => {});
+    const dwellMs = Date.now() - current.served_at;
+    sendToBackground({ type: 'REPORT_ENGAGEMENT', url_id: current.url_id, dwell_ms: dwellMs, skipped: dwellMs < 3000 });
+  } catch { /* never block */ }
+}
+
 function showState(name: AppState) {
   for (const s of ['signedout', 'auth', 'email-auth', 'categories', 'error', 'noresults', 'main', 'feedback', 'saved'] as const) {
     el(`state-${s}`).hidden = s !== name;
@@ -473,6 +487,7 @@ document.addEventListener('DOMContentLoaded', () => {
     roamBtn.disabled = true;
     roamBtn.textContent = 'Roaming…';
     setStatus('Finding next page…');
+    void reportCurrentEngagement(); // fire-and-forget engagement report
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     const res = await sendToBackground<RoamData>({
       type: 'ROAM',
@@ -525,6 +540,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Fire roam and check+rate fully in parallel — navigate the instant roam resolves,
     // without blocking on the rating round-trip.
+    void reportCurrentEngagement(); // fire-and-forget engagement report
     const roamPromise = sendToBackground<RoamData>({
       type: 'ROAM',
       ...(focusModeEnabled && focusCategoryId ? { categoryId: focusCategoryId } : {}),

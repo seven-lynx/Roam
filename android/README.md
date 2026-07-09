@@ -25,8 +25,14 @@ Single-activity MVVM. One `MainViewModel` owns all discovery, profile, settings,
 MainActivity
   └─ Compose NavHost
        ├─ DiscoverTab       ← RoamWebView + status bar
+       ├─ ActivityFeedScreen
+       ├─ BadgesScreen
+       ├─ LeaderboardScreen
+       ├─ NotificationsScreen
        ├─ SettingsScreen
        ├─ ProfileScreen
+       ├─ PublicProfileScreen
+       ├─ YouScreen
        └─ SavedScreen
 
 MainViewModel  ←──────────────────  RoamRepository
@@ -56,14 +62,23 @@ app/src/main/java/app/roam/android/
 │   ├── Collection.kt
 │   ├── UserProfile.kt
 │   ├── UserSettings.kt
-│   └── UrlHistoryEntry.kt
+│   ├── UrlHistoryEntry.kt
+│   ├── Badge.kt                     # Badge definitions
+│   ├── AppNotification.kt           # Push notification model
+│   ├── FollowUser.kt                # Follow relationship
+│   ├── PublicProfile.kt             # Public profile data
+│   └── ActivityFeedItem.kt          # Activity feed entry
 ├── ui/
 │   ├── component/
 │   │   ├── BottomBar.kt             # Skip / Roam / Settings / Like
 │   │   ├── RoamWebView.kt           # WebView with lifecycle + dark mode
 │   │   ├── ConfigBottomSheet.kt     # Per-page actions (save, share, report…)
 │   │   ├── SubmitBottomSheet.kt
-│   │   └── LoadingMessages.kt
+│   │   ├── LoadingMessages.kt
+│   │   ├── BadgeDetailDialog.kt     # Badge details popup
+│   │   ├── LevelProgressBar.kt      # XP and level display
+│   │   ├── ShareUrlBottomSheet.kt   # URL sharing UI
+│   │   └── UserSearchSheet.kt       # User search for sharing
 │   ├── screen/
 │   │   ├── MainScreen.kt            # Nav host + DiscoverTab
 │   │   ├── SettingsScreen.kt
@@ -72,7 +87,13 @@ app/src/main/java/app/roam/android/
 │   │   ├── HistoryScreen.kt
 │   │   ├── OnboardingScreen.kt
 │   │   ├── CategoryOnboardingScreen.kt
-│   │   └── SplashScreen.kt
+│   │   ├── SplashScreen.kt
+│   │   ├── ActivityFeedScreen.kt
+│   │   ├── BadgesScreen.kt
+│   │   ├── LeaderboardScreen.kt
+│   │   ├── NotificationsScreen.kt
+│   │   ├── PublicProfileScreen.kt
+│   │   └── YouScreen.kt
 │   └── theme/
 │       ├── Theme.kt                 # RoamTheme (dark by default)
 │       ├── Color.kt
@@ -136,6 +157,19 @@ cd android
 - **Roam** to load a new random URL
 - **Settings** to access preferences, saved pages, history, and profile
 - Full Material Design 3 polish with native Android look & feel (rebuilt Stage 14, May 2026)
+
+### Gamification & Social
+- **Badges** — 70+ unlockable badges across 12 categories with progress tracking
+- **Level progression** — Levels 1–50, XP earned from rating, submitting, and discovering
+- **Leaderboard** — Weekly, monthly, and all-time XP rankings
+- **Activity feed** — See what people you follow are discovering and rating
+- **URL sharing** — Send URLs directly to other users with push notifications
+- **Public profiles** — View other users' profiles, badges, and collections
+
+### Notifications
+- **Push notifications** — FCM-based delivery for badge unlocks, level-ups, shared URLs, and feature updates
+- **In-app notification center** — View and manage all notifications within the app
+- **Deep linking** — Tap a notification to navigate directly to the relevant screen
 
 ### Navigation
 - Intuitive back navigation: Settings ↔ Main, Profile ↔ Settings, Saved ↔ Settings

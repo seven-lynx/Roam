@@ -3,7 +3,7 @@
  All notable changes to the Roam Android app.
  
  ## [1.1.4] - 2026-07-07
- 
+
  ### Fixed
  - Badge count inconsistency — Profile pages (both web and Android) now show a single, consistent badge count derived from actual unlocked badges. Fixed `profile.badge_count` denormalized counter drifting from `user_badges` due to missing `unlocked_at` timestamps on badge inserts. All four profile views (own profile, public profile on both platforms) now share the same source of truth.
  - Streak days always showing 0 — `update_streak()` was only called from the Roam edge function with silent error suppression. Added `record_daily_activity()` helper and now maintain streaks from all user actions: roaming, saving URLs, submitting URLs, and following users. Profile edge function now returns gamification data including `streak_days`, `max_streak`, `xp_total`, `level`, and badges.

@@ -55,6 +55,7 @@ fun YouScreen(
     onNavigateToRoam: () -> Unit = {},
     onOpenUserSearch: () -> Unit = {},
     onNavigateToActivityFeed: () -> Unit = {},
+    onNavigateToAdmin: () -> Unit = {},
 ) {
     val profile by vm.profile.collectAsState()
     val badges by vm.badges.collectAsState()
@@ -131,7 +132,7 @@ fun YouScreen(
                 xpTotal = profile?.xpTotal ?: 0,
                 streakDays = profile?.streakDays ?: 0,
                 maxStreak = profile?.maxStreak ?: 0,
-                badgeCount = profile?.badgeCount ?: 0,
+                badgeCount = unlockedBadgeCount ?: 0,
             )
 
             Spacer(Modifier.height(16.dp))
@@ -223,6 +224,20 @@ fun YouScreen(
                     onNavigateToRoam()
                 },
             )
+
+            // Show Admin panel entry for privileged users
+            val adminModeEnabled by vm.adminModeEnabled.collectAsState()
+            val moderatorModeEnabled by vm.moderatorModeEnabled.collectAsState()
+            if (adminModeEnabled || moderatorModeEnabled) {
+                HorizontalDivider()
+                Spacer(Modifier.height(8.dp))
+                SectionHeader(if (adminModeEnabled) "Admin" else "Moderator")
+                ActionRow(
+                    if (adminModeEnabled) "\uD83D\uDD12 Admin Panel" else "\uD83D\uDEE1\uFE0F Moderator Panel",
+                    "Manage submissions, reports, and more",
+                    onClick = onNavigateToAdmin,
+                )
+            }
 
             HorizontalDivider()
             Spacer(Modifier.height(8.dp))

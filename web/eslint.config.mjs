@@ -15,6 +15,7 @@ const eslintConfig = defineConfig([
     // Test config files use require()
     "jest.config.js",
     "jest.setup.js",
+    "backfill-badges.js",
     "src/__tests__/**",
     "coverage/**",
   ]),

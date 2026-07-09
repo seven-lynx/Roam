@@ -308,7 +308,7 @@ export default function AdminPageClient() {
         <div>
           {view === "queue" && (
             <QueueView
-              items={queueItems} loading={queueLoading} filteredItems={filteredItems}
+              loading={queueLoading} filteredItems={filteredItems}
               statusFilter={statusFilter} setStatusFilter={setStatusFilter}
               searchQuery={searchQuery} setSearchQuery={setSearchQuery}
               sortBy={sortBy} setSortBy={setSortBy}
@@ -342,10 +342,10 @@ export default function AdminPageClient() {
 }
 
 function QueueView({
-  items, loading, filteredItems, statusFilter, setStatusFilter,
+  loading, filteredItems, statusFilter, setStatusFilter,
   searchQuery, setSearchQuery, sortBy, setSortBy, statusCounts, onSelectItem,
 }: {
-  items: QueueItem[]; loading: boolean; filteredItems: QueueItem[];
+  loading: boolean; filteredItems: QueueItem[];
   statusFilter: string; setStatusFilter: (v: "all" | "pending" | "approved" | "rejected") => void;
   searchQuery: string; setSearchQuery: (v: string) => void;
   sortBy: string; setSortBy: (v: "newest" | "oldest") => void;

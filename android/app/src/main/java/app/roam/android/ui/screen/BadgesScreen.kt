@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -48,6 +49,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.roam.android.model.Badge
 import app.roam.android.model.TierInfo
+import app.roam.android.ui.component.BadgeDetailDialog
 import app.roam.android.viewmodel.MainViewModel
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
@@ -71,6 +73,11 @@ fun BadgesScreen(
     }
 
     val unlockedCount = badges.count { it.isUnlocked }
+
+    var selectedBadge by remember { mutableStateOf<Badge?>(null) }
+    selectedBadge?.let { badge ->
+        BadgeDetailDialog(badge = badge, onDismiss = { selectedBadge = null })
+    }
 
     Scaffold(
         topBar = {
@@ -158,7 +165,7 @@ fun BadgesScreen(
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     items(filtered) { badge ->
-                        BadgeGridItem(badge = badge)
+                        BadgeGridItem(badge = badge, onClick = { selectedBadge = badge })
                     }
                 }
             }
@@ -167,7 +174,7 @@ fun BadgesScreen(
 }
 
 @Composable
-fun BadgeGridItem(badge: Badge) {
+fun BadgeGridItem(badge: Badge, onClick: () -> Unit = {}) {
     val progressPercent = if (badge.requiredCount != null && badge.requiredCount > 0) {
         ((badge.progressCurrent.toFloat() / badge.requiredCount) * 100).toInt().coerceIn(0, 100)
     } else if (badge.progressCurrent > 0) 100 else 0
@@ -193,6 +200,7 @@ fun BadgeGridItem(badge: Badge) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
+                .clickable { onClick() }
                 .padding(8.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {

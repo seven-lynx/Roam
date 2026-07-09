@@ -3,7 +3,6 @@
 import { useEffect, useState, useCallback } from "react";
 import { getAdminAnalytics } from "../actions";
 import { BarChart } from "../components/BarChart";
-import { SectionCard } from "../components/BarChart";
 
 type AnalyticsData = {
   submissionsByDate: { date: string; count: number }[];

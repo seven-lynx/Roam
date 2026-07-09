@@ -26,10 +26,12 @@ The Next.js 16 web application for Roam. The web surface is the account-manageme
 - **Settings** — discovery mode, email notifications, appearance (light/dark/system), change password, data export, account deletion
 - **Password reset** — request and complete password changes via `/forgot-password` and `/auth/reset-password`
 
-### Social & Collections
-- **Public profiles** (`/u/[username]`) — view user profiles with activity and collections
+### Social & Gamification
+- **Public profiles** (`/u/[username]`) — view user profiles with activity, collections, badges, and XP
 - **Collections** (`/collections/[slug]`) — public collection browsing
 - **Follow/unfollow** — manage follows from profile pages
+- **Leaderboard** (`/leaderboard`) — weekly, monthly, and all-time XP rankings
+- **Badge gallery** (`/badges`) — 70+ badges with unlock details and progress tracking
 
 ### Admin
 - **Moderation queue** — review and approve/reject submissions with detail view, filtering, search, sort
@@ -57,12 +59,15 @@ The Next.js 16 web application for Roam. The web surface is the account-manageme
 | `/u/[username]` | Server Component | No | Public user profile + activity |
 | `/collections/[slug]` | Server Component | No | Public collection view |
 | `/collections` | Client Component | No | Browse all public collections |
+| `/leaderboard` | Client Component | No | Weekly, monthly, and all-time XP rankings |
+| `/badges` | Client Component | No | Badge gallery with unlock details |
 | `/submit` | Client Component | No | Submit new URL for moderation |
 | `/profile` | Server shell + Client island | Yes | View / edit profile, collections, and saved URLs |
 | `/settings` | Client Component | Yes | Preferences and account controls |
 | `/admin` | Server shell + Client Component | Yes (admin role) | Moderation queue + analytics |
 | `/how-it-works` | Server Component | No | Product overview and features |
 | `/android-beta` | Client Component | No | Android beta sign-up page |
+| `/forgot-password` | Client Component | No | Request password reset email |
 | `/privacy` | Server Component | No | Privacy policy |
 | `/terms` | Server Component | No | Terms of service |
 | `/api/unsubscribe` | Route handler | No | Email notification unsubscribe |
@@ -109,7 +114,9 @@ web/
 │   │   ├── admin/         # Admin moderation dashboard (protected)
 │   │   ├── api/           # API route handlers
 │   │   ├── auth/          # OAuth callback, verify-email, reset-password
+│   │   ├── badges/        # Badge gallery with unlock details
 │   │   ├── collections/   # Public collection listing + [slug] detail
+│   │   ├── error.tsx      # Global error boundary
 │   │   ├── forgot-password/
 │   │   ├── how-it-works/  # Product tour
 │   │   ├── privacy/       # Privacy Policy
@@ -263,9 +270,11 @@ Set these in the Vercel dashboard for the production deployment:
 ## Troubleshooting
 
 ### Port 3000 already in use
-```bash
-# Kill the process:
-lsof -ti :3000 | xargs kill -9
+```powershell
+# Windows: Find and kill the process on port 3000
+netstat -ano | findstr :3000
+# Take the PID from the output, then:
+taskkill /PID <PID> /F
 
 # Or use a different port:
 pnpm dev -- -p 3001
@@ -283,7 +292,9 @@ pnpm dev -- -p 3001
 
 ### Module not found errors
 - Check import paths use `@/` aliases (defined in `tsconfig.json`)
-- Clear `.next` cache: `rm -rf .next && pnpm dev`
+- Clear `.next` cache and restart:
+  - **Windows:** `rmdir /s /q .next && pnpm dev`
+  - **macOS/Linux:** `rm -rf .next && pnpm dev`
 
 ## Further Reading
 

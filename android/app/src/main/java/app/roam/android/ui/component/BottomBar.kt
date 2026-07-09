@@ -21,6 +21,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import kotlin.time.Duration.Companion.milliseconds
 
 enum class RoamTab(val route: String) {
     Roam("discover"),
@@ -32,6 +33,7 @@ enum class RoamTab(val route: String) {
     History("history"),
     PublicProfile("public_profile"),
     Notifications("notifications"),
+    Admin("admin"),
 }
 
 @Composable
@@ -46,13 +48,13 @@ fun BottomBar(
     hasRatedUp: Boolean = false,
 ) {
     // Track recent clicks for temporary highlight feedback
-    var recentLikeClick by remember { mutableStateOf(false) }
-    var recentSkipClick by remember { mutableStateOf(false) }
+    var recentLikeClick by remember { mutableStateOf(value = false) }
+    var recentSkipClick by remember { mutableStateOf(value = false) }
 
     // Auto-reset like click after 500ms
     LaunchedEffect(recentLikeClick) {
         if (recentLikeClick) {
-            kotlinx.coroutines.delay(500)
+            kotlinx.coroutines.delay(500.milliseconds)
             recentLikeClick = false
         }
     }
@@ -60,7 +62,7 @@ fun BottomBar(
     // Auto-reset skip click after 500ms
     LaunchedEffect(recentSkipClick) {
         if (recentSkipClick) {
-            kotlinx.coroutines.delay(500)
+            kotlinx.coroutines.delay(500.milliseconds)
             recentSkipClick = false
         }
     }

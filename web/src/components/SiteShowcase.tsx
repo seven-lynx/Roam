@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { createClient } from '@/lib/supabase/client';
-import { extractDomain, getFaviconUrl } from '@/lib/url-utils';
+import { extractDomain } from '@/lib/url-utils';
 
 interface ShowcaseSite {
   id: string;
@@ -77,6 +77,7 @@ export function SiteShowcase() {
         {/* OG Image */}
         <div className="aspect-video bg-zinc-100 dark:bg-zinc-800 relative overflow-hidden">
           {site.og_image_url ? (
+            // eslint-disable-next-line @next/next/no-img-element
             <img
               src={site.og_image_url}
               alt=""

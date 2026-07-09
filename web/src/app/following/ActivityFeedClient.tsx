@@ -37,8 +37,6 @@ function timeAgo(dateStr: string): string {
 }
 
 function activityText(item: ActivityItem): { verb: string; link: React.ReactNode } {
-  const displayName = item.display_name || item.username;
-
   switch (item.activity_type) {
     case 'url_rated':
       return {

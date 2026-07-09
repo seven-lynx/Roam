@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { createClient } from '@/lib/supabase/client';
-import { BadgeDisplay, CATEGORY_LABELS, TIER_NAMES } from '@/components/badges/BadgeDisplay';
+import { BadgeDisplay, CATEGORY_LABELS } from '@/components/badges/BadgeDisplay';
 import type { BadgeData } from '@/components/badges/BadgeDisplay';
 
 const CATEGORIES = ['exploration', 'collecting', 'curating', 'social', 'streaks', 'contributing', 'engagement', 'milestone', 'secret', 'gift'] as const;

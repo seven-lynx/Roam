@@ -39,6 +39,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -48,6 +51,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import app.roam.android.model.Badge
+import app.roam.android.ui.component.BadgeDetailDialog
 import app.roam.android.ui.component.LevelProgressBar
 import app.roam.android.viewmodel.MainViewModel
 
@@ -66,6 +71,8 @@ fun PublicProfileScreen(
     val followLoading by vm.followLoading.collectAsState()
     val context = LocalContext.current
 
+    var selectedBadge by remember { mutableStateOf<Badge?>(null) }
+
     LaunchedEffect(username) { vm.loadPublicProfile(username) }
 
     Scaffold(
@@ -79,7 +86,11 @@ fun PublicProfileScreen(
                 },
             )
         },
-    ) { innerPadding ->
+        ) { innerPadding ->
+        // Badge detail dialog
+        selectedBadge?.let { badge ->
+            BadgeDetailDialog(badge = badge, onDismiss = { selectedBadge = null })
+        }
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -193,7 +204,7 @@ fun PublicProfileScreen(
                         Spacer(Modifier.height(4.dp))
                         FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                             profile.badges.filter { it.isUnlocked }.take(12).forEach { badge ->
-                                Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(4.dp)) {
+                                Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(4.dp).clickable { selectedBadge = badge }) {
                                     Text(badge.icon, fontSize = 24.sp)
                                     Text(badge.name, fontSize = 9.sp, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f))
                                 }

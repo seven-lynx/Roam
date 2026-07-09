@@ -56,7 +56,16 @@ The discovery function runs directly in PostgreSQL. When you press the button, i
 - Public or private collections, saved with one tap
 - Follow users, browse their activity
 - Profile pages with stats (pages rated, submitted, followers)
+- Activity feed — see what people you follow are discovering and rating
+- URL sharing — send a URL directly to another user with push notification
 - Pillar vs. topic interest selection — toggle between broad category discovery or specific subcategory focus
+
+**Gamification**
+- 70+ badges across 12 categories (discovery, curation, streaks, social, niches, and more)
+- Level progression (1–50) with XP earned from rating, submitting, and discovering
+- Leaderboard — compete on weekly, monthly, and all-time XP rankings
+- Badge gallery with unlock details and progress tracking
+- Push/email notifications for badge unlocks and level-ups
 
 ---
 
@@ -76,7 +85,11 @@ Deliberately non-intrusive. Click, roam, rate, close — nothing is injected int
 - In-app browser so you don't have to leave
 - Prefetch pipeline for instant card-to-card navigation
 - Browsing history screen with search and filtering
-- Push notifications for new features and updates
+- Push notifications for new features, badge unlocks, level-ups, and shared URLs
+- Activity feed — see what people you follow are discovering and rating
+- Leaderboard — weekly, monthly, and all-time XP rankings
+- Badge gallery with 70+ badges and level progression
+- Public profiles, follows, and URL sharing
 - Material Design 3 / Jetpack Compose
 - Android 8.0+ (SDK 26), target SDK 35
 - Google OAuth or email/password sign-in
@@ -99,7 +112,7 @@ See [web/README.md](web/README.md) for the current route map and UI spec.
 
 The database does the heavy lifting. Discovery runs as a `plpgsql` RPC (`roam()`) invoked via a Deno Edge Function. Row-Level Security enforces all access control at the database level. Every successful discovery is tracked via `serve_count` for analytics.
 
-Edge Functions (Deno) handle operations that need more than a simple query: `roam`, `rate`, `submit-url`, `save-url`, `collection`, `follow`, `profile`, `feedback`, `report-url`, `log-failed-urls`, `delete-user`, `export-user`, `beta-signup`, `send-bulk-email`, `push-notify`.
+Edge Functions (Deno) handle operations that need more than a simple query: `roam`, `rate`, `submit-url`, `save-url`, `collection`, `follow`, `profile`, `feedback`, `report-url`, `log-failed-urls`, `leaderboard`, `share-url`, `delete-user`, `export-user`, `beta-signup`, `send-bulk-email`, `push-notify`.
 
 **Key tables:**
 
@@ -118,8 +131,13 @@ Edge Functions (Deno) handle operations that need more than a simple query: `roa
 | `moderation_queue` | Submitted URLs pending review |
 | `moderation_audit_log` | Immutable log of admin moderation decisions |
 | `url_reports` | User reports of broken/dead links |
-| `push_tokens` / `notifications` | Push notification infrastructure (Android) |
+| `push_tokens` / `notifications` | Push notification infrastructure |
 | `beta_signups` / `feedback` | Waitlist signups and in-app feedback |
+| `badges` / `user_badges` | Gamification — badge definitions and per-user unlocks |
+| `user_activity` | Activity feed — recent actions by followed users |
+| `shared_urls` | Peer-to-peer URL sharing between users |
+| `seeding_runs` | Seeder execution audit log |
+| `email_notifications` | Email notification preferences and tracking |
 
 ### Browser extension
 
@@ -137,7 +155,7 @@ Kotlin + Jetpack Compose + Supabase Kotlin SDK. Single-activity MVVM with `MainV
 roam/
 ├── supabase/
 │   ├── migrations/         # 50+ SQL migrations
-│   └── functions/          # 15 Deno Edge Functions
+│   └── functions/          # 17 Deno Edge Functions
 │       └── _shared/        # CORS, auth helpers, rate limiting, Sentry
 │
 ├── web/                    # Next.js app (Vercel)

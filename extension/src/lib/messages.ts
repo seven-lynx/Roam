@@ -39,7 +39,8 @@ export type Request =
   | { type: 'SET_PROFILE_PUBLIC'; isPublic: boolean }
   | { type: 'SHARE_URL_WITH_USER'; url: string; recipientId: string }
   | { type: 'GET_SHARE_RECIPIENTS'; search?: string }
-  | { type: 'GET_PROFILE_PUBLIC' };
+  | { type: 'GET_PROFILE_PUBLIC' }
+  | { type: 'REPORT_ENGAGEMENT'; url_id: string; dwell_ms: number; skipped: boolean };
 
 export type Response<T = unknown> =
   | { ok: true; data: T }
