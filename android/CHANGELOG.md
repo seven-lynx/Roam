@@ -2,6 +2,14 @@
 
 All notable changes to the Roam Android app.
 
+## [1.1.9] - 2026-07-10
+
+### Fixed
+- Config sheet auto-opens on return from background — Material3 `BottomSheetScaffold` could remeasure/restore to `Expanded` while `showConfigSheet` stayed false, and nothing re-applied the closed state on resume. Now re-asserts peek/expand from the VM flag on every `ON_RESUME`, and mirrors user swipe into the VM (with a short suppress window so resume cannot flip the flag open).
+
+### Changed
+- Version 1.1.9 (versionCode 30).
+
 ## [1.1.8] - 2026-07-10
 
 ### Fixed
@@ -10,6 +18,7 @@ All notable changes to the Roam Android app.
 
 ### Changed
 - Version 1.1.8 (versionCode 29).
+
 
 ## [1.1.7] - 2026-07-10
 

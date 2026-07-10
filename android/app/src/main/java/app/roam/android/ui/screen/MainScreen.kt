@@ -31,20 +31,24 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberBottomSheetScaffoldState
 import androidx.compose.material3.rememberStandardBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -52,6 +56,9 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import app.roam.android.MainActivity
 import app.roam.android.ui.component.BackgroundPrefetchWebView
 import app.roam.android.ui.component.BottomBar
@@ -68,6 +75,7 @@ import app.roam.android.viewmodel.RoamState
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.time.Duration.Companion.milliseconds
+
 
 @Composable
 fun MainScreen(
@@ -390,7 +398,10 @@ private fun DiscoverTab(
     }
 
     val scaffoldState = rememberBottomSheetScaffoldState(
-        bottomSheetState = rememberStandardBottomSheetState(skipHiddenState = true)
+        bottomSheetState = rememberStandardBottomSheetState(
+            initialValue = SheetValue.PartiallyExpanded,
+            skipHiddenState = true,
+        )
     )
     val scope = rememberCoroutineScope()
 
@@ -427,12 +438,61 @@ private fun DiscoverTab(
     val displaySubcategory = if (!isRoaming) subcategoryName ?: lastSubcategoryName else null
     val displayDomain = if (!isRoaming) domain ?: lastDomain else null
 
+    // While true, ignore sheet→VM reverse sync (used during resume re-assert so a
+    // stale Expanded value cannot flip showConfigSheet back to true).
+    var suppressSheetToVm by remember { mutableStateOf(false) }
+    val showConfigSheetLatest = rememberUpdatedState(showConfigSheet)
+
+    // VM flag → physical sheet (open/close from tap handle, Tour, etc.)
     LaunchedEffect(showConfigSheet) {
         try {
             if (showConfigSheet) scaffoldState.bottomSheetState.expand()
             else scaffoldState.bottomSheetState.partialExpand()
         } catch (_: Exception) { }
     }
+
+    // User swipe (slide mode) can expand/collapse without touching the VM.
+    // Mirror settled sheet state back so the flag stays accurate.
+    LaunchedEffect(scaffoldState.bottomSheetState) {
+        snapshotFlow { scaffoldState.bottomSheetState.currentValue }
+            .collect { value ->
+                if (suppressSheetToVm) return@collect
+                when (value) {
+                    SheetValue.Expanded -> vm.openConfigSheet()
+                    SheetValue.PartiallyExpanded -> vm.closeConfigSheet()
+                    else -> { /* Hidden not used (skipHiddenState) */ }
+                }
+            }
+    }
+
+    // After background→foreground, Material3 often remeasures and leaves the sheet
+    // Expanded even though showConfigSheet is still false. Re-apply the VM flag on
+    // every resume (after a short settle delay for insets / WebView restore).
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event != Lifecycle.Event.ON_RESUME) return@LifecycleEventObserver
+            scope.launch {
+                suppressSheetToVm = true
+                try {
+                    delay(80)
+                    if (showConfigSheetLatest.value) {
+                        scaffoldState.bottomSheetState.expand()
+                    } else {
+                        scaffoldState.bottomSheetState.partialExpand()
+                    }
+                    // Let the sheet settle before accepting swipe→VM updates again.
+                    delay(120)
+                } catch (_: Exception) {
+                } finally {
+                    suppressSheetToVm = false
+                }
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+
 
     BottomSheetScaffold(
         modifier = Modifier,
