@@ -417,11 +417,11 @@ export async function upsertUrls(rows, {
   if (fresh.length === 0) return { inserted: 0, skipped: existingSet.size };
 
   // 3. Optional liveness check — HEAD request each URL, skip non-2xx
+  let dead = 0;
   if (checkLive) {
     log(`[seed] Liveness check for ${fresh.length} URLs...`);
     const LIVE_TIMEOUT_MS = 8000;
     const alive = [];
-    let dead = 0;
     for (let i = 0; i < fresh.length; i++) {
       const row = fresh[i];
       try {

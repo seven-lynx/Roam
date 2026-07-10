@@ -1,8 +1,26 @@
- # Changelog
- 
- All notable changes to the Roam Android app.
- 
- ## [1.1.4] - 2026-07-07
+# Changelog
+
+All notable changes to the Roam Android app.
+
+## [1.1.7] - 2026-07-10
+
+### Fixed
+- Admin/mod menu not appearing — Admin and moderator panels now auto-unlock from the JWT role on session load. Moderators no longer need the 5-tap Settings easter egg. `checkUserRole()` retries with backoff (up to 5s) so the panel unlocks even when Supabase auth initializes after the ViewModel.
+- Scroll position lost when app is backgrounded — WebView scroll is saved to localStorage (survives renderer death) and force-saved/restored on `ON_PAUSE`/`ON_RESUME`. Height-aware polling waits for lazy content before restoring. Snapshot overlay covers white flash during renderer recovery. Removed race between `ON_RESUME` restore and `onPageFinished` re-injection.
+- Status bar flash during page load — Theme and WebView re-assert system bars after resume and page finish so sites cannot hide the status bar via theme-color / fullscreen hints.
+- Web admin gate — `/admin` now allows both `admin` and `moderator` JWT roles (matches Android mod panel access).
+
+### Changed
+- Config sheet peek height increased from 15dp to 28dp for a more reachable handle.
+- Version bumped to 1.1.7 (versionCode 28).
+
+## [1.1.6] - 2026-07-08
+
+### Fixed
+- CI pipeline — Resolved all lint errors and warnings across the project.
+- Edge function type safety — Fixed Deno type errors in admin-moderation and submit-url edge functions.
+
+## [1.1.4] - 2026-07-07
 
  ### Fixed
  - Badge count inconsistency — Profile pages (both web and Android) now show a single, consistent badge count derived from actual unlocked badges. Fixed `profile.badge_count` denormalized counter drifting from `user_badges` due to missing `unlocked_at` timestamps on badge inserts. All four profile views (own profile, public profile on both platforms) now share the same source of truth.

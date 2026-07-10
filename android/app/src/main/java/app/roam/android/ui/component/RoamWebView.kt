@@ -1,4 +1,6 @@
 package app.roam.android.ui.component
+import android.graphics.Bitmap
+import android.graphics.Canvas
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -10,8 +12,7 @@ import android.webkit.WebResourceRequest
 import android.webkit.WebStorage
 import android.webkit.WebView
 import android.webkit.WebViewClient
-import androidx.webkit.WebSettingsCompat
-import androidx.webkit.WebViewFeature
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -21,30 +22,153 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.key
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.core.graphics.createBitmap
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
-import android.graphics.Bitmap
-import android.graphics.Canvas
-import androidx.core.graphics.createBitmap
-import androidx.compose.foundation.Image
-import androidx.compose.ui.graphics.asImageBitmap
-import androidx.compose.ui.layout.ContentScale
+import androidx.webkit.WebSettingsCompat
+import androidx.webkit.WebViewFeature
 import app.roam.android.viewmodel.WebNavCommand
 import kotlinx.coroutines.flow.Flow
+
+/**
+ * Walk Context wrappers (e.g. ContextThemeWrapper from Compose) to find the host Activity.
+ */
+private fun android.content.Context.findActivity(): android.app.Activity? {
+    var ctx: android.content.Context? = this
+    while (ctx is android.content.ContextWrapper) {
+        if (ctx is android.app.Activity) return ctx
+        ctx = ctx.baseContext
+    }
+    return null
+}
+
+/**
+ * Force the system status/navigation bars to stay visible. WebView page loads and
+ * HTML5 fullscreen requests can otherwise briefly hide them during the loading →
+ * page transition.
+ */
+private fun ensureSystemBarsVisible(view: android.view.View) {
+    val activity = view.context.findActivity() ?: return
+    val controller = WindowCompat.getInsetsController(activity.window, view)
+    controller.show(WindowInsetsCompat.Type.systemBars())
+    controller.systemBarsBehavior =
+        WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+}
+
+/**
+ * Self-contained JavaScript that saves and restores scroll position per-URL
+ * using localStorage. Runs entirely in the WebView's JS context.
+ *
+ * Why localStorage (not sessionStorage):
+ *  - sessionStorage is wiped when Android kills the WebView renderer in the
+ *    background — the common case on screen lock / app switch.
+ *  - localStorage is disk-backed and survives renderer death.
+ *
+ * Mechanism:
+ *  1. On page load, look up { y, height } for location.href. Poll
+ *     requestAnimationFrame until document height reaches the saved height
+ *     (or 6s timeout), then scrollTo. This avoids restoring before lazy
+ *     content has expanded the page.
+ *  2. On scroll (debounced 200ms), save { y, height, url } to localStorage.
+ *  3. On beforeunload / pagehide, save immediately.
+ *  4. Expose __roam_saveScroll / __roam_restoreScroll so Android lifecycle
+ *     callbacks can force save/restore when no load event fires.
+ */
+private const val ROAM_SCROLL_MEMORY_SCRIPT = """
+(function(){
+  'use strict';
+  var STORAGE_KEY = '__roam_scroll__';
+  var DEBOUNCE_MS = 200;
+  var MAX_POLL_ATTEMPTS = 60;
+  var pendingTimer = null;
+
+  function getScrollData() {
+    return {
+      y: window.scrollY || window.pageYOffset || 0,
+      height: Math.max(
+        (document.body && document.body.scrollHeight) || 0,
+        (document.documentElement && document.documentElement.scrollHeight) || 0,
+        0
+      )
+    };
+  }
+
+  function saveScroll() {
+    try {
+      var data = getScrollData();
+      data.url = location.href;
+      var store = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+      store[data.url] = data;
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(store));
+    } catch(e) {}
+  }
+
+  function loadAndRestore() {
+    try {
+      var store = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+      var entry = store[location.href];
+      if (!entry || !entry.y) return;
+      var targetY = entry.y;
+      var targetHeight = entry.height || 0;
+      var pollCount = 0;
+
+      function tryScroll() {
+        var currentHeight = Math.max(
+          (document.body && document.body.scrollHeight) || 0,
+          (document.documentElement && document.documentElement.scrollHeight) || 0,
+          0
+        );
+        if (currentHeight >= targetHeight || pollCount >= MAX_POLL_ATTEMPTS) {
+          window.scrollTo(0, Math.min(targetY, currentHeight));
+        } else {
+          pollCount++;
+          requestAnimationFrame(tryScroll);
+        }
+      }
+
+      requestAnimationFrame(tryScroll);
+    } catch(e) {}
+  }
+
+  window.__roam_saveScroll = saveScroll;
+  window.__roam_restoreScroll = loadAndRestore;
+
+  window.addEventListener('scroll', function() {
+    if (pendingTimer) clearTimeout(pendingTimer);
+    pendingTimer = setTimeout(saveScroll, DEBOUNCE_MS);
+  }, { passive: true });
+
+  window.addEventListener('beforeunload', saveScroll);
+  window.addEventListener('pagehide', saveScroll);
+
+  if (document.readyState === 'complete') {
+    loadAndRestore();
+  } else {
+    window.addEventListener('load', loadAndRestore, { once: true });
+  }
+
+  window.addEventListener('pageshow', function(e) {
+    if (e.persisted) loadAndRestore();
+  });
+})();
+"""
 
 @Composable
 fun RoamWebView(
@@ -80,8 +204,6 @@ fun RoamWebView(
         // This ensures that "Try next page" can actually escape the error screen.
         loadError = false
     }
-    // Scroll position saved on pause, restored after the page reloads
-    val savedScrollY = rememberSaveable { mutableIntStateOf(0) }
     // Snapshot of the last visible viewport — shown as an overlay while the page reloads
     // after renderer death, eliminating the white-screen flash.
     var snapshotBitmap by remember { mutableStateOf<Bitmap?>(null) }
@@ -115,38 +237,53 @@ fun RoamWebView(
                     val wv = webViewRef.value ?: return@LifecycleEventObserver
                     wv.onResume()
                     wv.resumeTimers()
+                    // Re-assert system bars after resume — some OEMs / WebView versions
+                    // leave them hidden after backgrounding during a page load.
+                    ensureSystemBarsVisible(wv)
                     // If the renderer was killed while backgrounded, the WebView url is null.
                     // Restore saved state first; fall back to reloading the current url.
+                    // Scroll restore happens in onPageFinished via the injected script.
                     if (wv.url.isNullOrEmpty()) {
+
                         showSnapshot = true
                         onRecovering(true)
                         if (!savedState.isEmpty) {
                             wv.restoreState(savedState)
-                            // restoreState may trigger a page load; defer scroll restoration
-                            // to onPageFinished where savedScrollY will still be available.
                         } else {
                             urlRef.value?.let { wv.loadUrl(it) }
                         }
+                    } else if (jsEnabled) {
+                        // Surviving-renderer case: no load/pageshow event fires, so
+                        // force-restore from localStorage via the injected global.
+                        wv.post {
+                            wv.evaluateJavascript(
+                                "window.__roam_restoreScroll && window.__roam_restoreScroll()",
+                                null,
+                            )
+                        }
                     }
-                    // When WebView is alive, do NOT call restoreState — it can fire
-                    // onPageStarted/onPageFinished on some OEM implementations (Samsung,
-                    // Huawei, Xiaomi), which races with the onPageFinished scroll-restore
-                    // path and causes savedScrollY to be consumed to zero before the
-                    // postDelayed fires. The live WebView retains its page content and
-                    // scroll position natively after resumeTimers(); no manual scrollTo
-                    // is needed.
                 }
                 Lifecycle.Event.ON_PAUSE -> {
-                    webViewRef.value?.let {
-                        if ((it.width > 0) && (it.height > 0)) {
-                            val bmp = createBitmap(it.width, it.height, Bitmap.Config.ARGB_8888)
-                            it.draw(Canvas(bmp))
+                    webViewRef.value?.let { wv ->
+                        if ((wv.width > 0) && (wv.height > 0)) {
+                            val bmp = createBitmap(wv.width, wv.height, Bitmap.Config.ARGB_8888)
+                            wv.draw(Canvas(bmp))
                             snapshotBitmap = bmp
                         }
-                        savedScrollY.intValue = it.scrollY
-                        it.saveState(savedState)
-                        it.onPause()
-                        it.pauseTimers()
+                        // Force-save immediately, bypassing the 200ms debounce.
+                        // Do NOT put onPause/pauseTimers inside the JS callback —
+                        // if the callback is dropped the WebView would never pause.
+                        // localStorage writes are synchronous from JS's perspective
+                        // once evaluateJavascript is queued; pagehide also saves.
+                        if (jsEnabled) {
+                            wv.evaluateJavascript(
+                                "window.__roam_saveScroll && window.__roam_saveScroll()",
+                                null,
+                            )
+                        }
+                        wv.saveState(savedState)
+                        wv.onPause()
+                        wv.pauseTimers()
                     }
                 }
                 else -> {}
@@ -226,7 +363,22 @@ fun RoamWebView(
                             }
                             return true
                         }
+
+                        // Refuse HTML5 fullscreen / immersive requests so pages cannot
+                        // hide the system status bar (common flash during load → reveal).
+                        override fun onShowCustomView(
+                            view: android.view.View?,
+                            callback: CustomViewCallback?,
+                        ) {
+                            callback?.onCustomViewHidden()
+                            ensureSystemBarsVisible(this@apply)
+                        }
+
+                        override fun onHideCustomView() {
+                            ensureSystemBarsVisible(this@apply)
+                        }
                     }
+
                     webViewClient = object : WebViewClient() {
                         // Track redirect count per page load to break infinite redirect loops.
                         // Some sites (Outside, Bloomberg, etc.) detect mismatched or old
@@ -242,8 +394,10 @@ fun RoamWebView(
                                 redirectCount = 0
                                 lastRedirectHost = null
                             }
+                            ensureSystemBarsVisible(view)
                             onLoadingChanged(true)
                         }
+
                         override fun onPageFinished(view: WebView, loadedUrl: String) {
                             // Page loaded successfully — reset the counter
                             redirectCount = 0
@@ -256,12 +410,20 @@ fun RoamWebView(
                             onPageVisible()
                             onRecovering(false)
                             onPageFinishedForPrefetch()
-                            val sy = savedScrollY.intValue
-                            if (sy > 0) {
-                                view.post { view.scrollTo(0, sy) }
-                                savedScrollY.intValue = 0
+                            // Re-assert system bars after each page load so a site's
+                            // theme-color / viewport / fullscreen hints cannot leave
+                            // the status bar hidden during the overlay → page reveal.
+                            ensureSystemBarsVisible(view)
+                            // Inject the localStorage scroll-memory script. It
+                            // self-restores on load with height-aware polling, and
+                            // exposes __roam_saveScroll / __roam_restoreScroll for
+                            // Android lifecycle force-save/restore. Requires
+                            // domStorageEnabled (set with jsEnabled).
+                            if (jsEnabled) {
+                                view.evaluateJavascript(ROAM_SCROLL_MEMORY_SCRIPT, null)
                             }
                         }
+
                         override fun onReceivedError(
                             view: WebView,
                             request: WebResourceRequest,

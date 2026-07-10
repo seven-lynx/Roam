@@ -192,6 +192,8 @@ class MainViewModel(
         _isModerator.value = role == "moderator"
         // Admins get admin mode automatically — no tap required
         if (role == "admin") _adminModeEnabled.value = true
+        // Moderators also get their panel unlocked automatically — no 5-tap easter egg required
+        if (role == "moderator") _moderatorModeEnabled.value = true
     }
 
     /** User preference: skip paywalled sites */
@@ -615,7 +617,16 @@ class MainViewModel(
 
         // Check the user's role (moderator / admin) from the JWT so the UI can
         // auto-unlock the appropriate panel without any tap sequence.
-        if (repo.hasSession()) checkUserRole()
+        // Retry with backoff because Supabase auth initializes asynchronously
+        // and currentUserOrNull() returns null until the token propagates.
+        viewModelScope.launch {
+            var retries = 0
+            while (!repo.hasSession() && retries < 20) {
+                delay(250)
+                retries++
+            }
+            checkUserRole()
+        }
 
         // Sync saved-for-later list from the server so saves from the web app
         // and other devices are visible without a reinstall.

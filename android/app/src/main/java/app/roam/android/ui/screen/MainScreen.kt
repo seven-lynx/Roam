@@ -536,7 +536,7 @@ private fun DiscoverTab(
                 )
             }
         },
-        sheetPeekHeight = 15.dp,
+        sheetPeekHeight = 28.dp,
     ) { contentPadding ->
         Column(Modifier.fillMaxSize().padding(top = contentPadding.calculateTopPadding())) {
             Surface(

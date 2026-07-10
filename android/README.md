@@ -32,19 +32,22 @@ MainActivity
        ├─ SettingsScreen
        ├─ ProfileScreen
        ├─ PublicProfileScreen
-       ├─ YouScreen
+       ├─ YouScreen         ← hub; Admin/Mod panel entry when role unlocked
+       ├─ AdminScreen       ← moderation queue, reports, beta (admin/mod)
        └─ SavedScreen
 
 MainViewModel  ←──────────────────  RoamRepository
   ├─ RoamState (Idle/Loading/Loaded/Exhausted/Error)
-  ├─ hotQueue (ArrayDeque<RoamUrl>, target = 3, HEAD-validated)
-  ├─ warmQueue (ArrayDeque<RoamUrl>, target = 5, API-fetched)
+  ├─ hotQueue (ArrayDeque<RoamUrl>, target = 12, HEAD-validated)
+  ├─ warmQueue (ArrayDeque<RoamUrl>, target = 15, API-fetched)
+  ├─ adminModeEnabled / moderatorModeEnabled (JWT role, ephemeral)
   ├─ savedUrls (SharedPreferences)
   ├─ webDarkMode (SharedPreferences)
   ├─ skipPaywalled + preferredLanguages (Supabase user_settings)
   ├─ collections, categories, profile
   └─ pendingRatings (offline queue → flushed on reconnect)
 ```
+
 
 ## Directory Structure
 
@@ -70,8 +73,8 @@ app/src/main/java/app/roam/android/
 │   └── ActivityFeedItem.kt          # Activity feed entry
 ├── ui/
 │   ├── component/
-│   │   ├── BottomBar.kt             # Skip / Roam / Settings / Like
-│   │   ├── RoamWebView.kt           # WebView with lifecycle + dark mode
+│   │   ├── BottomBar.kt             # Skip / Roam / You / Like
+│   │   ├── RoamWebView.kt           # WebView + scroll memory + lifecycle
 │   │   ├── ConfigBottomSheet.kt     # Per-page actions (save, share, report…)
 │   │   ├── SubmitBottomSheet.kt
 │   │   ├── LoadingMessages.kt
@@ -89,15 +92,17 @@ app/src/main/java/app/roam/android/
 │   │   ├── CategoryOnboardingScreen.kt
 │   │   ├── SplashScreen.kt
 │   │   ├── ActivityFeedScreen.kt
+│   │   ├── AdminScreen.kt           # Admin/moderator moderation panel
 │   │   ├── BadgesScreen.kt
 │   │   ├── LeaderboardScreen.kt
 │   │   ├── NotificationsScreen.kt
 │   │   ├── PublicProfileScreen.kt
-│   │   └── YouScreen.kt
+│   │   └── YouScreen.kt             # Account hub + admin/mod entry
 │   └── theme/
-│       ├── Theme.kt                 # RoamTheme (dark by default)
+│       ├── Theme.kt                 # RoamTheme + system bar lock
 │       ├── Color.kt
 │       └── Type.kt
+
 ├── viewmodel/
 │   ├── MainViewModel.kt             # All discovery + settings state
 │   └── AuthViewModel.kt             # Auth state (Loading/Unauthenticated/Authenticated…)
@@ -155,8 +160,9 @@ cd android
 - **Thumbs Up** to like a page
 - **Thumbs Down** to skip
 - **Roam** to load a new random URL
-- **Settings** to access preferences, saved pages, history, and profile
-- Full Material Design 3 polish with native Android look & feel (rebuilt Stage 14, May 2026)
+- **You** hub for profile, social, settings, and (when privileged) Admin/Moderator panel
+- Full Material Design 3 polish with native Android look & feel
+
 
 ### Gamification & Social
 - **Badges** — 70+ unlockable badges across 12 categories with progress tracking
@@ -217,9 +223,17 @@ Ratings that fail due to no connectivity are pushed onto `pendingRatings`. `conn
 
 `RoamWebView` creates the WebView with a `UI_MODE_NIGHT_YES` configuration context, then calls `WebSettingsCompat.setAlgorithmicDarkeningAllowed(true)` (API 33+) or `WebSettingsCompat.setForceDark(FORCE_DARK_ON)` (API 29–32). This forces dark rendering regardless of the system theme setting. Controlled by **Settings → Dark mode for web pages** (on by default, persisted to SharedPreferences).
 
-### WebView State Persistence
+### WebView State & Scroll Persistence
 
-`rememberSaveable { Bundle() }` stores `WebView.saveState()` output across Compose recompositions and process death. `DisposableEffect` hooks `onPause`/`onResume` to `pauseTimers()`/`resumeTimers()`, preventing the blank-screen bug when the app is backgrounded or the screen is locked.
+- **URL source of truth** — `savedState` is a non-persisted `remember { Bundle() }` for live-session recovery only (renderer death while the app is alive). The ViewModel owns the current URL so process death does not restore a stale page.
+- **Scroll memory** — An injected script stores per-URL `{ y, height }` in **localStorage** (survives renderer death; sessionStorage does not). On load it polls `requestAnimationFrame` until document height reaches the saved height (or timeout), then `scrollTo`.
+- **Lifecycle force save/restore** — `ON_PAUSE` calls `__roam_saveScroll` and `saveState`; `ON_RESUME` calls `__roam_restoreScroll` when the renderer survived, or restores/reloads when it was killed. Snapshot overlay covers white flash during recovery.
+- **System bars** — Theme and WebView re-assert status/navigation bars after resume and page finish so sites cannot hide them.
+
+### Admin / Moderator Access
+
+`checkUserRole()` reads `app_metadata.role` from the JWT after session is ready (retries with backoff). `role=admin` auto-enables the Admin panel; `role=moderator` auto-enables the Moderator panel. Entry point is on the **You** tab → Admin/Moderator Panel → `AdminScreen`. Regular users cannot unlock admin mode via Settings taps.
+
 
 ## Settings
 
@@ -274,4 +288,11 @@ See [CHANGELOG.md](CHANGELOG.md) for the full version history.
 
 **WebView appears blank after returning from background**
 - Ensure `RoamWebView` lifecycle observer is active (not removed)
-- The `savedState` bundle survives recomposition via `rememberSaveable`
+- Live-session `savedState` is a non-persisted `remember { Bundle() }`; URL comes from the ViewModel
+- Scroll is restored from localStorage via `__roam_restoreScroll` on resume
+
+**Admin/mod panel missing for privileged user**
+- Confirm JWT `app_metadata.role` is `admin` or `moderator`
+- Role check waits for session (up to ~5s); cold start may briefly delay the You-tab entry
+
+
