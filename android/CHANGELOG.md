@@ -2,22 +2,16 @@
 
 All notable changes to the Roam Android app.
 
-## [1.1.9] - 2026-07-10
-
-### Fixed
-- Config sheet auto-opens on return from background — Material3 `BottomSheetScaffold` could remeasure/restore to `Expanded` while `showConfigSheet` stayed false, and nothing re-applied the closed state on resume. Now re-asserts peek/expand from the VM flag on every `ON_RESUME`, and mirrors user swipe into the VM (with a short suppress window so resume cannot flip the flag open).
-
-### Changed
-- Version 1.1.9 (versionCode 30).
-
 ## [1.1.8] - 2026-07-10
 
 ### Fixed
 - Moderator panel missing on You tab — Role unlock was a one-shot check at ViewModel init, which often ran before sign-in finished. Now observes `sessionStatus` continuously: unlocks admin/mod on `Authenticated`, clears on sign-out. Role is read from `session.user.appMetadata` via `jsonPrimitive`. Opening the You tab also re-syncs role.
 - Scroll position still lost on background/return — `evaluateJavascript(save)` raced `pauseTimers()` so localStorage never received Y. Save now completes (callback + 250ms safety) before pause. Kotlin keeps a scroll-Y backup and passes it to restore on resume / after page reload. Delayed `scrollTo` covers OEM WebViews that reflow to top.
+- Config sheet auto-opens on return from background — Material3 `BottomSheetScaffold` could remeasure/restore to `Expanded` while `showConfigSheet` stayed false, and nothing re-applied the closed state on resume. Now re-asserts peek/expand from the VM flag on every `ON_RESUME`, and mirrors user swipe into the VM (with a short suppress window so resume cannot flip the flag open).
 
 ### Changed
 - Version 1.1.8 (versionCode 29).
+
 
 
 ## [1.1.7] - 2026-07-10

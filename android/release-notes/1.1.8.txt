@@ -2,3 +2,4 @@ Roam 1.1.8
 
 • Moderator panel now appears on the You tab for moderator accounts
 • Reading position is restored when you return after switching apps
+• Config menu no longer opens by itself when you return to the app
