@@ -2,6 +2,15 @@
 
 All notable changes to the Roam Android app.
 
+## [1.1.8] - 2026-07-10
+
+### Fixed
+- Moderator panel missing on You tab — Role unlock was a one-shot check at ViewModel init, which often ran before sign-in finished. Now observes `sessionStatus` continuously: unlocks admin/mod on `Authenticated`, clears on sign-out. Role is read from `session.user.appMetadata` via `jsonPrimitive`. Opening the You tab also re-syncs role.
+- Scroll position still lost on background/return — `evaluateJavascript(save)` raced `pauseTimers()` so localStorage never received Y. Save now completes (callback + 250ms safety) before pause. Kotlin keeps a scroll-Y backup and passes it to restore on resume / after page reload. Delayed `scrollTo` covers OEM WebViews that reflow to top.
+
+### Changed
+- Version 1.1.8 (versionCode 29).
+
 ## [1.1.7] - 2026-07-10
 
 ### Fixed
@@ -13,6 +22,7 @@ All notable changes to the Roam Android app.
 ### Changed
 - Config sheet peek height increased from 15dp to 28dp for a more reachable handle.
 - Version bumped to 1.1.7 (versionCode 28).
+
 
 ## [1.1.6] - 2026-07-08
 

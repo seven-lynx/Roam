@@ -226,13 +226,16 @@ Ratings that fail due to no connectivity are pushed onto `pendingRatings`. `conn
 ### WebView State & Scroll Persistence
 
 - **URL source of truth** — `savedState` is a non-persisted `remember { Bundle() }` for live-session recovery only (renderer death while the app is alive). The ViewModel owns the current URL so process death does not restore a stale page.
-- **Scroll memory** — An injected script stores per-URL `{ y, height }` in **localStorage** (survives renderer death; sessionStorage does not). On load it polls `requestAnimationFrame` until document height reaches the saved height (or timeout), then `scrollTo`.
-- **Lifecycle force save/restore** — `ON_PAUSE` calls `__roam_saveScroll` and `saveState`; `ON_RESUME` calls `__roam_restoreScroll` when the renderer survived, or restores/reloads when it was killed. Snapshot overlay covers white flash during recovery.
+- **Scroll memory** — Injected script stores per-URL `{ y, height }` in **localStorage**. On load it polls until document height is ready, then `scrollTo`.
+- **Save-before-pause** — `ON_PAUSE` runs `__roam_saveScroll` and waits for the JS callback (or 250ms) **before** `pauseTimers()`, so the write is not dropped. Kotlin keeps a scroll-Y backup for restore.
+- **Restore on resume** — Surviving renderer: `__roam_restoreScroll(fallbackY)` + delayed `scrollTo` if still near top. Renderer death: `restoreState`/`loadUrl`, then restore after `onPageFinished` with the Kotlin Y fallback.
 - **System bars** — Theme and WebView re-assert status/navigation bars after resume and page finish so sites cannot hide them.
+
 
 ### Admin / Moderator Access
 
-`checkUserRole()` reads `app_metadata.role` from the JWT after session is ready (retries with backoff). `role=admin` auto-enables the Admin panel; `role=moderator` auto-enables the Moderator panel. Entry point is on the **You** tab → Admin/Moderator Panel → `AdminScreen`. Regular users cannot unlock admin mode via Settings taps.
+`MainViewModel` observes Supabase `sessionStatus`. On `Authenticated`, `checkUserRole()` reads `app_metadata.role` from the session user (`jsonPrimitive`). `role=admin` enables the Admin panel; `role=moderator` (or admin) enables the Moderator panel. Opening the **You** tab re-syncs role. Entry: You → Admin/Moderator Panel → `AdminScreen`. Regular users cannot unlock admin mode via Settings taps.
+
 
 
 ## Settings
@@ -293,6 +296,12 @@ See [CHANGELOG.md](CHANGELOG.md) for the full version history.
 
 **Admin/mod panel missing for privileged user**
 - Confirm JWT `app_metadata.role` is `admin` or `moderator`
-- Role check waits for session (up to ~5s); cold start may briefly delay the You-tab entry
+- Role unlock follows `sessionStatus`; open the You tab to force a re-check
+- Logcat: filter `MainViewModel` for `checkUserRole → role=`
+
+**Scroll jumps to top after returning from background**
+- Scroll is saved before `pauseTimers` and restored with a Kotlin Y backup
+- Confirm JS is enabled (Settings) so localStorage scroll memory can run
+
 
 

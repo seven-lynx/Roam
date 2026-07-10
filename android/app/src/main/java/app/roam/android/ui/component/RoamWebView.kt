@@ -90,53 +90,57 @@ private fun ensureSystemBarsVisible(view: android.view.View) {
  *  3. On beforeunload / pagehide, save immediately.
  *  4. Expose __roam_saveScroll / __roam_restoreScroll so Android lifecycle
  *     callbacks can force save/restore when no load event fires.
+ *  5. __roam_saveScroll returns the Y value so Kotlin can keep a backup.
+ *  6. __roam_restoreScroll(y) accepts an optional Kotlin-side Y fallback.
  */
 private const val ROAM_SCROLL_MEMORY_SCRIPT = """
 (function(){
   'use strict';
+  if (window.__roam_scroll_installed) return;
+  window.__roam_scroll_installed = true;
   var STORAGE_KEY = '__roam_scroll__';
   var DEBOUNCE_MS = 200;
-  var MAX_POLL_ATTEMPTS = 60;
+  var MAX_POLL_ATTEMPTS = 90;
   var pendingTimer = null;
 
-  function getScrollData() {
-    return {
-      y: window.scrollY || window.pageYOffset || 0,
-      height: Math.max(
-        (document.body && document.body.scrollHeight) || 0,
-        (document.documentElement && document.documentElement.scrollHeight) || 0,
-        0
-      )
-    };
+  function getScrollY() {
+    return window.scrollY || window.pageYOffset || document.documentElement.scrollTop || 0;
+  }
+
+  function getDocHeight() {
+    return Math.max(
+      (document.body && document.body.scrollHeight) || 0,
+      (document.documentElement && document.documentElement.scrollHeight) || 0,
+      0
+    );
   }
 
   function saveScroll() {
     try {
-      var data = getScrollData();
-      data.url = location.href;
+      var y = getScrollY();
+      var data = { y: y, height: getDocHeight(), url: location.href };
       var store = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
       store[data.url] = data;
       localStorage.setItem(STORAGE_KEY, JSON.stringify(store));
-    } catch(e) {}
+      return y;
+    } catch(e) {
+      return getScrollY();
+    }
   }
 
-  function loadAndRestore() {
+  function loadAndRestore(fallbackY) {
     try {
       var store = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
       var entry = store[location.href];
-      if (!entry || !entry.y) return;
-      var targetY = entry.y;
-      var targetHeight = entry.height || 0;
+      var targetY = (entry && entry.y) ? entry.y : (fallbackY || 0);
+      if (!targetY || targetY <= 0) return false;
+      var targetHeight = (entry && entry.height) ? entry.height : 0;
       var pollCount = 0;
 
       function tryScroll() {
-        var currentHeight = Math.max(
-          (document.body && document.body.scrollHeight) || 0,
-          (document.documentElement && document.documentElement.scrollHeight) || 0,
-          0
-        );
-        if (currentHeight >= targetHeight || pollCount >= MAX_POLL_ATTEMPTS) {
-          window.scrollTo(0, Math.min(targetY, currentHeight));
+        var currentHeight = getDocHeight();
+        if (currentHeight >= targetHeight || pollCount >= MAX_POLL_ATTEMPTS || targetHeight === 0) {
+          window.scrollTo(0, Math.min(targetY, Math.max(currentHeight, targetY)));
         } else {
           pollCount++;
           requestAnimationFrame(tryScroll);
@@ -144,7 +148,14 @@ private const val ROAM_SCROLL_MEMORY_SCRIPT = """
       }
 
       requestAnimationFrame(tryScroll);
-    } catch(e) {}
+      return true;
+    } catch(e) {
+      if (fallbackY && fallbackY > 0) {
+        window.scrollTo(0, fallbackY);
+        return true;
+      }
+      return false;
+    }
   }
 
   window.__roam_saveScroll = saveScroll;
@@ -157,11 +168,14 @@ private const val ROAM_SCROLL_MEMORY_SCRIPT = """
 
   window.addEventListener('beforeunload', saveScroll);
   window.addEventListener('pagehide', saveScroll);
+  document.addEventListener('visibilitychange', function() {
+    if (document.visibilityState === 'hidden') saveScroll();
+  });
 
   if (document.readyState === 'complete') {
     loadAndRestore();
   } else {
-    window.addEventListener('load', loadAndRestore, { once: true });
+    window.addEventListener('load', function() { loadAndRestore(); }, { once: true });
   }
 
   window.addEventListener('pageshow', function(e) {
@@ -169,6 +183,7 @@ private const val ROAM_SCROLL_MEMORY_SCRIPT = """
   });
 })();
 """
+
 
 @Composable
 fun RoamWebView(
@@ -195,6 +210,12 @@ fun RoamWebView(
     val webViewRef = remember { mutableStateOf<WebView?>(null) }
     // Keep a stable url reference for use inside the lifecycle observer
     val urlRef = remember { mutableStateOf(url) }
+    // Kotlin-side scroll backup — evaluateJavascript save is async and can lose the
+    // race against pauseTimers() on ON_PAUSE. We keep the last known Y here.
+    var savedScrollY by remember { mutableStateOf(0) }
+    var savedScrollUrl by remember { mutableStateOf<String?>(null) }
+    // Guard so we only pause once after the async save callback (or timeout).
+    var pausePending by remember { mutableStateOf(false) }
     // The last URL we commanded the WebView to load. Used to detect silent URL
     // drift after process death (when restoreState brings back a stale page).
     var lastCommittedUrl by remember { mutableStateOf<String?>(null) }
@@ -203,11 +224,17 @@ fun RoamWebView(
         // Reset the error state whenever we get a new URL to try.
         // This ensures that "Try next page" can actually escape the error screen.
         loadError = false
+        // New navigation — clear scroll backup for the previous page.
+        if (url != savedScrollUrl) {
+            savedScrollY = 0
+            savedScrollUrl = url
+        }
     }
     // Snapshot of the last visible viewport — shown as an overlay while the page reloads
     // after renderer death, eliminating the white-screen flash.
     var snapshotBitmap by remember { mutableStateOf<Bitmap?>(null) }
     var showSnapshot by remember { mutableStateOf(false) }
+
 
     LaunchedEffect(navCommandsFlow) {
         navCommandsFlow?.collect { cmd ->
@@ -231,9 +258,11 @@ fun RoamWebView(
 
     val lifecycleOwner = LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner) {
+        val mainHandler = Handler(Looper.getMainLooper())
         val observer = LifecycleEventObserver { _, event ->
             when (event) {
                 Lifecycle.Event.ON_RESUME -> {
+                    pausePending = false
                     val wv = webViewRef.value ?: return@LifecycleEventObserver
                     wv.onResume()
                     wv.resumeTimers()
@@ -242,9 +271,9 @@ fun RoamWebView(
                     ensureSystemBarsVisible(wv)
                     // If the renderer was killed while backgrounded, the WebView url is null.
                     // Restore saved state first; fall back to reloading the current url.
-                    // Scroll restore happens in onPageFinished via the injected script.
+                    // Scroll restore happens in onPageFinished via the injected script +
+                    // Kotlin-side savedScrollY fallback.
                     if (wv.url.isNullOrEmpty()) {
-
                         showSnapshot = true
                         onRecovering(true)
                         if (!savedState.isEmpty) {
@@ -254,12 +283,23 @@ fun RoamWebView(
                         }
                     } else if (jsEnabled) {
                         // Surviving-renderer case: no load/pageshow event fires, so
-                        // force-restore from localStorage via the injected global.
+                        // force-restore from localStorage, with Kotlin Y as fallback.
+                        val fallbackY = savedScrollY
                         wv.post {
                             wv.evaluateJavascript(
-                                "window.__roam_restoreScroll && window.__roam_restoreScroll()",
+                                "window.__roam_restoreScroll && window.__roam_restoreScroll($fallbackY)",
                                 null,
                             )
+                            // Also force a direct scrollTo after a short delay in case the
+                            // page reflowed to top while backgrounded (common on OEM WebViews).
+                            if (fallbackY > 0) {
+                                wv.postDelayed({
+                                    wv.evaluateJavascript(
+                                        "if((window.scrollY||0)<${fallbackY / 2}){window.scrollTo(0,$fallbackY);}",
+                                        null,
+                                    )
+                                }, 300)
+                            }
                         }
                     }
                 }
@@ -270,20 +310,36 @@ fun RoamWebView(
                             wv.draw(Canvas(bmp))
                             snapshotBitmap = bmp
                         }
-                        // Force-save immediately, bypassing the 200ms debounce.
-                        // Do NOT put onPause/pauseTimers inside the JS callback —
-                        // if the callback is dropped the WebView would never pause.
-                        // localStorage writes are synchronous from JS's perspective
-                        // once evaluateJavascript is queued; pagehide also saves.
+                        // CRITICAL: save scroll BEFORE pauseTimers(). evaluateJavascript is
+                        // async — if we pause immediately the JS never runs and localStorage
+                        // stays empty. Pause only after the callback (or a short timeout).
+                        fun finishPause() {
+                            if (!pausePending) return
+                            pausePending = false
+                            wv.saveState(savedState)
+                            wv.onPause()
+                            wv.pauseTimers()
+                        }
+
+                        pausePending = true
                         if (jsEnabled) {
                             wv.evaluateJavascript(
-                                "window.__roam_saveScroll && window.__roam_saveScroll()",
-                                null,
-                            )
+                                "(function(){try{return (window.__roam_saveScroll&&window.__roam_saveScroll())||(window.scrollY||window.pageYOffset||0);}catch(e){return window.scrollY||0;}})()",
+                            ) { result ->
+                                // result is a JSON number string, e.g. "1234" or "null"
+                                val y = result?.trim('"')?.toDoubleOrNull()?.toInt() ?: 0
+                                if (y > 0) {
+                                    savedScrollY = y
+                                    savedScrollUrl = wv.url ?: urlRef.value
+                                }
+                                mainHandler.post { finishPause() }
+                            }
+                            // Safety: if the JS callback is dropped, still pause so the
+                            // WebView doesn't keep running in the background forever.
+                            mainHandler.postDelayed({ finishPause() }, 250)
+                        } else {
+                            finishPause()
                         }
-                        wv.saveState(savedState)
-                        wv.onPause()
-                        wv.pauseTimers()
                     }
                 }
                 else -> {}
@@ -292,6 +348,7 @@ fun RoamWebView(
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
+
 
     // url == null means we're waiting for the first roam — keep the WebView out of the
     // tree until we have something to load. The loading overlay is handled by DiscoverTab.
@@ -419,9 +476,26 @@ fun RoamWebView(
                             // exposes __roam_saveScroll / __roam_restoreScroll for
                             // Android lifecycle force-save/restore. Requires
                             // domStorageEnabled (set with jsEnabled).
+                            // Pass Kotlin-side savedScrollY as fallback when the
+                            // page was reloaded after renderer death / restoreState.
                             if (jsEnabled) {
+                                val fallbackY = if (
+                                    savedScrollY > 0 &&
+                                    (savedScrollUrl == null || savedScrollUrl == loadedUrl ||
+                                        loadedUrl.startsWith(savedScrollUrl ?: "\u0000") ||
+                                        (savedScrollUrl?.startsWith(loadedUrl) == true))
+                                ) savedScrollY else 0
                                 view.evaluateJavascript(ROAM_SCROLL_MEMORY_SCRIPT, null)
+                                if (fallbackY > 0) {
+                                    view.postDelayed({
+                                        view.evaluateJavascript(
+                                            "window.__roam_restoreScroll && window.__roam_restoreScroll($fallbackY)",
+                                            null,
+                                        )
+                                    }, 100)
+                                }
                             }
+
                         }
 
                         override fun onReceivedError(

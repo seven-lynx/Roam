@@ -21,8 +21,10 @@ import app.roam.android.model.deserializeHistory
 import app.roam.android.model.serializeHistory
 import app.roam.android.model.AppNotification
 import app.roam.android.model.UserProfile
+import app.roam.android.data.supabase
 import app.roam.android.util.connectivityFlow
 import io.github.jan.supabase.auth.auth
+import io.github.jan.supabase.auth.status.SessionStatus
 import io.github.jan.supabase.exceptions.UnauthorizedRestException
 import io.sentry.Sentry
 import java.io.IOException
@@ -49,7 +51,8 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.contentOrNull
-import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.jsonPrimitive
+
 
 sealed interface WebNavCommand {
     object Back : WebNavCommand
@@ -181,20 +184,31 @@ class MainViewModel(
     private val _isModerator = MutableStateFlow(false)
     val isModerator: StateFlow<Boolean> = _isModerator.asStateFlow()
 
-    /** Reads app_metadata.role from the current session JWT and updates [isModerator]. */
+    /**
+     * Reads app_metadata.role from the current session and unlocks admin/mod panels.
+     * Prefer the authenticated session user (always present after sign-in); fall back
+     * to currentUserOrNull(). Safe to call repeatedly — e.g. when opening the You tab.
+     */
     fun checkUserRole() {
         val role = try {
-            app.roam.android.data.supabase.auth.currentUserOrNull()
-                ?.appMetadata
-                ?.get("role")
-                ?.let { (it as? JsonPrimitive)?.contentOrNull }
-        } catch (_: Exception) { null }
+            val status = supabase.auth.sessionStatus.value
+            val user = when (status) {
+                is SessionStatus.Authenticated -> status.session.user
+                else -> supabase.auth.currentUserOrNull()
+            }
+            user?.appMetadata?.get("role")?.jsonPrimitive?.contentOrNull
+        } catch (e: Exception) {
+            android.util.Log.w("MainViewModel", "checkUserRole failed: ${e.message}")
+            null
+        }
+        android.util.Log.d("MainViewModel", "checkUserRole → role=$role")
         _isModerator.value = role == "moderator"
-        // Admins get admin mode automatically — no tap required
-        if (role == "admin") _adminModeEnabled.value = true
-        // Moderators also get their panel unlocked automatically — no 5-tap easter egg required
-        if (role == "moderator") _moderatorModeEnabled.value = true
+        // Only elevate; never demote admin/mod mid-session unless role is known non-privileged.
+        // Clear first so a role change (or sign-out path) cannot leave stale unlocks.
+        _adminModeEnabled.value = role == "admin"
+        _moderatorModeEnabled.value = role == "moderator" || role == "admin"
     }
+
 
     /** User preference: skip paywalled sites */
     private val _skipPaywalled = MutableStateFlow(false)
@@ -615,18 +629,23 @@ class MainViewModel(
         // roam() request if they kick off unconditionally.
         if (_prefetchWebView.value) startPrefillQueue()
 
-        // Check the user's role (moderator / admin) from the JWT so the UI can
-        // auto-unlock the appropriate panel without any tap sequence.
-        // Retry with backoff because Supabase auth initializes asynchronously
-        // and currentUserOrNull() returns null until the token propagates.
+        // Continuously observe auth session so admin/mod panels unlock after sign-in
+        // (MainViewModel is created before auth finishes) and clear on sign-out.
         viewModelScope.launch {
-            var retries = 0
-            while (!repo.hasSession() && retries < 20) {
-                delay(250)
-                retries++
+            supabase.auth.sessionStatus.collect { status ->
+                when (status) {
+                    is SessionStatus.Authenticated -> checkUserRole()
+                    is SessionStatus.NotAuthenticated,
+                    is SessionStatus.RefreshFailure -> {
+                        _adminModeEnabled.value = false
+                        _moderatorModeEnabled.value = false
+                        _isModerator.value = false
+                    }
+                    SessionStatus.Initializing -> { /* wait */ }
+                }
             }
-            checkUserRole()
         }
+
 
         // Sync saved-for-later list from the server so saves from the web app
         // and other devices are visible without a reinstall.

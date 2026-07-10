@@ -73,10 +73,14 @@ fun YouScreen(
     var expandedList by remember { mutableStateOf<String?>(null) } // null, "followers", "following"
 
     LaunchedEffect(Unit) {
+        // Re-sync role when You opens so the Admin/Mod entry appears even if
+        // the ViewModel was created before the session finished loading.
+        vm.checkUserRole()
         vm.loadProfile()
         vm.loadCollections()
         vm.fetchUnreadNotificationCount()
     }
+
 
     val unlockedBadgeCount = if (badgesLoading && badges.isEmpty()) null else badges.count { it.isUnlocked }
     val totalBadges = badges.size
