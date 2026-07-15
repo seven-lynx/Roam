@@ -1,0 +1,11 @@
+Roam 1.1.5 — Docs
+
+📚 Full project documentation audit — Updated all six core READMEs (root, web, android, supabase, extension, developer) to accurately reflect the current feature set including:
+
+- Gamification: 70+ badges across 12 categories, level progression (1–50), weekly/monthly/all-time leaderboards with XP rankings
+- Social: Activity feed showing what followed users are discovering, URL sharing with push notifications, public profiles, follower/following system
+- Notifications: Push notifications for badge unlocks, level-ups, shared URLs, and feature updates
+- Updated architecture tables — 5 new database tables documented (badges, user_badges, user_activity, shared_urls, email_notifications)
+- Web README — Added missing routes (/leaderboard, /badges, /forgot-password) and Windows-compatible troubleshooting commands
+- API reference — Documented the leaderboard Edge Function endpoint with full request/response schemas, error codes, and rate limits
+- Dev context handoff — Updated architecture diagrams, surface capabilities, and what's-working checklist

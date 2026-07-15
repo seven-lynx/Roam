@@ -42,19 +42,18 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import app.roam.android.viewmodel.MainViewModel
-import androidx.compose.ui.graphics.Color
 
 /**
  * Dedicated admin/moderator panel screen.
- * Replaces the inline admin links previously buried in ConfigBottomSheet.
  *
  * Roles:
- *  - Admin: full access (stats, moderation queue, reports, beta, email)
- *  - Moderator: moderation queue + reports only
+ *  - Admin: full access (stats, moderation queue, reports, beta, email, system)
+ *  - Moderator: moderation queue, analytics, reports
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -76,11 +75,32 @@ fun AdminScreen(
 
     var selectedTab by remember { mutableStateOf("queue") }
     var confirmDialog by remember { mutableStateOf<Pair<String, String>?>(null) } // action, itemId
-    var selectedItemDetail by remember { mutableStateOf<Int?>(null) }
 
+    // Queue status filter — defaults to "pending" for moderators, "all" for admins
+    var queueStatusFilter by remember { mutableStateOf(if (isAdmin) "all" else "pending") }
+
+    // Load queue + stats + reports on mount
     LaunchedEffect(Unit) {
         vm.loadAdminQueue()
         vm.loadAdminStats()
+        vm.loadAdminReports()
+    }
+
+    // Auto-refresh every 60 seconds while the panel is open
+    LaunchedEffect(Unit) {
+        while (true) {
+            kotlinx.coroutines.delay(60_000)
+            vm.loadAdminQueue()
+            vm.loadAdminStats()
+            vm.loadAdminReports()
+        }
+    }
+
+    // Re-fetch beta signups when the beta tab is selected (admin only)
+    LaunchedEffect(selectedTab) {
+        if (selectedTab == "beta" && adminBetaSignups.isEmpty()) {
+            vm.loadAdminBetaSignups()
+        }
     }
 
     Scaffold(
@@ -128,6 +148,7 @@ fun AdminScreen(
                 StatChip("Approved", "${adminStats?.approved ?: 0}", Color(0xFF10B981))
                 StatChip("Rejected", "${adminStats?.rejected ?: 0}", Color(0xFFEF4444))
                 if (isAdmin) StatChip("Reports", "${adminStats?.reports ?: 0}", Color(0xFF8B5CF6))
+                else StatChip("Reports", "${adminReports.size}", Color(0xFF8B5CF6))
             }
 
             Spacer(Modifier.height(12.dp))
@@ -140,9 +161,10 @@ fun AdminScreen(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 AdminTab("Queue", "queue", selectedTab) { selectedTab = it }
-                AdminTab("Reports", "reports", selectedTab) { selectedTab = it; vm.loadAdminReports() }
+                if (!isAdmin) AdminTab("Analytics", "analytics", selectedTab) { selectedTab = it }
+                AdminTab("Reports", "reports", selectedTab) { selectedTab = it }
                 if (isAdmin) {
-                    AdminTab("Beta", "beta", selectedTab) { selectedTab = it; vm.loadAdminBetaSignups() }
+                    AdminTab("Beta", "beta", selectedTab) { selectedTab = it }
                     AdminTab("System", "system", selectedTab) { selectedTab = it }
                 }
             }
@@ -158,13 +180,15 @@ fun AdminScreen(
                     loading = adminQueueLoading,
                     actionLoading = adminActionLoading,
                     isAdmin = isAdmin,
-                    onApprove = { id ->
-                        confirmDialog = "approve" to id
-                    },
-                    onReject = { id ->
-                        confirmDialog = "reject" to id
-                    },
+                    statusFilter = queueStatusFilter,
+                    onStatusFilterChange = { queueStatusFilter = it },
+                    onApprove = { id -> confirmDialog = "approve" to id },
+                    onReject = { id -> confirmDialog = "reject" to id },
                     onRefresh = { vm.loadAdminQueue() },
+                )
+                "analytics" -> AnalyticsTab(
+                    items = adminQueue,
+                    stats = adminStats,
                 )
                 "reports" -> ReportsTab(
                     reports = adminReports,
@@ -279,10 +303,20 @@ private fun QueueTab(
     loading: Boolean,
     actionLoading: Boolean,
     isAdmin: Boolean,
+    statusFilter: String,
+    onStatusFilterChange: (String) -> Unit,
     onApprove: (String) -> Unit,
     onReject: (String) -> Unit,
     onRefresh: () -> Unit,
 ) {
+    val filteredItems = when (statusFilter) {
+        "all" -> items
+        "pending" -> items.filter { it.status == "pending" }
+        "approved" -> items.filter { it.status == "approved" }
+        "rejected" -> items.filter { it.status == "rejected" }
+        else -> items
+    }
+
     Column(modifier = Modifier.fillMaxWidth()) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
@@ -293,18 +327,56 @@ private fun QueueTab(
             TextButton(onClick = onRefresh) { Text("Refresh") }
         }
 
-        Spacer(Modifier.height(8.dp))
+        // Status filter chips
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 4.dp),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            val filters = listOf(
+                "pending" to "Pending",
+                "approved" to "Approved",
+                "rejected" to "Rejected",
+                "all" to "All",
+            )
+            filters.forEach { (key, label) ->
+                val count = when (key) {
+                    "all" -> items.size
+                    else -> items.count { it.status == key }
+                }
+                TextButton(
+                    onClick = { onStatusFilterChange(key) },
+                    modifier = Modifier.padding(vertical = 0.dp),
+                ) {
+                    Text(
+                        "$label ($count)",
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = if (statusFilter == key) FontWeight.Bold else FontWeight.Normal,
+                        color = if (statusFilter == key) MaterialTheme.colorScheme.primary
+                                else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                    )
+                }
+            }
+        }
+
+        Spacer(Modifier.height(4.dp))
 
         if (loading) {
             Box(Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
                 CircularProgressIndicator(Modifier.size(32.dp), strokeWidth = 2.dp)
             }
-        } else if (items.isEmpty()) {
+        } else if (filteredItems.isEmpty()) {
             Box(Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
-                Text("All caught up! \uD83C\uDF89", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f))
+                Text(
+                    if (statusFilter == "pending") "All caught up! \uD83C\uDF89"
+                    else "No ${statusFilter} submissions.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                )
             }
         } else {
-            items.forEach { item ->
+            filteredItems.forEach { item ->
                 QueueItemCard(
                     item = item,
                     isAdmin = isAdmin,
@@ -429,6 +501,166 @@ private fun QueueItemCard(
                     TextButton(onClick = onApprove, enabled = !actionLoading) {
                         Text("Approve", color = Color(0xFF10B981))
                     }
+                }
+            }
+        }
+    }
+}
+
+// ── Analytics Tab (for moderators) ─────────────────────────────────────────────
+
+@Composable
+private fun AnalyticsTab(
+    items: List<app.roam.android.model.AdminQueueItem>,
+    stats: app.roam.android.model.AdminStats?,
+) {
+    val approved = stats?.approved ?: 0
+    val rejected = stats?.rejected ?: 0
+    val total = approved + rejected
+    val approvalRate = if (total > 0) (approved.toFloat() / total * 100).toInt() else 0
+
+    // 7-day submission trend
+    val sevenDaysAgo = java.time.LocalDate.now(java.time.ZoneId.of("America/New_York")).minusDays(6)
+    val submissionsByDay = items
+        .filter { it.createdAt != null }
+        .mapNotNull { item ->
+            try {
+                java.time.LocalDate.parse(item.createdAt!!.substringBefore("T"))
+            } catch (_: Exception) { null }
+        }
+        .filter { !it.isBefore(sevenDaysAgo) }
+        .groupBy { it }
+        .mapValues { it.value.size }
+        .toMutableMap()
+    // Fill in missing days
+    for (i in 0..6) {
+        val day = sevenDaysAgo.plusDays(i.toLong())
+        submissionsByDay.putIfAbsent(day, 0)
+    }
+    val sortedDays = submissionsByDay.entries.sortedBy { it.key }
+    val maxDayCount = sortedDays.maxOfOrNull { it.value } ?: 1
+
+    // Per-category breakdown (just count items with known subcategory/category IDs)
+    val byCategory = items
+        .filter { it.subcategoryName != null || it.categoryId != null }
+        .groupBy { it.subcategoryName ?: it.categoryId ?: "Unknown" }
+        .mapValues { it.value.size }
+        .entries
+        .sortedByDescending { it.value }
+        .take(8)
+
+    val totalItems = items.size
+    val pending = items.count { it.status == "pending" }
+
+    Column(modifier = Modifier.fillMaxWidth()) {
+        SectionHeader("Submission Overview")
+
+        // Stats row
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            StatChip("Total", "$totalItems", MaterialTheme.colorScheme.primary)
+            StatChip("Pending", "$pending", Color(0xFFF59E0B))
+            StatChip("Rate", "${approvalRate}%", Color(0xFF10B981))
+        }
+
+        Spacer(Modifier.height(16.dp))
+
+        // 7-day trend
+        SectionHeader("Last 7 Days")
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp),
+            shape = RoundedCornerShape(12.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(16.dp),
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                verticalAlignment = Alignment.Bottom,
+            ) {
+                sortedDays.forEach { (day, count) ->
+                    val heightFraction = if (maxDayCount > 0) count.toFloat() / maxDayCount else 0f
+                    val barHeight = (4.dp + 80.dp * heightFraction).coerceAtLeast(4.dp)
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        modifier = Modifier.weight(1f),
+                    ) {
+                        Text(
+                            "$count",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+                        )
+                        Spacer(Modifier.height(4.dp))
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth(0.6f)
+                                .height(barHeight)
+                                .background(
+                                    Color(0xFF2563EB).copy(alpha = 0.7f),
+                                    RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp),
+                                ),
+                        )
+                        Spacer(Modifier.height(4.dp))
+                        Text(
+                            day.format(java.time.format.DateTimeFormatter.ofPattern("MM/dd")),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f),
+                        )
+                    }
+                }
+            }
+        }
+
+        Spacer(Modifier.height(16.dp))
+
+        // Per-category breakdown
+        SectionHeader("By Category")
+        if (byCategory.isEmpty()) {
+            Text(
+                "No categorized submissions yet.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f),
+                modifier = Modifier.padding(horizontal = 16.dp),
+            )
+        } else {
+            byCategory.forEach { (name, count) ->
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 6.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        name,
+                        style = MaterialTheme.typography.bodyMedium,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f),
+                    )
+                    Spacer(Modifier.width(12.dp))
+                    Text(
+                        "$count",
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                    // Mini bar
+                    val frac = if (totalItems > 0) count.toFloat() / totalItems else 0f
+                    Box(
+                        modifier = Modifier
+                            .width((frac * 120).dp.coerceAtLeast(4.dp))
+                            .height(6.dp)
+                            .background(
+                                Color(0xFF2563EB).copy(alpha = 0.3f),
+                                RoundedCornerShape(3.dp),
+                            ),
+                    )
                 }
             }
         }
@@ -625,6 +857,6 @@ private fun SystemActionRow(title: String, subtitle: String, onClick: () -> Unit
             Text(title, style = MaterialTheme.typography.bodyLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f), maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
-        Text("↗", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f))
+        Text("\u2197", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f))
     }
 }

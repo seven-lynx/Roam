@@ -27,6 +27,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -60,16 +61,19 @@ private fun android.content.Context.findActivity(): android.app.Activity? {
 }
 
 /**
- * Force the system status/navigation bars to stay visible. WebView page loads and
- * HTML5 fullscreen requests can otherwise briefly hide them during the loading →
- * page transition.
+ * Force the system status/navigation bars to stay visible and keep their icon
+ * appearance in sync with the current theme. WebView page loads and HTML5
+ * fullscreen requests can otherwise briefly hide them during the loading →
+ * page transition, or leave icons the wrong color (e.g. white-on-white).
  */
-private fun ensureSystemBarsVisible(view: android.view.View) {
+private fun ensureSystemBarsVisible(view: android.view.View, darkMode: Boolean) {
     val activity = view.context.findActivity() ?: return
     val controller = WindowCompat.getInsetsController(activity.window, view)
     controller.show(WindowInsetsCompat.Type.systemBars())
     controller.systemBarsBehavior =
-        WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+        WindowInsetsControllerCompat.BEHAVIOR_DEFAULT
+    controller.isAppearanceLightStatusBars = !darkMode
+    controller.isAppearanceLightNavigationBars = !darkMode
 }
 
 /**
@@ -234,6 +238,8 @@ fun RoamWebView(
     // after renderer death, eliminating the white-screen flash.
     var snapshotBitmap by remember { mutableStateOf<Bitmap?>(null) }
     var showSnapshot by remember { mutableStateOf(false) }
+    // Stable reference to darkMode so factory callbacks always read the latest value
+    val darkModeRef = rememberUpdatedState(darkMode)
 
 
     LaunchedEffect(navCommandsFlow) {
@@ -268,7 +274,7 @@ fun RoamWebView(
                     wv.resumeTimers()
                     // Re-assert system bars after resume — some OEMs / WebView versions
                     // leave them hidden after backgrounding during a page load.
-                    ensureSystemBarsVisible(wv)
+                    ensureSystemBarsVisible(wv, darkModeRef.value)
                     // If the renderer was killed while backgrounded, the WebView url is null.
                     // Restore saved state first; fall back to reloading the current url.
                     // Scroll restore happens in onPageFinished via the injected script +
@@ -428,11 +434,11 @@ fun RoamWebView(
                             callback: CustomViewCallback?,
                         ) {
                             callback?.onCustomViewHidden()
-                            ensureSystemBarsVisible(this@apply)
+                            ensureSystemBarsVisible(this@apply, darkModeRef.value)
                         }
 
                         override fun onHideCustomView() {
-                            ensureSystemBarsVisible(this@apply)
+                            ensureSystemBarsVisible(this@apply, darkModeRef.value)
                         }
                     }
 
@@ -451,7 +457,7 @@ fun RoamWebView(
                                 redirectCount = 0
                                 lastRedirectHost = null
                             }
-                            ensureSystemBarsVisible(view)
+                            ensureSystemBarsVisible(view, darkModeRef.value)
                             onLoadingChanged(true)
                         }
 
@@ -470,7 +476,7 @@ fun RoamWebView(
                             // Re-assert system bars after each page load so a site's
                             // theme-color / viewport / fullscreen hints cannot leave
                             // the status bar hidden during the overlay → page reveal.
-                            ensureSystemBarsVisible(view)
+                            ensureSystemBarsVisible(view, darkModeRef.value)
                             // Inject the localStorage scroll-memory script. It
                             // self-restores on load with height-aware polling, and
                             // exposes __roam_saveScroll / __roam_restoreScroll for

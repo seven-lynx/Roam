@@ -64,7 +64,9 @@ All sources are free public APIs or datasets — no scraping, no paywalled conte
 | `seed-quanta.mjs` | Quanta Magazine (math, physics, biology, CS) | none | 2,290 | ✅ Live |
 | `seed-pudding.mjs` | The Pudding (data-driven visual essays) | none | 209 | ✅ Live |
 
-**Total: ~3.2M URLs across 37+ active sources** *(as of May 2026)*
+**Total: ~1.5M approved URLs across 95 subcategories, 106 distinct seeders** *(July 2026)*
+
+> Run `node scripts/audit-url-assignments.mjs` for a live breakdown of URL counts and seeder coverage per subcategory.
 
 ## Setup
 

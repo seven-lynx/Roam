@@ -13,5 +13,9 @@ data class ActivityFeedItem(
     @SerialName("activity_type") val activityType: String = "",
     @SerialName("subject_id") val subjectId: String? = null,
     @SerialName("subject_title") val subjectTitle: String? = null,
+    @SerialName("subject_url") val subjectUrl: String? = null,
+    @SerialName("badge_icon") val badgeIcon: String? = null,
+    @SerialName("badge_name") val badgeName: String? = null,
+    @SerialName("collection_slug") val collectionSlug: String? = null,
     @SerialName("created_at") val createdAt: String = "",
 )

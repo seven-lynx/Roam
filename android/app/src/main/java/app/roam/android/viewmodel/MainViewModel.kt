@@ -365,28 +365,47 @@ class MainViewModel(
         if (!enabled) {
             _focusCategoryId.value = null
             _focusSubcategoryId.value = null
+            // Cancel existing prefill, clear queues, and restart unfiltered refill
+            // so the first roam after disabling focus is fast (not a cold network call).
+            prefetchJob?.cancel()
+            viewModelScope.launch {
+                prefetchMutex.withLock { hotQueue.clear(); warmQueue.clear() }
+                startPrefillQueue()
+            }
         }
-        prefetchJob?.cancel()
-        viewModelScope.launch { prefetchMutex.withLock { hotQueue.clear(); warmQueue.clear() } }
-        if (enabled && _focusCategoryId.value != null) startPrefillQueue()
+        // When enabling: don't touch queues yet — they stay with the current
+        // (possibly unfiltered) contents. setFocusCategory() will clear + refill
+        // with filtered URLs once the user actually picks a category.
     }
 
+    /** Sets the active focus category and clears/refills the prefetch queue.
+     *  When focus mode is enabled, also activates it if not already active. */
     fun setFocusCategory(categoryId: String?) {
         _focusCategoryId.value = categoryId
         _focusSubcategoryId.value = null  // reset subcategory when category changes
-        if (_focusModeEnabled.value) {
+        if (categoryId != null) {
+            // Activate focus mode if picking a category while mode was toggled on
+            if (!_focusModeEnabled.value) _focusModeEnabled.value = true
+            // Sequentially cancel → clear → restart to avoid the race between
+            // the clear coroutine (Main) and startPrefillQueue (IO dispatcher).
             prefetchJob?.cancel()
-            viewModelScope.launch { prefetchMutex.withLock { hotQueue.clear(); warmQueue.clear() } }
-            if (categoryId != null) startPrefillQueue()
+            viewModelScope.launch {
+                prefetchMutex.withLock { hotQueue.clear(); warmQueue.clear() }
+                startPrefillQueue()
+            }
         }
     }
 
     fun setFocusSubcategory(subcategoryId: String?) {
         _focusSubcategoryId.value = subcategoryId
         if (_focusModeEnabled.value && _focusCategoryId.value != null) {
+            // Same sequential pattern as setFocusCategory — cancel, clear, restart
+            // in a single coroutine to avoid the Main/IO dispatcher race.
             prefetchJob?.cancel()
-            viewModelScope.launch { prefetchMutex.withLock { hotQueue.clear(); warmQueue.clear() } }
-            startPrefillQueue()
+            viewModelScope.launch {
+                prefetchMutex.withLock { hotQueue.clear(); warmQueue.clear() }
+                startPrefillQueue()
+            }
         }
     }
 
@@ -749,8 +768,8 @@ class MainViewModel(
                     repo.roam(
                         collectionId = _activeCollectionId.value,
                         excludeDomain = effectiveExclude,
-                        categoryId = if (_focusModeEnabled.value) _focusCategoryId.value else null,
-                        subcategoryId = if (_focusModeEnabled.value) _focusSubcategoryId.value else null,
+                        categoryId = if (_focusModeEnabled.value && _focusCategoryId.value != null) _focusCategoryId.value else null,
+                        subcategoryId = if (_focusModeEnabled.value && _focusSubcategoryId.value != null) _focusSubcategoryId.value else null,
                     )
                 }
                 // Re-throw CancellationException so coroutine cancellation (e.g. ViewModel cleared)
@@ -1675,13 +1694,48 @@ class MainViewModel(
 
     // ── URL History ───────────────────────────────────────────────────────────
 
+    /**
+     * Normalizes a URL to prevent duplicate history entries caused by trivial
+     * variations: trailing slashes, scheme differences, and common tracking /
+     * analytics query parameters (utm_*, fbclid, ref, source).
+     *
+     * If the URL cannot be parsed, the raw string is returned with trailing
+     * slashes stripped as a best-effort fallback.
+     */
+    private fun normalizeUrl(url: String): String {
+        if (url.isBlank()) return url
+        return try {
+            val parsed = java.net.URI(url)
+            val scheme = (parsed.scheme ?: "https").lowercase()
+            val host = (parsed.host ?: "").lowercase().removePrefix("www.")
+            // Preserve the path but strip a single trailing slash
+            val path = parsed.rawPath?.trimEnd('/') ?: ""
+            // Drop known analytics / tracking query parameters
+            val trackingKeys = setOf(
+                "utm_source", "utm_medium", "utm_campaign", "utm_term",
+                "utm_content", "utm_id", "fbclid", "gclid", "ref", "source"
+            )
+            val cleanQuery = parsed.rawQuery
+                ?.split('&')
+                ?.filter { p -> p.substringBefore('=').lowercase() !in trackingKeys }
+                ?.joinToString("&")
+                ?.takeIf { it.isNotEmpty() }
+            val base = "$scheme://$host$path"
+            if (cleanQuery != null) "$base?$cleanQuery" else base
+        } catch (_: Exception) {
+            // Malformed URL — just strip trailing slash as a minimal normalization
+            url.trimEnd('/')
+        }
+    }
+
     fun recordUrlVisit(url: String, title: String) {
-        if (url.isBlank()) return
+        val normalized = normalizeUrl(url)
+        if (normalized.isBlank()) return
         val trimmedTitle = title.take(200)
-        val entry = UrlHistoryEntry(url = url, title = trimmedTitle)
+        val entry = UrlHistoryEntry(url = normalized, title = trimmedTitle)
         val current = _urlHistory.value.toMutableList()
-        // Remove existing entry for the same URL to avoid duplicates, then prepend
-        current.removeAll { it.url == url }
+        // Remove existing entries that normalize to the same canonical URL
+        current.removeAll { normalizeUrl(it.url) == normalized }
         current.add(0, entry)
         // Trim to max entries
         if (current.size > MAX_HISTORY_ENTRIES) {

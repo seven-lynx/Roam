@@ -73,6 +73,7 @@ import app.roam.android.ui.component.pickRandomMessage
 import app.roam.android.viewmodel.MainViewModel
 import app.roam.android.viewmodel.RoamState
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.launch
 import kotlin.time.Duration.Companion.milliseconds
 
@@ -451,10 +452,24 @@ private fun DiscoverTab(
         } catch (_: Exception) { }
     }
 
+    // On first composition, Material3 may render the sheet expanded before it
+    // settles into PartiallyExpanded. Force-collapse after a short delay so the
+    // config sheet always starts closed on fresh app launches.
+    LaunchedEffect(Unit) {
+        delay(200)
+        try {
+            scaffoldState.bottomSheetState.partialExpand()
+        } catch (_: Exception) { }
+    }
+
     // User swipe (slide mode) can expand/collapse without touching the VM.
     // Mirror settled sheet state back so the flag stays accurate.
+    // drop(1) skips the initial emission (PartiallyExpanded) so we don't
+    // flip showConfigSheet to false on first composition before the sheet
+    // settles — that would create a feedback loop locking the sheet open.
     LaunchedEffect(scaffoldState.bottomSheetState) {
         snapshotFlow { scaffoldState.bottomSheetState.currentValue }
+            .drop(1)
             .collect { value ->
                 if (suppressSheetToVm) return@collect
                 when (value) {

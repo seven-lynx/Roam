@@ -118,6 +118,8 @@ private fun FeedRow(
         "url_rated" -> "rated a page"
         "collection_created" -> "created a collection"
         "badge_unlocked" -> "unlocked a badge"
+        "url_saved" -> "saved a link"
+        "url_added_to_collection" -> "added to a collection"
         else -> item.activityType
     }
 
@@ -156,7 +158,16 @@ private fun FeedRow(
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
                 )
             }
-            if (item.subjectTitle?.isNotBlank() == true) {
+            // For badge_unlocked, show badge icon + name instead of subject title
+            if (item.activityType == "badge_unlocked" && item.badgeName?.isNotBlank() == true) {
+                Text(
+                    (item.badgeIcon ?: "") + " " + item.badgeName,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.primary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            } else if (item.subjectTitle?.isNotBlank() == true) {
                 Text(
                     item.subjectTitle,
                     style = MaterialTheme.typography.bodySmall,

@@ -11,11 +11,13 @@ export interface ActivityItem {
   username: string;
   display_name: string | null;
   avatar_url: string | null;
-  activity_type: 'url_submitted' | 'url_rated' | 'collection_created' | 'collection_updated';
+  activity_type: 'url_submitted' | 'url_rated' | 'collection_created' | 'collection_updated' | 'badge_unlocked' | 'url_saved' | 'url_added_to_collection';
   subject_id: string | null;
   subject_title: string | null;
   subject_url: string | null;
   collection_slug: string | null;
+  badge_icon: string | null;
+  badge_name: string | null;
   created_at: string;
 }
 
@@ -62,6 +64,25 @@ function activityText(item: ActivityItem): { verb: string; link: React.ReactNode
     case 'collection_updated':
       return {
         verb: 'made a collection public',
+        link: item.collection_slug
+          ? <Link href={`/c/${item.collection_slug}`} className="font-medium text-zinc-900 dark:text-white hover:underline">{item.subject_title}</Link>
+          : <span className="font-medium text-zinc-900 dark:text-white">{item.subject_title}</span>,
+      };
+    case 'badge_unlocked':
+      return {
+        verb: 'earned a badge',
+        link: <span className="font-medium text-zinc-900 dark:text-white">{item.badge_icon} {item.badge_name || item.subject_title}</span>,
+      };
+    case 'url_saved':
+      return {
+        verb: 'saved',
+        link: item.subject_url
+          ? <a href={item.subject_url} target="_blank" rel="noopener noreferrer" className="font-medium text-zinc-900 dark:text-white hover:underline">{item.subject_title || item.subject_url}</a>
+          : <span className="font-medium text-zinc-900 dark:text-white">{item.subject_title}</span>,
+      };
+    case 'url_added_to_collection':
+      return {
+        verb: 'added to',
         link: item.collection_slug
           ? <Link href={`/c/${item.collection_slug}`} className="font-medium text-zinc-900 dark:text-white hover:underline">{item.subject_title}</Link>
           : <span className="font-medium text-zinc-900 dark:text-white">{item.subject_title}</span>,
