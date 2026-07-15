@@ -593,6 +593,10 @@ export const SUBCATEGORY = {
   GEOLOGY_EARTH_SCIENCE:     'c2000001-0000-0000-0000-000000000007',
   OCEANOGRAPHY_MARINE_LIFE:  'c2000001-0000-0000-0000-000000000008',
   PALEONTOLOGY_NATURAL_HISTORY: 'c2000001-0000-0000-0000-000000000009',
+  ASTROBIOLOGY_EXOPLANETS:     'c2000001-0000-0000-0000-000000000010',
+  BOTANY_PLANT_SCIENCE:        'c2000001-0000-0000-0000-000000000011',
+  CLIMATE_ATMOSPHERIC_SCIENCE: 'c2000001-0000-0000-0000-000000000012',
+  NEUROSCIENCE_COGNITION:      'c2000001-0000-0000-0000-000000000013',
 
   // 💻 Technology
   PROGRAMMING_SOFTWARE:      'c2000002-0000-0000-0000-000000000001',
@@ -604,6 +608,9 @@ export const SUBCATEGORY = {
   ROBOTICS_AUTOMATION:       'c2000002-0000-0000-0000-000000000007',
   EMERGING_TECHNOLOGY:       'c2000002-0000-0000-0000-000000000008',
   OPEN_SOURCE:               'c2000002-0000-0000-0000-000000000009',
+  DATABASES_DATA_ENGINEERING: 'c2000002-0000-0000-0000-000000000010',
+  CRYPTOGRAPHY_SECURITY:      'c2000002-0000-0000-0000-000000000011',
+  DEVOPS_INFRASTRUCTURE:      'c2000002-0000-0000-0000-000000000012',
 
   // 🎨 Arts & Culture
   MUSIC:                     'c2000003-0000-0000-0000-000000000001',
@@ -628,6 +635,10 @@ export const SUBCATEGORY = {
   ECONOMICS_HISTORY:         'c2000004-0000-0000-0000-000000000007',
   SOCIAL_HISTORY:            'c2000004-0000-0000-0000-000000000008',
   MILITARY_HISTORY:          'c2000004-0000-0000-0000-000000000009',
+  LEGAL_HISTORY_CONSTITUTIONAL: 'c2000004-0000-0000-0000-000000000010',
+  HISTORY_SCIENCE_TECHNOLOGY:   'c2000004-0000-0000-0000-000000000011',
+  EXPLORATION_DISCOVERY:        'c2000004-0000-0000-0000-000000000012',
+  CULTURAL_INTELLECTUAL_HISTORY: 'c2000004-0000-0000-0000-000000000013',
 
   // 🎮 Games & Hobbies
   VIDEO_GAMES:               'c2000005-0000-0000-0000-000000000001',
@@ -653,6 +664,9 @@ export const SUBCATEGORY = {
   CONSPIRACY_FRINGE:         'c2000006-0000-0000-0000-000000000007',
   UNUSUAL_PLACES:            'c2000006-0000-0000-0000-000000000008',
   LOST_MEDIA:                'c2000006-0000-0000-0000-000000000009',
+  CRYPTOZOOLOGY_MYTHICAL:    'c2000006-0000-0000-0000-000000000010',
+  FORTEANA_ANOMALIES:        'c2000006-0000-0000-0000-000000000011',
+  UNDERGROUND_SUBTERRANEAN:  'c2000006-0000-0000-0000-000000000012',
 
   // 🌍 People & Places
   TRAVEL_EXPLORATION:        'c2000007-0000-0000-0000-000000000001',
@@ -664,6 +678,9 @@ export const SUBCATEGORY = {
   MIGRATION_DIASPORA:        'c2000007-0000-0000-0000-000000000007',
   MAPS_CARTOGRAPHY:          'c2000007-0000-0000-0000-000000000008',
   FESTIVALS_CUSTOMS:         'c2000007-0000-0000-0000-000000000009',
+  OCEANS_MARITIME:           'c2000007-0000-0000-0000-000000000010',
+  DESERTS_ARID_LANDS:        'c2000007-0000-0000-0000-000000000011',
+  MOUNTAINS_ALPINE:          'c2000007-0000-0000-0000-000000000012',
 
   // 🧠 Mind & Body
   PSYCHOLOGY_BEHAVIOUR:      'c2000008-0000-0000-0000-000000000001',
@@ -675,6 +692,9 @@ export const SUBCATEGORY = {
   SLEEP_RECOVERY:            'c2000008-0000-0000-0000-000000000007',
   RELATIONSHIPS_SOCIAL:      'c2000008-0000-0000-0000-000000000008',
   PERSONAL_DEVELOPMENT:      'c2000008-0000-0000-0000-000000000009',
+  AGING_LONGEVITY:           'c2000008-0000-0000-0000-000000000010',
+  ADDICTION_RECOVERY:        'c2000008-0000-0000-0000-000000000011',
+  HUMAN_PERFORMANCE:         'c2000008-0000-0000-0000-000000000012',
 };
 
 /** @deprecated Use SUBCATEGORY constants instead — no DB round-trip needed. */
@@ -1015,6 +1035,133 @@ async function _discoverJsonLdHomepage({ siteDomain, articlePathRegex, skipPaths
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// Tier 9: Headless Browser Fallback (Crawlee + Playwright)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/**
+ * Last-resort discovery using a headless Chromium browser. Used when all
+ * fetch-based tiers (RSS, sitemap, WP API, archive scrape, etc.) yield <10
+ * URLs — typically because the site requires JavaScript rendering or blocks
+ * non-browser User-Agent strings (Cloudflare challenges, etc.).
+ *
+ * Crawls the homepage + discovered article pages up to one link deep.
+ *
+ * @returns {Promise<Array<{url: string, feedTitle: null, feedDesc: null, feedDate: null}>>}
+ */
+async function _discoverHeadless({ siteDomain, articlePathRegex, skipPaths, siteSuffixRegex, UA, maxArticles }) {
+  const results = [];
+  const seenUrls = new Set();
+  const MAX_CRAWL = Math.min(maxArticles, 500);
+
+  let crawlee;
+  try {
+    // Dynamic import — only load the heavy Crawlee/Playwright stack when needed
+    const { PlaywrightCrawler, sleep } = await import("crawlee");
+    crawlee = { sleep };
+
+    const crawler = new PlaywrightCrawler({
+      headless: true,
+      maxRequestsPerCrawl: MAX_CRAWL,
+      navigationTimeoutSecs: 30,
+      requestHandlerTimeoutSecs: 15,
+
+      // Only crawl same-domain links
+      maxRequestRetries: 1,
+      useSessionPool: true,
+      sessionPoolOptions: {
+        maxPoolSize: 1,
+      },
+
+      // Browser launch args for headless stealth
+      launchContext: {
+        launchOptions: {
+          args: [
+            "--disable-blink-features=AutomationControlled",
+            "--no-sandbox",
+            "--disable-setuid-sandbox",
+          ],
+        },
+      },
+
+      async requestHandler({ request, page, enqueueLinks, log }) {
+        // Only process article pages, not the homepage itself
+        const pathname = new URL(request.url).pathname;
+        if (pathname === "/" || !pathname) {
+          // Homepage: extract & enqueue article links, then continue
+          await page.waitForLoadState("networkidle", { timeout: 15000 }).catch(() => {});
+
+          const links = await page.evaluate(() => {
+            const anchors = document.querySelectorAll("a[href]");
+            return Array.from(anchors).map((a) => ({
+              href: a.href,
+              text: a.textContent.trim().slice(0, 200),
+            }));
+          });
+
+          // Filter and enqueue article links
+          for (const { href, text } of links) {
+            if (seenUrls.has(href)) continue;
+            let linkPathname;
+            try { linkPathname = new URL(href).pathname; } catch { continue; }
+            if (!linkPathname || linkPathname === "/") continue;
+
+            const urlHost = new URL(href).hostname.replace(/^www\./, "");
+            if (urlHost !== siteDomain.replace(/^www\./, "")) continue;
+
+            if (SKIP_STRS.some((s) => linkPathname.includes(s))) continue;
+            if (skipPaths.some((r) => r.test(linkPathname))) continue;
+            if (!articlePathRegex.test(linkPathname)) continue;
+
+            seenUrls.add(href);
+            results.push({
+              url: href,
+              feedTitle: text || null,
+              feedDesc: null,
+              feedDate: null,
+            });
+
+            // Enqueue for title extraction
+            if (results.length < MAX_CRAWL) {
+              await enqueueLinks({ urls: [href] });
+            }
+          }
+          return;
+        }
+
+        // Article page: extract title for any entry that still lacks one
+        await page.waitForLoadState("networkidle", { timeout: 15000 }).catch(() => {});
+
+        const existing = results.find((r) => r.url === request.url);
+        if (existing && !existing.feedTitle) {
+          try {
+            const pageTitle = await page.title();
+            if (pageTitle) {
+              existing.feedTitle = pageTitle.replace(siteSuffixRegex, "").trim();
+            }
+          } catch { /* best-effort */ }
+        }
+      },
+    });
+
+    const homepage = `https://${siteDomain.replace(/^www\./, "")}`;
+    await crawler.run([homepage]);
+    await crawler.teardown();
+  } catch (err) {
+    console.warn(`  [Headless] Error: ${err.message}`);
+    // If browser isn't available at all, fail gracefully
+    return [];
+  }
+
+  // Clean up results: ensure all have standard shape
+  return results.map((r) => ({
+    url: r.url,
+    feedTitle: r.feedTitle || null,
+    feedDesc: r.feedDesc || null,
+    feedDate: r.feedDate || null,
+  }));
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // Unified Discovery Orchestrator
 // ═══════════════════════════════════════════════════════════════════════════════
 
@@ -1125,6 +1272,12 @@ async function _discoverAll({ siteDomain, articlePathRegex, skipPaths, siteSuffi
   entries = await _discoverArchivePages({ siteDomain, articlePathRegex, skipPaths, UA });
   if (entries.length >= 10) { method = "archive-scrape"; console.log(`  ✓ Archive-scrape: ${entries.length} article URLs`); return { entries, method }; }
   console.log(`  [Archive-scrape] <10 or failed.`);
+
+  // Tier 9: Headless browser (Crawlee + Playwright) — last resort for JS-only sites
+  console.log(`\n📡 Tier 9: Headless browser crawl...`);
+  entries = await _discoverHeadless({ siteDomain, articlePathRegex, skipPaths, siteSuffixRegex, UA, maxArticles });
+  if (entries.length >= 10) { method = "headless"; console.log(`  ✓ Headless: ${entries.length} article URLs`); return { entries, method }; }
+  console.log(`  [Headless] <10 or failed.`);
 
   return { entries, method };
 }
@@ -1528,6 +1681,19 @@ export async function seedWaybackCdx(config) {
         cache.discovered = discovered;
         if (!NO_CACHE) writeFileSync(CACHE_FILE, JSON.stringify(cache, null, 2));
         console.log(`  ✓ RSS autodiscovery: ${discovered.length} article URLs`);
+      }
+    }
+
+    // Fallback 4: if CDX + sitemap + RSS all returned 0, try headless browser crawl
+    if (!discovered.length) {
+      console.log(`\n⚠️  RSS autodiscovery also returned 0 URLs. Trying headless browser crawl...`);
+      const headlessEntries = await _discoverHeadless({ siteDomain, articlePathRegex, skipPaths, siteSuffixRegex, UA, maxArticles: 2000 });
+      if (headlessEntries.length) {
+        useSitemap = true; // use live fetcher for headless-discovered URLs
+        discovered = headlessEntries.map(r => ({ url: r.url, timestamp: null }));
+        cache.discovered = discovered;
+        if (!NO_CACHE) writeFileSync(CACHE_FILE, JSON.stringify(cache, null, 2));
+        console.log(`  ✓ Headless: ${discovered.length} article URLs`);
       }
     }
   } else {
@@ -2035,6 +2201,17 @@ export async function seedRssWithFallbacks(config) {
           if (discovered.length > 0) {
             method = "RSS-autodiscovery";
             console.log(`  ✓ RSS autodiscovery: ${discovered.length} article URLs`);
+          } else {
+            // Tier 5: Headless browser (Crawlee + Playwright) — last resort for JS-only sites
+            console.log(`\n📡 Tier 5: Headless browser crawl...`);
+            const headlessEntries = await _discoverHeadless({ siteDomain, articlePathRegex, skipPaths, siteSuffixRegex, UA, maxArticles });
+            if (headlessEntries.length >= 10) {
+              method = "headless";
+              discovered = headlessEntries.map(r => ({ url: r.url, feedTitle: r.feedTitle, feedDesc: r.feedDesc, feedDate: r.feedDate, timestamp: null }));
+              console.log(`  ✓ Headless: ${discovered.length} article URLs`);
+            } else {
+              console.log(`  [Headless] <10 or failed.`);
+            }
           }
         }
       }
