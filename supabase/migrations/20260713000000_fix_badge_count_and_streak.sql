@@ -10,6 +10,24 @@
 --    with empty error handlers. No other user actions contribute to daily activity,
 --    so streaks always show 0 for users who haven't roamed recently.
 -- 3. No helper exists to simply "mark user active today" from any edge function.
+--
+-- ── Fix 0: Update user_activity CHECK constraint ──────────────────────────────
+-- Migration 20260711000001 added triggers that insert badge_unlocked, url_saved,
+-- and url_added_to_collection, but never updated the CHECK constraint from
+-- 20260702000001 to allow those new activity_type values.
+-- This causes constraint violations when Fix 3 updates NULL unlocked_at → now().
+
+ALTER TABLE user_activity DROP CONSTRAINT IF EXISTS user_activity_activity_type_check;
+ALTER TABLE user_activity ADD CONSTRAINT user_activity_activity_type_check
+  CHECK (activity_type IN (
+    'url_submitted',
+    'url_rated',
+    'collection_created',
+    'collection_updated',
+    'badge_unlocked',
+    'url_saved',
+    'url_added_to_collection'
+  ));
 
 -- ── Fix 1: sync_profile_badge_count ────────────────────────────────────────
 -- Reconciles profiles.badge_count with actual unlocked badges.
