@@ -15,6 +15,8 @@ export type AdminAnalyticsResult = {
   submissions_by_dow_hour: { dow: number; hour: number; count: number }[];
   velocity: { this_week: number; last_week: number };
   rejection_by_domain: { domain: string; total: number; rejected: number; rejection_pct: number }[];
+  daily_stats_last30: { date: string; dau: number; mau: number; new_users: number; total_roams: number; total_saves: number; total_submits: number }[];
+  total_counts: { total_roams: number; total_saves: number; total_submits: number };
 };
 
 export async function getAdminAnalytics(): Promise<{ data: AdminAnalyticsResult | null; error: string | null }> {
@@ -31,10 +33,6 @@ export async function getAdminAnalytics(): Promise<{ data: AdminAnalyticsResult 
   return { data: data as AdminAnalyticsResult, error: null };
 }
 
-/**
- * Look up the email address for a given auth user ID.
- * Requires the service role key — only callable from admin server actions.
- */
 export async function getSubmitterEmail(userId: string): Promise<string | null> {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -48,8 +46,6 @@ export async function getSubmitterEmail(userId: string): Promise<string | null> 
   if (error || !data?.user) return null;
   return data.user.email ?? null;
 }
-
-// ─── Types shared with AdminPageClient ───────────────────────────────────────
 
 export type AdminQueueItem = {
   id: string;
@@ -73,8 +69,6 @@ export type AdminReportRow = {
   reported_at: string;
   url: { url: string; title: string | null; inactive: boolean } | null;
 };
-
-// ─── Admin queue ─────────────────────────────────────────────────────────────
 
 export async function getAdminQueue(
   sortBy: "newest" | "oldest" = "newest",
@@ -109,8 +103,6 @@ export async function getAdminQueue(
   if (error) return { data: null, error: error.message };
   if (!data) return { data: [], error: null };
 
-  // Fetch profiles separately — submitted_by FK targets auth.users, not profiles,
-  // so PostgREST cannot navigate the join directly.
   const userIds = [...new Set(data.map((item) => item.submitted_by).filter(Boolean))] as string[];
   const profileMap: Record<string, { display_name: string | null; username: string | null }> = {};
   if (userIds.length > 0) {
@@ -132,8 +124,6 @@ export async function getAdminQueue(
 
   return { data: enriched as unknown as AdminQueueItem[], error: null };
 }
-
-// ─── Admin reports ────────────────────────────────────────────────────────────
 
 export async function getAdminReports(): Promise<{ data: AdminReportRow[] | null; error: string | null }> {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -160,8 +150,6 @@ export async function getAdminReports(): Promise<{ data: AdminReportRow[] | null
     error: null,
   };
 }
-
-// ─── Beta signups ──────────────────────────────────────────────────────────────
 
 export type BetaSignup = {
   id: number;
@@ -200,8 +188,6 @@ export async function getBetaSignups(): Promise<{ data: BetaSignup[] | null; err
   return { data: data as BetaSignup[], error: null };
 }
 
-// ─── Restore link ─────────────────────────────────────────────────────────────
-
 export async function restoreLinkAdmin(urlId: string): Promise<{ error: string | null }> {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -229,7 +215,6 @@ export async function grantBadgeAdmin(
     auth: { autoRefreshToken: false, persistSession: false },
   });
 
-  // Look up the target user by username
   const { data: targetProfile } = await admin
     .from("profiles")
     .select("id")
@@ -238,7 +223,6 @@ export async function grantBadgeAdmin(
 
   if (!targetProfile) return { data: null, error: "User not found" };
 
-  // Look up the badge by slug
   const { data: badge } = await admin
     .from("badges")
     .select("id, slug, name, xp_reward")
@@ -247,13 +231,10 @@ export async function grantBadgeAdmin(
 
   if (!badge) return { data: null, error: `Badge not found: ${badgeSlug}` };
 
-  // Look up the admin granting this badge (for audit trail).
-  // Use the profile of the user with is_admin()=true from auth.users.
   let grantedBy: string | null = null;
   try {
     const { data: adminsList } = await admin.auth.admin.listUsers({ perPage: 50 });
     if (adminsList?.users?.length) {
-      // Find a user whose app_metadata.role is "admin" and has a profile
       const adminUser = adminsList.users.find(
         (u) => u.app_metadata?.role === "admin"
       );
@@ -267,10 +248,9 @@ export async function grantBadgeAdmin(
       }
     }
   } catch {
-    // Non-critical — audit trail is best-effort
+    // Non-critical
   }
 
-  // Grant the badge directly using service role (bypasses RLS & function checks)
   const { error: insertError } = await admin
     .from("user_badges")
     .upsert(
@@ -285,7 +265,6 @@ export async function grantBadgeAdmin(
     );
 
   if (insertError) {
-    // If the badge was already granted (duplicate key), treat as success
     if (insertError.code === "23505") {
       return {
         data: { message: `Badge "${badgeSlug}" was already granted to @${username}!` },
@@ -295,9 +274,7 @@ export async function grantBadgeAdmin(
     return { data: null, error: insertError.message };
   }
 
-  // Award XP and update badge count
   if (badge.xp_reward > 0) {
-    // Award XP
     await admin.from("xp_log").insert({
       user_id: targetProfile.id,
       action: "badge_gifted",
@@ -305,7 +282,6 @@ export async function grantBadgeAdmin(
       metadata: { badge_slug: badgeSlug, granted_by: grantedBy },
     });
 
-    // Update profile XP, badge count, and recalculate level
     const { data: currentProfile } = await admin
       .from("profiles")
       .select("xp_total, badge_count")
@@ -326,7 +302,6 @@ export async function grantBadgeAdmin(
         .eq("id", targetProfile.id);
     }
   } else {
-    // Just increment badge count
     const { data: currentProfile } = await admin
       .from("profiles")
       .select("badge_count")
@@ -344,7 +319,41 @@ export async function grantBadgeAdmin(
   };
 }
 
-// ─── Email: types ────────────────────────────────────────────────────────────
+export async function revokeBadgeAdmin(
+  username: string,
+  badgeSlug: string,
+): Promise<{ data: { message: string } | null; error: string | null }> {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !serviceKey) return { data: null, error: "Server misconfiguration" };
+
+  const admin = createClient(url, serviceKey, {
+    auth: { autoRefreshToken: false, persistSession: false },
+  });
+
+  const { data: targetProfile } = await admin
+    .from("profiles")
+    .select("id")
+    .eq("username", username)
+    .single();
+
+  if (!targetProfile) return { data: null, error: "User not found" };
+
+  const { data: result, error } = await admin.rpc("revoke_badge", {
+    p_user_id: targetProfile.id,
+    p_badge_slug: badgeSlug,
+  });
+
+  if (error) return { data: null, error: error.message };
+  if (!result) return { data: null, error: `Badge "${badgeSlug}" not found for @${username}` };
+
+  return {
+    data: { message: `Badge "${badgeSlug}" revoked from @${username}. They can earn it again!` },
+    error: null,
+  };
+}
+
+// ─── Email ────────────────────────────────────────────────────────────────────
 
 export type EmailLogEntry = {
   id: string;
@@ -361,8 +370,6 @@ export type SendBulkEmailResult = {
   failed: number;
   total: number;
 };
-
-// ─── Email: actions ──────────────────────────────────────────────────────────
 
 export async function getNotificationCount(): Promise<{ count: number; error: string | null }> {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;

@@ -5,6 +5,8 @@ import { getAdminAnalytics } from "../actions";
 import { BarChart } from "../components/BarChart";
 import { StatCard } from "../components/StatCard";
 
+type DailyStatsRow = { date: string; dau: number; mau: number; new_users: number; total_roams: number; total_saves: number; total_submits: number };
+
 type AnalyticsData = {
   submissionsByDate: { date: string; count: number }[];
   submissionsByCategory: { category: string; count: number }[];
@@ -18,6 +20,8 @@ type AnalyticsData = {
   submissionsByDowHour: { dow: number; hour: number; count: number }[];
   velocity: { thisWeek: number; lastWeek: number };
   rejectionByDomain: { domain: string; total: number; rejected: number; rejectionPct: number }[];
+  dailyStatsLast30: DailyStatsRow[];
+  totalCounts: { totalRoams: number; totalSaves: number; totalSubmits: number };
 };
 
 const EMPTY: AnalyticsData = {
@@ -27,6 +31,8 @@ const EMPTY: AnalyticsData = {
   deadByCategory: [], activeUsers: { dau: 0, wau: 0, mau: 0 },
   submissionsByDowHour: [], velocity: { thisWeek: 0, lastWeek: 0 },
   rejectionByDomain: [],
+  dailyStatsLast30: [],
+  totalCounts: { totalRoams: 0, totalSaves: 0, totalSubmits: 0 },
 };
 
 const DOW_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -127,6 +133,12 @@ export default function AdminAnalytics() {
         submissionsByDowHour: result.submissions_by_dow_hour ?? [],
         velocity: { thisWeek: result.velocity?.this_week ?? 0, lastWeek: result.velocity?.last_week ?? 0 },
         rejectionByDomain: (result.rejection_by_domain ?? []).map((d: { domain: string; total: number; rejected: number; rejection_pct: number }) => ({ domain: d.domain, total: d.total, rejected: d.rejected, rejectionPct: d.rejection_pct })),
+        dailyStatsLast30: (result.daily_stats_last30 ?? []).map((d: DailyStatsRow) => ({ ...d })),
+        totalCounts: {
+          totalRoams: result.total_counts?.total_roams ?? 0,
+          totalSaves: result.total_counts?.total_saves ?? 0,
+          totalSubmits: result.total_counts?.total_submits ?? 0,
+        },
       });
       setLoaded(true);
     } catch (err) {
@@ -179,6 +191,32 @@ export default function AdminAnalytics() {
         </div>
       </div>
       
+      {/* Site Activity */}
+      <AccordionSection title="Site Activity" description="Daily metrics from materialized stats" defaultOpen={false}>
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-4">
+          <StatCard label="DAU" value={data.activeUsers.dau.toLocaleString()} color="text-blue-600 dark:text-blue-400" />
+          <StatCard label="MAU" value={data.activeUsers.mau.toLocaleString()} color="text-indigo-600 dark:text-indigo-400" />
+          <StatCard label="New Users Today" value={data.dailyStatsLast30[0]?.new_users?.toLocaleString() ?? "0"} color="text-emerald-600 dark:text-emerald-400" />
+        </div>
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-4">
+          <StatCard label="Total Roams" value={data.totalCounts.totalRoams.toLocaleString()} />
+          <StatCard label="Total Saves" value={data.totalCounts.totalSaves.toLocaleString()} />
+          <StatCard label="Total Submits" value={data.totalCounts.totalSubmits.toLocaleString()} />
+        </div>
+        {data.dailyStatsLast30.length > 0 && (
+          <>
+            <BarChart
+              data={[...data.dailyStatsLast30].reverse().map(d => ({
+                label: new Date(d.date + "T00:00:00Z").toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" }),
+                value: d.dau,
+              }))}
+              color="bg-blue-500"
+            />
+            <p className="text-xs text-zinc-400 mt-2">DAU — last 30 days</p>
+          </>
+        )}
+      </AccordionSection>
+
       {/* Content Health */}
       <AccordionSection title="Content Health" description="Category distribution and dead link rates" defaultOpen={false}>
         <BarChart 

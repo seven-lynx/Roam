@@ -2,6 +2,9 @@
 -- Revert admin_analytics() from v5 back to stable v3 (12 datasets, <10s).
 -- v5 timed out because it added 24 heavy GROUP BY queries across 1.5M rows.
 -- Separate focused RPCs will provide the extra data without timeouts.
+--
+-- v6: Source active_users (DAU/MAU) from materialized daily_stats table.
+--     Add daily_stats_last30 and total_counts to the response.
 -- =============================================================================
 
 DROP FUNCTION IF EXISTS public.admin_analytics() CASCADE;
@@ -13,18 +16,20 @@ SECURITY DEFINER
 SET statement_timeout = '30s'
 AS $$
 DECLARE
-  v_by_date            JSON;
-  v_by_category        JSON;
-  v_top_urls           JSON;
-  v_queue_stats        JSON;
-  v_top_rated_cats     JSON;
-  v_sources            JSON;
-  v_languages          JSON;
-  v_dead_by_category   JSON;
-  v_active_users       JSON;
-  v_by_dow_hour        JSON;
-  v_velocity           JSON;
+  v_by_date             JSON;
+  v_by_category         JSON;
+  v_top_urls            JSON;
+  v_queue_stats         JSON;
+  v_top_rated_cats      JSON;
+  v_sources             JSON;
+  v_languages           JSON;
+  v_dead_by_category    JSON;
+  v_active_users        JSON;
+  v_by_dow_hour         JSON;
+  v_velocity            JSON;
   v_rejection_by_domain JSON;
+  v_daily_stats_last30  JSON;
+  v_total_counts        JSON;
 BEGIN
   -- ── 1. Submissions per day, last 30 days ──────────────────────────────────
   SELECT json_agg(row ORDER BY row.date)
@@ -121,31 +126,44 @@ BEGIN
     ORDER BY total DESC
   ) row;
 
-  -- ── 9. Active users: DAU / WAU / MAU ──────────────────────────────────────
+  -- ── 9. Active users: DAU/MAU from daily_stats; WAU still computed live ────
   SELECT json_build_object(
-    'dau', (SELECT COUNT(DISTINCT user_id)::int FROM (
-              SELECT user_id FROM public.seen_urls
-              WHERE seen_at >= NOW() - INTERVAL '24 hours'
-              UNION
-              SELECT user_id FROM public.ratings
-              WHERE created_at >= NOW() - INTERVAL '24 hours'
-            ) dau_users),
-    'wau', (SELECT COUNT(DISTINCT user_id)::int FROM (
+    'dau', COALESCE((SELECT dau FROM public.daily_stats WHERE date = CURRENT_DATE), 0),
+    'wau', COALESCE((SELECT COUNT(DISTINCT user_id)::int FROM (
               SELECT user_id FROM public.seen_urls
               WHERE seen_at >= NOW() - INTERVAL '7 days'
               UNION
               SELECT user_id FROM public.ratings
               WHERE created_at >= NOW() - INTERVAL '7 days'
-            ) wau_users),
-    'mau', (SELECT COUNT(DISTINCT user_id)::int FROM (
-              SELECT user_id FROM public.seen_urls
-              WHERE seen_at >= NOW() - INTERVAL '30 days'
-              UNION
-              SELECT user_id FROM public.ratings
-              WHERE created_at >= NOW() - INTERVAL '30 days'
-            ) mau_users)
+            ) wau_users), 0),
+    'mau', COALESCE((SELECT mau FROM public.daily_stats WHERE date = CURRENT_DATE), 0)
   )
   INTO v_active_users;
+
+  -- ── 9b. Daily stats trend (last 30 days) for admin sparklines ─────────────
+  SELECT json_agg(row ORDER BY row.date)
+  INTO v_daily_stats_last30
+  FROM (
+    SELECT
+      date::text       AS date,
+      dau,
+      mau,
+      new_users,
+      total_roams,
+      total_saves,
+      total_submits
+    FROM public.daily_stats
+    WHERE date >= CURRENT_DATE - INTERVAL '29 days'
+    ORDER BY date
+  ) row;
+
+  -- ── 9c. All-time total counts from the latest daily_stats row ──────────────
+  SELECT json_build_object(
+    'total_roams',   COALESCE((SELECT total_roams   FROM public.daily_stats WHERE date = CURRENT_DATE), 0),
+    'total_saves',   COALESCE((SELECT total_saves   FROM public.daily_stats WHERE date = CURRENT_DATE), 0),
+    'total_submits', COALESCE((SELECT total_submits FROM public.daily_stats WHERE date = CURRENT_DATE), 0)
+  )
+  INTO v_total_counts;
 
   -- ── 10. Submissions by day-of-week × hour-of-day ───────────────────────────
   SELECT json_agg(row ORDER BY row.dow, row.hour)
@@ -205,6 +223,8 @@ BEGIN
     'language_distribution',   COALESCE(v_languages,          '[]'::json),
     'dead_by_category',        COALESCE(v_dead_by_category,   '[]'::json),
     'active_users',            COALESCE(v_active_users,       '{}'::json),
+    'daily_stats_last30',      COALESCE(v_daily_stats_last30, '[]'::json),
+    'total_counts',            COALESCE(v_total_counts,       '{}'::json),
     'submissions_by_dow_hour', COALESCE(v_by_dow_hour,        '[]'::json),
     'velocity',                COALESCE(v_velocity,           '{}'::json),
     'rejection_by_domain',     COALESCE(v_rejection_by_domain,'[]'::json)
