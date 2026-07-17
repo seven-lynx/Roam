@@ -1,86 +1,41 @@
-# ── Dev-facing docs (internal only; not for end users) ──────────────────────
-
-docs/
-android/TESTING.md
-android/REFERENCE.md
-android/DESIGN.md
-extension/TESTING.md
-extension/DESIGN.md
-web/TESTING.md
-web/AGENTS.md
-web/CLAUDE.md
-supabase/TESTING.md
-
-# ── AI context files (not for end users) ──────────────────────────────────────
-CLAUDE.md
-.github/copilot-instructions.md
-.github/skills/
-
-# ── Environment / secrets ────────────────────────────────────────────────────
-.env
-.env.*
-!.env.example
-local.properties
-
-# ── Google / Firebase services (SENSITIVE) ──────────────────────────────────────
-**/google-services.json
-**/google-services*.json
-**/GoogleService-Info.plist
-*firebase-adminsdk*.json
-
-# ── Scripts (proprietary sources & seed pool) ────────────────────────────────
-scripts/
-
-# ── Seeder cache ─────────────────────────────────────────────────────────────
-scripts/.cache/
-
-# ── Node / pnpm (web layer + extension build) ────────────────────────────────
+# Dependencies
 node_modules/
 .pnpm-store/
-dist/
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Build output
 .next/
 out/
-.turbo/
+dist/
+build/
 *.tsbuildinfo
 
-# ── Sentry source maps (uploaded to Sentry, deleted after build) ─────────────
-extension/dist/*.js.map
-extension/dist-firefox/*.js.map
-
-# ── Supabase CLI ─────────────────────────────────────────────────────────────
-.supabase/
-supabase/.temp/
-
-# ── Android / Kotlin ─────────────────────────────────────────────────────────
-android/.gradle/
-android/build/
-android/app/build/
-android/local.properties
-*.apk
-*.aab
-*.keystore
-*.jks
-
-# ── IDEs ─────────────────────────────────────────────────────────────────────
+# IDE
+.vscode/settings.json
 .idea/
-*.iml
-.vscode/
 *.swp
+*.swo
 
-# ── OS noise ─────────────────────────────────────────────────────────────────
+# OS
 .DS_Store
 Thumbs.db
 
-# ── Build artifacts / debug logs ─────────────────────────────────────────────
-*.log
-extension/build_output.txt
-extension/roam-extension.zip
-extension/roam-firefox.zip
-extension/dist-firefox/
-android/*.log
-scripts/.check-dead-error.log
+# Reports
+scripts/reports/offline/
+scripts/reports/.checkpoints/
 
-# ── Android signing keys (SENSITIVE) ──────────────────────────────────────────
-*.keystore
-*.jks
-android/*.jks
+# Storage (Apify/playwright)
+storage/
+
+# Firebase service account keys
+*-firebase-adminsdk-*.json
+
+# Supabase
+supabase/.temp/
+
+# Misc
+*.log

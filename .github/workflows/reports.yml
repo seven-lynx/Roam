@@ -1,0 +1,53 @@
+name: Weekly Reports
+
+on:
+  schedule:
+    - cron: '0 8 * * 1' # Every Monday at 8:00 UTC
+  workflow_dispatch:      # Manual trigger
+
+jobs:
+  generate-reports:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: write
+      actions: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Export database
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: node scripts/reports/export-db.mjs
+
+      - name: Run all reports (offline)
+        run: node scripts/reports/run-suite.mjs --offline
+
+      - name: Upload combined report
+        uses: actions/upload-artifact@v4
+        with:
+          name: roam-reports
+          path: scripts/reports/output/FULL_REPORT.md
+          retention-days: 90
+
+      - name: Post summary
+        run: |
+          echo "## 📊 Roam Reports" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Generated: $(date -u)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          head -50 scripts/reports/output/FULL_REPORT.md >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "[Download full report](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})" >> $GITHUB_STEP_SUMMARY

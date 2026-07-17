@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { getAdminAnalytics } from "../actions";
 import { BarChart } from "../components/BarChart";
+import { StatCard } from "../components/StatCard";
 
 type AnalyticsData = {
   submissionsByDate: { date: string; count: number }[];
@@ -167,33 +168,41 @@ export default function AdminAnalytics() {
         {expandedAll ? "Collapse all" : "Expand all"}
       </button>
 
-      {/* Active Users - always visible */}
+      {/* Content Overview */}
       <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 p-4">
-        <h2 className="text-sm font-semibold text-zinc-900 dark:text-white mb-1">Active Users</h2>
-        <p className="text-xs text-zinc-400 dark:text-zinc-500 mb-3">Based on browsing + voting activity signals</p>
-        <div className="grid grid-cols-3 gap-2 sm:gap-4">
-          <div className="rounded-lg bg-zinc-50 dark:bg-zinc-900 p-3 text-center">
-            <div className="text-xl sm:text-2xl font-bold tabular-nums text-blue-600 dark:text-blue-400">{data.activeUsers.dau.toLocaleString()}</div>
-            <div className="text-[10px] sm:text-xs text-zinc-500 mt-0.5">DAU</div>
-            <div className="text-[10px] text-zinc-400">Past 24h</div>
-          </div>
-          <div className="rounded-lg bg-zinc-50 dark:bg-zinc-900 p-3 text-center">
-            <div className="text-xl sm:text-2xl font-bold tabular-nums text-violet-600 dark:text-violet-400">{data.activeUsers.wau.toLocaleString()}</div>
-            <div className="text-[10px] sm:text-xs text-zinc-500 mt-0.5">WAU</div>
-            <div className="text-[10px] text-zinc-400">Past 7d</div>
-          </div>
-          <div className="rounded-lg bg-zinc-50 dark:bg-zinc-900 p-3 text-center">
-            <div className="text-xl sm:text-2xl font-bold tabular-nums text-emerald-600 dark:text-emerald-400">{data.activeUsers.mau.toLocaleString()}</div>
-            <div className="text-[10px] sm:text-xs text-zinc-500 mt-0.5">MAU</div>
-            <div className="text-[10px] text-zinc-400">Past 30d</div>
-          </div>
+        <h2 className="text-sm font-semibold text-zinc-900 dark:text-white mb-3">Content Overview</h2>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+          <StatCard label="Total URLs" value={data.sourceBreakdown.reduce((s, r) => s + r.count, 0).toLocaleString()} />
+          <StatCard label="Active Users (DAU)" value={data.activeUsers.dau.toLocaleString()} color="text-blue-600 dark:text-blue-400" />
+          <StatCard label="Queue Pending" value={data.queueStats.pending.toLocaleString()} color="text-amber-600 dark:text-amber-400" />
+          <StatCard label="This Week" value={data.velocity.thisWeek.toLocaleString()} description={data.velocity.lastWeek > 0 ? `${data.velocity.thisWeek >= data.velocity.lastWeek ? "↑" : "↓"} vs LW` : undefined} />
         </div>
-        {data.activeUsers.mau > 0 && (
-          <div className="mt-3 text-xs text-zinc-500">
-            Stickiness: <strong className="text-zinc-700 dark:text-zinc-300 tabular-nums">{(data.activeUsers.dau / data.activeUsers.mau * 100).toFixed(1)}%</strong>
-          </div>
-        )}
       </div>
+      
+      {/* Content Health */}
+      <AccordionSection title="Content Health" description="Category distribution and dead link rates" defaultOpen={false}>
+        <BarChart 
+          data={data.deadByCategory.map(d => ({ label: d.category, value: d.total }))} 
+          color="bg-blue-500"
+        />
+        <p className="text-xs text-zinc-400 mt-2 mb-4">Total URLs by category</p>
+        <MobileTable
+          headers={[
+            { key: "category", label: "Category" },
+            { key: "total", label: "Total" },
+            { key: "dead", label: "Dead" },
+          ]}
+          rows={data.deadByCategory.map((row) => ({
+            category: <span className="text-zinc-700 dark:text-zinc-300">{row.category}</span>,
+            total: <span className="tabular-nums text-zinc-600 dark:text-zinc-400">{row.total.toLocaleString()}</span>,
+            dead: (
+              <span className={`font-semibold tabular-nums ${row.dead_pct >= 3 ? "text-red-600 dark:text-red-400" : row.dead_pct >= 1.5 ? "text-amber-600 dark:text-amber-400" : "text-green-600 dark:text-green-400"}`}>
+                {row.dead_pct}%
+              </span>
+            ),
+          }))}
+        />
+      </AccordionSection>
 
       {/* Submissions Over Time */}
       <AccordionSection title="Submissions Over Time" description="Last 30 days" defaultOpen={expandedAll}>
