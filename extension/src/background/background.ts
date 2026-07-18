@@ -29,6 +29,17 @@ const CURRENT_URL_KEY = 'current_url';  // { url_id: string, served_at: number }
 let prefetchInFlight: Promise<void> | null = null;
 
 // ── URL normaliser ────────────────────────────────────────────────────────────
+//
+// NOTE: This is the browser-extension copy of the URL normalisation logic.
+// The canonical Deno version lives at:
+//   supabase/functions/_shared/normalise.ts
+// The Node.js (seeder) version is at:
+//   scripts/lib/seed.js (see its header comment for cross-ref)
+//
+// ALL THREE COPIES MUST BE KEPT IN SYNC when adding new tracking params or
+// normalisation rules. The extension cannot import the Deno module (it runs in
+// a browser service worker), so this stand-alone implementation is intentional.
+//
 function normalizeUrl(raw: string): string | null {
   try {
     const u = new URL(raw);

@@ -1,6 +1,18 @@
 /**
- * Centralized constants for URLs and app-wide configuration.
+ * Centralized constants for URLs, categories, and app-wide configuration.
  */
+
+/** Fallback categories used when DB fetch fails */
+export const FALLBACK_CATEGORIES = [
+  { id: "c1000000-0000-0000-0000-000000000001", label: "Science & Nature", emoji: "🔬" },
+  { id: "c1000000-0000-0000-0000-000000000002", label: "Technology", emoji: "💻" },
+  { id: "c1000000-0000-0000-0000-000000000003", label: "Arts & Culture", emoji: "🎨" },
+  { id: "c1000000-0000-0000-0000-000000000004", label: "History & Ideas", emoji: "📜" },
+  { id: "c1000000-0000-0000-0000-000000000005", label: "Games & Hobbies", emoji: "🎮" },
+  { id: "c1000000-0000-0000-0000-000000000006", label: "Weird & Wonderful", emoji: "🌀" },
+  { id: "c1000000-0000-0000-0000-000000000007", label: "People & Places", emoji: "🌍" },
+  { id: "c1000000-0000-0000-0000-000000000008", label: "Mind & Body", emoji: "🧠" },
+];
 
 /** Extension URLs for download pages */
 export const EXTENSION_URLS = {

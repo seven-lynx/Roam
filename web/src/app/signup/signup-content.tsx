@@ -11,18 +11,8 @@ import { InterestPicker } from "@/components/InterestPicker";
 import { saveUserInterests, type InterestMode } from "@/lib/interests";
 import type { Subcategory } from "@/components/InterestPicker";
 
+import { FALLBACK_CATEGORIES } from "@/lib/constants";
 type CategoryItem = { id: string; label: string; emoji: string };
-
-const FALLBACK_CATEGORIES: CategoryItem[] = [
-  { id: "c1000000-0000-0000-0000-000000000001", label: "Science & Nature", emoji: "🔬" },
-  { id: "c1000000-0000-0000-0000-000000000002", label: "Technology", emoji: "💻" },
-  { id: "c1000000-0000-0000-0000-000000000003", label: "Arts & Culture", emoji: "🎨" },
-  { id: "c1000000-0000-0000-0000-000000000004", label: "History & Ideas", emoji: "📜" },
-  { id: "c1000000-0000-0000-0000-000000000005", label: "Games & Hobbies", emoji: "🎮" },
-  { id: "c1000000-0000-0000-0000-000000000006", label: "Weird & Wonderful", emoji: "🌀" },
-  { id: "c1000000-0000-0000-0000-000000000007", label: "People & Places", emoji: "🌍" },
-  { id: "c1000000-0000-0000-0000-000000000008", label: "Mind & Body", emoji: "🧠" },
-];
 
 export default function SignupPageContent() {
   const router = useRouter();

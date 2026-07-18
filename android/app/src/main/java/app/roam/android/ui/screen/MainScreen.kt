@@ -99,7 +99,13 @@ fun MainScreen(
             if (isGranted) android.util.Log.d("MainScreen", "Notification permission granted")
             else android.util.Log.d("MainScreen", "Notification permission denied")
         }
-        LaunchedEffect(Unit) { launcher.launch(Manifest.permission.POST_NOTIFICATIONS) }
+        LaunchedEffect(Unit) {
+            if (androidx.core.content.ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS)
+                != android.content.pm.PackageManager.PERMISSION_GRANTED
+            ) {
+                launcher.launch(Manifest.permission.POST_NOTIFICATIONS)
+            }
+        }
     }
 
     // Sign out handler
@@ -645,12 +651,6 @@ private fun DiscoverTab(
             Column(Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surfaceContainer)) {
                 if (savedConfirmation) Row(Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.secondaryContainer).padding(horizontal = 16.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) { Text("Saved for later", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSecondaryContainer) }
                 if (reportConfirmation) Row(Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.secondaryContainer).padding(horizontal = 16.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) { Text("Dead link reported \u2014 loading next page", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSecondaryContainer) }
-                submitToast?.let { msg ->
-                    val isErr = msg.startsWith("Couldn't")
-                    Row(Modifier.fillMaxWidth().background(if (isErr) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.secondaryContainer).padding(horizontal = 16.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Text(msg, style = MaterialTheme.typography.bodySmall, color = if (isErr) MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.onSecondaryContainer)
-                    }
-                }
             }
 
             Box(Modifier.weight(1f).fillMaxWidth()) {
@@ -693,5 +693,31 @@ private fun DiscoverTab(
     // Share URL with friend sheet
     if (showShareUrlSheet) {
         ShareUrlBottomSheet(vm = vm, onDismiss = { vm.closeShareUrlSheet() })
+    }
+
+    // Global toast — rendered last so it always sits above sheets, dialogs, and overlays.
+    // When submitToast fires from inside the submit bottom sheet or SettingsScreen's dialog,
+    // the sheet/dialog is dismissed, but this toast continues to display over everything.
+    submitToast?.let { msg ->
+        val isErr = msg.startsWith("Couldn't")
+        Box(
+            Modifier
+                .fillMaxSize(),
+            contentAlignment = Alignment.BottomCenter,
+        ) {
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .background(if (isErr) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.secondaryContainer)
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    msg,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = if (isErr) MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.onSecondaryContainer,
+                )
+            }
+        }
     }
 }
