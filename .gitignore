@@ -24,6 +24,15 @@ build/
 .DS_Store
 Thumbs.db
 
+# Private repo only — scripts, seeders, internal tooling
+scripts/
+
+# gh CLI temp files
+gh_runs.json
+
+# Android release keystore (must not be in version control)
+android/roam-release.jks
+
 # Reports
 scripts/reports/offline/
 scripts/reports/.checkpoints/

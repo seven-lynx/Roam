@@ -26,7 +26,7 @@
 
 import { fileURLToPath } from 'url';
 import { dirname, resolve } from 'path';
-import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'fs';
+import { readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync, unlinkSync } from 'fs';
 import { config as dotenvConfig } from 'dotenv';
 
 // Load .env from the repo root (two levels up from scripts/lib/)
@@ -333,6 +333,7 @@ const VALID_CATEGORY_IDS = new Set([
  *   checkLive     — HEAD-check each URL before inserting; skip non-2xx (default false)
  *   requireTitle  — skip rows that still have no title after OG fetch (default true)
  *   maxPerDomain  — cap insertions per hostname; undefined = unlimited (default undefined)
+ *   checkpointId  — unique ID for liveness checkpoint file; auto-generated if omitted
  *
  * Row fields accepted (in addition to url/title/description/etc.):
  *   published_at  — ISO 8601 string or Date (optional, null = unknown)
@@ -344,6 +345,7 @@ export async function upsertUrls(rows, {
   checkLive     = true,
   requireTitle  = true,
   maxPerDomain  = undefined,
+  checkpointId  = undefined,
 } = {}) {
   const log = verbose ? console.log : () => {};
 
@@ -416,37 +418,85 @@ export async function upsertUrls(rows, {
   log(`[seed] ${fresh.length} new / ${existingSet.size} already exist (${capped.length} total after cap)`);
   if (fresh.length === 0) return { inserted: 0, skipped: existingSet.size };
 
-  // 3. Optional liveness check — HEAD request each URL, skip non-2xx
+  // 3. Optional liveness check — concurrent HEAD requests with checkpointing
   let dead = 0;
   if (checkLive) {
-    log(`[seed] Liveness check for ${fresh.length} URLs...`);
-    const LIVE_TIMEOUT_MS = 8000;
+    // Derive stable checkpoint ID: explicit > script filename > first-url hash > fallback
+    const cpId = checkpointId
+      || (process.argv[1] ? (process.argv[1].replace(/^.*[\\/]/, '').replace(/\.[^.]*$/, '')) : null)
+      || (fresh.length > 0 ? `auto-${Buffer.from(fresh[0].url).toString('base64').slice(0,12)}` : 'unknown');
+    log(`[seed] Liveness check for ${fresh.length} URLs (checkpoint: ${cpId})...`);
+    const LIVE_TIMEOUT_MS = 5000;
+    const LIVE_CONCURRENCY = 15;
+    const __cacheDir = resolve(__dirname, "..", ".cache");
+    const LIVE_CHECKPOINT = resolve(__cacheDir, `liveness-${cpId}.json`);
     const alive = [];
-    for (let i = 0; i < fresh.length; i++) {
-      const row = fresh[i];
+    let processed = 0;
+    const total = fresh.length;
+    const startTime = Date.now();
+
+    // Resume from checkpoint if exists (only our named file — never another seeder's)
+    mkdirSync(__cacheDir, { recursive: true });
+    if (existsSync(LIVE_CHECKPOINT)) {
+      try {
+        const cp = JSON.parse(readFileSync(LIVE_CHECKPOINT, 'utf8'));
+        if (cp.processed > 0 && cp.total === total) {
+          log(`[seed]   Resuming liveness from checkpoint: ${cp.processed}/${total} already processed`);
+          alive.push(...cp.alive);
+          dead = cp.dead;
+          processed = cp.processed;
+        }
+      } catch { /* corrupt checkpoint — start fresh */ }
+    }
+
+    const checkUrl = async (row) => {
       try {
         const controller = new AbortController();
         const timer = setTimeout(() => controller.abort(), LIVE_TIMEOUT_MS);
         const res = await fetch(row.url, {
-          method:  'HEAD',
-          signal:  controller.signal,
+          method: 'HEAD',
+          signal: controller.signal,
           headers: { 'User-Agent': 'Roam-Seeder/1.0 (+https://roamtheweb.app)' },
           redirect: 'follow',
         });
         clearTimeout(timer);
-        // 403/405 = alive but blocked — keep. Treat all others < 400 as alive.
-        if (res.status < 400 || res.status === 403 || res.status === 405) {
-          alive.push(row);
-        } else {
-          dead++;
-        }
-      } catch {
-        dead++;
+        return res.status < 400 || res.status === 403 || res.status === 405 ? row : null;
+      } catch { return null; }
+    };
+
+    // Process in concurrent batches
+    const remaining = fresh.slice(processed);
+    for (let batchStart = 0; batchStart < remaining.length; batchStart += LIVE_CONCURRENCY) {
+      const batch = remaining.slice(batchStart, batchStart + LIVE_CONCURRENCY);
+      const results = await Promise.all(batch.map(checkUrl));
+
+      for (const r of results) {
+        if (r) alive.push(r); else dead++;
+        processed++;
       }
-      if (verbose && (i + 1) % 50 === 0) {
-        log(`[seed]   liveness ${i + 1}/${fresh.length}  dead=${dead}`);
+
+      // ETA calculation
+      const elapsed = (Date.now() - startTime) / 1000;
+      const pct = ((processed / total) * 100).toFixed(1);
+      const rate = processed / elapsed;
+      const remainingSec = rate > 0 ? (total - processed) / rate : 0;
+      const etaMin = Math.floor(remainingSec / 60);
+      const etaHr = Math.floor(etaMin / 60);
+      const etaStr = etaHr > 0 ? `${etaHr}h ${etaMin % 60}m` : `${etaMin}m ${Math.floor(remainingSec % 60)}s`;
+
+      if (verbose) {
+        log(`[seed]   liveness ${processed}/${total} (${pct}%) — alive: ${alive.length} dead: ${dead} — ETA: ${etaStr}`);
+      }
+
+      // Checkpoint every 500
+      if (processed % 500 === 0) {
+        writeFileSync(LIVE_CHECKPOINT, JSON.stringify({ processed, total, alive, dead, timestamp: Date.now() }));
       }
     }
+
+    // Clean checkpoint on success
+    try { unlinkSync(LIVE_CHECKPOINT); } catch {}
+
     log(`[seed] Liveness: ${alive.length} alive, ${dead} dead/unreachable — skipping dead`);
     fresh = alive;
     if (fresh.length === 0) return { inserted: 0, skipped: existingSet.size, dead };
@@ -454,50 +504,55 @@ export async function upsertUrls(rows, {
 
   // 4. Fetch og:image + og:description for rows that don't have them
   if (fetchOg) {
-    log(`[seed] Fetching OG metadata for ${fresh.length} URLs...`);
-    for (let i = 0; i < fresh.length; i++) {
-      const row = fresh[i];
-      if (!row.og_image_url || !row.description) {
-        const meta = await fetchOgMeta(row.url);
-        if (!row.og_image_url) row.og_image_url = meta.image;
-        if (!row.description)  row.description  = meta.description;
-        // Use language detected from <html lang=""> if not already set
-        if (!row.language && meta.language) row.language = meta.language;
-        // 8.17: rewrite URL to canonical if the page declares one
-        if (meta.canonical) {
-          const normCanonical = normaliseUrl(meta.canonical);
-          if (normCanonical && normCanonical !== row.url) {
-            // Guard: skip if canonical is a root/homepage (path is "/" or "")
-            // and it's on a different domain — indicates dead site redirecting to homepage.
-            // Also skip if canonical hostname is a bare IP address (misconfigured tag).
-            let skipRewrite = false;
-            try {
-              const origHost = new URL(row.url).hostname.replace(/^www\./, '');
-              const canHost  = new URL(normCanonical).hostname.replace(/^www\./, '');
-              const canPath  = new URL(normCanonical).pathname;
-              const isIp     = /^\d{1,3}(\.\d{1,3}){3}$/.test(canHost);
-              // No-dot hostname: "undefined", "null", "localhost", "blog", "api", etc.
-              const noDot    = !canHost.includes('.');
-              if (isIp || noDot) {
-                skipRewrite = true;
-              } else if (origHost !== canHost && (canPath === '/' || canPath === '')) {
-                // Cross-domain rewrite to homepage → squatter/dead site redirect
-                skipRewrite = true;
-              } else if (origHost === canHost && (canPath === '/' || canPath === '')) {
-                // Same-domain rewrite to homepage → article content replaced
-                skipRewrite = true;
-              }
-            } catch { /* malformed URL — skip rewrite */ skipRewrite = true; }
-            if (!skipRewrite) {
-              log(`[seed]   canonical rewrite: ${row.url} → ${normCanonical}`);
-              row.url = normCanonical;
-            }
+    const OG_CONCURRENCY = 8;
+    const ogStart = Date.now();
+    const needsOg = [];
+    for (const row of fresh) {
+      if (!row.og_image_url || !row.description) needsOg.push(row);
+    }
+    log(`[seed] Fetching OG metadata for ${needsOg.length}/${fresh.length} URLs...`);
+    let ogDone = 0;
+
+    const fetchOgMetaConcurrent = async (row) => {
+      const meta = await fetchOgMeta(row.url);
+      if (!row.og_image_url) row.og_image_url = meta.image;
+      if (!row.description)  row.description  = meta.description;
+      if (!row.language && meta.language) row.language = meta.language;
+      if (meta.canonical) {
+        const normCanonical = normaliseUrl(meta.canonical);
+        if (normCanonical && normCanonical !== row.url) {
+          let skipRewrite = false;
+          try {
+            const origHost = new URL(row.url).hostname.replace(/^www\./, '');
+            const canHost  = new URL(normCanonical).hostname.replace(/^www\./, '');
+            const canPath  = new URL(normCanonical).pathname;
+            const isIp     = /^\d{1,3}(\.\d{1,3}){3}$/.test(canHost);
+            const noDot    = !canHost.includes('.');
+            if (isIp || noDot) skipRewrite = true;
+            else if (origHost !== canHost && (canPath === '/' || canPath === '')) skipRewrite = true;
+            else if (origHost === canHost && (canPath === '/' || canPath === '')) skipRewrite = true;
+          } catch { skipRewrite = true; }
+          if (!skipRewrite) {
+            if (verbose) log(`[seed]   canonical rewrite: ${row.url} → ${normCanonical}`);
+            row.url = normCanonical;
           }
         }
       }
-      if (verbose && (i + 1) % 10 === 0) {
-        log(`[seed]   ${i + 1}/${fresh.length} done`);
+      ogDone++;
+      if (verbose && ogDone % 15 === 0) {
+        const elapsed = (Date.now() - ogStart) / 1000;
+        const pct = ((ogDone / needsOg.length) * 100).toFixed(1);
+        const rate = ogDone / elapsed;
+        const remainingSec = rate > 0 ? (needsOg.length - ogDone) / rate : 0;
+        const etaMin = Math.floor(remainingSec / 60);
+        const etaStr = etaMin > 0 ? `${etaMin}m ${Math.floor(remainingSec % 60)}s` : `${Math.floor(remainingSec)}s`;
+        log(`[seed]   og-meta ${ogDone}/${needsOg.length} (${pct}%) — ETA: ${etaStr}`);
       }
+    };
+
+    // Process in concurrent batches
+    for (let i = 0; i < needsOg.length; i += OG_CONCURRENCY) {
+      await Promise.all(needsOg.slice(i, i + OG_CONCURRENCY).map(fetchOgMetaConcurrent));
     }
   }
 
@@ -514,7 +569,9 @@ export async function upsertUrls(rows, {
 
   // 6. Batch upsert
   let inserted = 0;
+  const totalBatches = Math.ceil(fresh.length / BATCH_SIZE);
   for (let i = 0; i < fresh.length; i += BATCH_SIZE) {
+    const batchNum = Math.floor(i / BATCH_SIZE) + 1;
     const batch = fresh.slice(i, i + BATCH_SIZE).map((r) => ({
       url:            r.url,
       original_url:   r.url,
@@ -552,10 +609,10 @@ export async function upsertUrls(rows, {
     }
 
     if (error) {
-      console.error(`[seed] Upsert error on batch ${Math.floor(i / BATCH_SIZE) + 1}:`, error.message);
+      console.error(`[seed] Upsert error on batch ${batchNum}/${totalBatches}:`, error.message);
     } else {
       inserted += count ?? batch.length;
-      log(`[seed] Batch ${Math.floor(i / BATCH_SIZE) + 1}: upserted ${batch.length} rows`);
+      log(`[seed] Batch ${batchNum}/${totalBatches}: upserted ${batch.length} rows (${inserted} total)`);
     }
   }
 
@@ -653,6 +710,7 @@ export const SUBCATEGORY = {
   BROWSER_INTERACTIVE:       'c2000005-0000-0000-0000-000000000010',
   PETS:                      'c2000005-0000-0000-0000-000000000011',
   FISHING:                   'c2000005-0000-0000-0000-000000000012',
+  CARS_AUTOMOTIVE:           'c2000005-0000-0000-0000-000000000013',
 
   // 🌀 Weird & Wonderful
   ODDITIES_CURIOSITIES:      'c2000006-0000-0000-0000-000000000001',
