@@ -2,5 +2,8 @@
   "devDependencies": {
     "sharp": "^0.34.5",
     "supabase": "^2.98.0"
+  },
+  "dependencies": {
+    "better-sqlite3": "^12.11.1"
   }
 }

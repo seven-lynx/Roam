@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "312529658102",
+    "project_id": "roam-4c5b1",
+    "storage_bucket": "roam-4c5b1.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:312529658102:android:38ecb4819c4c347c774cd7",
+        "android_client_info": {
+          "package_name": "app.roam.android"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDYeIjXTrCKCCsrKK-n2lcsK5LaEZmujzM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

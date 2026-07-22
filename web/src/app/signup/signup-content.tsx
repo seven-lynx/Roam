@@ -42,7 +42,8 @@ export default function SignupPageContent() {
   const [selectedPillars, setSelectedPillars] = useState<Set<string>>(new Set());
   const [selectedTopics, setSelectedTopics] = useState<Set<string>>(new Set());
 
-  const [error, setError] = useState<string | null>(null);
+  const errorParam = searchParams.get("error");
+  const [error, setError] = useState<string | null>(errorParam);
   const [loading, setLoading] = useState(false);
 
   // Fetch categories + subcategories from DB

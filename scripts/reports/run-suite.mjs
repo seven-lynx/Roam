@@ -19,6 +19,7 @@ async function loadReports() {
     "./report-a5-wilson-histogram.mjs", "./report-a6-zero-vote-gaps.mjs",
     "./report-a7-language-gaps.mjs", "./report-a8-age-distribution.mjs",
     "./report-a9-category-source-cross.mjs", "./report-a10-interest-coverage.mjs",
+    "./report-a11-subcategory-balance.mjs",
     "./report-b1-dead-by-category.mjs", "./report-b2-dead-by-seeder.mjs",
     "./report-b3-untagged-urls.mjs", "./report-b4-duplicate-urls.mjs",
     "./report-b5-paywall-coverage.mjs", "./report-b6-missing-og.mjs",
@@ -40,7 +41,7 @@ async function loadReports() {
 }
 
 const SUITES = {
-  A: { label: "Content Inventory & Coverage", reports: ["a1","a2","a3","a4","a5","a6","a7","a8","a9","a10"] },
+  A: { label: "Content Inventory & Coverage", reports: ["a1","a2","a3","a4","a5","a6","a7","a8","a9","a10","a11"] },
   B: { label: "Content Health", reports: ["b1","b2","b3","b4","b5","b6"] },
   C: { label: "Moderation & Queue", reports: ["c1","c2","c3","c4"] },
   D: { label: "User & Engagement", reports: ["d1","d2","d3","d4","d5","d6"] },

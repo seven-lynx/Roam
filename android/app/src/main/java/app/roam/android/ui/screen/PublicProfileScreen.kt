@@ -203,7 +203,7 @@ fun PublicProfileScreen(
                         Text("Badges (${profile.badges.count { it.isUnlocked }})", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
                         Spacer(Modifier.height(4.dp))
                         FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                            profile.badges.filter { it.isUnlocked }.take(12).forEach { badge ->
+                            profile.badges.filter { it.isUnlocked }.forEach { badge ->
                                 Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(4.dp).clickable { selectedBadge = badge }) {
                                     Text(badge.icon, fontSize = 24.sp)
                                     Text(badge.name, fontSize = 9.sp, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f))

@@ -42,6 +42,17 @@ jobs:
           supabase functions deploy feedback
           supabase functions deploy log-failed-urls
           supabase functions deploy leaderboard
+          supabase functions deploy push-notify
+          supabase functions deploy report-engagement
+          supabase functions deploy send-bulk-email
+          supabase functions deploy admin-moderation
+          supabase functions deploy share-url
+          supabase functions deploy report-url
+          supabase functions deploy activity-feed
+          supabase functions deploy scrape-url
+          supabase functions deploy delete-user
+          supabase functions deploy export-user
+          supabase functions deploy beta-signup
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
 

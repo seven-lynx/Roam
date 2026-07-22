@@ -100,13 +100,15 @@ Deno.serve(async (req) => {
       // the same minute — handles retries and race conditions.
       const idemKey = `roam:${row.id}:${user.id}:${Math.floor(Date.now() / 60000)}`
 
-      // Await streak update so errors are visible and we know it ran
+      // Record daily activity and update streak — fire-and-forget but log errors.
+      // Uses update_streak directly (not record_daily_activity) because roam
+      // should increment the daily roam_count counter on user_daily_activity.
       supabase.rpc('update_streak', { p_user_id: user.id }).then(
         (result: unknown) => {
-          const r = result as { data?: { streak_days?: number; max_streak?: number } }
+          const r = result as { data?: { streak_days?: number; max_streak?: number; is_streak_broken?: boolean } }
           if (r?.data) {
             console.log(
-              `streak updated: ${r.data.streak_days} days (best: ${r.data.max_streak})`
+              `streak updated: ${r.data.streak_days} days (best: ${r.data.max_streak}, broken: ${r.data.is_streak_broken ?? false})`
             )
           }
         },

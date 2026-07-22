@@ -115,7 +115,7 @@ jobs:
         run: |
           if [ -f gradlew ]; then
             chmod +x gradlew
-            ./gradlew lint || true
+            ./gradlew lint
           fi
 
       - name: Compile Android
@@ -123,7 +123,7 @@ jobs:
         run: |
           if [ -f gradlew ]; then
             chmod +x gradlew
-            ./gradlew compileDebugKotlin || true
+            ./gradlew compileDebugKotlin
           fi
 
       - name: Upload coverage reports

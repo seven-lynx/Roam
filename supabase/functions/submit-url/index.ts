@@ -27,6 +27,9 @@ if (!SAFE_BROWSING_API_KEY) {
 }
 
 async function checkSafeBrowsing(url: string, apiKey: string): Promise<{ safe: boolean; error?: string }> {
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), 8_000) // 8s timeout to stay under Supabase's ~10s limit
+
   try {
     const res = await fetch(
       `https://safebrowsing.googleapis.com/v4/threatMatches:find?key=${apiKey}`,
@@ -47,8 +50,10 @@ async function checkSafeBrowsing(url: string, apiKey: string): Promise<{ safe: b
             threatEntries: [{ url }],
           },
         }),
+        signal: controller.signal,
       },
     )
+    clearTimeout(timeoutId)
 
     // Check for HTTP-level errors from the Safe Browsing API
     if (!res.ok) {
@@ -65,12 +70,22 @@ async function checkSafeBrowsing(url: string, apiKey: string): Promise<{ safe: b
     const isSafe = !data.matches || data.matches.length === 0
     return { safe: isSafe }
   } catch (err) {
+    clearTimeout(timeoutId)
     const errorMsg = err instanceof Error ? err.message : String(err)
-    console.error('Safe Browsing API network error', { url, error: errorMsg })
-    report(err, 'error', { url, api: 'safe-browsing' })
+    // DOMException with name 'AbortError' means our timeout fired — the API didn't
+    // respond in time. Gracefully degrade: log a warning and allow submission through
+    // rather than blocking with a 503 that propagates as a 504 to the client.
+    const isTimeout = err instanceof DOMException && err.name === 'AbortError'
+    const logLevel = isTimeout ? 'warn' : 'error'
+    console[logLevel](`Safe Browsing API fetch failed: ${errorMsg}`, { url, timeout: isTimeout })
+    if (!isTimeout) {
+      report(err, 'error', { url, api: 'safe-browsing' })
+    }
     return {
       safe: false,
-      error: `Network error contacting Safe Browsing API: ${errorMsg}`,
+      error: isTimeout
+        ? undefined  // timeout → graceful degradation, allow submission
+        : `Network error contacting Safe Browsing API: ${errorMsg}`,
     }
   }
 }
@@ -197,18 +212,55 @@ Deno.serve(async (req) => {
   // screen), the insert below would fail with FK violation: "insert or update
   // on table \"moderation_queue\" violates foreign key constraint
   // \"moderation_queue_submitted_by_fkey\"" (ROAM-ANDROID-5).
-  // Upsert a minimal profile row first to satisfy the FK.
-  const { error: profileError } = await supabase.from('profiles').upsert({
-    id: user.id,
-    // Use email prefix or a generated username as fallback
-    username: user.email?.split('@')[0] ?? `user_${user.id.slice(0, 8)}`,
-    display_name: user.user_metadata?.full_name ?? null,
-  }, { onConflict: 'id' })
+  //
+  // IMPORTANT: Only INSERT a minimal row if one doesn't already exist. Never
+  // overwrite an existing profile — the user may have set a custom username
+  // or display_name through the Profile screen. Using upsert with onConflict
+  // would silently clobber those values on every submission.
+  const { data: existingProfile, error: profileLookupErr } = await supabase
+    .from('profiles')
+    .select('id')
+    .eq('id', user.id)
+    .maybeSingle()
 
-  if (profileError) {
-    console.error('Failed to upsert profile row for FK', { userId: user.id, error: profileError })
-    report(profileError.message, 'error', { userId: user.id, operation: 'profile-upsert' })
+  if (profileLookupErr) {
+    console.error('Failed to lookup profile row for FK', { userId: user.id, error: profileLookupErr })
+    report(profileLookupErr.message, 'error', { userId: user.id, operation: 'profile-lookup' })
     return json({ error: 'Internal error' }, 500)
+  }
+
+  if (!existingProfile) {
+    // No profile row yet — insert a minimal one to satisfy the FK.
+    // Username generation may fail if another user already has this prefix;
+    // try an alternative to avoid a unique violation 500.
+    const baseUsername = user.email?.split('@')[0] ?? `user_${user.id.slice(0, 8)}`
+    const { error: insertProfileErr } = await supabase.from('profiles').insert({
+      id: user.id,
+      username: baseUsername,
+      display_name: user.user_metadata?.full_name ?? null,
+    })
+    // If the base username is taken, the insert will fail with a unique
+    // constraint violation. This is rare (another user with the same email
+    // prefix), but we handle it gracefully by using a UUID-based fallback
+    // so the submission can proceed.
+    if (insertProfileErr) {
+      if (insertProfileErr.message.includes('profiles_username_key') || insertProfileErr.message.includes('unique')) {
+        const { error: retryErr } = await supabase.from('profiles').insert({
+          id: user.id,
+          username: `user_${user.id.slice(0, 8)}`,
+          display_name: user.user_metadata?.full_name ?? null,
+        })
+        if (retryErr) {
+          console.error('Failed to insert profile row with fallback username', { userId: user.id, error: retryErr })
+          report(retryErr.message, 'error', { userId: user.id, operation: 'profile-insert-fallback' })
+          return json({ error: 'Internal error' }, 500)
+        }
+      } else {
+        console.error('Failed to insert profile row for FK', { userId: user.id, error: insertProfileErr })
+        report(insertProfileErr.message, 'error', { userId: user.id, operation: 'profile-insert' })
+        return json({ error: 'Internal error' }, 500)
+      }
+    }
   }
 
   // ── Insert into moderation queue ──────────────────────────────────────────

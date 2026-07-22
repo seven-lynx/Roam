@@ -34,6 +34,9 @@ enum class RoamTab(val route: String) {
     PublicProfile("public_profile"),
     Notifications("notifications"),
     Admin("admin"),
+    Badges("badges"),
+    Leaderboard("leaderboard"),
+    ActivityFeed("activity_feed"),
 }
 
 @Composable

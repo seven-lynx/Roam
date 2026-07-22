@@ -756,6 +756,50 @@ document.addEventListener('DOMContentLoaded', () => {
     window.close();
   });
 
+  el('btn-share-with-user').addEventListener('click', async () => {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    const url = tab?.url;
+    if (!url) return;
+
+    const res = await sendToBackground<Array<{ user_id: string; username: string; display_name: string | null }>>({
+      type: 'GET_SHARE_RECIPIENTS',
+    });
+
+    if (!res.ok || !res.data || res.data.length === 0) {
+      // No mutual follows yet — open the web app's following page
+      chrome.tabs.create({ url: 'https://roamtheweb.app/following' });
+      window.close();
+      return;
+    }
+
+    const anchor = el<HTMLButtonElement>('btn-share-with-user');
+    showDropdown(
+      anchor,
+      res.data.map(user => ({
+        label: `${user.username}${user.display_name ? ` (${user.display_name})` : ''}`,
+        onPick: async () => {
+          const shareRes = await sendToBackground({ type: 'SHARE_URL_WITH_USER', url, recipientId: user.user_id });
+          if (shareRes.ok) {
+            window.close();
+          } else {
+            showError(shareRes.error ?? "Couldn't share this URL.");
+          }
+        },
+      }))
+    );
+  });
+
+  el('btn-copy-profile-link').addEventListener('click', async () => {
+    const profile = await sendToBackground<ProfileData>({ type: 'GET_PROFILE' });
+    if (profile.ok && profile.data.username) {
+      await navigator.clipboard.writeText(`https://roamtheweb.app/u/${profile.data.username}`);
+    } else {
+      // Fallback: open profile page
+      chrome.tabs.create({ url: 'https://roamtheweb.app/profile' });
+    }
+    window.close();
+  });
+
   el('btn-roam-category').addEventListener('click', async () => {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     const url = tab?.url ?? '';
@@ -1065,6 +1109,37 @@ document.addEventListener('DOMContentLoaded', () => {
       ]
     );
   });
+  // ── Public profile toggle ────────────────────────────────────────────────
+  el<HTMLInputElement>('toggle-public-profile').addEventListener('change', async (e) => {
+    const checked = (e.target as HTMLInputElement).checked;
+    await sendToBackground({ type: 'SET_PROFILE_PUBLIC', isPublic: checked });
+  });
+  // Load initial state
+  (async () => {
+    const res = await sendToBackground<{ is_public: boolean; username: string }>({ type: 'GET_PROFILE_PUBLIC' });
+    if (res.ok) {
+      el<HTMLInputElement>('toggle-public-profile').checked = res.data.is_public;
+    }
+  })();
+
+  // ── Web app quick-links ──────────────────────────────────────────────────
+  el('btn-web-badges').addEventListener('click', () => {
+    chrome.tabs.create({ url: 'https://roamtheweb.app/badges' });
+    window.close();
+  });
+  el('btn-web-leaderboard').addEventListener('click', () => {
+    chrome.tabs.create({ url: 'https://roamtheweb.app/leaderboard' });
+    window.close();
+  });
+  el('btn-web-following').addEventListener('click', () => {
+    chrome.tabs.create({ url: 'https://roamtheweb.app/following' });
+    window.close();
+  });
+  el('btn-web-settings').addEventListener('click', () => {
+    chrome.tabs.create({ url: 'https://roamtheweb.app/settings' });
+    window.close();
+  });
+
   // ── Paywall toggle: load saved preference ────────────────────────────────
   chrome.storage.local.get(['skip_paywalled'], (stored) => {
     if (stored.skip_paywalled) {

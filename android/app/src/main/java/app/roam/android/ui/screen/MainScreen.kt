@@ -156,9 +156,9 @@ fun MainScreen(
                     onNavigateToSaved = { currentTab = RoamTab.Saved.route },
                     onNavigateToHistory = { currentTab = RoamTab.History.route },
                     onNavigateToNotifications = { currentTab = RoamTab.Notifications.route },
-                    onNavigateToBadges = { currentTab = "badges" },
-                    onNavigateToLeaderboard = { currentTab = "leaderboard" },
-                    onNavigateToActivityFeed = { currentTab = "activity_feed" },
+                    onNavigateToBadges = { currentTab = RoamTab.Badges.route },
+                    onNavigateToLeaderboard = { currentTab = RoamTab.Leaderboard.route },
+                    onNavigateToActivityFeed = { currentTab = RoamTab.ActivityFeed.route },
                     onNavigateToSettings = { currentTab = RoamTab.Settings.route },
                     onNavigateToPublicProfile = { username ->
                         viewedUsername = username
@@ -213,7 +213,7 @@ fun MainScreen(
                     vm = vm,
                     onNavigateBack = { currentTab = RoamTab.You.route },
                     onSignOut = doSignOut,
-                    onNavigateToBadges = { currentTab = "badges" },
+                    onNavigateToBadges = { currentTab = RoamTab.Badges.route },
                 )
             }
 
@@ -251,7 +251,7 @@ fun MainScreen(
 
             // ── Activity Feed ──────────────────────────────────────
             AnimatedVisibility(
-                visible = currentTab == "activity_feed",
+                visible = currentTab == RoamTab.ActivityFeed.route,
                 enter = fadeIn(spring()),
                 exit = fadeOut(spring()),
             ) {
@@ -271,7 +271,7 @@ fun MainScreen(
 
             // ── Badges ─────────────────────────────────────────────
             AnimatedVisibility(
-                visible = currentTab == "badges",
+                visible = currentTab == RoamTab.Badges.route,
                 enter = fadeIn(spring()),
                 exit = fadeOut(spring()),
             ) {
@@ -280,7 +280,7 @@ fun MainScreen(
 
             // ── Leaderboard ────────────────────────────────────────
             AnimatedVisibility(
-                visible = currentTab == "leaderboard",
+                visible = currentTab == RoamTab.Leaderboard.route,
                 enter = fadeIn(spring()),
                 exit = fadeOut(spring()),
             ) {
