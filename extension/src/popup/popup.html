@@ -110,11 +110,20 @@
     <!-- Status bar: category of current page, or transient fetch status -->
     <div id="status-bar" class="status-bar" hidden></div>
 
+    <!-- Toast (save confirmation) -->
+    <div id="toast" class="toast" hidden>✓ Saved!</div>
+
     <!-- Submit panel (expands on 👍 for unknown pages) -->
     <div id="panel-submit" class="panel" hidden>
       <p class="panel-label">Add this page to Roam?</p>
       <div id="category-chips" class="chip-grid">
         <!-- populated dynamically by popup.ts from FALLBACK_CATEGORIES -->
+      </div>
+      <div id="subcategory-chips" class="subcategory-chips" hidden>
+        <p class="panel-label">Topic (optional)</p>
+        <div id="subcategory-chip-grid" class="chip-grid">
+          <!-- populated dynamically -->
+        </div>
       </div>
       <p id="submit-error" class="submit-error" hidden></p>
       <p id="submit-success" class="submit-success" hidden></p>
@@ -149,6 +158,14 @@
           <button id="btn-focus-category" class="panel-row">Category: Any</button>
           <button id="btn-focus-subcategory" class="panel-row" hidden>Topic: All</button>
         </div>
+      </section>
+
+      <section class="panel-section">
+        <h3 class="panel-section-title">You</h3>
+        <button id="btn-notifications" class="panel-row">Notifications <span id="notif-count-chip" class="count-chip" hidden>0</span></button>
+        <button id="btn-web-badges"      class="panel-row">Badges <span id="badge-count-chip" class="count-chip" hidden>0</span></button>
+        <button id="btn-history" class="panel-row">History</button>
+        <div id="stats-row" class="stats-row" hidden>Roamed: <span id="stat-roamed">0</span> · Submitted: <span id="stat-submitted">0</span></div>
       </section>
 
       <section class="panel-section">
@@ -194,7 +211,6 @@
 
       <section class="panel-section">
         <h3 class="panel-section-title">Open in web app</h3>
-        <button id="btn-web-badges"      class="panel-row">Badges ↗</button>
         <button id="btn-web-leaderboard" class="panel-row">Leaderboard ↗</button>
         <button id="btn-web-following"   class="panel-row">Following & activity ↗</button>
         <button id="btn-web-settings"    class="panel-row">Settings ↗</button>
@@ -244,6 +260,32 @@
       </div>
       <div id="saved-list" class="saved-list"></div>
       <p id="saved-empty" class="saved-empty" hidden>No saved pages yet. Use the browser extension to bookmark pages while browsing.</p>
+    </div>
+  </div>
+
+  <!-- ── Notifications state ─────────────────────────────────────── -->
+  <div id="state-notifications" class="state" hidden>
+    <div class="notif-body">
+      <div class="notif-header">
+        <button id="btn-back-notifications" class="btn-back">← Back</button>
+        <p class="notif-title">Notifications</p>
+        <button id="btn-mark-all-read" class="notif-mark-read">Mark all read</button>
+      </div>
+      <div id="notif-list" class="notif-list"></div>
+      <p id="notif-empty" class="notif-empty" hidden>No notifications yet.</p>
+    </div>
+  </div>
+
+  <!-- ── History state ────────────────────────────────────────────── -->
+  <div id="state-history" class="state" hidden>
+    <div class="history-body">
+      <div class="history-header">
+        <button id="btn-back-history" class="btn-back">← Back</button>
+        <p class="history-title">History</p>
+      </div>
+      <div id="history-list" class="history-list"></div>
+      <p id="history-empty" class="history-empty" hidden>No browsing history yet.</p>
+      <button id="btn-clear-history" class="btn-secondary">Clear history</button>
     </div>
   </div>
 

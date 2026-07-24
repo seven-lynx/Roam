@@ -616,3 +616,206 @@ body {
   text-align: center;
   padding: 16px 0;
 }
+
+/* ── Notifications state ────────────────────────────────────────────────── */
+.notif-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+}
+.notif-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.notif-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+}
+.notif-mark-read {
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  font-size: 11px;
+  padding: 4px 8px;
+  cursor: pointer;
+  transition: background var(--transition), color var(--transition);
+}
+.notif-mark-read:hover { background: var(--bg-hover); color: var(--text); }
+.notif-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 320px;
+  overflow-y: auto;
+}
+.notif-item {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 6px;
+  padding: 6px 8px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  font-size: 12px;
+}
+.notif-item--unread { border-left: 3px solid var(--accent); }
+.notif-text { flex: 1; min-width: 0; color: var(--text); line-height: 1.4; }
+.notif-time { font-size: 10px; color: var(--text-muted); margin-top: 2px; }
+.notif-delete {
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 12px;
+  padding: 2px 4px;
+  border-radius: 4px;
+  line-height: 1;
+}
+.notif-delete:hover { color: #f87171; background: var(--bg-hover); }
+.notif-empty {
+  font-size: 12px;
+  color: var(--text-muted);
+  text-align: center;
+  padding: 16px 0;
+}
+
+/* ── History state ──────────────────────────────────────────────────────── */
+.history-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+}
+.history-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.history-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+}
+.history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 320px;
+  overflow-y: auto;
+}
+.history-item {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 6px;
+  padding: 6px 8px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+}
+.history-item-link {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+  text-decoration: none;
+}
+.history-item-title {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.history-item-link:hover .history-item-title { text-decoration: underline; }
+.history-item-domain {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+.history-empty {
+  font-size: 12px;
+  color: var(--text-muted);
+  text-align: center;
+  padding: 16px 0;
+}
+
+/* ── Badge count chip ───────────────────────────────────────────────────── */
+.count-chip {
+  background: var(--accent);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 10px;
+  margin-left: 6px;
+}
+
+/* ── Toast (save confirmation) ──────────────────────────────────────────── */
+.toast {
+  position: fixed;
+  bottom: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #2a9d5c;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 6px 16px;
+  border-radius: 20px;
+  z-index: 100;
+  pointer-events: none;
+  animation: toast-in 300ms ease forwards, toast-out 300ms ease 1500ms forwards;
+}
+@keyframes toast-in {
+  from { opacity: 0; transform: translateX(-50%) translateY(8px); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+@keyframes toast-out {
+  from { opacity: 1; }
+  to   { opacity: 0; }
+}
+
+/* ── Collection edit row ────────────────────────────────────────────────── */
+.col-edit-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+}
+.col-edit-btn {
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 10px;
+  padding: 1px 5px;
+  line-height: 1;
+  transition: background var(--transition), color var(--transition);
+}
+.col-edit-btn:hover { background: var(--bg-hover); color: var(--text); }
+.col-edit-btn--danger:hover { color: #f87171; }
+
+/* ── Stats row (inline) ─────────────────────────────────────────────────── */
+.stats-row {
+  font-size: 11px;
+  color: var(--text-muted);
+  padding: 6px 8px;
+  text-align: center;
+}
+.stats-row span { color: var(--text); font-weight: 600; }
+
+/* ── Subcategory chips on submit panel ──────────────────────────────────── */
+.subcategory-chips {
+  margin-top: 4px;
+}
+.subcategory-chips .chip-grid { margin-top: 4px; }

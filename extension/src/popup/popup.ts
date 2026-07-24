@@ -27,16 +27,14 @@ function el<T extends HTMLElement>(id: string): T {
   return e as T;
 }
 
-type AppState = 'signedout' | 'auth' | 'email-auth' | 'categories' | 'error' | 'noresults' | 'main' | 'feedback' | 'saved';
+type AppState = 'signedout' | 'auth' | 'email-auth' | 'categories' | 'error' | 'noresults' | 'main' | 'feedback' | 'saved' | 'notifications' | 'history';
 
 // Report engagement on the previous URL before requesting the next Roam.
-// Fire-and-forget — never blocks navigation.
 async function reportCurrentEngagement(): Promise<void> {
   try {
     const stored = await chrome.storage.session.get('current_url');
     const current = stored.current_url as { url_id: string; served_at: number } | undefined;
     if (!current) return;
-    // Clear immediately so we don't double-report
     chrome.storage.session.remove('current_url').catch(() => {});
     const dwellMs = Date.now() - current.served_at;
     sendToBackground({ type: 'REPORT_ENGAGEMENT', url_id: current.url_id, dwell_ms: dwellMs, skipped: dwellMs < 3000 });
@@ -44,7 +42,7 @@ async function reportCurrentEngagement(): Promise<void> {
 }
 
 function showState(name: AppState) {
-  for (const s of ['signedout', 'auth', 'email-auth', 'categories', 'error', 'noresults', 'main', 'feedback', 'saved'] as const) {
+  for (const s of ['signedout', 'auth', 'email-auth', 'categories', 'error', 'noresults', 'main', 'feedback', 'saved', 'notifications', 'history'] as const) {
     el(`state-${s}`).hidden = s !== name;
   }
 }
@@ -67,12 +65,20 @@ function showPanel(name: 'submit' | 'config' | null) {
   );
 }
 
+function showToast(message: string) {
+  const t = el('toast');
+  t.textContent = message;
+  t.hidden = false;
+  // Re-trigger animation
+  t.classList.remove('toast');
+  void t.offsetWidth;
+  t.classList.add('toast');
+  setTimeout(() => { t.hidden = true; }, 2000);
+}
+
 function showError(message: string) {
   const span = document.querySelector<HTMLElement>('#state-error .error-msg');
   if (span) span.textContent = message;
-  // Capture user-visible errors as warnings (not errors) so beta issues surface in Sentry
-  // without inflating the error count. The underlying bg errors are already captured as
-  // errors by the dispatch() wrapper in background.ts.
   Sentry.captureMessage(`popup error shown: ${message}`, {
     level: 'warning',
     tags: { context: 'showError' },
@@ -82,7 +88,7 @@ function showError(message: string) {
 
 function showDropdown(
   anchor: HTMLElement,
-  items: { label: string; onPick: () => void }[],
+  items: { label: string; onPick: () => void; className?: string }[],
   footer?: HTMLElement
 ): void {
   const menu = document.createElement('div');
@@ -91,10 +97,10 @@ function showDropdown(
     border: 1px solid var(--border);
     border-radius: var(--radius-sm);
     z-index: 1000;
-    max-height: 200px;
+    max-height: 240px;
     overflow-y: auto;
   `;
-  items.forEach(({ label, onPick }) => {
+  items.forEach(({ label, onPick, className }) => {
     const option = document.createElement('button');
     option.style.cssText = `
       width: 100%;
@@ -106,6 +112,7 @@ function showDropdown(
       cursor: pointer;
       font-size: 13px;
     `;
+    if (className) option.className = className;
     option.textContent = label;
     option.addEventListener('click', () => { menu.remove(); onPick(); });
     option.addEventListener('mouseover', () => { option.style.background = 'var(--bg-hover)'; });
@@ -129,19 +136,13 @@ function showDropdown(
   }, { once: true });
 }
 
-// Context for categories screen: 'firsttime' (post sign-in) or 'settings' (from config panel)
+// Context for categories screen
 let categoriesContext: 'firsttime' | 'settings' = 'firsttime';
-
-// Category list populated on sign-in; used for status bar label lookups
 let loadedCategories: CategoryItem[] = [];
-
-// Subcategory list for topics mode (loaded lazily)
 let loadedSubcategories: SubcategoryItem[] = [];
-
-// Current interest mode shown in the categories screen
 let currentInterestMode: 'pillars' | 'topics' = 'pillars';
 
-// Focus mode — ephemeral, resets on popup close
+// Focus mode
 let focusModeEnabled = false;
 let focusCategoryId: string | null = null;
 let focusSubcategoryId: string | null = null;
@@ -171,8 +172,6 @@ async function refreshStatus(): Promise<void> {
   setStatus(`${cat.icon} ${cat.name}  ·  ${modeLabel}`);
 }
 
-// FALLBACK_CATEGORIES imported from ../lib/constants
-
 async function checkAndRouteAfterSignIn(): Promise<void> {
   const [interests, allCats, allSubcats, sessionPrefs] = await Promise.all([
     sendToBackground<{ mode: 'pillars' | 'topics'; pillarIds: string[]; topicIds: string[] }>({ type: 'GET_USER_INTERESTS' }),
@@ -189,6 +188,8 @@ async function checkAndRouteAfterSignIn(): Promise<void> {
     populateInterestChips(interests.data.mode, interests.data.pillarIds, interests.data.topicIds, categoryItems, loadedSubcategories);
     showState('main');
     void refreshStatus();
+    // Load "You" section data lazily
+    void loadYouSection();
   } else {
     categoriesContext = 'firsttime';
     currentInterestMode = 'pillars';
@@ -224,7 +225,6 @@ function populateInterestChips(
       container.appendChild(btn);
     }
   } else {
-    // Group subcategories by category
     const byCat = new Map<string, SubcategoryItem[]>();
     for (const sc of subcategories) {
       if (!byCat.has(sc.category_id)) byCat.set(sc.category_id, []);
@@ -259,6 +259,34 @@ function populateCategoryChips(selectedIds: string[], categories: CategoryItem[]
   populateInterestChips('pillars', selectedIds, [], categories, []);
 }
 
+// ── "You" section — notifications, badges, stats ──────────────────────────────
+async function loadYouSection() {
+  // Notifications count
+  sendToBackground<number>({ type: 'GET_UNREAD_COUNT' }).then(res => {
+    if (res.ok && res.data > 0) {
+      const chip = el('notif-count-chip');
+      chip.textContent = String(res.data);
+      chip.hidden = false;
+    }
+  });
+  // Badges count
+  sendToBackground<any[]>({ type: 'GET_BADGES' }).then(res => {
+    if (res.ok && res.data.length > 0) {
+      const chip = el('badge-count-chip');
+      chip.textContent = String(res.data.length);
+      chip.hidden = false;
+    }
+  });
+  // Profile stats
+  sendToBackground<{ roamed: number; submitted: number }>({ type: 'GET_PROFILE_STATS' }).then(res => {
+    if (res.ok) {
+      el('stat-roamed').textContent = String(res.data.roamed ?? 0);
+      el('stat-submitted').textContent = String(res.data.submitted ?? 0);
+      el('stats-row').hidden = false;
+    }
+  });
+}
+
 async function boot() {
   console.log('[roam-popup] Booting, checking session state');
   const res = await sendToBackground<StateData>({ type: 'GET_STATE' });
@@ -273,20 +301,15 @@ async function boot() {
 
 // ── Boot ──────────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
-  // Keep the background service worker alive while the popup is open.
-  // MV3 service workers are terminated after ~30 s of inactivity; an open port
-  // prevents that, so messages sent later (e.g. SIGN_IN_GOOGLE) always land.
   try { chrome.runtime.connect({ name: 'popup-keepalive' }); } catch { /* ignore */ }
 
-  // Ask the background SW for the current auth state and show the right view.
   boot();
 
-  // ── Sign in button → show auth method selection ───────────────────────────
+  // ── Sign in button ───────────────────────────────────────────────────────────
   el('btn-signin').addEventListener('click', () => {
     showState('auth');
   });
 
-  // ── Retry button ───────────────────────────────────────────────────────────
   el('btn-retry').addEventListener('click', () => boot());
 
   el('btn-add-categories').addEventListener('click', async () => {
@@ -307,10 +330,7 @@ document.addEventListener('DOMContentLoaded', () => {
     showState('categories');
   });
 
-  // ── Auth: back to signed-out ───────────────────────────────────────────────
   el('btn-back-auth').addEventListener('click', () => showState('signedout'));
-
-  // ── Auth: back email → back to auth methods ───────────────────────────────
   el('btn-back-email').addEventListener('click', () => showState('auth'));
 
   // ── Auth: Google OAuth ────────────────────────────────────────────────────
@@ -327,7 +347,6 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
-    // Poll until the callback tab completes and session is saved
     const pollInterval = setInterval(async () => {
       const state = await sendToBackground<StateData>({ type: 'GET_STATE' });
       if (state.ok && state.data.signedIn) {
@@ -340,9 +359,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
   el('btn-auth-google').addEventListener('click', () => startOAuthFlow());
 
-  // ── Auth: show email form ─────────────────────────────────────────────────
+  // ── Auth: email form ─────────────────────────────────────────────────────
   el('btn-auth-email').addEventListener('click', () => {
-    // Reset email form state
     el<HTMLInputElement>('input-email').value = '';
     el<HTMLInputElement>('input-password').value = '';
     el('email-auth-error').hidden = true;
@@ -353,7 +371,6 @@ document.addEventListener('DOMContentLoaded', () => {
     showState('email-auth');
   });
 
-  // ── Email auth: tab switching ─────────────────────────────────────────────
   let emailMode: 'signin' | 'signup' = 'signin';
 
   el('tab-signin').addEventListener('click', () => {
@@ -374,7 +391,6 @@ document.addEventListener('DOMContentLoaded', () => {
     el('email-verify-msg').hidden = true;
   });
 
-  // ── Email auth: submit ────────────────────────────────────────────────────
   el('btn-email-submit').addEventListener('click', async () => {
     const email = el<HTMLInputElement>('input-email').value.trim();
     const password = el<HTMLInputElement>('input-password').value;
@@ -411,7 +427,6 @@ document.addEventListener('DOMContentLoaded', () => {
         el('email-verify-msg').hidden = false;
         submitBtn.textContent = 'Resend email';
       } else {
-        // Immediately signed in
         await checkAndRouteAfterSignIn();
       }
     }
@@ -427,7 +442,6 @@ document.addEventListener('DOMContentLoaded', () => {
     el('categories-error').hidden = true;
   });
 
-  // ── Interest mode toggle ──────────────────────────────────────────────────
   el('btn-mode-pillars').addEventListener('click', () => {
     if (currentInterestMode === 'pillars') return;
     populateInterestChips('pillars', [], [], loadedCategories, loadedSubcategories);
@@ -441,7 +455,6 @@ document.addEventListener('DOMContentLoaded', () => {
     populateInterestChips('topics', [], [], loadedCategories, loadedSubcategories);
   });
 
-  // ── Categories: save ─────────────────────────────────────────────────────
   el('btn-save-categories').addEventListener('click', async () => {
     const selectedChips = Array.from(
       el('category-select-chips').querySelectorAll<HTMLButtonElement>('.chip.selected')
@@ -470,14 +483,12 @@ document.addEventListener('DOMContentLoaded', () => {
     void refreshStatus();
   });
 
-  // ── Categories: back button ───────────────────────────────────────────────
   el('btn-back-categories').addEventListener('click', () => {
     if (categoriesContext === 'settings') {
       showPanel('config');
       showState('main');
       void refreshStatus();
     }
-    // In firsttime mode the button is hidden — nothing to do
   });
 
   // ── Roam button ───────────────────────────────────────────────────────────
@@ -487,14 +498,13 @@ document.addEventListener('DOMContentLoaded', () => {
     roamBtn.disabled = true;
     roamBtn.textContent = 'Roaming…';
     setStatus('Finding next page…');
-    void reportCurrentEngagement(); // fire-and-forget engagement report
+    void reportCurrentEngagement();
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     const res = await sendToBackground<RoamData>({
       type: 'ROAM',
       ...(focusModeEnabled && focusCategoryId ? { categoryId: focusCategoryId } : {}),
       ...(focusModeEnabled && focusSubcategoryId ? { subcategoryId: focusSubcategoryId } : {}),
     });
-    console.log('[roam-popup] Roam response:', res);
     roamBtn.disabled = false;
     roamBtn.textContent = 'Roam';
     if (!res.ok) { showError(res.error); return; }
@@ -507,23 +517,18 @@ document.addEventListener('DOMContentLoaded', () => {
   el('btn-upvote').addEventListener('click', async () => {
     showPanel(null);
     const flashDone = flashButton('btn-upvote', 'up');
-
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     const url = tab?.url ?? '';
     if (!url) return;
-
     const check = await sendToBackground<CheckUrlData>({ type: 'CHECK_URL', url });
     if (!check.ok) { showError(check.error); return; }
-
     if (check.data.known && check.data.url_id) {
-      // Known URL → rate +1; wait for both the flash and the rate call before closing
       await Promise.all([
         flashDone,
         sendToBackground({ type: 'RATE', url_id: check.data.url_id, vote: 1 }),
       ]);
       window.close();
     } else {
-      // Unknown URL → wait for flash, then show submit panel
       await flashDone;
       showPanel('submit');
     }
@@ -534,27 +539,21 @@ document.addEventListener('DOMContentLoaded', () => {
     showPanel(null);
     flashButton('btn-downvote', 'down');
     setStatus('Finding next page…');
-
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     const url = tab?.url ?? '';
-
-    // Fire roam and check+rate fully in parallel — navigate the instant roam resolves,
-    // without blocking on the rating round-trip.
-    void reportCurrentEngagement(); // fire-and-forget engagement report
+    void reportCurrentEngagement();
     const roamPromise = sendToBackground<RoamData>({
       type: 'ROAM',
       ...(focusModeEnabled && focusCategoryId ? { categoryId: focusCategoryId } : {}),
       ...(focusModeEnabled && focusSubcategoryId ? { subcategoryId: focusSubcategoryId } : {}),
     });
     if (url) {
-      // Fire-and-forget: rating doesn't need to complete before we navigate away.
       sendToBackground<CheckUrlData>({ type: 'CHECK_URL', url }).then((check) => {
         if (check.ok && check.data.known && check.data.url_id) {
           sendToBackground({ type: 'RATE', url_id: check.data.url_id, vote: -1 });
         }
       });
     }
-
     const roamRes = await roamPromise;
     if (!roamRes.ok) { showError(roamRes.error); return; }
     if (!roamRes.data?.url) { showState('noresults'); return; }
@@ -566,9 +565,10 @@ document.addEventListener('DOMContentLoaded', () => {
   el('btn-config').addEventListener('click', () => {
     const open = el('panel-config').hidden;
     showPanel(open ? 'config' : null);
+    if (open) loadYouSection();
   });
 
-  // ── Submit panel chips: populate from FALLBACK_CATEGORIES (real UUIDs) ──────
+  // ── Submit panel chips: populate from FALLBACK_CATEGORIES ──────────────────
   {
     const container = el('category-chips');
     for (const cat of FALLBACK_CATEGORIES) {
@@ -580,7 +580,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  // ── Category chip selection ────────────────────────────────────────────────
+  // ── Category chip selection + subcategory loading ──────────────────────────
   let selectedCategory: string | null = null;
   el('category-chips').addEventListener('click', (e) => {
     const chip = (e.target as HTMLElement).closest<HTMLButtonElement>('.chip');
@@ -589,6 +589,26 @@ document.addEventListener('DOMContentLoaded', () => {
     chip.classList.add('selected');
     selectedCategory = chip.dataset.catId ?? null;
     el<HTMLButtonElement>('btn-submit').disabled = false;
+    // Load subcategories for this category
+    const subcatContainer = el('subcategory-chips');
+    const subcatGrid = el('subcategory-chip-grid');
+    subcatGrid.textContent = '';
+    if (selectedCategory) {
+      sendToBackground<SubcategoryItem[]>({ type: 'GET_SUBCATEGORIES_FOR_CATEGORY', categoryId: selectedCategory }).then(res => {
+        if (res.ok && res.data.length > 0) {
+          subcatContainer.hidden = false;
+          for (const sc of res.data) {
+            const b = document.createElement('button');
+            b.className = 'chip';
+            b.dataset.subcatId = sc.id;
+            b.textContent = sc.name;
+            subcatGrid.appendChild(b);
+          }
+        } else {
+          subcatContainer.hidden = true;
+        }
+      });
+    }
   });
 
   // ── Submit unknown URL ────────────────────────────────────────────────────
@@ -604,7 +624,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const res = await sendToBackground<{ duplicate?: boolean; message?: string }>({ type: 'SUBMIT_URL', url, categoryId: selectedCategory });
     el<HTMLButtonElement>('btn-submit').disabled = false;
     if (!res.ok) {
-      // Show inline error — Safe Browsing rejection or rate-limit
       submitErr.textContent = res.error.includes('safe') || res.error.includes('Safe')
         ? 'This URL was flagged by Google Safe Browsing and cannot be submitted.'
         : res.error.includes('429') || res.error.includes('rate')
@@ -626,8 +645,6 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // ── Config panel actions ──────────────────────────────────────────────────
-  
-  // Keep track of loaded collections for add/roam operations
   let loadedCollections: Collection[] = [];
 
   async function loadCollectionsForDropdown(): Promise<void> {
@@ -663,19 +680,19 @@ document.addEventListener('DOMContentLoaded', () => {
       const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
       if (!tab?.url) return;
       const addRes = await sendToBackground({ type: 'ADD_URL_TO_COLLECTION', url: tab.url, collectionId: res.data.id });
-      if (addRes.ok) { window.close(); } else { showError(addRes.error ?? "Couldn't add to collection."); }
+      if (addRes.ok) { showToast('✓ Added to collection'); setTimeout(() => window.close(), 1500); } else { showError(addRes.error ?? "Couldn't add to collection."); }
     });
 
     const anchor = el<HTMLButtonElement>('btn-add-collection');
     showDropdown(
       anchor,
       loadedCollections.map(col => ({
-        label: `${col.name} (${col.item_count})`,
+        label: col.name,
         onPick: async () => {
           const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
           if (!tab?.url) return;
           const res = await sendToBackground({ type: 'ADD_URL_TO_COLLECTION', url: tab.url, collectionId: col.id });
-          if (res.ok) { window.close(); } else { showError(res.error ?? "Couldn't add to collection."); }
+          if (res.ok) { showToast('✓ Added to collection'); setTimeout(() => window.close(), 1500); } else { showError(res.error ?? "Couldn't add to collection."); }
         },
       })),
       newColBtn
@@ -687,7 +704,8 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!tab?.url) return;
     const res = await sendToBackground({ type: 'SAVE_LATER', url: tab.url, title: tab.title });
     if (res.ok) {
-      window.close();
+      showToast('✓ Saved!');
+      setTimeout(() => window.close(), 1500);
     }
   });
 
@@ -766,7 +784,6 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     if (!res.ok || !res.data || res.data.length === 0) {
-      // No mutual follows yet — open the web app's following page
       chrome.tabs.create({ url: 'https://roamtheweb.app/following' });
       window.close();
       return;
@@ -794,7 +811,6 @@ document.addEventListener('DOMContentLoaded', () => {
     if (profile.ok && profile.data.username) {
       await navigator.clipboard.writeText(`https://roamtheweb.app/u/${profile.data.username}`);
     } else {
-      // Fallback: open profile page
       chrome.tabs.create({ url: 'https://roamtheweb.app/profile' });
     }
     window.close();
@@ -804,15 +820,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     const url = tab?.url ?? '';
     if (!url) return;
-
-    // Check if current URL is known to get its category
     const check = await sendToBackground<CheckUrlData>({ type: 'CHECK_URL', url });
     if (!check.ok || !check.data.category_id) {
       showError('Couldn\'t determine a category for this page. Try a different one.');
       return;
     }
-
-    // Roam within this category
     const res = await sendToBackground<RoamData>({
       type: 'ROAM_CATEGORY',
       categoryId: check.data.category_id,
@@ -825,14 +837,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
   el('btn-roam-collection').addEventListener('click', async () => {
     await loadCollectionsForDropdown();
-
     if (loadedCollections.length === 0) {
       showError('No collections yet. Create one from the web app.');
       return;
     }
-
     const anchor = el<HTMLButtonElement>('btn-roam-collection');
-    // Build dropdown items: roam actions + copy-link footer for public collections
     const items = loadedCollections.map(col => ({
       label: `${col.name} (${col.item_count})`,
       onPick: async () => {
@@ -911,31 +920,15 @@ document.addEventListener('DOMContentLoaded', () => {
     const btn = el<HTMLButtonElement>('btn-report-url');
     btn.disabled = true;
     btn.textContent = 'Reporting…';
-
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     const url = tab?.url ?? '';
-
-    if (!url) {
-      btn.disabled = false;
-      btn.textContent = 'Report broken link';
-      return;
-    }
-
+    if (!url) { btn.disabled = false; btn.textContent = 'Report broken link'; return; }
     const check = await sendToBackground<CheckUrlData>({ type: 'CHECK_URL', url });
     if (!check.ok || !check.data.known || !check.data.url_id) {
-      btn.disabled = false;
-      btn.textContent = 'Report broken link';
-      return;
+      btn.disabled = false; btn.textContent = 'Report broken link'; return;
     }
-
     const res = await sendToBackground({ type: 'REPORT_URL', url_id: check.data.url_id });
-    if (!res.ok) {
-      btn.disabled = false;
-      btn.textContent = 'Report broken link';
-      return;
-    }
-
-    // Show confirmation, then roam to the next URL
+    if (!res.ok) { btn.disabled = false; btn.textContent = 'Report broken link'; return; }
     btn.textContent = 'Reported ✓ — skipping…';
     showPanel(null);
     const roamRes = await sendToBackground<RoamData>({ type: 'ROAM' });
@@ -947,7 +940,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // ── Feedback ──────────────────────────────────────────────────────────────
   el('btn-send-feedback').addEventListener('click', () => {
-    // Reset feedback form
     el<HTMLTextAreaElement>('feedback-message').value = '';
     el<HTMLInputElement>('feedback-email').value = '';
     el('feedback-chars').textContent = '0';
@@ -981,7 +973,6 @@ document.addEventListener('DOMContentLoaded', () => {
     submitBtn.textContent = 'Sending…';
     el('feedback-error').hidden = true;
 
-    // Detect Firefox vs Chrome for platform tagging
     const isFirefox = navigator.userAgent.includes('Firefox');
     const platform = isFirefox ? 'extension-firefox' : 'extension-chrome';
 
@@ -996,137 +987,165 @@ document.addEventListener('DOMContentLoaded', () => {
 
     el('feedback-success').hidden = false;
     submitBtn.textContent = 'Sent ✓';
-    // Auto-return after 2 seconds
     setTimeout(() => {
       showPanel('config');
       showState('main');
+      void refreshStatus();
     }, 2000);
   });
 
-  // ── Paywall toggle ────────────────────────────────────────────────────────
-  el<HTMLInputElement>('toggle-paywall').addEventListener('change', async (e) => {
-    const checked = (e.target as HTMLInputElement).checked;
-    await sendToBackground({ type: 'SET_PAYWALL_PREF', skip: checked });
-  });
-
-  // ── Translate this page (one-shot button) ───────────────────────────────
-  el('btn-translate-page').addEventListener('click', async () => {
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    if (!tab?.id || !tab.url) return;
-    // Don't double-wrap a page that's already going through Translate
-    if (tab.url.startsWith('https://translate.google.com/translate')) {
-      // Strip the wrapper and go back to the raw URL
-      try {
-        const raw = new URL(tab.url).searchParams.get('u');
-        if (raw) {
-          chrome.tabs.update(tab.id, { url: raw });
-          window.close();
-        }
-      } catch { /* ignore */ }
+  // ── Notifications ─────────────────────────────────────────────────────────
+  el('btn-notifications').addEventListener('click', async () => {
+    const res = await sendToBackground<any[]>({ type: 'GET_NOTIFICATIONS' });
+    const list = el('notif-list');
+    const empty = el('notif-empty');
+    list.textContent = '';
+    if (res.ok && res.data.length > 0) {
+      empty.hidden = true;
+      for (const n of res.data) {
+        const row = document.createElement('div');
+        row.className = 'notif-item' + (n.read ? '' : ' notif-item--unread');
+        row.dataset.id = n.id;
+        const text = document.createElement('div');
+        text.className = 'notif-text';
+        text.textContent = n.message || n.body || n.type || 'Notification';
+        const time = document.createElement('div');
+        time.className = 'notif-time';
+        try { time.textContent = new Date(n.created_at).toLocaleDateString(); } catch { time.textContent = ''; }
+        text.appendChild(time);
+        const del = document.createElement('button');
+        del.className = 'notif-delete';
+        del.textContent = '✕';
+        del.title = 'Delete';
+        del.addEventListener('click', async (e) => {
+          e.stopPropagation();
+          await sendToBackground({ type: 'DELETE_NOTIFICATION', notificationId: n.id });
+          row.remove();
+          if (!list.children.length) empty.hidden = false;
+        });
+        row.appendChild(text);
+        row.appendChild(del);
+        list.appendChild(row);
+      }
     } else {
-      const targetLang = el<HTMLSelectElement>('select-discovery-lang').value;
-      const translated = `https://translate.google.com/translate?sl=auto&tl=${encodeURIComponent(targetLang)}&u=${encodeURIComponent(tab.url)}`;
-      chrome.tabs.update(tab.id, { url: translated });
-      window.close();
+      empty.hidden = false;
     }
+    showPanel(null);
+    showState('notifications');
   });
 
-  // ── Discovery language preference ────────────────────────────────────────
-  // Load saved language on boot
-  (async () => {
-    const stored = await chrome.storage.local.get('preferred_languages');
-    const langs = stored.preferred_languages as string[] | undefined;
-    if (langs && langs.length > 0 && langs[0] !== 'en') {
-      el<HTMLSelectElement>('select-discovery-lang').value = langs[0];
-    }
-  })();
-  el<HTMLSelectElement>('select-discovery-lang').addEventListener('change', async (e) => {
-    const lang = (e.target as HTMLSelectElement).value;
-    await sendToBackground({ type: 'SET_LANGUAGE_PREF', languages: [lang] });
-  });
-  // ── Focus mode ──────────────────────────────────────────────────────────────────
-  el<HTMLInputElement>('toggle-focus').addEventListener('change', (e) => {
-    focusModeEnabled = (e.target as HTMLInputElement).checked;
-    el('focus-pickers').hidden = !focusModeEnabled;
-    if (!focusModeEnabled) {
-      focusCategoryId = null;
-      focusSubcategoryId = null;
-      focusSubcategoryName = null;
-      el('btn-focus-category').textContent = 'Category: Any';
-      el('btn-focus-subcategory').hidden = true;
-      el('btn-focus-subcategory').textContent = 'Topic: All';
-    }
-    void refreshStatus();
+  el('btn-back-notifications').addEventListener('click', () => {
+    showPanel('config');
+    showState('main');
   });
 
-  el('btn-focus-category').addEventListener('click', () => {
-    if (loadedCategories.length === 0) return;
-    showDropdown(
-      el<HTMLButtonElement>('btn-focus-category'),
-      loadedCategories.map(cat => ({
-        label: `${cat.icon} ${cat.name}`,
-        onPick: () => {
-          focusCategoryId = cat.id;
-          focusSubcategoryId = null;
-          focusSubcategoryName = null;
-          el('btn-focus-category').textContent = `${cat.icon} ${cat.name}`;
-          el('btn-focus-subcategory').hidden = false;
-          el('btn-focus-subcategory').textContent = 'Topic: All';
-          void refreshStatus();
-        },
-      }))
-    );
+  el('btn-mark-all-read').addEventListener('click', async () => {
+    await sendToBackground({ type: 'MARK_NOTIFICATIONS_READ' });
+    el('notif-list').querySelectorAll('.notif-item--unread').forEach(r => r.classList.remove('notif-item--unread'));
+    const chip = el('notif-count-chip');
+    chip.hidden = true;
   });
 
-  el('btn-focus-subcategory').addEventListener('click', async () => {
-    if (!focusCategoryId) return;
-    const res = await sendToBackground<SubcategoryItem[]>({
-      type: 'GET_SUBCATEGORIES',
-      categoryId: focusCategoryId,
-    });
-    const subs = res.ok ? res.data : [];
-    showDropdown(
-      el<HTMLButtonElement>('btn-focus-subcategory'),
-      [
-        {
-          label: 'All topics',
-          onPick: () => {
-            focusSubcategoryId = null;
-            focusSubcategoryName = null;
-            el('btn-focus-subcategory').textContent = 'Topic: All';
-            void refreshStatus();
-          },
-        },
-        ...subs.map(sub => ({
-          label: sub.name,
-          onPick: () => {
-            focusSubcategoryId = sub.id;
-            focusSubcategoryName = sub.name;
-            el('btn-focus-subcategory').textContent = sub.name;
-            void refreshStatus();
-          },
-        })),
-      ]
-    );
-  });
-  // ── Public profile toggle ────────────────────────────────────────────────
-  el<HTMLInputElement>('toggle-public-profile').addEventListener('change', async (e) => {
-    const checked = (e.target as HTMLInputElement).checked;
-    await sendToBackground({ type: 'SET_PROFILE_PUBLIC', isPublic: checked });
-  });
-  // Load initial state
-  (async () => {
-    const res = await sendToBackground<{ is_public: boolean; username: string }>({ type: 'GET_PROFILE_PUBLIC' });
-    if (res.ok) {
-      el<HTMLInputElement>('toggle-public-profile').checked = res.data.is_public;
-    }
-  })();
-
-  // ── Web app quick-links ──────────────────────────────────────────────────
+  // ── Badges ────────────────────────────────────────────────────────────────
   el('btn-web-badges').addEventListener('click', () => {
     chrome.tabs.create({ url: 'https://roamtheweb.app/badges' });
     window.close();
   });
+
+  // ── History ───────────────────────────────────────────────────────────────
+  el('btn-history').addEventListener('click', async () => {
+    const res = await sendToBackground<{ url: string; title: string; visitedAt: number }[]>({ type: 'GET_URL_HISTORY', limit: 50 });
+    const list = el('history-list');
+    const empty = el('history-empty');
+    list.textContent = '';
+    if (res.ok && res.data.length > 0) {
+      empty.hidden = true;
+      for (const entry of res.data) {
+        const row = document.createElement('div');
+        row.className = 'history-item';
+        const link = document.createElement('a');
+        link.href = entry.url;
+        link.target = '_blank';
+        link.rel = 'noopener noreferrer';
+        link.className = 'history-item-link';
+        const title = document.createElement('span');
+        title.className = 'history-item-title';
+        title.textContent = entry.title || entry.url;
+        const domain = document.createElement('span');
+        domain.className = 'history-item-domain';
+        try { domain.textContent = new URL(entry.url).hostname; } catch { domain.textContent = ''; }
+        link.appendChild(title);
+        link.appendChild(domain);
+        row.appendChild(link);
+        list.appendChild(row);
+      }
+    } else {
+      empty.hidden = false;
+    }
+    showPanel(null);
+    showState('history');
+  });
+
+  el('btn-back-history').addEventListener('click', () => {
+    showPanel('config');
+    showState('main');
+  });
+
+  el('btn-clear-history').addEventListener('click', async () => {
+    await sendToBackground({ type: 'CLEAR_URL_HISTORY' });
+    el('history-list').textContent = '';
+    el('history-empty').hidden = false;
+  });
+
+  // ── Language selector auto-save ───────────────────────────────────────────
+  el('select-discovery-lang').addEventListener('change', () => {
+    const lang = el<HTMLSelectElement>('select-discovery-lang').value;
+    sendToBackground({ type: 'SET_DISCOVERY_LANGUAGE', language: lang });
+  });
+
+  // ── Toggle: Public profile ────────────────────────────────────────────────
+  el('toggle-public-profile').addEventListener('change', () => {
+    const checked = el<HTMLInputElement>('toggle-public-profile').checked;
+    sendToBackground({ type: 'SET_PROFILE_PUBLIC', isPublic: checked });
+  });
+
+  // ── Toggle: Paywall ───────────────────────────────────────────────────────
+  el('toggle-paywall').addEventListener('change', () => {
+    const checked = el<HTMLInputElement>('toggle-paywall').checked;
+    sendToBackground({ type: 'SET_PAYWALL_PREF', skip: checked });
+  });
+
+  // ── Toggle: Focus mode ────────────────────────────────────────────────────
+  el('toggle-focus').addEventListener('change', () => {
+    focusModeEnabled = el<HTMLInputElement>('toggle-focus').checked;
+    el('focus-pickers').hidden = !focusModeEnabled;
+    if (focusModeEnabled) {
+      loadCategoriesForFocus();
+    } else {
+      focusCategoryId = null;
+      focusSubcategoryId = null;
+      void refreshStatus();
+    }
+  });
+
+  async function loadCategoriesForFocus() {
+    const res = await sendToBackground<CategoryItem[]>({ type: 'GET_CATEGORIES' });
+    const cats = res.ok && res.data.length > 0 ? res.data : FALLBACK_CATEGORIES;
+    el('btn-focus-category').addEventListener('click', () => {
+      const anchor = el('btn-focus-category');
+      showDropdown(anchor, cats.map(c => ({
+        label: `${c.icon} ${c.name}`,
+        onPick: () => {
+          focusCategoryId = c.id;
+          el('btn-focus-category').textContent = `Category: ${c.name}`;
+          el('btn-focus-subcategory').hidden = false;
+          void refreshStatus();
+        },
+      })));
+    }, { once: true });
+  }
+
+  // ── Web app links ─────────────────────────────────────────────────────────
   el('btn-web-leaderboard').addEventListener('click', () => {
     chrome.tabs.create({ url: 'https://roamtheweb.app/leaderboard' });
     window.close();
@@ -1140,11 +1159,16 @@ document.addEventListener('DOMContentLoaded', () => {
     window.close();
   });
 
-  // ── Paywall toggle: load saved preference ────────────────────────────────
-  chrome.storage.local.get(['skip_paywalled'], (stored) => {
-    if (stored.skip_paywalled) {
-      el<HTMLInputElement>('toggle-paywall').checked = true;
+  // ── Translate toggle ──────────────────────────────────────────────────────
+  el('btn-translate-page').addEventListener('click', async () => {
+    await sendToBackground({ type: 'SET_AUTO_TRANSLATE', enabled: true });
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (tab?.url) {
+      const lang = await chrome.storage.local.get('translate_language');
+      const tl = (lang.translate_language as string) ?? 'en';
+      const translated = `https://translate.google.com/translate?sl=auto&tl=${tl}&u=${encodeURIComponent(tab.url)}`;
+      chrome.tabs.update(tab.id!, { url: translated });
     }
+    window.close();
   });
 });
-
