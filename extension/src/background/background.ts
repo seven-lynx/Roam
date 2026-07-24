@@ -369,18 +369,93 @@ async function getState(): Promise<Response<StateData>> {
 }
 
 async function signInWithOAuth(provider: 'google'): Promise<Response<StateData>> {
-  const redirectTo = chrome.runtime.getURL('callback.html');
+  // Try launchWebAuthFlow first (popup, no tab needed). Falls back to
+  // tab + callback.html if identity API is unavailable or fails.
+  console.log('[roam] signInWithOAuth: starting flow for', provider);
+
   try {
-    const { data, error } = await getSupabase().auth.signInWithOAuth({ provider, options: { redirectTo, skipBrowserRedirect: true } });
+    const redirectURL = chrome.identity?.getRedirectURL?.() ?? '';
+    console.log('[roam] signInWithOAuth: identity.getRedirectURL =', redirectURL);
+
+    const redirectTo = redirectURL || chrome.runtime.getURL('callback.html');
+    console.log('[roam] signInWithOAuth: using redirectTo =', redirectTo);
+
+    const { data, error } = await getSupabase().auth.signInWithOAuth({
+      provider,
+      options: { redirectTo, skipBrowserRedirect: true },
+    });
     if (error || !data.url) {
+      console.error('[roam] signInWithOAuth: supabase error', error);
       Sentry.captureException(error || new Error('signInWithOAuth returned no URL'), { tags: { context: `signInWith_${provider}` } });
       return { ok: false, error: 'Could not open the sign-in page. Please try again.' };
     }
+    console.log('[roam] signInWithOAuth: got OAuth URL, length =', data.url.length);
+
+    // Path 1: launchWebAuthFlow (Chrome identity API or Firefox identity)
+    if (redirectURL && chrome.identity?.launchWebAuthFlow) {
+      console.log('[roam] signInWithOAuth: trying launchWebAuthFlow');
+      try {
+        const resultUrl = await chrome.identity.launchWebAuthFlow({
+          url: data.url,
+          interactive: true,
+        });
+        console.log('[roam] signInWithOAuth: launchWebAuthFlow returned', resultUrl ? 'URL' : 'null');
+
+        if (resultUrl) {
+          const parsed = parseAuthRedirect(resultUrl);
+          console.log('[roam] signInWithOAuth: parsed redirect — accessToken:', !!parsed.accessToken, 'refreshToken:', !!parsed.refreshToken, 'code:', !!parsed.code);
+
+          if (parsed.accessToken && parsed.refreshToken) {
+            const { error: sessionErr } = await getSupabase().auth.setSession({
+              access_token: parsed.accessToken,
+              refresh_token: parsed.refreshToken,
+            });
+            if (sessionErr) {
+              console.error('[roam] signInWithOAuth: setSession error', sessionErr);
+              Sentry.captureException(sessionErr, { tags: { context: `signInWith_${provider}` } });
+              return { ok: false, error: sessionErr.message };
+            }
+            const session = (await getSupabase().auth.getSession()).data.session;
+            console.log('[roam] signInWithOAuth: success via launchWebAuthFlow, email =', session?.user.email);
+            return { ok: true, data: { signedIn: true, email: session?.user.email, userId: session?.user.id } };
+          }
+
+          if (parsed.code) {
+            console.log('[roam] signInWithOAuth: got code, exchanging');
+            return exchangeCode(parsed.code);
+          }
+
+          console.warn('[roam] signInWithOAuth: launchWebAuthFlow returned URL but no tokens');
+        }
+      } catch (flowErr) {
+        console.warn('[roam] signInWithOAuth: launchWebAuthFlow error, falling back to tab', flowErr);
+      }
+    }
+
+    // Path 2: fallback — open tab + wait for callback.html to save the session
+    console.log('[roam] signInWithOAuth: falling back to tab + callback');
     await chrome.tabs.create({ url: data.url });
-    return { ok: true, data: { signedIn: false } };
+    return { ok: true, data: { signedIn: false } }; // popup will poll for session
   } catch (err) {
+    console.error('[roam] signInWithOAuth: unexpected error', err);
     Sentry.captureException(err, { tags: { context: `signInWith_${provider}` } });
     return { ok: false, error: 'Could not open the sign-in page. Please try again.' };
+  }
+}
+
+/** Extracts access_token, refresh_token, or code from a redirect URL. */
+function parseAuthRedirect(url: string): { accessToken?: string; refreshToken?: string; code?: string } {
+  try {
+    const u = new URL(url);
+    const hash = u.hash.slice(1);
+    const hashParams = new URLSearchParams(hash);
+    return {
+      accessToken: hashParams.get('access_token') || u.searchParams.get('access_token') || undefined,
+      refreshToken: hashParams.get('refresh_token') || u.searchParams.get('refresh_token') || undefined,
+      code: u.searchParams.get('code') || hashParams.get('code') || undefined,
+    };
+  } catch {
+    return {};
   }
 }
 
