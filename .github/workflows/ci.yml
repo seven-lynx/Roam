@@ -88,8 +88,24 @@ jobs:
         with:
           deno-version: v2.x
 
+      - name: Cache Deno dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/deno
+          key: deno-${{ hashFiles('supabase/functions/**/*.ts') }}
+          restore-keys: deno-
+
       - name: Type-check Edge Functions
-        run: deno check supabase/functions/**/*.ts
+        run: |
+          for i in 1 2 3; do
+            deno check supabase/functions/**/*.ts && exit 0
+            echo "deno check attempt $i failed, retrying in 10s..."
+            sleep 10
+          done
+          echo "deno check failed after 3 attempts"
+          exit 1
+        env:
+          DENO_DIR: ~/.cache/deno
 
       # Android layer
       - name: Set up JDK 17
