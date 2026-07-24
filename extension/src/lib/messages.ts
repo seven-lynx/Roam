@@ -40,7 +40,20 @@ export type Request =
   | { type: 'SHARE_URL_WITH_USER'; url: string; recipientId: string }
   | { type: 'GET_SHARE_RECIPIENTS'; search?: string }
   | { type: 'GET_PROFILE_PUBLIC' }
-  | { type: 'REPORT_ENGAGEMENT'; url_id: string; dwell_ms: number; skipped: boolean };
+  | { type: 'REPORT_ENGAGEMENT'; url_id: string; dwell_ms: number; skipped: boolean }
+  | { type: 'GET_NOTIFICATIONS' }
+  | { type: 'GET_UNREAD_COUNT' }
+  | { type: 'MARK_NOTIFICATIONS_READ' }
+  | { type: 'DELETE_NOTIFICATION'; notificationId: string }
+  | { type: 'GET_BADGES' }
+  | { type: 'GET_URL_HISTORY'; limit?: number }
+  | { type: 'CLEAR_URL_HISTORY' }
+  | { type: 'DELETE_COLLECTION'; collectionId: string }
+  | { type: 'RENAME_COLLECTION'; collectionId: string; name: string }
+  | { type: 'UPDATE_COLLECTION_PUBLIC'; collectionId: string; isPublic: boolean }
+  | { type: 'GET_PROFILE_STATS' }
+  | { type: 'SET_DISCOVERY_LANGUAGE'; language: string }
+  | { type: 'GET_SUBCATEGORIES_FOR_CATEGORY'; categoryId: string };
 
 export type Response<T = unknown> =
   | { ok: true; data: T }

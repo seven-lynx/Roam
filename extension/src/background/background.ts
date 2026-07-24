@@ -17,13 +17,15 @@ validateEnvironment();
 
 const PREFETCH_KEY = 'prefetch_queue';
 const PREFETCH_TTL = 5 * 60 * 1000; // 5 minutes
-const PREFETCH_TARGET = 3; // number of URLs to keep buffered (matching Android hot queue)
+const PREFETCH_TARGET = 5; // number of URLs to keep buffered (matches Android warm queue target)
 const RECENT_DOMAINS_KEY = 'recent_domains';
 const RECENT_DOMAINS_MAX = 5; // up to 5 recent domains to exclude
 const RECENT_DOMAINS_TTL = 2 * 60 * 1000; // 2 minutes per entry
 const RATING_QUEUE_KEY = 'pending_ratings';
 const RATING_FLUSH_BATCH = 10; // max ratings to flush at once
 const CURRENT_URL_KEY = 'current_url';  // { url_id: string, served_at: number }
+const URL_HISTORY_KEY = 'extension_url_history';
+const MAX_HISTORY_ENTRIES = 100;
 
 // Deduplicates concurrent prefetch calls within a single SW activation.
 let prefetchInFlight: Promise<void> | null = null;
@@ -140,6 +142,17 @@ async function popFromPrefetch(): Promise<RoamData | null> {
   return entry.data;
 }
 
+// Simple HEAD check to validate URLs before serving (matching Android's isUrlReachable)
+async function isUrlReachable(url: string): Promise<boolean> {
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 3000);
+    const res = await fetch(url, { method: 'HEAD', signal: controller.signal, redirect: 'follow' });
+    clearTimeout(timeout);
+    return res.ok;
+  } catch { return false; }
+}
+
 async function fillPrefetch(): Promise<void> {
   const queue = await getPrefetchQueue();
   const needed = PREFETCH_TARGET - queue.length;
@@ -160,6 +173,9 @@ async function fillPrefetch(): Promise<void> {
     if (r.status === 'fulfilled' && r.value.ok && r.value.data.url) {
       const domain = getDomain(r.value.data.url);
       if (domain && existingDomains.has(domain)) continue;
+      // Basic validation: skip URLs that are clearly unreachable
+      const reachable = await isUrlReachable(r.value.data.url);
+      if (!reachable) continue;
       queue.push({ data: r.value.data, cachedAt: Date.now() });
       if (domain) existingDomains.add(domain);
     }
@@ -204,6 +220,20 @@ async function flushPendingRatings(): Promise<void> {
   // Save the ones that failed + any not in the batch
   const unprocessed = ratings.slice(RATING_FLUSH_BATCH);
   await savePendingRatings([...remaining, ...unprocessed]);
+}
+
+// ── URL History ───────────────────────────────────────────────────────────────
+async function recordUrlVisit(url: string, title: string): Promise<void> {
+  const normalized = normalizeUrl(url) ?? url;
+  const trimmedTitle = (title || url).slice(0, 200);
+  const stored = await chrome.storage.local.get(URL_HISTORY_KEY);
+  const history = (stored[URL_HISTORY_KEY] ?? []) as { url: string; title: string; visitedAt: number }[];
+  // Remove duplicates
+  const filtered = history.filter(e => normalizeUrl(e.url) !== normalized);
+  filtered.unshift({ url: normalized, title: trimmedTitle, visitedAt: Date.now() });
+  // Trim to max
+  while (filtered.length > MAX_HISTORY_ENTRIES) filtered.pop();
+  await chrome.storage.local.set({ [URL_HISTORY_KEY]: filtered });
 }
 
 // ── Global error capture ──────────────────────────────────────────────────────
@@ -287,18 +317,31 @@ async function _dispatch(req: Request): Promise<Response> {
     case 'SET_LANGUAGE_PREF':     return setLanguagePref(req.languages);
     case 'SET_DISCOVERY_MODE':    return setDiscoveryMode(req.mode);
     case 'SET_AUTO_TRANSLATE':    return setAutoTranslate(req.enabled);
+    case 'SET_DISCOVERY_LANGUAGE': return setDiscoveryLanguage(req.language);
     case 'GET_COLLECTIONS':       return getCollections();
     case 'CREATE_COLLECTION':     return createCollection(req.name);
     case 'ADD_URL_TO_COLLECTION': return addUrlToCollection(req.url, req.collectionId);
+    case 'DELETE_COLLECTION':     return deleteCollection(req.collectionId);
+    case 'RENAME_COLLECTION':     return renameCollection(req.collectionId, req.name);
+    case 'UPDATE_COLLECTION_PUBLIC': return updateCollectionPublic(req.collectionId, req.isPublic);
     case 'GET_PROFILE':           return getProfile();
+    case 'GET_PROFILE_STATS':     return getProfileStats();
     case 'SEND_FEEDBACK':         return sendFeedback(req.message, req.email, req.platform);
     case 'REPORT_URL':            return reportUrl(req.url_id);
     case 'GET_SUBCATEGORIES':     return getSubcategories(req.categoryId);
+    case 'GET_SUBCATEGORIES_FOR_CATEGORY': return getSubcategories(req.categoryId);
     case 'SET_PROFILE_PUBLIC':    return setProfilePublic(req.isPublic);
     case 'GET_PROFILE_PUBLIC':    return getProfilePublic();
     case 'SHARE_URL_WITH_USER':   return shareUrlWithUser(req.url, req.recipientId);
     case 'GET_SHARE_RECIPIENTS':  return getShareRecipients(req.search);
     case 'REPORT_ENGAGEMENT':     return reportEngagement(req.url_id, req.dwell_ms, req.skipped);
+    case 'GET_NOTIFICATIONS':     return getNotifications();
+    case 'GET_UNREAD_COUNT':      return getUnreadNotificationCount();
+    case 'MARK_NOTIFICATIONS_READ': return markNotificationsRead();
+    case 'DELETE_NOTIFICATION':   return deleteNotification(req.notificationId);
+    case 'GET_BADGES':            return getBadges();
+    case 'GET_URL_HISTORY':       return getUrlHistory(req.limit);
+    case 'CLEAR_URL_HISTORY':     return clearUrlHistory();
     default:                      return { ok: false, error: 'Something went wrong. Please try again.' };
   }
 }
@@ -520,6 +563,7 @@ async function roam(categoryId?: string, subcategoryId?: string): Promise<Respon
     const cached = await popFromPrefetch();
     if (cached) {
       prefetchNext();
+      recordUrlVisit(cached.url, cached.title || cached.url);
       const translatedUrl = await maybeTranslate(cached.url);
       await chrome.storage.session.set({ auto_translate: false });
       return { ok: true, data: { ...cached, url: translatedUrl } };
@@ -530,6 +574,7 @@ async function roam(categoryId?: string, subcategoryId?: string): Promise<Respon
       const cached2 = await popFromPrefetch();
       if (cached2) {
         prefetchNext();
+        recordUrlVisit(cached2.url, cached2.title || cached2.url);
         const translatedUrl2 = await maybeTranslate(cached2.url);
         await chrome.storage.session.set({ auto_translate: false });
         return { ok: true, data: { ...cached2, url: translatedUrl2 } };
@@ -543,6 +588,7 @@ async function roam(categoryId?: string, subcategoryId?: string): Promise<Respon
 
   const live = await callRoamApi(body);
   if (live.ok && live.data.url) {
+    recordUrlVisit(live.data.url, live.data.title || live.data.url);
     // Store current URL for engagement tracking (Phase 1 — skip + dwell)
     chrome.storage.session.set({ [CURRENT_URL_KEY]: { url_id: live.data.id, served_at: Date.now() } }).catch(() => {});
     const translatedUrl = await maybeTranslate(live.data.url);
@@ -555,6 +601,7 @@ async function roam(categoryId?: string, subcategoryId?: string): Promise<Respon
 async function roamCollection(collectionId: string): Promise<Response<RoamData>> {
   const result = await callRoamApi({ collection_id: collectionId });
   if (result.ok && result.data.url) {
+    recordUrlVisit(result.data.url, result.data.title || result.data.url);
     const translatedUrl = await maybeTranslate(result.data.url);
     return { ok: true, data: { ...result.data, url: translatedUrl } };
   }
@@ -564,6 +611,7 @@ async function roamCollection(collectionId: string): Promise<Response<RoamData>>
 async function roamCategory(categoryId: string): Promise<Response<RoamData>> {
   const result = await callRoamApi({ category_id: categoryId });
   if (result.ok && result.data.url) {
+    recordUrlVisit(result.data.url, result.data.title || result.data.url);
     const translatedUrl = await maybeTranslate(result.data.url);
     return { ok: true, data: { ...result.data, url: translatedUrl } };
   }
@@ -606,7 +654,7 @@ async function submitUrl(url: string, categoryId: string): Promise<Response<{ du
   if (!categoryId || !UUID_RE.test(categoryId)) return { ok: false, error: 'Invalid category selection.' };
   const { data, error } = await getSupabase().functions.invoke('submit-url', { body: { url, category_id: categoryId } });
   if (error) {
-    type FnErr = Error & { context?: Response };
+    type FnErr = Error & { context?: globalThis.Response };
     const ctx = (error as FnErr).context;
     let body: { error?: string; message?: string; duplicate?: boolean } | null = null;
     if (ctx && typeof ctx.json === 'function') {
@@ -698,6 +746,15 @@ async function setDiscoveryMode(mode: 'discovery' | 'deep_dive'): Promise<Respon
   return { ok: true, data: null };
 }
 
+async function setDiscoveryLanguage(language: string): Promise<Response<null>> {
+  const session = (await getSupabase().auth.getSession()).data.session;
+  if (!session) return { ok: false, error: "You're not signed in. Please sign in and try again." };
+  await chrome.storage.local.set({ preferred_languages: [language] });
+  const { error } = await getSupabase().from('user_settings').upsert({ user_id: session.user.id, preferred_languages: [language] }, { onConflict: 'user_id' });
+  if (error) console.warn('[roam] setDiscoveryLanguage DB error:', error.message);
+  return { ok: true, data: null };
+}
+
 async function setAutoTranslate(enabled: boolean): Promise<Response<null>> {
   await chrome.storage.session.set({ auto_translate: enabled });
   return { ok: true, data: null };
@@ -758,6 +815,30 @@ async function addUrlToCollection(url: string, collectionId: string): Promise<Re
   return { ok: true, data: null };
 }
 
+async function deleteCollection(collectionId: string): Promise<Response<null>> {
+  const session = (await getSupabase().auth.getSession()).data.session;
+  if (!session) return { ok: false, error: 'Not signed in.' };
+  const { error } = await getSupabase().from('collections').delete().eq('id', collectionId).eq('user_id', session.user.id);
+  if (error) return { ok: false, error: error.message };
+  return { ok: true, data: null };
+}
+
+async function renameCollection(collectionId: string, name: string): Promise<Response<null>> {
+  const session = (await getSupabase().auth.getSession()).data.session;
+  if (!session) return { ok: false, error: 'Not signed in.' };
+  const { error } = await getSupabase().from('collections').update({ name }).eq('id', collectionId).eq('user_id', session.user.id);
+  if (error) return { ok: false, error: error.message };
+  return { ok: true, data: null };
+}
+
+async function updateCollectionPublic(collectionId: string, isPublic: boolean): Promise<Response<null>> {
+  const session = (await getSupabase().auth.getSession()).data.session;
+  if (!session) return { ok: false, error: 'Not signed in.' };
+  const { error } = await getSupabase().from('collections').update({ is_public: isPublic }).eq('id', collectionId).eq('user_id', session.user.id);
+  if (error) return { ok: false, error: error.message };
+  return { ok: true, data: null };
+}
+
 // ── Subcategories ─────────────────────────────────────────────────────────────
 async function getSubcategories(categoryId: string): Promise<Response<SubcategoryItem[]>> {
   const { data, error } = await getSupabase()
@@ -776,6 +857,18 @@ async function getProfile(): Promise<Response<ProfileData>> {
   const { data, error } = await getSupabase().from('profiles').select('username').eq('id', session.user.id).single();
   if (error || !data) return { ok: false, error: 'Profile not found.' };
   return { ok: true, data: { username: data.username } };
+}
+
+async function getProfileStats(): Promise<Response<{ roamed: number; submitted: number }>> {
+  const session = (await getSupabase().auth.getSession()).data.session;
+  if (!session) return { ok: false, error: 'Not signed in.' };
+  const { data: stats, error } = await getSupabase()
+    .from('profiles')
+    .select('roamed_count, submitted_count')
+    .eq('id', session.user.id)
+    .single();
+  if (error || !stats) return { ok: true, data: { roamed: 0, submitted: 0 } };
+  return { ok: true, data: { roamed: (stats as any).roamed_count ?? 0, submitted: (stats as any).submitted_count ?? 0 } };
 }
 
 // ── Feedback & moderation ─────────────────────────────────────────────────────
@@ -904,6 +997,78 @@ async function getShareRecipients(search?: string): Promise<Response<Array<{ use
   if (error) return { ok: false, error: error.message };
   if (data?.error) return { ok: false, error: data.error };
   return { ok: true, data: (data?.recipients ?? []) as any[] };
+}
+
+// ── Notifications ─────────────────────────────────────────────────────────────
+async function getNotifications(): Promise<Response<any[]>> {
+  const session = (await getSupabase().auth.getSession()).data.session;
+  if (!session) return { ok: false, error: 'Not signed in.' };
+  const { data, error } = await getSupabase()
+    .from('notifications')
+    .select('*')
+    .eq('user_id', session.user.id)
+    .order('created_at', { ascending: false })
+    .limit(30);
+  if (error) return { ok: false, error: error.message };
+  return { ok: true, data: (data ?? []) as any[] };
+}
+
+async function getUnreadNotificationCount(): Promise<Response<number>> {
+  const session = (await getSupabase().auth.getSession()).data.session;
+  if (!session) return { ok: true, data: 0 };
+  const { count, error } = await getSupabase()
+    .from('notifications')
+    .select('*', { count: 'exact', head: true })
+    .eq('user_id', session.user.id)
+    .eq('read', false);
+  if (error) return { ok: true, data: 0 };
+  return { ok: true, data: count ?? 0 };
+}
+
+async function markNotificationsRead(): Promise<Response<null>> {
+  const session = (await getSupabase().auth.getSession()).data.session;
+  if (!session) return { ok: false, error: 'Not signed in.' };
+  const { error } = await getSupabase()
+    .from('notifications')
+    .update({ read: true })
+    .eq('user_id', session.user.id)
+    .eq('read', false);
+  if (error) return { ok: false, error: error.message };
+  return { ok: true, data: null };
+}
+
+async function deleteNotification(notificationId: string): Promise<Response<null>> {
+  const session = (await getSupabase().auth.getSession()).data.session;
+  if (!session) return { ok: false, error: 'Not signed in.' };
+  const { error } = await getSupabase()
+    .from('notifications')
+    .delete()
+    .eq('id', notificationId)
+    .eq('user_id', session.user.id);
+  if (error) return { ok: false, error: error.message };
+  return { ok: true, data: null };
+}
+
+// ── Badges ────────────────────────────────────────────────────────────────────
+async function getBadges(): Promise<Response<any[]>> {
+  const session = (await getSupabase().auth.getSession()).data.session;
+  if (!session) return { ok: false, error: 'Not signed in.' };
+  const { data, error } = await getSupabase()
+    .rpc('get_user_badges', { p_user_id: session.user.id });
+  if (error) return { ok: false, error: error.message };
+  return { ok: true, data: (data ?? []) as any[] };
+}
+
+// ── URL History ───────────────────────────────────────────────────────────────
+async function getUrlHistory(limit?: number): Promise<Response<{ url: string; title: string; visitedAt: number }[]>> {
+  const stored = await chrome.storage.local.get(URL_HISTORY_KEY);
+  const history = (stored[URL_HISTORY_KEY] ?? []) as { url: string; title: string; visitedAt: number }[];
+  return { ok: true, data: history.slice(0, limit ?? 100) };
+}
+
+async function clearUrlHistory(): Promise<Response<null>> {
+  await chrome.storage.local.remove(URL_HISTORY_KEY);
+  return { ok: true, data: null };
 }
 
 console.log('[roam] background service worker started');
