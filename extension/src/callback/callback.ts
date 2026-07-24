@@ -38,6 +38,7 @@ async function handleCallback() {
         showError(response.error || 'Unknown error during session save');
       } else {
         console.log('[roam-callback] Session saved, closing tab in 1s');
+        notifySignInComplete();
         spinner.style.display = 'none';
         setTimeout(() => {
           window.close();
@@ -69,6 +70,7 @@ async function handleCallback() {
         showError(response.error || 'Unknown error during code exchange');
       } else {
         console.log('[roam-callback] Session established, closing tab in 1s');
+        notifySignInComplete();
         spinner.style.display = 'none';
         setTimeout(() => {
           window.close();
@@ -82,6 +84,16 @@ async function handleCallback() {
 
   // No session data or code found
   showError('No authorization code found. Make sure you added the extension callback URL to Supabase Authentication → URL Configuration. The URL should be: ' + chrome.runtime.getURL('callback.html'));
+}
+
+// Notifies the popup that sign-in is complete using postMessage, so even if
+// window.close() fails (Firefox), the popup can detect the completed auth.
+function notifySignInComplete() {
+  try {
+    if (window.opener && !window.opener.closed) {
+      window.opener.postMessage({ type: 'ROAM_OAUTH_DONE' }, '*');
+    }
+  } catch { /* best effort */ }
 }
 
 function showError(message: string) {
