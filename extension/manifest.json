@@ -39,8 +39,7 @@
 
   "permissions": [
     "tabs",
-    "storage",
-    "identity"
+    "storage"
   ],
 
   "host_permissions": [
