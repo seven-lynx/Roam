@@ -253,20 +253,22 @@ chrome.runtime.onConnect.addListener((_port) => {
   flushPendingRatings(); // flush ratings whenever popup opens
 });
 
-// Keyboard shortcut: Roam without opening popup
-chrome.commands.onCommand.addListener(async (command) => {
-  if (command === 'roam') {
-    try {
-      const result = await roam();
-      if (result.ok && result.data.url) {
-        const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-        if (tab?.id) chrome.tabs.update(tab.id, { url: result.data.url });
+// Keyboard shortcut: Roam without opening popup (Chrome only — Firefox doesn't expose chrome.commands)
+if (chrome.commands) {
+  chrome.commands.onCommand.addListener(async (command) => {
+    if (command === 'roam') {
+      try {
+        const result = await roam();
+        if (result.ok && result.data.url) {
+          const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+          if (tab?.id) chrome.tabs.update(tab.id, { url: result.data.url });
+        }
+      } catch (err) {
+        Sentry.captureException(err, { tags: { context: 'command-roam' } });
       }
-    } catch (err) {
-      Sentry.captureException(err, { tags: { context: 'command-roam' } });
     }
-  }
-});
+  });
+}
 
 chrome.runtime.onMessage.addListener(
   (message: Request, _sender, sendResponse: (r: Response) => void) => {
