@@ -3,6 +3,13 @@
 // Returns a single URL row, or 404 when pool is exhausted.
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { corsHeaders } from '../_shared/cors.ts'
+
+// EdgeRuntime.waitUntil is a Deno Deploy API that tells the runtime to not
+// wait for a promise before shutting down the isolate. It's available at
+// runtime on Supabase-hosted edge functions but not declared in the Deno
+// type definitions used by deno check in CI.
+declare const EdgeRuntime: { waitUntil: (p: Promise<unknown>) => void }
+
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
 const SUPABASE_ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY')!
 Deno.serve(async (req) => {
@@ -48,9 +55,6 @@ Deno.serve(async (req) => {
     const { data, error } = await supabase.rpc('roam', rpcParams)
     if (error) {
       console.error('roam RPC error', error.code, error.message)
-      // PostgreSQL statement_timeout (57014) or query_canceled (57P01).
-      // Also check message text as a fallback — supabase-js sometimes omits code
-      // for connection-level timeouts coming through the PostgREST proxy.
       const isTimeout = error.code === '57014' || error.code === '57P01'
         || error.message?.toLowerCase().includes('timeout')
         || error.message?.toLowerCase().includes('canceling statement')
@@ -76,40 +80,22 @@ Deno.serve(async (req) => {
       wilson_score:   row.wilson_score,
     }
 
-    // ── Gamification: Fire-and-forget async calls ──────────────────────────
-    // Run streak update and XP award as fire-and-forget via EdgeRuntime.waitUntil.
+    // ── Gamification: Fire-and-forget async calls ────────────────────────
+    // Use EdgeRuntime.waitUntil() so the Deno Deploy isolate does NOT wait
+    // for these promises to settle before flushing the response. This prevents
+    // Supabase's edge proxy from sending an HTTP/2 RST_STREAM after the body
+    // is sent, which OkHttp on Android interprets as "unexpected end of stream"
+    // (ROAM-ANDROID-6, 72 events / 26 users).
     //
-    // IMPORTANT: do NOT use setTimeout or .then() chains here. Both keep the
-    // Deno Deploy isolate alive after the Response is returned, during which
-    // Supabase's edge proxy can reset the HTTP/2 connection, causing OkHttp on
-    // Android to throw "unexpected end of stream" even though the response body
-    // was already fully sent (ROAM-ANDROID-6).
-    //
-    // EdgeRuntime.waitUntil() is the canonical Deno Deploy API for background
-    // work — it signals to the runtime that the response can be flushed and the
-    // isolate can be torn down without waiting for these promises.
-    //
-    // Skip gamification when this is a prefetch call (prefetch=true in body) so
-    // the Android prefill queue doesn't award infinite XP in the background.
+    // Skip gamification when this is a prefetch call (prefetch=true in body)
+    // so the Android prefill queue doesn't award infinite XP in the background.
     const isPrefetch = body.prefetch === true
 
     if (!isPrefetch) {
-      // Idempotency key prevents double-awarding XP for the same URL+user within
-      // the same minute — handles retries and race conditions.
       const idemKey = `roam:${row.id}:${user.id}:${Math.floor(Date.now() / 60000)}`
 
-      // Fire-and-forget gamification RPCs via EdgeRuntime.waitUntil.
-      // .then() chains (used previously) kept the Deno isolate alive until all
-      // promises settled, during which Supabase's edge proxy could send an HTTP/2
-      // RST_STREAM or GOAWAY frame → OkHttp on Android interpreted this as
-      // "unexpected end of stream" even though the JSON response was already sent.
-      //
-      // EdgeRuntime.waitUntil tells Deno Deploy: "don't wait for these promises
-      // before shutting down the isolate." The response goes out immediately and
-      // the proxy connection closes cleanly.
       EdgeRuntime.waitUntil(
         (async () => {
-          // Streak update
           try {
             const result = await supabase.rpc('update_streak', { p_user_id: user.id })
             const r = result as { data?: { streak_days?: number; max_streak?: number; is_streak_broken?: boolean } }
@@ -121,7 +107,6 @@ Deno.serve(async (req) => {
           } catch (e) {
             console.error('streak update failed', e)
           }
-          // XP award
           try {
             await supabase.rpc('award_xp', {
               p_user_id: user.id,
