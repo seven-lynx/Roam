@@ -24,13 +24,17 @@ build/
 .DS_Store
 Thumbs.db
 
-# Private repo only — scripts, seeders, internal tooling
+# Internal tooling (private repo only)
 scripts/
+docs/
+
+# GitHub Copilot skills (private)
+.github/skills/
 
 # gh CLI temp files
 gh_runs.json
 
-# Android release keystore (must not be in version control)
+# Android release keystore
 android/roam-release.jks
 
 # Reports
