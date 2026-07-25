@@ -374,10 +374,12 @@ async function signInWithOAuth(provider: 'google'): Promise<Response<StateData>>
   console.log('[roam] signInWithOAuth: starting flow for', provider);
 
   try {
-    const redirectURL = chrome.identity?.getRedirectURL?.() ?? '';
-    console.log('[roam] signInWithOAuth: identity.getRedirectURL =', redirectURL);
-
-    const redirectTo = redirectURL || chrome.runtime.getURL('callback.html');
+    // Use the stable web app callback URL instead of the ephemeral extension
+    // origin. Firefox "Load Temporary Add-on" generates a random UUID per install,
+    // making the extension origin impossible to whitelist in Supabase's Redirect
+    // URLs. The web app's /auth/callback is already trusted by Supabase and works
+    // with launchWebAuthFlow regardless of origin (it captures any final URL).
+    const redirectTo = 'https://roamtheweb.app/auth/callback';
     console.log('[roam] signInWithOAuth: using redirectTo =', redirectTo);
 
     const { data, error } = await getSupabase().auth.signInWithOAuth({
@@ -392,13 +394,20 @@ async function signInWithOAuth(provider: 'google'): Promise<Response<StateData>>
     console.log('[roam] signInWithOAuth: got OAuth URL, length =', data.url.length);
 
     // Path 1: launchWebAuthFlow (Chrome identity API or Firefox identity)
-    if (redirectURL && chrome.identity?.launchWebAuthFlow) {
+    if (chrome.identity?.launchWebAuthFlow) {
       console.log('[roam] signInWithOAuth: trying launchWebAuthFlow');
       try {
-        const resultUrl = await chrome.identity.launchWebAuthFlow({
-          url: data.url,
-          interactive: true,
-        });
+        // 120s timeout — launcWebAuthFlow can hang indefinitely if the user
+        // closes the auth window or the redirect is rejected server-side.
+        const resultUrl = await Promise.race([
+          chrome.identity.launchWebAuthFlow({
+            url: data.url,
+            interactive: true,
+          }),
+          new Promise<string>((_, reject) =>
+            setTimeout(() => reject(new Error('Auth flow timed out')), 120_000),
+          ),
+        ]);
         console.log('[roam] signInWithOAuth: launchWebAuthFlow returned', resultUrl ? 'URL' : 'null');
 
         if (resultUrl) {
