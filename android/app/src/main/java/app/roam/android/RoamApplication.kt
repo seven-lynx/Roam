@@ -62,6 +62,11 @@ class RoamApplication : Application() {
                             excValue.contains("invalid input syntax for type uuid", ignoreCase = true)
                         ) return@BeforeSendCallback null
 
+                        // Drop CancellationException — normal coroutine lifecycle behavior
+                        // when the user navigates away from a screen mid-request (ROAM-ANDROID-Z).
+                        // These are not bugs; they're expected structured concurrency patterns.
+                        if (excType == "CancellationException") return@BeforeSendCallback null
+
                         event
                     }
                 }

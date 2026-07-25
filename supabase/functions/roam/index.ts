@@ -65,10 +65,6 @@ Deno.serve(async (req) => {
       return json({ error: 'No more URLs to discover' }, 404)
     }
 
-    // ── Gamification: Fire-and-forget async calls ─────────────────────
-    // Run streak update, XP award, and badge evaluation in parallel
-    // but don't block the response. Ignore failures — gamification is
-    // non-critical for the core roam experience.
     const roamResult = {
       id:             row.id,
       url:            row.url,
@@ -81,15 +77,17 @@ Deno.serve(async (req) => {
     }
 
     // ── Gamification: Fire-and-forget async calls ──────────────────────────
-    // Run streak update, XP award, and badge evaluation in parallel
-    // but don't block the response. Ignore failures — gamification is
-    // non-critical for the core roam experience.
+    // Run streak update and XP award as fire-and-forget via EdgeRuntime.waitUntil.
     //
-    // IMPORTANT: do NOT use setTimeout here. A pending setTimeout keeps the Deno
-    // Deploy isolate alive for an extra 500 ms after the Response is returned,
-    // during which Supabase's edge proxy can reset the HTTP/2 connection, causing
-    // OkHttp on Android to throw "unexpected end of stream" even though the
-    // response body was already fully sent. Chained .then() promises avoid this.
+    // IMPORTANT: do NOT use setTimeout or .then() chains here. Both keep the
+    // Deno Deploy isolate alive after the Response is returned, during which
+    // Supabase's edge proxy can reset the HTTP/2 connection, causing OkHttp on
+    // Android to throw "unexpected end of stream" even though the response body
+    // was already fully sent (ROAM-ANDROID-6).
+    //
+    // EdgeRuntime.waitUntil() is the canonical Deno Deploy API for background
+    // work — it signals to the runtime that the response can be flushed and the
+    // isolate can be torn down without waiting for these promises.
     //
     // Skip gamification when this is a prefetch call (prefetch=true in body) so
     // the Android prefill queue doesn't award infinite XP in the background.
@@ -100,33 +98,42 @@ Deno.serve(async (req) => {
       // the same minute — handles retries and race conditions.
       const idemKey = `roam:${row.id}:${user.id}:${Math.floor(Date.now() / 60000)}`
 
-      // Record daily activity and update streak — fire-and-forget but log errors.
-      // Uses update_streak directly (not record_daily_activity) because roam
-      // should increment the daily roam_count counter on user_daily_activity.
-      supabase.rpc('update_streak', { p_user_id: user.id }).then(
-        (result: unknown) => {
-          const r = result as { data?: { streak_days?: number; max_streak?: number; is_streak_broken?: boolean } }
-          if (r?.data) {
-            console.log(
-              `streak updated: ${r.data.streak_days} days (best: ${r.data.max_streak}, broken: ${r.data.is_streak_broken ?? false})`
-            )
+      // Fire-and-forget gamification RPCs via EdgeRuntime.waitUntil.
+      // .then() chains (used previously) kept the Deno isolate alive until all
+      // promises settled, during which Supabase's edge proxy could send an HTTP/2
+      // RST_STREAM or GOAWAY frame → OkHttp on Android interpreted this as
+      // "unexpected end of stream" even though the JSON response was already sent.
+      //
+      // EdgeRuntime.waitUntil tells Deno Deploy: "don't wait for these promises
+      // before shutting down the isolate." The response goes out immediately and
+      // the proxy connection closes cleanly.
+      EdgeRuntime.waitUntil(
+        (async () => {
+          // Streak update
+          try {
+            const result = await supabase.rpc('update_streak', { p_user_id: user.id })
+            const r = result as { data?: { streak_days?: number; max_streak?: number; is_streak_broken?: boolean } }
+            if (r?.data) {
+              console.log(
+                `streak updated: ${r.data.streak_days} days (best: ${r.data.max_streak}, broken: ${r.data.is_streak_broken ?? false})`
+              )
+            }
+          } catch (e) {
+            console.error('streak update failed', e)
           }
-        },
-        (e: unknown) => { console.error('streak update failed', e) }
+          // XP award
+          try {
+            await supabase.rpc('award_xp', {
+              p_user_id: user.id,
+              p_action: 'roam',
+              p_metadata: { url_id: row.id },
+              p_idempotency_key: idemKey,
+            })
+          } catch (e) {
+            console.error('xp award failed', e)
+          }
+        })()
       )
-      // Award XP for the roam. Badge evaluation is no longer chained here —
-      // it runs on-demand via the profile/badges pages instead, saving 15+
-      // COUNT(*) queries per roam press. Errors are logged but never bubble up.
-      supabase.rpc('award_xp', {
-        p_user_id: user.id,
-        p_action: 'roam',
-        p_metadata: { url_id: row.id },
-        p_idempotency_key: idemKey,
-      })
-        .then(
-          () => {},
-          (e: unknown) => { console.error('xp award failed', e) }
-        )
     }
 
     return json(roamResult)

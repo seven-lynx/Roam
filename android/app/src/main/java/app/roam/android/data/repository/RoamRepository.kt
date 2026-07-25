@@ -138,9 +138,14 @@ class RoamRepository {
             throw IllegalStateException("Session not authenticated: $status")
         }
 
-        val response = supabase.functions.invoke("roam", body = body)
-        if (response.status.value == 404) return null
-        return json.decodeFromString(response.body())
+        return try {
+            val response = supabase.functions.invoke("roam", body = body)
+            if (response.status.value == 404) return null // pool exhausted
+            json.decodeFromString(response.body())
+        } catch (e: io.github.jan.supabase.exceptions.RestException) {
+            if (e.statusCode == 404) return null // pool exhausted — not an error (ROAM-ANDROID-10)
+            throw e // re-throw real errors
+        }
     }
 
     /**
@@ -192,8 +197,12 @@ class RoamRepository {
                 SubmitResult.Duplicate(message ?: "This URL is already in our database.")
             status in 200..299 ->
                 SubmitResult.Queued(message ?: "Submitted for review — thanks!")
+            status == 503 ->
+                SubmitResult.Failed(message ?: "Safety check unavailable — try again in a moment")
+            status == 429 ->
+                SubmitResult.Failed(message ?: "Too many submissions — wait an hour and try again")
             else ->
-                SubmitResult.Failed(message ?: "Submission failed (HTTP $status)")
+                SubmitResult.Failed(message ?: "Something went wrong — please try again")
         }
     }
 

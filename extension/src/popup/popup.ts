@@ -76,12 +76,14 @@ function showToast(message: string) {
   setTimeout(() => { t.hidden = true; }, 2000);
 }
 
-function showError(message: string) {
+function showError(message: string, operation?: string) {
+  const prefix = operation ? `[${operation}] ` : '';
   const span = document.querySelector<HTMLElement>('#state-error .error-msg');
-  if (span) span.textContent = message;
-  Sentry.captureMessage(`popup error shown: ${message}`, {
+  if (span) span.textContent = prefix + message;
+  Sentry.captureMessage(`popup error [${operation || 'unknown'}]: ${message}`, {
     level: 'warning',
     tags: { context: 'showError' },
+    extra: { operation: operation || 'unknown' },
   });
   showState('error');
 }
