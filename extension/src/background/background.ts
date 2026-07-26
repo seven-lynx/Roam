@@ -29,6 +29,8 @@ const MAX_HISTORY_ENTRIES = 100;
 
 // Deduplicates concurrent prefetch calls within a single SW activation.
 let prefetchInFlight: Promise<void> | null = null;
+let lastPrefetchTime = 0;
+const MIN_PREFETCH_INTERVAL = 30 * 1000; // 30 seconds between prefetches
 
 // ── URL normaliser ────────────────────────────────────────────────────────────
 //
@@ -169,15 +171,22 @@ async function fillPrefetch(): Promise<void> {
   }
 
   const results = await Promise.allSettled(promises);
+  const candidates: { data: RoamData; domain: string }[] = [];
   for (const r of results) {
     if (r.status === 'fulfilled' && r.value.ok && r.value.data.url) {
       const domain = getDomain(r.value.data.url);
       if (domain && existingDomains.has(domain)) continue;
-      // Basic validation: skip URLs that are clearly unreachable
-      const reachable = await isUrlReachable(r.value.data.url);
-      if (!reachable) continue;
-      queue.push({ data: r.value.data, cachedAt: Date.now() });
+      candidates.push({ data: r.value.data, domain: domain ?? '' });
       if (domain) existingDomains.add(domain);
+    }
+  }
+  // Parallel reachability checks — the HEAD requests are independent
+  const reachableChecks = await Promise.allSettled(
+    candidates.map(async c => ({ ...c, reachable: await isUrlReachable(c.data.url) }))
+  );
+  for (const r of reachableChecks) {
+    if (r.status === 'fulfilled' && r.value.reachable) {
+      queue.push({ data: r.value.data, cachedAt: Date.now() });
     }
   }
   await savePrefetchQueue(queue);
@@ -208,17 +217,25 @@ async function flushPendingRatings(): Promise<void> {
 
   const batch = ratings.slice(0, RATING_FLUSH_BATCH);
   const supabase = getSupabase();
-  let remaining = batch.slice();
 
-  for (const r of batch) {
-    try {
-      const { error } = await supabase.functions.invoke('rate', { body: { url_id: r.url_id, value: r.vote } });
-      if (!error) remaining = remaining.filter(x => x.url_id !== r.url_id);
-    } catch { /* keep in queue for next flush */ }
-  }
+  // Fire all rating invocations in parallel
+  const results = await Promise.allSettled(
+    batch.map(async r => {
+      try {
+        const { error } = await supabase.functions.invoke('rate', { body: { url_id: r.url_id, value: r.vote } });
+        return { url_id: r.url_id, ok: !error };
+      } catch { return { url_id: r.url_id, ok: false }; }
+    })
+  );
 
-  // Save the ones that failed + any not in the batch
+  const failed = results
+    .filter((r): r is PromiseFulfilledResult<{ url_id: string; ok: boolean }> => r.status === 'fulfilled')
+    .filter(r => !r.value.ok)
+    .map(r => r.value.url_id);
+
+  // Keep only failed ones + any not in the batch
   const unprocessed = ratings.slice(RATING_FLUSH_BATCH);
+  const remaining = batch.filter(r => failed.includes(r.url_id));
   await savePendingRatings([...remaining, ...unprocessed]);
 }
 
@@ -634,6 +651,9 @@ async function callRoamApi(body: Record<string, unknown> = {}): Promise<Response
 
 async function prefetchNext(): Promise<void> {
   if (prefetchInFlight) return;
+  // Guard against excessive prefetching — rate-limit to once per MIN_PREFETCH_INTERVAL
+  if (Date.now() - lastPrefetchTime < MIN_PREFETCH_INTERVAL) return;
+  lastPrefetchTime = Date.now();
   prefetchInFlight = (async () => {
     try {
       await fillPrefetch();
@@ -649,7 +669,7 @@ async function roam(categoryId?: string, subcategoryId?: string): Promise<Respon
     const cached = await popFromPrefetch();
     if (cached) {
       prefetchNext();
-      recordUrlVisit(cached.url, cached.title || cached.url);
+      void recordUrlVisit(cached.url, cached.title || cached.url); // fire-and-forget — don't block the response
       const translatedUrl = await maybeTranslate(cached.url);
       await chrome.storage.session.set({ auto_translate: false });
       return { ok: true, data: { ...cached, url: translatedUrl } };
@@ -660,7 +680,7 @@ async function roam(categoryId?: string, subcategoryId?: string): Promise<Respon
       const cached2 = await popFromPrefetch();
       if (cached2) {
         prefetchNext();
-        recordUrlVisit(cached2.url, cached2.title || cached2.url);
+        void recordUrlVisit(cached2.url, cached2.title || cached2.url); // fire-and-forget — don't block the response
         const translatedUrl2 = await maybeTranslate(cached2.url);
         await chrome.storage.session.set({ auto_translate: false });
         return { ok: true, data: { ...cached2, url: translatedUrl2 } };
@@ -674,7 +694,7 @@ async function roam(categoryId?: string, subcategoryId?: string): Promise<Respon
 
   const live = await callRoamApi(body);
   if (live.ok && live.data.url) {
-    recordUrlVisit(live.data.url, live.data.title || live.data.url);
+    void recordUrlVisit(live.data.url, live.data.title || live.data.url); // fire-and-forget — don't block the response
     // Store current URL for engagement tracking (Phase 1 — skip + dwell)
     chrome.storage.session.set({ [CURRENT_URL_KEY]: { url_id: live.data.id, served_at: Date.now() } }).catch(() => {});
     const translatedUrl = await maybeTranslate(live.data.url);
@@ -687,7 +707,7 @@ async function roam(categoryId?: string, subcategoryId?: string): Promise<Respon
 async function roamCollection(collectionId: string): Promise<Response<RoamData>> {
   const result = await callRoamApi({ collection_id: collectionId });
   if (result.ok && result.data.url) {
-    recordUrlVisit(result.data.url, result.data.title || result.data.url);
+    void recordUrlVisit(result.data.url, result.data.title || result.data.url); // fire-and-forget
     const translatedUrl = await maybeTranslate(result.data.url);
     return { ok: true, data: { ...result.data, url: translatedUrl } };
   }
@@ -697,7 +717,7 @@ async function roamCollection(collectionId: string): Promise<Response<RoamData>>
 async function roamCategory(categoryId: string): Promise<Response<RoamData>> {
   const result = await callRoamApi({ category_id: categoryId });
   if (result.ok && result.data.url) {
-    recordUrlVisit(result.data.url, result.data.title || result.data.url);
+    void recordUrlVisit(result.data.url, result.data.title || result.data.url); // fire-and-forget
     const translatedUrl = await maybeTranslate(result.data.url);
     return { ok: true, data: { ...result.data, url: translatedUrl } };
   }
