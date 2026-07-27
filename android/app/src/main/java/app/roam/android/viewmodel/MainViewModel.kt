@@ -89,6 +89,8 @@ class MainViewModel(
     private val URL_HISTORY_KEY = "url_history"
     private val APP_THEME_KEY = "app_theme"  // "system", "dark", "light"
     private val WALKTHROUGH_SEEN_KEY = "walkthrough_seen"
+    private val LAST_URL_KEY = "last_url"
+    private val LAST_URL_TITLE_KEY = "last_url_title"
     private val MAX_HISTORY_ENTRIES = 100
 
     private val _state = MutableStateFlow<RoamState>(RoamState.Idle)
@@ -666,6 +668,14 @@ class MainViewModel(
         }
 
 
+        // Restore the last-viewed URL from SharedPreferences so the WebView
+        // shows the previous page immediately instead of starting from scratch.
+        // Only restore when we have a valid session — don't show a stale page
+        // from a previous user.
+        if (repo.hasSession()) {
+            restoreLastUrlIfAvailable()
+        }
+
         // Sync saved-for-later list from the server so saves from the web app
         // and other devices are visible without a reinstall.
         if (repo.hasSession()) {
@@ -808,6 +818,7 @@ class MainViewModel(
                     _rawUrl.value = roamUrl.url
                     _currentUrl.value = roamUrl.url
                     _state.value = RoamState.Loaded(roamUrl)
+                    persistLastUrl(roamUrl.url, roamUrl.title)
                     recordUrlVisit(roamUrl.url, roamUrl.title ?: roamUrl.url)
                     startPrefillQueue(excludeDomain = extractDomain(roamUrl.url))
                 }
@@ -1253,6 +1264,7 @@ class MainViewModel(
         _rawUrl.value = url
         _currentUrl.value = url
         _state.value = RoamState.Loaded(RoamUrl(id = "", url = url))
+        persistLastUrl(url, null)
     }
 
     /**
@@ -1463,6 +1475,8 @@ class MainViewModel(
         _adminModeEnabled.value = false
         _moderatorModeEnabled.value = false
         _isModerator.value = false
+        // Clear the persisted last URL so the next sign-in starts fresh
+        prefs.edit().remove(LAST_URL_KEY).remove(LAST_URL_TITLE_KEY).apply()
     }
 
     fun roamWithinCategory() {
@@ -1771,6 +1785,26 @@ class MainViewModel(
 
     private fun persistSavedUrls(list: List<SavedUrl>) {
         prefs.edit().putString(SAVED_KEY, savedUrlsJson.encodeToString(list)).apply()
+    }
+
+    /** Persists the last-viewed URL and title so it can be restored after process death. */
+    private fun persistLastUrl(url: String, title: String?) {
+        prefs.edit()
+            .putString(LAST_URL_KEY, url)
+            .putString(LAST_URL_TITLE_KEY, title ?: url)
+            .apply()
+    }
+
+    /** Restores the last-viewed URL from SharedPreferences if one exists.
+     *  Called in [init] only when a session is present so the WebView shows
+     *  the previous page instead of starting from scratch. */
+    private fun restoreLastUrlIfAvailable() {
+        val url = prefs.getString(LAST_URL_KEY, null) ?: return
+        val title = prefs.getString(LAST_URL_TITLE_KEY, url) ?: url
+        _rawUrl.value = url
+        _currentUrl.value = url
+        _state.value = RoamState.Loaded(RoamUrl(id = "", url = url, title = title))
+        android.util.Log.d("MainViewModel", "Restored last URL from prefs: $url")
     }
 
     private fun extractDomain(url: String?): String? {

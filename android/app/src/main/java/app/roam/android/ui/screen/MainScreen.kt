@@ -394,11 +394,16 @@ private fun DiscoverTab(
     val nextPrefetchUrl by vm.nextPrefetchUrl.collectAsState()
     val showShareUrlSheet by vm.showShareUrlSheet.collectAsState()
 
-    var initialRoamDone by rememberSaveable { mutableStateOf(false) }
+    var initialRoamDone by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) {
         if (!initialRoamDone) {
             initialRoamDone = true
-            if (state is RoamState.Idle || currentUrl == null) {
+            // Only roam if we don't already have a URL loaded (e.g. from a
+            // persisted session restored by MainViewModel after process death).
+            // Note: using remember (not rememberSaveable) so this resets to
+            // false after process death — otherwise the app stays stuck on
+            // the loading screen because the flag prevents the first roam.
+            if ((state is RoamState.Idle || currentUrl == null) && rawUrl == null) {
                 vm.roam()
             }
         }
@@ -639,9 +644,18 @@ private fun DiscoverTab(
                                 Spacer(Modifier.width(8.dp))
                                 Text("Roaming\u2026", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             } else {
-                                val parts = listOfNotNull(displayCategory, displayDomain)
-                                Text(if (parts.isEmpty()) "Roam" else parts.joinToString(" \u00B7 "), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
-                                displaySubcategory?.let { Text(it, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f), maxLines = 1, overflow = TextOverflow.Ellipsis) }
+                                // If rawUrl is null and state is Idle (not Loading),
+                                // we're waiting for the first roam — show a loading
+                                // indicator in the status bar instead of bare "Roam".
+                                if (rawUrl == null && state is RoamState.Idle) {
+                                    CircularProgressIndicator(Modifier.size(14.dp), strokeWidth = 2.dp, color = MaterialTheme.colorScheme.primary)
+                                    Spacer(Modifier.width(8.dp))
+                                    Text("Loading\u2026", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                } else {
+                                    val parts = listOfNotNull(displayCategory, displayDomain)
+                                    Text(if (parts.isEmpty()) "Roam" else parts.joinToString(" \u00B7 "), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+                                    displaySubcategory?.let { Text(it, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f), maxLines = 1, overflow = TextOverflow.Ellipsis) }
+                                }
                             }
                         }
                     }
