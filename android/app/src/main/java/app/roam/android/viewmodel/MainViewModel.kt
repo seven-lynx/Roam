@@ -1126,7 +1126,7 @@ class MainViewModel(
 
     fun openSubmitSheet() { _showSubmitSheet.value = true }
     fun closeSubmitSheet() { _showSubmitSheet.value = false }
-    fun openConfigSheet() { _showConfigSheet.value = true }
+    fun openConfigSheet() { _showConfigSheet.value = true; loadCollections() }
     fun closeConfigSheet() { _showConfigSheet.value = false }
 
     /** Called by the WebView when the user navigates to a page not in the discovery pool */
