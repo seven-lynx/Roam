@@ -35,3 +35,15 @@ export const MAX_SAVED_URLS = 50;
 
 /** Days before a saved URL expires */
 export const SAVED_URL_EXPIRY_DAYS = 30;
+
+/**
+ * Canonical list of tracking/analytics query parameters to strip during URL
+ * normalization. Keep in sync with:
+ * - Android: MainViewModel.normalizeUrl() (trackingKeys set)
+ * - Extension: extension/src/background/background.ts (STRIP array)
+ */
+export const TRACKING_PARAMS = [
+  'utm_source', 'utm_medium', 'utm_campaign', 'utm_term',
+  'utm_content', 'utm_id', 'fbclid', 'gclid', 'ref', 'source',
+  'mc_cid', 'mc_eid',
+] as const;

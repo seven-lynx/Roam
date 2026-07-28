@@ -39,6 +39,7 @@ Deno.serve(async (req) => {
     const excludeDomains = Array.isArray(body.exclude_domains) && body.exclude_domains.length > 0 ? (body.exclude_domains as string[]).filter((d: unknown): d is string => typeof d === 'string') : null
     const categoryId     = typeof body.category_id      === 'string' ? body.category_id     : null
     const subcategoryId  = typeof body.subcategory_id   === 'string' ? body.subcategory_id  : null
+    const count          = typeof body.count === 'number' && body.count > 0 && body.count <= 10 ? body.count : 1
     const rpcParams: Record<string, unknown> = { p_user_id: user.id }
     if (collectionId)   rpcParams.p_collection_id   = collectionId
     // Prefer exclude_domains (array) over exclude_domain (single string) for multi-domain exclusion.
@@ -52,47 +53,62 @@ Deno.serve(async (req) => {
     }
     if (categoryId)     rpcParams.p_category_id     = categoryId
     if (subcategoryId)  rpcParams.p_subcategory_id  = subcategoryId
-    const { data, error } = await supabase.rpc('roam', rpcParams)
-    if (error) {
-      console.error('roam RPC error', error.code, error.message)
-      const isTimeout = error.code === '57014' || error.code === '57P01'
-        || error.message?.toLowerCase().includes('timeout')
-        || error.message?.toLowerCase().includes('canceling statement')
-        || error.message?.toLowerCase().includes('query_canceled')
-      if (isTimeout) {
-        return json({ error: 'Discovery timed out. Please try again.' }, 503)
+    // ── Batch discovery ────────────────────────────────────────────────────────
+    // When count > 1, call the RPC multiple times and return an array.
+    // This amortizes the auth + cold-start overhead for prefetch consumers.
+    const results: Array<Record<string, unknown>> = []
+    const seenIds = new Set<string>()
+    const isPrefetch = body.prefetch === true
+    let timedOut = false
+
+    for (let i = 0; i < count; i++) {
+      const { data, error } = await supabase.rpc('roam', rpcParams)
+      if (error) {
+        console.error('roam RPC error', error.code, error.message)
+        const isTimeout = error.code === '57014' || error.code === '57P01'
+          || error.message?.toLowerCase().includes('timeout')
+          || error.message?.toLowerCase().includes('canceling statement')
+          || error.message?.toLowerCase().includes('query_canceled')
+        if (isTimeout) {
+          timedOut = true
+          break
+        }
+        // Non-timeout errors on batch calls are terminal for this loop
+        if (count > 1) break
+        return json({ error: 'Discovery failed. Please try again.' }, 500)
       }
-      return json({ error: 'Discovery failed. Please try again.' }, 500)
+      const row = Array.isArray(data) ? data[0] : null
+      if (!row) break // pool exhausted
+
+      // Deduplicate within the batch (RPC can occasionally return the same URL)
+      if (seenIds.has(row.id)) continue
+      seenIds.add(row.id)
+
+      const entry = {
+        id:             row.id,
+        url:            row.url,
+        title:          row.title,
+        description:    row.description,
+        og_image_url:   row.og_image_url,
+        category_id:    row.category_id ?? null,
+        subcategory_id: row.subcategory_id ?? null,
+        wilson_score:   row.wilson_score,
+      }
+      results.push(entry)
     }
-    const row = Array.isArray(data) ? data[0] : null
-    if (!row) {
+
+    if (results.length === 0 && timedOut) {
+      return json({ error: 'Discovery timed out. Please try again.' }, 503)
+    }
+    if (results.length === 0) {
       return json({ error: 'No more URLs to discover' }, 404)
     }
 
-    const roamResult = {
-      id:             row.id,
-      url:            row.url,
-      title:          row.title,
-      description:    row.description,
-      og_image_url:   row.og_image_url,
-      category_id:    row.category_id ?? null,
-      subcategory_id: row.subcategory_id ?? null,
-      wilson_score:   row.wilson_score,
-    }
-
-    // ── Gamification: Fire-and-forget async calls ────────────────────────
-    // Use EdgeRuntime.waitUntil() so the Deno Deploy isolate does NOT wait
-    // for these promises to settle before flushing the response. This prevents
-    // Supabase's edge proxy from sending an HTTP/2 RST_STREAM after the body
-    // is sent, which OkHttp on Android interprets as "unexpected end of stream"
-    // (ROAM-ANDROID-6, 72 events / 26 users).
-    //
-    // Skip gamification when this is a prefetch call (prefetch=true in body)
-    // so the Android prefill queue doesn't award infinite XP in the background.
-    const isPrefetch = body.prefetch === true
-
-    if (!isPrefetch) {
-      const idemKey = `roam:${row.id}:${user.id}:${Math.floor(Date.now() / 60000)}`
+    // ── Gamification: Fire-and-forget (only for non-prefetch, first result only) ─
+    // Gamification is awarded once per user-initiated roam, not per batch entry.
+    if (!isPrefetch && results.length > 0) {
+      const firstRow = results[0]
+      const idemKey = `roam:${firstRow.id}:${user.id}:${Math.floor(Date.now() / 60000)}`
 
       EdgeRuntime.waitUntil(
         (async () => {
@@ -111,7 +127,7 @@ Deno.serve(async (req) => {
             await supabase.rpc('award_xp', {
               p_user_id: user.id,
               p_action: 'roam',
-              p_metadata: { url_id: row.id },
+              p_metadata: { url_id: firstRow.id },
               p_idempotency_key: idemKey,
             })
           } catch (e) {
@@ -121,15 +137,16 @@ Deno.serve(async (req) => {
       )
     }
 
-    return json(roamResult)
+    // Return single object for count=1 (backward compat), array for count>1
+    return json(count === 1 ? results[0] : results, 200, { 'Cache-Control': 'private, max-age=5' })
   } catch (e) {
     console.error('roam handler uncaught error', e)
     return json({ error: 'Discovery failed. Please try again.' }, 500)
   }
 })
-function json(body: unknown, status = 200) {
+function json(body: unknown, status = 200, extraHeaders?: Record<string, string>) {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    headers: { ...corsHeaders, 'Content-Type': 'application/json', ...extraHeaders },
   })
 }

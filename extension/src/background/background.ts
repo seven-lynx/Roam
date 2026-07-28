@@ -16,6 +16,7 @@ declare const __SUPABASE_URL__: string;
 validateEnvironment();
 
 const PREFETCH_KEY = 'prefetch_queue';
+const PERSISTENT_PREFETCH_KEY = 'prefetch_queue_persist'; // survives browser restarts
 const PREFETCH_TTL = 5 * 60 * 1000; // 5 minutes
 const PREFETCH_TARGET = 5; // number of URLs to keep buffered (matches Android warm queue target)
 const RECENT_DOMAINS_KEY = 'recent_domains';
@@ -51,7 +52,10 @@ function normalizeUrl(raw: string): string | null {
     u.protocol = 'https:';
     u.hostname = u.hostname.toLowerCase();
     if (u.hostname.startsWith('www.')) u.hostname = u.hostname.slice(4);
-    const STRIP = ['utm_source','utm_medium','utm_campaign','utm_term','utm_content','fbclid','gclid','mc_cid','mc_eid','ref'];
+    // Canonical tracking-param strip list — keep in sync with:
+    // - Android: MainViewModel.normalizeUrl() (trackingKeys set)
+    // - Web: web/src/lib/constants.ts (TRACKING_PARAMS export)
+    const STRIP = ['utm_source','utm_medium','utm_campaign','utm_term','utm_content','utm_id','fbclid','gclid','ref','source','mc_cid','mc_eid'];
     STRIP.forEach((p) => u.searchParams.delete(p));
     u.hash = '';
     if (u.pathname !== '/' && u.pathname.endsWith('/')) u.pathname = u.pathname.slice(0, -1);
@@ -133,7 +137,33 @@ async function getPrefetchQueue(): Promise<{ data: RoamData; cachedAt: number }[
 
 async function savePrefetchQueue(queue: { data: RoamData; cachedAt: number }[]): Promise<void> {
   await chrome.storage.session.set({ [PREFETCH_KEY]: queue });
+  // Backup to persistent storage so the queue survives browser restarts.
+  // chrome.storage.session is wiped when the browser closes (both Chrome MV3
+  // and Firefox MV3). This persistent copy lets us serve cached URLs immediately
+  // on the next launch, before the prefetch pipeline has time to refill.
+  chrome.storage.local.set({ [PERSISTENT_PREFETCH_KEY]: queue }).catch(() => {});
   void updateBadge();
+}
+
+/** Restores the prefetch queue from persistent storage (survives browser restarts).
+ *  Validates TTL and filters stale entries — called on SW startup. */
+async function restorePersistentPrefetch(): Promise<void> {
+  try {
+    const stored = await chrome.storage.local.get(PERSISTENT_PREFETCH_KEY);
+    const entries = (stored[PERSISTENT_PREFETCH_KEY] ?? []) as { data: RoamData; cachedAt: number }[];
+    const fresh = entries.filter(e => Date.now() - e.cachedAt < PREFETCH_TTL);
+    if (fresh.length > 0) {
+      // Restore to session storage (primary store) so the first roam() call hits cache
+      await chrome.storage.session.set({ [PREFETCH_KEY]: fresh });
+      void updateBadge();
+    }
+    // Clean up stale persistent entries regardless
+    if (fresh.length !== entries.length) {
+      await chrome.storage.local.set({ [PERSISTENT_PREFETCH_KEY]: fresh });
+    }
+  } catch {
+    // Never let prefetch restore failures block SW startup
+  }
 }
 
 async function popFromPrefetch(): Promise<RoamData | null> {
@@ -263,6 +293,9 @@ self.addEventListener('error', (event) => {
 });
 
 // ── Message router ────────────────────────────────────────────────────────────
+// Restore persistent prefetch on SW startup so the first roam() call after a
+// browser restart hits cache instead of waiting for a cold network round-trip.
+restorePersistentPrefetch().finally(() => prefetchNext());
 chrome.runtime.onStartup.addListener(() => { prefetchNext(); });
 chrome.runtime.onInstalled.addListener(() => { prefetchNext(); });
 chrome.runtime.onConnect.addListener((_port) => {

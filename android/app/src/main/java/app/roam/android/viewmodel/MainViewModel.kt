@@ -1725,9 +1725,13 @@ class MainViewModel(
             // Preserve the path but strip a single trailing slash
             val path = parsed.rawPath?.trimEnd('/') ?: ""
             // Drop known analytics / tracking query parameters
+            // Canonical tracking-param strip list — keep in sync with:
+            // - Extension: extension/src/background/background.ts (normalizeUrl STRIP)
+            // - Web:     web/src/lib/constants.ts (TRACKING_PARAMS export)
             val trackingKeys = setOf(
                 "utm_source", "utm_medium", "utm_campaign", "utm_term",
-                "utm_content", "utm_id", "fbclid", "gclid", "ref", "source"
+                "utm_content", "utm_id", "fbclid", "gclid", "ref", "source",
+                "mc_cid", "mc_eid"
             )
             val cleanQuery = parsed.rawQuery
                 ?.split('&')
