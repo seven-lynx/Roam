@@ -6,6 +6,7 @@
 ALTER TABLE public.daily_stats ENABLE ROW LEVEL SECURITY;
 
 -- 2. Service role retains full access (refresh_daily_stats writes via SECURITY DEFINER)
+DROP POLICY IF EXISTS "service_role_full_access" ON public.daily_stats;
 CREATE POLICY "service_role_full_access" ON public.daily_stats
   FOR ALL
   TO service_role
@@ -14,6 +15,7 @@ CREATE POLICY "service_role_full_access" ON public.daily_stats
 
 -- 3. Authenticated users can read (admin dashboard reads via service_role RPC anyway,
 --    but this allows future client-side reads if desired)
+DROP POLICY IF EXISTS "authenticated_select" ON public.daily_stats;
 CREATE POLICY "authenticated_select" ON public.daily_stats
   FOR SELECT
   TO authenticated
