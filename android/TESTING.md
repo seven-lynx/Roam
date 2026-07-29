@@ -99,7 +99,7 @@ The app supports Google OAuth via Chrome Custom Tabs and an inline email/passwor
 - Returning email users land in the authenticated app state.
 - Incorrect credentials show a clear inline error message.
 
-### 3.2 Onboarding (interest categories)
+### 3.3 Onboarding (interest categories)
 
 **Steps:**
 1. From CategoryOnboardingScreen, select one or more categories.
@@ -110,7 +110,7 @@ The app supports Google OAuth via Chrome Custom Tabs and an inline email/passwor
 - `markOnboardingComplete()` advances to the Discover tab without a re-check.
 - Re-launching the app skips onboarding (categories now exist).
 
-### 3.3 Session persistence
+### 3.4 Session persistence
 
 **Steps:**
 1. Sign in.
@@ -122,7 +122,7 @@ The app supports Google OAuth via Chrome Custom Tabs and an inline email/passwor
 - `TokenRefreshWorker` is scheduled (12 h periodic, KEEP policy); a missing refresh
   token resolves to `success()` and does not loop.
 
-### 3.4 Manual deep-link simulation
+### 3.5 Manual deep-link simulation
 
 ```powershell
 adb shell am start -a android.intent.action.VIEW `
@@ -135,7 +135,7 @@ adb shell am start -a android.intent.action.VIEW `
 - A duplicate callback URI within the same process is ignored (no double exchange).
 - No uncaught exceptions in Logcat.
 
-### 3.5 Sign out
+### 3.6 Sign out
 
 **Steps:**
 1. Go to **Settings** → **Sign out**.

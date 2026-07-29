@@ -37,7 +37,7 @@ The discovery function runs directly in PostgreSQL. When you press the button, i
 **Discovery**
 - One button, filtered to your interests
 - 30-minute domain cooldown prevents seeing the same site twice in a row
-- 12% chance of an adjacent topic in discovery mode — intentional serendipity
+- Occasional adjacent topic in discovery mode — intentional serendipity
 - Focus mode lets you narrow discovery to specific topics or categories you select
 - Collection mode stays within a saved list
 
@@ -112,7 +112,7 @@ See [web/README.md](web/README.md) for the current route map and UI spec.
 
 The database does the heavy lifting. Discovery runs as a `plpgsql` RPC (`roam()`) invoked via a Deno Edge Function. Row-Level Security enforces all access control at the database level. Every successful discovery is tracked via `serve_count` for analytics.
 
-Edge Functions (Deno) handle operations that need more than a simple query: `roam`, `rate`, `submit-url`, `save-url`, `collection`, `follow`, `profile`, `feedback`, `report-url`, `log-failed-urls`, `leaderboard`, `share-url`, `delete-user`, `export-user`, `beta-signup`, `send-bulk-email`, `push-notify`.
+Edge Functions (Deno) handle operations that need more than a simple query: `roam`, `rate`, `submit-url`, `save-url`, `collection`, `follow`, `profile`, `feedback`, `report-url`, `log-failed-urls`, `leaderboard`, `share-url`, `delete-user`, `export-user`, `beta-signup`, `send-bulk-email`, `push-notify`, `activity-feed`, `admin-moderation`, `cron-streak-cleanup`, `report-engagement`, `scrape-url`.
 
 **Key tables:**
 
@@ -154,8 +154,8 @@ Kotlin + Jetpack Compose + Supabase Kotlin SDK. Single-activity MVVM with `MainV
 ```
 roam/
 ├── supabase/
-│   ├── migrations/         # 50+ SQL migrations
-│   └── functions/          # 17 Deno Edge Functions
+│   ├── migrations/         # 142 SQL migrations
+│   └── functions/          # 22 Deno Edge Functions
 │       └── _shared/        # CORS, auth helpers, rate limiting, Sentry
 │
 ├── web/                    # Next.js app (Vercel)
@@ -285,6 +285,12 @@ cd web && pnpm test:ci          # Jest CI (coverage + no-watch)
 cd android && ./gradlew test    # JUnit (6 tests)
 cd android && ./gradlew connectedAndroidTest   # requires emulator
 ```
+
+## Changelogs
+
+- [Android](android/CHANGELOG.md)
+- [Android release notes](android/release-notes/)
+- Extension, web, and backend changes are tracked via git history.
 
 ---
 

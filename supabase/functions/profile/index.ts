@@ -65,11 +65,20 @@ Deno.serve(async (req) => {
 
   const { data: profile, error: profileError } = await userClient
     .from('profiles')
-    .select('id, username, display_name, bio, avatar_url, is_public, created_at, xp_total, level, streak_days, max_streak, badge_count')
+    .select('id, username, display_name, bio, avatar_url, is_public, created_at, xp_total, level, max_streak, badge_count')
     .eq('username', username)
     .single()
 
   if (profileError || !profile) return json({ error: 'Profile not found' }, 404)
+
+  // Compute effective streak (resets to 0 if last activity > 24 hours ago)
+  let effectiveStreak = 0
+  try {
+    const { data: streakData } = await adminClient.rpc('get_effective_streak', { p_user_id: profile.id })
+    effectiveStreak = (streakData as { streak_days: number } | null)?.streak_days ?? 0
+  } catch {
+    effectiveStreak = 0
+  }
 
   // Fetch badges using admin client so they're always visible on public profiles
   const [followersRes, followingRes, collectionsRes, badgesRes, collectionsWithCountRes] = await Promise.allSettled([
@@ -116,6 +125,7 @@ Deno.serve(async (req) => {
 
   return json({
     ...profile,
+    streak_days: effectiveStreak,
     follower_count: followers,
     following_count: following,
     collections_count: collectionsCount,

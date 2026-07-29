@@ -2,6 +2,25 @@
 
 All notable changes to the Roam Android app.
 
+## [1.1.9] - 2026-07-29
+
+### Changed
+- Discovery algorithm v29+v30 — 5% TABLESAMPLE for variety, 24-hour domain cooldown, exploration bonus for under-explored subcategories, serendipity mode for occasional wildcards, and subcategory rotation to ensure broader coverage over time. Extracted `eff_score` to a dedicated SQL function for maintainability.
+- Cross-platform performance — Batch URL discovery, response caching, and unified tracking parameters reduce latency and server load across Android, extension, and web.
+
+### Fixed
+- Restore last URL after process death — The app no longer shows a blank screen when returning after Android kills the WebView process. The last viewed URL is saved and restored automatically.
+- Config sheet now shows current URL — Tapping the swipe-up sheet displays the page URL with a copy-to-clipboard button for quick sharing.
+- Collections now load on demand — Opening the config sheet triggers collection fetch so the "Add to collection" picker always shows up-to-date lists.
+- Sentry — Resolved top crashes and errors across Android, including renderer death recovery edge cases and stale callback guards.
+- Extension OAuth sign-in fixed on both Chrome and Firefox — Chrome uses dual-path `launchWebAuthFlow` with tab fallback; Firefox uses `postMessage` fallback. Removed conflicting `service_worker` key and guarded `chrome.commands` for Firefox compatibility.
+- Extension prefetch improvements — Parallelized reachability checks, added prefetch throttling, deferred `recordUrlVisit` to reduce background work, and fixed focus-mode prefetch regression.
+
+### Backend
+- Idempotent RLS policies — Added `DROP POLICY IF EXISTS` before `CREATE POLICY` to make migrations repeatable.
+- Fixed `evaluate_badges` return type mismatch — Added `DROP FUNCTION` before `CREATE OR REPLACE`.
+- CI — Declared `EdgeRuntime` type for Deno checks to pass in CI pipeline.
+
 ## [1.1.8] - 2026-07-10
 
 ### Fixed

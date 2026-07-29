@@ -17,7 +17,7 @@ The Next.js 16 web application for Roam. The web surface is the account-manageme
 ## Features
 
 ### Onboarding
-- **Create account** — Google OAuth, GitHub OAuth, or email/password
+- **Create account** — Google OAuth or email/password
 - **Pick interests** — select categories you care about (pillar or topic mode)
 - **Email verification** — confirmation flow for email sign-up
 
@@ -56,6 +56,7 @@ The Next.js 16 web application for Roam. The web surface is the account-manageme
 | `/auth/verify-email` | Client Component | No | Email confirmation screen with resend |
 | `/forgot-password` | Client Component | No | Request password reset email |
 | `/auth/reset-password` | Client Component | No | Set new password from email link |
+| `/following` | Client Component | No | Activity feed from followed users |
 | `/u/[username]` | Server Component | No | Public user profile + activity |
 | `/collections/[slug]` | Server Component | No | Public collection view |
 | `/collections` | Client Component | No | Browse all public collections |
@@ -67,7 +68,6 @@ The Next.js 16 web application for Roam. The web surface is the account-manageme
 | `/admin` | Server shell + Client Component | Yes (admin role) | Moderation queue + analytics |
 | `/how-it-works` | Server Component | No | Product overview and features |
 | `/android-beta` | Client Component | No | Android beta sign-up page |
-| `/forgot-password` | Client Component | No | Request password reset email |
 | `/privacy` | Server Component | No | Privacy policy |
 | `/terms` | Server Component | No | Terms of service |
 | `/api/unsubscribe` | Route handler | No | Email notification unsubscribe |
@@ -117,8 +117,10 @@ web/
 │   │   ├── badges/        # Badge gallery with unlock details
 │   │   ├── collections/   # Public collection listing + [slug] detail
 │   │   ├── error.tsx      # Global error boundary
+│   │   ├── following/     # Activity feed from followed users
 │   │   ├── forgot-password/
 │   │   ├── how-it-works/  # Product tour
+│   │   ├── leaderboard/   # Weekly, monthly, and all-time XP rankings
 │   │   ├── privacy/       # Privacy Policy
 │   │   ├── profile/       # Profile view + edit (protected)
 │   │   ├── settings/      # User account settings (protected)

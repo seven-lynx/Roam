@@ -199,8 +199,8 @@ The app supports **Google OAuth** and **email/password** from the onboarding scr
 
 | Queue | Size | What it holds |
 |---|---|---|
-| **Hot** | 3 | HEAD-validated URLs — served instantly on tap |
-| **Warm** | 5 | Fetched from the API but not yet validated — promoted to hot as slots open |
+| **Hot** | 12 | HEAD-validated URLs — served instantly on tap |
+| **Warm** | 15 | Fetched from the API but not yet validated — promoted to hot as slots open |
 
 On each Roam tap, a URL pops off the hot queue instantly. The hot queue immediately refills by pulling from warm and HEAD-checking each entry (5 s timeout). Warm refills in parallel with fresh API calls. This keeps 8 URLs buffered at all times and means hot-queue replenishment is ~5 s (just a HEAD check) rather than ~API + HEAD.
 

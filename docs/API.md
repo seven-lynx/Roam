@@ -1,8 +1,8 @@
- # Roam Supabase API Reference
+# Roam Supabase API Reference
 
 Complete documentation of all Supabase Edge Functions and PostgreSQL RPC functions used by Roam clients.
 
-**Last Updated:** 2026-07-07  
+**Last Updated:** 2026-07-29  
 **Base URL:** `https://<PROJECT_ID>.supabase.co`  
 **Authentication:** Bearer token in `Authorization: Bearer <JWT>` header (except public endpoints)
 
@@ -21,12 +21,16 @@ Complete documentation of all Supabase Edge Functions and PostgreSQL RPC functio
   - [`share-url` — Share URLs with users](#share-url--share-urls-with-users)
   - [`leaderboard` — Fetch leaderboard rankings](#leaderboard--fetch-leaderboard-rankings)
   - [`feedback` — Submit feedback](#feedback--submit-feedback)
-- [`report-url` — Report broken link](#report-url--report-broken-link)
-- [`log-failed-urls` — Log failed URLs](#log-failed-urls--log-failed-urls)
-- [`export-user` — Export user data](#export-user--export-user-data)
-- [`delete-user` — Delete user account](#delete-user--delete-user-account)
-- [`beta-signup` — Beta waitlist signup](#beta-signup--beta-waitlist-signup)
-- [`send-bulk-email` — Send bulk emails to subscribers](#send-bulk-email--send-bulk-emails-to-subscribers)
+  - [`report-url` — Report broken link](#report-url--report-broken-link)
+  - [`log-failed-urls` — Log failed URLs](#log-failed-urls--log-failed-urls)
+  - [`report-engagement` — Report dwell time and skip status](#report-engagement--report-dwell-time-and-skip-status)
+  - [`activity-feed` — Following activity feed](#activity-feed--following-activity-feed)
+  - [`admin-moderation` — Admin moderation queue](#admin-moderation--admin-moderation-queue)
+  - [`scrape-url` — Moderator OG scraper](#scrape-url--moderator-og-scraper)
+  - [`export-user` — Export user data](#export-user--export-user-data)
+  - [`delete-user` — Delete user account](#delete-user--delete-user-account)
+  - [`beta-signup` — Beta waitlist signup](#beta-signup--beta-waitlist-signup)
+  - [`send-bulk-email` — Send bulk emails to subscribers](#send-bulk-email--send-bulk-emails-to-subscribers)
 - [RPC Functions (Database)](#rpc-functions-database)
   - [`roam()` — Weighted-random URL discovery](#roam--weighted-random-url-discovery)
   - [`admin_url_stats()` — Fetch admin dashboard statistics](#admin_url_stats--fetch-admin-dashboard-statistics)
@@ -42,7 +46,7 @@ All Edge Functions are accessed at: `https://<PROJECT_ID>.supabase.co/functions/
 
 ### `roam` — Get discovery URL
 
-Returns a single weighted-random unseen URL matching the user's category preferences and language settings.
+Returns a single weighted-random unseen URL matching the user's category preferences and language settings. Supports batch requests for prefetching.
 
 **Endpoint:** `POST /functions/v1/roam`
 
@@ -51,50 +55,71 @@ Returns a single weighted-random unseen URL matching the user's category prefere
 **Request Body:**
 ```json
 {
-  "collection_id": "uuid|null",  // Optional: filter to collection instead of categories
+  "collection_id": "uuid|null",      // Optional: filter to collection instead of categories
+  "exclude_domain": "example.com",   // Optional: exclude single domain
+  "exclude_domains": ["example.com"], // Optional: exclude multiple domains
+  "category_id": "uuid|null",        // Optional: filter to a specific pillar category
+  "subcategory_id": "uuid|null",     // Optional: filter to a specific subcategory
+  "count": 1,                        // Optional: batch count (1–10, defaults to 1)
+  "prefetch": false                  // Optional: when true, suppresses gamification awards
 }
 ```
 
-**Response (200):**
+**Response (200) — Single URL (count=1):**
 ```json
 {
+  "id": "uuid",
   "url": "https://example.com/article",
-  "url_id": "uuid",
   "title": "Article Title",
   "description": "Short description of the content...",
   "og_image_url": "https://example.com/image.jpg",
   "category_id": "uuid",
   "subcategory_id": "uuid",
-  "subcategory_label": "Science",
-  "source": "wikipedia",
-  "language": "en"
+  "wilson_score": 0.85
 }
+```
+
+**Response (200) — Batch (count>1):**
+```json
+[
+  { "id": "uuid", "url": "...", "title": "...", "wilson_score": 0.85 },
+  { "id": "uuid", "url": "...", "title": "...", "wilson_score": 0.72 }
+]
 ```
 
 **Error Responses:**
 - **401** — Unauthorized (invalid or missing token)
 - **404** — No URLs available (all categories explored or language-filtered to empty pool)
-- **500** — Internal server error
+- **500** — Internal server error (non-timeout RPC errors)
+- **503** — Discovery timed out (RPC query exceeded 35s statement timeout)
 
 **Notes:**
-- Automatically marks the returned URL as "seen" in `seen_urls` table (cannot be served twice to same user)
-- Respects `user_settings.preferred_languages` — filters results to selected languages
-- Respects `user_settings.skip_paywalled` — excludes domains in `paywalled_domains` table if true
+- Internally calls the `roam()` RPC function which handles seen URL tracking, language filtering, paywall filtering, domain cooldown, and scoring
 - When `collection_id` is provided, category filtering is bypassed and URLs are drawn from `collection_items`
-- Returns 404 if user has no categories selected or no URLs match their filters
+- When `count > 1`, multiple RPC calls are made and results are returned as an array; duplicate URLs within the batch are de-duplicated
+- Gamification (streak update + XP award) is fire-and-forget for non-prefetch, first result only
+- Response includes `Cache-Control: private, max-age=5` header
 
 **Example (Web):**
 ```typescript
 const response = await supabase.functions.invoke('roam', {
   body: { collection_id: null },
 });
-const { url, title, url_id } = response.data;
+const { url, title, id } = response.data;
 ```
 
 **Example (Extension):**
 ```typescript
 const response = await supabase.functions.invoke('roam');
 chrome.tabs.update(tab.id, { url: response.data.url });
+```
+
+**Example (Batch prefetch):**
+```typescript
+const { data } = await supabase.functions.invoke('roam', {
+  body: { count: 5, prefetch: true }
+});
+// data is an array of 5 URLs (fewer if pool is exhausted)
 ```
 
 ---
@@ -206,40 +231,73 @@ if (response.error?.status === 422) {
 
 ### `profile` — Get public profile
 
-Fetches a user's public profile data. Unauthenticated endpoint.
+Fetches a user's public profile data including gamification stats, badges, and public collections. Supports both GET and POST for compatibility with web and Android clients.
 
-**Endpoint:** `GET /functions/v1/profile?username=<username>`
+**Endpoint:** `GET /functions/v1/profile?username=<username>` or `POST /functions/v1/profile` with `{ "username": "..." }`
 
 **Authentication:** None required (public)
 
-**Query Parameters:**
+**Query Parameters (GET):**
 - `username` (required) — The username to fetch
+
+**Request Body (POST):**
+```json
+{
+  "username": "alice"
+}
+```
 
 **Response (200):**
 ```json
 {
-  "user_id": "uuid",
+  "id": "uuid",
   "username": "alice",
   "display_name": "Alice",
   "bio": "Web explorer",
   "avatar_url": "https://...",
   "is_public": true,
+  "created_at": "2026-04-01T12:00:00Z",
+  "xp_total": 15420,
+  "level": 12,
+  "max_streak": 30,
+  "badge_count": 15,
+  "streak_days": 7,
   "follower_count": 42,
   "following_count": 10,
   "collections_count": 5,
-  "created_at": "2026-04-01T12:00:00Z"
+  "collections": [
+    {
+      "id": "uuid",
+      "name": "My Reading List",
+      "slug": "reading-list",
+      "created_at": "2026-05-01T12:00:00Z"
+    }
+  ],
+  "badges": [
+    {
+      "badge_id": "uuid",
+      "name": "Early Adopter",
+      "description": "...",
+      "icon_url": "https://...",
+      "is_unlocked": true,
+      "unlocked_at": "2026-04-15T12:00:00Z"
+    }
+  ]
 }
 ```
 
 **Error Responses:**
+- **400** — Missing username parameter
 - **404** — User not found
+- **405** — Method not allowed (must be GET or POST)
 - **429** — Rate limit exceeded (60 requests per minute per IP)
 - **500** — Internal server error
 
 **Notes:**
-- Rate limited to prevent username enumeration attacks
-- Returns `follower_count` and `following_count` (computed at request time, not stored)
-- Returns an empty profile for private users, without exposing collections or follower data
+- Badges are fetched via `get_user_badges()` RPC and synced to profile `badge_count` if they drift
+- Effective streak (`streak_days`) computed via `get_effective_streak()` — resets to 0 if last activity > 24 hours ago
+- All counts (followers, following, collections) computed at request time via service-role client
+- Private profiles are hidden from unauthenticated callers (RLS on `profiles` table)
 
 **Example (Web):**
 ```typescript
@@ -268,7 +326,7 @@ Create, update, and manage collections. Handles multiple actions via the `action
   "description": "URLs I liked",
   "is_public": true,
   "slug": "my-collection",
-  "url_id": "uuid|null",  // For add_item / remove_item
+  "url_id": "uuid|null"  // For add_item / remove_item
 }
 ```
 
@@ -799,6 +857,275 @@ Extension/app internal endpoint: batch log failed URLs for moderation review.
 
 ---
 
+### `report-engagement` — Report dwell time and skip status
+
+Reports how long the user dwelled on a served URL and whether they skipped it. Called before requesting the next Roam. Idempotent — last write wins.
+
+**Endpoint:** `POST /functions/v1/report-engagement`
+
+**Authentication:** Required (Bearer token)
+
+**Request Body:**
+```json
+{
+  "url_id": "uuid",
+  "dwell_ms": 4500,
+  "skipped": false
+}
+```
+
+**Response (200):**
+```json
+{
+  "ok": true
+}
+```
+
+**Error Responses:**
+- **400** — Invalid input (missing url_id, negative dwell_ms, or missing skipped)
+- **401** — Unauthorized
+- **405** — Method not allowed (must be POST)
+- **500** — Internal server error
+
+**Details:**
+- Updates the `seen_urls` row (created by the `roam()` RPC) with `dwell_ms` and `skipped` status
+- The `seen_urls` row must already exist — this function does not create it
+- Idempotent: multiple calls for the same `(user, url)` are safe, last write wins
+- Typical client logic: `dwell = now - pageLoadTimestamp`, `skipped = dwell < 3000ms`
+
+**Example (Web):**
+```typescript
+const dwellMs = Date.now() - pageLoadTime;
+await supabase.functions.invoke('report-engagement', {
+  body: {
+    url_id: currentUrlId,
+    dwell_ms: dwellMs,
+    skipped: dwellMs < 3000
+  }
+});
+```
+
+---
+
+### `activity-feed` — Following activity feed
+
+Returns paged activity from users the authenticated user follows (public profiles only).
+
+**Endpoint:** `GET /functions/v1/activity-feed?limit=50&offset=0&before=2026-07-01T00:00:00Z`
+
+**Authentication:** Required (Bearer token)
+
+**Query Parameters:**
+- `limit` — Max items (default 50, capped at 100)
+- `offset` — Pagination offset (default 0)
+- `before` — ISO timestamp; returns activities before this time (for cursor-based pagination)
+
+**Response (200):**
+```json
+{
+  "activities": [
+    {
+      "user_id": "uuid",
+      "username": "alice",
+      "display_name": "Alice",
+      "avatar_url": "https://...",
+      "activity_type": "rated" | "saved" | "shared" | "created_collection" | "followed",
+      "url_id": "uuid|null",
+      "url_title": "Article Title|null",
+      "collection_name": "My Collection|null",
+      "created_at": "2026-07-01T15:30:00Z"
+    }
+  ],
+  "has_more": true
+}
+```
+
+**Error Responses:**
+- **401** — Unauthorized
+- **500** — Internal server error
+
+**Details:**
+- Backed by the `get_activity_feed()` RPC function
+- Shows public activities from followed users who have public profiles
+- Activity types: rated, saved, shared, created_collection, followed
+- Uses `pg_notify` for real-time delivery; this endpoint provides historical feed
+
+**Example (Web):**
+```typescript
+const { data } = await supabase.functions.invoke('activity-feed', {
+  body: { limit: 20 }
+});
+// Or via fetch GET:
+const res = await fetch(`${SUPABASE_URL}/functions/v1/activity-feed?limit=20`, {
+  headers: { Authorization: `Bearer ${token}` }
+});
+const { activities, has_more } = await res.json();
+```
+
+---
+
+### `admin-moderation` — Admin moderation queue
+
+Admin/moderator endpoint for managing the URL moderation queue, URL reports, and stats.
+
+**Endpoint:** `POST /functions/v1/admin-moderation`
+
+**Authentication:** Required (Bearer token with `admin` or `moderator` role)
+
+**Request Body:**
+```json
+{
+  "action": "list" | "approve" | "reject" | "stats" | "reports" | "restore",
+  "id": "uuid|null",        // For approve / reject (moderation_queue.id)
+  "url_id": "uuid|null"     // For restore (sets urls.inactive = false)
+}
+```
+
+**Response (200) for each action:**
+
+**list:**
+```json
+{
+  "items": [
+    {
+      "id": "uuid",
+      "url": "https://example.com",
+      "submitter_username": "bob",
+      "status": "pending",
+      "subcategory_label": "Science",
+      "created_at": "2026-07-01T12:00:00Z"
+    }
+  ]
+}
+```
+
+**approve / reject:**
+```json
+{ "ok": true }
+```
+
+**stats:**
+```json
+{
+  "pending": 42,
+  "approved": 1500,
+  "rejected": 230,
+  "reports": 15
+}
+```
+
+**reports:**
+```json
+{
+  "reports": [
+    {
+      "url_id": "uuid",
+      "url": "https://broken.example.com",
+      "report_count": 3,
+      "latest_report_at": "2026-07-15T10:00:00Z"
+    }
+  ]
+}
+```
+
+**restore:**
+```json
+{ "ok": true }
+```
+
+**Error Responses:**
+- **400** — Invalid action or missing required parameters
+- **401** — Unauthorized (invalid or missing token)
+- **403** — Forbidden (user is not admin or moderator)
+- **405** — Method not allowed (must be POST)
+- **500** — Internal server error
+
+**Details:**
+- `list` — Returns moderation queue entries with submitter profile and subcategory info
+- `approve` — Updates moderation_queue status to 'approved', upserts URL into `urls` table
+- `reject` — Updates moderation_queue status to 'rejected'
+- `stats` — Returns aggregate counts: pending, approved, rejected, reports
+- `reports` — Returns `url_reports` grouped by URL with report counts
+- `restore` — Sets `urls.inactive = false` (reactivates a reported URL)
+- Uses service-role key for RLS-bypassing write operations
+
+**Example (Web admin):**
+```typescript
+// List pending
+const { data } = await supabase.functions.invoke('admin-moderation', {
+  body: { action: 'list' }
+});
+
+// Approve
+await supabase.functions.invoke('admin-moderation', {
+  body: { action: 'approve', id: pendingItemId }
+});
+```
+
+---
+
+### `scrape-url` — Moderator OG scraper
+
+Moderator-only endpoint. Fetches OG metadata for a URL and inserts it directly into the `urls` table with `approved=true`, bypassing the moderation queue.
+
+**Endpoint:** `POST /functions/v1/scrape-url`
+
+**Authentication:** Required (Bearer token with `admin` or `moderator` role)
+
+**Request Body:**
+```json
+{
+  "url": "https://example.com/article",
+  "category_ids": ["uuid", "uuid"],   // Up to 2 pillar UUIDs (first is primary for roam() compat)
+  "subcategory_id": "uuid",           // Primary subcategory UUID (for roam() compat)
+  "tags": ["science", "biology"]       // Freeform semantic tags, normalized to slug form
+}
+```
+
+**Response (200):**
+```json
+{
+  "id": "uuid",
+  "url": "https://example.com/article",
+  "title": "Article Title",
+  "description": "Short description...",
+  "og_image_url": "https://example.com/image.jpg",
+  "language": "en",
+  "tags": ["science", "biology"],
+  "category_ids": ["uuid", "uuid"]
+}
+```
+
+**Error Responses:**
+- **400** — Invalid URL or missing required fields
+- **401** — Unauthorized
+- **403** — Forbidden (user is not admin or moderator)
+- **422** — Safe Browsing API rejected URL as unsafe
+- **500** — Failed to fetch OG metadata or insert URL
+- **503** — Safe Browsing API temporarily unavailable
+
+**Details:**
+- Fetches the target URL with a 10s timeout and extracts OG metadata (`og:title`, `og:description`, `og:image`, `language`, canonical URL)
+- Normalizes the URL via the shared `normalizeUrl()` utility
+- Checks Safe Browsing API before inserting
+- Tags are normalized to lowercase hyphenated slugs (e.g., "Machine Learning" → "machine-learning")
+- Inserts directly into `urls` with `approved=true`, bypassing the moderation queue entirely
+- Used by seeders and manual content curation workflows
+
+**Example (Seeder script):**
+```typescript
+const res = await supabase.functions.invoke('scrape-url', {
+  body: {
+    url: 'https://example.com/cool-article',
+    category_ids: [scienceCategoryId, techCategoryId],
+    subcategory_id: physicsSubcategoryId,
+    tags: ['physics', 'quantum-computing']
+  }
+});
+```
+
+---
+
 ### `export-user` — Export user data
 
 Exports all user data as a JSON file for GDPR compliance. Returns a download link.
@@ -888,48 +1215,125 @@ if (confirm('Are you sure? This cannot be undone.')) {
 
 ---
 
+### `beta-signup` — Beta waitlist signup
+
+(Public endpoint) Adds an email to the beta waitlist.
+
+**Endpoint:** `POST /functions/v1/beta-signup`
+
+**Authentication:** None required (public)
+
+**Request Body:**
+```json
+{
+  "email": "user@example.com"
+}
+```
+
+**Response (200):**
+```json
+{
+  "ok": true
+}
+```
+
+**Error Responses:**
+- **400** — Invalid email format
+- **409** — Email already registered on the waitlist
+- **500** — Internal server error
+
+**Details:**
+- Email is stored in the `beta_signups` table
+- No confirmation email is sent at signup time (handled separately via `send-bulk-email`)
+
+---
+
+### `send-bulk-email` — Send bulk emails to subscribers
+
+Admin-only endpoint for sending bulk emails to beta signup subscribers.
+
+**Endpoint:** `POST /functions/v1/send-bulk-email`
+
+**Authentication:** Required (Bearer token with admin role)
+
+**Request Body:**
+```json
+{
+  "subject": "Roam Update",
+  "body_html": "<p>Hello from Roam!</p>"
+}
+```
+
+**Response (200):**
+```json
+{
+  "ok": true,
+  "sent_count": 150
+}
+```
+
+**Error Responses:**
+- **400** — Missing subject or body_html
+- **401** — Unauthorized
+- **403** — Forbidden (not admin)
+- **500** — Internal server error
+
+---
+
 ## RPC Functions (Database)
 
 Called via `supabase.rpc()`, not HTTP. These are PostgreSQL functions that run server-side.
 
 ### `roam()` — Weighted-random URL discovery
 
-Primary RPC function for URL discovery. Called internally by the `roam` Edge Function. Selects a weighted-random URL from the user's categories, excludes seen URLs, handles language filtering and paywall filtering.
+Primary RPC function for URL discovery. Selects a weighted-random URL from the user's categories, excludes seen URLs, handles language filtering and paywall filtering. **Current version: v29.**
 
 **Call Signature:**
 ```sql
 SELECT * FROM roam(
   p_user_id uuid,
-  p_collection_id uuid = NULL
+  p_collection_id uuid DEFAULT NULL,
+  p_exclude_domain text DEFAULT NULL,
+  p_category_id uuid DEFAULT NULL,
+  p_subcategory_id uuid DEFAULT NULL,
+  p_exclude_domains text[] DEFAULT NULL
 )
 ```
 
 **Parameters:**
 - `p_user_id` — User ID (required)
 - `p_collection_id` — Collection ID (optional; if provided, ignores category preferences)
+- `p_exclude_domain` — Single domain to exclude (legacy; prefer `p_exclude_domains`)
+- `p_category_id` — Filter to a specific pillar category (optional)
+- `p_subcategory_id` — Filter to a specific subcategory (optional)
+- `p_exclude_domains` — Array of domains to exclude (optional; merged with `p_exclude_domain` if both provided)
 
 **Returns (single row):**
 ```
-url_id, url, title, description, og_image_url, category_id, subcategory_id, 
-subcategory_label, source, language
+id, url, title, description, og_image_url, category_id, subcategory_id, wilson_score
 ```
 
-**Details:**
-- **Category filtering:** Reads `user_categories` table to find selected categories, then queries `urls` where category matches
-- **Language filtering:** Reads `user_settings.preferred_languages`, filters `urls` where language = ANY(preferred_languages); defaults to `['en']` if not set
-- **Paywall filtering:** If `user_settings.skip_paywalled = true`, excludes URLs from `paywalled_domains` table
-- **Seen URL exclusion:** Skips URLs in the user's `seen_urls` table from the last 30 days
-- **Weighted random:** Uses `(wilson_score + 0.1) * random()` to weight results by community rating while ensuring zero-rated URLs aren't buried
-- **Seen write:** Automatically inserts a `seen_urls` row for the returned URL before returning, preventing duplicate serves
+**Scoring Algorithm (v29):**
+- **Candidate pool:** `TABLESAMPLE BERNOULLI(5)` — samples 5% of eligible URLs for a larger and more diverse candidate set
+- **Domain cooldown:** 24 hours (prevents domain fatigue — the same domain won't surface again within a day)
+- **Seen URL window:** 10,000 most recent seen URLs (prevents power-user cliff at 2,000)
+- **Score weighting:** 70% Wilson score / 30% random (signal matters more than pure randomness)
+- **Exploration bonus:** Low-serve-count URLs get an extra boost to surface underexplored content
+- **Serendipity mode:** 5% chance to pick from a subcategory the user has never visited
+- **Subcategory rotation:** 25% chance of adjacent subcategory (same pillar, different subcategory)
+- **Recency decay:** Very gentle (-0.0003) — evergreen content stays competitive
+- **Language filtering:** Filters `urls` where language matches `user_settings.preferred_languages`; defaults to `['en']`
+- **Paywall filtering:** If `user_settings.skip_paywalled = true`, excludes domains from `paywalled_domains` table
+- **Seen URL exclusion:** Skips URLs in the user's `seen_urls` table
 - **Empty pool:** Returns NULL row if no URLs match the filters
 
-**Implementation note:** Runs as `SECURITY DEFINER` (elevated privileges) to insert `seen_urls` rows automatically.
+**Implementation note:** Runs as `SECURITY DEFINER` (elevated privileges) with `statement_timeout = '35s'`. The Edge Function handles timeout gracefully and returns 503.
 
 ---
 
 ### `admin_url_stats()` — Fetch admin dashboard statistics
 
-Efficiently fetches aggregated dashboard statistics for the admin panel without timing out on the 3.1M-row `urls` table.
+Efficiently fetches aggregated dashboard statistics for the admin panel without timing out on the large `urls` table.
 
 **Call Signature:**
 ```sql
@@ -982,14 +1386,15 @@ console.log(`Active users (7d): ${stats.data.active_users_week}`);
 |------|---------|----------|
 | **400** | Bad request (invalid input) | Check request schema, fix typos, validate JSON |
 | **401** | Unauthorized (missing/invalid token) | Refresh auth, re-authenticate user |
-| **403** | Forbidden (permission denied) | User lacks required permissions |
+| **403** | Forbidden (permission denied) | User lacks required permissions (e.g., not admin/moderator) |
 | **404** | Not found (user, URL, or empty pool) | Verify IDs exist; if empty pool, ask user to add categories |
-| **422** | Unprocessable content (Safe Browsing rejection) | URL flagged as unsafe; don't resubmit |
-| **409** | Conflict (slug collision, already following) | Choose different slug or unfollow first |
+| **405** | Method not allowed | Check HTTP method (e.g., GET vs POST requirements) |
+| **409** | Conflict (slug collision, already following, duplicate share) | Choose different slug, unfollow first, or check for duplicates |
 | **413** | Payload too large (collection item limit) | Remove items from collection before adding more |
+| **422** | Unprocessable content (Safe Browsing rejection) | URL flagged as unsafe; don't resubmit |
 | **429** | Too many requests (rate limit exceeded) | Wait + retry (see Retry-After header) |
 | **500** | Internal server error | Retry after 1–5 seconds; if persists, contact support |
-| **503** | Service unavailable (Safe Browsing API down) | Temporarily unavailable; retry later |
+| **503** | Service unavailable (Safe Browsing API down or query timeout) | Temporarily unavailable; retry later |
 
 ---
 
@@ -1008,6 +1413,11 @@ console.log(`Active users (7d): ${stats.data.active_users_week}`);
 | `leaderboard` | 30 | 1 minute (per authenticated user) |
 | `feedback` | 5 | 10 minutes (per IP address) |
 | `report-url` | 20 | 10 minutes (per authenticated user) |
+| `report-engagement` | 60 | 1 minute (per authenticated user) |
+| `activity-feed` | 30 | 1 minute (per authenticated user) |
+| `admin-moderation` | 60 | 1 minute (per authenticated user) |
+| `scrape-url` | 30 | 1 minute (per authenticated user) |
+| `export-user` | 1 | 24 hours (per authenticated user) |
 
 **Rate limit headers:** Response includes `X-RateLimit-Limit`, `X-RateLimit-Remaining`, and `Retry-After` headers.
 
@@ -1039,16 +1449,23 @@ await supabase
 
 // 3. Get a discovery URL
 const response = await supabase.functions.invoke('roam');
-const { url, url_id } = response.data;
+const { url, id } = response.data;
 
-// 4. Load URL and rate it
+// 4. Load URL, report engagement before next roam
+const pageLoadTime = Date.now();
 window.open(url);
-// (after user rates)
-await supabase.functions.invoke('rate', {
-  body: { url_id, value: 1 }
+// (after user dwells)
+const dwellMs = Date.now() - pageLoadTime;
+await supabase.functions.invoke('report-engagement', {
+  body: { url_id: id, dwell_ms: dwellMs, skipped: dwellMs < 3000 }
 });
 
-// 5. Next roam
+// 5. Rate it
+await supabase.functions.invoke('rate', {
+  body: { url_id: id, value: 1 }
+});
+
+// 6. Next roam
 const nextResponse = await supabase.functions.invoke('roam');
 ```
 
@@ -1061,7 +1478,7 @@ webView.loadUrl(roamUrl.url)
 
 // Rate the URL
 supabase.functions.invoke("rate", Json {
-  put("url_id", roamUrl.url_id)
+  put("url_id", roamUrl.id)
   put("value", 1)
 })
 ```

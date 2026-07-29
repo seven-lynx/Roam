@@ -5,7 +5,7 @@ This checklist covers the current web surface: onboarding, auth, profile, settin
 ## 1. Authentication
 
 ### 1.1 Google OAuth
-- [ ] Navigate to `https://roamtheweb.app/join`
+- [ ] Navigate to `http://localhost:3000/join` (or staging URL)
 - [ ] Click the Google sign-in button
 - [ ] Complete the OAuth flow
 - [ ] Return to Roam without errors

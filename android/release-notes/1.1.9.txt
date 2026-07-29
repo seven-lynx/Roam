@@ -1,0 +1,9 @@
+What's new in 1.1.9:
+
+• Smarter discovery — The algorithm now rotates through more subcategories, cools down recently-shown domains for 24 hours, and occasionally throws in a wildcard page to keep things fresh. Less repetition, more "how did I get here?" moments.
+• No more blank screens — If Android kills the app in the background, it now picks up right where you left off instead of showing an empty white page.
+• Current URL in the config sheet — Swipe up and you'll see the page URL with a one-tap copy button. No more hunting through share menus.
+• Collections load on demand — Opening the config sheet now fetches your latest collections, so "Add to collection" always has the right list.
+• Performance improvements — Faster page loads, less data usage, smoother discovery queue refills across the board.
+• Extension 0.4.0 — OAuth sign-in is fixed on both Chrome and Firefox (no more "can't log in" on Firefox), prefetch is faster and smarter, and we've squashed the top Sentry errors across both platforms.
+• Various crash fixes and stability improvements.

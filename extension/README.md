@@ -30,8 +30,8 @@ The build reads two public configuration values from a `.env` file located **one
 Create `../.env` (relative to this `extension/` directory) with the following content:
 
 ```
-SUPABASE_URL=https://yrhckctwtdjowulfuaqc.supabase.co
-SUPABASE_ANON_KEY=sb_publishable_HNqqRWeISKlQ6TRvOvsAAQ_MqEbP5ak
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_ANON_KEY=sb_publishable_YOUR_KEY_HERE
 ```
 
 These are the same values baked into the submitted extension package.

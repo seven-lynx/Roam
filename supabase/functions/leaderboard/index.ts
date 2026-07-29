@@ -89,6 +89,22 @@ Deno.serve(async (req) => {
       }
     })
 
+    // Compute effective streaks for all entries (resets to 0 if last activity > 24h ago)
+    // Run in parallel with individual RPC calls; if any fail, fall back to stored value
+    await Promise.all(
+      entries.map(async (entry) => {
+        try {
+          const { data } = await adminClient.rpc('get_effective_streak', { p_user_id: entry.user_id })
+          const effective = (data as { streak_days: number } | null)?.streak_days
+          if (typeof effective === 'number') {
+            entry.streak_days = effective
+          }
+        } catch {
+          // Keep the stored streak_days from profiles as fallback
+        }
+      })
+    )
+
     return json(corsHeaders, { period, entries, updated_at: new Date().toISOString() })
   } catch (e) {
     console.error('leaderboard error', e)

@@ -53,6 +53,7 @@ jobs:
           supabase functions deploy delete-user
           supabase functions deploy export-user
           supabase functions deploy beta-signup
+          supabase functions deploy cron-streak-cleanup
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
 
