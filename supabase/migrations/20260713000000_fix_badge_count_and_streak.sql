@@ -186,6 +186,10 @@ GRANT EXECUTE ON FUNCTION public.update_streak TO authenticated, service_role;
 -- to the unlocked insert path, and by also calling sync_profile_badge_count
 -- at the end of evaluation.
 
+-- Must DROP first because the return type changed from SETOF user_badge_result
+-- to TABLE(...) which is incompatible with CREATE OR REPLACE.
+DROP FUNCTION IF EXISTS public.evaluate_badges(UUID) CASCADE;
+
 CREATE OR REPLACE FUNCTION public.evaluate_badges(p_user_id UUID)
 RETURNS TABLE(badge_id UUID, badge_slug TEXT, badge_name TEXT, badge_description TEXT, badge_icon TEXT, badge_category TEXT, badge_tier SMALLINT, badge_xp_reward INT)
 LANGUAGE plpgsql SECURITY DEFINER AS $$
