@@ -141,10 +141,47 @@ class RoamRepository {
         return try {
             val response = supabase.functions.invoke("roam", body = body)
             if (response.status.value == 404) return null // pool exhausted
-            json.decodeFromString(response.body())
+            json.decodeFromString<RoamUrl>(response.bodyAsText())
         } catch (e: io.github.jan.supabase.exceptions.RestException) {
             if (e.statusCode == 404) return null // pool exhausted — not an error (ROAM-ANDROID-10)
             throw e // re-throw real errors
+        }
+    }
+
+    /**
+     * Batch fetch multiple URLs in a single API call using the edge function's
+     * `count` parameter. Returns up to [count] URLs (may be fewer if pool runs low).
+     * Used by the prefetch warm-fill loop to reduce API calls from 27 to ~6.
+     */
+    suspend fun roamBatch(
+        count: Int = 5,
+        collectionId: String? = null,
+        excludeDomain: String? = null,
+        categoryId: String? = null,
+        subcategoryId: String? = null,
+        prefetch: Boolean = true,
+    ): List<RoamUrl> {
+        val body = buildJsonObject {
+            put("count", count)
+            collectionId?.let { put("collection_id", it) }
+            excludeDomain?.let { put("exclude_domain", it) }
+            categoryId?.let { put("category_id", it) }
+            subcategoryId?.let { put("subcategory_id", it) }
+            if (prefetch) put("prefetch", true)
+        }
+
+        if (!ensureAuthenticated()) {
+            val status = supabase.auth.sessionStatus.value
+            throw IllegalStateException("Session not authenticated: $status")
+        }
+
+        return try {
+            val response = supabase.functions.invoke("roam", body = body)
+            if (response.status.value == 404) return emptyList() // pool exhausted
+            json.decodeFromString<List<RoamUrl>>(response.bodyAsText())
+        } catch (e: io.github.jan.supabase.exceptions.RestException) {
+            if (e.statusCode == 404) return emptyList() // pool exhausted — not an error
+            throw e
         }
     }
 

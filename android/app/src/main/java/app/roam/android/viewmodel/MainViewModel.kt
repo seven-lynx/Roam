@@ -902,22 +902,20 @@ class MainViewModel(
                             continue
                         }
 
-                        // Fetch candidates. Use a batch size of 2 to leave OkHttp connection
-                        // slots available for the main roam() request and other API calls.
-                        val batchSize = minOf(2, WARM_TARGET - warmSize)
-                        val candidates = (1..batchSize).map {
-                            async {
-                                runCatching {
-                                    repo.roam(
-                                        collectionId = _activeCollectionId.value,
-                                        excludeDomain = excludeDomain,
-                                        categoryId = if (_focusModeEnabled.value) _focusCategoryId.value else null,
-                                        subcategoryId = if (_focusModeEnabled.value) _focusSubcategoryId.value else null,
-                                        prefetch = true,
-                                    )
-                                }.getOrNull()
-                            }
-                        }.awaitAll().filterNotNull()
+                        // Fetch candidates in a single batch API call using the edge
+                        // function's `count` parameter. This replaces N individual API
+                        // calls with 1 batched call, reducing cold-start pressure.
+                        val batchSize = minOf(5, WARM_TARGET - warmSize)
+                        val candidates = runCatching {
+                            repo.roamBatch(
+                                count = batchSize,
+                                collectionId = _activeCollectionId.value,
+                                excludeDomain = excludeDomain,
+                                categoryId = if (_focusModeEnabled.value) _focusCategoryId.value else null,
+                                subcategoryId = if (_focusModeEnabled.value) _focusSubcategoryId.value else null,
+                                prefetch = true,
+                            )
+                        }.getOrElse { emptyList() }
 
                         if (candidates.isEmpty()) {
                             warmFails++
