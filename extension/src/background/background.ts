@@ -33,6 +33,10 @@ let prefetchInFlight: Promise<void> | null = null;
 let lastPrefetchTime = 0;
 const MIN_PREFETCH_INTERVAL = 30 * 1000; // 30 seconds between prefetches
 
+// Focus mode context — tracked so fillPrefetch() can fill with filtered URLs
+// when the user has a category or subcategory filter active.
+let focusContext: { categoryId?: string; subcategoryId?: string } | null = null;
+
 // ── URL normaliser ────────────────────────────────────────────────────────────
 //
 // NOTE: This is the browser-extension copy of the URL normalisation logic.
@@ -189,6 +193,10 @@ async function fillPrefetch(): Promise<void> {
   const queue = await getPrefetchQueue();
   const needed = PREFETCH_TARGET - queue.length;
   if (needed <= 0) return;
+
+  // Skip prefetch when focus mode is active — the queue would fill with
+  // unfocused URLs that the next roam() call would have to discard anyway.
+  if (focusContext) return;
 
   const recentDomains = await getRecentDomains();
   const existingDomains = new Set(queue.map(e => getDomain(e.data.url)).filter(Boolean));
@@ -698,6 +706,9 @@ async function prefetchNext(): Promise<void> {
 async function roam(categoryId?: string, subcategoryId?: string): Promise<Response<RoamData>> {
   const hasFocus = categoryId || subcategoryId;
 
+  // Track focus context so fillPrefetch() doesn't fill with unfocused URLs
+  focusContext = hasFocus ? { categoryId, subcategoryId } : null;
+
   if (!hasFocus) {
     const cached = await popFromPrefetch();
     if (cached) {
@@ -748,6 +759,8 @@ async function roamCollection(collectionId: string): Promise<Response<RoamData>>
 }
 
 async function roamCategory(categoryId: string): Promise<Response<RoamData>> {
+  // Category-specific browsing clears focus context so fillPrefetch can run again
+  focusContext = null;
   const result = await callRoamApi({ category_id: categoryId });
   if (result.ok && result.data.url) {
     void recordUrlVisit(result.data.url, result.data.title || result.data.url); // fire-and-forget
