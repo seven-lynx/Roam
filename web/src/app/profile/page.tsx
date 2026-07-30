@@ -52,6 +52,17 @@ export default async function ProfilePage() {
   const badgesResult = unwrap(6) as Record<string, unknown>;
 
   const profile = profileResult.data;
+  
+  // Compute effective streak (resets to 0 if last activity > 24 hours ago)
+  // This keeps the own-profile display consistent with public profiles and leaderboard
+  let effectiveStreak = (profile as Record<string, unknown> | null)?.streak_days as number ?? 0;
+  if (profile) {
+    try {
+      const { data: streakData } = await supabase.rpc('get_effective_streak', { p_user_id: (profile as Record<string, unknown>).id as string });
+      effectiveStreak = (streakData as { streak_days: number } | null)?.streak_days ?? 0;
+    } catch { /* keep stored value */ }
+  }
+  
   const allCategories = ((categoriesResult.data ?? []) as Record<string, unknown>[]).map((c: Record<string, unknown>) => ({ id: c.id as string, label: c.name as string, emoji: c.icon as string }));
   const allSubcategories = ((subcategoriesResult.data ?? []) as Record<string, unknown>[]).map((s: Record<string, unknown>) => ({ id: s.id as string, name: s.name as string, category_id: s.category_id as string }));
   const userCategoryRows = (userCategoriesResult.data ?? []) as Record<string, unknown>[];
@@ -68,11 +79,14 @@ export default async function ProfilePage() {
 
   const savedUrls: SavedUrlRow[] = (savedUrlsResult.data ?? []) as SavedUrlRow[];
 
+  // Merge effective streak into the profile object
+  const profileWithStreak = profile ? { ...(profile as Record<string, unknown>), streak_days: effectiveStreak } : null;
+  
   return (
     <ProfileClient
       userId={user.id}
       email={user.email ?? ''}
-      profile={profile as Profile}
+      profile={profileWithStreak as Profile}
       allCategories={allCategories}
       allSubcategories={allSubcategories}
       initialCategoryIds={userCategoryIds}

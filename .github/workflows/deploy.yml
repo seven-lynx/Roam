@@ -28,6 +28,14 @@ jobs:
       - name: Install Supabase CLI
         run: npm install -g supabase
 
+      - name: Push Database Migrations
+        working-directory: ./
+        run: |
+          supabase link --project-ref ${{ secrets.SUPABASE_PROJECT_ID }}
+          supabase db push --include-all
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+
       - name: Deploy Edge Functions
         working-directory: ./supabase
         run: |

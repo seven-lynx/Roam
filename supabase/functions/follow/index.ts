@@ -57,14 +57,10 @@ Deno.serve(async (req) => {
         (e: unknown) => { console.error('record_daily_activity failed (follow)', e) }
       )
 
-      supabase.rpc('evaluate_badges', { p_user_id: user.id })
+      supabase.functions.invoke('evaluate-badges', { body: { user_id: user.id } })
         .then(() => {}, (e: unknown) => { console.error('badge evaluation failed (follower)', e) })
 
-      const supabaseAdmin = createClient(
-        Deno.env.get('SUPABASE_URL')!,
-        Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
-      )
-      supabaseAdmin.rpc('evaluate_badges', { p_user_id: following_id })
+      supabase.functions.invoke('evaluate-badges', { body: { user_id: following_id } })
         .then(() => {}, (e: unknown) => { console.error('badge evaluation failed (followed)', e) })
 
       return json({ ok: true }, 201)

@@ -884,10 +884,11 @@ class RoamRepository {
             }
             .decodeList<app.roam.android.model.FollowUser>()
 
-        return if (query != null && query.isNotBlank()) {
-            results.filter { it.username.contains(query, ignoreCase = true) || (it.displayName?.contains(query, ignoreCase = true) == true) }
-        } else {
-            results
+        if (query.isNullOrBlank()) return results
+
+        return results.filter {
+            it.username.contains(query, ignoreCase = true) ||
+            it.displayName.contains(query, ignoreCase = true)
         }
     }
 

@@ -16,12 +16,12 @@ if (localPropertiesFile.exists()) {
 
 android {
     namespace = "app.roam.android"
-    compileSdk = 35
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "app.roam.android"
         minSdk = 26
-        targetSdk = 35
+        targetSdk = 36
         versionCode = 30
         versionName = "1.1.9"
 

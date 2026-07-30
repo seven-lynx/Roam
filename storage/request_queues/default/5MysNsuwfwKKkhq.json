@@ -1,9 +1,0 @@
-{
-	"id": "5MysNsuwfwKKkhq",
-	"json": "{\"id\":\"5MysNsuwfwKKkhq\",\"url\":\"https://freakonomics.com\",\"loadedUrl\":\"https://freakonomics.com/\",\"uniqueKey\":\"https://freakonomics.com\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"__crawlee\":{\"state\":4}},\"handledAt\":\"2026-07-15T23:49:50.813Z\"}",
-	"method": "GET",
-	"orderNo": null,
-	"retryCount": 0,
-	"uniqueKey": "https://freakonomics.com",
-	"url": "https://freakonomics.com"
-}

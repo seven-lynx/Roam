@@ -106,11 +106,30 @@ try {
   sentryRelease = pkg.version ?? 'unknown';
 } catch { /* ignore */ }
 
+// Firefox-specific plugin: replace src/lib/sentry.ts with a no-op stub so that
+// @sentry/browser (and its innerHTML usage via rrweb/Preact) is tree-shaken
+// out of the build artifact entirely.
+function sentryFirefoxStubPlugin() {
+  return {
+    name: 'sentry-firefox-stub',
+    setup(build) {
+      // The resolved path on Windows uses backslashes. Match either separator.
+      build.onLoad(
+        { filter: /[\\\/]lib[\\\/]sentry\.ts$/ },
+        () => ({
+          contents:
+            'function noop() {}\n' +
+            'export const Sentry = { init: noop, captureException: noop, captureMessage: noop };\n',
+          loader: 'ts',
+        }),
+      );
+    },
+  };
+}
+
 const sharedConfig = {
   bundle: true,
   minify: !watch,
-  // In production: generate source maps with references so Sentry plugin can find them (uploaded, then deleted)
-  // In watch mode: inline source maps for debugging
   sourcemap: true,
   target: firefox ? ['firefox121'] : ['chrome120'],
   define: {
@@ -124,18 +143,21 @@ const sharedConfig = {
 };
 
 const entryPoints = [
-  // Popup UI — `out` is relative to outdir (esbuild appends .js)
   { in: resolve(__dirname, 'src/popup/popup.ts'), out: 'popup' },
-  // Background service worker
   { in: resolve(__dirname, 'src/background/background.ts'), out: 'background' },
-  // OAuth callback handler
   { in: resolve(__dirname, 'src/callback/callback.ts'), out: 'callback' },
 ];
 
 if (watch) {
   const contexts = await Promise.all(
     entryPoints.map(({ in: entryPoint, out: name }) =>
-      esbuild.context({ ...sharedConfig, entryPoints: [entryPoint], outfile: resolve(outdir, name + '.js'), format: 'iife' })
+      esbuild.context({
+        ...sharedConfig,
+        plugins: firefox ? [sentryFirefoxStubPlugin()] : [],
+        entryPoints: [entryPoint],
+        outfile: resolve(outdir, name + '.js'),
+        format: 'iife',
+      })
     )
   );
 
@@ -143,19 +165,17 @@ if (watch) {
   await Promise.all(contexts.map((ctx) => ctx.watch()));
   console.log('[roam] Watching for changes… (Ctrl+C to stop)');
 } else {
-  // Build all entry points; upload source maps to Sentry if auth token is present
   const canUploadMaps = sentryDsn && sentryAuthToken;
   if (!sentryAuthToken) {
     console.warn('[roam] SENTRY_AUTH_TOKEN not set — source maps will NOT be uploaded to Sentry.');
   }
 
-  // Single build call with all entry points + one Sentry plugin instance
-  await esbuild.build({
-    ...sharedConfig,
-    entryPoints,
-    outdir,
-    format: 'iife',
-    plugins: canUploadMaps ? [
+  const buildPlugins = [];
+  if (firefox) {
+    buildPlugins.push(sentryFirefoxStubPlugin());
+  }
+  if (canUploadMaps && !firefox) {
+    buildPlugins.push(
       sentryEsbuildPlugin({
         authToken: sentryAuthToken,
         org: sentryOrg,
@@ -167,7 +187,15 @@ if (watch) {
           filesToDeleteAfterUpload: ['./dist/*.js.map'],
         },
       }),
-    ] : [],
+    );
+  }
+
+  await esbuild.build({
+    ...sharedConfig,
+    plugins: buildPlugins,
+    entryPoints,
+    outdir,
+    format: 'iife',
   });
   copyStatics();
   try {
