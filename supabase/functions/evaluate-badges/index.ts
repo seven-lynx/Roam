@@ -188,22 +188,22 @@ Deno.serve(async (req: Request) => {
         // P3: tagger badges — count distinct categories in saved_urls
         case "tagger-bronze": {
           const { data: d } = await sb.from("saved_urls").select("url_id, urls!inner(category_id)").eq("user_id", user_id).limit(500);
-          const cats = new Set<string>(); for (const r of (d ?? [])) { if (r.urls?.category_id) cats.add(r.urls.category_id); }
+          const cats = new Set<string>(); for (const r of (d ?? [])) { if ((r.urls as any)?.category_id) cats.add((r.urls as any).category_id); }
           qualifies = cats.size >= 2; break;
         }
         case "tagger-silver": {
           const { data: d } = await sb.from("saved_urls").select("url_id, urls!inner(category_id)").eq("user_id", user_id).limit(2000);
-          const cats = new Set<string>(); for (const r of (d ?? [])) { if (r.urls?.category_id) cats.add(r.urls.category_id); }
+          const cats = new Set<string>(); for (const r of (d ?? [])) { if ((r.urls as any)?.category_id) cats.add((r.urls as any).category_id); }
           qualifies = cats.size >= 5; break;
         }
         case "tagger-gold": {
           const { data: d } = await sb.from("saved_urls").select("url_id, urls!inner(category_id)").eq("user_id", user_id).limit(5000);
-          const cats = new Set<string>(); for (const r of (d ?? [])) { if (r.urls?.category_id) cats.add(r.urls.category_id); }
+          const cats = new Set<string>(); for (const r of (d ?? [])) { if ((r.urls as any)?.category_id) cats.add((r.urls as any).category_id); }
           qualifies = cats.size >= 10; break;
         }
         case "tag-master": {
           const { data: d } = await sb.from("saved_urls").select("url_id, urls!inner(category_id, subcategory_id)").eq("user_id", user_id).limit(5000);
-          const subcats = new Set<string>(); for (const r of (d ?? [])) { if (r.urls?.subcategory_id) subcats.add(r.urls.subcategory_id); }
+          const subcats = new Set<string>(); for (const r of (d ?? [])) { if ((r.urls as any)?.subcategory_id) subcats.add((r.urls as any).subcategory_id); }
           qualifies = subcats.size >= 5; break;
         }
         case "completionist": {
@@ -224,7 +224,7 @@ Deno.serve(async (req: Request) => {
         }
         case "language-collector": {
           const { data: d } = await sb.from("saved_urls").select("url_id, urls!inner(language)").eq("user_id", user_id).limit(5000);
-          const langs = new Set<string>(); for (const r of (d ?? [])) { if (r.urls?.language) langs.add(r.urls.language); }
+          const langs = new Set<string>(); for (const r of (d ?? [])) { if ((r.urls as any)?.language) langs.add((r.urls as any).language); }
           qualifies = langs.size >= 3; break;
         }
         case "long-term-storage": {
@@ -379,7 +379,7 @@ Deno.serve(async (req: Request) => {
         case "comeback": {
           const { data: d } = await sb.from("user_daily_activity").select("date").eq("user_id", user_id).order("date", { ascending: false }).limit(2);
           if ((d ?? []).length >= 2) {
-            const last = new Date(d[0].date); const prev = new Date(d[1].date);
+            const last = new Date(d![0].date); const prev = new Date(d![1].date);
             qualifies = (last.getTime() - prev.getTime()) / (86400000) > 7;
           }
           break;
@@ -466,7 +466,7 @@ Deno.serve(async (req: Request) => {
         }
         case "rate-by-category": {
           const { data: d } = await sb.from("url_ratings").select("url_id, urls!inner(category_id)").eq("user_id", user_id).gte("created_at", today + "T00:00:00").limit(500);
-          const cats = new Set<string>(); for (const r of (d ?? [])) { if (r.urls?.category_id) cats.add(r.urls.category_id); }
+          const cats = new Set<string>(); for (const r of (d ?? [])) { if ((r.urls as any)?.category_id) cats.add((r.urls as any).category_id); }
           qualifies = cats.size >= 3; break;
         }
         case "downer": {
