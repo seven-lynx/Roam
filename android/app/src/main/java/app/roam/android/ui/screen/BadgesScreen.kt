@@ -207,6 +207,7 @@ fun BadgeGridItem(badge: Badge, onClick: () -> Unit = {}) {
             Text(
                 text = if (badge.isHidden && !badge.isUnlocked) "\u2753" else badge.icon,
                 fontSize = 24.sp,
+                color = Color(0xFF1A1A1A),
             )
             Text(
                 text = if (badge.isHidden && !badge.isUnlocked) "???"
@@ -217,6 +218,7 @@ fun BadgeGridItem(badge: Badge, onClick: () -> Unit = {}) {
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.padding(top = 4.dp),
+                color = Color(0xFF1A1A1A),
             )
 
             if (!badge.isUnlocked && badge.requiredCount != null) {
