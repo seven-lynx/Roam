@@ -45,12 +45,11 @@ Deno.serve(async (req) => {
   const { data: { user }, error: authError } = await supabase.auth.getUser()
   if (authError || !user) return json({ error: 'Unauthorized' }, 401)
 
-  // Role check — must be admin or moderator
-  const role = user.app_metadata?.role as string | undefined
-  if (role !== 'admin' && role !== 'moderator') {
-    return json({ error: 'Forbidden — admin or moderator role required' }, 403)
-  }
-  const isAdmin = role === 'admin'
+  // Role check — must be admin or moderator.
+  // First check the JWT app_metadata (works for fresh tokens). If the
+  // JWT doesn't carry the role (token was issued before role assignment),
+  // fall back to a DB lookup using the service-role client.
+  let role = user.app_metadata?.role as string | undefined
 
   // Service-role admin client for bypassing RLS on upserts/deletes
   const adminClient = createClient(
@@ -58,6 +57,23 @@ Deno.serve(async (req) => {
     env.SUPABASE_SERVICE_ROLE_KEY,
     { auth: { autoRefreshToken: false, persistSession: false } },
   )
+
+  if (!role) {
+    // JWT lacks app_metadata.role — look up from auth.users via service client
+    const { data: userRecord, error: roleLookupErr } = await adminClient.auth.admin.getUserById(user.id)
+    if (!roleLookupErr && userRecord.user) {
+      role = userRecord.user.app_metadata?.role as string | undefined
+    }
+    if (!role) {
+      console.warn(`[admin-moderation] Role lookup failed for user ${user.id}: ${roleLookupErr?.message ?? 'no role in user record'}`)
+      return json({ error: 'Forbidden — admin or moderator role required' }, 403)
+    }
+  }
+
+  if (role !== 'admin' && role !== 'moderator') {
+    return json({ error: 'Forbidden — admin or moderator role required' }, 403)
+  }
+  const isAdmin = role === 'admin'
 
   let body: Record<string, unknown>
   try { body = await req.json() } catch { return json({ error: 'Invalid JSON' }, 400) }
@@ -163,7 +179,7 @@ async function handleApprove(
   // Fetch the submission
   const { data: item, error: fetchErr } = await admin
     .from('moderation_queue')
-    .select('url, title, description, subcategory_id')
+    .select('url, title, description, subcategory_id, submitted_by')
     .eq('id', id)
     .single()
 
@@ -199,6 +215,35 @@ async function handleApprove(
   if (upsertErr) {
     console.error('Failed to upsert into urls:', upsertErr)
     // Don't fail the request — the moderation state is already updated
+  }
+
+  // ── Notify the original submitter ───────────────────────────────────────
+  // Fire-and-forget — don't block the response for notification delivery.
+  // The INSERT into notifications triggers the DB webhook → push-notify → FCM/Web Push.
+  
+  if (item.submitted_by && item.submitted_by !== actor.id) {
+    const shortUrl = item.url.length > 60 ? item.url.slice(0, 57) + '...' : item.url
+    admin
+      .from('notifications')
+      .insert({
+        user_id: item.submitted_by,
+        type: 'url_approved',
+        title: '✅ Your submission was approved!',
+        body: `"${item.title || shortUrl}" is now live on Roam.`,
+        data: { url: item.url },
+      })
+      .then(
+        () => { console.log('[admin-moderation] Notification sent to submitter:', item.submitted_by) },
+        (e: unknown) => { console.error('[admin-moderation] Failed to notify submitter:', e) }
+      )
+
+    // Evaluate badges for the submitter (they earned XP from the submission + approval)
+    admin
+      .rpc('evaluate_badges', { p_user_id: item.submitted_by })
+      .then(
+        () => { console.log('[admin-moderation] Badges evaluated for submitter:', item.submitted_by) },
+        (e: unknown) => { console.error('[admin-moderation] Badge evaluation failed:', e) }
+      )
   }
 
   return json({ ok: true, message: 'Approved' })

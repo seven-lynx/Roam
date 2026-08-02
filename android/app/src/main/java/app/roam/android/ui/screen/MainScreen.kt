@@ -115,6 +115,8 @@ fun MainScreen(
         currentTab = RoamTab.Roam.route
     }
 
+    val submitToast by vm.submitToast.collectAsState()
+
     Scaffold(
         modifier = Modifier.fillMaxSize(),
         bottomBar = {
@@ -354,6 +356,32 @@ fun MainScreen(
                     onDismiss = { vm.markWalkthroughSeen() },
                     onNavigateToYouTab = { currentTab = RoamTab.You.route },
                     onOpenConfigSheet = { vm.openConfigSheet() },
+                )
+            }
+        }
+    }
+
+    // ── Global toast — rendered at the top level so it overlays ALL tabs ──
+    // Previously this was inside DiscoverTab, so it was invisible when the user
+    // was on the You/Settings/etc. tabs. Now it shows regardless of active tab.
+    submitToast?.let { msg ->
+        val isErr = msg.startsWith("Couldn't")
+        Box(
+            Modifier
+                .fillMaxSize(),
+            contentAlignment = Alignment.BottomCenter,
+        ) {
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .background(if (isErr) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.secondaryContainer)
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    msg,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = if (isErr) MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.onSecondaryContainer,
                 )
             }
         }
@@ -707,31 +735,5 @@ private fun DiscoverTab(
     // Share URL with friend sheet
     if (showShareUrlSheet) {
         ShareUrlBottomSheet(vm = vm, onDismiss = { vm.closeShareUrlSheet() })
-    }
-
-    // Global toast — rendered last so it always sits above sheets, dialogs, and overlays.
-    // When submitToast fires from inside the submit bottom sheet or SettingsScreen's dialog,
-    // the sheet/dialog is dismissed, but this toast continues to display over everything.
-    submitToast?.let { msg ->
-        val isErr = msg.startsWith("Couldn't")
-        Box(
-            Modifier
-                .fillMaxSize(),
-            contentAlignment = Alignment.BottomCenter,
-        ) {
-            Row(
-                Modifier
-                    .fillMaxWidth()
-                    .background(if (isErr) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.secondaryContainer)
-                    .padding(horizontal = 16.dp, vertical = 12.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text(
-                    msg,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = if (isErr) MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.onSecondaryContainer,
-                )
-            }
-        }
     }
 }

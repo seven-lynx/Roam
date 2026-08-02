@@ -123,14 +123,15 @@ fun SettingsScreen(
         )
     }
 
-    if (showSubmitUrlDialog) {
-        SubmitUrlDialog(
-            categories = categories,
-            subcategories = subcategories,
-            onSubmit = { url, categoryId, subcategoryId ->
+            if (showSubmitUrlDialog) {
+                SubmitUrlDialog(
+                    currentUrl = currentUrl,
+                    categories = categories,
+                    subcategories = subcategories,
+                    onSubmit = { url, categoryId, subcategoryId ->
                 vm.submitUrl(url, categoryId, subcategoryId)
                 showSubmitUrlDialog = false
-            },
+                    },
             onDismiss = { showSubmitUrlDialog = false },
         )
     }
@@ -603,12 +604,13 @@ fun SettingsScreen(
 
 @Composable
 private fun SubmitUrlDialog(
+    currentUrl: String? = null,
     categories: List<app.roam.android.model.CategoryItem>,
     subcategories: List<SubcategoryItem>,
     onSubmit: (url: String, categoryId: String, subcategoryId: String?) -> Unit,
     onDismiss: () -> Unit,
 ) {
-    var url by remember { mutableStateOf("") }
+    var url by remember { mutableStateOf(currentUrl ?: "") }
     var selectedCategoryId by remember { mutableStateOf<String?>(null) }
     var selectedSubcategoryId by remember { mutableStateOf<String?>(null) }
     var categoryDropdownExpanded by remember { mutableStateOf(false) }

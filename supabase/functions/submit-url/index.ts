@@ -303,6 +303,26 @@ Deno.serve(async (req) => {
       },
       { onConflict: 'url' },
     )
+
+    // Fire-and-forget: notify the submitter that their URL is live since it
+    // was auto-approved. The submit-url trigger only fires on UPDATE from
+    // pending→approved, but trusted users insert directly as 'approved'.
+    const shortTitle = (typeof title === 'string' && title)
+      ? title.length > 60 ? title.slice(0, 57) + '...' : title
+      : normalized.length > 60 ? normalized.slice(0, 57) + '...' : normalized
+    adminClient2
+      .from('notifications')
+      .insert({
+        user_id: user.id,
+        type: 'url_approved',
+        title: '✅ Your submission was approved!',
+        body: `"${shortTitle}" is now live on Roam.`,
+        data: { url: normalized },
+      })
+      .then(
+        () => { console.log('[submit-url] Notification sent to trusted submitter:', user.id) },
+        (e: unknown) => { console.error('[submit-url] Failed to notify trusted submitter:', e) }
+      )
   }
 
   if (insertError) {
