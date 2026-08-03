@@ -54,33 +54,54 @@ Deno.serve(async (req) => {
     if (categoryId)     rpcParams.p_category_id     = categoryId
     if (subcategoryId)  rpcParams.p_subcategory_id  = subcategoryId
     // ── Batch discovery ────────────────────────────────────────────────────────
-    // When count > 1, call the RPC multiple times and return an array.
+    // When count > 1, call the RPC in parallel to reduce wall-clock time.
     // This amortizes the auth + cold-start overhead for prefetch consumers.
-    const results: Array<Record<string, unknown>> = []
-    const seenIds = new Set<string>()
+    // v31: Parallelized with Promise.allSettled — 5 concurrent RPCs instead of
+    //      5 sequential ones, reducing batch latency by up to 5×.
     const isPrefetch = body.prefetch === true
     let timedOut = false
 
-    for (let i = 0; i < count; i++) {
-      const { data, error } = await supabase.rpc('roam', rpcParams)
-      if (error) {
-        console.error('roam RPC error', error.code, error.message)
-        const isTimeout = error.code === '57014' || error.code === '57P01'
-          || error.message?.toLowerCase().includes('timeout')
-          || error.message?.toLowerCase().includes('canceling statement')
-          || error.message?.toLowerCase().includes('query_canceled')
-        if (isTimeout) {
-          timedOut = true
-          break
-        }
-        // Non-timeout errors on batch calls are terminal for this loop
-        if (count > 1) break
+    const rpcCalls = Array.from({ length: count }, () =>
+      supabase.rpc('roam', rpcParams).then(
+        ({ data, error }) => ({ data, error, ok: !error }),
+        (rejection: unknown) => {
+          const err = rejection instanceof Error ? rejection : new Error(String(rejection))
+          return { data: null, error: err, ok: false }
+        },
+      ),
+    )
+
+    const settled = await Promise.allSettled(rpcCalls)
+    const seenIds = new Set<string>()
+    const results: Array<Record<string, unknown>> = []
+
+    for (const result of settled) {
+      if (result.status === 'rejected') {
+        console.error('roam RPC rejection', String(result.reason))
+        if (count > 1) continue
         return json({ error: 'Discovery failed. Please try again.' }, 500)
       }
-      const row = Array.isArray(data) ? data[0] : null
-      if (!row) break // pool exhausted
 
-      // Deduplicate within the batch (RPC can occasionally return the same URL)
+      const { data, error } = result.value
+      if (error) {
+        console.error('roam RPC error', (error as any)?.code, (error as any)?.message)
+        const errMsg = (error as any)?.message ?? ''
+        const isTimeout = (error as any)?.code === '57014' || (error as any)?.code === '57P01'
+          || errMsg.toLowerCase().includes('timeout')
+          || errMsg.toLowerCase().includes('canceling statement')
+          || errMsg.toLowerCase().includes('query_canceled')
+        if (isTimeout) {
+          timedOut = true
+          continue
+        }
+        if (count > 1) continue
+        return json({ error: 'Discovery failed. Please try again.' }, 500)
+      }
+
+      const row = Array.isArray(data) ? data[0] : null
+      if (!row) continue // pool exhausted for this call
+
+      // Deduplicate within the batch (parallel calls can return the same URL)
       if (seenIds.has(row.id)) continue
       seenIds.add(row.id)
 

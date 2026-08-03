@@ -762,8 +762,8 @@ class MainViewModel(
             // case with its own wait loop — this is just an early exit to avoid
             // churning through retries when the session clearly isn't ready yet.
             var sessionWaitAttempts = 0
-            while (!repo.hasSession() && sessionWaitAttempts < 40) {
-                delay(250)
+            while (!repo.hasSession() && sessionWaitAttempts < 15) {
+                delay(200)
                 sessionWaitAttempts++
             }
 
