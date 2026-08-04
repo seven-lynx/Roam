@@ -125,7 +125,7 @@ BEGIN
     AND  seen_at > NOW() - INTERVAL '90 days';
 
   -- Last 3 subcategories served (for rotation/penalty)
-  SELECT array_agg(u.subcategory_id)
+  SELECT array_agg(t.subcategory_id)
   INTO   v_recent_subcats
   FROM (
     SELECT u.subcategory_id
