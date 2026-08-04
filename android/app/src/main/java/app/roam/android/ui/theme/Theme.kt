@@ -64,6 +64,10 @@ fun RoamTheme(
                 WindowInsetsControllerCompat.BEHAVIOR_DEFAULT
             controller.isAppearanceLightStatusBars = !darkTheme
             controller.isAppearanceLightNavigationBars = !darkTheme
+            window.statusBarColor = if (darkTheme)
+                android.graphics.Color.parseColor("#18181b")  // Zinc900
+            else
+                android.graphics.Color.parseColor("#ffffff")  // White
         }
     }
 

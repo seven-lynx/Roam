@@ -589,6 +589,10 @@ fun RoamWebView(
                         }
                     }
                     // Restore saved session (back/forward stack + scroll) or load fresh
+                    // Pre-emptively assert system bars are visible before loading.
+                    // WebView engine can briefly hide bars between loadUrl() and
+                    // onPageStarted — calling ensureSystemBarsVisible here closes that gap.
+                    ensureSystemBarsVisible(this@apply, darkModeRef.value)
                     if (!savedState.isEmpty) {
                         restoreState(savedState)
                     } else {
@@ -617,6 +621,7 @@ fun RoamWebView(
                 } else if (webView.url != url || loadError) {
                     loadError = false
                     onLoadingChanged(true)
+                    ensureSystemBarsVisible(webView, darkModeRef.value)
                     webView.loadUrl(url)
                 }
             }
