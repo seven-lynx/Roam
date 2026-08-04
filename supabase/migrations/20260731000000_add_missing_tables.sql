@@ -17,10 +17,18 @@ CREATE TABLE IF NOT EXISTS public.url_ratings (
 CREATE INDEX IF NOT EXISTS url_ratings_user_id_idx ON public.url_ratings(user_id);
 CREATE INDEX IF NOT EXISTS url_ratings_url_id_idx  ON public.url_ratings(url_id);
 ALTER TABLE public.url_ratings ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Users can read own ratings"    ON public.url_ratings FOR SELECT USING (auth.uid() = user_id);
-CREATE POLICY "Users can insert own ratings"   ON public.url_ratings FOR INSERT WITH CHECK (auth.uid() = user_id);
-CREATE POLICY "Users can update own ratings"   ON public.url_ratings FOR UPDATE USING (auth.uid() = user_id);
-CREATE POLICY "Public can read ratings"         ON public.url_ratings FOR SELECT USING (true);
+DO $$ BEGIN
+  CREATE POLICY "Users can read own ratings"   ON public.url_ratings FOR SELECT USING (auth.uid() = user_id);
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+DO $$ BEGIN
+  CREATE POLICY "Users can insert own ratings"  ON public.url_ratings FOR INSERT WITH CHECK (auth.uid() = user_id);
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+DO $$ BEGIN
+  CREATE POLICY "Users can update own ratings"  ON public.url_ratings FOR UPDATE USING (auth.uid() = user_id);
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+DO $$ BEGIN
+  CREATE POLICY "Public can read ratings"       ON public.url_ratings FOR SELECT USING (true);
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 -- 2. Collection favorites
 CREATE TABLE IF NOT EXISTS public.collection_favorites (
@@ -33,10 +41,18 @@ CREATE TABLE IF NOT EXISTS public.collection_favorites (
 CREATE INDEX IF NOT EXISTS collection_favorites_user_id_idx       ON public.collection_favorites(user_id);
 CREATE INDEX IF NOT EXISTS collection_favorites_collection_id_idx ON public.collection_favorites(collection_id);
 ALTER TABLE public.collection_favorites ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Users can read own favorites"  ON public.collection_favorites FOR SELECT USING (auth.uid() = user_id);
-CREATE POLICY "Users can insert favorites"    ON public.collection_favorites FOR INSERT WITH CHECK (auth.uid() = user_id);
-CREATE POLICY "Users can delete favorites"    ON public.collection_favorites FOR DELETE USING (auth.uid() = user_id);
-CREATE POLICY "Public can read favorites"     ON public.collection_favorites FOR SELECT USING (true);
+DO $$ BEGIN
+  CREATE POLICY "Users can read own favorites" ON public.collection_favorites FOR SELECT USING (auth.uid() = user_id);
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+DO $$ BEGIN
+  CREATE POLICY "Users can insert favorites"   ON public.collection_favorites FOR INSERT WITH CHECK (auth.uid() = user_id);
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+DO $$ BEGIN
+  CREATE POLICY "Users can delete favorites"   ON public.collection_favorites FOR DELETE USING (auth.uid() = user_id);
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+DO $$ BEGIN
+  CREATE POLICY "Public can read favorites"    ON public.collection_favorites FOR SELECT USING (true);
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 -- 3. Failed URL log (404 tracking)
 CREATE TABLE IF NOT EXISTS public.log_failed_urls (
@@ -48,4 +64,6 @@ CREATE TABLE IF NOT EXISTS public.log_failed_urls (
 );
 CREATE INDEX IF NOT EXISTS log_failed_urls_user_id_idx ON public.log_failed_urls(user_id);
 ALTER TABLE public.log_failed_urls ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Users can read own failed URLs" ON public.log_failed_urls FOR SELECT USING (auth.uid() = user_id);
+DO $$ BEGIN
+  CREATE POLICY "Users can read own failed URLs" ON public.log_failed_urls FOR SELECT USING (auth.uid() = user_id);
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
