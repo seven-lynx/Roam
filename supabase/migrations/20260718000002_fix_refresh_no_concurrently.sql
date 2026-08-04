@@ -13,5 +13,9 @@ $$;
 REVOKE EXECUTE ON FUNCTION public.refresh_report_views() FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.refresh_report_views() TO service_role;
 
--- Run now
-SELECT refresh_report_views();
+-- NOTE: The trailing `SELECT refresh_report_views();` was removed on 2026-08-04.
+-- It timed out (SQLSTATE 57014) after 120s refreshing all 5 materialized
+-- views during `supabase db push`, blocking every subsequent migration
+-- (roam() v32/v33/v34/v35) from being applied. The function definition is
+-- still created above; materialized views are refreshed by the scheduled
+-- `refresh_report_views` job instead of blocking deploys.
