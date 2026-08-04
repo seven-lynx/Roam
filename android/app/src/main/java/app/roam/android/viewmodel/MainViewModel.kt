@@ -8,6 +8,7 @@ import android.os.Vibrator
 import android.os.VibratorManager
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import app.roam.android.data.repository.RetryableRoamException
 import app.roam.android.data.repository.RoamRepository
 import app.roam.android.model.Badge
 import app.roam.android.model.CategoryItem
@@ -762,10 +763,11 @@ class MainViewModel(
             // case with its own wait loop — this is just an early exit to avoid
             // churning through retries when the session clearly isn't ready yet.
             var sessionWaitAttempts = 0
-            while (!repo.hasSession() && sessionWaitAttempts < 15) {
+            while (!repo.hasSession() && sessionWaitAttempts < 25) {
                 delay(200)
                 sessionWaitAttempts++
             }
+            android.util.Log.d("MainViewModel", "Session wait complete: hasSession=${repo.hasSession()} attempts=$sessionWaitAttempts")
 
             var lastException: Throwable? = null
             var result: RoamUrl? = null
@@ -796,15 +798,15 @@ class MainViewModel(
                 // Don't retry offline errors — they won't resolve with retries
                 if (lastException != null && isOfflineError(lastException)) break
                 // Note: IllegalStateException (token unavailable) is now prevented upstream
-                // by the hasValidToken() wait loop above, so we let all 3 attempts fire rather
-                // than bailing early — a second attempt usually succeeds if the token
-                // materialized between attempts.
-
-                // If we get an UnauthorizedRestException (like "Invalid JWT"),
-                // it might be a transient state where the anon key was used as bearer.
-                // We'll let it retry.
+                // by the ensureAuthenticated() call inside repo.roam(), so we let all
+                // 3 attempts fire rather than bailing early.
                 if (lastException != null) {
-                    android.util.Log.w("MainViewModel", "Roam attempt ${attempt + 1} failed: ${lastException.message}")
+                    val detail = when (lastException) {
+                        is UnauthorizedRestException -> "401 (UnauthorizedRestException)"
+                        is IllegalStateException -> "IllegalStateException"
+                        else -> lastException.javaClass.simpleName
+                    }
+                    android.util.Log.w("MainViewModel", "Roam attempt ${attempt + 1} failed [$detail]: ${lastException.message}")
                 }
             }
 
@@ -824,6 +826,17 @@ class MainViewModel(
                 }
             } else {
                 val e = lastException ?: Exception("Unknown error")
+
+                // RetryableRoamException means the server returned 503 (RPC exception,
+                // timeout, or circuit breaker). Show a retryable error — NOT the
+                // "exhausted" end-of-content screen. The server now only returns 404
+                // with an explicit `exhausted` marker for genuine pool exhaustion.
+                if (e is RetryableRoamException) {
+                    android.util.Log.w("MainViewModel", "Roam retryable error: ${e.message}")
+                    _state.value = RoamState.Error(e.message ?: "Discovery temporarily unavailable. Please try again.")
+                    return@launch
+                }
+
                 val isOffline = isOfflineError(e)
                 val isTimeout = e.javaClass.name.contains("Timeout", ignoreCase = true)
                     || e.message?.contains("timed out", ignoreCase = true) == true

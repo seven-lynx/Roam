@@ -2,6 +2,11 @@
 
 All notable changes to the Roam Android app.
 
+## [1.2.0] - 2026-08-15
+
+### Changed
+- Version bumped to 1.2.0 (versionCode 31).
+
 ## [1.1.9] - 2026-07-29
 
 ### Changed

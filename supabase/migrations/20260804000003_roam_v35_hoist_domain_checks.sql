@@ -1,0 +1,620 @@
+-- =============================================================================
+-- roam() v35 — Hoist domain LIKE checks out of the per-candidate loop
+-- =============================================================================
+-- Problem (from ROAM_EXHAUSTED_INCIDENT.md):
+--   roam() ran 15-18s against an 8s ceiling. v34 (SYSTEM(2) sampling) got it to
+--   ~3.9s, but that's ~50% of the budget with no headroom. The dominant cost is
+--   per-candidate-row work: the `user_suppressed_domains` NOT EXISTS subquery and
+--   the `v_excluded` LIKE anti-join run for EVERY row in the TABLESAMPLE.
+--
+-- Fix:
+--   1. Pre-compute suppressed + excluded domains as flat TEXT[] arrays in the
+--      DECLARE block (one query each, not per-row).
+--   2. Replace the per-row `NOT EXISTS (... LIKE ...)` subqueries with fast
+--      array membership checks: `u.domain != ALL(v_suppressed_domains)`.
+--   3. Apply the subdomain `LIKE` pattern (u.domain LIKE '%.' || base) as a
+--      cheap post-filter on the single selected candidate, not on every row.
+--   4. Add a covering partial index for the pool-empty count check and any
+--      non-sampled fallback path.
+-- =============================================================================
+
+-- ── 1. Covering partial index for candidate filtering ───────────────────────
+-- `approved = TRUE` has zero selectivity (all 1.58M rows are approved), so this
+-- index is NOT for the TABLESAMPLE path (which scans the heap). It accelerates:
+--   - the pool-empty count check (lines ~473-490 in v31)
+--   - any future non-sampled fallback
+--   - the final `SELECT ... WHERE id = v_url_id` lookup
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_urls_roam_candidate
+ON urls (category_id, subcategory_id, language)
+WHERE approved = TRUE AND wilson_score > -0.1;
+
+-- ── 2. Redeploy roam() as v35 ────────────────────────────────────────────────
+DROP FUNCTION IF EXISTS public.roam(UUID, UUID, TEXT, UUID, UUID) CASCADE;
+DROP FUNCTION IF EXISTS public.roam(UUID, UUID, TEXT, UUID, UUID, TEXT[]) CASCADE;
+
+CREATE FUNCTION public.roam(
+  p_user_id          UUID,
+  p_collection_id    UUID     DEFAULT NULL,
+  p_exclude_domain   TEXT     DEFAULT NULL,
+  p_category_id      UUID     DEFAULT NULL,
+  p_subcategory_id   UUID     DEFAULT NULL,
+  p_exclude_domains  TEXT[]   DEFAULT NULL
+)
+RETURNS TABLE (
+  id             UUID,
+  url            TEXT,
+  title          TEXT,
+  description    TEXT,
+  og_image_url   TEXT,
+  category_id    UUID,
+  subcategory_id UUID,
+  wilson_score   DOUBLE PRECISION
+)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+SET statement_timeout = '30s'
+AS $$
+#variable_conflict use_column
+DECLARE
+  v_url_id              UUID;
+  v_url_domain          TEXT;
+  v_langs               TEXT[];
+  v_skip_paywall        BOOLEAN;
+  v_discovery_mode      TEXT;
+  v_allowed_subcat_ids  UUID[];
+  v_has_categories      BOOLEAN;
+  v_adjacent_subcat_id  UUID;
+  v_effective_subcat_id UUID;
+  v_deep_dive_subcats   UUID[];
+  v_seen_ids            UUID[];
+  v_cooled_domains      TEXT[];
+  v_paywalled_domains   TEXT[];
+  v_suppressed_domains  TEXT[];
+  v_excluded            TEXT[];
+  v_skip_penalty_ids    UUID[];
+  v_serendipity_subcat  UUID;
+  v_recent_subcats      UUID[];
+  v_pool_check          BIGINT;
+BEGIN
+  IF auth.uid() <> p_user_id THEN
+    RAISE EXCEPTION 'Unauthorized';
+  END IF;
+
+  -- ── Load user settings ────────────────────────────────────────────────────
+  SELECT
+    COALESCE(s.preferred_languages, ARRAY['en']),
+    COALESCE(s.skip_paywalled, FALSE),
+    COALESCE(s.discovery_mode, 'discovery')
+  INTO v_langs, v_skip_paywall, v_discovery_mode
+  FROM user_settings s
+  WHERE s.user_id = p_user_id;
+
+  IF v_langs           IS NULL THEN v_langs           := ARRAY['en']; END IF;
+  IF v_skip_paywall    IS NULL THEN v_skip_paywall    := FALSE;        END IF;
+  IF v_discovery_mode  IS NULL THEN v_discovery_mode  := 'discovery';  END IF;
+
+  -- ── Merge exclude domains ─────────────────────────────────────────────────
+  IF p_exclude_domains IS NOT NULL AND array_length(p_exclude_domains, 1) > 0 THEN
+    v_excluded := p_exclude_domains;
+    IF p_exclude_domain IS NOT NULL AND NOT p_exclude_domain = ANY(v_excluded) THEN
+      v_excluded := array_append(v_excluded, p_exclude_domain);
+    END IF;
+  ELSIF p_exclude_domain IS NOT NULL THEN
+    v_excluded := ARRAY[p_exclude_domain];
+  END IF;
+
+  -- ── Load exclusion sets as arrays ─────────────────────────────────────────
+  SELECT array_agg(url_id)
+  INTO   v_seen_ids
+  FROM (
+    SELECT url_id FROM seen_urls
+    WHERE  user_id = p_user_id
+    ORDER  BY seen_at DESC
+    LIMIT  3000
+  ) t;
+
+  -- URLs the user rapidly skipped — extend exclusion
+  SELECT array_agg(url_id)
+  INTO   v_skip_penalty_ids
+  FROM   seen_urls
+  WHERE  user_id = p_user_id
+    AND  skipped = TRUE
+    AND  seen_at > NOW() - INTERVAL '90 days';
+
+  -- Last 3 subcategories served (for rotation/penalty)
+  SELECT array_agg(u.subcategory_id)
+  INTO   v_recent_subcats
+  FROM (
+    SELECT u.subcategory_id
+    FROM   seen_urls su
+    JOIN   urls u ON u.id = su.url_id
+    WHERE  su.user_id = p_user_id
+      AND  u.subcategory_id IS NOT NULL
+    ORDER  BY su.seen_at DESC
+    LIMIT  3
+  ) t;
+
+  SELECT array_agg(domain)
+  INTO   v_cooled_domains
+  FROM   user_domain_cooldowns
+  WHERE  user_id = p_user_id
+    AND  cooldown_until > NOW();
+
+  -- v35: hoist suppressed domains into a flat array (one query, not per-row).
+  -- The subdomain LIKE pattern is applied as a post-filter on the selected
+  -- candidate instead of on every sampled row.
+  SELECT array_agg(usd.domain)
+  INTO   v_suppressed_domains
+  FROM   user_suppressed_domains usd
+  WHERE  usd.user_id = p_user_id
+    AND  usd.suppressed_until > NOW();
+
+  SELECT array_agg(uis.subcategory_id ORDER BY uis.subcategory_id),
+         array_agg(uis.calibrated_weight ORDER BY uis.subcategory_id)
+  INTO   v_score_subcats, v_score_weights
+  FROM   user_interest_scores uis
+  WHERE  uis.user_id = p_user_id;
+
+  IF v_skip_paywall THEN
+    SELECT array_agg(domain)
+    INTO   v_paywalled_domains
+    FROM   paywalled_domains;
+  END IF;
+
+  -- ── Expand category prefs into flat subcategory ID array ──────────────────
+  SELECT array_agg(DISTINCT sc.id)
+  INTO   v_allowed_subcat_ids
+  FROM   subcategories sc
+  WHERE  sc.id IN (
+           SELECT uc.subcategory_id FROM user_categories uc
+           WHERE  uc.user_id = p_user_id AND uc.subcategory_id IS NOT NULL
+         )
+     OR  sc.category_id IN (
+           SELECT uc.category_id FROM user_categories uc
+           WHERE  uc.user_id        = p_user_id
+             AND  uc.subcategory_id IS NULL
+             AND  uc.category_id NOT IN (
+                    SELECT uc2.category_id FROM user_categories uc2
+                    WHERE  uc2.user_id = p_user_id AND uc2.subcategory_id IS NOT NULL
+                  )
+         );
+
+  SELECT EXISTS (SELECT 1 FROM user_categories WHERE user_id = p_user_id)
+  INTO v_has_categories;
+
+  -- ── Serendipity mode: 5% chance to pick from a never-seen subcategory ─────
+  v_serendipity_subcat := NULL;
+  IF v_discovery_mode = 'discovery'
+     AND random() < 0.05
+     AND p_subcategory_id IS NULL
+     AND p_category_id    IS NULL
+     AND p_collection_id  IS NULL
+     AND v_allowed_subcat_ids IS NOT NULL
+  THEN
+    SELECT sc.id INTO v_serendipity_subcat
+    FROM subcategories sc
+    WHERE sc.id = ANY(v_allowed_subcat_ids)
+      AND NOT EXISTS (
+        SELECT 1 FROM seen_urls su
+        JOIN urls u ON u.id = su.url_id
+        WHERE su.user_id = p_user_id
+          AND u.subcategory_id = sc.id
+      )
+    ORDER BY random()
+    LIMIT 1;
+  END IF;
+
+  -- ── Deep Dive: narrow to top-3 subcategories by calibrated_weight ─────────
+  IF v_discovery_mode = 'deep_dive'
+     AND p_subcategory_id IS NULL
+     AND p_category_id    IS NULL
+     AND p_collection_id  IS NULL
+  THEN
+    SELECT array_agg(uis.subcategory_id)
+    INTO   v_deep_dive_subcats
+    FROM (
+      SELECT uis.subcategory_id
+      FROM   user_interest_scores uis
+      WHERE  uis.user_id = p_user_id
+        AND  uis.calibrated_weight > 1.0
+      ORDER  BY uis.calibrated_weight DESC
+      LIMIT  3
+    ) uis;
+    IF v_deep_dive_subcats IS NULL OR array_length(v_deep_dive_subcats, 1) = 0 THEN
+      v_deep_dive_subcats := v_allowed_subcat_ids;
+    END IF;
+  END IF;
+
+  -- ── Discovery mode: 25% adjacent serving ──────────────────────────────────
+  v_adjacent_subcat_id := NULL;
+  IF v_discovery_mode = 'discovery'
+     AND random() < 0.25
+     AND p_subcategory_id IS NULL
+     AND p_category_id    IS NULL
+     AND p_collection_id  IS NULL
+     AND v_serendipity_subcat IS NULL
+  THEN
+    SELECT
+      CASE WHEN ips.subcategory_a_id = uis_top.top_subcat
+           THEN ips.subcategory_b_id
+           ELSE ips.subcategory_a_id
+      END
+    INTO v_adjacent_subcat_id
+    FROM (
+      SELECT uis.subcategory_id AS top_subcat
+      FROM   user_interest_scores uis
+      WHERE  uis.user_id = p_user_id
+      ORDER  BY uis.calibrated_weight DESC
+      LIMIT  1
+    ) uis_top
+    JOIN interest_pair_scores ips
+      ON  ips.user_id = p_user_id
+      AND (   ips.subcategory_a_id = uis_top.top_subcat
+           OR ips.subcategory_b_id = uis_top.top_subcat)
+      AND ips.pair_weight > 1.0
+    ORDER BY ips.pair_weight DESC
+    LIMIT 1;
+  END IF;
+
+  v_effective_subcat_id := COALESCE(p_subcategory_id, v_adjacent_subcat_id, v_serendipity_subcat);
+
+  -- ═══════════════════════════════════════════════════════════════════════════
+  --  COLLECTION MODE
+  -- ═══════════════════════════════════════════════════════════════════════════
+  IF p_collection_id IS NOT NULL THEN
+
+    -- v35: array membership checks instead of per-row NOT EXISTS LIKE subqueries
+    SELECT c.id INTO v_url_id
+    FROM (
+      SELECT u.id,
+             (u.roam_score_static
+               + CASE WHEN (COALESCE(u.upvotes,0) + COALESCE(u.downvotes,0)) = 0 THEN 0.15 ELSE 0 END
+               + CASE WHEN COALESCE(u.serve_count, 0) = 0 THEN 0.25
+                      ELSE 1.0 / (1 + COALESCE(u.serve_count, 0) * 0.1) END)
+               * LEAST(GREATEST(COALESCE(
+                   v_score_weights[array_position(v_score_subcats, u.subcategory_id)],
+                   1.0), 0.4), 2.0)
+               * CASE
+                   WHEN u.published_at IS NULL THEN 0.7
+                   ELSE GREATEST(
+                     EXP(-0.0003 * GREATEST(
+                       EXTRACT(EPOCH FROM (NOW() - u.published_at)) / 86400.0, 0
+                     )), 0.2)
+                 END
+               * CASE
+                   WHEN v_recent_subcats IS NOT NULL AND u.subcategory_id = ANY(v_recent_subcats) THEN 0.3
+                   ELSE 1.0
+                 END
+               AS eff_score
+      FROM   urls u TABLESAMPLE SYSTEM(2)
+      INNER  JOIN collection_items ci ON ci.url_id = u.id
+      WHERE  ci.collection_id = p_collection_id
+        AND  u.approved       = TRUE
+        AND  u.wilson_score   > -0.1
+        AND  u.language       = ANY(v_langs)
+        AND  (v_excluded IS NULL OR u.domain != ALL(v_excluded))
+        AND  (v_suppressed_domains IS NULL OR u.domain != ALL(v_suppressed_domains))
+        AND  (NOT v_skip_paywall OR v_paywalled_domains IS NULL OR u.domain != ALL(v_paywalled_domains))
+        AND  (v_seen_ids IS NULL OR u.id != ALL(v_seen_ids))
+        AND  (v_skip_penalty_ids IS NULL OR u.id != ALL(v_skip_penalty_ids))
+    ) c
+    ORDER BY c.eff_score * (0.7 + 0.3 * random()) DESC
+    LIMIT 1;
+
+    -- Phase 2 fallback: wider scan, LIMIT 500
+    IF v_url_id IS NULL THEN
+      SELECT c.id INTO v_url_id
+      FROM (
+        SELECT u.id,
+               (u.roam_score_static
+                 + CASE WHEN (COALESCE(u.upvotes,0) + COALESCE(u.downvotes,0)) = 0 THEN 0.15 ELSE 0 END
+                 + CASE WHEN COALESCE(u.serve_count, 0) = 0 THEN 0.25
+                        ELSE 1.0 / (1 + COALESCE(u.serve_count, 0) * 0.1) END)
+                 * LEAST(GREATEST(COALESCE(
+                     v_score_weights[array_position(v_score_subcats, u.subcategory_id)],
+                     1.0), 0.4), 2.0)
+                 * CASE
+                     WHEN u.published_at IS NULL THEN 0.7
+                     ELSE GREATEST(
+                       EXP(-0.0003 * GREATEST(
+                         EXTRACT(EPOCH FROM (NOW() - u.published_at)) / 86400.0, 0
+                       )), 0.2)
+                   END
+                 * CASE
+                     WHEN v_recent_subcats IS NOT NULL AND u.subcategory_id = ANY(v_recent_subcats) THEN 0.3
+                     ELSE 1.0
+                   END
+                 AS eff_score
+        FROM   urls u
+        INNER  JOIN collection_items ci ON ci.url_id = u.id
+        WHERE  ci.collection_id = p_collection_id
+          AND  u.approved       = TRUE
+          AND  u.wilson_score   > -0.1
+          AND  u.language       = ANY(v_langs)
+          AND  (v_excluded IS NULL OR u.domain != ALL(v_excluded))
+          AND  (v_suppressed_domains IS NULL OR u.domain != ALL(v_suppressed_domains))
+          AND  (NOT v_skip_paywall OR v_paywalled_domains IS NULL OR u.domain != ALL(v_paywalled_domains))
+          AND  (v_seen_ids IS NULL OR u.id != ALL(v_seen_ids))
+          AND  (v_skip_penalty_ids IS NULL OR u.id != ALL(v_skip_penalty_ids))
+        ORDER  BY u.roam_score_static DESC
+        LIMIT  500
+      ) c
+      ORDER BY c.eff_score * (0.7 + 0.3 * random()) DESC
+      LIMIT 1;
+    END IF;
+
+  -- ═══════════════════════════════════════════════════════════════════════════
+  --  STANDARD MODE
+  -- ═══════════════════════════════════════════════════════════════════════════
+  ELSE
+
+    -- v35: array membership checks instead of per-row NOT EXISTS LIKE subqueries
+    SELECT c.id INTO v_url_id
+    FROM (
+      SELECT u.id,
+             (u.roam_score_static
+               + CASE WHEN (COALESCE(u.upvotes,0) + COALESCE(u.downvotes,0)) = 0 THEN 0.15 ELSE 0 END
+               + CASE WHEN COALESCE(u.serve_count, 0) = 0 THEN 0.25
+                      ELSE 1.0 / (1 + COALESCE(u.serve_count, 0) * 0.1) END)
+               * LEAST(GREATEST(COALESCE(
+                   v_score_weights[array_position(v_score_subcats, u.subcategory_id)],
+                   1.0), 0.4), 2.0)
+               * CASE
+                   WHEN u.published_at IS NULL THEN 0.7
+                   ELSE GREATEST(
+                     EXP(-0.0003 * GREATEST(
+                       EXTRACT(EPOCH FROM (NOW() - u.published_at)) / 86400.0, 0
+                     )), 0.2)
+                 END
+               * CASE
+                   WHEN v_recent_subcats IS NOT NULL AND u.subcategory_id = ANY(v_recent_subcats) THEN 0.3
+                   ELSE 1.0
+                 END
+               AS eff_score
+      FROM   urls u TABLESAMPLE SYSTEM(2)
+      WHERE  u.approved     = TRUE
+        AND  u.wilson_score > -0.1
+        AND  u.language     = ANY(v_langs)
+        AND  (v_excluded IS NULL OR u.domain != ALL(v_excluded))
+        AND  (p_category_id IS NULL OR u.category_id = p_category_id)
+        AND  (v_suppressed_domains IS NULL OR u.domain != ALL(v_suppressed_domains))
+        AND  (NOT v_skip_paywall OR v_paywalled_domains IS NULL OR u.domain != ALL(v_paywalled_domains))
+        AND  (
+               v_discovery_mode <> 'discovery'
+               OR v_cooled_domains IS NULL
+               OR u.domain != ALL(v_cooled_domains)
+             )
+        AND  (v_effective_subcat_id IS NULL OR u.subcategory_id = v_effective_subcat_id)
+        AND  (
+               v_deep_dive_subcats IS NULL
+               OR u.subcategory_id = ANY(v_deep_dive_subcats)
+             )
+        AND  (
+               p_category_id IS NOT NULL
+               OR v_effective_subcat_id IS NOT NULL
+               OR v_deep_dive_subcats IS NOT NULL
+               OR NOT v_has_categories
+               OR (v_allowed_subcat_ids IS NOT NULL AND u.subcategory_id = ANY(v_allowed_subcat_ids))
+               OR (u.subcategory_id IS NULL AND v_has_categories)
+             )
+        AND  (v_seen_ids IS NULL OR u.id != ALL(v_seen_ids))
+        AND  (v_skip_penalty_ids IS NULL OR u.id != ALL(v_skip_penalty_ids))
+    ) c
+    ORDER BY c.eff_score * (0.7 + 0.3 * random()) DESC
+    LIMIT 1;
+
+    -- Phase 2 fallback: wider scan, LIMIT 500
+    IF v_url_id IS NULL THEN
+      SELECT c.id INTO v_url_id
+      FROM (
+        SELECT u.id,
+               (u.roam_score_static
+                 + CASE WHEN (COALESCE(u.upvotes,0) + COALESCE(u.downvotes,0)) = 0 THEN 0.15 ELSE 0 END
+                 + CASE WHEN COALESCE(u.serve_count, 0) = 0 THEN 0.25
+                        ELSE 1.0 / (1 + COALESCE(u.serve_count, 0) * 0.1) END)
+                 * LEAST(GREATEST(COALESCE(
+                     v_score_weights[array_position(v_score_subcats, u.subcategory_id)],
+                     1.0), 0.4), 2.0)
+                 * CASE
+                     WHEN u.published_at IS NULL THEN 0.7
+                     ELSE GREATEST(
+                       EXP(-0.0003 * GREATEST(
+                         EXTRACT(EPOCH FROM (NOW() - u.published_at)) / 86400.0, 0
+                       )), 0.2)
+                   END
+                 * CASE
+                     WHEN v_recent_subcats IS NOT NULL AND u.subcategory_id = ANY(v_recent_subcats) THEN 0.3
+                     ELSE 1.0
+                   END
+                 AS eff_score
+        FROM   urls u
+        WHERE  u.approved     = TRUE
+          AND  u.wilson_score > -0.1
+          AND  u.language     = ANY(v_langs)
+          AND  (v_excluded IS NULL OR u.domain != ALL(v_excluded))
+          AND  (p_category_id IS NULL OR u.category_id = p_category_id)
+          AND  (v_suppressed_domains IS NULL OR u.domain != ALL(v_suppressed_domains))
+          AND  (NOT v_skip_paywall OR v_paywalled_domains IS NULL OR u.domain != ALL(v_paywalled_domains))
+          AND  (
+                 v_discovery_mode <> 'discovery'
+                 OR v_cooled_domains IS NULL
+                 OR u.domain != ALL(v_cooled_domains)
+               )
+          AND  (v_effective_subcat_id IS NULL OR u.subcategory_id = v_effective_subcat_id)
+          AND  (
+                 v_deep_dive_subcats IS NULL
+                 OR u.subcategory_id = ANY(v_deep_dive_subcats)
+               )
+          AND  (
+                 p_category_id IS NOT NULL
+                 OR v_effective_subcat_id IS NOT NULL
+                 OR v_deep_dive_subcats IS NOT NULL
+                 OR NOT v_has_categories
+                 OR (v_allowed_subcat_ids IS NOT NULL AND u.subcategory_id = ANY(v_allowed_subcat_ids))
+                 OR (u.subcategory_id IS NULL AND v_has_categories)
+               )
+          AND  (v_seen_ids IS NULL OR u.id != ALL(v_seen_ids))
+          AND  (v_skip_penalty_ids IS NULL OR u.id != ALL(v_skip_penalty_ids))
+        ORDER  BY u.roam_score_static DESC
+        LIMIT  500
+      ) c
+      ORDER BY c.eff_score * (0.7 + 0.3 * random()) DESC
+      LIMIT 1;
+    END IF;
+
+  END IF;
+
+  -- ── Pool-empty guard: before returning NULL, confirm there really aren't
+  --     any unseen URLs that match the user's criteria. ──────────────────────
+  IF v_url_id IS NULL THEN
+    SELECT COUNT(*)
+    INTO   v_pool_check
+    FROM   urls u
+    WHERE  u.approved     = TRUE
+      AND  u.wilson_score > -0.1
+      AND  u.language     = ANY(v_langs)
+      AND  (p_category_id IS NULL OR u.category_id = p_category_id)
+      AND  (
+             p_category_id IS NOT NULL
+             OR v_effective_subcat_id IS NOT NULL
+             OR v_deep_dive_subcats IS NOT NULL
+             OR NOT v_has_categories
+             OR (v_allowed_subcat_ids IS NOT NULL AND u.subcategory_id = ANY(v_allowed_subcat_ids))
+             OR (u.subcategory_id IS NULL AND v_has_categories)
+           )
+      AND  (v_seen_ids IS NULL OR u.id != ALL(v_seen_ids))
+    LIMIT  1;
+
+    -- If pool has unseen URLs, one more attempt with larger sample
+    IF v_pool_check > 0 THEN
+      IF p_collection_id IS NOT NULL THEN
+        SELECT c.id INTO v_url_id
+        FROM (
+          SELECT u.id,
+                 (u.roam_score_static
+                   + CASE WHEN (COALESCE(u.upvotes,0) + COALESCE(u.downvotes,0)) = 0 THEN 0.15 ELSE 0 END
+                   + CASE WHEN COALESCE(u.serve_count, 0) = 0 THEN 0.25
+                          ELSE 1.0 / (1 + COALESCE(u.serve_count, 0) * 0.1) END)
+                   * LEAST(GREATEST(COALESCE(
+                       v_score_weights[array_position(v_score_subcats, u.subcategory_id)],
+                       1.0), 0.4), 2.0)
+                   * CASE
+                       WHEN u.published_at IS NULL THEN 0.7
+                       ELSE GREATEST(
+                         EXP(-0.0003 * GREATEST(
+                           EXTRACT(EPOCH FROM (NOW() - u.published_at)) / 86400.0, 0
+                         )), 0.2)
+                     END
+                   * CASE
+                       WHEN v_recent_subcats IS NOT NULL AND u.subcategory_id = ANY(v_recent_subcats) THEN 0.3
+                       ELSE 1.0
+                     END
+                   AS eff_score
+          FROM   urls u TABLESAMPLE SYSTEM(5)
+          INNER  JOIN collection_items ci ON ci.url_id = u.id
+          WHERE  ci.collection_id = p_collection_id
+            AND  u.approved       = TRUE
+            AND  u.wilson_score   > -0.1
+            AND  u.language       = ANY(v_langs)
+            AND  (NOT v_skip_paywall OR v_paywalled_domains IS NULL OR u.domain != ALL(v_paywalled_domains))
+            AND  (v_seen_ids IS NULL OR u.id != ALL(v_seen_ids))
+        ) c
+        ORDER BY c.eff_score * (0.7 + 0.3 * random()) DESC
+        LIMIT 1;
+      ELSE
+        SELECT c.id INTO v_url_id
+        FROM (
+          SELECT u.id,
+                 (u.roam_score_static
+                   + CASE WHEN (COALESCE(u.upvotes,0) + COALESCE(u.downvotes,0)) = 0 THEN 0.15 ELSE 0 END
+                   + CASE WHEN COALESCE(u.serve_count, 0) = 0 THEN 0.25
+                          ELSE 1.0 / (1 + COALESCE(u.serve_count, 0) * 0.1) END)
+                   * LEAST(GREATEST(COALESCE(
+                       v_score_weights[array_position(v_score_subcats, u.subcategory_id)],
+                       1.0), 0.4), 2.0)
+                   * CASE
+                       WHEN u.published_at IS NULL THEN 0.7
+                       ELSE GREATEST(
+                         EXP(-0.0003 * GREATEST(
+                           EXTRACT(EPOCH FROM (NOW() - u.published_at)) / 86400.0, 0
+                         )), 0.2)
+                     END
+                   * CASE
+                       WHEN v_recent_subcats IS NOT NULL AND u.subcategory_id = ANY(v_recent_subcats) THEN 0.3
+                       ELSE 1.0
+                     END
+                   AS eff_score
+          FROM   urls u TABLESAMPLE SYSTEM(5)
+          WHERE  u.approved     = TRUE
+            AND  u.wilson_score > -0.1
+            AND  u.language     = ANY(v_langs)
+            AND  (p_category_id IS NULL OR u.category_id = p_category_id)
+            AND  (NOT v_skip_paywall OR v_paywalled_domains IS NULL OR u.domain != ALL(v_paywalled_domains))
+            AND  (
+                   p_category_id IS NOT NULL
+                   OR NOT v_has_categories
+                   OR (v_allowed_subcat_ids IS NOT NULL AND u.subcategory_id = ANY(v_allowed_subcat_ids))
+                   OR (u.subcategory_id IS NULL AND v_has_categories)
+                 )
+            AND  (v_seen_ids IS NULL OR u.id != ALL(v_seen_ids))
+        ) c
+        ORDER BY c.eff_score * (0.7 + 0.3 * random()) DESC
+        LIMIT 1;
+      END IF;
+    END IF;
+  END IF;
+
+  -- ── Post-filter: apply the subdomain LIKE pattern to the single candidate ─
+  -- The per-row NOT EXISTS LIKE subqueries were hoisted out of the candidate
+  -- loop. Now that we have a single candidate, check whether its domain is a
+  -- subdomain of any suppressed/excluded base domain. If so, discard it and
+  -- fall through to the pool-empty guard (which will retry with a wider sample).
+  IF v_url_id IS NOT NULL THEN
+    SELECT domain INTO v_url_domain FROM urls WHERE id = v_url_id;
+    IF v_url_domain IS NOT NULL THEN
+      IF (v_suppressed_domains IS NOT NULL AND EXISTS (
+            SELECT 1 FROM unnest(v_suppressed_domains) AS sd(d)
+            WHERE v_url_domain = sd.d OR v_url_domain LIKE ('%.' || sd.d)
+          ))
+         OR (v_excluded IS NOT NULL AND EXISTS (
+            SELECT 1 FROM unnest(v_excluded) AS ex(d)
+            WHERE v_url_domain = ex.d OR v_url_domain LIKE ('%.' || ex.d)
+          ))
+      THEN
+        v_url_id := NULL;
+        v_url_domain := NULL;
+      END IF;
+    END IF;
+  END IF;
+
+  -- ── Record seen + domain cooldown ─────────────────────────────────────────
+  IF v_url_id IS NOT NULL THEN
+    INSERT INTO seen_urls (user_id, url_id)
+    VALUES (p_user_id, v_url_id)
+    ON CONFLICT (user_id, url_id) DO UPDATE
+      SET seen_at = NOW(), dwell_ms = NULL, skipped = NULL;
+
+    IF v_discovery_mode = 'discovery' AND p_collection_id IS NULL THEN
+      IF v_url_domain IS NULL THEN
+        SELECT domain INTO v_url_domain FROM urls WHERE id = v_url_id;
+      END IF;
+      IF v_url_domain IS NOT NULL THEN
+        INSERT INTO user_domain_cooldowns (user_id, domain, cooldown_until)
+        VALUES (p_user_id, v_url_domain, NOW() + INTERVAL '24 hours')
+        ON CONFLICT (user_id, domain) DO UPDATE
+          SET cooldown_until = NOW() + INTERVAL '24 hours';
+      END IF;
+    END IF;
+  END IF;
+
+  RETURN QUERY
+  SELECT u.id, u.url, u.title, u.description, u.og_image_url,
+         u.category_id, u.subcategory_id, u.wilson_score
+  FROM   urls u
+  WHERE  u.id = v_url_id;
+END;
+$$;
+
+REVOKE EXECUTE ON FUNCTION public.roam(UUID, UUID, TEXT, UUID, UUID, TEXT[]) FROM PUBLIC, anon;
+GRANT  EXECUTE ON FUNCTION public.roam(UUID, UUID, TEXT, UUID, UUID, TEXT[]) TO authenticated;

@@ -1,0 +1,27 @@
+name: Roam Health Check
+
+on:
+  schedule:
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+
+jobs:
+  check:
+    name: Probe roam() health-check endpoint
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Call roam-health-check edge function
+        run: |
+          STATUS=$(curl -s -o /tmp/roam-health.json -w '%{http_code}' \
+            -X POST "${{ secrets.SUPABASE_URL }}/functions/v1/roam-health-check" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
+            -H "Content-Type: application/json" \
+            -d '{}')
+          echo "HTTP $STATUS"
+          cat /tmp/roam-health.json
+          echo ""
+          if [ "$STATUS" != "200" ]; then
+            echo "::error::roam-health-check returned HTTP $STATUS"
+            exit 1
+          fi

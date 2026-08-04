@@ -36,6 +36,13 @@ sealed interface SubmitResult {
     data class Failed(val message: String) : SubmitResult
 }
 
+/**
+ * Thrown when the roam edge function returns a retryable error (503) — e.g. the
+ * DB RPC raised, timed out, or the circuit breaker is open. The UI should show
+ * a retryable error, NOT the "exhausted" end-of-content screen.
+ */
+class RetryableRoamException(message: String) : Exception(message)
+
 class RoamRepository {
 
     private val json = kotlinx.serialization.json.Json {
@@ -69,20 +76,41 @@ class RoamRepository {
      */
     private suspend fun ensureAuthenticated(): Boolean {
         val status = supabase.auth.sessionStatus.value
+        val token = supabase.auth.currentAccessTokenOrNull()
+        android.util.Log.d("RoamRepository", "ensureAuthenticated: status=$status token=${token?.take(8) ?: "null"}")
 
         // Not authenticated at all — attempt recovery via refresh
         if (status !is io.github.jan.supabase.auth.status.SessionStatus.Authenticated) {
             android.util.Log.w("RoamRepository", "Session not authenticated ($status); attempting refresh")
-            return try {
+            try {
                 supabase.auth.refreshCurrentSession()
-                verifyTokenAvailable()
+                val newToken = supabase.auth.currentAccessTokenOrNull()
+                android.util.Log.d("RoamRepository", "Refresh result: token=${newToken?.take(8) ?: "null"}")
+                return verifyTokenAvailable()
             } catch (e: Exception) {
-                android.util.Log.e("RoamRepository", "Session refresh failed", e)
-                false
+                android.util.Log.e("RoamRepository", "Session refresh failed: ${e.javaClass.simpleName}: ${e.message}", e)
+                return false
             }
         }
 
-        // Status says Authenticated, but the token may not have landed in storage yet.
+        // Status says Authenticated — but the token may be expired (access tokens
+        // expire after 1 hour, and the session persists beyond that). Proactively
+        // refresh to get a valid token. supabase-kt's refreshCurrentSession() is
+        // lightweight: it only makes a network call if the access token is actually
+        // expired; if valid, it's a no-op that returns immediately.
+        try {
+            supabase.auth.refreshCurrentSession()
+        } catch (e: Exception) {
+            android.util.Log.e("RoamRepository", "Proactive refresh threw: ${e.javaClass.simpleName}: ${e.message}")
+            // If refresh fails and we have no token, fail. Otherwise fall back to
+            // the current token — the API call will surface a 401 if it's invalid.
+            val currentToken = supabase.auth.currentAccessTokenOrNull()
+            if (currentToken == null) {
+                android.util.Log.e("RoamRepository", "No token available after refresh failure")
+                return false
+            }
+            android.util.Log.w("RoamRepository", "Refresh failed but token exists; proceeding (${currentToken.take(8)}...)")
+        }
         return verifyTokenAvailable()
     }
 
@@ -112,7 +140,11 @@ class RoamRepository {
     /**
      * Calls POST /functions/v1/roam.
      * Optionally restricts to a specific collection, subcategory, or category.
-     * Returns null on 404 (pool exhausted).
+     *
+     * Returns null ONLY on genuine pool exhaustion (server returns 404 with the
+     * explicit `exhausted` marker). Any server error (503 — RPC exception, timeout,
+     * or circuit breaker) throws [RetryableRoamException] so the UI shows a
+     * retryable error instead of the misleading "exhausted" end-of-content screen.
      */
     suspend fun roam(
         collectionId: String? = null,
@@ -140,10 +172,16 @@ class RoamRepository {
 
         return try {
             val response = supabase.functions.invoke("roam", body = body)
-            if (response.status.value == 404) return null // pool exhausted
+            if (response.status.value == 404) return null // genuine pool exhaustion
+            if (response.status.value == 503) {
+                throw RetryableRoamException("Discovery temporarily unavailable. Please try again.")
+            }
             json.decodeFromString<RoamUrl>(response.bodyAsText())
         } catch (e: io.github.jan.supabase.exceptions.RestException) {
-            if (e.statusCode == 404) return null // pool exhausted — not an error (ROAM-ANDROID-10)
+            if (e.statusCode == 404) return null // genuine pool exhaustion — not an error
+            if (e.statusCode == 503) {
+                throw RetryableRoamException("Discovery temporarily unavailable. Please try again.")
+            }
             throw e // re-throw real errors
         }
     }
@@ -152,6 +190,9 @@ class RoamRepository {
      * Batch fetch multiple URLs in a single API call using the edge function's
      * `count` parameter. Returns up to [count] URLs (may be fewer if pool runs low).
      * Used by the prefetch warm-fill loop to reduce API calls from 27 to ~6.
+     *
+     * Returns emptyList ONLY on genuine pool exhaustion (404 with `exhausted` marker).
+     * Any server error (503) throws [RetryableRoamException].
      */
     suspend fun roamBatch(
         count: Int = 5,
@@ -177,10 +218,16 @@ class RoamRepository {
 
         return try {
             val response = supabase.functions.invoke("roam", body = body)
-            if (response.status.value == 404) return emptyList() // pool exhausted
+            if (response.status.value == 404) return emptyList() // genuine pool exhaustion
+            if (response.status.value == 503) {
+                throw RetryableRoamException("Discovery temporarily unavailable. Please try again.")
+            }
             json.decodeFromString<List<RoamUrl>>(response.bodyAsText())
         } catch (e: io.github.jan.supabase.exceptions.RestException) {
-            if (e.statusCode == 404) return emptyList() // pool exhausted — not an error
+            if (e.statusCode == 404) return emptyList() // genuine pool exhaustion — not an error
+            if (e.statusCode == 503) {
+                throw RetryableRoamException("Discovery temporarily unavailable. Please try again.")
+            }
             throw e
         }
     }
@@ -933,13 +980,17 @@ class RoamRepository {
     /** Registers an FCM token for the current user. Called by FCMService on token refresh. */
     suspend fun registerPushToken(token: String) {
         val userId = supabase.auth.currentUserOrNull()?.id ?: return
-        supabase.postgrest.from("push_tokens").upsert(
-            mapOf(
-                "user_id" to userId,
-                "platform" to "android",
-                "token" to token,
+        runCatching {
+            supabase.postgrest.from("push_tokens").upsert(
+                mapOf(
+                    "user_id" to userId,
+                    "platform" to "android",
+                    "token" to token,
+                )
             )
-        )
+        }.onFailure { e ->
+            android.util.Log.w("RoamRepository", "Push token registration failed (likely duplicate): ${e.message}")
+        }
     }
 
     /** Deletes all Android push tokens for the current user. Called when notifications are disabled. */

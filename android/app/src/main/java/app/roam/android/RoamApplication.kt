@@ -54,13 +54,13 @@ class RoamApplication : Application() {
                             excValue.contains("UnknownHostException", ignoreCase = true)
                         )) return@BeforeSendCallback null
 
-                        // Drop UUID syntax 401s auto-captured by the OkHttp integration
-                        // (ROAM-ANDROID-5). Root cause: concurrent prefetch workers double-
-                        // consuming the refresh token → SDK briefly falls back to anon key.
-                        // Fixed in ensureAuthenticated() — suppress residual noise here.
-                        if (excType == "UnauthorizedRestException" &&
-                            excValue.contains("invalid input syntax for type uuid", ignoreCase = true)
-                        ) return@BeforeSendCallback null
+                        // Drop misleading 401s auto-captured by the OkHttp integration (ROAM-ANDROID-5).
+                        // - "invalid input syntax for type uuid": concurrent refresh race.
+                        // - "Discovery failed": pool exhausted (should be 404, backend returns 401).
+                        if (excType == "UnauthorizedRestException" && (
+                            excValue.contains("invalid input syntax for type uuid", ignoreCase = true) ||
+                            excValue.contains("Discovery failed", ignoreCase = true)
+                        )) return@BeforeSendCallback null
 
                         // Drop CancellationException — normal coroutine lifecycle behavior
                         // when the user navigates away from a screen mid-request (ROAM-ANDROID-Z).

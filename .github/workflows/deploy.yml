@@ -41,6 +41,7 @@ jobs:
         run: |
           supabase link --project-ref ${{ secrets.SUPABASE_PROJECT_ID }}
           supabase functions deploy roam
+          supabase functions deploy roam-health-check
           supabase functions deploy rate
           supabase functions deploy submit-url
           supabase functions deploy profile
@@ -64,6 +65,30 @@ jobs:
           supabase functions deploy cron-streak-cleanup
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+
+  verify-roam:
+    name: Verify roam() RPC after deploy
+    runs-on: ubuntu-latest
+    needs: deploy-supabase
+    if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[deploy]')
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Run roam() verification harness
+        run: node scripts/verify-roam-rpc.mjs --user ${{ secrets.ROAM_TEST_USER_ID }}
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
 
   deploy-web:
     name: Deploy Web to Vercel

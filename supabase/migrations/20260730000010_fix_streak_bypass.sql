@@ -11,7 +11,11 @@
 -- no longer pre-inserts — it delegates entirely to update_streak with
 -- p_is_roam := FALSE.
 
--- Fix 1: update_streak with p_is_roam control
+-- Fix 1: update_streak with p_is_roam control.
+-- Must DROP the old update_streak(UUID) overload first because CREATE OR REPLACE
+-- only replaces the same signature. PostgREST resolves rpc('update_streak', {p_user_id})
+-- to the one-parameter overload, so it must not exist.
+DROP FUNCTION IF EXISTS public.update_streak(UUID);
 CREATE OR REPLACE FUNCTION public.update_streak(p_user_id UUID, p_is_roam BOOLEAN DEFAULT TRUE)
 RETURNS TABLE(streak_days INT, max_streak INT, is_streak_broken BOOLEAN)
 LANGUAGE plpgsql SECURITY DEFINER AS $$
