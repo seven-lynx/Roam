@@ -713,10 +713,53 @@ private fun DiscoverTab(
 
                 if (showOverlay) {
                     Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background), contentAlignment = Alignment.Center) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            CircularProgressIndicator(Modifier.size(40.dp), strokeWidth = 3.dp, color = MaterialTheme.colorScheme.primary)
-                            Spacer(Modifier.size(16.dp))
-                            Text(loadingMessage.text, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        when {
+                            state is RoamState.Error -> {
+                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Text(
+                                        text = "\u26A0",
+                                        style = MaterialTheme.typography.displaySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                    Spacer(Modifier.size(12.dp))
+                                    Text(
+                                        text = "The internet blinked. Tap to try again.",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                    Spacer(Modifier.size(8.dp))
+                                    TextButton(onClick = { vm.roam() }) {
+                                        Text("Try Again")
+                                    }
+                                }
+                            }
+                            state is RoamState.Exhausted -> {
+                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Text(
+                                        text = "\uD83C\uDFAF",
+                                        style = MaterialTheme.typography.displaySmall,
+                                    )
+                                    Spacer(Modifier.size(12.dp))
+                                    Text(
+                                        text = "You've seen everything!",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                    Spacer(Modifier.size(4.dp))
+                                    Text(
+                                        text = "Adjust your categories in Settings to find more.",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                                    )
+                                }
+                            }
+                            else -> {
+                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    CircularProgressIndicator(Modifier.size(40.dp), strokeWidth = 3.dp, color = MaterialTheme.colorScheme.primary)
+                                    Spacer(Modifier.size(16.dp))
+                                    Text(loadingMessage.text, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                }
+                            }
                         }
                     }
                 }
