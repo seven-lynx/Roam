@@ -76,6 +76,8 @@ DECLARE
   v_serendipity_subcat  UUID;
   v_recent_subcats      UUID[];
   v_pool_check          BIGINT;
+  v_score_subcats       UUID[];
+  v_score_weights       DOUBLE PRECISION[];
 BEGIN
   IF auth.uid() <> p_user_id THEN
     RAISE EXCEPTION 'Unauthorized';
