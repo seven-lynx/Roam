@@ -1,4 +1,9 @@
 -- Fix ambiguous "badge_id" by qualifying all sub-select column references
+-- DROP first: the production function still has out_* OUT parameter names from
+-- 20260709000009, so CREATE OR REPLACE would fail with "cannot change return
+-- type of existing function" (SQLSTATE 42P13) due to differing row types.
+DROP FUNCTION IF EXISTS public.evaluate_badges(UUID) CASCADE;
+
 CREATE OR REPLACE FUNCTION public.evaluate_badges(p_user_id UUID)
 RETURNS TABLE(badge_id UUID, badge_slug TEXT, badge_name TEXT, badge_description TEXT, badge_icon TEXT, badge_category TEXT, badge_tier SMALLINT, badge_xp_reward INT)
 LANGUAGE plpgsql SECURITY DEFINER AS $$
