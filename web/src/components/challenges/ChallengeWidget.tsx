@@ -42,8 +42,8 @@ export function ChallengeWidget() {
         if (!res.ok) throw new Error("Failed to load challenges");
         const json = await res.json();
         setChallenges(json.challenges ?? []);
-      } catch (e: any) {
-        setError(e.message);
+      } catch (e: unknown) {
+        setError(e instanceof Error ? e.message : String(e));
       } finally {
         setLoading(false);
       }
