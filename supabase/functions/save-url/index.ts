@@ -57,40 +57,18 @@ Deno.serve(async (req) => {
     // Use idempotency key to prevent double-awards from retried requests.
     if (!existing) {
       const idemKey = `save_url:${urlId ?? url}:${user.id}`
-      // Record today's activity so the user's streak is maintained
-      supabase.rpc('record_daily_activity', { p_user_id: user.id }).then(
-        () => {},
-        (e: unknown) => { console.error('record_daily_activity failed (save-url)', e) }
-      )
-      supabase.rpc('award_xp', {
-        p_user_id: user.id,
-        p_action: 'save_url',
-        p_metadata: { url, url_id: urlId },
-        p_idempotency_key: idemKey,
-      })
-        .then(
-          () => supabase.rpc('evaluate_badges', { p_user_id: user.id }),
-          (e: unknown) => { console.error('xp award failed (save-url)', e) }
-        )
-        .then(
-          () => {},
-          (e: unknown) => { console.error('badge evaluation failed (save-url)', e) }
-        )
-
-      // Track challenge progress for save_count
+      // Background: record activity + award XP + evaluate badges + challenge progress
       (async () => {
+        try { await supabase.rpc('record_daily_activity', { p_user_id: user.id }); } catch (e) { console.error('record_daily_activity failed (save-url)', e); }
         try {
-          await supabase.rpc('evaluate_badges', { p_user_id: user.id })
-          const svcClient = createClient(
-            Deno.env.get('SUPABASE_URL')!,
-            Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
-            { auth: { persistSession: false } },
-          )
-          await incrementChallengeProgress(svcClient, user.id, 'save_count')
-        } catch (e: unknown) {
-          console.error('challenge progress failed (save-url)', e)
-        }
-      })()
+          await supabase.rpc('award_xp', { p_user_id: user.id, p_action: 'save_url', p_metadata: { url, url_id: urlId }, p_idempotency_key: idemKey });
+          await supabase.rpc('evaluate_badges', { p_user_id: user.id });
+        } catch (e) { console.error('xp/badge evaluation failed (save-url)', e); }
+        try {
+          const svcClient = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, { auth: { persistSession: false } });
+          await incrementChallengeProgress(svcClient, user.id, 'save_count');
+        } catch (e) { console.error('challenge progress failed (save-url)', e); }
+      })();
     }
 
     return json({ ok: true })
