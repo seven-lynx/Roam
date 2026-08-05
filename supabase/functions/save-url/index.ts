@@ -78,14 +78,19 @@ Deno.serve(async (req) => {
         )
 
       // Track challenge progress for save_count
-      supabase.rpc('evaluate_badges', { p_user_id: user.id }).then(() => {
-        const svcClient = createClient(
-          Deno.env.get('SUPABASE_URL')!,
-          Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
-          { auth: { persistSession: false } },
-        )
-        return incrementChallengeProgress(svcClient, user.id, 'save_count')
-      }).catch((e: unknown) => { console.error('challenge progress failed (save-url)', e) })
+      (async () => {
+        try {
+          await supabase.rpc('evaluate_badges', { p_user_id: user.id })
+          const svcClient = createClient(
+            Deno.env.get('SUPABASE_URL')!,
+            Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+            { auth: { persistSession: false } },
+          )
+          await incrementChallengeProgress(svcClient, user.id, 'save_count')
+        } catch (e: unknown) {
+          console.error('challenge progress failed (save-url)', e)
+        }
+      })()
     }
 
     return json({ ok: true })

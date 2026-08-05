@@ -552,7 +552,7 @@ Deno.serve(async (req: Request) => {
 
       if (completableChallenges && completableChallenges.length > 0) {
         for (const uc of completableChallenges) {
-          const challenge = uc.challenge_instances?.challenges;
+          const challenge = uc.challenge_instances?.[0]?.challenges?.[0];
           if (!challenge) continue;
           if ((uc.progress_current ?? 0) >= (challenge.goal_count ?? 999)) {
             // Mark completed

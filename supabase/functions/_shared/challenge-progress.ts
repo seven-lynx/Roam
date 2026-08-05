@@ -66,9 +66,10 @@ export async function incrementChallengeProgress(
 
     for (const uc of activeChallenges) {
       // Skip if already completed
-      if (!uc.challenge_instances?.challenges) continue;
+      const instance = uc.challenge_instances?.[0];
+      if (!instance?.challenges?.[0]) continue;
 
-      const challenge = uc.challenge_instances.challenges;
+      const challenge = instance.challenges[0];
       const timeReq = challenge.time_restriction;
 
       // Check time restriction
