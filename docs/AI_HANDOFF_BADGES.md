@@ -1,120 +1,112 @@
-# AI Handoff: Badge System Completion
+# AI Handoff: Badge System
 
-**Date:** July 30, 2026  
-**Project:** Roam (github.com/seven-lynx/Roam)  
-**Goal:** Make all 300 badges unlockable with real conditions users can meet.
+**Last updated:** August 4, 2026  
+**Project:** Roam (github.com/seven-lynx/Roam)
+
+See also: **[Badge System Architecture](BADGE_SYSTEM_ARCHITECTURE.md)** for full data flow, XP economy, and architecture docs.
 
 ---
 
-## Current State (What's Done)
+## Current State
 
-### Data
-- **225 badges** awarded across 26 users (~10,505 XP total)
+### Data (as of Aug 4, 2026 repair)
+- **85 badges** awarded across 9 users (75 new + 10 gift)
 - **0 XP/level mismatches**, **0 badge_count drift**
-- 3 new tables exist in production: `url_ratings`, `collection_favorites`, `log_failed_urls`
+- 27 users, avg XP 2,002, avg level 2.9, max level 16
+
+### Canonical Architecture
+- **Edge Function** (`supabase/functions/evaluate-badges/index.ts`) is the **single authoritative badge evaluator**
+- **`xp_log` is the single source of truth for XP** — `profiles.xp_total` is derived via `SUM(xp_log.xp_awarded)`
+- **Level formula:** `FLOOR(SQRT(xp_total / 100)) + 1`
+- The SQL RPC `evaluate_badges()` exists but is less complete and should not be used for new badges
 
 ### Tools Built
 | File | Purpose |
 |------|---------|
-| `scripts/repair-badges-v3.mjs` | **Primary batch repair tool** — evaluates ~150 badges via REST API. Run: `node scripts/repair-badges-v3.mjs` |
+| `scripts/repair-badges-comprehensive.mjs` | **Primary repair tool** — 3-phase atomic repair (SQL wipe → edge fn rebuild → verify). Run: `node scripts/repair-badges-comprehensive.mjs [--dry-run]` |
 | `scripts/audit-badges-full.mjs` | Audit tool — generates per-badge unlock counts |
-| `supabase/functions/evaluate-badges/index.ts` | **Real-time edge function** — evaluates badges on user actions |
+| `supabase/functions/evaluate-badges/index.ts` | **Real-time edge function** — canonical badge evaluator (~150 badges) |
 
 ### Edge Functions Deployed
 - `evaluate-badges` — core engine called by other functions
 - `roam` — calls evaluate-badges on boot (fire-and-forget)
 - `save-url` — calls evaluate-badges on save
 - `follow` — calls evaluate-badges for follower + followed user
+- `cron-secret-badges` — scheduled daily for secret/holiday badges
 
-### Tables Created
+### Tables
 - `public.url_ratings (id, user_id, url_id, rating (-1/0/1), created_at)` — RLS + indexes
 - `public.collection_favorites (id, user_id, collection_id, created_at)` — RLS + indexes
 - `public.log_failed_urls (id, user_id, url, status_code, created_at)` — RLS + index
 
 ### Deprecated/Retired
-- `scripts/rebuild-badges.mjs` — depends on broken SQL `evaluate_badges()` RPC
-- `scripts/rebuild-badges-client-side.mjs` — had 4 critical bugs, replaced by v3
-
-### Known Limitation
-The SQL `evaluate_badges()` function **cannot be deployed remotely** via Management API or SQL Editor. `npx supabase db push` found 14 pending migrations (`20260718000002` through `00006`) that need applying. The function itself is fine in `supabase/migrations/20260730000006_fix_ambiguous_columns.sql` — it just needs `npx supabase db push --include-all` to work, which requires Docker.
+- `scripts/repair-badges-v3.mjs` — superseded by `repair-badges-comprehensive.mjs`
+- `scripts/repair-badges-v2.mjs` — superseded
+- `scripts/rebuild-badges.mjs` — depends on broken SQL RPC
+- `scripts/rebuild-badges-client-side.mjs` — had critical bugs
 
 ---
 
 ## Remaining Work (Prioritized)
 
-### P1: Add Rating Badge Evaluation (~16 badges, 30 min)
-The `url_ratings` table exists but is empty (no users have rated URLs). Add evaluation logic to the switch/case in both files:
-- `scripts/repair-badges-v3.mjs` (around line 150, `evaluateBadge()` function)
-- `supabase/functions/evaluate-badges/index.ts` (around line 125, switch statement)
+### P1: Rating badges already in edge function
+Rating badges (`rater-*`, `critic`, `feedback-loop`, `voting-power`, `the-equalizer`, `non-committal`, `morning-rater`, `rate-streak`, `rate-by-category`, `downer`) are implemented in the edge function but need `url_ratings` data to be populated by users. No code changes needed — just user adoption.
 
-**Badges to add:** `rater-bronze` (25 ratings), `rater-silver` (100), `rater-gold` (500), `critic` (1000), `the-judge` (2000), `feedback-loop` (10 today), `rate-everything` (every category), `rate-spree` (25 today), `the-completionist-rate`, `voting-power` (100), `non-committal` (50 roams + 0 ratings), `morning-rater` (5 before 9am), `rate-streak` (7 consecutive days), `rate-by-category` (3 categories today), `the-equalizer` (equal up/down), `downer` (10 downvotes today)
+### P2: Complex batch-repair badges (~8 badges)
+Badges that need additional logic beyond what the edge function does in real-time:
+- `pack-rat-*` — max items in any single collection
+- `curators-eye`, `niched-down`, `linker` — cross-collection analysis
+- `micro-curator`, `mega-collection`, `solo-artist` — collection stats
+- `weekly-publisher`, `collection-streak`, `daily-curation` — time-based curation
 
-**Pattern to follow (existing working examples):**
-```js
-case "rater-bronze": {
-  const { count: c } = await sb.from("url_ratings").select("*", { count: "exact", head: true }).eq("user_id", userId);
-  q = (c ?? 0) >= 25;
-  break;
-}
-```
-
-### P2: Add Collection Favorites Evaluation (~5 badges, 15 min)
-```js
-case "favorited-bronze": {
-  const { data: d } = await sb.from("collection_favorites").select("collection_id, collections!inner(user_id)").eq("collections.user_id", userId);
-  q = (d?.length ?? 0) >= 5;
-  break;
-}
-```
-
-### P3: SQL-Aggregatable Badges (~15 badges, 20 min)
-Badges that need additional REST queries (no new tables):
-- `tagger-*` — COUNT DISTINCT category_id from saved_urls
-- `tag-master`, `completionist`, `save-streak`, `language-collector`
+### P3: SQL-Aggregatable Badges (~15 badges)
+Badges that need batch-only evaluation (too expensive for real-time edge fn):
+- `tagger-*`, `tag-master` — COUNT DISTINCT category_id from saved_urls
+- `completionist`, `save-streak`, `language-collector`
 - `collectors-collector`, `weekly-collector`, `long-term-storage`
 - `submission-streak`, `approval-streak`, `weekend-submitter`
-- `error-404-explorer` — query `log_failed_urls`
+- `error-404-explorer`, `domain-hoarder`, `pinball-wizard`, `jet-setter`
+- `daily-double`, `repeat-visitor`, `globetrotter-*`, `rate-everything`, `rate-spree`, `the-completionist-rate`
 
-### P4: Secret/Holiday Badges (43 badges, 30 min)
-Create `supabase/functions/cron-secret-badges/index.ts` — a scheduled edge function that runs daily and checks:
-- Date-based badges (holidays, solstices, Pi Day, etc.)
-- Time-based badges (`time-traveler`, `midnight-oil`)
-- Special condition badges (`lucky-777`, `polyglot`, `lunar-roamer`, `easter-egg`)
-Deploy as: `npx supabase functions deploy cron-secret-badges`
-
-### P5: Share Tracking (12 badges, 30 min)
+### P4: Share Tracking (12 badges)
 Create `share_events` table then add evaluation for: `viral-*`, `first-share`, `broadcaster`, `chatterbox`, `share-happy-hour`.
 
-### P6: Cleanup
-Delete failed migration attempts (`20260730000002` through `00005`). These were 4 attempts that never successfully deployed. Keep `00006` and `00000` (clean wipe).
+### P5: Cleanup
+Delete failed migration attempts (`20260730000002` through `00005`). Keep `00006` and `00000`.
 
 ---
 
 ## Key Code Patterns
 
-### How to add a badge to repair-badges-v3.mjs
+### How to add a badge to the edge function
 ```js
 case "badge-slug": {
   // Simple count-based:
-  // const { count: c } = await sb.from("table").select("*", { count: "exact", head: true }).eq("user_id", userId);
-  // q = (c ?? 0) >= required_count;
+  // const { count: c } = await sb.from("table").select("*", { count: "exact", head: true }).eq("user_id", user_id);
+  // qualifies = (c ?? 0) >= required_count;
   
   // More complex:
-  // const { data: d } = await sb.from("table").select("col").eq("user_id", userId).limit(100);
+  // const { data: d } = await sb.from("table").select("col").eq("user_id", user_id).limit(100);
   // const result = (d || []).filter(r => condition).length;
-  // q = result >= threshold;
+  // qualifies = result >= threshold;
   
   break;
 }
 ```
 
-### Stats available per user (already collected)
+### Stats available per user (already collected by edge function)
 `roam`, `save`, `submit`, `approved`, `collections`, `followers`, `following`, `publicColls`, `todayRoam`, `todaySave`, `level`, `xp`, `streak`, `bio`, `displayName`, `avatarUrl`, `createdAt`
 
 ### How to run repairs
 ```bash
-node scripts/repair-badges-v3.mjs   # full batch repair
-node scripts/audit-badges-full.mjs # generate audit report
+# Full badge repair (3 phases: wipe, rebuild, verify)
+node scripts/repair-badges-comprehensive.mjs
+
+# Dry-run first
+node scripts/repair-badges-comprehensive.mjs --dry-run
+
+# Audit badge distribution
+node scripts/audit-badges-full.mjs
 ```
 
 ### How to deploy edge functions
@@ -123,14 +115,16 @@ npx supabase functions deploy evaluate-badges
 npx supabase functions deploy cron-secret-badges
 ```
 
-### How to push DB migrations
+### How to run SQL (Management API — no pg DNS needed)
 ```bash
-npx supabase db push --include-all  # requires Docker
+node scripts/run-supabase-sql.mjs <sql-file>
 ```
+Requires `SUPABASE_ACCESS_TOKEN` in `.env`.
 
 ---
 
 ## DB Connection
 - URL: `https://yrhckctwtdjowulfuaqc.supabase.co`
 - Service key in any script or `.env` as `SUPABASE_SERVICE_ROLE_KEY`
-- 26 users, 4,727 XP log entries, ~225 badges awarded
+- Management API token in `.env` as `SUPABASE_ACCESS_TOKEN`
+- 27 users, avg XP 2,002, 85 badges awarded

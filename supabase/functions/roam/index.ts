@@ -4,6 +4,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { corsHeaders } from '../_shared/cors.ts'
 import { initSentry } from '../_shared/sentry.ts'
+import { incrementChallengeProgress } from '../_shared/challenge-progress.ts'
 
 // EdgeRuntime.waitUntil is a Deno Deploy API that tells the runtime to not
 // wait for a promise before shutting down the isolate. It's available at
@@ -186,6 +187,20 @@ Deno.serve(async (req) => {
             })
           } catch (e) {
             console.error('xp award failed', e)
+          }
+        })()
+      )
+
+      // Track challenge progress for roam_count
+      EdgeRuntime.waitUntil(
+        (async () => {
+          try {
+            const svcClient = createClient(SUPABASE_URL, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, {
+              auth: { persistSession: false },
+            })
+            await incrementChallengeProgress(svcClient, user.id, 'roam_count')
+          } catch (e) {
+            console.error('challenge progress failed', e)
           }
         })()
       )

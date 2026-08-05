@@ -535,6 +535,66 @@ Deno.serve(async (req: Request) => {
       console.log(`Badges awarded to ${user_id}: ${toAward.map((b: any) => b.slug).join(", ")}`);
     }
 
+    // ── Challenge completion check ─────────────────────────────────
+    try {
+      const now = new Date().toISOString();
+      const { data: completableChallenges } = await sb
+        .from("user_challenges")
+        .select(`
+          instance_id, progress_current,
+          challenge_instances!inner(id, challenge_id,
+            challenges!inner(id, challenge_key, title, xp_reward, goal_count)
+          )
+        `)
+        .eq("user_id", user_id)
+        .is("completed_at", null)
+        .gte("challenge_instances.expires_at", now);
+
+      if (completableChallenges && completableChallenges.length > 0) {
+        for (const uc of completableChallenges) {
+          const challenge = uc.challenge_instances?.challenges;
+          if (!challenge) continue;
+          if ((uc.progress_current ?? 0) >= (challenge.goal_count ?? 999)) {
+            // Mark completed
+            await sb.from("user_challenges")
+              .update({ completed_at: now, completed_xp_awarded: true })
+              .eq("user_id", user_id)
+              .eq("instance_id", uc.instance_id);
+
+            // Award XP
+            const xp = challenge.xp_reward ?? 50;
+            await sb.from("xp_log").insert({
+              user_id,
+              action: "challenge_reward",
+              xp_awarded: xp,
+              metadata: { challenge_key: challenge.challenge_key, challenge_title: challenge.title },
+            });
+
+            // Recalculate total XP + level
+            const { data: xpRows } = await sb.from("xp_log").select("xp_awarded").eq("user_id", user_id);
+            const newXp = (xpRows ?? []).reduce((s: number, r: any) => s + r.xp_awarded, 0);
+            await sb.from("profiles").update({
+              xp_total: newXp,
+              level: Math.floor(Math.sqrt(newXp / 100)) + 1,
+            }).eq("id", user_id);
+
+            // Insert notification
+            await sb.from("notifications").insert({
+              user_id,
+              type: "challenge_complete",
+              title: `Challenge Complete: ${challenge.title}!`,
+              body: `+${xp} XP earned`,
+              data: { challenge_key: challenge.challenge_key, xp },
+            });
+
+            console.log(`Challenge completed for ${user_id}: ${challenge.challenge_key}`);
+          }
+        }
+      }
+    } catch (e) {
+      console.error("challenge completion check failed:", e);
+    }
+
     return Response.json({ awarded: toAward.length, badges: toAward.map((b: any) => b.slug) }, { headers: corsHeaders });
   } catch (e: any) {
     console.error("evaluate-badges error:", e.message);

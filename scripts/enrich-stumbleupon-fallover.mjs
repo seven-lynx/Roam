@@ -1,0 +1,367 @@
+/**
+ * enrich-stumbleupon-fallover.mjs — Re-categorizes Fallover URLs by keyword
+ *
+ * Reads the existing fallover cache (stumbleupon-fallover.json), analyzes
+ * the description keywords (which contain the original SU interest tags),
+ * and re-assigns category_id/subcategory_id using keyword→category mapping.
+ *
+ * This fixes the problem where all Fallover URLs were dumped into
+ * WEIRD_WONDERFUL > ODDITIES_CURIOSITIES regardless of topic.
+ *
+ * Usage: node scripts/enrich-stumbleupon-fallover.mjs
+ */
+
+import { readFileSync, writeFileSync, existsSync, mkdirSync } from "fs";
+import { resolve, dirname } from "path";
+import { fileURLToPath } from "url";
+import { CATEGORY, SUBCATEGORY } from "./lib/seed.js";
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const CACHE_DIR = resolve(__dirname, ".cache");
+const INPUT_FILE = resolve(CACHE_DIR, "stumbleupon-fallover.json");
+const OUTPUT_FILE = resolve(CACHE_DIR, "stumbleupon-fallover.json"); // overwrite in-place
+const BACKUP_FILE = resolve(CACHE_DIR, "stumbleupon-fallover.bak.json");
+
+// ── Keyword → Subcategory mapping ──────────────────────────────────────────
+// Built from the same patterns as the Awesome extractor.
+// Each keyword is mapped to a SUBCATEGORY UUID.
+const KEYWORD_TO_SUBCATEGORY = {
+  // ── TECHNOLOGY > PROGRAMMING_SOFTWARE ──
+  "programming": SUBCATEGORY.PROGRAMMING_SOFTWARE, "coding": SUBCATEGORY.PROGRAMMING_SOFTWARE,
+  "software": SUBCATEGORY.PROGRAMMING_SOFTWARE, "development": SUBCATEGORY.PROGRAMMING_SOFTWARE,
+  "developer": SUBCATEGORY.PROGRAMMING_SOFTWARE, "webdev": SUBCATEGORY.PROGRAMMING_SOFTWARE,
+  "web": SUBCATEGORY.PROGRAMMING_SOFTWARE, "javascript": SUBCATEGORY.PROGRAMMING_SOFTWARE,
+  "python": SUBCATEGORY.PROGRAMMING_SOFTWARE, "java": SUBCATEGORY.PROGRAMMING_SOFTWARE,
+  "rust": SUBCATEGORY.PROGRAMMING_SOFTWARE, "go": SUBCATEGORY.PROGRAMMING_SOFTWARE,
+  "typescript": SUBCATEGORY.PROGRAMMING_SOFTWARE, "react": SUBCATEGORY.PROGRAMMING_SOFTWARE,
+  "vue": SUBCATEGORY.PROGRAMMING_SOFTWARE, "angular": SUBCATEGORY.PROGRAMMING_SOFTWARE,
+  "svelte": SUBCATEGORY.PROGRAMMING_SOFTWARE, "css": SUBCATEGORY.PROGRAMMING_SOFTWARE,
+  "html": SUBCATEGORY.PROGRAMMING_SOFTWARE, "api": SUBCATEGORY.PROGRAMMING_SOFTWARE,
+  "sdk": SUBCATEGORY.PROGRAMMING_SOFTWARE, "framework": SUBCATEGORY.PROGRAMMING_SOFTWARE,
+  "library": SUBCATEGORY.PROGRAMMING_SOFTWARE, "npm": SUBCATEGORY.PROGRAMMING_SOFTWARE,
+  "node": SUBCATEGORY.PROGRAMMING_SOFTWARE, "backend": SUBCATEGORY.PROGRAMMING_SOFTWARE,
+  "frontend": SUBCATEGORY.PROGRAMMING_SOFTWARE, "fullstack": SUBCATEGORY.PROGRAMMING_SOFTWARE,
+  "app": SUBCATEGORY.PROGRAMMING_SOFTWARE, "apps": SUBCATEGORY.PROGRAMMING_SOFTWARE,
+  "tool": SUBCATEGORY.PROGRAMMING_SOFTWARE, "tools": SUBCATEGORY.PROGRAMMING_SOFTWARE,
+  "git": SUBCATEGORY.PROGRAMMING_SOFTWARE, "github": SUBCATEGORY.PROGRAMMING_SOFTWARE,
+  "open source": SUBCATEGORY.OPEN_SOURCE, "opensource": SUBCATEGORY.OPEN_SOURCE,
+  "hack": SUBCATEGORY.PROGRAMMING_SOFTWARE, "hacking": SUBCATEGORY.CYBERSECURITY_PRIVACY,
+  "algorithm": SUBCATEGORY.PROGRAMMING_SOFTWARE, "algorithms": SUBCATEGORY.PROGRAMMING_SOFTWARE,
+  "data structure": SUBCATEGORY.PROGRAMMING_SOFTWARE, "testing": SUBCATEGORY.PROGRAMMING_SOFTWARE,
+
+  // ── TECHNOLOGY > AI_MACHINE_LEARNING ──
+  "ai": SUBCATEGORY.AI_MACHINE_LEARNING, "artificial": SUBCATEGORY.AI_MACHINE_LEARNING,
+  "machine learning": SUBCATEGORY.AI_MACHINE_LEARNING, "deep learning": SUBCATEGORY.AI_MACHINE_LEARNING,
+  "neural": SUBCATEGORY.AI_MACHINE_LEARNING, "nlp": SUBCATEGORY.AI_MACHINE_LEARNING,
+  "tensorflow": SUBCATEGORY.AI_MACHINE_LEARNING, "pytorch": SUBCATEGORY.AI_MACHINE_LEARNING,
+  "data science": SUBCATEGORY.AI_MACHINE_LEARNING, "datascience": SUBCATEGORY.AI_MACHINE_LEARNING,
+  "llm": SUBCATEGORY.AI_MACHINE_LEARNING, "gpt": SUBCATEGORY.AI_MACHINE_LEARNING,
+  "model": SUBCATEGORY.AI_MACHINE_LEARNING, "training": SUBCATEGORY.AI_MACHINE_LEARNING,
+  "inference": SUBCATEGORY.AI_MACHINE_LEARNING, "classification": SUBCATEGORY.AI_MACHINE_LEARNING,
+  "computer vision": SUBCATEGORY.AI_MACHINE_LEARNING,
+
+  // ── TECHNOLOGY > DEVOPS_INFRASTRUCTURE ──
+  "devops": SUBCATEGORY.DEVOPS_INFRASTRUCTURE, "infrastructure": SUBCATEGORY.DEVOPS_INFRASTRUCTURE,
+  "cloud": SUBCATEGORY.DEVOPS_INFRASTRUCTURE, "aws": SUBCATEGORY.DEVOPS_INFRASTRUCTURE,
+  "azure": SUBCATEGORY.DEVOPS_INFRASTRUCTURE, "gcp": SUBCATEGORY.DEVOPS_INFRASTRUCTURE,
+  "docker": SUBCATEGORY.DEVOPS_INFRASTRUCTURE, "kubernetes": SUBCATEGORY.DEVOPS_INFRASTRUCTURE,
+  "server": SUBCATEGORY.DEVOPS_INFRASTRUCTURE, "hosting": SUBCATEGORY.DEVOPS_INFRASTRUCTURE,
+  "deploy": SUBCATEGORY.DEVOPS_INFRASTRUCTURE, "deployment": SUBCATEGORY.DEVOPS_INFRASTRUCTURE,
+  "monitoring": SUBCATEGORY.DEVOPS_INFRASTRUCTURE, "observability": SUBCATEGORY.DEVOPS_INFRASTRUCTURE,
+  "terraform": SUBCATEGORY.DEVOPS_INFRASTRUCTURE, "ansible": SUBCATEGORY.DEVOPS_INFRASTRUCTURE,
+  "self hosted": SUBCATEGORY.DEVOPS_INFRASTRUCTURE, "selfhosted": SUBCATEGORY.DEVOPS_INFRASTRUCTURE,
+
+  // ── TECHNOLOGY > CYBERSECURITY_PRIVACY ──
+  "security": SUBCATEGORY.CYBERSECURITY_PRIVACY, "cybersecurity": SUBCATEGORY.CYBERSECURITY_PRIVACY,
+  "privacy": SUBCATEGORY.CYBERSECURITY_PRIVACY, "encryption": SUBCATEGORY.CYBERSECURITY_PRIVACY,
+  "crypto": SUBCATEGORY.EMERGING_TECHNOLOGY, "blockchain": SUBCATEGORY.EMERGING_TECHNOLOGY,
+  "bitcoin": SUBCATEGORY.EMERGING_TECHNOLOGY, "web3": SUBCATEGORY.EMERGING_TECHNOLOGY,
+  "ctf": SUBCATEGORY.CYBERSECURITY_PRIVACY, "malware": SUBCATEGORY.CYBERSECURITY_PRIVACY,
+
+  // ── TECHNOLOGY > DATABASES_DATA_ENGINEERING ──
+  "database": SUBCATEGORY.DATABASES_DATA_ENGINEERING, "sql": SUBCATEGORY.DATABASES_DATA_ENGINEERING,
+  "nosql": SUBCATEGORY.DATABASES_DATA_ENGINEERING, "data": SUBCATEGORY.DATABASES_DATA_ENGINEERING,
+  "postgresql": SUBCATEGORY.DATABASES_DATA_ENGINEERING, "mysql": SUBCATEGORY.DATABASES_DATA_ENGINEERING,
+  "redis": SUBCATEGORY.DATABASES_DATA_ENGINEERING, "mongodb": SUBCATEGORY.DATABASES_DATA_ENGINEERING,
+  "big data": SUBCATEGORY.DATABASES_DATA_ENGINEERING, "etl": SUBCATEGORY.DATABASES_DATA_ENGINEERING,
+  "analytics": SUBCATEGORY.DATABASES_DATA_ENGINEERING, "pipeline": SUBCATEGORY.DATABASES_DATA_ENGINEERING,
+
+  // ── TECHNOLOGY > DESIGN_UX ──
+  "design": SUBCATEGORY.DESIGN_UX, "ui": SUBCATEGORY.DESIGN_UX, "ux": SUBCATEGORY.DESIGN_UX,
+  "figma": SUBCATEGORY.DESIGN_UX, "sketch": SUBCATEGORY.DESIGN_UX,
+  "typography": SUBCATEGORY.DESIGN_UX, "font": SUBCATEGORY.DESIGN_UX,
+  "color": SUBCATEGORY.DESIGN_UX, "palette": SUBCATEGORY.DESIGN_UX,
+  "icon": SUBCATEGORY.DESIGN_UX, "illustration": SUBCATEGORY.DESIGN_UX,
+  "animation": SUBCATEGORY.DESIGN_UX, "motion": SUBCATEGORY.DESIGN_UX,
+  "accessibility": SUBCATEGORY.DESIGN_UX, "a11y": SUBCATEGORY.DESIGN_UX,
+
+  // ── TECHNOLOGY > HARDWARE_ELECTRONICS ──
+  "hardware": SUBCATEGORY.HARDWARE_ELECTRONICS, "electronics": SUBCATEGORY.HARDWARE_ELECTRONICS,
+  "raspberry pi": SUBCATEGORY.HARDWARE_ELECTRONICS, "arduino": SUBCATEGORY.HARDWARE_ELECTRONICS,
+  "iot": SUBCATEGORY.ROBOTICS_AUTOMATION, "embedded": SUBCATEGORY.HARDWARE_ELECTRONICS,
+  "robotics": SUBCATEGORY.ROBOTICS_AUTOMATION, "robot": SUBCATEGORY.ROBOTICS_AUTOMATION,
+
+  // ── TECHNOLOGY > INTERNET_CULTURE ──
+  "internet": SUBCATEGORY.INTERNET_CULTURE, "meme": SUBCATEGORY.INTERNET_CULTURE,
+  "social media": SUBCATEGORY.INTERNET_CULTURE, "viral": SUBCATEGORY.INTERNET_CULTURE,
+  "online": SUBCATEGORY.INTERNET_CULTURE, "web culture": SUBCATEGORY.INTERNET_CULTURE,
+
+  // ── SCIENCE ──
+  "science": SUBCATEGORY.BIOLOGY_EVOLUTION, "biology": SUBCATEGORY.BIOLOGY_EVOLUTION,
+  "chemistry": SUBCATEGORY.PHYSICS_CHEMISTRY, "physics": SUBCATEGORY.PHYSICS_CHEMISTRY,
+  "astronomy": SUBCATEGORY.SPACE_ASTRONOMY, "space": SUBCATEGORY.SPACE_ASTRONOMY,
+  "math": SUBCATEGORY.MATHEMATICS_LOGIC, "mathematics": SUBCATEGORY.MATHEMATICS_LOGIC,
+  "earth": SUBCATEGORY.GEOLOGY_EARTH_SCIENCE, "geology": SUBCATEGORY.GEOLOGY_EARTH_SCIENCE,
+  "climate": SUBCATEGORY.CLIMATE_ATMOSPHERIC_SCIENCE, "weather": SUBCATEGORY.CLIMATE_ATMOSPHERIC_SCIENCE,
+  "environment": SUBCATEGORY.ENVIRONMENT_CLIMATE, "ecology": SUBCATEGORY.ENVIRONMENT_CLIMATE,
+  "neuroscience": SUBCATEGORY.NEUROSCIENCE_COGNITION, "brain": SUBCATEGORY.NEUROSCIENCE_COGNITION,
+  "medicine": SUBCATEGORY.MEDICINE_HEALTH_SCIENCE, "health": SUBCATEGORY.NUTRITION_HEALTH,
+  "genetics": SUBCATEGORY.BIOLOGY_EVOLUTION, "evolution": SUBCATEGORY.BIOLOGY_EVOLUTION,
+  "paleontology": SUBCATEGORY.PALEONTOLOGY_NATURAL_HISTORY, "dinosaur": SUBCATEGORY.PALEONTOLOGY_NATURAL_HISTORY,
+  "ocean": SUBCATEGORY.OCEANOGRAPHY_MARINE_LIFE, "marine": SUBCATEGORY.OCEANOGRAPHY_MARINE_LIFE,
+  "oceanography": SUBCATEGORY.OCEANOGRAPHY_MARINE_LIFE,
+  "botany": SUBCATEGORY.BOTANY_PLANT_SCIENCE, "plant": SUBCATEGORY.BOTANY_PLANT_SCIENCE,
+  "animal": SUBCATEGORY.BIOLOGY_EVOLUTION, "zoology": SUBCATEGORY.BIOLOGY_EVOLUTION,
+  "research": SUBCATEGORY.BIOLOGY_EVOLUTION, "study": SUBCATEGORY.BIOLOGY_EVOLUTION,
+
+  // ── ARTS_CULTURE ──
+  "art": SUBCATEGORY.VISUAL_ART, "artist": SUBCATEGORY.VISUAL_ART,
+  "music": SUBCATEGORY.MUSIC, "song": SUBCATEGORY.MUSIC, "album": SUBCATEGORY.MUSIC,
+  "band": SUBCATEGORY.MUSIC, "musician": SUBCATEGORY.MUSIC,
+  "film": SUBCATEGORY.FILM_TELEVISION, "movie": SUBCATEGORY.FILM_TELEVISION,
+  "cinema": SUBCATEGORY.FILM_TELEVISION, "tv": SUBCATEGORY.FILM_TELEVISION,
+  "television": SUBCATEGORY.FILM_TELEVISION, "show": SUBCATEGORY.FILM_TELEVISION,
+  "photography": SUBCATEGORY.PHOTOGRAPHY, "photo": SUBCATEGORY.PHOTOGRAPHY,
+  "architecture": SUBCATEGORY.ARCHITECTURE_URBAN, "building": SUBCATEGORY.ARCHITECTURE_URBAN,
+  "literature": SUBCATEGORY.LITERATURE_WRITING, "writing": SUBCATEGORY.LITERATURE_WRITING,
+  "book": SUBCATEGORY.LITERATURE_WRITING, "books": SUBCATEGORY.LITERATURE_WRITING,
+  "comic": SUBCATEGORY.COMICS_ILLUSTRATION, "comics": SUBCATEGORY.COMICS_ILLUSTRATION,
+  "anime": SUBCATEGORY.ANIME_MANGA, "manga": SUBCATEGORY.ANIME_MANGA,
+  "scifi": SUBCATEGORY.SCIFI_FANTASY, "sci-fi": SUBCATEGORY.SCIFI_FANTASY,
+  "fantasy": SUBCATEGORY.SCIFI_FANTASY, "fiction": SUBCATEGORY.LITERATURE_WRITING,
+  "theatre": SUBCATEGORY.THEATRE_PERFORMANCE, "theater": SUBCATEGORY.THEATRE_PERFORMANCE,
+  "fashion": SUBCATEGORY.FASHION_TEXTILES, "style": SUBCATEGORY.FASHION_TEXTILES,
+  "podcast": SUBCATEGORY.MUSIC,
+
+  // ── HISTORY_IDEAS ──
+  "history": SUBCATEGORY.MODERN_HISTORY, "ancient": SUBCATEGORY.ANCIENT_MEDIEVAL_HISTORY,
+  "medieval": SUBCATEGORY.ANCIENT_MEDIEVAL_HISTORY, "renaissance": SUBCATEGORY.MODERN_HISTORY,
+  "philosophy": SUBCATEGORY.PHILOSOPHY_ETHICS, "ethics": SUBCATEGORY.PHILOSOPHY_ETHICS,
+  "politics": SUBCATEGORY.POLITICS_GEOPOLITICS, "government": SUBCATEGORY.POLITICS_GEOPOLITICS,
+  "economics": SUBCATEGORY.ECONOMICS_HISTORY, "economy": SUBCATEGORY.ECONOMICS_HISTORY,
+  "finance": SUBCATEGORY.ECONOMICS_HISTORY, "business": SUBCATEGORY.ECONOMICS_HISTORY,
+  "religion": SUBCATEGORY.RELIGION_MYTHOLOGY, "mythology": SUBCATEGORY.RELIGION_MYTHOLOGY,
+  "myth": SUBCATEGORY.RELIGION_MYTHOLOGY, "god": SUBCATEGORY.RELIGION_MYTHOLOGY,
+  "anthropology": SUBCATEGORY.ANTHROPOLOGY_ARCHAEOLOGY, "archaeology": SUBCATEGORY.ANTHROPOLOGY_ARCHAEOLOGY,
+  "military": SUBCATEGORY.MILITARY_HISTORY, "war": SUBCATEGORY.MILITARY_HISTORY,
+  "wwii": SUBCATEGORY.MILITARY_HISTORY, "wwi": SUBCATEGORY.MILITARY_HISTORY,
+  "law": SUBCATEGORY.LEGAL_HISTORY_CONSTITUTIONAL, "legal": SUBCATEGORY.LEGAL_HISTORY_CONSTITUTIONAL,
+  "discovery": SUBCATEGORY.EXPLORATION_DISCOVERY, "exploration": SUBCATEGORY.EXPLORATION_DISCOVERY,
+  "culture": SUBCATEGORY.CULTURAL_INTELLECTUAL_HISTORY,
+
+  // ── GAMES_HOBBIES ──
+  "game": SUBCATEGORY.VIDEO_GAMES, "gaming": SUBCATEGORY.VIDEO_GAMES,
+  "video game": SUBCATEGORY.VIDEO_GAMES, "gamedev": SUBCATEGORY.VIDEO_GAMES,
+  "game development": SUBCATEGORY.VIDEO_GAMES,
+  "board game": SUBCATEGORY.BOARD_GAMES_TABLETOP, "tabletop": SUBCATEGORY.BOARD_GAMES_TABLETOP,
+  "dnd": SUBCATEGORY.BOARD_GAMES_TABLETOP, "rpg": SUBCATEGORY.BOARD_GAMES_TABLETOP,
+  "sport": SUBCATEGORY.SPORTS_ATHLETICS, "sports": SUBCATEGORY.SPORTS_ATHLETICS,
+  "football": SUBCATEGORY.SPORTS_ATHLETICS, "soccer": SUBCATEGORY.SPORTS_ATHLETICS,
+  "basketball": SUBCATEGORY.SPORTS_ATHLETICS, "baseball": SUBCATEGORY.SPORTS_ATHLETICS,
+  "mma": SUBCATEGORY.MMA_COMBAT_SPORTS, "martial arts": SUBCATEGORY.MMA_COMBAT_SPORTS,
+  "boxing": SUBCATEGORY.MMA_COMBAT_SPORTS, "wrestling": SUBCATEGORY.MMA_COMBAT_SPORTS,
+  "food": SUBCATEGORY.COOKING_FOOD, "cooking": SUBCATEGORY.COOKING_FOOD,
+  "recipe": SUBCATEGORY.COOKING_FOOD, "restaurant": SUBCATEGORY.COOKING_FOOD,
+  "craft": SUBCATEGORY.CRAFTS_DIY_MAKING, "diy": SUBCATEGORY.CRAFTS_DIY_MAKING,
+  "gardening": SUBCATEGORY.GARDENING_HORTICULTURE, "garden": SUBCATEGORY.GARDENING_HORTICULTURE,
+  "pet": SUBCATEGORY.PETS, "dog": SUBCATEGORY.PETS, "cat": SUBCATEGORY.PETS,
+  "fishing": SUBCATEGORY.FISHING, "fish": SUBCATEGORY.FISHING,
+  "outdoor": SUBCATEGORY.OUTDOOR_ADVENTURE, "hiking": SUBCATEGORY.OUTDOOR_ADVENTURE,
+  "camping": SUBCATEGORY.OUTDOOR_ADVENTURE, "adventure": SUBCATEGORY.OUTDOOR_ADVENTURE,
+  "car": SUBCATEGORY.CARS_AUTOMOTIVE, "automotive": SUBCATEGORY.CARS_AUTOMOTIVE,
+  "motorcycle": SUBCATEGORY.CARS_AUTOMOTIVE, "racing": SUBCATEGORY.CARS_AUTOMOTIVE,
+  "puzzle": SUBCATEGORY.PUZZLES_BRAIN_TEASERS, "riddle": SUBCATEGORY.PUZZLES_BRAIN_TEASERS,
+  "collecting": SUBCATEGORY.COLLECTING, "collectible": SUBCATEGORY.COLLECTING,
+  "whiskey": SUBCATEGORY.COOKING_FOOD, "beer": SUBCATEGORY.COOKING_FOOD,
+  "wine": SUBCATEGORY.COOKING_FOOD, "coffee": SUBCATEGORY.COOKING_FOOD,
+  "bbq": SUBCATEGORY.COOKING_FOOD, "barbecue": SUBCATEGORY.COOKING_FOOD,
+  "survival": SUBCATEGORY.OUTDOOR_ADVENTURE, "bushcraft": SUBCATEGORY.OUTDOOR_ADVENTURE,
+  "woodworking": SUBCATEGORY.CRAFTS_DIY_MAKING, "woodwork": SUBCATEGORY.CRAFTS_DIY_MAKING,
+  "snowboard": SUBCATEGORY.SNOW_SPORTS, "ski": SUBCATEGORY.SNOW_SPORTS,
+  "snow": SUBCATEGORY.SNOW_SPORTS, "skiing": SUBCATEGORY.SNOW_SPORTS,
+
+  // ── MIND_BODY ──
+  "psychology": SUBCATEGORY.PSYCHOLOGY_BEHAVIOUR, "cognitive": SUBCATEGORY.NEUROSCIENCE_COGNITION,
+  "mental health": SUBCATEGORY.MENTAL_HEALTH, "mental": SUBCATEGORY.MENTAL_HEALTH,
+  "fitness": SUBCATEGORY.FITNESS_MOVEMENT, "exercise": SUBCATEGORY.FITNESS_MOVEMENT,
+  "workout": SUBCATEGORY.FITNESS_MOVEMENT, "gym": SUBCATEGORY.FITNESS_MOVEMENT,
+  "running": SUBCATEGORY.FITNESS_MOVEMENT, "yoga": SUBCATEGORY.FITNESS_MOVEMENT,
+  "nutrition": SUBCATEGORY.NUTRITION_HEALTH, "diet": SUBCATEGORY.NUTRITION_HEALTH,
+  "sleep": SUBCATEGORY.SLEEP_RECOVERY, "rest": SUBCATEGORY.SLEEP_RECOVERY,
+  "meditation": SUBCATEGORY.MINDFULNESS_MEDITATION, "mindfulness": SUBCATEGORY.MINDFULNESS_MEDITATION,
+  "personal development": SUBCATEGORY.PERSONAL_DEVELOPMENT,
+  "productivity": SUBCATEGORY.PERSONAL_DEVELOPMENT, "self-improvement": SUBCATEGORY.PERSONAL_DEVELOPMENT,
+  "learning": SUBCATEGORY.PERSONAL_DEVELOPMENT, "education": SUBCATEGORY.PERSONAL_DEVELOPMENT,
+  "career": SUBCATEGORY.PERSONAL_DEVELOPMENT, "job": SUBCATEGORY.PERSONAL_DEVELOPMENT,
+  "relationship": SUBCATEGORY.RELATIONSHIPS_SOCIAL, "social": SUBCATEGORY.RELATIONSHIPS_SOCIAL,
+  "aging": SUBCATEGORY.AGING_LONGEVITY, "longevity": SUBCATEGORY.AGING_LONGEVITY,
+  "biohacking": SUBCATEGORY.HUMAN_PERFORMANCE, "performance": SUBCATEGORY.HUMAN_PERFORMANCE,
+  "addiction": SUBCATEGORY.ADDICTION_RECOVERY, "recovery": SUBCATEGORY.ADDICTION_RECOVERY,
+
+  // ── PEOPLE_PLACES ──
+  "travel": SUBCATEGORY.TRAVEL_EXPLORATION, "tourism": SUBCATEGORY.TRAVEL_EXPLORATION,
+  "city": SUBCATEGORY.CITIES_URBAN_LIFE, "urban": SUBCATEGORY.CITIES_URBAN_LIFE,
+  "language": SUBCATEGORY.LANGUAGES_LINGUISTICS, "linguistics": SUBCATEGORY.LANGUAGES_LINGUISTICS,
+  "map": SUBCATEGORY.MAPS_CARTOGRAPHY, "cartography": SUBCATEGORY.MAPS_CARTOGRAPHY,
+  "biography": SUBCATEGORY.BIOGRAPHIES_PROFILES, "people": SUBCATEGORY.BIOGRAPHIES_PROFILES,
+  "indigenous": SUBCATEGORY.INDIGENOUS_CULTURES, "tribe": SUBCATEGORY.INDIGENOUS_CULTURES,
+  "festival": SUBCATEGORY.FESTIVALS_CUSTOMS, "holiday": SUBCATEGORY.FESTIVALS_CUSTOMS,
+  "maritime": SUBCATEGORY.OCEANS_MARITIME, "ship": SUBCATEGORY.OCEANS_MARITIME,
+  "mountain": SUBCATEGORY.MOUNTAINS_ALPINE, "alpine": SUBCATEGORY.MOUNTAINS_ALPINE,
+  "desert": SUBCATEGORY.DESERTS_ARID_LANDS,
+  "migration": SUBCATEGORY.MIGRATION_DIASPORA, "immigration": SUBCATEGORY.MIGRATION_DIASPORA,
+
+  // ── WEIRD_WONDERFUL ──
+  "weird": SUBCATEGORY.ODDITIES_CURIOSITIES, "strange": SUBCATEGORY.ODDITIES_CURIOSITIES,
+  "odd": SUBCATEGORY.ODDITIES_CURIOSITIES, "curious": SUBCATEGORY.ODDITIES_CURIOSITIES,
+  "bizarre": SUBCATEGORY.ODDITIES_CURIOSITIES, "unusual": SUBCATEGORY.UNUSUAL_PLACES,
+  "true crime": SUBCATEGORY.TRUE_CRIME_MYSTERIES, "crime": SUBCATEGORY.TRUE_CRIME_MYSTERIES,
+  "mystery": SUBCATEGORY.TRUE_CRIME_MYSTERIES, "unsolved": SUBCATEGORY.TRUE_CRIME_MYSTERIES,
+  "paranormal": SUBCATEGORY.PARANORMAL_UNEXPLAINED, "ghost": SUBCATEGORY.PARANORMAL_UNEXPLAINED,
+  "unexplained": SUBCATEGORY.PARANORMAL_UNEXPLAINED, "supernatural": SUBCATEGORY.PARANORMAL_UNEXPLAINED,
+  "vintage": SUBCATEGORY.VINTAGE_INTERNET, "retro": SUBCATEGORY.VINTAGE_INTERNET,
+  "old internet": SUBCATEGORY.VINTAGE_INTERNET, "nostalgia": SUBCATEGORY.VINTAGE_INTERNET,
+  "humor": SUBCATEGORY.ABSURDIST_HUMOUR, "funny": SUBCATEGORY.ABSURDIST_HUMOUR,
+  "comedy": SUBCATEGORY.ABSURDIST_HUMOUR, "joke": SUBCATEGORY.ABSURDIST_HUMOUR,
+  "urban legend": SUBCATEGORY.URBAN_LEGENDS_FOLKLORE, "folklore": SUBCATEGORY.URBAN_LEGENDS_FOLKLORE,
+  "conspiracy": SUBCATEGORY.CONSPIRACY_FRINGE, "fringe": SUBCATEGORY.CONSPIRACY_FRINGE,
+  "lost media": SUBCATEGORY.LOST_MEDIA, "lost": SUBCATEGORY.LOST_MEDIA,
+  "cryptid": SUBCATEGORY.CRYPTOZOOLOGY_MYTHICAL, "mythical": SUBCATEGORY.CRYPTOZOOLOGY_MYTHICAL,
+  "anomaly": SUBCATEGORY.FORTEANA_ANOMALIES, "fortean": SUBCATEGORY.FORTEANA_ANOMALIES,
+  "underground": SUBCATEGORY.UNDERGROUND_SUBTERRANEAN, "cave": SUBCATEGORY.UNDERGROUND_SUBTERRANEAN,
+  "subculture": SUBCATEGORY.SUBCULTURES_COMMUNITIES, "community": SUBCATEGORY.SUBCULTURES_COMMUNITIES,
+};
+
+// ── Extract category from subcategory UUID ─────────────────────────────────
+function extractCategoryFromSub(subId) {
+  if (!subId) return CATEGORY.WEIRD_WONDERFUL;
+  const pillarNum = parseInt(subId.slice(2, 8), 10);
+  const pillarMap = {
+    1: CATEGORY.SCIENCE, 2: CATEGORY.TECHNOLOGY, 3: CATEGORY.ARTS_CULTURE,
+    4: CATEGORY.HISTORY_IDEAS, 5: CATEGORY.GAMES_HOBBIES, 6: CATEGORY.WEIRD_WONDERFUL,
+    7: CATEGORY.PEOPLE_PLACES, 8: CATEGORY.MIND_BODY,
+  };
+  return pillarMap[pillarNum] || CATEGORY.WEIRD_WONDERFUL;
+}
+
+// ── Fuzzy keyword matching ─────────────────────────────────────────────────
+function mapKeywordToSubcategory(keywordStr) {
+  if (!keywordStr) return null;
+
+  const lower = keywordStr.toLowerCase().trim();
+
+  // 1. Exact match
+  if (KEYWORD_TO_SUBCATEGORY[lower]) return KEYWORD_TO_SUBCATEGORY[lower];
+
+  // 2. Contains match (longer keywords first)
+  const sortedKeys = Object.keys(KEYWORD_TO_SUBCATEGORY).sort((a, b) => b.length - a.length);
+  for (const key of sortedKeys) {
+    if (lower.includes(key)) return KEYWORD_TO_SUBCATEGORY[key];
+  }
+
+  // 3. Word-by-word matching
+  const words = lower.split(/[\s\-_/&]+/).filter(Boolean);
+  for (const word of words) {
+    if (word.length < 2) continue;
+    if (KEYWORD_TO_SUBCATEGORY[word]) return KEYWORD_TO_SUBCATEGORY[word];
+    // Try filtered match against keyword keys
+    for (const key of sortedKeys) {
+      if (key.includes(word) || word.includes(key)) {
+        return KEYWORD_TO_SUBCATEGORY[key];
+      }
+    }
+  }
+
+  return null;
+}
+
+// ── Extract keyword from Fallover description ──────────────────────────────
+function extractKeyword(entry) {
+  // Fallover entries have description like: "Fallover keyword hint: {keyword}"
+  if (entry.description && typeof entry.description === "string") {
+    const match = entry.description.match(/Fallover keyword hint:\s*(.+)/i);
+    if (match) return match[1].trim();
+  }
+  // Also check title (which is the keyword in fallover format)
+  if (entry.title && typeof entry.title === "string") {
+    return entry.title.trim();
+  }
+  return null;
+}
+
+// ── MAIN ───────────────────────────────────────────────────────────────────
+function main() {
+  console.log("========== Fallover Keyword Enrichment ==========\n");
+
+  if (!existsSync(INPUT_FILE)) {
+    console.error(`❌ Input file not found: ${INPUT_FILE}`);
+    process.exit(1);
+  }
+
+  // Backup original
+  if (!existsSync(BACKUP_FILE)) {
+    writeFileSync(BACKUP_FILE, readFileSync(INPUT_FILE));
+    console.log(`📦 Original backed up to ${BACKUP_FILE}`);
+  }
+
+  const data = JSON.parse(readFileSync(INPUT_FILE, "utf8"));
+  console.log(`Loaded ${data.length} URLs from fallover cache\n`);
+
+  let enriched = 0;
+  let unchanged = 0;
+  const stats = {};
+
+  for (const entry of data) {
+    const keyword = extractKeyword(entry);
+    if (!keyword) {
+      unchanged++;
+      continue;
+    }
+
+    const subcategoryId = mapKeywordToSubcategory(keyword);
+    if (!subcategoryId) {
+      unchanged++;
+      continue;
+    }
+
+    const oldSub = entry.subcategory_id;
+
+    entry.subcategory_id = subcategoryId;
+    entry.category_id = extractCategoryFromSub(subcategoryId);
+    entry.seeder_score = 0.65; // bump confidence since we now have category
+
+    const subName = subcategoryId.slice(0, 12);
+    stats[subName] = (stats[subName] || 0) + 1;
+    enriched++;
+  }
+
+  // ── Write enriched output ─────────────────────────────────────────────
+  writeFileSync(OUTPUT_FILE, JSON.stringify(data, null, 2));
+
+  // ── Stats ─────────────────────────────────────────────────────────────
+  console.log("📊 Enrichment Results:");
+  console.log(`  Total entries:        ${data.length.toLocaleString()}`);
+  console.log(`  Enriched (re-tagged): ${enriched.toLocaleString()} (${(enriched / data.length * 100).toFixed(1)}%)`);
+  console.log(`  Unchanged:            ${unchanged.toLocaleString()} (${(unchanged / data.length * 100).toFixed(1)}%)`);
+  console.log(`\n  Top subcategory assignments:`);
+  const sorted = Object.entries(stats).sort((a, b) => b[1] - a[1]);
+  for (const [uuid, count] of sorted.slice(0, 15)) {
+    console.log(`    ${String(count).padStart(6)}  ${uuid}`);
+  }
+
+  console.log(`\n💾 Enriched cache written to ${OUTPUT_FILE}`);
+  console.log("   Run node scripts/seed-stumbleupon.mjs --source=fallover to re-import with new categories.");
+  console.log("\n✅ Enrichment complete!\n");
+}
+
+main();

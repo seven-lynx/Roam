@@ -49,6 +49,7 @@ fun YouScreen(
     onNavigateToHistory: () -> Unit = {},
     onNavigateToNotifications: () -> Unit = {},
     onNavigateToBadges: () -> Unit = {},
+    onNavigateToChallenges: () -> Unit = {},
     onNavigateToLeaderboard: () -> Unit = {},
     onNavigateToSettings: () -> Unit = {},
     onNavigateToPublicProfile: (String) -> Unit = {},
@@ -208,6 +209,7 @@ fun YouScreen(
             ActionRow("Search users", "Find people to follow", onClick = onOpenUserSearch)
             ActionRow("Leaderboard", "Top explorers", onClick = onNavigateToLeaderboard)
             ActionRow("Badges", "View all badges", onClick = onNavigateToBadges)
+            ActionRow("Challenges", "Complete challenges and earn XP", onClick = onNavigateToChallenges)
             ActionRow("Activity feed", "See what people you follow are doing", onClick = onNavigateToActivityFeed)
             ActionRow("Open in Roam Web", "roamtheweb.app", onClick = {
                 vm.navigateToWeb("https://roamtheweb.app")

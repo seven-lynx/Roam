@@ -10,6 +10,7 @@
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { corsHeaders } from '../_shared/cors.ts'
+import { incrementChallengeProgress } from '../_shared/challenge-progress.ts'
 
 const COLLECTION_ITEM_CAP = 10_000
 const RESERVED_SLUGS = new Set(['join', 'admin', 'privacy', 'terms', 'u', 'c'])
@@ -207,6 +208,15 @@ Deno.serve(async (req) => {
       // Fire-and-forget badge evaluation — pack-rat / public-curator badges.
       supabase.rpc('evaluate_badges', { p_user_id: user.id })
         .then(() => {}, (e: unknown) => { console.error('badge evaluation failed', e) })
+
+      // Track challenge progress for collection_count
+      const svcClient = createClient(
+        Deno.env.get('SUPABASE_URL')!,
+        Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+        { auth: { persistSession: false } },
+      )
+      incrementChallengeProgress(svcClient, user.id, 'collection_count')
+        .catch((e: unknown) => { console.error('challenge progress failed (collection)', e) })
 
       return json({ ok: true }, 201)
     }

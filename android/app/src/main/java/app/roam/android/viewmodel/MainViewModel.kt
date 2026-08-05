@@ -12,6 +12,7 @@ import app.roam.android.data.repository.RetryableRoamException
 import app.roam.android.data.repository.RoamRepository
 import app.roam.android.model.Badge
 import app.roam.android.model.CategoryItem
+import app.roam.android.model.ChallengeData
 import app.roam.android.model.SubcategoryItem
 import app.roam.android.model.Collection
 import app.roam.android.model.CollectionItem
@@ -465,6 +466,13 @@ class MainViewModel(
 
     private val _badgesError = MutableStateFlow<String?>(null)
     val badgesError: StateFlow<String?> = _badgesError.asStateFlow()
+
+    /** Active challenges with progress */
+    private val _challenges = MutableStateFlow<List<ChallengeData>>(emptyList())
+    val challenges: StateFlow<List<ChallengeData>> = _challenges.asStateFlow()
+
+    private val _challengesLoading = MutableStateFlow(false)
+    val challengesLoading: StateFlow<Boolean> = _challengesLoading.asStateFlow()
 
     private val _leaderboard = MutableStateFlow<List<app.roam.android.model.LeaderboardEntry>>(emptyList())
     val leaderboard: StateFlow<List<app.roam.android.model.LeaderboardEntry>> = _leaderboard.asStateFlow()
@@ -1533,6 +1541,16 @@ class MainViewModel(
                 .onSuccess { _badges.value = it }
                 .onFailure { _badgesError.value = it.message ?: "Failed to load badges" }
             _badgesLoading.value = false
+        }
+    }
+
+    fun loadChallenges() {
+        viewModelScope.launch {
+            _challengesLoading.value = true
+            runCatching { repo.getChallenges() }
+                .onSuccess { _challenges.value = it }
+                .onFailure { android.util.Log.w("MainViewModel", "challenges load failed: ${it.message}") }
+            _challengesLoading.value = false
         }
     }
 

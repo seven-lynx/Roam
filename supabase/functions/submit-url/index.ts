@@ -6,6 +6,7 @@
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { getCorsHeaders } from '../_shared/cors.ts'
+import { incrementChallengeProgress } from '../_shared/challenge-progress.ts'
 import { normalizeUrl } from '../_shared/normalise.ts'
 import { validateRequired } from '../_shared/env.ts'
 import { initSentry } from '../_shared/sentry.ts'
@@ -351,6 +352,15 @@ Deno.serve(async (req) => {
       () => {},
       (e: unknown) => { console.error('badge evaluation failed (submit-url)', e) }
     )
+
+  // Track challenge progress for submit_count
+  const svcClient = createClient(
+    Deno.env.get('SUPABASE_URL')!,
+    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+    { auth: { persistSession: false } },
+  )
+  incrementChallengeProgress(svcClient, user.id, 'submit_count')
+    .catch((e: unknown) => { console.error('challenge progress failed (submit-url)', e) })
 
   return json({ ok: true, message: 'URL submitted for review' }, 201)
 })

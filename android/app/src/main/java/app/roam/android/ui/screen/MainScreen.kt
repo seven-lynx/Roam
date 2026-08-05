@@ -280,6 +280,15 @@ fun MainScreen(
                 BadgesScreen(vm = vm, onNavigateBack = { currentTab = RoamTab.You.route })
             }
 
+            // ── Challenges ─────────────────────────────────────────
+            AnimatedVisibility(
+                visible = currentTab == RoamTab.Challenges.route,
+                enter = fadeIn(spring()),
+                exit = fadeOut(spring()),
+            ) {
+                ChallengesScreen(vm = vm, onNavigateBack = { currentTab = RoamTab.You.route })
+            }
+
             // ── Leaderboard ────────────────────────────────────────
             AnimatedVisibility(
                 visible = currentTab == RoamTab.Leaderboard.route,

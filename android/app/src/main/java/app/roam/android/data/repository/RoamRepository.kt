@@ -5,6 +5,8 @@ import app.roam.android.data.supabase
 import app.roam.android.model.AppNotification
 import app.roam.android.model.Badge
 import app.roam.android.model.CategoryItem
+import app.roam.android.model.ChallengeData
+import app.roam.android.model.ChallengesResponse
 import app.roam.android.model.Collection
 import app.roam.android.model.CollectionItem
 import app.roam.android.model.RoamUrl
@@ -650,6 +652,17 @@ class RoamRepository {
             supabase.postgrest
                 .rpc("get_user_badges", buildJsonObject { put("p_user_id", userId) })
                 .decodeList<Badge>()
+        }.getOrDefault(emptyList())
+    }
+
+    /** Fetches the current user's active challenges with progress. */
+    suspend fun getChallenges(): List<ChallengeData> {
+        val userId = supabase.auth.currentUserOrNull()?.id ?: return emptyList()
+        return runCatching {
+            val response = supabase.functions.invoke("challenges")
+            val text = response.bodyAsText()
+            val wrapper = json.decodeFromString<ChallengesResponse>(text)
+            wrapper.challenges
         }.getOrDefault(emptyList())
     }
 

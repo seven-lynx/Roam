@@ -35,6 +35,7 @@ enum class RoamTab(val route: String) {
     Notifications("notifications"),
     Admin("admin"),
     Badges("badges"),
+    Challenges("challenges"),
     Leaderboard("leaderboard"),
     ActivityFeed("activity_feed"),
 }

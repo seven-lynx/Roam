@@ -31,10 +31,6 @@ web/AGENTS.md
 .github/copilot-instructions.md
 .github/skills/
 
-# Internal tooling (private)
-scripts/
-docs/
-
 # gh CLI temp files
 gh_runs.json
 
@@ -45,6 +41,9 @@ android/roam-release.jks
 scripts/reports/offline/
 scripts/reports/.checkpoints/
 
+# Cache / generated data (large files)
+scripts/.cache/
+
 # Storage (Apify/playwright)
 storage/
 
@@ -53,6 +52,9 @@ storage/
 
 # Supabase
 supabase/.temp/
+
+# Embedded repos in scripts
+scripts/.cache/stumbleupon-awesome/
 
 # Misc
 *.log

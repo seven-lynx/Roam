@@ -5,6 +5,7 @@ import { SiteShowcase } from "@/components/SiteShowcase";
 import { TopSites } from "@/components/TopSites";
 import { AuthErrorBanner } from "@/components/AuthErrorBanner";
 import { RandomPageButton } from "@/components/RandomPageButton";
+import { ChallengeWidget } from "@/components/challenges/ChallengeWidget";
 
 export default async function Home() {
   let user: null | { id: string } = null;
@@ -91,6 +92,7 @@ export default async function Home() {
       )}
       <section className="max-w-6xl mx-auto px-6 pb-20">
         <Suspense fallback={<TopSitesSkeleton />}><TopSites userId={user?.id} /></Suspense>
+        <ChallengeWidget />
       </section>
       <Suspense fallback={null}><FeaturedCollections /></Suspense>
       {!user && (

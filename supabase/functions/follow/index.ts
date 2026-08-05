@@ -8,6 +8,7 @@
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { getCorsHeaders } from '../_shared/cors.ts'
+import { incrementChallengeProgress } from '../_shared/challenge-progress.ts'
 
 Deno.serve(async (req) => {
   const headers = getCorsHeaders(req.headers.get('origin'))
@@ -62,6 +63,15 @@ Deno.serve(async (req) => {
 
       supabase.functions.invoke('evaluate-badges', { body: { user_id: following_id } })
         .then(() => {}, (e: unknown) => { console.error('badge evaluation failed (followed)', e) })
+
+      // Track challenge progress for follow_count
+      const svcClient = createClient(
+        Deno.env.get('SUPABASE_URL')!,
+        Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+        { auth: { persistSession: false } },
+      )
+      incrementChallengeProgress(svcClient, user.id, 'follow_count')
+        .catch((e: unknown) => { console.error('challenge progress failed (follow)', e) })
 
       return json({ ok: true }, 201)
     }
