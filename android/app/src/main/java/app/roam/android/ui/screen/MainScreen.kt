@@ -159,6 +159,7 @@ fun MainScreen(
                     onNavigateToHistory = { currentTab = RoamTab.History.route },
                     onNavigateToNotifications = { currentTab = RoamTab.Notifications.route },
                     onNavigateToBadges = { currentTab = RoamTab.Badges.route },
+                    onNavigateToChallenges = { currentTab = RoamTab.Challenges.route },
                     onNavigateToLeaderboard = { currentTab = RoamTab.Leaderboard.route },
                     onNavigateToActivityFeed = { currentTab = RoamTab.ActivityFeed.route },
                     onNavigateToSettings = { currentTab = RoamTab.Settings.route },

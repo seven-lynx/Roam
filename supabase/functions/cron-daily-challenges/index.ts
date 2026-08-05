@@ -112,6 +112,18 @@ Deno.serve(async (req) => {
       results.expired_deleted = true;
     }
 
+    // ── Fetch all active profiles once (used by daily, weekly, monthly) ─
+    const { data: profiles, error: profilesErr } = await supabase
+      .from("profiles")
+      .select("id");
+
+    if (profilesErr) {
+      console.error("Failed to fetch profiles:", profilesErr);
+      results.profiles_error = profilesErr.message;
+    }
+
+    const userIds = profiles ? profiles.map((p) => p.id) : [];
+
     // ── 2. Daily challenges: draw 1-3 per user ────────────────────────
     const { data: dailyChallenges, error: dailyErr } = await supabase
       .from("challenges")
@@ -121,79 +133,69 @@ Deno.serve(async (req) => {
     if (dailyErr) {
       console.error("Failed to fetch daily challenges:", dailyErr);
       results.daily_error = dailyErr.message;
-    } else if (dailyChallenges && dailyChallenges.length > 0) {
-      // Fetch all active profiles
-      const { data: profiles, error: profilesErr } = await supabase
-        .from("profiles")
-        .select("id");
+    } else if (dailyChallenges && dailyChallenges.length > 0 && userIds.length > 0) {
+      let totalCreated = 0;
+      // Process in batches of 50 to avoid timeouts
+      for (let i = 0; i < userIds.length; i += 50) {
+        const batch = userIds.slice(i, i + 50);
+        const inserts: Record<string, unknown>[] = [];
 
-      if (profilesErr) {
-        console.error("Failed to fetch profiles:", profilesErr);
-        results.daily_error = profilesErr.message;
-      } else if (profiles) {
-        let totalCreated = 0;
-        // Process in batches of 50 to avoid timeouts
-        for (let i = 0; i < profiles.length; i += 50) {
-          const batch = profiles.slice(i, i + 50);
-          const inserts: Record<string, unknown>[] = [];
+        for (const userId of batch) {
+          // Draw 1-3 challenges
+          const count = Math.floor(Math.random() * 3) + 1;
+          const drawn = weightedRandomDraw(dailyChallenges, count);
 
-          for (const profile of batch) {
-            // Draw 1-3 challenges
-            const count = Math.floor(Math.random() * 3) + 1;
-            const drawn = weightedRandomDraw(dailyChallenges, count);
-
-            for (const challenge of drawn) {
-              inserts.push({
-                challenge_id: challenge.id,
-                challenge_type: "daily",
-                starts_at: todayStart,
-                expires_at: todayEnd,
-                is_global: false,
-                user_id: profile.id,
-              });
-            }
-          }
-
-          if (inserts.length > 0) {
-            // Insert challenge_instances + user_challenges in one go
-            for (const insert of inserts) {
-              const { data: instance, error: instanceErr } = await supabase
-                .from("challenge_instances")
-                .insert({
-                  challenge_id: insert.challenge_id,
-                  challenge_type: insert.challenge_type,
-                  starts_at: insert.starts_at,
-                  expires_at: insert.expires_at,
-                  is_global: insert.is_global,
-                })
-                .select("id")
-                .single();
-
-              if (instanceErr || !instance) {
-                console.error("Failed to create instance:", instanceErr);
-                continue;
-              }
-
-              // Create user_challenges row
-              const { error: ucErr } = await supabase
-                .from("user_challenges")
-                .insert({
-                  user_id: insert.user_id,
-                  instance_id: instance.id,
-                  progress_current: 0,
-                });
-
-              if (ucErr) {
-                console.error("Failed to create user_challenge:", ucErr);
-              } else {
-                totalCreated++;
-              }
-            }
+          for (const challenge of drawn) {
+            inserts.push({
+              challenge_id: challenge.id,
+              challenge_type: "daily",
+              starts_at: todayStart,
+              expires_at: todayEnd,
+              is_global: false,
+              user_id: userId,
+            });
           }
         }
 
-        results.daily_created = totalCreated;
+        if (inserts.length > 0) {
+          // Insert challenge_instances + user_challenges in one go
+          for (const insert of inserts) {
+            const { data: instance, error: instanceErr } = await supabase
+              .from("challenge_instances")
+              .insert({
+                challenge_id: insert.challenge_id,
+                challenge_type: insert.challenge_type,
+                starts_at: insert.starts_at,
+                expires_at: insert.expires_at,
+                is_global: insert.is_global,
+              })
+              .select("id")
+              .single();
+
+            if (instanceErr || !instance) {
+              console.error("Failed to create instance:", instanceErr);
+              continue;
+            }
+
+            // Create user_challenges row
+            const { error: ucErr } = await supabase
+              .from("user_challenges")
+              .insert({
+                user_id: insert.user_id,
+                instance_id: instance.id,
+                progress_current: 0,
+              });
+
+            if (ucErr) {
+              console.error("Failed to create user_challenge:", ucErr);
+            } else {
+              totalCreated++;
+            }
+          }
+        }
       }
+
+      results.daily_created = totalCreated;
     }
 
     // ── 3. Weekly challenges (Monday only) ────────────────────────────
@@ -222,6 +224,7 @@ Deno.serve(async (req) => {
         const drawn = weightedRandomDraw(weeklyChallenges, Math.min(5, weeklyChallenges.length));
 
         let weeklyCount = 0;
+        let weeklyUserCount = 0;
         for (const challenge of drawn) {
           const { data: instance, error: instanceErr } = await supabase
             .from("challenge_instances")
@@ -241,9 +244,30 @@ Deno.serve(async (req) => {
           }
 
           weeklyCount++;
+
+          // Create user_challenges rows for all active users
+          if (userIds.length > 0) {
+            for (let i = 0; i < userIds.length; i += 50) {
+              const batch = userIds.slice(i, i + 50);
+              const ucInserts = batch.map((uid) => ({
+                user_id: uid,
+                instance_id: instance.id,
+                progress_current: 0,
+              }));
+              const { error: ucErr } = await supabase
+                .from("user_challenges")
+                .insert(ucInserts);
+              if (ucErr) {
+                console.error("Failed to create weekly user_challenges:", ucErr);
+              } else {
+                weeklyUserCount += batch.length;
+              }
+            }
+          }
         }
 
         results.weekly_created = weeklyCount;
+        results.weekly_user_challenges = weeklyUserCount;
       }
     }
 
@@ -272,6 +296,7 @@ Deno.serve(async (req) => {
         const drawn = weightedRandomDraw(monthlyChallenges, Math.min(6, monthlyChallenges.length));
 
         let monthlyCount = 0;
+        let monthlyUserCount = 0;
         for (const challenge of drawn) {
           const { data: instance, error: instanceErr } = await supabase
             .from("challenge_instances")
@@ -291,9 +316,30 @@ Deno.serve(async (req) => {
           }
 
           monthlyCount++;
+
+          // Create user_challenges rows for all active users
+          if (userIds.length > 0) {
+            for (let i = 0; i < userIds.length; i += 50) {
+              const batch = userIds.slice(i, i + 50);
+              const ucInserts = batch.map((uid) => ({
+                user_id: uid,
+                instance_id: instance.id,
+                progress_current: 0,
+              }));
+              const { error: ucErr } = await supabase
+                .from("user_challenges")
+                .insert(ucInserts);
+              if (ucErr) {
+                console.error("Failed to create monthly user_challenges:", ucErr);
+              } else {
+                monthlyUserCount += batch.length;
+              }
+            }
+          }
         }
 
         results.monthly_created = monthlyCount;
+        results.monthly_user_challenges = monthlyUserCount;
       }
     }
 

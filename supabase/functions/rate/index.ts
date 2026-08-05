@@ -28,25 +28,39 @@ Deno.serve(async (req) => {
 
   const { url_id, value } = body
   if (typeof url_id !== 'string' || (value !== 1 && value !== -1)) {
-    return json({ error: 'url_id (string) and value (1 or -1) are required' }, 400)
+    return json({ error: 'url_id (string) and value (1 or -1) required' }, 400)
   }
 
-  const { error } = await supabase
+  const { error: upsertErr } = await supabase
     .from('ratings')
     .upsert({ user_id: user.id, url_id, value }, { onConflict: 'user_id,url_id' })
 
-  if (error) return json({ error: error.message }, 500)
+  if (upsertErr) {
+    console.error('rate upsert failed:', upsertErr.message)
+    return json({ error: 'Failed to record rating' }, 500)
+  }
 
-  // Fire-and-forget badge evaluation — chained .then() avoids keeping the
-  // Deno isolate alive (unlike setTimeout) while still running after the DB write.
-  supabase.rpc('evaluate_badges', { p_user_id: user.id })
-    .then(() => {}, (e: unknown) => { console.error('badge evaluation failed', e) })
+  // Track rate action in user_actions (triggers challenge progress)
+  await supabase.from("user_actions").insert({
+    user_id: user.id,
+    action_type: "rate",
+    metadata: { url_id, value }
+  })
 
-  return json({ ok: true })
+  // Fire-and-forget: evaluate badges
+  EdgeRuntime.waitUntil(
+    (async () => {
+      try {
+        await supabase.functions.invoke('evaluate-badges', { body: { user_id: user.id } })
+      } catch { /* best effort */ }
+    })()
+  )
+
+  return json({ success: true })
 })
 
-function json(body: unknown, status = 200) {
-  return new Response(JSON.stringify(body), {
+function json(data: unknown, status = 200) {
+  return new Response(JSON.stringify(data), {
     status,
     headers: { ...corsHeaders, 'Content-Type': 'application/json' },
   })

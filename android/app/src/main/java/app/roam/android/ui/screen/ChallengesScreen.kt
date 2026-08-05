@@ -5,6 +5,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -23,6 +24,7 @@ fun ChallengesScreen(
     onNavigateBack: () -> Unit = {}
 ) {
     val challenges by vm.challenges.collectAsState()
+    val challengesLoading by vm.challengesLoading.collectAsState()
     val scope = rememberCoroutineScope()
 
     LaunchedEffect(Unit) {
@@ -41,41 +43,46 @@ fun ChallengesScreen(
             )
         }
     ) { padding ->
-        if (challenges.isEmpty()) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(padding),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    "No active challenges. Come back later!",
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-        } else {
-            val dailies = challenges.filter { it.challenge.type == "daily" }
-            val weeklies = challenges.filter { it.challenge.type == "weekly" }
-            val monthlies = challenges.filter { it.challenge.type == "monthly" }
+        PullToRefreshBox(
+            isRefreshing = challengesLoading,
+            onRefresh = { scope.launch { vm.loadChallenges() } },
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+        ) {
+            if (challenges.isEmpty() && !challengesLoading) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        "No active challenges. Come back later!",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            } else {
+                val dailies = challenges.filter { it.challenge.type == "daily" }
+                val weeklies = challenges.filter { it.challenge.type == "weekly" }
+                val monthlies = challenges.filter { it.challenge.type == "monthly" }
 
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(padding)
-                    .padding(horizontal = 16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                if (dailies.isNotEmpty()) {
-                    item { SectionHeader("Daily") }
-                    items(dailies) { challenge -> ChallengeCard(challenge) }
-                }
-                if (weeklies.isNotEmpty()) {
-                    item { SectionHeader("Weekly") }
-                    items(weeklies) { challenge -> ChallengeCard(challenge) }
-                }
-                if (monthlies.isNotEmpty()) {
-                    item { SectionHeader("Monthly") }
-                    items(monthlies) { challenge -> ChallengeCard(challenge) }
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = 16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    if (dailies.isNotEmpty()) {
+                        item { SectionHeader("Daily") }
+                        items(dailies) { challenge -> ChallengeCard(challenge) }
+                    }
+                    if (weeklies.isNotEmpty()) {
+                        item { SectionHeader("Weekly") }
+                        items(weeklies) { challenge -> ChallengeCard(challenge) }
+                    }
+                    if (monthlies.isNotEmpty()) {
+                        item { SectionHeader("Monthly") }
+                        items(monthlies) { challenge -> ChallengeCard(challenge) }
+                    }
                 }
             }
         }
@@ -83,7 +90,7 @@ fun ChallengesScreen(
 }
 
 @Composable
-fun SectionHeader(title: String) {
+private fun SectionHeader(title: String) {
     Text(
         text = title,
         fontSize = 14.sp,
@@ -94,7 +101,7 @@ fun SectionHeader(title: String) {
 }
 
 @Composable
-fun ChallengeCard(challenge: ChallengeData) {
+private fun ChallengeCard(challenge: ChallengeData) {
     val progress = if (challenge.challenge.goalCount > 0) {
         (challenge.progressCurrent.toFloat() / challenge.challenge.goalCount.toFloat()).coerceIn(0f, 1f)
     } else 0f

@@ -1,221 +1,173 @@
 // POST /functions/v1/roam
-// Body (optional): { collection_id?, exclude_domain?, category_id?, subcategory_id? }
-// Returns a single URL row, or 404 when pool is exhausted.
+// Discovery endpoint: returns a single URL the user hasn't seen yet.
+// Uses the roam_v35 RPC which hoists domain checks into SQL for speed.
+//
+// Query params:
+//   collection_id  — filter to a specific collection
+//   exclude_domain — skip URLs from this domain
+//   category_id    — focus mode: only this category
+//   subcategory_id — focus mode: only this subcategory
+//   count          — batch size (default 1, max 10)
+//   prefetch       — if "true", skips seen_urls recording, XP, and streak
+
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { corsHeaders } from '../_shared/cors.ts'
-import { initSentry } from '../_shared/sentry.ts'
-import { incrementChallengeProgress } from '../_shared/challenge-progress.ts'
-
-// EdgeRuntime.waitUntil is a Deno Deploy API that tells the runtime to not
-// wait for a promise before shutting down the isolate. It's available at
-// runtime on Supabase-hosted edge functions but not declared in the Deno
-// type definitions used by deno check in CI.
-declare const EdgeRuntime: { waitUntil: (p: Promise<unknown>) => void }
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
-const SUPABASE_ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY')!
-const report = initSentry('roam')
 
-// ── In-memory circuit breaker ────────────────────────────────────────────────
-// If roam() fails repeatedly (e.g. a migration raises on every call), short-
-// circuit requests to a fast 503 instead of letting each one burn a DB
-// connection until statement_timeout. Per-isolate state; a fleet-wide outage
-// opens circuits across isolates, so excess traffic drains away naturally.
-const MAX_CONSECUTIVE_FAILURES = 5
-const CIRCUIT_RESET_MS = 60_000
-let consecutiveFailures = 0
-let circuitOpenUntil = 0
+// ── In-memory circuit breaker ──────────────────────────────────────────
+// If the RPC throws ≥3 consecutive errors within 60 s we short-circuit
+// subsequent calls for 30 s to avoid hammering the DB during an outage.
+let consecutiveFails = 0
+let lastFailTime = 0
+const CIRCUIT_OPEN_SEC = 30
+const CIRCUIT_TRIP_COUNT = 3
+const CIRCUIT_WINDOW_MS = 60_000
 
 function isCircuitOpen(): boolean {
-  return Date.now() < circuitOpenUntil
-}
-
-function recordFailure(): void {
-  consecutiveFailures++
-  if (consecutiveFailures >= MAX_CONSECUTIVE_FAILURES && circuitOpenUntil === 0) {
-    circuitOpenUntil = Date.now() + CIRCUIT_RESET_MS
-    console.error(`roam circuit breaker opened after ${consecutiveFailures} consecutive RPC failures`)
+  if (consecutiveFails < CIRCUIT_TRIP_COUNT) return false
+  const elapsed = Date.now() - lastFailTime
+  if (elapsed > CIRCUIT_WINDOW_MS) {
+    consecutiveFails = 0
+    return false
   }
+  return (Date.now() - lastFailTime) < CIRCUIT_OPEN_SEC * 1000
 }
 
-function recordSuccess(): void {
-  consecutiveFailures = 0
-  circuitOpenUntil = 0
+function recordSuccess() { consecutiveFails = 0 }
+function recordFailure() { consecutiveFails++; lastFailTime = Date.now() }
+
+// ── Helpers ────────────────────────────────────────────────────────────
+
+function json(data: unknown, status = 200, extraHeaders?: Record<string, string>) {
+  const h: Record<string, string> = { ...corsHeaders, 'Content-Type': 'application/json' }
+  if (extraHeaders) Object.assign(h, extraHeaders)
+  return new Response(JSON.stringify(data), { status, headers: h })
 }
+
+// ── Main handler ───────────────────────────────────────────────────────
 
 Deno.serve(async (req) => {
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', { status: 200, headers: corsHeaders })
+  if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
+  if (req.method !== 'POST') return json({ error: 'Method not allowed' }, 405)
+
+  const supabase = createClient(
+    SUPABASE_URL,
+    Deno.env.get('SUPABASE_ANON_KEY')!,
+    { global: { headers: { Authorization: req.headers.get('Authorization') ?? '' } } },
+  )
+
+  const { data: { user }, error: authError } = await supabase.auth.getUser()
+  if (authError || !user) return json({ error: 'Unauthorized' }, 401)
+
+  // Parse query params
+  const url = new URL(req.url)
+  const collectionId = url.searchParams.get('collection_id') || undefined
+  const excludeDomain = url.searchParams.get('exclude_domain') || undefined
+  const categoryId = url.searchParams.get('category_id') || undefined
+  const subcategoryId = url.searchParams.get('subcategory_id') || undefined
+  const count = Math.min(parseInt(url.searchParams.get('count') || '1', 10) || 1, 10)
+  const isPrefetch = url.searchParams.get('prefetch') === 'true'
+
+  // Circuit breaker
+  if (isCircuitOpen()) {
+    return json({ error: 'Discovery temporarily unavailable. Please try again.' }, 503, { 'Retry-After': '30' })
   }
-  if (req.method !== 'POST') {
-    return json({ error: 'Method not allowed' }, 405)
-  }
+
   try {
-    const supabase = createClient(
-      SUPABASE_URL,
-      SUPABASE_ANON_KEY,
-      { global: { headers: { Authorization: req.headers.get('Authorization') ?? '' } } },
-    )
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
-    if (authError || !user) return json({ error: 'Unauthorized' }, 401)
-    let body: Record<string, unknown> = {}
-    try {
-      const text = await req.text()
-      if (text) body = JSON.parse(text)
-    } catch {
-      return json({ error: 'Invalid JSON' }, 400)
-    }
-    
-    // ── Diagnostic ping: returns user + RPC test to isolate failure ──────────
-    if (body.diag === true) {
-      const testResult = await supabase.rpc('roam', { p_user_id: user.id })
-      return json({ ok: true, user_id: user.id, user_email: user.email, rpc_data: testResult.data, rpc_error: testResult.error }, 200)
-    }
-    
-    const collectionId   = typeof body.collection_id   === 'string' ? body.collection_id   : null
-    const excludeDomain  = typeof body.exclude_domain  === 'string' ? body.exclude_domain  : null
-    const excludeDomains = Array.isArray(body.exclude_domains) && body.exclude_domains.length > 0 ? (body.exclude_domains as string[]).filter((d: unknown): d is string => typeof d === 'string') : null
-    const categoryId     = typeof body.category_id      === 'string' ? body.category_id     : null
-    const subcategoryId  = typeof body.subcategory_id   === 'string' ? body.subcategory_id  : null
-    const count          = typeof body.count === 'number' && body.count > 0 && body.count <= 10 ? body.count : 1
-    const rpcParams: Record<string, unknown> = { p_user_id: user.id }
-    if (collectionId)   rpcParams.p_collection_id   = collectionId
-    // Prefer exclude_domains (array) over exclude_domain (single string) for multi-domain exclusion.
-    // If both are provided, merge them so the single domain isn't lost.
-    if (excludeDomains) {
-      const merged = excludeDomain ? [...new Set([...excludeDomains, excludeDomain])] : excludeDomains
-      rpcParams.p_exclude_domains = merged
-    } else if (excludeDomain) {
-      // Backward-compat: wrap single domain in array so the RPC gets consistent input
-      rpcParams.p_exclude_domains = [excludeDomain]
-    }
-    if (categoryId)     rpcParams.p_category_id     = categoryId
-    if (subcategoryId)  rpcParams.p_subcategory_id  = subcategoryId
+    // Call the roam_v35 RPC which handles all filtering in SQL
+    const { data: results, error: rpcErr } = await supabase.rpc('roam_v35', {
+      p_user_id: user.id,
+      p_collection_id: collectionId ?? null,
+      p_exclude_domain: excludeDomain ?? null,
+      p_category_id: categoryId ?? null,
+      p_subcategory_id: subcategoryId ?? null,
+      p_count: count,
+    })
 
-    // ── Circuit breaker: fail fast instead of hammering a broken RPC ─────────
-    if (isCircuitOpen()) {
-      return json({ error: 'Discovery temporarily unavailable. Please try again.', retryable: true }, 503)
+    if (rpcErr) {
+      recordFailure()
+      console.error('roam RPC error:', rpcErr.message)
+      return json({ error: 'Discovery failed. Please try again.' }, 503)
     }
 
-    // ── Batch discovery (sequential) ──────────────────────────────────────────
-    // Calls the roam RPC sequentially — parallelization is left to the caller
-    // (Android prefetch loop) to avoid overwhelming DB connection pools.
-    const isPrefetch = body.prefetch === true
-    let timedOut = false
-    const seenIds = new Set<string>()
-    const results: Array<Record<string, unknown>> = []
-
-    for (let i = 0; i < count; i++) {
-      const { data, error } = await supabase.rpc('roam', rpcParams)
-      if (error) {
-        const errCode = (error as any)?.code ?? 'unknown'
-        const errMsg = (error as any)?.message ?? ''
-        const errDetails = (error as any)?.details ?? ''
-        console.error('roam RPC error', JSON.stringify({ code: errCode, message: errMsg, details: errDetails, attempt: i + 1, rpcParams }))
-        // Capture the underlying pg error to Sentry so a broken function pings.
-        await report(new Error(`roam RPC error ${errCode}: ${errMsg}`), 'error', {
-          pg_code: errCode,
-          pg_details: errDetails,
-          attempt: i + 1,
-        })
-        recordFailure()
-        const isTimeout = errCode === '57014' || errCode === '57P01'
-          || errMsg.toLowerCase().includes('timeout')
-          || errMsg.toLowerCase().includes('canceling statement')
-          || errMsg.toLowerCase().includes('query_canceled')
-        if (isTimeout) {
-          timedOut = true
-          continue
-        }
-        if (count > 1) continue
-        // A DB exception is never "exhausted". 503 tells the client to retry.
-        return json({ error: 'Discovery failed. Please try again.', retryable: true }, 503)
-      }
+    if (!results || results.length === 0) {
       recordSuccess()
-
-      const row = Array.isArray(data) ? data[0] : null
-      if (!row) continue // pool exhausted for this call
-
-      if (seenIds.has(row.id)) continue
-      seenIds.add(row.id)
-
-      const entry = {
-        id:             row.id,
-        url:            row.url,
-        title:          row.title,
-        description:    row.description,
-        og_image_url:   row.og_image_url,
-        category_id:    row.category_id ?? null,
-        subcategory_id: row.subcategory_id ?? null,
-        wilson_score:   row.wilson_score,
-      }
-      results.push(entry)
+      return json({ exhausted: true }, 404)
     }
 
-    if (results.length === 0 && timedOut) {
-      return json({ error: 'Discovery timed out. Please try again.', retryable: true }, 503)
-    }
-    if (results.length === 0) {
-      // Genuine exhaustion: the RPC succeeded but returned no rows. The explicit
-      // `exhausted` marker lets clients distinguish this from any error path.
-      return json({ error: 'No more URLs to discover', exhausted: true }, 404)
-    }
+    recordSuccess()
 
+    const firstRow = results[0]
+
+    // Record seen_urls + award XP + update streak (skip for prefetch)
     if (!isPrefetch && results.length > 0) {
-      const firstRow = results[0]
-      const idemKey = `roam:${firstRow.id}:${user.id}:${Math.floor(Date.now() / 60000)}`
-
-      EdgeRuntime.waitUntil(
-        (async () => {
-          try {
-            const result = await supabase.rpc('update_streak', { p_user_id: user.id })
-            const r = result as { data?: { streak_days?: number; max_streak?: number; is_streak_broken?: boolean } }
-            if (r?.data) {
-              console.log(
-                `streak updated: ${r.data.streak_days} days (best: ${r.data.max_streak}, broken: ${r.data.is_streak_broken ?? false})`
-              )
-            }
-          } catch (e) {
-            console.error('streak update failed', e)
-          }
-          try {
-            await supabase.rpc('award_xp', {
-              p_user_id: user.id,
-              p_action: 'roam',
-              p_metadata: { url_id: firstRow.id },
-              p_idempotency_key: idemKey,
-            })
-          } catch (e) {
-            console.error('xp award failed', e)
-          }
-        })()
-      )
-
-      // Track challenge progress for roam_count
       EdgeRuntime.waitUntil(
         (async () => {
           try {
             const svcClient = createClient(SUPABASE_URL, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, {
               auth: { persistSession: false },
             })
-            await incrementChallengeProgress(svcClient, user.id, 'roam_count')
+
+            // Record seen URLs
+            const seenRows = results.map((r: any) => ({
+              user_id: user.id,
+              url_id: r.id,
+              category_id: r.category_id,
+              subcategory_id: r.subcategory_id,
+            }))
+            await svcClient.from('seen_urls').upsert(seenRows, { onConflict: 'user_id,url_id', ignoreDuplicates: true })
+
+            // Award XP for discovery
+            const xpKey = `roam:${user.id}:${new Date().toISOString().slice(0, 10)}`
+            const { data: existingXp } = await svcClient
+              .from('xp_log')
+              .select('id')
+              .eq('user_id', user.id)
+              .eq('idempotency_key', xpKey)
+              .limit(1)
+
+            if (!existingXp || existingXp.length === 0) {
+              await svcClient.from('xp_log').insert({
+                user_id: user.id,
+                action: 'roam',
+                xp_awarded: 5,
+                idempotency_key: xpKey,
+                metadata: { url_id: firstRow.id },
+              })
+
+              // Recalculate XP + level
+              const { data: xpRows } = await svcClient.from('xp_log').select('xp_awarded').eq('user_id', user.id)
+              const newXp = (xpRows ?? []).reduce((s: number, r: any) => s + r.xp_awarded, 0)
+              await svcClient.from('profiles').update({
+                xp_total: newXp,
+                level: Math.floor(Math.sqrt(newXp / 100)) + 1,
+              }).eq('id', user.id)
+            }
+
+            // Update streak
+            const today = new Date().toISOString().slice(0, 10)
+            await svcClient.rpc('update_streak', { p_user_id: user.id, p_date: today })
+
+            // Track roam action in user_actions (triggers challenge progress)
+            await svcClient.from("user_actions").insert({
+              user_id: user.id,
+              action_type: "roam",
+              metadata: { url_id: firstRow.id, category_id: firstRow.category_id, subcategory_id: firstRow.subcategory_id }
+            })
           } catch (e) {
-            console.error('challenge progress failed', e)
+            console.error('post-roam processing failed', e)
           }
         })()
       )
     }
 
-    return json(count === 1 ? results[0] : results, 200, { 'Cache-Control': 'private, max-age=5' })
-  } catch (e) {
-    console.error('roam handler uncaught error', e)
-    await report(e, 'error', { handler: 'roam' })
-    return json({ error: 'Discovery failed. Please try again.', retryable: true }, 503)
+    // Return the first result (or all if count > 1)
+    const response = count === 1 ? firstRow : results
+    return json(response)
+  } catch (e: any) {
+    recordFailure()
+    console.error('roam error:', e.message)
+    return json({ error: 'Discovery failed. Please try again.' }, 500)
   }
 })
-function json(body: unknown, status = 200, extraHeaders?: Record<string, string>) {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { ...corsHeaders, 'Content-Type': 'application/json', ...extraHeaders },
-  })
-}

@@ -831,6 +831,7 @@ class MainViewModel(
                     persistLastUrl(roamUrl.url, roamUrl.title)
                     recordUrlVisit(roamUrl.url, roamUrl.title ?: roamUrl.url)
                     startPrefillQueue(excludeDomain = extractDomain(roamUrl.url))
+                    loadChallenges()
                 }
             } else {
                 val e = lastException ?: Exception("Unknown error")
@@ -1048,6 +1049,7 @@ class MainViewModel(
                 }
             }
             // Thumbs up just records the rating — no navigation, user may still be reading
+            loadChallenges()
         }
     }
 
@@ -1073,6 +1075,7 @@ class MainViewModel(
                     }
                 }
             }
+            loadChallenges()
             roam(excludeDomain = excludeDomain)
         }
     }
@@ -1204,6 +1207,7 @@ class MainViewModel(
             runCatching { repo.saveUrl(url, title, urlId) }
         }
         _savedConfirmation.value = true
+        loadChallenges()
         viewModelScope.launch {
             kotlinx.coroutines.delay(2000)
             _savedConfirmation.value = false

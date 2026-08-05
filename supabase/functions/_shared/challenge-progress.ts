@@ -51,7 +51,9 @@ export async function incrementChallengeProgress(
             challenge_key,
             condition_type,
             time_restriction,
-            goal_count
+            goal_count,
+            title,
+            xp_reward
           )
         )
       `)
@@ -66,10 +68,10 @@ export async function incrementChallengeProgress(
 
     for (const uc of activeChallenges) {
       // Skip if already completed
-      const instance = uc.challenge_instances?.[0];
-      if (!instance?.challenges?.[0]) continue;
+      const instance = uc.challenge_instances;
+      if (!instance?.challenges) continue;
 
-      const challenge = instance.challenges[0];
+      const challenge = instance.challenges;
       const timeReq = challenge.time_restriction;
 
       // Check time restriction
@@ -84,14 +86,61 @@ export async function incrementChallengeProgress(
         challenge.goal_count,
       );
 
+      const isCompleted = newProgress >= challenge.goal_count;
+      const updateData: Record<string, unknown> = { progress_current: newProgress };
+      if (isCompleted) {
+        updateData.completed_at = now.toISOString();
+      }
+
       const { error: updateErr } = await client
         .from("user_challenges")
-        .update({ progress_current: newProgress })
+        .update(updateData)
         .eq("user_id", userId)
         .eq("instance_id", uc.instance_id);
 
       if (updateErr) {
         console.error(`Failed to update challenge progress for user ${userId}:`, updateErr);
+        continue;
+      }
+
+      // If just completed, award XP and send notification
+      if (isCompleted) {
+        const xp = (challenge as any).xp_reward ?? 50;
+        const challengeTitle = (challenge as any).title ?? "Challenge";
+
+        try {
+          // Award XP
+          await client.from("xp_log").insert({
+            user_id: userId,
+            action: "challenge_reward",
+            xp_awarded: xp,
+            metadata: { challenge_key: challenge.challenge_key, challenge_title: challengeTitle },
+          });
+
+          // Recalculate total XP + level
+          const { data: xpRows } = await client
+            .from("xp_log")
+            .select("xp_awarded")
+            .eq("user_id", userId);
+          const newXp = (xpRows ?? []).reduce((s: number, r: any) => s + r.xp_awarded, 0);
+          await client.from("profiles").update({
+            xp_total: newXp,
+            level: Math.floor(Math.sqrt(newXp / 100)) + 1,
+          }).eq("id", userId);
+
+          // Insert notification
+          await client.from("notifications").insert({
+            user_id: userId,
+            type: "challenge_complete",
+            title: `Challenge Complete: ${challengeTitle}!`,
+            body: `+${xp} XP earned`,
+            data: { challenge_key: challenge.challenge_key, xp },
+          });
+
+          console.log(`Challenge completed for ${userId}: ${challenge.challenge_key}`);
+        } catch (rewardErr) {
+          console.error(`Failed to award XP/notification for ${userId}:`, rewardErr);
+        }
       }
     }
   } catch (err) {

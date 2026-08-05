@@ -16,23 +16,8 @@ const COLLECTION_ITEM_CAP = 10_000
 const RESERVED_SLUGS = new Set(['join', 'admin', 'privacy', 'terms', 'u', 'c'])
 
 function validateName(name: string): { valid: boolean; error?: string } {
-  if (typeof name !== 'string') return { valid: false, error: 'name must be a string' }
-  const trimmed = name.trim()
-  if (trimmed.length === 0) return { valid: false, error: 'name cannot be empty' }
-  if (trimmed.length > 200) return { valid: false, error: 'name max 200 characters' }
-  return { valid: true }
-}
-
-function validateSlug(slug: string): { valid: boolean; error?: string } {
-  if (typeof slug !== 'string') return { valid: false, error: 'slug must be a string' }
-  if (slug.length === 0) return { valid: false, error: 'slug cannot be empty' }
-  if (slug.length > 100) return { valid: false, error: 'slug max 100 characters' }
-  if (!/^[a-z0-9-]+$/.test(slug)) {
-    return { valid: false, error: 'slug must contain only lowercase letters, numbers, and hyphens' }
-  }
-  if (RESERVED_SLUGS.has(slug)) {
-    return { valid: false, error: `"${slug}" is a reserved slug` }
-  }
+  if (!name || name.trim().length === 0) return { valid: false, error: 'Name is required' }
+  if (name.length > 100) return { valid: false, error: 'Name must be 100 characters or less' }
   return { valid: true }
 }
 
@@ -50,200 +35,186 @@ Deno.serve(async (req) => {
   if (authError || !user) return json({ error: 'Unauthorized' }, 401)
 
   let body: Record<string, unknown>
-  try {
-    body = await req.json()
-  } catch (err) {
-    console.error('[collection] Invalid JSON body:', err)
-    return json({ error: 'Invalid JSON' }, 400)
+  try { body = await req.json() } catch { return json({ error: 'Invalid JSON' }, 400) }
+
+  const action = body.action as string | undefined
+  if (!action) return json({ error: 'action required' }, 400)
+
+  // ── CREATE ────────────────────────────────────────────────────────────
+  if (action === 'create') {
+    const name = (body.name as string)?.trim() || ''
+    const slug = (body.slug as string)?.trim().toLowerCase() || name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'collection'
+    const isPublic = body.is_public === true
+
+    const nameCheck = validateName(name)
+    if (!nameCheck.valid) return json({ error: nameCheck.error }, 400)
+    if (RESERVED_SLUGS.has(slug)) return json({ error: 'This URL is reserved' }, 400)
+
+    const { data, error } = await supabase
+      .from('collections')
+      .insert({ user_id: user.id, name, slug, is_public: isPublic })
+      .select('*')
+      .single()
+
+    if (error) {
+      if (error.message?.includes('duplicate') || error.message?.includes('unique')) {
+        return json({ error: 'A collection with this name or URL already exists' }, 409)
+      }
+      return json({ error: error.message }, 500)
+    }
+
+    // Track collection creation in user_actions
+    await supabase.from("user_actions").insert({
+      user_id: user.id,
+      action_type: "collection",
+      metadata: { collection_id: data.id }
+    })
+
+    // Fire-and-forget: award XP for creating a collection
+    EdgeRuntime.waitUntil(
+      (async () => {
+        try {
+          const svcClient = createClient(
+            Deno.env.get('SUPABASE_URL')!,
+            Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+            { auth: { persistSession: false } },
+          )
+          await svcClient.from('xp_log').insert({
+            user_id: user.id,
+            action: 'create_collection',
+            xp_awarded: 5,
+          })
+          await supabase.functions.invoke('evaluate-badges', { body: { user_id: user.id } })
+        } catch { /* best effort */ }
+      })()
+    )
+
+    return json(data, 201)
   }
-  console.log('[collection] request body:', JSON.stringify(body))
 
-  const action = body.action as string
+  // ── UPDATE ────────────────────────────────────────────────────────────
+  if (action === 'update') {
+    const id = body.id as string | undefined
+    if (!id) return json({ error: 'id required' }, 400)
 
-  switch (action) {
-    // ── Create collection ───────────────────────────────────────────────────
-    case 'create': {
-      const { name, is_public } = body
+    const updates: Record<string, unknown> = {}
+    if (body.name !== undefined) {
+      const nameCheck = validateName((body.name as string) || '')
+      if (!nameCheck.valid) return json({ error: nameCheck.error }, 400)
+      updates.name = body.name
+    }
+    if (body.slug !== undefined) {
+      const slug = (body.slug as string).toLowerCase()
+      if (RESERVED_SLUGS.has(slug)) return json({ error: 'This URL is reserved' }, 400)
+      updates.slug = slug
+    }
+    if (body.is_public !== undefined) updates.is_public = body.is_public
 
-      const nameValidation = validateName(name as string)
-      if (!nameValidation.valid) return json({ error: nameValidation.error }, 400)
+    const { data, error } = await supabase
+      .from('collections')
+      .update(updates)
+      .eq('id', id)
+      .eq('user_id', user.id)
+      .select('*')
+      .single()
 
-      // Derive slug server-side, prefixed with the first 8 characters of the user's UUID.
-      // This namespaces slugs by user, preventing cross-user collisions on the global
-      // UNIQUE constraint without requiring a schema change.
-      const baseSlug = (name as string)
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, '-')
-        .replace(/^-+|-+$/g, '')
-        .slice(0, 52)
-      const slug = `${baseSlug}-${user.id.slice(0, 8)}`
-
-      const { data, error } = await supabase
-        .from('collections')
-        .insert({ user_id: user.id, name: name as string, slug, is_public: is_public !== false })
-        .select()
-        .single()
-      if (error) {
-        if (error.code === '23505') return json({ error: 'A collection with that name already exists' }, 409)
-        return json({ error: error.message }, 500)
+    if (error) {
+      if (error.message?.includes('duplicate') || error.message?.includes('unique')) {
+        return json({ error: 'A collection with this name or URL already exists' }, 409)
       }
-
-      // Fire-and-forget XP + badge evaluation — create_collection XP + first-collection / curator badges.
-      // Idempotency key prevents double-awarding XP on retried requests.
-      const idemKey = `create_collection:${data.id}:${user.id}`
-      supabase.rpc('award_xp', {
-        p_user_id: user.id,
-        p_action: 'create_collection',
-        p_metadata: { collection_id: data.id },
-        p_idempotency_key: idemKey,
-      })
-        .then(
-          () => supabase.rpc('evaluate_badges', { p_user_id: user.id }),
-          (e: unknown) => { console.error('xp award failed (collection-create)', e) }
-        )
-        .then(
-          () => {},
-          (e: unknown) => { console.error('badge evaluation failed (collection-create)', e) }
-        )
-
-      return json(data, 201)
+      return json({ error: error.message }, 500)
     }
 
-    // ── Update collection metadata ──────────────────────────────────────────
-    case 'update': {
-      const { id, name, slug, is_public } = body
-      if (typeof id !== 'string') return json({ error: 'id is required' }, 400)
-
-      const patch: Record<string, unknown> = {}
-      
-      if (name !== undefined) {
-        const nameValidation = validateName(name as string)
-        if (!nameValidation.valid) return json({ error: nameValidation.error }, 400)
-        patch.name = name
-      }
-      
-      if (slug !== undefined) {
-        const slugValidation = validateSlug(slug as string)
-        if (!slugValidation.valid) return json({ error: slugValidation.error }, 400)
-        patch.slug = slug
-      }
-      
-      if (typeof is_public === 'boolean') patch.is_public = is_public
-
-      if (Object.keys(patch).length === 0) return json({ error: 'Nothing to update' }, 400)
-
-      const { data, error } = await supabase
-        .from('collections')
-        .update(patch)
-        .eq('id', id)
-        .eq('user_id', user.id)
-        .select()
-        .single()
-      if (error) {
-        if (error.code === '23505') return json({ error: 'A collection with that slug already exists' }, 409)
-        return json({ error: error.message }, 500)
-      }
-      if (!data) return json({ error: 'Collection not found' }, 404)
-      return json(data)
-    }
-
-    // ── Delete collection ────────────────────────────────────────────────────
-    case 'delete': {
-      const { id } = body
-      if (typeof id !== 'string') return json({ error: 'id is required' }, 400)
-      const { error } = await supabase
-        .from('collections')
-        .delete()
-        .eq('id', id)
-        .eq('user_id', user.id)
-      if (error) return json({ error: error.message }, 500)
-      return json({ ok: true })
-    }
-
-    // ── Add item to collection ───────────────────────────────────────────────
-    case 'add_item': {
-      const { collection_id, url_id } = body
-      if (typeof collection_id !== 'string' || typeof url_id !== 'string') {
-        return json({ error: 'collection_id and url_id are required' }, 400)
-      }
-
-      // Verify the collection belongs to the authenticated user
-      const { data: col, error: colError } = await supabase
-        .from('collections')
-        .select('id')
-        .eq('id', collection_id)
-        .eq('user_id', user.id)
-        .single()
-      if (colError || !col) return json({ error: 'Collection not found' }, 404)
-
-      // Enforce per-user 10K cap across all collections
-      // Use RPC for efficient aggregation instead of multi-query
-      const { data: countResult, error: countError } = await supabase
-        .rpc('count_user_collection_items', { user_id: user.id })
-      
-      if (countError || countResult === null) {
-        return json({ error: 'Failed to check collection limit' }, 500)
-      }
-
-      const itemCount = countResult
-
-      if ((itemCount ?? 0) >= COLLECTION_ITEM_CAP) {
-        return json(
-          {
-            error: `You have reached the limit of ${COLLECTION_ITEM_CAP.toLocaleString()} saved items across all your collections. Remove some items to continue.`,
-          },
-          422,
-        )
-      }
-
-      const { error: insertError } = await supabase
-        .from('collection_items')
-        .insert({ collection_id, url_id })
-
-      if (insertError) {
-        if (insertError.code === '23505') return json({ error: 'This URL is already in the collection' }, 409)
-        return json({ error: insertError.message }, 500)
-      }
-
-      // Fire-and-forget badge evaluation — pack-rat / public-curator badges.
-      supabase.rpc('evaluate_badges', { p_user_id: user.id })
-        .then(() => {}, (e: unknown) => { console.error('badge evaluation failed', e) })
-
-      // Track challenge progress for collection_count
-      const svcClient = createClient(
-        Deno.env.get('SUPABASE_URL')!,
-        Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
-        { auth: { persistSession: false } },
-      )
-      incrementChallengeProgress(svcClient, user.id, 'collection_count')
-        .catch((e: unknown) => { console.error('challenge progress failed (collection)', e) })
-
-      return json({ ok: true }, 201)
-    }
-
-    // ── Remove item from collection ──────────────────────────────────────────
-    case 'remove_item': {
-      const { collection_id, url_id } = body
-      if (typeof collection_id !== 'string' || typeof url_id !== 'string') {
-        return json({ error: 'collection_id and url_id are required' }, 400)
-      }
-      // RLS on collection_items DELETE enforces user owns the collection
-      const { error } = await supabase
-        .from('collection_items')
-        .delete()
-        .eq('collection_id', collection_id)
-        .eq('url_id', url_id)
-      if (error) return json({ error: error.message }, 500)
-      return json({ ok: true })
-    }
-
-    default:
-      return json({ error: `Unknown action: ${action ?? 'missing'}` }, 400)
+    return json(data)
   }
+
+  // ── DELETE ────────────────────────────────────────────────────────────
+  if (action === 'delete') {
+    const id = body.id as string | undefined
+    if (!id) return json({ error: 'id required' }, 400)
+
+    const { error } = await supabase
+      .from('collections')
+      .delete()
+      .eq('id', id)
+      .eq('user_id', user.id)
+
+    if (error) return json({ error: error.message }, 500)
+    return json({ success: true })
+  }
+
+  // ── ADD ITEM ──────────────────────────────────────────────────────────
+  if (action === 'add_item') {
+    const collectionId = body.collection_id as string | undefined
+    const urlId = body.url_id as string | undefined
+    if (!collectionId || !urlId) return json({ error: 'collection_id and url_id required' }, 400)
+
+    // Check ownership
+    const { data: col } = await supabase
+      .from('collections')
+      .select('id')
+      .eq('id', collectionId)
+      .eq('user_id', user.id)
+      .maybeSingle()
+
+    if (!col) return json({ error: 'Collection not found' }, 404)
+
+    // Enforce cap
+    const { count } = await supabase
+      .from('collection_items')
+      .select('id', { count: 'exact', head: true })
+      .eq('collection_id', collectionId)
+
+    if (count && count >= COLLECTION_ITEM_CAP) {
+      return json({ error: `Collection limit reached (${COLLECTION_ITEM_CAP} items)` }, 400)
+    }
+
+    const { error } = await supabase
+      .from('collection_items')
+      .upsert({ collection_id: collectionId, url_id: urlId }, { onConflict: 'collection_id,url_id' })
+
+    if (error) return json({ error: error.message }, 500)
+
+    // Track collection add_item for challenge progress
+    EdgeRuntime.waitUntil(
+      (async () => {
+        try {
+          const svcClient = createClient(
+            Deno.env.get('SUPABASE_URL')!,
+            Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+            { auth: { persistSession: false } },
+          )
+          await incrementChallengeProgress(svcClient, user.id, 'collection_count')
+        } catch (e) {
+          console.error('challenge progress failed', e)
+        }
+      })()
+    )
+
+    return json({ success: true })
+  }
+
+  // ── REMOVE ITEM ───────────────────────────────────────────────────────
+  if (action === 'remove_item') {
+    const collectionId = body.collection_id as string | undefined
+    const urlId = body.url_id as string | undefined
+    if (!collectionId || !urlId) return json({ error: 'collection_id and url_id required' }, 400)
+
+    const { error } = await supabase
+      .from('collection_items')
+      .delete()
+      .eq('collection_id', collectionId)
+      .eq('url_id', urlId)
+
+    if (error) return json({ error: error.message }, 500)
+    return json({ success: true })
+  }
+
+  return json({ error: 'Unknown action' }, 400)
 })
 
-function json(body: unknown, status = 200) {
-  return new Response(JSON.stringify(body), {
+function json(data: unknown, status = 200) {
+  return new Response(JSON.stringify(data), {
     status,
     headers: { ...corsHeaders, 'Content-Type': 'application/json' },
   })

@@ -79,6 +79,7 @@ fun YouScreen(
         vm.checkUserRole()
         vm.loadProfile()
         vm.loadCollections()
+        vm.loadChallenges()
         vm.fetchUnreadNotificationCount()
     }
 

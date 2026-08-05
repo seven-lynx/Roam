@@ -5,7 +5,6 @@
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { corsHeaders } from '../_shared/cors.ts'
-import { incrementChallengeProgress } from '../_shared/challenge-progress.ts'
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return json('ok', 200)
@@ -20,73 +19,13 @@ Deno.serve(async (req) => {
   const { data: { user }, error: authError } = await supabase.auth.getUser()
   if (authError || !user) return json({ error: 'Unauthorized' }, 401)
 
-  let body: { action?: unknown; url?: unknown; title?: unknown; url_id?: unknown } = {}
-  try {
-    const text = await req.text()
-    if (text) body = JSON.parse(text)
-  } catch {
-    return json({ error: 'Invalid JSON' }, 400)
-  }
+  let body: Record<string, unknown>
+  try { body = await req.json() } catch { return json({ error: 'Invalid JSON' }, 400) }
 
-  const action = typeof body.action === 'string' ? body.action : null
-  if (!action) return json({ error: 'action is required' }, 400)
+  const action = body.action as string | undefined
+  if (!action) return json({ error: 'action required' }, 400)
 
-  if (action === 'save') {
-    const url   = typeof body.url   === 'string' ? body.url.trim()   : null
-    const title = typeof body.title === 'string' ? body.title.trim() : ''
-    const urlId = typeof body.url_id === 'string' ? body.url_id      : null
-    if (!url) return json({ error: 'url is required' }, 400)
-
-    // First, check if this URL is already saved so we only award XP on new saves
-    const { data: existing } = await supabase
-      .from('saved_urls')
-      .select('url')
-      .eq('user_id', user.id)
-      .eq('url', url)
-      .maybeSingle()
-
-    const { error } = await supabase
-      .from('saved_urls')
-      .upsert(
-        { user_id: user.id, url, title, url_id: urlId },
-        { onConflict: 'user_id,url', ignoreDuplicates: false },
-      )
-    if (error) return json({ error: error.message }, 500)
-
-    // Only award XP on first save, not re-saves of the same URL.
-    // Use idempotency key to prevent double-awards from retried requests.
-    if (!existing) {
-      const idemKey = `save_url:${urlId ?? url}:${user.id}`
-      // Background: record activity + award XP + evaluate badges + challenge progress
-      (async () => {
-        try { await supabase.rpc('record_daily_activity', { p_user_id: user.id }); } catch (e) { console.error('record_daily_activity failed (save-url)', e); }
-        try {
-          await supabase.rpc('award_xp', { p_user_id: user.id, p_action: 'save_url', p_metadata: { url, url_id: urlId }, p_idempotency_key: idemKey });
-          await supabase.rpc('evaluate_badges', { p_user_id: user.id });
-        } catch (e) { console.error('xp/badge evaluation failed (save-url)', e); }
-        try {
-          const svcClient = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, { auth: { persistSession: false } });
-          await incrementChallengeProgress(svcClient, user.id, 'save_count');
-        } catch (e) { console.error('challenge progress failed (save-url)', e); }
-      })();
-    }
-
-    return json({ ok: true })
-  }
-
-  if (action === 'unsave') {
-    const url = typeof body.url === 'string' ? body.url.trim() : null
-    if (!url) return json({ error: 'url is required' }, 400)
-
-    const { error } = await supabase
-      .from('saved_urls')
-      .delete()
-      .eq('user_id', user.id)
-      .eq('url', url)
-    if (error) return json({ error: error.message }, 500)
-    return json({ ok: true })
-  }
-
+  // ── LIST ──────────────────────────────────────────────────────────────
   if (action === 'list') {
     const { data, error } = await supabase
       .from('saved_urls')
@@ -94,15 +33,55 @@ Deno.serve(async (req) => {
       .eq('user_id', user.id)
       .order('saved_at', { ascending: false })
       .limit(200)
+
     if (error) return json({ error: error.message }, 500)
-    return json({ saved: data })
+    return json(data)
   }
 
-  return json({ error: `Unknown action: ${action}` }, 400)
+  // ── UNSAVE ────────────────────────────────────────────────────────────
+  if (action === 'unsave') {
+    const url = body.url as string | undefined
+    if (!url) return json({ error: 'url required' }, 400)
+
+    const { error } = await supabase
+      .from('saved_urls')
+      .delete()
+      .eq('user_id', user.id)
+      .eq('url', url)
+
+    if (error) return json({ error: error.message }, 500)
+    return json({ success: true })
+  }
+
+  // ── SAVE ──────────────────────────────────────────────────────────────
+  if (action === 'save') {
+    const url = body.url as string | undefined
+    const title = (body.title as string) || url || ''
+    const urlId = body.url_id as string | undefined
+
+    if (!url) return json({ error: 'url required' }, 400)
+
+    const { error: upsertErr } = await supabase
+      .from('saved_urls')
+      .upsert({ user_id: user.id, url, title, url_id: urlId || null }, { onConflict: 'user_id,url' })
+
+    if (upsertErr) return json({ error: upsertErr.message }, 500)
+
+    // Track save action in user_actions (triggers challenge progress for every save)
+    await supabase.from("user_actions").insert({
+      user_id: user.id,
+      action_type: "save",
+      metadata: { url_id: urlId || null, url }
+    })
+
+    return json({ success: true })
+  }
+
+  return json({ error: 'Unknown action' }, 400)
 })
 
-function json(body: unknown, status = 200) {
-  return new Response(JSON.stringify(body), {
+function json(data: unknown, status = 200) {
+  return new Response(JSON.stringify(data), {
     status,
     headers: { ...corsHeaders, 'Content-Type': 'application/json' },
   })

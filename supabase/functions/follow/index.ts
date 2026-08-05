@@ -8,7 +8,6 @@
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { getCorsHeaders } from '../_shared/cors.ts'
-import { incrementChallengeProgress } from '../_shared/challenge-progress.ts'
 
 Deno.serve(async (req) => {
   const headers = getCorsHeaders(req.headers.get('origin'))
@@ -27,79 +26,54 @@ Deno.serve(async (req) => {
   let body: Record<string, unknown>
   try { body = await req.json() } catch { return json({ error: 'Invalid JSON' }, 400) }
 
-  const action = body.action as string
+  const action = body.action as string | undefined
+  const followingId = body.following_id as string | undefined
 
-  switch (action) {
-    // ── Follow ──────────────────────────────────────────────────────────────
-    case 'follow': {
-      const { following_id } = body
-      if (typeof following_id !== 'string') return json({ error: 'following_id is required' }, 400)
-      if (following_id === user.id) return json({ error: 'Cannot follow yourself' }, 400)
+  if (!action || !followingId) return json({ error: 'action and following_id required' }, 400)
 
-      const { error } = await supabase
-        .from('follows')
-        .insert({ follower_id: user.id, following_id, is_pending: false })
+  if (action === 'follow') {
+    const { error } = await supabase
+      .from('follows')
+      .upsert({ follower_id: user.id, following_id: followingId }, { onConflict: 'follower_id,following_id' })
 
-      if (error) {
-        if (error.code === '23505') return json({ error: 'Already following this user' }, 409)
-        return json({ error: error.message }, 500)
-      }
+    if (error) return json({ error: error.message }, 500)
 
-      // Fire-and-forget badge evaluation. Chained .then() avoids keeping the
-      // Deno isolate alive (unlike setTimeout).
-      //
-      // The follower can call evaluate_badges for themselves (social-butterfly badges).
-      // For the followed user (influencer badges) we need a service-role client
-      // because evaluate_badges rejects calls where auth.uid() != p_user_id.
+    // Track follow action in user_actions (triggers challenge progress)
+    await supabase.from("user_actions").insert({
+      user_id: user.id,
+      action_type: "follow",
+      metadata: { target_user_id: followingId }
+    })
 
-      // Record today's activity so the user's streak is maintained
-      supabase.rpc('record_daily_activity', { p_user_id: user.id }).then(
-        () => {},
-        (e: unknown) => { console.error('record_daily_activity failed (follow)', e) }
-      )
+    // Fire-and-forget: evaluate badges for both users
+    EdgeRuntime.waitUntil(
+      (async () => {
+        try {
+          await supabase.functions.invoke('evaluate-badges', { body: { user_id: user.id } })
+          await supabase.functions.invoke('evaluate-badges', { body: { user_id: followingId } })
+        } catch { /* best effort */ }
+      })()
+    )
 
-      supabase.functions.invoke('evaluate-badges', { body: { user_id: user.id } })
-        .then(() => {}, (e: unknown) => { console.error('badge evaluation failed (follower)', e) })
-
-      supabase.functions.invoke('evaluate-badges', { body: { user_id: following_id } })
-        .then(() => {}, (e: unknown) => { console.error('badge evaluation failed (followed)', e) })
-
-      // Track challenge progress for follow_count
-      const svcClient = createClient(
-        Deno.env.get('SUPABASE_URL')!,
-        Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
-        { auth: { persistSession: false } },
-      )
-      incrementChallengeProgress(svcClient, user.id, 'follow_count')
-        .catch((e: unknown) => { console.error('challenge progress failed (follow)', e) })
-
-      return json({ ok: true }, 201)
-    }
-
-    // ── Unfollow ─────────────────────────────────────────────────────────────
-    case 'unfollow': {
-      const { following_id } = body
-      if (typeof following_id !== 'string') return json({ error: 'following_id is required' }, 400)
-
-      const { error } = await supabase
-        .from('follows')
-        .delete()
-        .eq('follower_id', user.id)
-        .eq('following_id', following_id)
-
-      if (error) return json({ error: error.message }, 500)
-      return json({ ok: true })
-    }
-
-    default:
-      return json({ error: `Unknown action: ${action ?? 'missing'}` }, 400)
+    return json({ success: true })
   }
+
+  if (action === 'unfollow') {
+    const { error } = await supabase
+      .from('follows')
+      .delete()
+      .eq('follower_id', user.id)
+      .eq('following_id', followingId)
+
+    if (error) return json({ error: error.message }, 500)
+    return json({ success: true })
+  }
+
+  return json({ error: 'Unknown action' }, 400)
 })
 
-function json(body: unknown, status = 200, responseHeaders?: Record<string, string>) {
-  const h = responseHeaders ?? getCorsHeaders(null);
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { ...h, 'Content-Type': 'application/json' },
-  })
+function json(data: unknown, status = 200, extraHeaders?: Record<string, string>) {
+  const h: Record<string, string> = { ...headers, 'Content-Type': 'application/json' }
+  if (extraHeaders) Object.assign(h, extraHeaders)
+  return new Response(JSON.stringify(data), { status, headers: h })
 }
