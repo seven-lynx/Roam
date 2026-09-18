@@ -1,0 +1,407 @@
+package app.roam.android.ui.component
+
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.widget.Toast
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import app.roam.android.model.Collection
+import app.roam.android.model.SavedUrl
+
+@Composable
+fun ConfigBottomSheet(
+    currentUrl: String?,
+    collections: List<Collection>,
+    savedUrls: List<SavedUrl>,
+    isTranslated: Boolean,
+    onToggleTranslation: () -> Unit,
+    onTranslate: (language: String) -> Unit,
+    onSaveForLater: () -> Unit,
+    onShare: () -> Unit,
+    onShareWithFriend: () -> Unit = {},
+    onAddToCollection: (collectionId: String) -> Unit,
+    onCreateCollectionAndAdd: (name: String) -> Unit,
+    onRoamWithinCategory: () -> Unit,
+    onRoamCollection: (collectionId: String) -> Unit,
+    onManageCollections: () -> Unit,
+    onCategoryPrefs: () -> Unit,
+    onNavBack: () -> Unit,
+    onNavForward: () -> Unit,
+    onNavReload: () -> Unit,
+    onRemoveSavedUrl: (url: String) -> Unit,
+    onReportBrokenLink: () -> Unit,
+    onNavigateSavedUrl: (url: String) -> Unit,
+    adminModeEnabled: Boolean = false,
+    isModerator: Boolean = false,
+    moderatorModeEnabled: Boolean = false,
+    onAdminNavigateToUrl: (String) -> Unit = {},
+    modifier: Modifier = Modifier,
+) {
+    var collectionPickerOpen by remember { mutableStateOf(false) }
+    var collectionPickerMode by remember { mutableStateOf("add") } // "add" or "roam"
+    var newCollectionDialogOpen by remember { mutableStateOf(false) }
+    var newCollectionName by remember { mutableStateOf("") }
+    var translateDialogOpen by remember { mutableStateOf(false) }
+    var shareDialogOpen by remember { mutableStateOf(false) }
+    var adminUrlInput by remember { mutableStateOf("") }
+
+    // Language list for the translate picker
+    val translateLanguages = listOf(
+        "en" to "English", "fr" to "Français", "de" to "Deutsch",
+        "it" to "Italiano", "es" to "Español", "pt" to "Português",
+        "nl" to "Nederlands", "pl" to "Polski", "ja" to "日本語",
+        "zh" to "中文", "ru" to "Русский", "ko" to "한국어",
+    )
+
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .verticalScroll(rememberScrollState())
+            .padding(bottom = 16.dp),
+    ) {
+            // ── Section 1: Current page ──────────────────────────────────────
+            Text(
+                text = "Current page",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+            )
+
+            if (!currentUrl.isNullOrBlank()) {
+                val context = LocalContext.current
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable {
+                            val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as ClipboardManager
+                            clipboard.setPrimaryClip(ClipData.newPlainText("URL", currentUrl))
+                            Toast.makeText(context, "Copied to clipboard", Toast.LENGTH_SHORT).show()
+                        }
+                        .padding(horizontal = 16.dp, vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = currentUrl,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f),
+                    )
+                    Icon(
+                        imageVector = Icons.Default.ContentCopy,
+                        contentDescription = "Copy URL",
+                        tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                        modifier = Modifier.padding(start = 8.dp),
+                    )
+                }
+            }
+
+            TextButton(
+                onClick = onSaveForLater,
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
+            ) {
+                Text("Save for later", modifier = Modifier.fillMaxWidth())
+            }
+
+            TextButton(
+                onClick = {
+                    if (isTranslated) {
+                        onToggleTranslation()
+                    } else {
+                        translateDialogOpen = true
+                    }
+                },
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
+            ) {
+                Text(
+                    if (isTranslated) "Show original" else "Translate this page",
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+
+            TextButton(
+                onClick = { shareDialogOpen = true },
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
+            ) {
+                Text("Share", modifier = Modifier.fillMaxWidth())
+            }
+
+            TextButton(
+                onClick = { collectionPickerMode = "add"; collectionPickerOpen = true },
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
+            ) {
+                Text("Add to collection…", modifier = Modifier.fillMaxWidth())
+            }
+
+            Spacer(modifier = Modifier.height(4.dp))
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 4.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                OutlinedButton(onClick = onNavBack,    modifier = Modifier.weight(1f)) { Text("← Back") }
+                OutlinedButton(onClick = onNavReload,  modifier = Modifier.weight(1f)) { Text("↻ Reload") }
+                OutlinedButton(onClick = onNavForward, modifier = Modifier.weight(1f)) { Text("Forward →") }
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+            HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // ── Section 2: Roam mode ─────────────────────────────────────────
+            Text(
+                text = "Roam mode",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+            )
+
+            // Roam scope actions
+            TextButton(
+                onClick = onRoamWithinCategory,
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
+            ) {
+                Text("Roam within this category", modifier = Modifier.fillMaxWidth())
+            }
+
+            TextButton(
+                onClick = {
+                    if (collections.isEmpty()) Unit
+                    else { collectionPickerMode = "roam"; collectionPickerOpen = true }
+                },
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
+            ) {
+                Text("Roam a collection…", modifier = Modifier.fillMaxWidth())
+            }
+
+            TextButton(
+                onClick = onManageCollections,
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
+            ) {
+                Text("Manage collections ↗", modifier = Modifier.fillMaxWidth())
+            }
+
+            Spacer(modifier = Modifier.height(4.dp))
+
+            TextButton(
+                onClick = onReportBrokenLink,
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
+            ) {
+                Text(
+                    "Report broken link",
+                    color = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+
+            // ── Section 3: Saved for later ───────────────────────────────────
+            if (savedUrls.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(8.dp))
+                HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "Saved for later",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                )
+                savedUrls.forEach { saved ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { onNavigateSavedUrl(saved.url) }
+                            .padding(horizontal = 16.dp, vertical = 2.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
+                            Text(
+                                text = saved.title,
+                                style = MaterialTheme.typography.bodySmall,
+                                maxLines = 1,
+                                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                            )
+                            Text(
+                                text = saved.url,
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f),
+                                maxLines = 1,
+                                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                            )
+                        }
+                        IconButton(onClick = { onRemoveSavedUrl(saved.url) }) {
+                            Icon(
+                                imageVector = Icons.Default.Close,
+                                contentDescription = "Remove",
+                                tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f),
+                            )
+                        }
+                    }
+            }
+        }
+    }
+
+    // ── Collection picker dialog (Add to collection OR Roam a collection) ──
+    if (collectionPickerOpen) {
+        AlertDialog(
+            onDismissRequest = { collectionPickerOpen = false },
+            title = { Text(if (collectionPickerMode == "roam") "Roam a collection" else "Choose a collection") },
+            text = {
+                Column {
+                    collections.forEach { col ->
+                        TextButton(
+                            onClick = {
+                                collectionPickerOpen = false
+                                if (collectionPickerMode == "roam") onRoamCollection(col.id)
+                                else onAddToCollection(col.id)
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            Text(col.name, modifier = Modifier.fillMaxWidth())
+                        }
+                    }
+                    if (collectionPickerMode == "add") {
+                        TextButton(
+                            onClick = {
+                                collectionPickerOpen = false
+                                newCollectionDialogOpen = true
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            Text("+ New collection", modifier = Modifier.fillMaxWidth())
+                        }
+                    }
+                }
+            },
+            confirmButton = {},
+            dismissButton = {
+                TextButton(onClick = { collectionPickerOpen = false }) { Text("Cancel") }
+            },
+        )
+    }
+
+    // ── Translate language picker dialog ─────────────────────────────────
+    if (translateDialogOpen) {
+        AlertDialog(
+            onDismissRequest = { translateDialogOpen = false },
+            title = { Text("Translate to…") },
+            text = {
+                Column {
+                    translateLanguages.forEach { (code, label) ->
+                        TextButton(
+                            onClick = {
+                                translateDialogOpen = false
+                                onTranslate(code)
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            Text(label, modifier = Modifier.fillMaxWidth())
+                        }
+                    }
+                }
+            },
+            confirmButton = {},
+            dismissButton = {
+                TextButton(onClick = { translateDialogOpen = false }) { Text("Cancel") }
+            },
+        )
+    }
+
+    // ── Share picker dialog ───────────────────────────────────────────────
+    if (shareDialogOpen) {
+        AlertDialog(
+            onDismissRequest = { shareDialogOpen = false },
+            title = { Text("Share this page") },
+            text = {
+                Column {
+                    TextButton(
+                        onClick = {
+                            shareDialogOpen = false
+                            onShare()
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text("Share via…", modifier = Modifier.fillMaxWidth())
+                    }
+                    TextButton(
+                        onClick = {
+                            shareDialogOpen = false
+                            onShareWithFriend()
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text("Send to a Roam user", modifier = Modifier.fillMaxWidth())
+                    }
+                }
+            },
+            confirmButton = {},
+            dismissButton = {
+                TextButton(onClick = { shareDialogOpen = false }) { Text("Cancel") }
+            },
+        )
+    }
+
+    // ── New-collection dialog ──────────────────────────────────────────────
+    if (newCollectionDialogOpen) {
+        AlertDialog(
+            onDismissRequest = { newCollectionDialogOpen = false },
+            title = { Text("New collection") },
+            text = {
+                OutlinedTextField(
+                    value = newCollectionName,
+                    onValueChange = { newCollectionName = it },
+                    label = { Text("Name") },
+                    singleLine = true,
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        if (newCollectionName.isNotBlank()) {
+                            onCreateCollectionAndAdd(newCollectionName.trim())
+                            newCollectionName = ""
+                            newCollectionDialogOpen = false
+                        }
+                    },
+                ) { Text("Create & add") }
+            },
+            dismissButton = {
+                TextButton(onClick = { newCollectionDialogOpen = false; newCollectionName = "" }) {
+                    Text("Cancel")
+                }
+            },
+        )
+    }
+}

@@ -1,0 +1,6 @@
+What's new in 0.4.0:
+
+• Sign-in fixed on Firefox — OAuth authentication now works reliably on Firefox, matching the Chrome experience. No more "can't log in" errors.
+• Faster page loads — Smarter prefetching reduces wait time between pages while using fewer background resources.
+• Better discovery — The algorithm now rotates through more subcategories and avoids showing pages from the same site too frequently, so you see something fresh with every Roam.
+• More reliable — Resolved the top crash and error reports across both Chrome and Firefox for a smoother browsing experience.

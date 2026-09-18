@@ -1,0 +1,7 @@
+What's new in 1.0.13:
+
+• Push notifications — receive alerts for important updates directly on your device
+• In-app notification center — see when your submitted URLs are approved or rejected
+• Backend notification infrastructure — reliable delivery across web and Android
+
+Stay in the loop with what's happening in Roam, even when you're not actively browsing.

@@ -1,0 +1,9 @@
+What's new in 1.2.0:
+
+• Daily challenges — Complete tasks like rating URLs, discovering new pages, and exploring categories to earn bonus XP. Track your progress with live countdown timers and progress bars.
+• Smarter, faster discovery — Algorithm v31–v35 with inline scoring, parallel batch processing, and smarter pool sampling. Pages load faster and you'll see fewer "nothing found" states.
+• Status bar stays visible — The status bar no longer disappears while pages are loading in the WebView.
+• Better badge readability — Badge text is easier to read across all screens.
+• Submit-URL improvements — Notifications are now sent when your submissions are approved, and settings autofill works correctly.
+• Companion extension v0.5.0 — Prefetch focus mode fix and algorithm improvements for better discovery variety.
+• Various crash fixes and stability improvements.

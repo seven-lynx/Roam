@@ -1,0 +1,1176 @@
+// popup.ts — Roam extension popup entry point
+
+import '../lib/sentry'; // must be first — initialises Sentry if SENTRY_DSN is set
+import { Sentry } from '../lib/sentry';
+import { sendToBackground } from '../lib/messages';
+import type { StateData, RoamData, CheckUrlData, Collection, CategoryItem, ProfileData, SubcategoryItem, SavedUrlItem } from '../lib/messages';
+import { FALLBACK_CATEGORIES } from '../lib/constants';
+
+// ── Global error capture ───────────────────────────────────────────────────
+window.addEventListener('unhandledrejection', (event) => {
+  Sentry.captureException(
+    event.reason ?? new Error('Unhandled promise rejection'),
+    { tags: { context: 'popup-unhandledrejection' } }
+  );
+});
+window.addEventListener('error', (event) => {
+  Sentry.captureException(
+    event.error ?? new Error(event.message || 'Unknown popup error'),
+    { tags: { context: 'popup-error' } }
+  );
+});
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function el<T extends HTMLElement>(id: string): T {
+  const e = document.getElementById(id);
+  if (!e) throw new Error(`Element #${id} not found`);
+  return e as T;
+}
+
+type AppState = 'signedout' | 'auth' | 'email-auth' | 'categories' | 'error' | 'noresults' | 'main' | 'feedback' | 'saved' | 'notifications' | 'history';
+
+// Report engagement on the previous URL before requesting the next Roam.
+async function reportCurrentEngagement(): Promise<void> {
+  try {
+    const stored = await chrome.storage.session.get('current_url');
+    const current = stored.current_url as { url_id: string; served_at: number } | undefined;
+    if (!current) return;
+    chrome.storage.session.remove('current_url').catch(() => {});
+    const dwellMs = Date.now() - current.served_at;
+    sendToBackground({ type: 'REPORT_ENGAGEMENT', url_id: current.url_id, dwell_ms: dwellMs, skipped: dwellMs < 3000 });
+  } catch { /* never block */ }
+}
+
+function showState(name: AppState) {
+  for (const s of ['signedout', 'auth', 'email-auth', 'categories', 'error', 'noresults', 'main', 'feedback', 'saved', 'notifications', 'history'] as const) {
+    el(`state-${s}`).hidden = s !== name;
+  }
+}
+
+function flashButton(id: string, type: 'up' | 'down'): Promise<void> {
+  return new Promise<void>(resolve => {
+    const btn = el(id);
+    const cls = type === 'up' ? 'btn-icon--flash-up' : 'btn-icon--flash-down';
+    btn.classList.add(cls);
+    btn.addEventListener('animationend', () => { btn.classList.remove(cls); resolve(); }, { once: true });
+  });
+}
+
+function showPanel(name: 'submit' | 'config' | null) {
+  el('panel-submit').hidden = name !== 'submit';
+  el('panel-config').hidden = name !== 'config';
+  el<HTMLButtonElement>('btn-config').setAttribute(
+    'aria-expanded',
+    name === 'config' ? 'true' : 'false'
+  );
+}
+
+function showToast(message: string) {
+  const t = el('toast');
+  t.textContent = message;
+  t.hidden = false;
+  // Re-trigger animation
+  t.classList.remove('toast');
+  void t.offsetWidth;
+  t.classList.add('toast');
+  setTimeout(() => { t.hidden = true; }, 2000);
+}
+
+function showError(message: string, operation?: string) {
+  const prefix = operation ? `[${operation}] ` : '';
+  const span = document.querySelector<HTMLElement>('#state-error .error-msg');
+  if (span) span.textContent = prefix + message;
+  Sentry.captureMessage(`popup error [${operation || 'unknown'}]: ${message}`, {
+    level: 'warning',
+    tags: { context: 'showError' },
+    extra: { operation: operation || 'unknown' },
+  });
+  showState('error');
+}
+
+function showDropdown(
+  anchor: HTMLElement,
+  items: { label: string; onPick: () => void; className?: string }[],
+  footer?: HTMLElement
+): void {
+  const menu = document.createElement('div');
+  menu.style.cssText = `
+    background: var(--bg-panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    z-index: 1000;
+    max-height: 240px;
+    overflow-y: auto;
+  `;
+  items.forEach(({ label, onPick, className }) => {
+    const option = document.createElement('button');
+    option.style.cssText = `
+      width: 100%;
+      padding: 8px 10px;
+      border: none;
+      background: transparent;
+      color: var(--text);
+      text-align: left;
+      cursor: pointer;
+      font-size: 13px;
+    `;
+    if (className) option.className = className;
+    option.textContent = label;
+    option.addEventListener('click', () => { menu.remove(); onPick(); });
+    option.addEventListener('mouseover', () => { option.style.background = 'var(--bg-hover)'; });
+    option.addEventListener('mouseout', () => { option.style.background = 'transparent'; });
+    menu.appendChild(option);
+  });
+  if (footer) {
+    const divider = document.createElement('div');
+    divider.style.cssText = 'height: 1px; background: var(--border); margin: 4px 0;';
+    menu.appendChild(divider);
+    menu.appendChild(footer);
+  }
+  const rect = anchor.getBoundingClientRect();
+  menu.style.position = 'fixed';
+  menu.style.top = `${rect.bottom + 4}px`;
+  menu.style.left = `${rect.left}px`;
+  menu.style.width = `${rect.width}px`;
+  document.body.appendChild(menu);
+  document.addEventListener('click', (e) => {
+    if (!menu.contains(e.target as Node) && e.target !== anchor) menu.remove();
+  }, { once: true });
+}
+
+// Context for categories screen
+let categoriesContext: 'firsttime' | 'settings' = 'firsttime';
+let loadedCategories: CategoryItem[] = [];
+let loadedSubcategories: SubcategoryItem[] = [];
+let currentInterestMode: 'pillars' | 'topics' = 'pillars';
+
+// Focus mode
+let focusModeEnabled = false;
+let focusCategoryId: string | null = null;
+let focusSubcategoryId: string | null = null;
+let focusSubcategoryName: string | null = null;
+
+function setStatus(text: string): void {
+  const bar = el('status-bar');
+  bar.textContent = text;
+  bar.hidden = false;
+}
+
+async function refreshStatus(): Promise<void> {
+  let modeLabel: string;
+  if (focusModeEnabled) {
+    const catName = loadedCategories.find(c => c.id === focusCategoryId)?.name ?? 'Focus';
+    modeLabel = focusSubcategoryName ? `🎯 ${catName} · ${focusSubcategoryName}` : `🎯 ${catName}`;
+  } else {
+    modeLabel = '🔍 Discover';
+  }
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  const url = tab?.url ?? '';
+  if (!url) { setStatus(modeLabel); return; }
+  const check = await sendToBackground<CheckUrlData>({ type: 'CHECK_URL', url });
+  if (!check.ok || !check.data.category_id) { setStatus(modeLabel); return; }
+  const cat = loadedCategories.find(c => c.id === check.data.category_id);
+  if (!cat) { setStatus(modeLabel); return; }
+  setStatus(`${cat.icon} ${cat.name}  ·  ${modeLabel}`);
+}
+
+async function checkAndRouteAfterSignIn(): Promise<void> {
+  const [interests, allCats, allSubcats, sessionPrefs] = await Promise.all([
+    sendToBackground<{ mode: 'pillars' | 'topics'; pillarIds: string[]; topicIds: string[] }>({ type: 'GET_USER_INTERESTS' }),
+    sendToBackground<CategoryItem[]>({ type: 'GET_CATEGORIES' }),
+    sendToBackground<SubcategoryItem[]>({ type: 'GET_ALL_SUBCATEGORIES' }),
+    chrome.storage.session.get(['auto_translate']),
+  ]);
+  const categoryItems = allCats.ok && allCats.data.length > 0 ? allCats.data : FALLBACK_CATEGORIES;
+  loadedCategories = categoryItems;
+  if (allSubcats.ok) loadedSubcategories = allSubcats.data;
+
+  if (interests.ok && (interests.data.pillarIds.length > 0 || interests.data.topicIds.length > 0)) {
+    currentInterestMode = interests.data.mode;
+    populateInterestChips(interests.data.mode, interests.data.pillarIds, interests.data.topicIds, categoryItems, loadedSubcategories);
+    showState('main');
+    void refreshStatus();
+    // Load "You" section data lazily
+    void loadYouSection();
+  } else {
+    categoriesContext = 'firsttime';
+    currentInterestMode = 'pillars';
+    populateInterestChips('pillars', [], [], categoryItems, loadedSubcategories);
+    el('btn-back-categories').hidden = true;
+    showState('categories');
+  }
+}
+
+function setInterestModeUI(mode: 'pillars' | 'topics') {
+  currentInterestMode = mode;
+  el('btn-mode-pillars').classList.toggle('mode-btn--active', mode === 'pillars');
+  el('btn-mode-topics').classList.toggle('mode-btn--active', mode === 'topics');
+}
+
+function populateInterestChips(
+  mode: 'pillars' | 'topics',
+  selectedPillarIds: string[],
+  selectedTopicIds: string[],
+  categories: CategoryItem[],
+  subcategories: SubcategoryItem[],
+) {
+  setInterestModeUI(mode);
+  const container = el('category-select-chips');
+  while (container.firstChild) container.removeChild(container.firstChild);
+
+  if (mode === 'pillars') {
+    for (const cat of categories) {
+      const btn = document.createElement('button');
+      btn.className = 'chip' + (selectedPillarIds.includes(cat.id) ? ' selected' : '');
+      btn.dataset.catId = cat.id;
+      btn.textContent = `${cat.icon} ${cat.name}`;
+      container.appendChild(btn);
+    }
+  } else {
+    const byCat = new Map<string, SubcategoryItem[]>();
+    for (const sc of subcategories) {
+      if (!byCat.has(sc.category_id)) byCat.set(sc.category_id, []);
+      byCat.get(sc.category_id)!.push(sc);
+    }
+    for (const cat of categories) {
+      const subs = byCat.get(cat.id);
+      if (!subs || subs.length === 0) continue;
+      const header = document.createElement('p');
+      header.className = 'topic-group-header';
+      header.textContent = `${cat.icon} ${cat.name}`;
+      container.appendChild(header);
+      for (const sc of subs) {
+        const btn = document.createElement('button');
+        btn.className = 'chip' + (selectedTopicIds.includes(sc.id) ? ' selected' : '');
+        btn.dataset.subcatId = sc.id;
+        btn.textContent = sc.name;
+        container.appendChild(btn);
+      }
+    }
+  }
+
+  const anySelected = mode === 'pillars'
+    ? selectedPillarIds.length > 0
+    : selectedTopicIds.length > 0;
+  const saveBtn = document.getElementById('btn-save-categories') as HTMLButtonElement | null;
+  if (saveBtn) saveBtn.disabled = !anySelected;
+}
+
+/** @deprecated Use populateInterestChips instead */
+function populateCategoryChips(selectedIds: string[], categories: CategoryItem[]) {
+  populateInterestChips('pillars', selectedIds, [], categories, []);
+}
+
+// ── "You" section — notifications, badges, stats ──────────────────────────────
+async function loadYouSection() {
+  // Notifications count
+  sendToBackground<number>({ type: 'GET_UNREAD_COUNT' }).then(res => {
+    if (res.ok && res.data > 0) {
+      const chip = el('notif-count-chip');
+      chip.textContent = String(res.data);
+      chip.hidden = false;
+    }
+  });
+  // Badges count
+  sendToBackground<any[]>({ type: 'GET_BADGES' }).then(res => {
+    if (res.ok && res.data.length > 0) {
+      const chip = el('badge-count-chip');
+      chip.textContent = String(res.data.length);
+      chip.hidden = false;
+    }
+  });
+  // Profile stats
+  sendToBackground<{ roamed: number; submitted: number }>({ type: 'GET_PROFILE_STATS' }).then(res => {
+    if (res.ok) {
+      el('stat-roamed').textContent = String(res.data.roamed ?? 0);
+      el('stat-submitted').textContent = String(res.data.submitted ?? 0);
+      el('stats-row').hidden = false;
+    }
+  });
+}
+
+async function boot() {
+  console.log('[roam-popup] Booting, checking session state');
+  const res = await sendToBackground<StateData>({ type: 'GET_STATE' });
+  console.log('[roam-popup] Boot GET_STATE response:', res);
+  if (!res.ok) { showError(res.error); return; }
+  if (!res.data.signedIn) {
+    showState('signedout');
+    return;
+  }
+  await checkAndRouteAfterSignIn();
+}
+
+// ── Boot ──────────────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  try { chrome.runtime.connect({ name: 'popup-keepalive' }); } catch { /* ignore */ }
+
+  boot();
+
+  // ── Sign in button ───────────────────────────────────────────────────────────
+  el('btn-signin').addEventListener('click', () => {
+    showState('auth');
+  });
+
+  el('btn-retry').addEventListener('click', () => boot());
+
+  el('btn-add-categories').addEventListener('click', async () => {
+    categoriesContext = 'settings';
+    const [interests, allCats, allSubcats] = await Promise.all([
+      sendToBackground<{ mode: 'pillars' | 'topics'; pillarIds: string[]; topicIds: string[] }>({ type: 'GET_USER_INTERESTS' }),
+      sendToBackground<CategoryItem[]>({ type: 'GET_CATEGORIES' }),
+      sendToBackground<SubcategoryItem[]>({ type: 'GET_ALL_SUBCATEGORIES' }),
+    ]);
+    const cats = allCats.ok && allCats.data.length > 0 ? allCats.data : FALLBACK_CATEGORIES;
+    if (allSubcats.ok) loadedSubcategories = allSubcats.data;
+    loadedCategories = cats;
+    const mode = interests.ok ? interests.data.mode : 'pillars';
+    const pillars = interests.ok ? interests.data.pillarIds : [];
+    const topics = interests.ok ? interests.data.topicIds : [];
+    populateInterestChips(mode, pillars, topics, cats, loadedSubcategories);
+    el('btn-back-categories').hidden = false;
+    showState('categories');
+  });
+
+  el('btn-back-auth').addEventListener('click', () => showState('signedout'));
+  el('btn-back-email').addEventListener('click', () => showState('auth'));
+
+  // ── Auth: Google OAuth ────────────────────────────────────────────────────
+  async function startOAuthFlow() {
+    const buttons = ['btn-auth-google', 'btn-auth-email'];
+    buttons.forEach((id) => (el<HTMLButtonElement>(id).disabled = true));
+    el('auth-waiting').hidden = false;
+
+    const res = await sendToBackground<StateData>({ type: 'SIGN_IN_GOOGLE' });
+    if (!res.ok) {
+      buttons.forEach((id) => (el<HTMLButtonElement>(id).disabled = false));
+      el('auth-waiting').hidden = true;
+      showError(res.error);
+      return;
+    }
+
+    const pollInterval = setInterval(async () => {
+      const state = await sendToBackground<StateData>({ type: 'GET_STATE' });
+      if (state.ok && state.data.signedIn) {
+        clearInterval(pollInterval);
+        await checkAndRouteAfterSignIn();
+      }
+    }, 500);
+    setTimeout(() => clearInterval(pollInterval), 5 * 60 * 1000);
+  }
+
+  el('btn-auth-google').addEventListener('click', () => startOAuthFlow());
+
+  // ── Auth: email form ─────────────────────────────────────────────────────
+  el('btn-auth-email').addEventListener('click', () => {
+    el<HTMLInputElement>('input-email').value = '';
+    el<HTMLInputElement>('input-password').value = '';
+    el('email-auth-error').hidden = true;
+    el('email-verify-msg').hidden = true;
+    el<HTMLButtonElement>('btn-email-submit').textContent = 'Sign in';
+    el('tab-signin').classList.add('auth-tab--active');
+    el('tab-signup').classList.remove('auth-tab--active');
+    showState('email-auth');
+  });
+
+  let emailMode: 'signin' | 'signup' = 'signin';
+
+  el('tab-signin').addEventListener('click', () => {
+    emailMode = 'signin';
+    el('tab-signin').classList.add('auth-tab--active');
+    el('tab-signup').classList.remove('auth-tab--active');
+    el<HTMLButtonElement>('btn-email-submit').textContent = 'Sign in';
+    el('email-auth-error').hidden = true;
+    el('email-verify-msg').hidden = true;
+  });
+
+  el('tab-signup').addEventListener('click', () => {
+    emailMode = 'signup';
+    el('tab-signup').classList.add('auth-tab--active');
+    el('tab-signin').classList.remove('auth-tab--active');
+    el<HTMLButtonElement>('btn-email-submit').textContent = 'Sign up';
+    el('email-auth-error').hidden = true;
+    el('email-verify-msg').hidden = true;
+  });
+
+  el('btn-email-submit').addEventListener('click', async () => {
+    const email = el<HTMLInputElement>('input-email').value.trim();
+    const password = el<HTMLInputElement>('input-password').value;
+    const errorEl = el<HTMLParagraphElement>('email-auth-error');
+
+    if (!email || !password) {
+      errorEl.textContent = 'Please enter both your email and password.';
+      errorEl.hidden = false;
+      return;
+    }
+
+    const submitBtn = el<HTMLButtonElement>('btn-email-submit');
+    submitBtn.disabled = true;
+    errorEl.hidden = true;
+
+    if (emailMode === 'signin') {
+      const res = await sendToBackground<StateData>({ type: 'SIGN_IN_EMAIL', email, password });
+      submitBtn.disabled = false;
+      if (!res.ok) {
+        errorEl.textContent = res.error;
+        errorEl.hidden = false;
+        return;
+      }
+      await checkAndRouteAfterSignIn();
+    } else {
+      const res = await sendToBackground<{ needsVerification: boolean }>({ type: 'SIGN_UP_EMAIL', email, password });
+      submitBtn.disabled = false;
+      if (!res.ok) {
+        errorEl.textContent = res.error;
+        errorEl.hidden = false;
+        return;
+      }
+      if (res.data.needsVerification) {
+        el('email-verify-msg').hidden = false;
+        submitBtn.textContent = 'Resend email';
+      } else {
+        await checkAndRouteAfterSignIn();
+      }
+    }
+  });
+
+  // ── Categories: chip multi-select ─────────────────────────────────────────
+  el('category-select-chips').addEventListener('click', (e) => {
+    const chip = (e.target as HTMLElement).closest<HTMLButtonElement>('.chip');
+    if (!chip) return;
+    chip.classList.toggle('selected');
+    const anySelected = el('category-select-chips').querySelectorAll('.chip.selected').length > 0;
+    el<HTMLButtonElement>('btn-save-categories').disabled = !anySelected;
+    el('categories-error').hidden = true;
+  });
+
+  el('btn-mode-pillars').addEventListener('click', () => {
+    if (currentInterestMode === 'pillars') return;
+    populateInterestChips('pillars', [], [], loadedCategories, loadedSubcategories);
+  });
+  el('btn-mode-topics').addEventListener('click', async () => {
+    if (currentInterestMode === 'topics') return;
+    if (loadedSubcategories.length === 0) {
+      const res = await sendToBackground<SubcategoryItem[]>({ type: 'GET_ALL_SUBCATEGORIES' });
+      if (res.ok) loadedSubcategories = res.data;
+    }
+    populateInterestChips('topics', [], [], loadedCategories, loadedSubcategories);
+  });
+
+  el('btn-save-categories').addEventListener('click', async () => {
+    const selectedChips = Array.from(
+      el('category-select-chips').querySelectorAll<HTMLButtonElement>('.chip.selected')
+    );
+    const pillarIds = currentInterestMode === 'pillars'
+      ? selectedChips.map((c) => c.dataset.catId!).filter(Boolean)
+      : [];
+    const topicIds = currentInterestMode === 'topics'
+      ? selectedChips.map((c) => c.dataset.subcatId!).filter(Boolean)
+      : [];
+
+    const saveBtn = el<HTMLButtonElement>('btn-save-categories');
+    saveBtn.disabled = true;
+    const errEl = el<HTMLParagraphElement>('categories-error');
+    errEl.hidden = true;
+
+    const res = await sendToBackground({ type: 'SET_USER_INTERESTS', pillarIds, topicIds });
+    saveBtn.disabled = false;
+    if (!res.ok) {
+      errEl.textContent = res.error;
+      errEl.hidden = false;
+      return;
+    }
+    showPanel(null);
+    showState('main');
+    void refreshStatus();
+  });
+
+  el('btn-back-categories').addEventListener('click', () => {
+    if (categoriesContext === 'settings') {
+      showPanel('config');
+      showState('main');
+      void refreshStatus();
+    }
+  });
+
+  // ── Roam button ───────────────────────────────────────────────────────────
+  el('btn-roam').addEventListener('click', async () => {
+    showPanel(null);
+    const roamBtn = el<HTMLButtonElement>('btn-roam');
+    roamBtn.disabled = true;
+    roamBtn.textContent = 'Roaming…';
+    setStatus('Finding next page…');
+    void reportCurrentEngagement();
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    const res = await sendToBackground<RoamData>({
+      type: 'ROAM',
+      ...(focusModeEnabled && focusCategoryId ? { categoryId: focusCategoryId } : {}),
+      ...(focusModeEnabled && focusSubcategoryId ? { subcategoryId: focusSubcategoryId } : {}),
+    });
+    roamBtn.disabled = false;
+    roamBtn.textContent = 'Roam';
+    if (!res.ok) { showError(res.error); return; }
+    if (!res.data?.url) { showState('noresults'); return; }
+    if (tab?.id) chrome.tabs.update(tab.id, { url: res.data.url });
+    window.close();
+  });
+
+  // ── Thumbs up ─────────────────────────────────────────────────────────────
+  el('btn-upvote').addEventListener('click', async () => {
+    showPanel(null);
+    const flashDone = flashButton('btn-upvote', 'up');
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    const url = tab?.url ?? '';
+    if (!url) return;
+    const check = await sendToBackground<CheckUrlData>({ type: 'CHECK_URL', url });
+    if (!check.ok) { showError(check.error); return; }
+    if (check.data.known && check.data.url_id) {
+      await Promise.all([
+        flashDone,
+        sendToBackground({ type: 'RATE', url_id: check.data.url_id, vote: 1 }),
+      ]);
+      window.close();
+    } else {
+      await flashDone;
+      showPanel('submit');
+    }
+  });
+
+  // ── Thumbs down ───────────────────────────────────────────────────────────
+  el('btn-downvote').addEventListener('click', async () => {
+    showPanel(null);
+    flashButton('btn-downvote', 'down');
+    setStatus('Finding next page…');
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    const url = tab?.url ?? '';
+    void reportCurrentEngagement();
+    const roamPromise = sendToBackground<RoamData>({
+      type: 'ROAM',
+      ...(focusModeEnabled && focusCategoryId ? { categoryId: focusCategoryId } : {}),
+      ...(focusModeEnabled && focusSubcategoryId ? { subcategoryId: focusSubcategoryId } : {}),
+    });
+    if (url) {
+      sendToBackground<CheckUrlData>({ type: 'CHECK_URL', url }).then((check) => {
+        if (check.ok && check.data.known && check.data.url_id) {
+          sendToBackground({ type: 'RATE', url_id: check.data.url_id, vote: -1 });
+        }
+      });
+    }
+    const roamRes = await roamPromise;
+    if (!roamRes.ok) { showError(roamRes.error); return; }
+    if (!roamRes.data?.url) { showState('noresults'); return; }
+    if (tab?.id) chrome.tabs.update(tab.id, { url: roamRes.data.url });
+    window.close();
+  });
+
+  // ── Config toggle ─────────────────────────────────────────────────────────
+  el('btn-config').addEventListener('click', () => {
+    const open = el('panel-config').hidden;
+    showPanel(open ? 'config' : null);
+    if (open) loadYouSection();
+  });
+
+  // ── Submit panel chips: populate from FALLBACK_CATEGORIES ──────────────────
+  {
+    const container = el('category-chips');
+    for (const cat of FALLBACK_CATEGORIES) {
+      const btn = document.createElement('button');
+      btn.className = 'chip';
+      btn.dataset.catId = cat.id;
+      btn.textContent = `${cat.icon} ${cat.name}`;
+      container.appendChild(btn);
+    }
+  }
+
+  // ── Category chip selection + subcategory loading ──────────────────────────
+  let selectedCategory: string | null = null;
+  el('category-chips').addEventListener('click', (e) => {
+    const chip = (e.target as HTMLElement).closest<HTMLButtonElement>('.chip');
+    if (!chip) return;
+    el('category-chips').querySelectorAll('.chip').forEach((c) => c.classList.remove('selected'));
+    chip.classList.add('selected');
+    selectedCategory = chip.dataset.catId ?? null;
+    el<HTMLButtonElement>('btn-submit').disabled = false;
+    // Load subcategories for this category
+    const subcatContainer = el('subcategory-chips');
+    const subcatGrid = el('subcategory-chip-grid');
+    subcatGrid.textContent = '';
+    if (selectedCategory) {
+      sendToBackground<SubcategoryItem[]>({ type: 'GET_SUBCATEGORIES_FOR_CATEGORY', categoryId: selectedCategory }).then(res => {
+        if (res.ok && res.data.length > 0) {
+          subcatContainer.hidden = false;
+          for (const sc of res.data) {
+            const b = document.createElement('button');
+            b.className = 'chip';
+            b.dataset.subcatId = sc.id;
+            b.textContent = sc.name;
+            subcatGrid.appendChild(b);
+          }
+        } else {
+          subcatContainer.hidden = true;
+        }
+      });
+    }
+  });
+
+  // ── Submit unknown URL ────────────────────────────────────────────────────
+  const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  el('btn-submit').addEventListener('click', async () => {
+    if (!selectedCategory || !UUID_RE.test(selectedCategory)) return;
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    const url = tab?.url ?? '';
+    if (!url) return;
+    const submitErr = el<HTMLParagraphElement>('submit-error');
+    submitErr.hidden = true;
+    el<HTMLButtonElement>('btn-submit').disabled = true;
+    const res = await sendToBackground<{ duplicate?: boolean; message?: string }>({ type: 'SUBMIT_URL', url, categoryId: selectedCategory });
+    el<HTMLButtonElement>('btn-submit').disabled = false;
+    if (!res.ok) {
+      submitErr.textContent = res.error.includes('safe') || res.error.includes('Safe')
+        ? 'This URL was flagged by Google Safe Browsing and cannot be submitted.'
+        : res.error.includes('429') || res.error.includes('rate')
+          ? 'You\'ve submitted too many URLs recently. Try again in an hour.'
+          : res.error;
+      submitErr.hidden = false;
+      return;
+    }
+    if (res.data?.duplicate) {
+      submitErr.textContent = res.data.message ?? 'This URL is already in our database.';
+      submitErr.hidden = false;
+      return;
+    }
+    const submitSuccess = el<HTMLParagraphElement>('submit-success');
+    submitSuccess.textContent = 'Submitted for review!';
+    submitSuccess.hidden = false;
+    el<HTMLButtonElement>('btn-submit').disabled = true;
+    setTimeout(() => window.close(), 2000);
+  });
+
+  // ── Config panel actions ──────────────────────────────────────────────────
+  let loadedCollections: Collection[] = [];
+
+  async function loadCollectionsForDropdown(): Promise<void> {
+    const res = await sendToBackground<Collection[]>({ type: 'GET_COLLECTIONS' });
+    if (res.ok) {
+      loadedCollections = res.data;
+    } else {
+      console.error('Failed to load collections:', res.error);
+    }
+  }
+
+  el('btn-add-collection').addEventListener('click', async () => {
+    await loadCollectionsForDropdown();
+
+    const newColBtn = document.createElement('button');
+    newColBtn.style.cssText = `
+      width: 100%;
+      padding: 8px 10px;
+      border: none;
+      background: transparent;
+      color: var(--accent);
+      text-align: left;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 600;
+    `;
+    newColBtn.textContent = '+ New collection';
+    newColBtn.addEventListener('click', async () => {
+      const name = prompt('Collection name:');
+      if (!name) return;
+      const res = await sendToBackground<Collection>({ type: 'CREATE_COLLECTION', name });
+      if (!res.ok) { showError(res.error ?? "Couldn't create collection."); return; }
+      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+      if (!tab?.url) return;
+      const addRes = await sendToBackground({ type: 'ADD_URL_TO_COLLECTION', url: tab.url, collectionId: res.data.id });
+      if (addRes.ok) { showToast('✓ Added to collection'); setTimeout(() => window.close(), 1500); } else { showError(addRes.error ?? "Couldn't add to collection."); }
+    });
+
+    const anchor = el<HTMLButtonElement>('btn-add-collection');
+    showDropdown(
+      anchor,
+      loadedCollections.map(col => ({
+        label: col.name,
+        onPick: async () => {
+          const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+          if (!tab?.url) return;
+          const res = await sendToBackground({ type: 'ADD_URL_TO_COLLECTION', url: tab.url, collectionId: col.id });
+          if (res.ok) { showToast('✓ Added to collection'); setTimeout(() => window.close(), 1500); } else { showError(res.error ?? "Couldn't add to collection."); }
+        },
+      })),
+      newColBtn
+    );
+  });
+
+  el('btn-save-later').addEventListener('click', async () => {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (!tab?.url) return;
+    const res = await sendToBackground({ type: 'SAVE_LATER', url: tab.url, title: tab.title });
+    if (res.ok) {
+      showToast('✓ Saved!');
+      setTimeout(() => window.close(), 1500);
+    }
+  });
+
+  el('btn-saved-pages').addEventListener('click', async () => {
+    const res = await sendToBackground<SavedUrlItem[]>({ type: 'GET_SAVED_URLS' });
+    const list = el('saved-list');
+    const empty = el('saved-empty');
+    list.textContent = '';
+    const items = res.ok ? res.data : [];
+    if (items.length === 0) {
+      empty.hidden = false;
+    } else {
+      empty.hidden = true;
+      for (const item of items) {
+        const row = document.createElement('div');
+        row.className = 'saved-item';
+        row.dataset.id = item.id;
+
+        const link = document.createElement('a');
+        link.href = item.url;
+        link.target = '_blank';
+        link.rel = 'noopener noreferrer';
+        link.className = 'saved-item-link';
+
+        const title = document.createElement('span');
+        title.className = 'saved-item-title';
+        title.textContent = item.title || item.url;
+
+        const domain = document.createElement('span');
+        domain.className = 'saved-item-domain';
+        try { domain.textContent = new URL(item.url).hostname; } catch { domain.textContent = ''; }
+
+        link.appendChild(title);
+        link.appendChild(domain);
+
+        const remove = document.createElement('button');
+        remove.className = 'saved-item-remove';
+        remove.textContent = '✕';
+        remove.title = 'Remove';
+        remove.dataset.id = item.id;
+
+        row.appendChild(link);
+        row.appendChild(remove);
+        list.appendChild(row);
+      }
+      list.addEventListener('click', async (e) => {
+        const btn = (e.target as HTMLElement).closest('.saved-item-remove') as HTMLElement | null;
+        if (!btn?.dataset.id) return;
+        const id = btn.dataset.id;
+        const res2 = await sendToBackground<null>({ type: 'REMOVE_SAVED_URL', savedUrlId: id });
+        if (res2.ok) {
+          const row = list.querySelector(`[data-id="${id}"]`) as HTMLElement | null;
+          if (row) row.remove();
+          if (!list.children.length) empty.hidden = false;
+        }
+      });
+    }
+    showState('saved');
+  });
+
+  el('btn-back-saved').addEventListener('click', () => showState('main'));
+
+  el('btn-share').addEventListener('click', async () => {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (tab?.url) await navigator.clipboard.writeText(tab.url);
+    window.close();
+  });
+
+  el('btn-share-with-user').addEventListener('click', async () => {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    const url = tab?.url;
+    if (!url) return;
+
+    const res = await sendToBackground<Array<{ user_id: string; username: string; display_name: string | null }>>({
+      type: 'GET_SHARE_RECIPIENTS',
+    });
+
+    if (!res.ok || !res.data || res.data.length === 0) {
+      chrome.tabs.create({ url: 'https://roamtheweb.app/following' });
+      window.close();
+      return;
+    }
+
+    const anchor = el<HTMLButtonElement>('btn-share-with-user');
+    showDropdown(
+      anchor,
+      res.data.map(user => ({
+        label: `${user.username}${user.display_name ? ` (${user.display_name})` : ''}`,
+        onPick: async () => {
+          const shareRes = await sendToBackground({ type: 'SHARE_URL_WITH_USER', url, recipientId: user.user_id });
+          if (shareRes.ok) {
+            window.close();
+          } else {
+            showError(shareRes.error ?? "Couldn't share this URL.");
+          }
+        },
+      }))
+    );
+  });
+
+  el('btn-copy-profile-link').addEventListener('click', async () => {
+    const profile = await sendToBackground<ProfileData>({ type: 'GET_PROFILE' });
+    if (profile.ok && profile.data.username) {
+      await navigator.clipboard.writeText(`https://roamtheweb.app/u/${profile.data.username}`);
+    } else {
+      chrome.tabs.create({ url: 'https://roamtheweb.app/profile' });
+    }
+    window.close();
+  });
+
+  el('btn-roam-category').addEventListener('click', async () => {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    const url = tab?.url ?? '';
+    if (!url) return;
+    const check = await sendToBackground<CheckUrlData>({ type: 'CHECK_URL', url });
+    if (!check.ok || !check.data.category_id) {
+      showError('Couldn\'t determine a category for this page. Try a different one.');
+      return;
+    }
+    const res = await sendToBackground<RoamData>({
+      type: 'ROAM_CATEGORY',
+      categoryId: check.data.category_id,
+    });
+    if (!res.ok) { showError(res.error); return; }
+    if (!res.data?.url) { showState('noresults'); return; }
+    if (tab?.id) chrome.tabs.update(tab.id, { url: res.data.url });
+    window.close();
+  });
+
+  el('btn-roam-collection').addEventListener('click', async () => {
+    await loadCollectionsForDropdown();
+    if (loadedCollections.length === 0) {
+      showError('No collections yet. Create one from the web app.');
+      return;
+    }
+    const anchor = el<HTMLButtonElement>('btn-roam-collection');
+    const items = loadedCollections.map(col => ({
+      label: `${col.name} (${col.item_count})`,
+      onPick: async () => {
+        const res = await sendToBackground<RoamData>({ type: 'ROAM_COLLECTION', collectionId: col.id });
+        if (!res.ok) { showError(res.error); return; }
+        if (!res.data?.url) { showState('noresults'); return; }
+        const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+        if (tab?.id) chrome.tabs.update(tab.id, { url: res.data.url });
+        window.close();
+      },
+    }));
+    const publicCols = loadedCollections.filter(c => c.is_public);
+    let footer: HTMLElement | undefined;
+    if (publicCols.length > 0) {
+      footer = document.createElement('div');
+      footer.style.cssText = 'display: flex; flex-direction: column; gap: 4px;';
+      for (const col of publicCols) {
+        const linkBtn = document.createElement('button');
+        linkBtn.style.cssText = `
+          width: 100%;
+          padding: 8px 10px;
+          border: none;
+          border-top: 1px solid var(--border);
+          background: transparent;
+          color: var(--text);
+          text-align: left;
+          cursor: pointer;
+          font-size: 13px;
+        `;
+        linkBtn.textContent = `🔗 Copy link: ${col.name}`;
+        linkBtn.addEventListener('click', async (e) => {
+          e.stopPropagation();
+          await navigator.clipboard.writeText(`https://roamtheweb.app/c/${col.slug}`);
+          linkBtn.textContent = '✓ Copied';
+        });
+        linkBtn.addEventListener('mouseover', () => { linkBtn.style.background = 'var(--bg-hover)'; });
+        linkBtn.addEventListener('mouseout', () => { linkBtn.style.background = 'transparent'; });
+        footer.appendChild(linkBtn);
+      }
+    }
+    showDropdown(anchor, items, footer);
+  });
+
+  el('btn-manage-collections').addEventListener('click', () => {
+    chrome.tabs.create({ url: 'https://roamtheweb.app/profile' });
+    window.close();
+  });
+
+  el('btn-category-prefs').addEventListener('click', async () => {
+    categoriesContext = 'settings';
+    const [interests, allCats, allSubcats] = await Promise.all([
+      sendToBackground<{ mode: 'pillars' | 'topics'; pillarIds: string[]; topicIds: string[] }>({ type: 'GET_USER_INTERESTS' }),
+      sendToBackground<CategoryItem[]>({ type: 'GET_CATEGORIES' }),
+      sendToBackground<SubcategoryItem[]>({ type: 'GET_ALL_SUBCATEGORIES' }),
+    ]);
+    const cats = allCats.ok && allCats.data.length > 0 ? allCats.data : FALLBACK_CATEGORIES;
+    if (allSubcats.ok) loadedSubcategories = allSubcats.data;
+    loadedCategories = cats;
+    const mode = interests.ok ? interests.data.mode : 'pillars';
+    const pillars = interests.ok ? interests.data.pillarIds : [];
+    const topics = interests.ok ? interests.data.topicIds : [];
+    populateInterestChips(mode, pillars, topics, cats, loadedSubcategories);
+    showPanel(null);
+    el('btn-back-categories').hidden = false;
+    showState('categories');
+  });
+
+  el('btn-signout').addEventListener('click', async () => {
+    await sendToBackground({ type: 'SIGN_OUT' });
+    showPanel(null);
+    showState('signedout');
+  });
+
+  // ── Report broken link ────────────────────────────────────────────────────
+  el('btn-report-url').addEventListener('click', async () => {
+    const btn = el<HTMLButtonElement>('btn-report-url');
+    btn.disabled = true;
+    btn.textContent = 'Reporting…';
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    const url = tab?.url ?? '';
+    if (!url) { btn.disabled = false; btn.textContent = 'Report broken link'; return; }
+    const check = await sendToBackground<CheckUrlData>({ type: 'CHECK_URL', url });
+    if (!check.ok || !check.data.known || !check.data.url_id) {
+      btn.disabled = false; btn.textContent = 'Report broken link'; return;
+    }
+    const res = await sendToBackground({ type: 'REPORT_URL', url_id: check.data.url_id });
+    if (!res.ok) { btn.disabled = false; btn.textContent = 'Report broken link'; return; }
+    btn.textContent = 'Reported ✓ — skipping…';
+    showPanel(null);
+    const roamRes = await sendToBackground<RoamData>({ type: 'ROAM' });
+    if (!roamRes.ok) { showError(roamRes.error); return; }
+    if (!roamRes.data?.url) { showState('noresults'); return; }
+    if (tab?.id) chrome.tabs.update(tab.id, { url: roamRes.data.url });
+    window.close();
+  });
+
+  // ── Feedback ──────────────────────────────────────────────────────────────
+  el('btn-send-feedback').addEventListener('click', () => {
+    el<HTMLTextAreaElement>('feedback-message').value = '';
+    el<HTMLInputElement>('feedback-email').value = '';
+    el('feedback-chars').textContent = '0';
+    el('feedback-error').hidden = true;
+    el('feedback-success').hidden = true;
+    el<HTMLButtonElement>('btn-feedback-submit').disabled = true;
+    el<HTMLButtonElement>('btn-feedback-submit').textContent = 'Send';
+    showPanel(null);
+    showState('feedback');
+  });
+
+  el('btn-back-feedback').addEventListener('click', () => {
+    showPanel('config');
+    showState('main');
+    void refreshStatus();
+  });
+
+  el('feedback-message').addEventListener('input', () => {
+    const val = el<HTMLTextAreaElement>('feedback-message').value;
+    el('feedback-chars').textContent = String(val.length);
+    el<HTMLButtonElement>('btn-feedback-submit').disabled = val.trim().length === 0;
+  });
+
+  el('btn-feedback-submit').addEventListener('click', async () => {
+    const message = el<HTMLTextAreaElement>('feedback-message').value.trim();
+    const email = el<HTMLInputElement>('feedback-email').value.trim() || undefined;
+    if (!message) return;
+
+    const submitBtn = el<HTMLButtonElement>('btn-feedback-submit');
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Sending…';
+    el('feedback-error').hidden = true;
+
+    const isFirefox = navigator.userAgent.includes('Firefox');
+    const platform = isFirefox ? 'extension-firefox' : 'extension-chrome';
+
+    const res = await sendToBackground({ type: 'SEND_FEEDBACK', message, email, platform });
+    if (!res.ok) {
+      el<HTMLParagraphElement>('feedback-error').textContent = res.error;
+      el('feedback-error').hidden = false;
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'Send';
+      return;
+    }
+
+    el('feedback-success').hidden = false;
+    submitBtn.textContent = 'Sent ✓';
+    setTimeout(() => {
+      showPanel('config');
+      showState('main');
+      void refreshStatus();
+    }, 2000);
+  });
+
+  // ── Notifications ─────────────────────────────────────────────────────────
+  el('btn-notifications').addEventListener('click', async () => {
+    const res = await sendToBackground<any[]>({ type: 'GET_NOTIFICATIONS' });
+    const list = el('notif-list');
+    const empty = el('notif-empty');
+    list.textContent = '';
+    if (res.ok && res.data.length > 0) {
+      empty.hidden = true;
+      for (const n of res.data) {
+        const row = document.createElement('div');
+        row.className = 'notif-item' + (n.read ? '' : ' notif-item--unread');
+        row.dataset.id = n.id;
+        const text = document.createElement('div');
+        text.className = 'notif-text';
+        text.textContent = n.message || n.body || n.type || 'Notification';
+        const time = document.createElement('div');
+        time.className = 'notif-time';
+        try { time.textContent = new Date(n.created_at).toLocaleDateString(); } catch { time.textContent = ''; }
+        text.appendChild(time);
+        const del = document.createElement('button');
+        del.className = 'notif-delete';
+        del.textContent = '✕';
+        del.title = 'Delete';
+        del.addEventListener('click', async (e) => {
+          e.stopPropagation();
+          await sendToBackground({ type: 'DELETE_NOTIFICATION', notificationId: n.id });
+          row.remove();
+          if (!list.children.length) empty.hidden = false;
+        });
+        row.appendChild(text);
+        row.appendChild(del);
+        list.appendChild(row);
+      }
+    } else {
+      empty.hidden = false;
+    }
+    showPanel(null);
+    showState('notifications');
+  });
+
+  el('btn-back-notifications').addEventListener('click', () => {
+    showPanel('config');
+    showState('main');
+  });
+
+  el('btn-mark-all-read').addEventListener('click', async () => {
+    await sendToBackground({ type: 'MARK_NOTIFICATIONS_READ' });
+    el('notif-list').querySelectorAll('.notif-item--unread').forEach(r => r.classList.remove('notif-item--unread'));
+    const chip = el('notif-count-chip');
+    chip.hidden = true;
+  });
+
+  // ── Badges ────────────────────────────────────────────────────────────────
+  el('btn-web-badges').addEventListener('click', () => {
+    chrome.tabs.create({ url: 'https://roamtheweb.app/badges' });
+    window.close();
+  });
+
+  // ── History ───────────────────────────────────────────────────────────────
+  el('btn-history').addEventListener('click', async () => {
+    const res = await sendToBackground<{ url: string; title: string; visitedAt: number }[]>({ type: 'GET_URL_HISTORY', limit: 50 });
+    const list = el('history-list');
+    const empty = el('history-empty');
+    list.textContent = '';
+    if (res.ok && res.data.length > 0) {
+      empty.hidden = true;
+      for (const entry of res.data) {
+        const row = document.createElement('div');
+        row.className = 'history-item';
+        const link = document.createElement('a');
+        link.href = entry.url;
+        link.target = '_blank';
+        link.rel = 'noopener noreferrer';
+        link.className = 'history-item-link';
+        const title = document.createElement('span');
+        title.className = 'history-item-title';
+        title.textContent = entry.title || entry.url;
+        const domain = document.createElement('span');
+        domain.className = 'history-item-domain';
+        try { domain.textContent = new URL(entry.url).hostname; } catch { domain.textContent = ''; }
+        link.appendChild(title);
+        link.appendChild(domain);
+        row.appendChild(link);
+        list.appendChild(row);
+      }
+    } else {
+      empty.hidden = false;
+    }
+    showPanel(null);
+    showState('history');
+  });
+
+  el('btn-back-history').addEventListener('click', () => {
+    showPanel('config');
+    showState('main');
+  });
+
+  el('btn-clear-history').addEventListener('click', async () => {
+    await sendToBackground({ type: 'CLEAR_URL_HISTORY' });
+    el('history-list').textContent = '';
+    el('history-empty').hidden = false;
+  });
+
+  // ── Language selector auto-save ───────────────────────────────────────────
+  el('select-discovery-lang').addEventListener('change', () => {
+    const lang = el<HTMLSelectElement>('select-discovery-lang').value;
+    sendToBackground({ type: 'SET_DISCOVERY_LANGUAGE', language: lang });
+  });
+
+  // ── Toggle: Public profile ────────────────────────────────────────────────
+  el('toggle-public-profile').addEventListener('change', () => {
+    const checked = el<HTMLInputElement>('toggle-public-profile').checked;
+    sendToBackground({ type: 'SET_PROFILE_PUBLIC', isPublic: checked });
+  });
+
+  // ── Toggle: Paywall ───────────────────────────────────────────────────────
+  el('toggle-paywall').addEventListener('change', () => {
+    const checked = el<HTMLInputElement>('toggle-paywall').checked;
+    sendToBackground({ type: 'SET_PAYWALL_PREF', skip: checked });
+  });
+
+  // ── Toggle: Focus mode ────────────────────────────────────────────────────
+  el('toggle-focus').addEventListener('change', () => {
+    focusModeEnabled = el<HTMLInputElement>('toggle-focus').checked;
+    el('focus-pickers').hidden = !focusModeEnabled;
+    if (focusModeEnabled) {
+      loadCategoriesForFocus();
+    } else {
+      focusCategoryId = null;
+      focusSubcategoryId = null;
+      void refreshStatus();
+    }
+  });
+
+  async function loadCategoriesForFocus() {
+    const res = await sendToBackground<CategoryItem[]>({ type: 'GET_CATEGORIES' });
+    const cats = res.ok && res.data.length > 0 ? res.data : FALLBACK_CATEGORIES;
+    el('btn-focus-category').addEventListener('click', () => {
+      const anchor = el('btn-focus-category');
+      showDropdown(anchor, cats.map(c => ({
+        label: `${c.icon} ${c.name}`,
+        onPick: () => {
+          focusCategoryId = c.id;
+          el('btn-focus-category').textContent = `Category: ${c.name}`;
+          el('btn-focus-subcategory').hidden = false;
+          void refreshStatus();
+        },
+      })));
+    }, { once: true });
+  }
+
+  // ── Web app links ─────────────────────────────────────────────────────────
+  el('btn-web-leaderboard').addEventListener('click', () => {
+    chrome.tabs.create({ url: 'https://roamtheweb.app/leaderboard' });
+    window.close();
+  });
+  el('btn-web-following').addEventListener('click', () => {
+    chrome.tabs.create({ url: 'https://roamtheweb.app/following' });
+    window.close();
+  });
+  el('btn-web-settings').addEventListener('click', () => {
+    chrome.tabs.create({ url: 'https://roamtheweb.app/settings' });
+    window.close();
+  });
+
+  // ── Translate toggle ──────────────────────────────────────────────────────
+  el('btn-translate-page').addEventListener('click', async () => {
+    await sendToBackground({ type: 'SET_AUTO_TRANSLATE', enabled: true });
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (tab?.url) {
+      const lang = await chrome.storage.local.get('translate_language');
+      const tl = (lang.translate_language as string) ?? 'en';
+      const translated = `https://translate.google.com/translate?sl=auto&tl=${tl}&u=${encodeURIComponent(tab.url)}`;
+      chrome.tabs.update(tab.id!, { url: translated });
+    }
+    window.close();
+  });
+});

@@ -1,0 +1,30 @@
+# Baseline profile for Roam Android app.
+# Generated manually for key startup and interaction paths.
+# Replace with a Macrobenchmark-generated profile before store submission.
+
+# Application + Activity startup
+HSPLapp/roam/android/RoamApplication;->onCreate()V
+HSPLapp/roam/android/MainActivity;->onCreate(Landroid/os/Bundle;)V
+HSPLapp/roam/android/MainActivity;->setContent$default(Landroid/os/Bundle;Lkotlin/jvm/functions/Function0;ILjava/lang/Object;)V
+
+# Supabase client initialisation
+HSPLapp/roam/android/data/SupabaseClientKt;-><clinit>()V
+
+# ViewModels
+HSPLapp/roam/android/viewmodel/AuthViewModel;-><init>()V
+HSPLapp/roam/android/viewmodel/AuthViewModel;->checkAuth()V
+HSPLapp/roam/android/viewmodel/MainViewModel;-><init>(Landroid/app/Application;)V
+HSPLapp/roam/android/viewmodel/MainViewModel;->roam()V
+
+# Repository hot path
+HSPLapp/roam/android/data/repository/RoamRepository;-><init>()V
+HSPLapp/roam/android/data/repository/RoamRepository;->getNextUrl(Ljava/util/List;Ljava/util/List;Z)Lapp/roam/android/model/RoamUrl;
+
+# UI screens — compiled for fast first frame
+Lapp/roam/android/ui/screen/MainScreenKt;
+Lapp/roam/android/ui/screen/SplashScreenKt;
+Lapp/roam/android/ui/screen/OnboardingScreenKt;
+Lapp/roam/android/ui/component/DiscoverCardKt;
+Lapp/roam/android/ui/component/DiscoverCardSkeletonKt;
+Lapp/roam/android/ui/component/BottomBarKt;
+Lapp/roam/android/ui/theme/ThemeKt;

@@ -1,0 +1,3 @@
+-- Duplicate application of scrape_suggestions (20260702233614) — no-op stub
+-- The scrape_suggestions table and its RLS policies already exist.
+-- This file exists only to keep supabase_migrations.schema_migrations in sync with local files.

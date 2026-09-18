@@ -1,0 +1,9 @@
+What's new in 1.1.9:
+
+• Smarter discovery — The algorithm now rotates through more subcategories, enforces a 24-hour domain cooldown, and occasionally introduces serendipity picks. Less repetition, more variety.
+• Session recovery — The app restores your last viewed page if the system reclaims memory in the background, instead of showing a blank screen.
+• Current URL in the config sheet — Swipe up to see the page URL with a one-tap copy button.
+• Collections refresh on demand — Opening the config sheet fetches your latest collections so "Add to collection" is always accurate.
+• Performance improvements — Faster page loads, reduced data usage, and smoother queue refills across the board.
+• Companion extension v0.4.0 — OAuth sign-in is fixed on Chrome and Firefox, prefetch is faster and smarter, and top Sentry errors are resolved on both platforms.
+• Various crash fixes and stability improvements.

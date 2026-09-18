@@ -1,0 +1,11 @@
+Stability update with critical fixes and performance improvements.
+
+• Fixed menu crash when rapidly opening/closing
+• Root-domain suppression: rating down one subdomain now suppresses all subdomains of the same parent
+• Smart queue deduplication prevents rapid-fire serves from the same domain
+• Improved network timeout handling for better reliability on slow networks
+• Faster page transitions with background preloading (optional, Settings → Browser)
+• Fixed loading overlay flash and improved config sheet responsiveness
+• Enhanced offline queue robustness
+
+Beta build—behavior may evolve based on feedback. Report issues with your device model and Android version.
