@@ -1,5 +1,5 @@
 -- ============================================================================
--- roam v32 — HOTFIX: repair broken subquery alias in roam()
+-- roam v32 ΓÇö HOTFIX: repair broken subquery alias in roam()
 -- ============================================================================
 -- INCIDENT
 --   Every call to roam() failed at runtime with:
@@ -28,7 +28,7 @@
 --   supabase/functions/roam/index.ts swallows RPC errors in batch/prefetch
 --   mode (`if (count > 1) continue`), ends the loop with results.length === 0,
 --   and returns 404 "No more URLs to discover". The Android client maps 404 ->
---   RoamState.Exhausted -> "You've seen everything — adjust categories in
+--   RoamState.Exhausted -> "You've seen everything ΓÇö adjust categories in
 --   Settings". So a hard database fault was rendered as a benign UX state and
 --   every user was told the ~1.2M-URL pool was exhausted.
 --
@@ -76,19 +76,19 @@ BEGIN
   END LOOP;
 
   IF v_found = 0 THEN
-    RAISE EXCEPTION 'roam v32: no public.roam() function found — refusing to continue';
+    RAISE EXCEPTION 'roam v32: no public.roam() function found ΓÇö refusing to continue';
   END IF;
 
   IF v_patched = 0 THEN
     RAISE EXCEPTION
       'roam v32: expected broken text "SELECT array_agg(u.subcategory_id)" not found in any of % roam() overload(s). '
-      'Either the fix is already applied or the function body changed — verify manually before shipping.',
+      'Either the fix is already applied or the function body changed ΓÇö verify manually before shipping.',
       v_found;
   END IF;
 END
 $patch$;
 
--- ── Post-patch assertion ────────────────────────────────────────────────────
+-- ΓöÇΓöÇ Post-patch assertion ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 -- Guarantee the bad reference is gone from every overload, so this migration
 -- cannot "succeed" while leaving discovery broken.
 DO $verify$
@@ -107,6 +107,6 @@ BEGIN
     RAISE EXCEPTION 'roam v32: % roam() overload(s) still reference array_agg(u.subcategory_id)', v_bad;
   END IF;
 
-  RAISE NOTICE 'roam v32: verified — no roam() overload references the out-of-scope alias';
+  RAISE NOTICE 'roam v32: verified ΓÇö no roam() overload references the out-of-scope alias';
 END
 $verify$;

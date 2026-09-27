@@ -63,14 +63,14 @@ export default function ForgotPasswordPage() {
         {submitted ? (
           <div className="text-center flex flex-col gap-4">
             <p className="text-sm text-zinc-700 dark:text-zinc-300">
-              Check your inbox — a reset link has been sent to <strong>{email}</strong>.
+              Check your inbox ΓÇö a reset link has been sent to <strong>{email}</strong>.
               The link expires in 1 hour.
             </p>
             <Link
               href="/join?mode=signin"
               className="text-sm text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white transition-colors"
             >
-              ← Back to sign in
+              ΓåÉ Back to sign in
             </Link>
           </div>
         ) : (
@@ -98,13 +98,13 @@ export default function ForgotPasswordPage() {
               disabled={loading || !email || !!emailError}
               className="w-full rounded-lg bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 py-2.5 text-sm font-semibold hover:opacity-90 transition-opacity disabled:opacity-40"
             >
-              {loading ? 'Sending…' : 'Send reset link'}
+              {loading ? 'SendingΓÇª' : 'Send reset link'}
             </button>
             <Link
               href="/join?mode=signin"
               className="text-center text-sm text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white transition-colors"
             >
-              ← Back to sign in
+              ΓåÉ Back to sign in
             </Link>
           </form>
         )}

@@ -47,11 +47,11 @@ interface NavItem {
 }
 
 const NAV_ITEMS: NavItem[] = [
-  { id: "queue",     label: "Moderation", icon: "🛂",  color: "bg-blue-600"   },
-  { id: "analytics", label: "Analytics",  icon: "📊",  color: "bg-violet-600" },
-  { id: "badges",    label: "Badges",     icon: "🏅",  color: "bg-purple-600" },
-  { id: "reports",   label: "Dead Links", icon: "🚫",  color: "bg-red-600"    },
-  { id: "scrape",    label: "Scrape",     icon: "🕷️",  color: "bg-teal-600"   },
+  { id: "queue",     label: "Moderation", icon: "≡ƒ¢é",  color: "bg-blue-600"   },
+  { id: "analytics", label: "Analytics",  icon: "≡ƒôè",  color: "bg-violet-600" },
+  { id: "badges",    label: "Badges",     icon: "≡ƒÅà",  color: "bg-purple-600" },
+  { id: "reports",   label: "Dead Links", icon: "≡ƒÜ½",  color: "bg-red-600"    },
+  { id: "scrape",    label: "Scrape",     icon: "≡ƒò╖∩╕Å",  color: "bg-teal-600"   },
 ];
 
 const AdminAnalytics = dynamic(() => import("@/app/admin/views/AdminAnalytics"), { loading: () => <LoadingView /> });
@@ -184,7 +184,7 @@ export default function ModeratorPageClient() {
                 {statusCounts.pending}
               </span>
             )}
-            <span className="ml-auto text-zinc-400 text-lg leading-none">{menuOpen ? "▴" : "▾"}</span>
+            <span className="ml-auto text-zinc-400 text-lg leading-none">{menuOpen ? "Γû┤" : "Γû╛"}</span>
           </button>
 
           {menuOpen && (
@@ -248,7 +248,7 @@ export default function ModeratorPageClient() {
   );
 }
 
-// ── Queue view ────────────────────────────────────────────────────────────────
+// ΓöÇΓöÇ Queue view ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 
 function QueueView({
   items, loading, filteredItems, statusFilter, setStatusFilter,
@@ -273,7 +273,7 @@ function QueueView({
         onClick={() => setFiltersOpen(!filtersOpen)}
         className="flex items-center gap-2 text-xs font-medium text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-300 transition-colors self-start"
       >
-        <span>{filtersOpen ? "▴" : "▾"}</span><span>Filters & Sort</span>
+        <span>{filtersOpen ? "Γû┤" : "Γû╛"}</span><span>Filters & Sort</span>
         {statusFilter !== "pending" && (
           <span className="rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 px-2 py-0.5 text-[10px]">{statusFilter}</span>
         )}
@@ -329,7 +329,7 @@ function QueueView({
                     }`}>{item.status}</span>
                   </div>
                   <span className="text-[10px] text-zinc-400">
-                    {item.created_at ? new Date(item.created_at).toLocaleString("en-US", { timeZone: "America/New_York", timeZoneName: "short" }) : "—"}
+                    {item.created_at ? new Date(item.created_at).toLocaleString("en-US", { timeZone: "America/New_York", timeZoneName: "short" }) : "ΓÇö"}
                   </span>
                 </button>
               ))}
@@ -340,7 +340,7 @@ function QueueView({
   );
 }
 
-// ── Reports view ──────────────────────────────────────────────────────────────
+// ΓöÇΓöÇ Reports view ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 
 function ReportsView({ reportedLinks, loading, restoringId, onRestore }: {
   reportedLinks: ReportedLink[]; loading: boolean; restoringId: string | null; onRestore: (id: string) => void;
@@ -362,7 +362,7 @@ function ReportsView({ reportedLinks, loading, restoringId, onRestore }: {
                   <div className="flex items-center justify-between mt-2 text-xs">
                     <div className="flex items-center gap-3 text-zinc-500 dark:text-zinc-400">
                       <span><strong className="text-zinc-700 dark:text-zinc-300">{r.report_count}</strong> reports</span>
-                      <span>{r.reported_at ? new Date(r.reported_at).toLocaleDateString("en-US", { timeZone: "America/New_York" }) : "—"}</span>
+                      <span>{r.reported_at ? new Date(r.reported_at).toLocaleDateString("en-US", { timeZone: "America/New_York" }) : "ΓÇö"}</span>
                     </div>
                     <div className="flex items-center gap-2">
                       <span className={`text-[10px] font-medium px-2 py-0.5 rounded ${r.inactive ? "bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400" : "bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400"}`}>
@@ -373,7 +373,7 @@ function ReportsView({ reportedLinks, loading, restoringId, onRestore }: {
                           onClick={() => onRestore(r.url_id)} disabled={restoringId === r.url_id}
                           className="text-[10px] px-2 py-1 rounded-lg bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700 disabled:opacity-50 transition-colors"
                         >
-                          {restoringId === r.url_id ? "…" : "Restore"}
+                          {restoringId === r.url_id ? "ΓÇª" : "Restore"}
                         </button>
                       )}
                     </div>

@@ -11,11 +11,11 @@
 --    so streaks always show 0 for users who haven't roamed recently.
 -- 3. No helper exists to simply "mark user active today" from any edge function.
 --
--- ── Fix 0: Update user_activity CHECK constraint ──────────────────────────────
+-- ΓöÇΓöÇ Fix 0: Update user_activity CHECK constraint ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 -- Migration 20260711000001 added triggers that insert badge_unlocked, url_saved,
 -- and url_added_to_collection, but never updated the CHECK constraint from
 -- 20260702000001 to allow those new activity_type values.
--- This causes constraint violations when Fix 3 updates NULL unlocked_at → now().
+-- This causes constraint violations when Fix 3 updates NULL unlocked_at ΓåÆ now().
 
 ALTER TABLE user_activity DROP CONSTRAINT IF EXISTS user_activity_activity_type_check;
 ALTER TABLE user_activity ADD CONSTRAINT user_activity_activity_type_check
@@ -29,7 +29,7 @@ ALTER TABLE user_activity ADD CONSTRAINT user_activity_activity_type_check
     'url_added_to_collection'
   ));
 
--- ── Fix 1: sync_profile_badge_count ────────────────────────────────────────
+-- ΓöÇΓöÇ Fix 1: sync_profile_badge_count ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 -- Reconciles profiles.badge_count with actual unlocked badges.
 -- Safe to call at any time; does not break anything if counts already match.
 
@@ -57,7 +57,7 @@ $$;
 REVOKE EXECUTE ON FUNCTION public.sync_profile_badge_count FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.sync_profile_badge_count TO authenticated, service_role;
 
--- ── Fix 2: record_daily_activity ───────────────────────────────────────────
+-- ΓöÇΓöÇ Fix 2: record_daily_activity ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 -- Simple helper that ensures a user_daily_activity row exists for today and
 -- calls update_streak. Call this from any edge function that represents user
 -- activity (save, submit, follow, rate, etc.) so streaks aren't broken when
@@ -80,8 +80,8 @@ $$;
 REVOKE EXECUTE ON FUNCTION public.record_daily_activity FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.record_daily_activity TO authenticated, service_role;
 
--- ── Fix 3: Repair existing user_badges rows with NULL unlocked_at ─────────
--- Rows inserted by the old evaluate_badges() at line 404 (INSERT … ON CONFLICT
+-- ΓöÇΓöÇ Fix 3: Repair existing user_badges rows with NULL unlocked_at ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+-- Rows inserted by the old evaluate_badges() at line 404 (INSERT ΓÇª ON CONFLICT
 -- DO NOTHING without specifying unlocked_at) and line 411 (explicitly NULL).
 -- For rows that represent unlocked badges (NOT inserted by the in-progress path
 -- at line 411), set unlocked_at to a reasonable default.
@@ -98,7 +98,7 @@ WHERE unlocked_at IS NULL
     SELECT 1 FROM public.badges b
     WHERE b.id = user_badges.badge_id
       AND (
-        -- Either required_count is NULL (binary badge) → always treat as unlocked
+        -- Either required_count is NULL (binary badge) ΓåÆ always treat as unlocked
         b.required_count IS NULL
         -- Or progress meets the requirement
         OR user_badges.progress_current >= b.required_count
@@ -118,7 +118,7 @@ BEGIN
 END;
 $$;
 
--- ── Fix 4: Make update_streak more defensive ──────────────────────────────
+-- ΓöÇΓöÇ Fix 4: Make update_streak more defensive ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 -- The original update_streak function is mostly correct but can be hardened.
 -- Re-create it with better NULL handling and a guard against calling it when
 -- user_daily_activity has no rows yet.
@@ -155,7 +155,7 @@ BEGIN
     IF v_cur > 1 THEN v_broken := TRUE; END IF;
     v_cur := 1;
   ELSIF v_last_active = CURRENT_DATE - INTERVAL '1 day' THEN
-    -- Consecutive day — increment
+    -- Consecutive day ΓÇö increment
     v_cur := v_cur + 1;
   END IF;
 
@@ -175,7 +175,7 @@ $$;
 REVOKE EXECUTE ON FUNCTION public.update_streak FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.update_streak TO authenticated, service_role;
 
--- ── Fix 5: Repair evaluate_badges to explicitly set unlocked_at ────────────
+-- ΓöÇΓöÇ Fix 5: Repair evaluate_badges to explicitly set unlocked_at ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 -- The original evaluate_badges (line 404) does:
 --   INSERT ... VALUES (..., v_progress) ON CONFLICT DO NOTHING
 -- without specifying unlocked_at. If the DEFAULT now() was removed by any

@@ -1,11 +1,11 @@
--- Disable statement timeout for this migration — regex UPDATEs across 3M rows
+-- Disable statement timeout for this migration ΓÇö regex UPDATEs across 3M rows
 -- will exceed the default timeout without this.
 SET statement_timeout = 0;
 
--- ── Fix language tags on already-seeded URLs using URL TLD heuristics ─────────
+-- ΓöÇΓöÇ Fix language tags on already-seeded URLs using URL TLD heuristics ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 --
--- The Curlie seeder imported language-specific dump files (Deutsch, Français,
--- Italiano, Japanese) without tagging language — all rows defaulted to 'en'.
+-- The Curlie seeder imported language-specific dump files (Deutsch, Fran├ºais,
+-- Italiano, Japanese) without tagging language ΓÇö all rows defaulted to 'en'.
 -- We cannot recover which file each row came from, but the destination URL's
 -- country-code TLD is a reasonable proxy for language.
 --

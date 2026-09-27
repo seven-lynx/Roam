@@ -153,7 +153,7 @@ export function AdminBadges() {
               : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400'
           }`}
         >
-          🎁 Grant
+          ≡ƒÄü Grant
         </button>
         <button
           onClick={() => setGiftView("revoke")}
@@ -163,7 +163,7 @@ export function AdminBadges() {
               : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400'
           }`}
         >
-          ❌ Revoke
+          Γ¥î Revoke
         </button>
       </div>
 
@@ -202,7 +202,7 @@ export function AdminBadges() {
                 disabled={giftLoading || !giftUsername || !giftBadgeSlug}
                 className="w-full sm:w-auto px-4 py-2 rounded-lg bg-purple-600 text-white text-sm font-medium hover:bg-purple-700 disabled:opacity-50 transition-colors"
               >
-                {giftLoading ? 'Granting...' : '🎁 Grant'}
+                {giftLoading ? 'Granting...' : '≡ƒÄü Grant'}
               </button>
             </div>
           </div>
@@ -260,7 +260,7 @@ export function AdminBadges() {
                 disabled={giftLoading || !giftUsername || !giftBadgeSlug}
                 className="w-full sm:w-auto px-4 py-2 rounded-lg bg-red-600 text-white text-sm font-medium hover:bg-red-700 disabled:opacity-50 transition-colors"
               >
-                {giftLoading ? 'Revoking...' : '❌ Revoke'}
+                {giftLoading ? 'Revoking...' : 'Γ¥î Revoke'}
               </button>
             </div>
           </div>
@@ -304,7 +304,7 @@ export function AdminBadges() {
                           {b.category}
                         </span>
                       </td>
-                      <td className="py-2 px-2 text-xs text-zinc-600 dark:text-zinc-400">{b.tier || '—'}</td>
+                      <td className="py-2 px-2 text-xs text-zinc-600 dark:text-zinc-400">{b.tier || 'ΓÇö'}</td>
                       <td className="py-2 px-2 text-right text-xs font-mono text-zinc-600 dark:text-zinc-400">+{b.xp_reward}</td>
                       <td className="py-2 px-2 text-right text-xs font-mono text-zinc-600 dark:text-zinc-400">{b.unlocked_count ?? 0}</td>
                       <td className="py-2 px-2 text-right">

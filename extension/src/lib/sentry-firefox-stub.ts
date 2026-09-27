@@ -1,4 +1,4 @@
-// sentry-firefox-stub.ts — No-op Sentry replacement for Firefox builds.
+// sentry-firefox-stub.ts ΓÇö No-op Sentry replacement for Firefox builds.
 //
 // Mozilla's add-on review flags `innerHTML` usage in third-party code (Sentry's
 // rrweb DOM serialisation and ContextLines integration).  This stub replaces the
@@ -8,7 +8,7 @@
 // The API surface matches exactly what popup.ts and background.ts use.
 // Chrome builds continue to use the real sentry.ts (and report errors to Sentry).
 
-function noop(): void { /* Firefox — Sentry disabled */ }
+function noop(): void { /* Firefox ΓÇö Sentry disabled */ }
 
 export const Sentry = {
   init: noop,

@@ -30,7 +30,7 @@ export function FollowList({ userId, mode }: FollowListProps) {
 
     // Step 1: Get user IDs from follows
     // (follows.follower_id/following_id reference auth.users, not public.profiles,
-    //  so Supabase cannot auto-join via FK — do it manually)
+    //  so Supabase cannot auto-join via FK ΓÇö do it manually)
     const { data: followRows, error: followError } = await supabase
       .from('follows')
       .select(selectColumn)
@@ -76,7 +76,7 @@ export function FollowList({ userId, mode }: FollowListProps) {
   if (loading) {
     return (
       <div className="py-8 text-center text-sm text-zinc-400">
-        Loading…
+        LoadingΓÇª
       </div>
     );
   }

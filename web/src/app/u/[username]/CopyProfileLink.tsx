@@ -21,7 +21,7 @@ export function CopyProfileLink({ username }: CopyProfileLinkProps) {
       className="text-xs text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors"
       title="Copy profile link"
     >
-      {copied ? '✓ Copied' : '🔗 Copy link'}
+      {copied ? 'Γ£ô Copied' : '≡ƒöù Copy link'}
     </button>
   );
 }

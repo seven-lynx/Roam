@@ -6,9 +6,9 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import RefreshButton from "./RefreshButton";
 
-export const metadata: Metadata = { title: "Admin · Dashboard" };
+export const metadata: Metadata = { title: "Admin ┬╖ Dashboard" };
 
-// ─── Types ───────────────────────────────────────────────────────────────────
+// ΓöÇΓöÇΓöÇ Types ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 
 type SupabaseStats = {
   totalUrls: number;
@@ -50,7 +50,7 @@ type VercelDeployment = {
   };
 };
 
-// ─── Data fetchers ────────────────────────────────────────────────────────────
+// ΓöÇΓöÇΓöÇ Data fetchers ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 
 // Per-query timeout. The default Supabase / PostgREST statement timeout is 8s;
 // counts on the urls table (~3.2M rows) often need longer when not cached.
@@ -117,7 +117,7 @@ async function fetchSupabaseStats(): Promise<SupabaseStats | null> {
     admin.from("collections").select("*", { count: "exact", head: true }),
     queryErrors,
   );
-  // All url-table aggregates in one RPC call — avoids multiple full-table scans.
+  // All url-table aggregates in one RPC call ΓÇö avoids multiple full-table scans.
   // The function sets statement_timeout = '30s' to override the PostgREST default.
   let recentUrls = 0, inactiveUrls = 0, activeUrls = 0, totalUrls = 0;
   let totalServes = 0, avgWilsonScore = 0, activeUsersThisWeek = 0;
@@ -228,7 +228,7 @@ async function getVercelDeployments(): Promise<VercelDeployment[] | null> {
   }
 }
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+// ΓöÇΓöÇΓöÇ Helpers ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 
 function timeAgo(date: Date): string {
   const seconds = Math.floor((Date.now() - date.getTime()) / 1000);
@@ -266,7 +266,7 @@ const LEVEL_BADGE: Record<string, string> = {
     "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400",
 };
 
-// ─── Page ─────────────────────────────────────────────────────────────────────
+// ΓöÇΓöÇΓöÇ Page ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 
 export default async function AdminDashboardPage() {
   const supabase = await createClient();
@@ -303,12 +303,12 @@ export default async function AdminDashboardPage() {
               href="/admin"
               className="text-sm text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white transition-colors"
             >
-              ← Back to admin
+              ΓåÉ Back to admin
             </Link>
           </div>
         </div>
 
-        {/* ── Supabase stats ─────────────────────────────────────────────── */}
+        {/* ΓöÇΓöÇ Supabase stats ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ */}
         <section>
           <h2 className="text-lg font-semibold text-zinc-900 dark:text-white mb-4">
             Database
@@ -317,25 +317,25 @@ export default async function AdminDashboardPage() {
             <>
               {stats.queryErrors.length > 0 && (
                 <div className="mb-4 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-700 dark:border-amber-700 dark:bg-amber-900/10 dark:text-amber-400">
-                  {stats.queryErrors.length} stat{stats.queryErrors.length > 1 ? "s" : ""} failed to load — check server logs for details.
+                  {stats.queryErrors.length} stat{stats.queryErrors.length > 1 ? "s" : ""} failed to load ΓÇö check server logs for details.
                 </div>
               )}
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
               {(
                 [
-                  // Row 1 — Content library
+                  // Row 1 ΓÇö Content library
                   { label: "Total URLs", value: stats.totalUrls },
                   { label: "Active URLs", value: stats.activeUrls },
                   { label: "Dead links", value: stats.inactiveUrls, highlight: stats.inactiveUrls > 50, href: "/admin?view=reports" },
                   { label: "Added this week", value: stats.recentUrls },
                   { label: "Total collections", value: stats.totalCollections },
-                  // Row 2 — Engagement
+                  // Row 2 ΓÇö Engagement
                   { label: "Total serves", value: stats.totalServes },
                   { label: "Total ratings", value: stats.totalRatings },
                   { label: "Avg Wilson score", value: stats.avgWilsonScore.toFixed(3) },
                   { label: "Rated URLs", value: stats.ratedUrls },
                   { label: "Unrated URLs", value: stats.unratedUrls },
-                  // Row 3 — Users & moderation
+                  // Row 3 ΓÇö Users & moderation
                   { label: "Total users", value: stats.totalUsers },
                   { label: "New users this week", value: stats.newUsersThisWeek },
                   { label: "Active users (7d)", value: stats.activeUsersThisWeek },
@@ -387,10 +387,10 @@ export default async function AdminDashboardPage() {
         </section>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* ── Sentry ──────────────────────────────────────────────────── */}
+          {/* ΓöÇΓöÇ Sentry ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ */}
           <section>
             <h2 className="text-lg font-semibold text-zinc-900 dark:text-white mb-4">
-              Sentry · Top Unresolved Issues
+              Sentry ┬╖ Top Unresolved Issues
             </h2>
             {sentryIssues ? (
               sentryIssues.length === 0 ? (
@@ -413,7 +413,7 @@ export default async function AdminDashboardPage() {
                           {issue.level}
                         </span>
                         <span className="text-xs text-zinc-500 dark:text-zinc-400">
-                          {Number(issue.count).toLocaleString()} events ·{" "}
+                          {Number(issue.count).toLocaleString()} events ┬╖{" "}
                           {timeAgo(new Date(issue.lastSeen))}
                         </span>
                       </div>
@@ -444,10 +444,10 @@ export default async function AdminDashboardPage() {
             )}
           </section>
 
-          {/* ── Vercel ──────────────────────────────────────────────────── */}
+          {/* ΓöÇΓöÇ Vercel ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ */}
           <section>
             <h2 className="text-lg font-semibold text-zinc-900 dark:text-white mb-4">
-              Vercel · Recent Deployments
+              Vercel ┬╖ Recent Deployments
             </h2>
             {vercelDeps ? (
               vercelDeps.length === 0 ? (

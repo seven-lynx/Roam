@@ -67,11 +67,13 @@ export async function incrementChallengeProgress(
     }
 
     for (const uc of activeChallenges) {
-      // Skip if already completed
-      const instance = uc.challenge_instances;
-      if (!instance?.challenges) continue;
+      // `!inner` relationships come back typed as arrays in @supabase/supabase-js.
+      // Use the same `?.[0]?.?.[0]` shape as supabase/functions/evaluate-badges
+      // to keep deno check happy without a legacy type-bypass cast.
+      const instance = uc.challenge_instances?.[0];
+      const challenge = instance?.challenges?.[0];
+      if (!challenge) continue;
 
-      const challenge = instance.challenges;
       const timeReq = challenge.time_restriction;
 
       // Check time restriction
@@ -105,8 +107,8 @@ export async function incrementChallengeProgress(
 
       // If just completed, award XP and send notification
       if (isCompleted) {
-        const xp = (challenge as any).xp_reward ?? 50;
-        const challengeTitle = (challenge as any).title ?? "Challenge";
+        const xp = challenge.xp_reward ?? 50;
+        const challengeTitle = challenge.title ?? "Challenge";
 
         try {
           // Award XP
@@ -122,7 +124,10 @@ export async function incrementChallengeProgress(
             .from("xp_log")
             .select("xp_awarded")
             .eq("user_id", userId);
-          const newXp = (xpRows ?? []).reduce((s: number, r: any) => s + r.xp_awarded, 0);
+          const newXp = (xpRows ?? []).reduce(
+            (s: number, r: { xp_awarded: number }) => s + r.xp_awarded,
+            0,
+          );
           await client.from("profiles").update({
             xp_total: newXp,
             level: Math.floor(Math.sqrt(newXp / 100)) + 1,

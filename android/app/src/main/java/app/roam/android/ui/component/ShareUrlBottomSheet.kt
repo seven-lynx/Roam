@@ -68,7 +68,7 @@ fun ShareUrlBottomSheet(
 
             if (shareRecipientsLoading) {
                 Box(Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
-                    Text("Loading…", color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f))
+                    Text("LoadingΓÇª", color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f))
                 }
             } else if (shareRecipients.isEmpty()) {
                 Box(Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
@@ -110,7 +110,7 @@ fun ShareUrlBottomSheet(
                                 overflow = TextOverflow.Ellipsis,
                             )
                         }
-                        Text("Send →", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+                        Text("Send ΓåÆ", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
                     }
                 }
             }

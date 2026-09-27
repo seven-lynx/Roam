@@ -16,7 +16,7 @@ BEGIN
   WHERE user_id = p_user_id AND date = CURRENT_DATE;
 
   IF v_existing THEN
-    -- Not the first activity today — just bump the counter, return current streak
+    -- Not the first activity today ΓÇö just bump the counter, return current streak
     UPDATE public.user_daily_activity
     SET roam_count = roam_count + 1
     WHERE user_id = p_user_id AND date = CURRENT_DATE;
@@ -90,7 +90,7 @@ BEGIN
   WHERE user_id = p_user_id AND date = CURRENT_DATE;
 
   IF v_already_active THEN
-    -- Already active today — just return current streak, no recalculation
+    -- Already active today ΓÇö just return current streak, no recalculation
     SELECT COALESCE(s.streak_days, 0), COALESCE(s.max_streak, 0)
     INTO v_cur, v_max
     FROM public.profiles s

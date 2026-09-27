@@ -1,11 +1,11 @@
 // POST /functions/v1/report-engagement
 // Reports dwell time and skip status for a URL the user was served.
 // The seen_urls row must already exist (created by the roam() RPC).
-// Idempotent — multiple calls for the same (user, url) are safe, last write wins.
+// Idempotent ΓÇö multiple calls for the same (user, url) are safe, last write wins.
 //
 // Body: { url_id: string, dwell_ms: number, skipped: boolean }
 //
-// Typically called before requesting the next Roam — the client calculates
+// Typically called before requesting the next Roam ΓÇö the client calculates
 // dwell = now - pageLoadTimestamp and skipped = dwell < 3000ms.
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'

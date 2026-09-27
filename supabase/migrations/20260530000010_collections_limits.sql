@@ -4,7 +4,7 @@
 -- collection_items: max 200 per collection; raises exception on overflow
 -- RLS:              add update/delete policies if not already present
 
--- ── saved_urls: auto-evict oldest when user exceeds 50 ────────────────────
+-- ΓöÇΓöÇ saved_urls: auto-evict oldest when user exceeds 50 ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 CREATE OR REPLACE FUNCTION public.enforce_saved_urls_limit()
 RETURNS TRIGGER LANGUAGE plpgsql AS $$
 DECLARE
@@ -32,7 +32,7 @@ CREATE TRIGGER trg_saved_urls_limit
   BEFORE INSERT ON public.saved_urls
   FOR EACH ROW EXECUTE FUNCTION public.enforce_saved_urls_limit();
 
--- ── collections: max 20 per user ─────────────────────────────────────────
+-- ΓöÇΓöÇ collections: max 20 per user ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 CREATE OR REPLACE FUNCTION public.enforce_collections_limit()
 RETURNS TRIGGER LANGUAGE plpgsql AS $$
 BEGIN
@@ -48,7 +48,7 @@ CREATE TRIGGER trg_collections_limit
   BEFORE INSERT ON public.collections
   FOR EACH ROW EXECUTE FUNCTION public.enforce_collections_limit();
 
--- ── collection_items: max 200 per collection ──────────────────────────────
+-- ΓöÇΓöÇ collection_items: max 200 per collection ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 CREATE OR REPLACE FUNCTION public.enforce_collection_items_limit()
 RETURNS TRIGGER LANGUAGE plpgsql AS $$
 BEGIN
@@ -64,7 +64,7 @@ CREATE TRIGGER trg_collection_items_limit
   BEFORE INSERT ON public.collection_items
   FOR EACH ROW EXECUTE FUNCTION public.enforce_collection_items_limit();
 
--- ── RLS: ensure owners can update/delete their collections ────────────────
+-- ΓöÇΓöÇ RLS: ensure owners can update/delete their collections ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 DO $$
 BEGIN
   IF NOT EXISTS (

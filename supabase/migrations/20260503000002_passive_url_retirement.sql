@@ -7,12 +7,12 @@
 --   1. trg_auto_retire_on_reports
 --      After INSERT on url_reports: if a URL has >= 3 DISTINCT user reports
 --      within the last 30 days, set urls.inactive = TRUE immediately.
---      No cron job required — fires in the same transaction as the report.
+--      No cron job required ΓÇö fires in the same transaction as the report.
 --
 --   2. trg_auto_retire_low_wilson
 --      After UPDATE of wilson_score on urls: if a URL drops below -0.3,
 --      set urls.inactive = TRUE. Stronger permanent floor than the -0.1
---      hide-from-results guard already in roam() — this removes the URL
+--      hide-from-results guard already in roam() ΓÇö this removes the URL
 --      from the pool entirely rather than just suppressing it.
 --
 --   3. retire_low_quality_urls()
@@ -22,7 +22,7 @@
 --
 -- =============================================================================
 
--- ── 1. Report-threshold trigger ───────────────────────────────────────────────
+-- ΓöÇΓöÇ 1. Report-threshold trigger ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 
 CREATE OR REPLACE FUNCTION public.fn_auto_retire_on_reports()
 RETURNS TRIGGER
@@ -56,7 +56,7 @@ AFTER INSERT ON public.url_reports
 FOR EACH ROW
 EXECUTE FUNCTION public.fn_auto_retire_on_reports();
 
--- ── 2. Wilson-score-floor trigger ────────────────────────────────────────────
+-- ΓöÇΓöÇ 2. Wilson-score-floor trigger ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 
 CREATE OR REPLACE FUNCTION public.fn_auto_retire_low_wilson()
 RETURNS TRIGGER
@@ -83,7 +83,7 @@ FOR EACH ROW
 WHEN (NEW.wilson_score < -0.3 AND NOT NEW.inactive)
 EXECUTE FUNCTION public.fn_auto_retire_low_wilson();
 
--- ── 3. Admin sweep function ───────────────────────────────────────────────────
+-- ΓöÇΓöÇ 3. Admin sweep function ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 
 CREATE OR REPLACE FUNCTION public.retire_low_quality_urls()
 RETURNS INT

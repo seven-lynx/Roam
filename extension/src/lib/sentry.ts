@@ -1,10 +1,10 @@
-// sentry.ts — Sentry initialisation for the Roam browser extension.
+// sentry.ts ΓÇö Sentry initialisation for the Roam browser extension.
 //
 // The DSN is injected at build time by esbuild (from the root .env).
 // If SENTRY_DSN is not set, Sentry is disabled with no error.
 //
 // Usage (background.ts and popup.ts):
-//   import './sentry';   ← must be the very first import
+//   import './sentry';   ΓåÉ must be the very first import
 
 import * as Sentry from '@sentry/browser';
 
@@ -19,7 +19,7 @@ if (dsn) {
     release: typeof __SENTRY_RELEASE__ !== 'undefined' ? __SENTRY_RELEASE__ : undefined,
     environment: typeof __ENVIRONMENT__ !== 'undefined' ? __ENVIRONMENT__ : 'production',
 
-    // Low sample rate — extensions can be chatty.
+    // Low sample rate ΓÇö extensions can be chatty.
     tracesSampleRate: 0.05,
 
     // Disable DOM integrations in the service worker context (no window/document).

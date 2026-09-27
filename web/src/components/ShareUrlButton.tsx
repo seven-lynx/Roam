@@ -31,7 +31,7 @@ export function ShareUrlButton({ urlId, urlTitle, className = '' }: Props) {
           transition-colors ${className}`}
         title="Share this URL with a friend"
       >
-        <span>📤</span>
+        <span>≡ƒôñ</span>
         <span>Share</span>
       </button>
 

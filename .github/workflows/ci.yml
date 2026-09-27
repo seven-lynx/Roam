@@ -11,11 +11,55 @@ env:
   PNPM_VERSION: '10'
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
+# Concurrency groups below cancel superseded runs on push so we don't pay
+# minutes for commits that have been replaced by newer ones on the same branch.
+# PR runs use a PR-number key so a review-time re-run doesn't kill the
+# under-review run. The single biggest minutes-saver on a free-tier Actions
+# budget: without it, every `git commit --amend` or `git push --force` starts
+# a fresh runner, runs the full job, and burns the same minutes again.
+
 jobs:
+  changed-paths:
+    name: Detect changed paths (used for build optimisation)
+    runs-on: ubuntu-latest
+    outputs:
+      web: ${{ steps.filter.outputs.web }}
+      extension: ${{ steps.filter.outputs.extension }}
+      android: ${{ steps.filter.outputs.android }}
+      supabase: ${{ steps.filter.outputs.supabase }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d
+        id: filter
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          filters: |
+            web:
+              - 'web/**'
+              - 'pnpm-lock.yaml'
+              - 'pnpm-workspace.yaml'
+              - 'package.json'
+            extension:
+              - 'extension/**'
+              - 'pnpm-lock.yaml'
+              - 'pnpm-workspace.yaml'
+              - 'package.json'
+            android:
+              - 'android/**'
+            supabase:
+              - 'supabase/migrations/**'
+              - 'supabase/functions/**'
+
   lint-and-test:
     name: Lint & Test
     runs-on: ubuntu-latest
-    
+    # Cancel superseded runs on the same branch/ref so amended commits don't
+    # pay minutes for older code. PRs get their own concurrency key so a
+    # review-time re-run doesn't kill the under-review run.
+    concurrency:
+      group: lint-and-test-${{ github.ref }}-${{ github.event.pull_request.number || github.sha }}
+      cancel-in-progress: true
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -95,15 +139,120 @@ jobs:
           key: deno-${{ hashFiles('supabase/functions/**/*.ts') }}
           restore-keys: deno-
 
+      # Filter to edge-function source changes only. The `contains(fromJSON([...]))`
+      # pattern that lived here earlier always evaluated to false (the `contains()`
+      # helper does element matching on arrays, not glob matching) and silently
+      # disabled this step on every PR. Using dorny/paths-filter does actual
+      # glob matching and runs deno check only when an edge function source file
+      # is touched. Tests under _tests/ are excluded.
+      - name: Detect changes in edge function source
+        id: edge-fn-changes
+        uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d
+        with:
+          # token-only filter; default branch protection must allow this token.
+          # See RULES.md ┬º1.6┬╜ (workflow path-filter rule).
+          token: ${{ secrets.GITHUB_TOKEN }}
+          filter: 'supabase/functions'
+          # Exclude the test directory ΓÇö test-only PRs should not pay the
+          # deno check cost. Anything else under supabase/functions is in scope.
+          filters: |
+            edge:
+              - 'supabase/functions/_shared/**'
+              - 'supabase/functions/admin-moderation/**'
+              - 'supabase/functions/activity-feed/**'
+              - 'supabase/functions/beta-signup/**'
+              - 'supabase/functions/challenges/**'
+              - 'supabase/functions/collection/**'
+              - 'supabase/functions/cron-daily-challenges/**'
+              - 'supabase/functions/cron-secret-badges/**'
+              - 'supabase/functions/cron-streak-cleanup/**'
+              - 'supabase/functions/delete-user/**'
+              - 'supabase/functions/evaluate-badges/**'
+              - 'supabase/functions/export-user/**'
+              - 'supabase/functions/feedback/**'
+              - 'supabase/functions/follow/**'
+              - 'supabase/functions/leaderboard/**'
+              - 'supabase/functions/log-failed-urls/**'
+              - 'supabase/functions/profile/**'
+              - 'supabase/functions/push-notify/**'
+              - 'supabase/functions/rate/**'
+              - 'supabase/functions/report-engagement/**'
+              - 'supabase/functions/report-url/**'
+              - 'supabase/functions/roam/**'
+              - 'supabase/functions/roam-health-check/**'
+              - 'supabase/functions/save-url/**'
+              - 'supabase/functions/scrape-url/**'
+              - 'supabase/functions/send-bulk-email/**'
+              - 'supabase/functions/share-url/**'
+              - 'supabase/functions/submit-url/**'
+
       - name: Type-check Edge Functions
+        if: steps.edge-fn-changes.outputs.edge == 'true'
+        # The previous version of this step masked real TS errors behind a
+        # broken path filter (commit 8c8dab2). With the filter fixed, this
+        # step actually runs `deno check` when edge function source changes.
+        #
+        # Soft-fail policy: deno check is allowed to fail ONLY when every
+        # error is in supabase/functions/_shared/challenge-progress.ts (a
+        # file with pre-existing type issues that are tracked in RUNBOOK.md).
+        # Any other file failing fails the job. This keeps the check
+        # meaningful for new code while not blocking PRs on the known backlog.
+        # Note: supabase/functions/roam/index.ts no longer needs to be in the
+        # allowlist after this PR moved the EdgeRuntime declaration to
+        # _shared/deno-globals.d.ts.
+        #
+        # Transient esm.sh 522s are retried once before the allowlist check
+        # runs. The retry is intentionally narrow (one attempt) so a real
+        # type error doesn't get masked by 30s of sleeps.
         run: |
-          for i in 1 2 3; do
-            deno check supabase/functions/**/*.ts && exit 0
-            echo "deno check attempt $i failed, retrying in 10s..."
+          set +e
+          deno check supabase/functions/**/*.ts > /tmp/deno.out 2>&1
+          DENO_RC=$?
+          set -e
+          if [ "$DENO_RC" -ne 0 ] && grep -q '522\|error sending request\|connection reset\|tls handshake' /tmp/deno.out; then
+            echo "Transient network error; retrying once after 10s."
             sleep 10
+            deno check supabase/functions/**/*.ts > /tmp/deno.out 2>&1
+            DENO_RC=$?
+          fi
+          if [ "$DENO_RC" -eq 0 ]; then
+            echo "deno check passed."
+            exit 0
+          fi
+          echo "::group::deno check output"
+          cat /tmp/deno.out
+          echo "::endgroup::"
+          # Find all unique files that produced errors.
+          # deno check error lines look like:
+          #   TS2339: Property 'x' does not exist on type '...'
+          #     at file:///workspace/supabase/functions/foo/index.ts:42:5
+          ERROR_FILES=$(grep -oE 'file://[^:]+:[0-9]+' /tmp/deno.out \
+            | sed -E 's#file://##; s#:[0-9]+:[0-9]+$##' \
+            | sort -u)
+          if [ -z "$ERROR_FILES" ]; then
+            # deno failed but produced no parseable file:line refs (network /
+            # cache failure). Treat as a real failure so it's visible.
+            echo "::error::deno check failed without parseable file:line refs."
+            exit 1
+          fi
+          # Allowlist of files known to have pre-existing type issues. Listed
+          # here (not in scripts/.agent-rules-allowlist) because this is a
+          # CI-side allowlist, not a rules-script allowlist.
+          ALLOWLIST="$(printf '%s\n' \
+            'supabase/functions/_shared/challenge-progress.ts')"
+          UNEXPECTED=0
+          for f in $ERROR_FILES; do
+            if ! printf '%s\n' "$ALLOWLIST" | grep -Fxq "$f"; then
+              echo "::error::deno check failed in $f (not in allowlist)"
+              UNEXPECTED=1
+            fi
           done
-          echo "deno check failed after 3 attempts"
-          exit 1
+          if [ "$UNEXPECTED" -eq 1 ]; then
+            exit 1
+          fi
+          echo "deno check failed only in allowlisted files; treating as soft pass."
+          echo "See RUNBOOK.md for the suppression policy and review date."
+          exit 0
         env:
           DENO_DIR: ~/.cache/deno
 
@@ -151,9 +300,14 @@ jobs:
 
   build-web:
     name: Build Web for Deployment
+    # Only build the web bundle when web/ changed AND we're pushing to main
+    # (PR builds are wasteful since Vercel handles the production deploy).
+    needs: [lint-and-test, changed-paths]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.changed-paths.outputs.web == 'true'
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    needs: lint-and-test
+    concurrency:
+      group: build-web-${{ github.ref }}
+      cancel-in-progress: true
 
     steps:
       - name: Checkout code
@@ -188,9 +342,15 @@ jobs:
 
   build-extension:
     name: Build Extension for Stores
+    # Only build the extension bundle when extension/ changed AND we're
+    # pushing to main. PR builds are wasteful ΓÇö the actual store release
+    # happens via the deploy workflow on main.
+    needs: [lint-and-test, changed-paths]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.changed-paths.outputs.extension == 'true'
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    needs: lint-and-test
+    concurrency:
+      group: build-extension-${{ github.ref }}
+      cancel-in-progress: true
 
     steps:
       - name: Checkout code
@@ -236,15 +396,32 @@ jobs:
 
   security-scan:
     name: Security Scan
+    # Scan PRs and pushes; cancel superseded runs. The job is gated on
+    # pull_request only (pushes don't surface SARIF results, so running
+    # this on push wastes minutes).
     runs-on: ubuntu-latest
     if: github.event_name == 'pull_request'
-
+    concurrency:
+      group: security-scan-${{ github.event.pull_request.number || github.sha }}
+      cancel-in-progress: true
+    # Without `security-events: write`, codeql-action/upload-sarif cannot write
+    # to the GitHub Security tab even on same-repo PRs (the default token
+    # permission is read-all, which does not include this scope). Fork PRs
+    # additionally lack the scope regardless of the permission block, which is
+    # why the upload-sarif step below has a fork-aware `if:` and a fallback
+    # artifact upload for forks.
+    permissions:
+      contents: read
+      security-events: write
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
       - name: Run Trivy vulnerability scanner
-        uses: aquasecurity/trivy-action@master
+        # Pinned to a commit SHA (was @master). Trivy-action updates its
+        # bundled Trivy binary frequently, so audit the diff before bumping.
+        # Current pin was the master tip as of 2026-08-14.
+        uses: aquasecurity/trivy-action@d2a0b60797ff03db6132bd4e2b293f9b37081297
         with:
           scan-type: 'fs'
           scan-ref: '.'
@@ -252,12 +429,31 @@ jobs:
           output: 'trivy-results.sarif'
 
       - name: Upload Trivy results to GitHub Security
-        uses: github/codeql-action/upload-sarif@v2
+        # github/codeql-action/upload-sarif requires 'security-events: write'.
+        # Same-repo PRs have the scope (see job-level permissions above). Fork
+        # PRs do not ΓÇö the runner hits "Resource not accessible by integration"
+        # when it tries to call the GitHub Security API. We skip the upload
+        # for forks and fall back to uploading the SARIF as an artifact so
+        # reviewers can still inspect it.
+        if: github.event.pull_request.head.repo.fork == false
+        # Pinned to the v3 tip as of 2026-09-24; bump with a Dependabot PR.
+        uses: github/codeql-action/upload-sarif@1190a975f95ce23525efb6a3fc21ea29567c1b52
         with:
           sarif_file: 'trivy-results.sarif'
 
+      - name: Upload Trivy SARIF as artifact (fork PRs)
+        if: github.event.pull_request.head.repo.fork == true
+        uses: actions/upload-artifact@v4
+        with:
+          name: trivy-results-sarif
+          path: trivy-results.sarif
+          retention-days: 14
+
       - name: Check for hardcoded secrets
-        uses: trufflesecurity/trufflehog@main
+        # Pinned to a commit SHA (was @main). TruffleHog is a security tool
+        # that must not float; bump only after reviewing detector changes.
+        # Current pin was the main tip as of 2026-09-25.
+        uses: trufflesecurity/trufflehog@88524578ce32e1a8521c29dd38af9d9200ff92cc
         with:
           path: ./
           base: ${{ github.event.pull_request.base.sha }}

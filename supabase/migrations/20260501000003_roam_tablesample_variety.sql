@@ -7,10 +7,10 @@
 --   but first-time users all get the same pool.
 --
 -- Fix: TABLESAMPLE BERNOULLI(p)
---   Samples p% of storage *blocks* at random — fast (no sort, no index),
+--   Samples p% of storage *blocks* at random ΓÇö fast (no sort, no index),
 --   naturally different on every call, not biased toward any score range.
 --   With 10,000 approved URLs and p=10, yields ~1 000 random candidates.
---   With 100,000 URLs, still yields ~10 000 — scales automatically.
+--   With 100,000 URLs, still yields ~10 000 ΓÇö scales automatically.
 --
 --   UNION ALL with a small top-N fallback guarantees a result even if the
 --   random sample happens to yield 0 qualifying rows (e.g. niche language
@@ -49,7 +49,7 @@ BEGIN
     RAISE EXCEPTION 'Unauthorized';
   END IF;
 
-  -- ── Load user settings ────────────────────────────────────────────────────
+  -- ΓöÇΓöÇ Load user settings ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
   SELECT
     COALESCE(s.preferred_languages, ARRAY['en']),
     COALESCE(s.skip_paywalled, FALSE)
@@ -60,7 +60,7 @@ BEGIN
   IF v_langs        IS NULL THEN v_langs        := ARRAY['en']; END IF;
   IF v_skip_paywall IS NULL THEN v_skip_paywall := FALSE;       END IF;
 
-  -- ── Expand category prefs into a flat subcategory ID array ───────────────
+  -- ΓöÇΓöÇ Expand category prefs into a flat subcategory ID array ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
   SELECT array_agg(DISTINCT sc.id)
   INTO   v_allowed_subcat_ids
   FROM   subcategories sc
@@ -87,12 +87,12 @@ BEGIN
     SELECT 1 FROM user_categories WHERE user_id = p_user_id
   ) INTO v_has_categories;
 
-  -- ── Shared filter macros (repeated in each branch) ────────────────────────
+  -- ΓöÇΓöÇ Shared filter macros (repeated in each branch) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
   -- We can't use a CTE here because TABLESAMPLE must appear in the FROM clause
   -- directly; a CTE over the same table would lose the sampling behaviour.
 
   IF p_collection_id IS NOT NULL THEN
-    -- ── Collection mode ──────────────────────────────────────────────────────
+    -- ΓöÇΓöÇ Collection mode ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
     SELECT c.id INTO v_url_id
     FROM (
       -- Random sample (~10 % of collection rows)
@@ -137,11 +137,11 @@ BEGIN
     LIMIT 1;
 
   ELSE
-    -- ── Standard mode ────────────────────────────────────────────────────────
+    -- ΓöÇΓöÇ Standard mode ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
     SELECT c.id INTO v_url_id
     FROM (
       -- Random sample (~10 % of the urls table)
-      -- Different pages are read on every call → different pool for every user
+      -- Different pages are read on every call ΓåÆ different pool for every user
       -- on every request, regardless of wilson_score distribution.
       SELECT u.id, u.wilson_score
       FROM   urls u TABLESAMPLE BERNOULLI(10)

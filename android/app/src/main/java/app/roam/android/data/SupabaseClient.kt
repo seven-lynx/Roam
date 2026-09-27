@@ -15,7 +15,7 @@ import java.util.concurrent.TimeUnit
 
 /**
  * Singleton Supabase client. URL and anon key are injected from local.properties
- * at build time via BuildConfig — they are never hard-coded or committed.
+ * at build time via BuildConfig ΓÇö they are never hard-coded or committed.
  */
 val supabase = createSupabaseClient(
     supabaseUrl = BuildConfig.SUPABASE_URL,
@@ -50,5 +50,4 @@ val supabase = createSupabaseClient(
         }
     }
 }
-
 

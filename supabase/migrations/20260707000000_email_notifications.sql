@@ -3,14 +3,14 @@
 -- =============================================================================
 -- Adds:
 --   1. email_notifications column to user_settings (referenced by settings UI)
---   2. email_log table — audit log of every bulk email send
+--   2. email_log table ΓÇö audit log of every bulk email send
 -- =============================================================================
 
--- ── 1. Add email_notifications to user_settings ─────────────────────────────
+-- ΓöÇΓöÇ 1. Add email_notifications to user_settings ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 ALTER TABLE public.user_settings
   ADD COLUMN IF NOT EXISTS email_notifications BOOLEAN NOT NULL DEFAULT TRUE;
 
--- ── 2. email_log table ────────────────────────────────────────────────────
+-- ΓöÇΓöÇ 2. email_log table ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 CREATE TABLE IF NOT EXISTS public.email_log (
   id              UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
   subject         TEXT        NOT NULL,
@@ -23,7 +23,7 @@ CREATE TABLE IF NOT EXISTS public.email_log (
   sent_at         TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
--- Admin-only access via service role (no RLS on this table — accessed via
+-- Admin-only access via service role (no RLS on this table ΓÇö accessed via
 -- server actions / Edge Functions with service role key).
 ALTER TABLE public.email_log ENABLE ROW LEVEL SECURITY;
 

@@ -3,10 +3,10 @@
 // the urls table with approved=true, bypassing the moderation queue.
 //
 // Body:
-//   url: string              — required
-//   category_ids?: string[]  — up to 2 pillar UUIDs (first is primary for roam() compat)
-//   subcategory_id?: string  — primary subcategory UUID (kept for roam() compat)
-//   tags?: string[]          — freeform semantic tags, normalized to slug form
+//   url: string              ΓÇö required
+//   category_ids?: string[]  ΓÇö up to 2 pillar UUIDs (first is primary for roam() compat)
+//   subcategory_id?: string  ΓÇö primary subcategory UUID (kept for roam() compat)
+//   tags?: string[]          ΓÇö freeform semantic tags, normalized to slug form
 //
 // Returns: { id, url, title, description, og_image_url, language, tags, category_ids }
 
@@ -104,7 +104,7 @@ async function checkSafeBrowsing(url: string, apiKey: string): Promise<boolean> 
     const data = await res.json()
     return !data.matches || data.matches.length === 0
   } catch {
-    return true // network error → allow through
+    return true // network error ΓåÆ allow through
   }
 }
 
@@ -112,7 +112,7 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
   if (req.method !== 'POST') return json({ error: 'Method not allowed' }, 405)
 
-  // Auth — verify the caller is a signed-in moderator or admin
+  // Auth ΓÇö verify the caller is a signed-in moderator or admin
   const userClient = createClient(
     Deno.env.get('SUPABASE_URL')!,
     Deno.env.get('SUPABASE_ANON_KEY')!,
@@ -130,14 +130,14 @@ Deno.serve(async (req) => {
   const { url: rawUrl, category_ids, subcategory_id, tags: rawTags } = body
   if (typeof rawUrl !== 'string' || !rawUrl) return json({ error: 'url is required' }, 400)
 
-  // Validate category_ids — array of up to 2 UUIDs; first is the primary
+  // Validate category_ids ΓÇö array of up to 2 UUIDs; first is the primary
   const categoryIds: string[] = Array.isArray(category_ids)
     ? (category_ids as unknown[]).filter((id): id is string => typeof id === 'string' && id.length > 0).slice(0, 2)
     : []
   const primaryCategoryId = categoryIds[0] ?? null
   const primarySubcategoryId = typeof subcategory_id === 'string' && subcategory_id ? subcategory_id : null
 
-  // Normalize tags — dedupe and filter empty
+  // Normalize tags ΓÇö dedupe and filter empty
   const tags: string[] = Array.isArray(rawTags)
     ? [...new Set((rawTags as unknown[]).filter((t): t is string => typeof t === 'string').map(normalizeTag).filter((t) => t.length > 0))]
     : []
@@ -150,7 +150,7 @@ Deno.serve(async (req) => {
   // Safe Browsing check
   if (SAFE_BROWSING_API_KEY) {
     const safe = await checkSafeBrowsing(normalized, SAFE_BROWSING_API_KEY)
-    if (!safe) return json({ error: "URL flagged by Safe Browsing — cannot add" }, 422)
+    if (!safe) return json({ error: "URL flagged by Safe Browsing ΓÇö cannot add" }, 422)
   }
 
   // Service-role client for DB writes
@@ -194,7 +194,7 @@ Deno.serve(async (req) => {
 
   const urlId = inserted.id
 
-  // Insert url_categories (all pillars, fire-and-forget — non-fatal on error)
+  // Insert url_categories (all pillars, fire-and-forget ΓÇö non-fatal on error)
   if (categoryIds.length > 0) {
     await admin.from('url_categories').insert(categoryIds.map((cid) => ({ url_id: urlId, category_id: cid })))
   }

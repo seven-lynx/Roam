@@ -28,7 +28,7 @@ BEGIN
   END IF;
 
   IF p_collection_id IS NOT NULL THEN
-    -- ── Collection mode ────────────────────────────────────────────────────
+    -- ΓöÇΓöÇ Collection mode ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
     SELECT u.id INTO v_url_id
     FROM urls u
     INNER JOIN collection_items ci ON ci.url_id = u.id
@@ -47,7 +47,7 @@ BEGIN
     LIMIT 1;
 
   ELSE
-    -- ── Standard mode ──────────────────────────────────────────────────────
+    -- ΓöÇΓöÇ Standard mode ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
     -- If URLs have subcategories assigned, filter by user's selected subcategories.
     -- If URLs have NULL subcategories, filter by user's selected category pillars.
     SELECT u.id INTO v_url_id

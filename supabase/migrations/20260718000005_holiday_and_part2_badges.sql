@@ -7,112 +7,112 @@
 
 -- Exploration (8)
 INSERT INTO public.badges (slug, name, description, icon, category, tier, required_count, xp_reward) VALUES
-('fifty-fifty', '50/50 Split', 'Roam 50 URLs from 50 different domains', '🎯', 'exploration', 3, NULL, 100),
-('century-club', 'Century Club', 'Roam 100+ URLs from a single domain', '💯', 'exploration', 2, NULL, 50),
-('dawn-patrol', 'Dawn Patrol', 'Roam between 5-7AM for 7 consecutive days', '🌅', 'exploration', 3, NULL, 150),
-('jet-setter', 'Jet Setter', 'Roam URLs from 10+ country TLDs', '✈️', 'exploration', 3, NULL, 100),
-('home-turf', 'Home Turf', 'Roam 50 .com URLs in one session', '🏠', 'exploration', 1, NULL, 25),
-('the-wanderer', 'The Wanderer', 'Roam all 7 days of the week in a single week', '🗓️', 'exploration', 1, NULL, 30),
-('deep-dive', 'Deep Dive', 'Roam 10+ URLs from the same subcategory in one day', '🤿', 'exploration', 2, NULL, 50),
-('pinball-wizard', 'Pinball Wizard', 'Switch categories 5+ times in a single roaming session', '🎱', 'exploration', 2, NULL, 50)
+('fifty-fifty', '50/50 Split', 'Roam 50 URLs from 50 different domains', '≡ƒÄ»', 'exploration', 3, NULL, 100),
+('century-club', 'Century Club', 'Roam 100+ URLs from a single domain', '≡ƒÆ»', 'exploration', 2, NULL, 50),
+('dawn-patrol', 'Dawn Patrol', 'Roam between 5-7AM for 7 consecutive days', '≡ƒîà', 'exploration', 3, NULL, 150),
+('jet-setter', 'Jet Setter', 'Roam URLs from 10+ country TLDs', 'Γ£ê∩╕Å', 'exploration', 3, NULL, 100),
+('home-turf', 'Home Turf', 'Roam 50 .com URLs in one session', '≡ƒÅá', 'exploration', 1, NULL, 25),
+('the-wanderer', 'The Wanderer', 'Roam all 7 days of the week in a single week', '≡ƒùô∩╕Å', 'exploration', 1, NULL, 30),
+('deep-dive', 'Deep Dive', 'Roam 10+ URLs from the same subcategory in one day', '≡ƒñ┐', 'exploration', 2, NULL, 50),
+('pinball-wizard', 'Pinball Wizard', 'Switch categories 5+ times in a single roaming session', '≡ƒÄ▒', 'exploration', 2, NULL, 50)
 ON CONFLICT (slug) DO NOTHING;
 
 -- Collecting (8)
 INSERT INTO public.badges (slug, name, description, icon, category, tier, required_count, xp_reward) VALUES
-('emergency-fund', 'Emergency Fund', 'Save 25 URLs in a single day', '💰', 'collecting', 2, NULL, 50),
-('domain-collector', 'Domain Collector', 'Save URLs from 50 different domains', '🌐', 'collecting', 3, NULL, 100),
-('year-old', 'Year Old', 'Have a saved URL older than 365 days', '👴', 'collecting', 4, NULL, 150),
-('hoarder-strikes-back', 'The Hoarder Strikes Back', 'Save 500+ URLs with 0 collections', '📚', 'collecting', 4, NULL, 200),
-('save-wave', 'Save Wave', 'Save 10 URLs in a single day', '🌊', 'collecting', 1, NULL, 25),
-('un-saver', 'Un-Saver', 'Save, unsave, then re-save the same URL', '🔄', 'collecting', 1, NULL, 25),
-('category-filler-collector', 'Subcategory Filler', 'Save a URL in 10+ subcategories within a single category', '🧩', 'collecting', 3, NULL, 100),
-('early-bird-collector', 'Early Bird Collector', 'Save 3+ URLs before 8AM in one day', '🌄', 'collecting', 1, NULL, 25)
+('emergency-fund', 'Emergency Fund', 'Save 25 URLs in a single day', '≡ƒÆ░', 'collecting', 2, NULL, 50),
+('domain-collector', 'Domain Collector', 'Save URLs from 50 different domains', '≡ƒîÉ', 'collecting', 3, NULL, 100),
+('year-old', 'Year Old', 'Have a saved URL older than 365 days', '≡ƒæ┤', 'collecting', 4, NULL, 150),
+('hoarder-strikes-back', 'The Hoarder Strikes Back', 'Save 500+ URLs with 0 collections', '≡ƒôÜ', 'collecting', 4, NULL, 200),
+('save-wave', 'Save Wave', 'Save 10 URLs in a single day', '≡ƒîè', 'collecting', 1, NULL, 25),
+('un-saver', 'Un-Saver', 'Save, unsave, then re-save the same URL', '≡ƒöä', 'collecting', 1, NULL, 25),
+('category-filler-collector', 'Subcategory Filler', 'Save a URL in 10+ subcategories within a single category', '≡ƒº⌐', 'collecting', 3, NULL, 100),
+('early-bird-collector', 'Early Bird Collector', 'Save 3+ URLs before 8AM in one day', '≡ƒîä', 'collecting', 1, NULL, 25)
 ON CONFLICT (slug) DO NOTHING;
 
 -- Curating (8)
 INSERT INTO public.badges (slug, name, description, icon, category, tier, required_count, xp_reward) VALUES
-('solo-artist', 'Solo Artist', 'Create a collection no one else has favorited', '🎭', 'curating', 1, NULL, 25),
-('recycler', 'Recycler', 'Have a saved URL in 2+ of your own collections', '♻️', 'curating', 1, NULL, 25),
-('collection-remix', 'Collection Remix', 'Create a collection using URLs saved by other users', '🎵', 'curating', 2, NULL, 50),
-('mega-share', 'Mega Share', 'Make 5 of your collections public', '📢', 'curating', 1, NULL, 30),
-('hidden-gem', 'Hidden Gem', 'Have a public collection favorited by 10+ users', '💎', 'curating', 4, NULL, 200),
-('curators-block', 'Curator''s Block', 'Go 30+ days without creating a collection, then create one', '🧱', 'curating', 2, NULL, 50),
-('refined-taste', 'Refined Taste', 'Delete 5 collections you previously created', '🍷', 'curating', 2, NULL, 50),
-('daily-curation', 'Daily Curation', 'Create at least 1 collection for 5 days in a row', '📅', 'curating', 2, NULL, 75)
+('solo-artist', 'Solo Artist', 'Create a collection no one else has favorited', '≡ƒÄ¡', 'curating', 1, NULL, 25),
+('recycler', 'Recycler', 'Have a saved URL in 2+ of your own collections', 'ΓÖ╗∩╕Å', 'curating', 1, NULL, 25),
+('collection-remix', 'Collection Remix', 'Create a collection using URLs saved by other users', '≡ƒÄ╡', 'curating', 2, NULL, 50),
+('mega-share', 'Mega Share', 'Make 5 of your collections public', '≡ƒôó', 'curating', 1, NULL, 30),
+('hidden-gem', 'Hidden Gem', 'Have a public collection favorited by 10+ users', '≡ƒÆÄ', 'curating', 4, NULL, 200),
+('curators-block', 'Curator''s Block', 'Go 30+ days without creating a collection, then create one', '≡ƒº▒', 'curating', 2, NULL, 50),
+('refined-taste', 'Refined Taste', 'Delete 5 collections you previously created', '≡ƒì╖', 'curating', 2, NULL, 50),
+('daily-curation', 'Daily Curation', 'Create at least 1 collection for 5 days in a row', '≡ƒôà', 'curating', 2, NULL, 75)
 ON CONFLICT (slug) DO NOTHING;
 
 -- Social (8)
 INSERT INTO public.badges (slug, name, description, icon, category, tier, required_count, xp_reward) VALUES
-('two-way-street', 'Two-Way Street', 'Have a mutual follow with a user who follows 3+ others', '🛣️', 'social', 2, NULL, 50),
-('fan-club', 'Fan Club', 'Be followed by 25+, follow fewer than 10', '🌟', 'social', 3, NULL, 100),
-('follow-frenzy', 'Follow Frenzy', 'Follow 10 users in a single day', '⚡', 'social', 1, NULL, 25),
-('profile-pic', 'Profile Pic', 'Wait 14+ days then add an avatar', '🖼️', 'social', 1, NULL, 25),
-('the-lurker', 'The Lurker', 'Be followed by 5+ users without ever following anyone', '👀', 'social', 2, NULL, 50),
-('name-dropper', 'Name Dropper', 'Change your display name 3+ times', '✏️', 'social', 1, NULL, 10),
-('bio-hacker', 'Bio Hacker', 'Edit your bio 5+ times', '🔧', 'social', 1, NULL, 10),
-('public-figure', 'Public Figure', 'Keep profile public for 90+ days with 10+ followers', '🏛️', 'social', 4, NULL, 200)
+('two-way-street', 'Two-Way Street', 'Have a mutual follow with a user who follows 3+ others', '≡ƒ¢ú∩╕Å', 'social', 2, NULL, 50),
+('fan-club', 'Fan Club', 'Be followed by 25+, follow fewer than 10', '≡ƒîƒ', 'social', 3, NULL, 100),
+('follow-frenzy', 'Follow Frenzy', 'Follow 10 users in a single day', 'ΓÜí', 'social', 1, NULL, 25),
+('profile-pic', 'Profile Pic', 'Wait 14+ days then add an avatar', '≡ƒû╝∩╕Å', 'social', 1, NULL, 25),
+('the-lurker', 'The Lurker', 'Be followed by 5+ users without ever following anyone', '≡ƒæÇ', 'social', 2, NULL, 50),
+('name-dropper', 'Name Dropper', 'Change your display name 3+ times', 'Γ£Å∩╕Å', 'social', 1, NULL, 10),
+('bio-hacker', 'Bio Hacker', 'Edit your bio 5+ times', '≡ƒöº', 'social', 1, NULL, 10),
+('public-figure', 'Public Figure', 'Keep profile public for 90+ days with 10+ followers', '≡ƒÅ¢∩╕Å', 'social', 4, NULL, 200)
 ON CONFLICT (slug) DO NOTHING;
 
 -- Contributing (6)
 INSERT INTO public.badges (slug, name, description, icon, category, tier, required_count, xp_reward) VALUES
-('speed-submitter', 'Speed Submitter', 'Submit 5 URLs in under 10 minutes', '🏎️', 'contributing', 2, NULL, 50),
-('global-contributor', 'Global Contributor', 'Submitted URLs from 10+ different domains', '🌍', 'contributing', 2, NULL, 50),
-('100-club', '100 Club', 'Submit 100 URLs', '💯', 'contributing', 3, NULL, 150),
-('night-owl-submitter', 'Night Owl Submitter', 'Submit a URL between midnight and 4AM', '🦉', 'contributing', 1, NULL, 25),
-('weekday-warrior', 'Weekday Warrior', 'Have submissions approved every weekday (M-F) in one week', '📅', 'contributing', 3, NULL, 100),
-('archivist', 'The Archivist', 'Your submission is the only URL in its subcategory for 30+ days', '📜', 'contributing', 3, NULL, 100)
+('speed-submitter', 'Speed Submitter', 'Submit 5 URLs in under 10 minutes', '≡ƒÅÄ∩╕Å', 'contributing', 2, NULL, 50),
+('global-contributor', 'Global Contributor', 'Submitted URLs from 10+ different domains', '≡ƒîì', 'contributing', 2, NULL, 50),
+('100-club', '100 Club', 'Submit 100 URLs', '≡ƒÆ»', 'contributing', 3, NULL, 150),
+('night-owl-submitter', 'Night Owl Submitter', 'Submit a URL between midnight and 4AM', '≡ƒªë', 'contributing', 1, NULL, 25),
+('weekday-warrior', 'Weekday Warrior', 'Have submissions approved every weekday (M-F) in one week', '≡ƒôà', 'contributing', 3, NULL, 100),
+('archivist', 'The Archivist', 'Your submission is the only URL in its subcategory for 30+ days', '≡ƒô£', 'contributing', 3, NULL, 100)
 ON CONFLICT (slug) DO NOTHING;
 
 -- Engagement (6)
 INSERT INTO public.badges (slug, name, description, icon, category, tier, required_count, xp_reward) VALUES
-('the-equalizer', 'The Equalizer', 'Equal number of upvotes and downvotes cast', '⚖️', 'engagement', 2, NULL, 50),
-('downer', 'Downer', 'Cast 10+ downvotes in a single day', '👎', 'engagement', 1, NULL, 25),
-('rate-streak', 'Rate at least 1 URL for 7 consecutive days', 'Rate Streak', '⭐', 'engagement', 2, NULL, 75),
-('non-committal', 'Non-Committal', 'Roam 50+ URLs without ever rating one', '🤷', 'engagement', 2, NULL, 50),
-('rate-by-category', 'Rate by Category', 'Rate URLs in 3+ different categories in one day', '📊', 'engagement', 1, NULL, 25),
-('morning-rater', 'Morning Rater', 'Rate 5+ URLs before 9AM in one day', '☀️', 'engagement', 1, NULL, 25)
+('the-equalizer', 'The Equalizer', 'Equal number of upvotes and downvotes cast', 'ΓÜû∩╕Å', 'engagement', 2, NULL, 50),
+('downer', 'Downer', 'Cast 10+ downvotes in a single day', '≡ƒæÄ', 'engagement', 1, NULL, 25),
+('rate-streak', 'Rate at least 1 URL for 7 consecutive days', 'Rate Streak', 'Γ¡É', 'engagement', 2, NULL, 75),
+('non-committal', 'Non-Committal', 'Roam 50+ URLs without ever rating one', '≡ƒñ╖', 'engagement', 2, NULL, 50),
+('rate-by-category', 'Rate by Category', 'Rate URLs in 3+ different categories in one day', '≡ƒôè', 'engagement', 1, NULL, 25),
+('morning-rater', 'Morning Rater', 'Rate 5+ URLs before 9AM in one day', 'ΓÿÇ∩╕Å', 'engagement', 1, NULL, 25)
 ON CONFLICT (slug) DO NOTHING;
 
 -- Secret (6) -- non-holiday secrets
 INSERT INTO public.badges (slug, name, description, icon, category, tier, required_count, xp_reward, is_hidden) VALUES
-('pi-day', 'Pi Day', 'Roam on March 14 (3/14) 🥧', '🥧', 'secret', 2, NULL, 100, true),
-('may-the-fourth', 'May the Fourth', 'Roam on May 4th 🚀', '🚀', 'secret', 1, NULL, 50, true),
-('talk-like-pirate', 'Talk Like a Pirate', 'Roam on September 19 ☠️', '☠️', 'secret', 1, NULL, 50, true),
-('eclipse-hunter', 'Eclipse Hunter', 'Roam during a solar eclipse 🌑', '🌑', 'secret', 4, NULL, 500, true),
-('first-day-of-season', 'Season Opener', 'Roam on the first day of a new season 🌱☀️🍂❄️', '🍃', 'secret', 1, NULL, 50, true),
-('palindrome-day', 'Palindrome Day', 'Roam on a palindrome date 🔄', '🔁', 'secret', 2, NULL, 100, true)
+('pi-day', 'Pi Day', 'Roam on March 14 (3/14) ≡ƒÑº', '≡ƒÑº', 'secret', 2, NULL, 100, true),
+('may-the-fourth', 'May the Fourth', 'Roam on May 4th ≡ƒÜÇ', '≡ƒÜÇ', 'secret', 1, NULL, 50, true),
+('talk-like-pirate', 'Talk Like a Pirate', 'Roam on September 19 Γÿá∩╕Å', 'Γÿá∩╕Å', 'secret', 1, NULL, 50, true),
+('eclipse-hunter', 'Eclipse Hunter', 'Roam during a solar eclipse ≡ƒîæ', '≡ƒîæ', 'secret', 4, NULL, 500, true),
+('first-day-of-season', 'Season Opener', 'Roam on the first day of a new season ≡ƒî▒ΓÿÇ∩╕Å≡ƒìéΓ¥ä∩╕Å', '≡ƒìâ', 'secret', 1, NULL, 50, true),
+('palindrome-day', 'Palindrome Day', 'Roam on a palindrome date ≡ƒöä', '≡ƒöü', 'secret', 2, NULL, 100, true)
 ON CONFLICT (slug) DO NOTHING;
 
 -- ============================================================================
--- 2. Holiday Badges (22) — all in secret category
+-- 2. Holiday Badges (22) ΓÇö all in secret category
 -- ============================================================================
 INSERT INTO public.badges (slug, name, description, icon, category, tier, required_count, xp_reward, is_hidden) VALUES
 -- Western / Observance
-('new-years-day', 'New Year''s Day', 'Roam on January 1 🎆', '🎆', 'secret', 1, NULL, 50, true),
-('valentines-day', 'Valentine''s Day', 'Roam on February 14 💘', '💘', 'secret', 1, NULL, 50, true),
-('st-patricks-day', 'St. Patrick''s Day', 'Roam on March 17 ☘️', '☘️', 'secret', 1, NULL, 50, true),
-('independence-day', 'Independence Day', 'Roam on July 4 🦅', '🦅', 'secret', 1, NULL, 50, true),
-('halloween', 'Halloween', 'Roam on October 31 🎃', '🎃', 'secret', 1, NULL, 50, true),
-('remembrance-day', 'Remembrance Day', 'Roam on November 11 🌺', '🌺', 'secret', 1, NULL, 50, true),
-('christmas-day', 'Christmas Day', 'Roam on December 25 🎄', '🎄', 'secret', 1, NULL, 50, true),
-('new-years-eve', 'New Year''s Eve', 'Roam on December 31 🥂', '🥂', 'secret', 1, NULL, 50, true),
+('new-years-day', 'New Year''s Day', 'Roam on January 1 ≡ƒÄå', '≡ƒÄå', 'secret', 1, NULL, 50, true),
+('valentines-day', 'Valentine''s Day', 'Roam on February 14 ≡ƒÆÿ', '≡ƒÆÿ', 'secret', 1, NULL, 50, true),
+('st-patricks-day', 'St. Patrick''s Day', 'Roam on March 17 Γÿÿ∩╕Å', 'Γÿÿ∩╕Å', 'secret', 1, NULL, 50, true),
+('independence-day', 'Independence Day', 'Roam on July 4 ≡ƒªà', '≡ƒªà', 'secret', 1, NULL, 50, true),
+('halloween', 'Halloween', 'Roam on October 31 ≡ƒÄâ', '≡ƒÄâ', 'secret', 1, NULL, 50, true),
+('remembrance-day', 'Remembrance Day', 'Roam on November 11 ≡ƒî║', '≡ƒî║', 'secret', 1, NULL, 50, true),
+('christmas-day', 'Christmas Day', 'Roam on December 25 ≡ƒÄä', '≡ƒÄä', 'secret', 1, NULL, 50, true),
+('new-years-eve', 'New Year''s Eve', 'Roam on December 31 ≡ƒÑé', '≡ƒÑé', 'secret', 1, NULL, 50, true),
 -- Lunar / Movable (approximate)
-('lunar-new-year', 'Lunar New Year', 'Roam between Jan 21 and Feb 21 🧧', '🧧', 'secret', 1, NULL, 50, true),
-('easter', 'Easter', 'Roam between March 22 and April 25 🐰', '🐰', 'secret', 1, NULL, 50, true),
-('ramadan', 'Ramadan', 'Roam in May 🌙', '🌙', 'secret', 1, NULL, 50, true),
-('diwali', 'Diwali', 'Roam between October 15 and November 15 🪔', '🪔', 'secret', 1, NULL, 50, true),
-('thanksgiving', 'Thanksgiving', 'Roam on the 4th Thursday of November 🦃', '🦃', 'secret', 1, NULL, 50, true),
+('lunar-new-year', 'Lunar New Year', 'Roam between Jan 21 and Feb 21 ≡ƒºº', '≡ƒºº', 'secret', 1, NULL, 50, true),
+('easter', 'Easter', 'Roam between March 22 and April 25 ≡ƒÉ░', '≡ƒÉ░', 'secret', 1, NULL, 50, true),
+('ramadan', 'Ramadan', 'Roam in May ≡ƒîÖ', '≡ƒîÖ', 'secret', 1, NULL, 50, true),
+('diwali', 'Diwali', 'Roam between October 15 and November 15 ≡ƒ¬ö', '≡ƒ¬ö', 'secret', 1, NULL, 50, true),
+('thanksgiving', 'Thanksgiving', 'Roam on the 4th Thursday of November ≡ƒªâ', '≡ƒªâ', 'secret', 1, NULL, 50, true),
 -- Asian / Middle Eastern / African
-('india-independence', 'India Independence', 'Roam on August 15 🇮🇳', '🇮🇳', 'secret', 1, NULL, 50, true),
-('mexico-independence', 'Mexico Independence', 'Roam on September 15 or 16 🇲🇽', '🇲🇽', 'secret', 1, NULL, 50, true),
-('china-national-day', 'China National Day', 'Roam on October 1 🇨🇳', '🇨🇳', 'secret', 1, NULL, 50, true),
-('rosh-hashanah', 'Rosh Hashanah', 'Roam between September 5 and October 5 🍎', '🍎', 'secret', 1, NULL, 50, true),
-('youth-day', 'Youth Day', 'Roam on June 16 🇿🇦', '🇿🇦', 'secret', 1, NULL, 50, true),
-('dia-consciencia', 'Dia da Consciência', 'Roam on November 20 🇧🇷', '🇧🇷', 'secret', 1, NULL, 50, true),
+('india-independence', 'India Independence', 'Roam on August 15 ≡ƒç«≡ƒç│', '≡ƒç«≡ƒç│', 'secret', 1, NULL, 50, true),
+('mexico-independence', 'Mexico Independence', 'Roam on September 15 or 16 ≡ƒç▓≡ƒç╜', '≡ƒç▓≡ƒç╜', 'secret', 1, NULL, 50, true),
+('china-national-day', 'China National Day', 'Roam on October 1 ≡ƒç¿≡ƒç│', '≡ƒç¿≡ƒç│', 'secret', 1, NULL, 50, true),
+('rosh-hashanah', 'Rosh Hashanah', 'Roam between September 5 and October 5 ≡ƒìÄ', '≡ƒìÄ', 'secret', 1, NULL, 50, true),
+('youth-day', 'Youth Day', 'Roam on June 16 ≡ƒç┐≡ƒçª', '≡ƒç┐≡ƒçª', 'secret', 1, NULL, 50, true),
+('dia-consciencia', 'Dia da Consci├¬ncia', 'Roam on November 20 ≡ƒçº≡ƒç╖', '≡ƒçº≡ƒç╖', 'secret', 1, NULL, 50, true),
 -- More holidays
-('oktoberfest', 'Oktoberfest', 'Roam between September 20 and October 6 🍺', '🍺', 'secret', 1, NULL, 50, true),
-('cinco-de-mayo', 'Cinco de Mayo', 'Roam on May 5 🎉', '🎉', 'secret', 1, NULL, 50, true),
-('earth-day', 'Earth Day', 'Roam on April 22 🌍', '🌍', 'secret', 1, NULL, 50, true)
+('oktoberfest', 'Oktoberfest', 'Roam between September 20 and October 6 ≡ƒì║', '≡ƒì║', 'secret', 1, NULL, 50, true),
+('cinco-de-mayo', 'Cinco de Mayo', 'Roam on May 5 ≡ƒÄë', '≡ƒÄë', 'secret', 1, NULL, 50, true),
+('earth-day', 'Earth Day', 'Roam on April 22 ≡ƒîì', '≡ƒîì', 'secret', 1, NULL, 50, true)
 ON CONFLICT (slug) DO NOTHING;
 
 -- ============================================================================
@@ -709,7 +709,7 @@ BEGIN
 
   IF v_level > v_prev_level THEN
     INSERT INTO public.notifications (user_id, type, title, body, data)
-    VALUES (p_user_id, 'level_up', '🎉 Level Up! You''re now Level ' || v_level, 'Keep roaming to earn more badges and XP!', jsonb_build_object('level', v_level, 'rank', '', 'url', v_profile_url));
+    VALUES (p_user_id, 'level_up', '≡ƒÄë Level Up! You''re now Level ' || v_level, 'Keep roaming to earn more badges and XP!', jsonb_build_object('level', v_level, 'rank', '', 'url', v_profile_url));
   END IF;
 
   PERFORM public.sync_profile_badge_count(p_user_id);

@@ -20,7 +20,7 @@ HSPLapp/roam/android/viewmodel/MainViewModel;->roam()V
 HSPLapp/roam/android/data/repository/RoamRepository;-><init>()V
 HSPLapp/roam/android/data/repository/RoamRepository;->getNextUrl(Ljava/util/List;Ljava/util/List;Z)Lapp/roam/android/model/RoamUrl;
 
-# UI screens — compiled for fast first frame
+# UI screens ΓÇö compiled for fast first frame
 Lapp/roam/android/ui/screen/MainScreenKt;
 Lapp/roam/android/ui/screen/SplashScreenKt;
 Lapp/roam/android/ui/screen/OnboardingScreenKt;

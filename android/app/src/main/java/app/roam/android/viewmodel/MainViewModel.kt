@@ -1,4 +1,4 @@
-﻿package app.roam.android.viewmodel
+package app.roam.android.viewmodel
 
 import android.app.Application
 import android.content.Context

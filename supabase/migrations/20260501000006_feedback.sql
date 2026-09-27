@@ -1,8 +1,8 @@
--- feedback table — stores user-submitted feedback and bug reports from
+-- feedback table ΓÇö stores user-submitted feedback and bug reports from
 -- all platforms (web, extension, Android).
 --
 -- RLS policy: anyone may INSERT (authenticated or anonymous).
---             SELECT is intentionally blocked for all roles — feedback is
+--             SELECT is intentionally blocked for all roles ΓÇö feedback is
 --             read via the service role key in the admin Edge Function,
 --             which bypasses RLS entirely.
 
@@ -28,7 +28,7 @@ CREATE POLICY "Anyone can submit feedback"
   FOR INSERT
   WITH CHECK (true);
 
--- No SELECT policy — only the service role (used by Edge Functions) can read.
+-- No SELECT policy ΓÇö only the service role (used by Edge Functions) can read.
 
 -- Index for admin queries sorted by recency.
 CREATE INDEX feedback_created_at_idx ON feedback (created_at DESC);

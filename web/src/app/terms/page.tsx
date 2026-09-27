@@ -3,7 +3,7 @@ import Link from "next/link";
 
 export const metadata: Metadata = {
   title: "Terms of Service",
-  description: "Roam Terms of Service — the rules for using Roam.",
+  description: "Roam Terms of Service ΓÇö the rules for using Roam.",
 };
 
 const EFFECTIVE = "23 April 2026";
@@ -113,7 +113,7 @@ export default function TermsPage() {
 
         <hr />
         <Link href="/" className="text-sm text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors no-underline">
-          ← Back to Roam
+          ΓåÉ Back to Roam
         </Link>
       </article>
     </main>

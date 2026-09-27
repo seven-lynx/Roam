@@ -12,7 +12,7 @@ import { initSentry } from '../_shared/sentry.ts'
 
 const RATE_LIMIT = 10
 
-// Sentry reporting — best-effort, won't block the response
+// Sentry reporting ΓÇö best-effort, won't block the response
 const Sentry = initSentry()
 
 Deno.serve(async (req) => {

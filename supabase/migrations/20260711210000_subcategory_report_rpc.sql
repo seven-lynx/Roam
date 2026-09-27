@@ -8,11 +8,11 @@
 -- Called via supabase.rpc('subcategory_report')
 --
 -- Companion helpers:
---   subcategory_null_count()    → count of approved URLs with NULL subcategory_id
---   subcategory_null_sources()  → breakdown of those NULL URLs by source
---   subcategory_total_count()   → total approved URL count
+--   subcategory_null_count()    ΓåÆ count of approved URLs with NULL subcategory_id
+--   subcategory_null_sources()  ΓåÆ breakdown of those NULL URLs by source
+--   subcategory_total_count()   ΓåÆ total approved URL count
 
--- ── Main report: one row per (subcategory, source) combination ────────────
+-- ΓöÇΓöÇ Main report: one row per (subcategory, source) combination ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 DROP FUNCTION IF EXISTS public.subcategory_report();
 
 CREATE OR REPLACE FUNCTION public.subcategory_report()
@@ -40,7 +40,7 @@ AS $$
   ORDER BY c.name, s.name, u.source;
 $$;
 
--- ── NULL-subcategory count ───────────────────────────────────────────────
+-- ΓöÇΓöÇ NULL-subcategory count ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 DROP FUNCTION IF EXISTS public.subcategory_null_count();
 CREATE OR REPLACE FUNCTION public.subcategory_null_count()
 RETURNS bigint
@@ -53,7 +53,7 @@ AS $$
   WHERE approved = true AND subcategory_id IS NULL;
 $$;
 
--- ── NULL-subcategory breakdown by source ──────────────────────────────────
+-- ΓöÇΓöÇ NULL-subcategory breakdown by source ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 DROP FUNCTION IF EXISTS public.subcategory_null_sources();
 CREATE OR REPLACE FUNCTION public.subcategory_null_sources()
 RETURNS TABLE (
@@ -71,7 +71,7 @@ AS $$
   ORDER BY url_count DESC;
 $$;
 
--- ── Total approved URL count ─────────────────────────────────────────────
+-- ΓöÇΓöÇ Total approved URL count ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 DROP FUNCTION IF EXISTS public.subcategory_total_count();
 CREATE OR REPLACE FUNCTION public.subcategory_total_count()
 RETURNS bigint

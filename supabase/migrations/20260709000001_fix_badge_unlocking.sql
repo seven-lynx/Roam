@@ -2,21 +2,21 @@
 -- Fix badge unlocking: progress rows block earned badges (ON CONFLICT DO NOTHING)
 -- Also implements lunar-roamer and error-404-explorer badge logic.
 -- Also adds missing 'badge_rewards' xp_action.
--- Also creates the notifications → push-notify database webhook trigger.
+-- Also creates the notifications ΓåÆ push-notify database webhook trigger.
 -- =============================================================================
 
--- ── 1. Ensure badge_rewards xp_action exists ─────────────────────────────────
+-- ΓöÇΓöÇ 1. Ensure badge_rewards xp_action exists ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 -- badge_rewards uses xp=1 as the CHECK constraint requires xp>0. Actual XP is awarded
 -- per-badge via badge.xp_reward in evaluate_badges, not from this xp_actions table.
 INSERT INTO public.xp_actions (action, xp, description)
 VALUES ('badge_rewards', 1, 'XP awarded from badge unlocks (internal)')
 ON CONFLICT DO NOTHING;
 
--- ═════════════════════════════════════════════════════════════════════════════
+-- ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ
 -- 2. Replace evaluate_badges with fixed version
---    Critical fix: ON CONFLICT DO NOTHING → DO UPDATE SET unlocked_at
+--    Critical fix: ON CONFLICT DO NOTHING ΓåÆ DO UPDATE SET unlocked_at
 --    This allows badges that previously had only a progress row to now unlock.
--- ═════════════════════════════════════════════════════════════════════════════
+-- ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ
 CREATE OR REPLACE FUNCTION public.evaluate_badges(p_user_id UUID)
 RETURNS TABLE(
   badge_id           UUID,
@@ -65,7 +65,7 @@ BEGIN
     RAISE EXCEPTION 'You can only evaluate badges for yourself.';
   END IF;
 
-  -- ── Collect user stats ─────────────────────────────────────────────────────
+  -- ΓöÇΓöÇ Collect user stats ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
   SELECT COUNT(*) INTO v_roam_count FROM public.seen_urls WHERE user_id = p_user_id;
   SELECT COUNT(*) INTO v_save_count FROM public.saved_urls WHERE user_id = p_user_id;
   SELECT COUNT(*) INTO v_submit_count FROM public.moderation_queue WHERE submitted_by = p_user_id;
@@ -91,7 +91,7 @@ BEGIN
     INTO v_today_roam, v_today_save
     FROM public.user_daily_activity WHERE user_id = p_user_id AND date = CURRENT_DATE;
 
-  -- ── Evaluate each unearned badge (including those with progress rows) ─────
+  -- ΓöÇΓöÇ Evaluate each unearned badge (including those with progress rows) ΓöÇΓöÇΓöÇΓöÇΓöÇ
   FOR v_badge IN
     SELECT * FROM public.badges
     WHERE is_gift_only = FALSE
@@ -246,7 +246,7 @@ BEGIN
     END IF;
   END LOOP;
 
-  -- ── Evaluate milestone badges ──────────────────────────────────────────────
+  -- ΓöÇΓöÇ Evaluate milestone badges ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
   FOR v_badge IN
     SELECT * FROM public.badges
     WHERE category = 'milestone' AND is_gift_only = FALSE
@@ -287,7 +287,7 @@ BEGIN
     END IF;
   END LOOP;
 
-  -- ── Award XP for all new badges ────────────────────────────────────────────
+  -- ΓöÇΓöÇ Award XP for all new badges ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
   IF v_badge_xp_awarded > 0 THEN
     INSERT INTO public.xp_log (user_id, action, xp_awarded, metadata)
     VALUES (p_user_id, 'badge_rewards', v_badge_xp_awarded, jsonb_build_object('badge_count', v_new_count));
@@ -297,10 +297,10 @@ BEGIN
   SELECT xp_total, public.calculate_level(xp_total) INTO v_xp_total, v_level FROM public.profiles WHERE id = p_user_id;
   UPDATE public.profiles SET level = v_level WHERE id = p_user_id AND level <> v_level;
 
-  -- ── Level-up notification (for level gains caused by badge XP) ─────────────
+  -- ΓöÇΓöÇ Level-up notification (for level gains caused by badge XP) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
   IF v_level > v_prev_level THEN
     INSERT INTO public.notifications (user_id, type, title, body, data)
-    VALUES (p_user_id, 'level_up', '🎉 Level Up! You''re now Level ' || v_level, 'Keep roaming to earn more badges and XP!', jsonb_build_object('level', v_level, 'rank', '', 'url', v_profile_url));
+    VALUES (p_user_id, 'level_up', '≡ƒÄë Level Up! You''re now Level ' || v_level, 'Keep roaming to earn more badges and XP!', jsonb_build_object('level', v_level, 'rank', '', 'url', v_profile_url));
   END IF;
 
 END;
@@ -309,8 +309,8 @@ $$;
 REVOKE EXECUTE ON FUNCTION public.evaluate_badges(UUID) FROM PUBLIC, anon;
 GRANT  EXECUTE ON FUNCTION public.evaluate_badges(UUID) TO authenticated, service_role;
 
--- ═════════════════════════════════════════════════════════════════════════════
--- 3. Create database webhook for notifications → push-notify
+-- ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ
+-- 3. Create database webhook for notifications ΓåÆ push-notify
 --    Supabase webhooks are managed via the Dashboard > Database > Webhooks,
 --    but this migration documents the expected configuration and creates a
 --    pg_net-based trigger as a fallback if pg_net extension is available.
@@ -318,7 +318,7 @@ GRANT  EXECUTE ON FUNCTION public.evaluate_badges(UUID) TO authenticated, servic
 --      Table: public.notifications
 --      Events: INSERT
 --      Function: push-notify
--- ═════════════════════════════════════════════════════════════════════════════
+-- ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ
 
 -- Try to create a pg_net-based trigger as a backup (silently skipped if pg_net unavailable)
 DO $$

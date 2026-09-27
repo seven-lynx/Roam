@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# Copyright © 2015-2021 the original authors.
+# Copyright ┬⌐ 2015-2021 the original authors.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -33,10 +33,10 @@
 #       Busybox and similar reduced shells will NOT work, because this script
 #       requires all of these POSIX shell features:
 #         * functions;
-#         * expansions «$var», «${var}», «${var:-default}», «${var+SET}»,
-#           «${var#prefix}», «${var%suffix}», and «$( cmd )»;
-#         * compound commands having a testable exit status, especially «case»;
-#         * various built-in commands including «command», «set», and «ulimit».
+#         * expansions ┬½$var┬╗, ┬½${var}┬╗, ┬½${var:-default}┬╗, ┬½${var+SET}┬╗,
+#           ┬½${var#prefix}┬╗, ┬½${var%suffix}┬╗, and ┬½$( cmd )┬╗;
+#         * compound commands having a testable exit status, especially ┬½case┬╗;
+#         * various built-in commands including ┬½command┬╗, ┬½set┬╗, and ┬½ulimit┬╗.
 #
 #   Important for forking:
 #

@@ -10,13 +10,13 @@ This document outlines the terms for commercial use of Roam beyond the open sour
 
 A commercial license is required if you intend to:
 
-1. **Run Roam as a competing service** — Operate a deployment (web, mobile app, or extension) that offers the same core discovery functionality to end users, where you monetize or derive revenue from that service.
+1. **Run Roam as a competing service** ΓÇö Operate a deployment (web, mobile app, or extension) that offers the same core discovery functionality to end users, where you monetize or derive revenue from that service.
 
-2. **White-label or resell Roam** — License Roam to third parties, rebrand it, or integrate it into a commercial product.
+2. **White-label or resell Roam** ΓÇö License Roam to third parties, rebrand it, or integrate it into a commercial product.
 
-3. **Deploy Roam without open-sourcing modifications** — If you modify Roam for commercial purposes and do not open-source those modifications under the MIT License.
+3. **Deploy Roam without open-sourcing modifications** ΓÇö If you modify Roam for commercial purposes and do not open-source those modifications under the MIT License.
 
-4. **Use Roam in proprietary software** — Embed or integrate Roam's core discovery logic (the algorithm, RPC functions, or ranking system) into a closed-source commercial product.
+4. **Use Roam in proprietary software** ΓÇö Embed or integrate Roam's core discovery logic (the algorithm, RPC functions, or ranking system) into a closed-source commercial product.
 
 ---
 
@@ -35,18 +35,18 @@ You can use Roam freely under the MIT License if:
 ## What's Included in a Commercial License
 
 - **Perpetual** use of Roam for the licensed service/deployment
-- **Modification rights** — You may modify Roam without open-sourcing changes
-- **Distribution rights** — You may deploy to end users, subject to license terms
-- **No attribution requirement** — You may omit "Powered by Roam" if you prefer
-- **Priority support** — Response time SLA (24 hours)
+- **Modification rights** ΓÇö You may modify Roam without open-sourcing changes
+- **Distribution rights** ΓÇö You may deploy to end users, subject to license terms
+- **No attribution requirement** ΓÇö You may omit "Powered by Roam" if you prefer
+- **Priority support** ΓÇö Response time SLA (24 hours)
 
 ---
 
 ## What's NOT Included
 
-- **Warranty** — Commercial licenses are provided "as-is," same as MIT
-- **Source code changes** — You may not redistribute the Roam source code itself; you must license it separately or contribute back to open source
-- **Trademark rights** — You may not use "Roam," "Roam by 7Lynx," or similar names without permission
+- **Warranty** ΓÇö Commercial licenses are provided "as-is," same as MIT
+- **Source code changes** ΓÇö You may not redistribute the Roam source code itself; you must license it separately or contribute back to open source
+- **Trademark rights** ΓÇö You may not use "Roam," "Roam by 7Lynx," or similar names without permission
 
 ---
 
@@ -81,9 +81,9 @@ Roam is open source. We trust our community. However:
 
 This dual-license model allows:
 
-- **Open source development** — Contributors can build on Roam freely, knowing the community benefits
-- **Sustainable project** — Revenue from commercial deployments funds maintenance and development
-- **Fair play** — Competitors who want to use Roam must either contribute back (open source) or pay for a license
+- **Open source development** ΓÇö Contributors can build on Roam freely, knowing the community benefits
+- **Sustainable project** ΓÇö Revenue from commercial deployments funds maintenance and development
+- **Fair play** ΓÇö Competitors who want to use Roam must either contribute back (open source) or pay for a license
 
 ---
 
@@ -91,9 +91,9 @@ This dual-license model allows:
 
 If your use case is unclear, ask:
 
-- **Is my use case commercial?** — If you're unsure, email us with details
-- **Can I negotiate terms?** — Yes. Enterprise scenarios are case-by-case
-- **What if I want to open-source my fork later?** — Great! You can convert to MIT at any time by contributing back
+- **Is my use case commercial?** ΓÇö If you're unsure, email us with details
+- **Can I negotiate terms?** ΓÇö Yes. Enterprise scenarios are case-by-case
+- **What if I want to open-source my fork later?** ΓÇö Great! You can convert to MIT at any time by contributing back
 
 ---
 

@@ -13,7 +13,7 @@ function SignupPageLoading() {
       <div className="w-full max-w-sm flex flex-col gap-8">
         <div className="text-center">
           <Image src="/icon-512.png" alt="Roam" width={64} height={64} className="mx-auto" />
-          <h1 className="mt-4 text-2xl font-bold text-zinc-900 dark:text-white">Loading…</h1>
+          <h1 className="mt-4 text-2xl font-bold text-zinc-900 dark:text-white">LoadingΓÇª</h1>
         </div>
       </div>
     </div>

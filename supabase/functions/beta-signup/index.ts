@@ -2,7 +2,7 @@
 // Accepts email signups for the closed beta.
 //
 // Body: { email: string }
-//   email — required, must be a valid email address
+//   email ΓÇö required, must be a valid email address
 //
 // Public endpoint (no auth required). Rate limited: 5 submissions per 10
 // minutes per IP. Duplicate emails return a friendly "already on the list"
@@ -17,7 +17,7 @@ const WINDOW_MS = 10 * 60_000 // 10 minutes
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
-// Public endpoint — allow any origin (unlike the shared cors.ts which restricts to roamtheweb.app)
+// Public endpoint ΓÇö allow any origin (unlike the shared cors.ts which restricts to roamtheweb.app)
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -31,7 +31,7 @@ function json(body: unknown, status = 200) {
   })
 }
 
-// Sentry reporting — silently disabled if SENTRY_DSN is not set
+// Sentry reporting ΓÇö silently disabled if SENTRY_DSN is not set
 const report = initSentry('beta-signup')
 
 Deno.serve(async (req) => {
@@ -43,7 +43,7 @@ Deno.serve(async (req) => {
   const limit = rateLimit(`beta-signup:${ip}`, RATE_LIMIT, WINDOW_MS)
   if (!limit.allowed) {
     return new Response(
-      JSON.stringify({ error: 'Too many requests — please wait before trying again' }),
+      JSON.stringify({ error: 'Too many requests ΓÇö please wait before trying again' }),
       {
         status: 429,
         headers: {
@@ -83,13 +83,13 @@ Deno.serve(async (req) => {
     .insert({ email: normalizedEmail })
 
   if (error) {
-    // Unique violation — user is already on the list
+    // Unique violation ΓÇö user is already on the list
     if (error.code === '23505') {
       return json({ ok: true, message: "You're already on the list!" })
     }
     console.error('[beta-signup] Insert error:', error.message)
     report(error.message, 'error', { operation: 'beta-signup-insert' })
-    return json({ error: 'Something went wrong — please try again' }, 500)
+    return json({ error: 'Something went wrong ΓÇö please try again' }, 500)
   }
 
   return json({ ok: true, message: "You're on the list!" })

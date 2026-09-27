@@ -1,4 +1,4 @@
-﻿package app.roam.android.data.repository
+package app.roam.android.data.repository
 
 import androidx.core.net.toUri
 import app.roam.android.data.supabase

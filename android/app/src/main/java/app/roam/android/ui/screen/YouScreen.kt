@@ -143,7 +143,7 @@ fun YouScreen(
 
             Spacer(Modifier.height(16.dp))
 
-            // Stats row — tappable
+            // Stats row ΓÇö tappable
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceEvenly,
@@ -156,7 +156,7 @@ fun YouScreen(
                     if (expandedList == "following") expandedList = null
                     else { expandedList = "following"; userId?.let { vm.loadFollowing(it) } }
                 })
-                StatCell("Badges", unlockedBadgeCount?.let { "$it/$totalBadges" } ?: "…", onClick = onNavigateToBadges)
+                StatCell("Badges", unlockedBadgeCount?.let { "$it/$totalBadges" } ?: "ΓÇª", onClick = onNavigateToBadges)
             }
 
             // Expandable followers list
@@ -190,7 +190,7 @@ fun YouScreen(
             HorizontalDivider()
             Spacer(Modifier.height(8.dp))
 
-            // ── Account ──────────────────────────────────────────
+            // ΓöÇΓöÇ Account ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
             SectionHeader("Account")
             ActionRow("Edit Profile", "Name, bio, interests, privacy", onClick = onNavigateToProfile)
             ActionRow("Collections", "${collections.size} collections", onClick = onNavigateToSaved)
@@ -205,7 +205,7 @@ fun YouScreen(
             HorizontalDivider()
             Spacer(Modifier.height(8.dp))
 
-            // ── Social ───────────────────────────────────────────
+            // ΓöÇΓöÇ Social ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
             SectionHeader("Social")
             ActionRow("Search users", "Find people to follow", onClick = onOpenUserSearch)
             ActionRow("Leaderboard", "Top explorers", onClick = onNavigateToLeaderboard)
@@ -220,7 +220,7 @@ fun YouScreen(
             HorizontalDivider()
             Spacer(Modifier.height(8.dp))
 
-            // ── App ─────────────────────────────────────────────
+            // ΓöÇΓöÇ App ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
             SectionHeader("App")
             ActionRow("Settings", "Browser, discovery, appearance", onClick = onNavigateToSettings)
             ActionRow(
@@ -271,10 +271,10 @@ private fun ExpandableUserList(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(title, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
-            Text("× Close", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f), modifier = Modifier.clickable { onClose() })
+            Text("├ù Close", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f), modifier = Modifier.clickable { onClose() })
         }
         if (loading) {
-            Text("Loading…", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f), modifier = Modifier.padding(vertical = 8.dp))
+            Text("LoadingΓÇª", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f), modifier = Modifier.padding(vertical = 8.dp))
         } else if (users.isEmpty()) {
             Text("No one yet", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f), modifier = Modifier.padding(vertical = 8.dp))
         } else {

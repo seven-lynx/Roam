@@ -2,9 +2,9 @@
 // Handles the asymmetric follow graph for the authenticated user.
 //
 // Actions:
-//   follow   — { action, following_id }
+//   follow   ΓÇö { action, following_id }
 //              Follows are always immediate; no approval required.
-//   unfollow — { action, following_id }
+//   unfollow ΓÇö { action, following_id }
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { getCorsHeaders } from '../_shared/cors.ts'

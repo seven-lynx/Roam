@@ -1,11 +1,11 @@
--- ─────────────────────────────────────────────────────────────────────────────
+-- ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 -- Migration: schema improvements
 -- Date: 2026-04-24
 -- Tasks: 2.9b, 2.15a, 2.15b, 4.23a
--- ─────────────────────────────────────────────────────────────────────────────
+-- ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 
 
--- ── Task 2.9b — Missing FK indexes ───────────────────────────────────────────
+-- ΓöÇΓöÇ Task 2.9b ΓÇö Missing FK indexes ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 -- collection_items(url_id): "all collections containing URL X" lookup
 CREATE INDEX IF NOT EXISTS idx_collection_items_url_id
   ON collection_items (url_id);
@@ -19,7 +19,7 @@ CREATE INDEX IF NOT EXISTS idx_follows_following_id
   ON follows (following_id);
 
 
--- ── Task 2.15b — ON DELETE CASCADE for collection_items(url_id) ──────────────
+-- ΓöÇΓöÇ Task 2.15b ΓÇö ON DELETE CASCADE for collection_items(url_id) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 -- If a URL is deleted (e.g. after moderation reversal), its collection_items
 -- rows previously became orphaned. Cascade ensures referential integrity.
 ALTER TABLE collection_items
@@ -30,7 +30,7 @@ ALTER TABLE collection_items
     FOREIGN KEY (url_id) REFERENCES urls (id) ON DELETE CASCADE;
 
 
--- ── Task 2.15a — moderation_audit_log table + auto-insert trigger ─────────────
+-- ΓöÇΓöÇ Task 2.15a ΓÇö moderation_audit_log table + auto-insert trigger ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 CREATE TABLE IF NOT EXISTS moderation_audit_log (
   id          UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
   queue_id    UUID        NOT NULL REFERENCES moderation_queue (id) ON DELETE CASCADE,
@@ -69,7 +69,7 @@ CREATE TRIGGER trg_moderation_audit_log
   FOR EACH ROW EXECUTE FUNCTION fn_moderation_audit_log();
 
 
--- ── Task 4.23a — paywalled_domains lookup table ───────────────────────────────
+-- ΓöÇΓöÇ Task 4.23a ΓÇö paywalled_domains lookup table ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 -- Used by the roam() RPC to filter paywalled URLs when the user has
 -- skip_paywalled = true. Publicly readable; service-role only for writes.
 CREATE TABLE IF NOT EXISTS paywalled_domains (

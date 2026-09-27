@@ -79,7 +79,7 @@ class FCMService : FirebaseMessagingService() {
                         .first { it }
                 }
             } catch (_: Exception) {
-                // Session never became authenticated — leave the pending token for next launch
+                // Session never became authenticated ΓÇö leave the pending token for next launch
                 return@launch
             }
 

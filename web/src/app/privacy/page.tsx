@@ -3,7 +3,7 @@ import Link from "next/link";
 
 export const metadata: Metadata = {
   title: "Privacy Policy",
-  description: "Roam Privacy Policy — how we collect, use, and protect your data.",
+  description: "Roam Privacy Policy ΓÇö how we collect, use, and protect your data.",
 };
 
 const EFFECTIVE = "23 April 2026";
@@ -68,9 +68,9 @@ export default function PrivacyPage() {
           We use the following third-party sub-processors:
         </p>
         <ul>
-          <li><strong>Supabase Inc.</strong> — database, authentication, and serverless functions (USA).</li>
-          <li><strong>Vercel Inc.</strong> — web hosting (USA).</li>
-          <li><strong>Google LLC</strong> — optional &ldquo;Sign in with Google&rdquo; OAuth; Safe Browsing API for URL vetting.</li>
+          <li><strong>Supabase Inc.</strong> ΓÇö database, authentication, and serverless functions (USA).</li>
+          <li><strong>Vercel Inc.</strong> ΓÇö web hosting (USA).</li>
+          <li><strong>Google LLC</strong> ΓÇö optional &ldquo;Sign in with Google&rdquo; OAuth; Safe Browsing API for URL vetting.</li>
         </ul>
 
         <h2>5. Data retention</h2>
@@ -118,7 +118,7 @@ export default function PrivacyPage() {
 
         <hr />
         <Link href="/" className="text-sm text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors no-underline">
-          ← Back to Roam
+          ΓåÉ Back to Roam
         </Link>
       </article>
     </main>

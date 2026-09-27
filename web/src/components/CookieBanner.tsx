@@ -1,5 +1,5 @@
 /**
- * CookieBanner — GDPR-compliant consent banner for session cookie.
+ * CookieBanner ΓÇö GDPR-compliant consent banner for session cookie.
  *
  * Trigger logic: On mount, checks localStorage for 'roam-cookie-consent'.
  * If absent, shows a fixed bottom banner. On accept, sets the key and hides.
@@ -25,7 +25,7 @@ export function CookieBanner({ onConsent }: CookieBannerProps) {
       const consented = localStorage.getItem('roam-cookie-consent');
       if (!consented) setVisible(true);
     } catch {
-      // localStorage unavailable — don't show banner
+      // localStorage unavailable ΓÇö don't show banner
     }
   }, []);
 

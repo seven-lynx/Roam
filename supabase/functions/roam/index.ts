@@ -4,17 +4,16 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { corsHeaders } from '../_shared/cors.ts'
 import { initSentry } from '../_shared/sentry.ts'
-// EdgeRuntime.waitUntil is a Deno Deploy API that tells the runtime to not
-// wait for a promise before shutting down the isolate. It's available at
-// runtime on Supabase-hosted edge functions but not declared in the Deno
-// type definitions used by deno check in CI.
-declare const EdgeRuntime: { waitUntil: (p: Promise<unknown>) => void }
+// `EdgeRuntime` is a non-standard global that Supabase exposes on edge
+// function hosts (see supabase/functions/_shared/deno-globals.d.ts for the
+// ambient declaration that makes it visible to `deno check`).
+// Usage: EdgeRuntime.waitUntil(backgroundTask())
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
 const SUPABASE_ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY')!
 const report = initSentry('roam')
 
-// ── In-memory circuit breaker ────────────────────────────────────────────────
+// ΓöÇΓöÇ In-memory circuit breaker ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 // If roam() fails repeatedly (e.g. a migration raises on every call), short-
 // circuit requests to a fast 503 instead of letting each one burn a DB
 // connection until statement_timeout. Per-isolate state; a fleet-wide outage
@@ -64,7 +63,7 @@ Deno.serve(async (req) => {
       return json({ error: 'Invalid JSON' }, 400)
     }
     
-    // ── Diagnostic ping: returns user + RPC test to isolate failure ──────────
+    // ΓöÇΓöÇ Diagnostic ping: returns user + RPC test to isolate failure ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
     if (body.diag === true) {
       const testResult = await supabase.rpc('roam', { p_user_id: user.id })
       return json({ ok: true, user_id: user.id, user_email: user.email, rpc_data: testResult.data, rpc_error: testResult.error }, 200)
@@ -90,13 +89,13 @@ Deno.serve(async (req) => {
     if (categoryId)     rpcParams.p_category_id     = categoryId
     if (subcategoryId)  rpcParams.p_subcategory_id  = subcategoryId
 
-    // ── Circuit breaker: fail fast instead of hammering a broken RPC ─────────
+    // ΓöÇΓöÇ Circuit breaker: fail fast instead of hammering a broken RPC ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
     if (isCircuitOpen()) {
       return json({ error: 'Discovery temporarily unavailable. Please try again.', retryable: true }, 503)
     }
 
-    // ── Batch discovery (sequential) ──────────────────────────────────────────
-    // Calls the roam RPC sequentially — parallelization is left to the caller
+    // ΓöÇΓöÇ Batch discovery (sequential) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+    // Calls the roam RPC sequentially ΓÇö parallelization is left to the caller
     // (Android prefetch loop) to avoid overwhelming DB connection pools.
     const isPrefetch = body.prefetch === true
     let timedOut = false

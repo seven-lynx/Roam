@@ -53,17 +53,17 @@ import app.roam.android.viewmodel.MainViewModel
 
 // Constants to avoid recreating lists on every recomposition
 private val TRANSLATE_LANGUAGES = listOf(
-    "en" to "English", "fr" to "Français", "de" to "Deutsch",
-    "it" to "Italiano", "es" to "Español", "pt" to "Português",
-    "nl" to "Nederlands", "pl" to "Polski", "ja" to "日本語",
-    "zh" to "中文", "ru" to "Русский", "ko" to "한국어",
+    "en" to "English", "fr" to "Fran├ºais", "de" to "Deutsch",
+    "it" to "Italiano", "es" to "Espa├▒ol", "pt" to "Portugu├¬s",
+    "nl" to "Nederlands", "pl" to "Polski", "ja" to "µùÑµ£¼Φ¬₧",
+    "zh" to "Σ╕¡µûç", "ru" to "╨á╤â╤ü╤ü╨║╨╕╨╣", "ko" to "φò£Ω╡¡∞û┤",
 )
 
 private val AVAILABLE_LANGUAGES = listOf(
-    "en" to "English", "fr" to "Français", "de" to "Deutsch",
-    "it" to "Italiano", "es" to "Español", "pt" to "Português",
-    "nl" to "Nederlands", "pl" to "Polski", "ja" to "日本語",
-    "zh" to "中文", "ru" to "Русский", "ko" to "한국어",
+    "en" to "English", "fr" to "Fran├ºais", "de" to "Deutsch",
+    "it" to "Italiano", "es" to "Espa├▒ol", "pt" to "Portugu├¬s",
+    "nl" to "Nederlands", "pl" to "Polski", "ja" to "µùÑµ£¼Φ¬₧",
+    "zh" to "Σ╕¡µûç", "ru" to "╨á╤â╤ü╤ü╨║╨╕╨╣", "ko" to "φò£Ω╡¡∞û┤",
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -351,7 +351,7 @@ fun SettingsScreen(
 
             SettingsToggleRow(
                 title = "Preload next page",
-                subtitle = "Loads the next URL in the background while you're reading the current one — uses more data",
+                subtitle = "Loads the next URL in the background while you're reading the current one ΓÇö uses more data",
                 checked = prefetchWebView,
                 onCheckedChange = { vm.setPrefetchWebView(it) },
             )
@@ -439,7 +439,7 @@ fun SettingsScreen(
                     )
                     Box {
                         OutlinedButton(onClick = { focusCategoryDropdownExpanded = true }) {
-                            Text(focusCategory?.let { "${it.icon} ${it.name}" } ?: "Pick one…")
+                            Text(focusCategory?.let { "${it.icon} ${it.name}" } ?: "Pick oneΓÇª")
                         }
                         DropdownMenu(
                             expanded = focusCategoryDropdownExpanded,
@@ -458,7 +458,7 @@ fun SettingsScreen(
                     }
                 }
 
-                // Subcategory picker — only shown once a category is chosen
+                // Subcategory picker ΓÇö only shown once a category is chosen
                 if (focusCategoryId != null) {
                     val filteredSubcats = subcategories.filter { it.categoryId == focusCategoryId }
                     val focusSubcat = filteredSubcats.firstOrNull { it.id == focusSubcategoryId }
@@ -577,7 +577,7 @@ fun SettingsScreen(
                 },
             )
 
-            // Version display (no longer hides easter egg — admin/moderator access
+            // Version display (no longer hides easter egg ΓÇö admin/moderator access
             // is now managed through the dedicated Admin panel in the You tab)
             Row(
                 modifier = Modifier
@@ -649,7 +649,7 @@ private fun SubmitUrlDialog(
                             modifier = Modifier.fillMaxWidth(),
                         ) {
                             Text(
-                                selectedCategory?.let { "${it.icon} ${it.name}" } ?: "Pick a category…",
+                                selectedCategory?.let { "${it.icon} ${it.name}" } ?: "Pick a categoryΓÇª",
                                 modifier = Modifier.weight(1f),
                             )
                         }
@@ -671,7 +671,7 @@ private fun SubmitUrlDialog(
                     }
                 }
 
-                // Subcategory picker — only shown once a category is selected
+                // Subcategory picker ΓÇö only shown once a category is selected
                 if (selectedCategoryId != null && filteredSubcats.isNotEmpty()) {
                     Column {
                         Text(
@@ -799,5 +799,4 @@ private fun SettingsActionRow(
         }
     }
 }
-
 

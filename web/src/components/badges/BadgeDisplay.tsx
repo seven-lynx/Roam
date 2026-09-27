@@ -70,7 +70,7 @@ export function BadgeDisplay({ badges, showLocked = true, showSecret = false, co
   if (displayBadges.length === 0) {
     return (
       <div className="text-center py-8 text-gray-500 dark:text-gray-400">
-        <span className="text-4xl block mb-2">🏅</span>
+        <span className="text-4xl block mb-2">≡ƒÅà</span>
         <p className="text-sm">No badges yet. Start roaming to earn your first badge!</p>
       </div>
     );
@@ -146,7 +146,7 @@ function BadgeItem({ badge, compact }: { badge: BadgeData; compact: boolean }) {
           </span>
         )}
         <span className={`${compact ? 'text-xl' : 'text-2xl'} leading-none`}>
-          {badge.is_hidden && !unlocked ? '❓' : badge.icon}
+          {badge.is_hidden && !unlocked ? 'Γ¥ô' : badge.icon}
         </span>
         {!compact && (
           <span className="text-[10px] mt-1 text-center leading-tight line-clamp-2 font-medium">

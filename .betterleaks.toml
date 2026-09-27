@@ -1,0 +1,53 @@
+# .betterleaks.toml — Project-local Betterleaks configuration
+#
+# Extends Betterleaks' default ruleset with project-specific tuning:
+#   - Reduces noise on lockfiles, generated files, and large asset files
+#   - Filters known-false-positive markers from .env.example and templates
+#   - Tunes severity for project-specific service providers
+#
+# Betterleaks loads the upstream defaults automatically when this file
+# is present at the repo root; rules here override the defaults.
+#
+# Docs: https://betterleaks.com/
+
+# Global prefilter — bails out before expensive regex matching.
+# Skips binary assets, lockfiles, generated directories, and large datasets.
+prefilter = '''
+filter.matchesAny(attributes["path"], [
+  `(?i)\.(?:bmp|gif|jpe?g|png|svg|webp|tiff|ico|pdf|exe|dll|so|dylib|wasm|mp[34]|zip|tar|gz|7z|jar|class|o|obj|pdb|ttf|woff2?)$`,
+  `(?:^|/)node_modules(?:/.*)?$`,
+  `(?:^|/)\.next(?:/.*)?$`,
+  `(?:^|/)dist(?:/.*)?$`,
+  `(?:^|/)build(?:/.*)?$`,
+  `(?:^|/)out(?:/.*)?$`,
+  `(?:^|/)coverage(?:/.*)?$`,
+  `pnpm-lock\.yaml$`,
+  `package-lock\.json$`,
+  `\.test\.[jt]sx?$`,
+  `__tests__/.*\.[jt]sx?$`,
+  `__mocks__/.*$`,
+  `\.snap$`,
+  `(?:^|/)android/(?:app/build|build|\.gradle)(?:/.*)?$`
+])
+'''
+
+# Global filter — runs against every candidate match.
+# Ignores template/placeholder values and our known-safe dummy keys.
+filter = '''
+filter.containsAny(finding["secret"], [
+  "EXAMPLE", "CHANGEME", "YOUR_API_KEY_HERE", "REPLACE_ME",
+  "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+  "your-project-slug", "your-org-slug",
+  "https://YOUR_PROJECT.supabase.co",
+  "AKIAIOSFODNN7EXAMPLE",
+  "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
+])
+|| filter.entropy(finding["secret"]) < 3.0
+|| finding["secret"] matches `^[a-z_]+$`
+'''
+
+# Disable upstream rules that produce too much noise for this project.
+# (Add rules here as needed once a baseline scan runs.)
+# [[rules]]
+# id = "generic-api-key"
+# disabled = true

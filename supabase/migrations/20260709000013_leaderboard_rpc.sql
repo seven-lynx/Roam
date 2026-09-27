@@ -1,7 +1,7 @@
 -- Replace edge function leaderboard with a PostgreSQL RPC function
 -- Called directly from client via supabase.rpc('get_leaderboard', { p_period: 'all_time' })
 -- SECURITY DEFINER bypasses RLS so we can aggregate across all users
--- Much faster than edge function — completes in milliseconds via indexed queries
+-- Much faster than edge function ΓÇö completes in milliseconds via indexed queries
 
 CREATE OR REPLACE FUNCTION public.get_leaderboard(p_period TEXT DEFAULT 'all_time')
 RETURNS TABLE(

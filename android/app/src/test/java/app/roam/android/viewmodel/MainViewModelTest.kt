@@ -59,7 +59,7 @@ class MainViewModelTest {
         Dispatchers.resetMain()
     }
 
-    // ─── Initial state ─────────────────────────────────────────────────────────
+    // ΓöÇΓöÇΓöÇ Initial state ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 
     @Test
     fun `initial roam state is Idle`() {
@@ -81,7 +81,7 @@ class MainViewModelTest {
         assertFalse(vm.showConfigSheet.value)
     }
 
-    // ─── Sheet toggles ─────────────────────────────────────────────────────────
+    // ΓöÇΓöÇΓöÇ Sheet toggles ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 
     @Test
     fun `openSubmitSheet sets showSubmitSheet to true`() {
@@ -109,7 +109,7 @@ class MainViewModelTest {
         assertFalse(vm.showConfigSheet.value)
     }
 
-    // ─── Collection filter ─────────────────────────────────────────────────────
+    // ΓöÇΓöÇΓöÇ Collection filter ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 
     @Test
     fun `setCollectionFilter stores the collection id`() = runTest {
@@ -124,7 +124,7 @@ class MainViewModelTest {
         assertNull(vm.activeCollectionId.value)
     }
 
-    // ─── Language preferences ──────────────────────────────────────────────────
+    // ΓöÇΓöÇΓöÇ Language preferences ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 
     @Test
     fun `setPreferredLanguages stores the provided list`() = runTest {
@@ -138,7 +138,7 @@ class MainViewModelTest {
         assertEquals(listOf("en"), vm.preferredLanguages.value)
     }
 
-    // ─── Paywall preference ────────────────────────────────────────────────────
+    // ΓöÇΓöÇΓöÇ Paywall preference ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 
     @Test
     fun `setSkipPaywalled stores the value`() = runTest {
@@ -148,7 +148,7 @@ class MainViewModelTest {
         assertFalse(vm.skipPaywalled.value)
     }
 
-    // ─── Roam state transitions ────────────────────────────────────────────────
+    // ΓöÇΓöÇΓöÇ Roam state transitions ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 
     @Test
     fun `roam transitions to Loaded on success`() = runTest {
@@ -194,7 +194,7 @@ class MainViewModelTest {
         assertEquals(RoamState.Loaded(mockUrl), vm.state.value)
     }
 
-    // ─── URL tracking ──────────────────────────────────────────────────────────
+    // ΓöÇΓöÇΓöÇ URL tracking ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 
     @Test
     fun `onWebViewUrlChanged updates currentUrl`() {
@@ -202,7 +202,7 @@ class MainViewModelTest {
         assertEquals("https://new-page.com", vm.currentUrl.value)
     }
 
-    // ─── IOException → offline error message ──────────────────────────────────
+    // ΓöÇΓöÇΓöÇ IOException ΓåÆ offline error message ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 
     @Test
     fun `roam shows offline message when IOException is thrown`() = runTest {
@@ -216,7 +216,7 @@ class MainViewModelTest {
         )
     }
 
-    // ─── Prefetch ──────────────────────────────────────────────────────────────
+    // ΓöÇΓöÇΓöÇ Prefetch ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 
     @Test
     fun `roam uses prefetch cache and does not re-enter Loading state`() = runTest {
@@ -241,7 +241,7 @@ class MainViewModelTest {
         coVerify(atLeast = 1) { freshRepo.roam(any(), any(), any(), any()) }
     }
 
-    // ─── thumbsUp / thumbsDown ─────────────────────────────────────────────────
+    // ΓöÇΓöÇΓöÇ thumbsUp / thumbsDown ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 
     @Test
     fun `thumbsUp sends positive rating when state is Loaded`() = runTest {
@@ -267,13 +267,13 @@ class MainViewModelTest {
 
     @Test
     fun `thumbsUp opens submit sheet when state is not Loaded`() = runTest {
-        // State is Idle — no URL loaded
+        // State is Idle ΓÇö no URL loaded
         assertEquals(RoamState.Idle, vm.state.value)
         vm.thumbsUp(app)
         assertTrue(vm.showSubmitSheet.value)
     }
 
-    // ─── saveForLater ──────────────────────────────────────────────────────────
+    // ΓöÇΓöÇΓöÇ saveForLater ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 
     @Test
     fun `saveForLater adds url to savedUrls`() = runTest {

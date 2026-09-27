@@ -51,7 +51,7 @@ BEGIN
     RAISE EXCEPTION 'You can only evaluate badges for yourself.';
   END IF;
 
-  -- ── Collect user stats with graceful fallback for missing tables ───────────
+  -- ΓöÇΓöÇ Collect user stats with graceful fallback for missing tables ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
   BEGIN SELECT COUNT(*) INTO v_roam_count FROM public.seen_urls WHERE user_id = p_user_id; EXCEPTION WHEN undefined_table THEN v_roam_count := 0; END;
   BEGIN SELECT COUNT(*) INTO v_save_count FROM public.saved_urls WHERE user_id = p_user_id; EXCEPTION WHEN undefined_table THEN v_save_count := 0; END;
   BEGIN SELECT COUNT(*) INTO v_submit_count FROM public.moderation_queue WHERE submitted_by = p_user_id; EXCEPTION WHEN undefined_table THEN v_submit_count := 0; END;
@@ -73,7 +73,7 @@ BEGIN
   v_profile_url := 'https://roamtheweb.app/u/' || v_username;
   BEGIN SELECT COALESCE(roam_count, 0), COALESCE(save_count, 0) INTO v_today_roam, v_today_save FROM public.user_daily_activity WHERE user_id = p_user_id AND date = CURRENT_DATE; EXCEPTION WHEN undefined_table THEN v_today_roam := 0; v_today_save := 0; END;
 
-  -- ── Evaluate each unearned badge ───────────────────────────────────────────
+  -- ΓöÇΓöÇ Evaluate each unearned badge ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
   FOR v_badge IN
     SELECT * FROM public.badges
     WHERE is_gift_only = FALSE
@@ -223,7 +223,7 @@ BEGIN
     END IF;
   END LOOP;
 
-  -- ── Evaluate milestone badges ──────────────────────────────────────────────
+  -- ΓöÇΓöÇ Evaluate milestone badges ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
   FOR v_badge IN
     SELECT * FROM public.badges
     WHERE category = 'milestone' AND is_gift_only = FALSE
@@ -275,7 +275,7 @@ BEGIN
 
   IF v_level > v_prev_level THEN
     INSERT INTO public.notifications (user_id, type, title, body, data)
-    VALUES (p_user_id, 'level_up', '🎉 Level Up! You''re now Level ' || v_level, 'Keep roaming to earn more badges and XP!', jsonb_build_object('level', v_level, 'rank', '', 'url', v_profile_url));
+    VALUES (p_user_id, 'level_up', '≡ƒÄë Level Up! You''re now Level ' || v_level, 'Keep roaming to earn more badges and XP!', jsonb_build_object('level', v_level, 'rank', '', 'url', v_profile_url));
   END IF;
 
 END;

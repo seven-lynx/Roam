@@ -9,7 +9,7 @@ data class Badge(
     val slug: String = "",
     val name: String = "",
     val description: String = "",
-    val icon: String = "🏅",
+    val icon: String = "≡ƒÅà",
     val category: String = "",
     val tier: Int = 0,
     @SerialName("required_count") val requiredCount: Int? = null,

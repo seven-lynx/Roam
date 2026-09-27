@@ -2,9 +2,9 @@
 // Accepts user-submitted feedback from any Roam platform.
 //
 // Body: { message: string, platform: string, email?: string }
-//   message  — required, 1–2000 characters
-//   platform — one of: 'web' | 'extension-chrome' | 'extension-firefox' | 'android'
-//   email    — optional, for follow-up if the user is not authenticated
+//   message  ΓÇö required, 1ΓÇô2000 characters
+//   platform ΓÇö one of: 'web' | 'extension-chrome' | 'extension-firefox' | 'android'
+//   email    ΓÇö optional, for follow-up if the user is not authenticated
 //
 // Authenticated requests will have their user_id recorded automatically.
 // Anonymous submissions are accepted (email optional in that case).
@@ -41,7 +41,7 @@ Deno.serve(async (req) => {
   const limit = rateLimit(`feedback:${ip}`, RATE_LIMIT, WINDOW_MS)
   if (!limit.allowed) {
     return new Response(
-      JSON.stringify({ error: 'Too many requests — please wait before sending more feedback' }),
+      JSON.stringify({ error: 'Too many requests ΓÇö please wait before sending more feedback' }),
       {
         status: 429,
         headers: {
@@ -113,7 +113,7 @@ Deno.serve(async (req) => {
 
   if (error) {
     console.error('[feedback] Insert error:', error.message)
-    return json({ error: 'Failed to save feedback — please try again' }, 500)
+    return json({ error: 'Failed to save feedback ΓÇö please try again' }, 500)
   }
 
   return json({ ok: true })

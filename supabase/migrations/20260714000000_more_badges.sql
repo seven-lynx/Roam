@@ -9,113 +9,113 @@
 
 -- Exploration (11 new)
 INSERT INTO public.badges (slug, name, description, icon, category, tier, required_count, xp_reward) VALUES
-  ('sunset-seeker', 'Sunset Seeker', 'Roam during sunset hours (5 PM - 7 PM)', '🌇', 'exploration', 1, NULL, 30),
-  ('curious-george', 'Curious George', 'Roam in 5 different categories in a single day', '🐵', 'exploration', 1, NULL, 50),
-  ('speed-demon', 'Speed Demon', 'Roam 50 times within a single hour', '⚡', 'exploration', 2, NULL, 75),
-  ('globetrotter-platinum', 'Globetrotter Supreme', 'Discover URLs from 50 unique domains', '🌐', 'exploration', 4, 50, 200),
-  ('repeat-visitor', 'Repeat Visitor', 'Re-visit the same URL 5 times', '🔁', 'exploration', 1, NULL, 30),
-  ('monthly-explorer', 'Monthly Explorer', 'Roam at least once every calendar month for 6 months', '📅', 'exploration', 2, NULL, 100),
-  ('roam-marathon', 'Half Marathon', 'Roam 25 times in a single day', '🏃', 'exploration', 1, NULL, 60),
-  ('daily-double', 'Daily Double', 'Roam 2+ times every day for 14 straight days', '🔄', 'exploration', 2, NULL, 150),
-  ('session-beast', 'Session Beast', 'Roam 50 times in one continuous session', '💪', 'exploration', 2, NULL, 100),
-  ('lunch-break', 'Lunch Break', 'Roam 20 times between 12 PM and 2 PM', '🍽️', 'exploration', 1, NULL, 40),
-  ('insomniac', 'Insomniac', 'Roam 100 times between midnight and 4 AM', '🌙', 'exploration', 2, NULL, 150)
+  ('sunset-seeker', 'Sunset Seeker', 'Roam during sunset hours (5 PM - 7 PM)', '≡ƒîç', 'exploration', 1, NULL, 30),
+  ('curious-george', 'Curious George', 'Roam in 5 different categories in a single day', '≡ƒÉ╡', 'exploration', 1, NULL, 50),
+  ('speed-demon', 'Speed Demon', 'Roam 50 times within a single hour', 'ΓÜí', 'exploration', 2, NULL, 75),
+  ('globetrotter-platinum', 'Globetrotter Supreme', 'Discover URLs from 50 unique domains', '≡ƒîÉ', 'exploration', 4, 50, 200),
+  ('repeat-visitor', 'Repeat Visitor', 'Re-visit the same URL 5 times', '≡ƒöü', 'exploration', 1, NULL, 30),
+  ('monthly-explorer', 'Monthly Explorer', 'Roam at least once every calendar month for 6 months', '≡ƒôà', 'exploration', 2, NULL, 100),
+  ('roam-marathon', 'Half Marathon', 'Roam 25 times in a single day', '≡ƒÅâ', 'exploration', 1, NULL, 60),
+  ('daily-double', 'Daily Double', 'Roam 2+ times every day for 14 straight days', '≡ƒöä', 'exploration', 2, NULL, 150),
+  ('session-beast', 'Session Beast', 'Roam 50 times in one continuous session', '≡ƒÆ¬', 'exploration', 2, NULL, 100),
+  ('lunch-break', 'Lunch Break', 'Roam 20 times between 12 PM and 2 PM', '≡ƒì╜∩╕Å', 'exploration', 1, NULL, 40),
+  ('insomniac', 'Insomniac', 'Roam 100 times between midnight and 4 AM', '≡ƒîÖ', 'exploration', 2, NULL, 150)
 ON CONFLICT DO NOTHING;
 
 -- Collecting (7 new)
 INSERT INTO public.badges (slug, name, description, icon, category, tier, required_count, xp_reward) VALUES
-  ('bookworm', 'Bookworm', 'Save 25 URLs in a single week', '📚', 'collecting', 2, NULL, 100),
-  ('minimalist', 'Minimalist', 'Save exactly 5 URLs total', '⚖️', 'collecting', 1, NULL, 40),
-  ('consistent-collector', 'Consistent Collector', 'Save at least one URL on 7 consecutive days', '🔖', 'collecting', 2, NULL, 100),
-  ('pocket-filler', 'Pocket Filler', 'Save 100 URLs in a single month', '💼', 'collecting', 3, NULL, 200),
-  ('pack-mule', 'Pack Mule', 'Save 250 URLs in a single month', '🎒', 'collecting', 3, NULL, 350),
-  ('one-stop-shop', 'One-Stop Shop', 'Save 10 URLs all from the same domain', '🏪', 'collecting', 1, NULL, 40),
-  ('hoarder', 'Hoarder', 'Save 100+ URLs without adding any to a collection', '🗃️', 'collecting', 2, NULL, 100)
+  ('bookworm', 'Bookworm', 'Save 25 URLs in a single week', '≡ƒôÜ', 'collecting', 2, NULL, 100),
+  ('minimalist', 'Minimalist', 'Save exactly 5 URLs total', 'ΓÜû∩╕Å', 'collecting', 1, NULL, 40),
+  ('consistent-collector', 'Consistent Collector', 'Save at least one URL on 7 consecutive days', '≡ƒöû', 'collecting', 2, NULL, 100),
+  ('pocket-filler', 'Pocket Filler', 'Save 100 URLs in a single month', '≡ƒÆ╝', 'collecting', 3, NULL, 200),
+  ('pack-mule', 'Pack Mule', 'Save 250 URLs in a single month', '≡ƒÄÆ', 'collecting', 3, NULL, 350),
+  ('one-stop-shop', 'One-Stop Shop', 'Save 10 URLs all from the same domain', '≡ƒÅ¬', 'collecting', 1, NULL, 40),
+  ('hoarder', 'Hoarder', 'Save 100+ URLs without adding any to a collection', '≡ƒùâ∩╕Å', 'collecting', 2, NULL, 100)
 ON CONFLICT DO NOTHING;
 
 -- Curating (5 new)
 INSERT INTO public.badges (slug, name, description, icon, category, tier, required_count, xp_reward) VALUES
-  ('curators-eye', 'Curator''s Eye', 'Add the same URL to 3 different collections', '🎯', 'curating', 1, NULL, 50),
-  ('award-winner', 'Award Winner', 'Have a collection favorited 500 times', '🏆', 'curating', 4, 500, 500),
-  ('descriptivist', 'Descriptivist', 'All your collections have descriptions', '📝', 'curating', 1, NULL, 35),
-  ('niched-down', 'Niched Down', 'Create a collection with exactly 1 curated URL', '🔬', 'curating', 1, NULL, 25),
-  ('theme-master', 'Theme Master', 'Have 3 collections that share at least one URL domain', '🎨', 'curating', 2, NULL, 75)
+  ('curators-eye', 'Curator''s Eye', 'Add the same URL to 3 different collections', '≡ƒÄ»', 'curating', 1, NULL, 50),
+  ('award-winner', 'Award Winner', 'Have a collection favorited 500 times', '≡ƒÅå', 'curating', 4, 500, 500),
+  ('descriptivist', 'Descriptivist', 'All your collections have descriptions', '≡ƒô¥', 'curating', 1, NULL, 35),
+  ('niched-down', 'Niched Down', 'Create a collection with exactly 1 curated URL', '≡ƒö¼', 'curating', 1, NULL, 25),
+  ('theme-master', 'Theme Master', 'Have 3 collections that share at least one URL domain', '≡ƒÄ¿', 'curating', 2, NULL, 75)
 ON CONFLICT DO NOTHING;
 
 -- Social (8 new)
 INSERT INTO public.badges (slug, name, description, icon, category, tier, required_count, xp_reward) VALUES
-  ('connector', 'Connector', 'Have 3+ mutual follows (you both follow each other)', '👥', 'social', 1, 3, 40),
-  ('broadcaster', 'Broadcaster', 'Share 10 different URLs', '📢', 'social', 1, 10, 50),
-  ('beloved', 'Beloved', 'Gain 25 followers', '❤️', 'social', 1, 25, 50),
-  ('celebrity', 'Celebrity', 'Gain 500 followers', '👑', 'social', 3, 500, 250),
-  ('full-profile', 'Full Profile', 'Complete your bio, display name, and avatar profile fields', '📋', 'social', 1, NULL, 75),
-  ('chatterbox', 'Chatterbox', 'Your shared URLs get clicked 500 times total', '💬', 'social', 3, 500, 200),
-  ('inner-circle', 'Inner Circle', 'Follow the same 5+ people for 30 days', '🧑‍🤝‍🧑', 'social', 2, NULL, 100),
-  ('birthday-buddy', 'Birthday Buddy', 'Roam on your account anniversary', '🎂', 'social', 1, NULL, 30)
+  ('connector', 'Connector', 'Have 3+ mutual follows (you both follow each other)', '≡ƒæÑ', 'social', 1, 3, 40),
+  ('broadcaster', 'Broadcaster', 'Share 10 different URLs', '≡ƒôó', 'social', 1, 10, 50),
+  ('beloved', 'Beloved', 'Gain 25 followers', 'Γ¥ñ∩╕Å', 'social', 1, 25, 50),
+  ('celebrity', 'Celebrity', 'Gain 500 followers', '≡ƒææ', 'social', 3, 500, 250),
+  ('full-profile', 'Full Profile', 'Complete your bio, display name, and avatar profile fields', '≡ƒôï', 'social', 1, NULL, 75),
+  ('chatterbox', 'Chatterbox', 'Your shared URLs get clicked 500 times total', '≡ƒÆ¼', 'social', 3, 500, 200),
+  ('inner-circle', 'Inner Circle', 'Follow the same 5+ people for 30 days', '≡ƒºæΓÇì≡ƒñ¥ΓÇì≡ƒºæ', 'social', 2, NULL, 100),
+  ('birthday-buddy', 'Birthday Buddy', 'Roam on your account anniversary', '≡ƒÄé', 'social', 1, NULL, 30)
 ON CONFLICT DO NOTHING;
 
 -- Streaks (5 new)
 INSERT INTO public.badges (slug, name, description, icon, category, tier, required_count, xp_reward) VALUES
-  ('consistency-king', 'Consistency King', '200-day roaming streak', '🔥', 'streaks', 4, 200, 750),
-  ('weekly-warrior', 'Weekly Warrior', 'Roam at least once per week for 12 consecutive weeks', '📅', 'streaks', 2, NULL, 150),
-  ('early-riser-streak', 'Early Riser Streak', '7-day streak where every roam is before 8 AM', '🌅', 'streaks', 2, NULL, 100),
-  ('full-year', '365', 'A full year roaming streak', '📆', 'streaks', 5, 365, 2000),
-  ('night-owl-streak', 'Night Owl Streak', '7-day streak where every roam is after 10 PM', '🦉', 'streaks', 2, NULL, 100)
+  ('consistency-king', 'Consistency King', '200-day roaming streak', '≡ƒöÑ', 'streaks', 4, 200, 750),
+  ('weekly-warrior', 'Weekly Warrior', 'Roam at least once per week for 12 consecutive weeks', '≡ƒôà', 'streaks', 2, NULL, 150),
+  ('early-riser-streak', 'Early Riser Streak', '7-day streak where every roam is before 8 AM', '≡ƒîà', 'streaks', 2, NULL, 100),
+  ('full-year', '365', 'A full year roaming streak', '≡ƒôå', 'streaks', 5, 365, 2000),
+  ('night-owl-streak', 'Night Owl Streak', '7-day streak where every roam is after 10 PM', '≡ƒªë', 'streaks', 2, NULL, 100)
 ON CONFLICT DO NOTHING;
 
 -- Contributing (7 new)
 INSERT INTO public.badges (slug, name, description, icon, category, tier, required_count, xp_reward) VALUES
-  ('top-contributor', 'Top Contributor', '10+ approved submissions in a single week', '🏅', 'contributing', 2, NULL, 150),
-  ('variety-submitter', 'Variety Submitter', 'Submit URLs in 5+ different categories', '🧭', 'contributing', 1, 5, 50),
-  ('quality-first', 'Quality First', 'Your first 5 submissions were all approved', '💎', 'contributing', 2, NULL, 100),
-  ('prolific', 'Prolific', 'Submit 500 URLs', '📦', 'contributing', 4, 500, 400),
-  ('submission-streak', 'Submission Streak', 'Submit at least 1 URL per week for 4 weeks', '📊', 'contributing', 1, NULL, 100),
-  ('contributor-platinum', 'Contributor Supreme', 'Submit 1000 URLs', '📝', 'contributing', 4, 1000, 500),
-  ('approval-streak', 'Approval Streak', 'Have 10 consecutive submissions approved', '✅', 'contributing', 2, NULL, 150)
+  ('top-contributor', 'Top Contributor', '10+ approved submissions in a single week', '≡ƒÅà', 'contributing', 2, NULL, 150),
+  ('variety-submitter', 'Variety Submitter', 'Submit URLs in 5+ different categories', '≡ƒº¡', 'contributing', 1, 5, 50),
+  ('quality-first', 'Quality First', 'Your first 5 submissions were all approved', '≡ƒÆÄ', 'contributing', 2, NULL, 100),
+  ('prolific', 'Prolific', 'Submit 500 URLs', '≡ƒôª', 'contributing', 4, 500, 400),
+  ('submission-streak', 'Submission Streak', 'Submit at least 1 URL per week for 4 weeks', '≡ƒôè', 'contributing', 1, NULL, 100),
+  ('contributor-platinum', 'Contributor Supreme', 'Submit 1000 URLs', '≡ƒô¥', 'contributing', 4, 1000, 500),
+  ('approval-streak', 'Approval Streak', 'Have 10 consecutive submissions approved', 'Γ£à', 'contributing', 2, NULL, 150)
 ON CONFLICT DO NOTHING;
 
 -- Engagement (6 new)
 INSERT INTO public.badges (slug, name, description, icon, category, tier, required_count, xp_reward) VALUES
-  ('power-user', 'Power User', 'Roam, save, rate, share, and create a collection all in one day', '⚡', 'engagement', 2, NULL, 100),
-  ('feedback-loop', 'Feedback Loop', 'Rate 10 URLs in a single day', '📝', 'engagement', 1, NULL, 40),
-  ('the-judge', 'The Judge', 'Rate 2,000 URLs', '⚖️', 'engagement', 4, 2000, 400),
-  ('rate-everything', 'Rate Everything', 'Rate URLs in every available category', '🎯', 'engagement', 2, NULL, 100),
-  ('session-beast-engagement', 'Sprint Master', 'Roam 100 times in a single day', '🏃', 'engagement', 2, NULL, 200),
-  ('deep-reader', 'Deep Reader', 'Spend 5+ minutes reading a single page', '📖', 'engagement', 1, NULL, 30)
+  ('power-user', 'Power User', 'Roam, save, rate, share, and create a collection all in one day', 'ΓÜí', 'engagement', 2, NULL, 100),
+  ('feedback-loop', 'Feedback Loop', 'Rate 10 URLs in a single day', '≡ƒô¥', 'engagement', 1, NULL, 40),
+  ('the-judge', 'The Judge', 'Rate 2,000 URLs', 'ΓÜû∩╕Å', 'engagement', 4, 2000, 400),
+  ('rate-everything', 'Rate Everything', 'Rate URLs in every available category', '≡ƒÄ»', 'engagement', 2, NULL, 100),
+  ('session-beast-engagement', 'Sprint Master', 'Roam 100 times in a single day', '≡ƒÅâ', 'engagement', 2, NULL, 200),
+  ('deep-reader', 'Deep Reader', 'Spend 5+ minutes reading a single page', '≡ƒôû', 'engagement', 1, NULL, 30)
 ON CONFLICT DO NOTHING;
 
 -- Secret (8 new)
 INSERT INTO public.badges (slug, name, description, icon, category, tier, required_count, xp_reward, is_hidden) VALUES
-  ('friday-13th', 'Friday the 13th', 'Roam on Friday the 13th', '🎃', 'secret', 1, NULL, 50, true),
-  ('new-year', 'New Year Roamer', 'Roam on January 1st', '🎆', 'secret', 1, NULL, 50, true),
-  ('leap-day', 'Leap Day Explorer', 'Roam on February 29th', '🗓️', 'secret', 2, NULL, 100, true),
-  ('solstice-seeker', 'Solstice Seeker', 'Roam on summer or winter solstice', '☀️', 'secret', 2, NULL, 100, true),
-  ('century-roam', 'Century Roam', 'Roam your 100th time', '💯', 'secret', 1, NULL, 50, true),
-  ('millennium-roam', 'Millennium Roam', 'Roam your 1,000th time', '🏆', 'secret', 3, NULL, 200, true),
-  ('snake-eyes', 'Snake Eyes', 'Save your 11th URL', '🎲', 'secret', 1, NULL, 30, true),
-  ('triple-sevens', 'Triple Sevens', 'Earn exactly 777 XP total', '🍀', 'secret', 2, NULL, 100, true)
+  ('friday-13th', 'Friday the 13th', 'Roam on Friday the 13th', '≡ƒÄâ', 'secret', 1, NULL, 50, true),
+  ('new-year', 'New Year Roamer', 'Roam on January 1st', '≡ƒÄå', 'secret', 1, NULL, 50, true),
+  ('leap-day', 'Leap Day Explorer', 'Roam on February 29th', '≡ƒùô∩╕Å', 'secret', 2, NULL, 100, true),
+  ('solstice-seeker', 'Solstice Seeker', 'Roam on summer or winter solstice', 'ΓÿÇ∩╕Å', 'secret', 2, NULL, 100, true),
+  ('century-roam', 'Century Roam', 'Roam your 100th time', '≡ƒÆ»', 'secret', 1, NULL, 50, true),
+  ('millennium-roam', 'Millennium Roam', 'Roam your 1,000th time', '≡ƒÅå', 'secret', 3, NULL, 200, true),
+  ('snake-eyes', 'Snake Eyes', 'Save your 11th URL', '≡ƒÄ▓', 'secret', 1, NULL, 30, true),
+  ('triple-sevens', 'Triple Sevens', 'Earn exactly 777 XP total', '≡ƒìÇ', 'secret', 2, NULL, 100, true)
 ON CONFLICT DO NOTHING;
 
 -- Milestone (8 new)
 INSERT INTO public.badges (slug, name, description, icon, category, tier, required_count, xp_reward) VALUES
-  ('level-5', 'Level 5', 'Reach level 5', '⬆️', 'milestone', 0, 5, 25),
-  ('level-15', 'Level 15', 'Reach level 15', '⬆️', 'milestone', 0, 15, 50),
-  ('level-25', 'Level 25', 'Reach level 25', '⬆️', 'milestone', 0, 25, 75),
-  ('level-60', 'Level 60', 'Reach level 60', '⬆️', 'milestone', 0, 60, 200),
-  ('level-125', 'Level 125', 'Reach level 125', '⬆️', 'milestone', 0, 125, 500),
-  ('level-150', 'Level 150', 'Reach level 150', '⬆️', 'milestone', 0, 150, 750),
-  ('xp-millionaire', 'XP Millionaire', 'Accumulate 1,000,000 XP', '💰', 'milestone', 4, 1000000, 1000),
-  ('demigod', 'Demigod', 'Reach level 150 + earn 200 badges', '🌌', 'milestone', 5, NULL, 5000)
+  ('level-5', 'Level 5', 'Reach level 5', 'Γ¼å∩╕Å', 'milestone', 0, 5, 25),
+  ('level-15', 'Level 15', 'Reach level 15', 'Γ¼å∩╕Å', 'milestone', 0, 15, 50),
+  ('level-25', 'Level 25', 'Reach level 25', 'Γ¼å∩╕Å', 'milestone', 0, 25, 75),
+  ('level-60', 'Level 60', 'Reach level 60', 'Γ¼å∩╕Å', 'milestone', 0, 60, 200),
+  ('level-125', 'Level 125', 'Reach level 125', 'Γ¼å∩╕Å', 'milestone', 0, 125, 500),
+  ('level-150', 'Level 150', 'Reach level 150', 'Γ¼å∩╕Å', 'milestone', 0, 150, 750),
+  ('xp-millionaire', 'XP Millionaire', 'Accumulate 1,000,000 XP', '≡ƒÆ░', 'milestone', 4, 1000000, 1000),
+  ('demigod', 'Demigod', 'Reach level 150 + earn 200 badges', '≡ƒîî', 'milestone', 5, NULL, 5000)
 ON CONFLICT DO NOTHING;
 
 -- Gift (6 new)
 INSERT INTO public.badges (slug, name, description, icon, category, tier, required_count, xp_reward, is_gift_only) VALUES
-  ('top-gun', 'Top Gun', 'Ranked #1 on the weekly leaderboard', '🔝', 'gift', 0, NULL, 500, true),
-  ('spotlight', 'Spotlight', 'Featured in the Roam newsletter or blog', '🗞️', 'gift', 0, NULL, 300, true),
-  ('ambassador', 'Ambassador', 'Referred 5+ active users to Roam', '📣', 'gift', 0, NULL, 400, true),
-  ('roam-scholar', 'Roam Scholar', 'Wrote a tutorial or guide about Roam', '📖', 'gift', 0, NULL, 500, true),
-  ('record-breaker', 'Record Breaker', 'Broke a platform record', '🥇', 'gift', 0, NULL, 1000, true),
-  ('roam-royalty', 'Roam Royalty', 'Exceptional community member recognized by the Roam team', '👑', 'gift', 0, NULL, 2000, true)
+  ('top-gun', 'Top Gun', 'Ranked #1 on the weekly leaderboard', '≡ƒö¥', 'gift', 0, NULL, 500, true),
+  ('spotlight', 'Spotlight', 'Featured in the Roam newsletter or blog', '≡ƒù₧∩╕Å', 'gift', 0, NULL, 300, true),
+  ('ambassador', 'Ambassador', 'Referred 5+ active users to Roam', '≡ƒôú', 'gift', 0, NULL, 400, true),
+  ('roam-scholar', 'Roam Scholar', 'Wrote a tutorial or guide about Roam', '≡ƒôû', 'gift', 0, NULL, 500, true),
+  ('record-breaker', 'Record Breaker', 'Broke a platform record', '≡ƒÑç', 'gift', 0, NULL, 1000, true),
+  ('roam-royalty', 'Roam Royalty', 'Exceptional community member recognized by the Roam team', '≡ƒææ', 'gift', 0, NULL, 2000, true)
 ON CONFLICT DO NOTHING;
 
 -- ---------------------------------------------------------------------------

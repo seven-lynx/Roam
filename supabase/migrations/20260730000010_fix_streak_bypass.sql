@@ -1,14 +1,14 @@
 -- Fix streak bypass: record_daily_activity was pre-inserting a row into
 -- user_daily_activity before calling update_streak. update_streak's
 -- first-activity-of-day gate would then see the existing row and skip
--- all streak calculation — including gap detection, reset, and increment.
+-- all streak calculation ΓÇö including gap detection, reset, and increment.
 --
 -- This caused:
 --  - Inflated streaks: stale streak_days persisted past gaps
 --  - Inflated roam_count: non-roam actions bumped roam_count incorrectly
 --
 -- Fix: Add p_is_roam parameter to update_streak. record_daily_activity
--- no longer pre-inserts — it delegates entirely to update_streak with
+-- no longer pre-inserts ΓÇö it delegates entirely to update_streak with
 -- p_is_roam := FALSE.
 
 -- Fix 1: update_streak with p_is_roam control.
@@ -109,7 +109,7 @@ BEGIN
   WHERE user_id = p_user_id AND date = CURRENT_DATE;
 
   IF v_already_active THEN
-    -- Already active today — just return current streak, no recalculation
+    -- Already active today ΓÇö just return current streak, no recalculation
     SELECT COALESCE(s.streak_days, 0), COALESCE(s.max_streak, 0)
     INTO v_cur, v_max
     FROM public.profiles s

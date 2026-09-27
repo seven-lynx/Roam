@@ -1,0 +1,18 @@
+# .pre-commit-config.yaml
+# Pre-commit hook framework config — https://pre-commit.com/
+# Install: pip install pre-commit  (or: brew install pre-commit)
+# Then:   pre-commit install
+#
+# Betterleaks will block any commit that introduces a real-looking secret.
+
+repos:
+  - repo: https://github.com/betterleaks/betterleaks
+    rev: v8.21.2
+    hooks:
+      - id: betterleaks
+        # Use 'betterleaks-system' if Betterleaks is installed locally and on PATH.
+        # Falls back to the docker image variant below.
+        args: [--redact]
+
+      - id: betterleaks-docker
+        args: [--redact]

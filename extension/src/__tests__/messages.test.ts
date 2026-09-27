@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 
-// Message type constants are string literals — test that the union is stable
+// Message type constants are string literals ΓÇö test that the union is stable
 // and matches what the background handler expects. Importing the types as
 // values via a discriminated union narrowing check prevents silent renames.
 import type { Request, Response } from '../lib/messages'

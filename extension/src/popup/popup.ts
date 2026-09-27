@@ -1,12 +1,12 @@
-// popup.ts — Roam extension popup entry point
+// popup.ts ΓÇö Roam extension popup entry point
 
-import '../lib/sentry'; // must be first — initialises Sentry if SENTRY_DSN is set
+import '../lib/sentry'; // must be first ΓÇö initialises Sentry if SENTRY_DSN is set
 import { Sentry } from '../lib/sentry';
 import { sendToBackground } from '../lib/messages';
 import type { StateData, RoamData, CheckUrlData, Collection, CategoryItem, ProfileData, SubcategoryItem, SavedUrlItem } from '../lib/messages';
 import { FALLBACK_CATEGORIES } from '../lib/constants';
 
-// ── Global error capture ───────────────────────────────────────────────────
+// ΓöÇΓöÇ Global error capture ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 window.addEventListener('unhandledrejection', (event) => {
   Sentry.captureException(
     event.reason ?? new Error('Unhandled promise rejection'),
@@ -20,7 +20,7 @@ window.addEventListener('error', (event) => {
   );
 });
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
+// ΓöÇΓöÇ Helpers ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 function el<T extends HTMLElement>(id: string): T {
   const e = document.getElementById(id);
   if (!e) throw new Error(`Element #${id} not found`);
@@ -160,9 +160,9 @@ async function refreshStatus(): Promise<void> {
   let modeLabel: string;
   if (focusModeEnabled) {
     const catName = loadedCategories.find(c => c.id === focusCategoryId)?.name ?? 'Focus';
-    modeLabel = focusSubcategoryName ? `🎯 ${catName} · ${focusSubcategoryName}` : `🎯 ${catName}`;
+    modeLabel = focusSubcategoryName ? `≡ƒÄ» ${catName} ┬╖ ${focusSubcategoryName}` : `≡ƒÄ» ${catName}`;
   } else {
-    modeLabel = '🔍 Discover';
+    modeLabel = '≡ƒöì Discover';
   }
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
   const url = tab?.url ?? '';
@@ -171,7 +171,7 @@ async function refreshStatus(): Promise<void> {
   if (!check.ok || !check.data.category_id) { setStatus(modeLabel); return; }
   const cat = loadedCategories.find(c => c.id === check.data.category_id);
   if (!cat) { setStatus(modeLabel); return; }
-  setStatus(`${cat.icon} ${cat.name}  ·  ${modeLabel}`);
+  setStatus(`${cat.icon} ${cat.name}  ┬╖  ${modeLabel}`);
 }
 
 async function checkAndRouteAfterSignIn(): Promise<void> {
@@ -261,7 +261,7 @@ function populateCategoryChips(selectedIds: string[], categories: CategoryItem[]
   populateInterestChips('pillars', selectedIds, [], categories, []);
 }
 
-// ── "You" section — notifications, badges, stats ──────────────────────────────
+// ΓöÇΓöÇ "You" section ΓÇö notifications, badges, stats ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 async function loadYouSection() {
   // Notifications count
   sendToBackground<number>({ type: 'GET_UNREAD_COUNT' }).then(res => {
@@ -301,13 +301,13 @@ async function boot() {
   await checkAndRouteAfterSignIn();
 }
 
-// ── Boot ──────────────────────────────────────────────────────────────────────
+// ΓöÇΓöÇ Boot ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 document.addEventListener('DOMContentLoaded', () => {
   try { chrome.runtime.connect({ name: 'popup-keepalive' }); } catch { /* ignore */ }
 
   boot();
 
-  // ── Sign in button ───────────────────────────────────────────────────────────
+  // ΓöÇΓöÇ Sign in button ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
   el('btn-signin').addEventListener('click', () => {
     showState('auth');
   });
@@ -335,7 +335,7 @@ document.addEventListener('DOMContentLoaded', () => {
   el('btn-back-auth').addEventListener('click', () => showState('signedout'));
   el('btn-back-email').addEventListener('click', () => showState('auth'));
 
-  // ── Auth: Google OAuth ────────────────────────────────────────────────────
+  // ΓöÇΓöÇ Auth: Google OAuth ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
   async function startOAuthFlow() {
     const buttons = ['btn-auth-google', 'btn-auth-email'];
     buttons.forEach((id) => (el<HTMLButtonElement>(id).disabled = true));
@@ -361,7 +361,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   el('btn-auth-google').addEventListener('click', () => startOAuthFlow());
 
-  // ── Auth: email form ─────────────────────────────────────────────────────
+  // ΓöÇΓöÇ Auth: email form ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
   el('btn-auth-email').addEventListener('click', () => {
     el<HTMLInputElement>('input-email').value = '';
     el<HTMLInputElement>('input-password').value = '';
@@ -434,7 +434,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // ── Categories: chip multi-select ─────────────────────────────────────────
+  // ΓöÇΓöÇ Categories: chip multi-select ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
   el('category-select-chips').addEventListener('click', (e) => {
     const chip = (e.target as HTMLElement).closest<HTMLButtonElement>('.chip');
     if (!chip) return;
@@ -493,13 +493,13 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // ── Roam button ───────────────────────────────────────────────────────────
+  // ΓöÇΓöÇ Roam button ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
   el('btn-roam').addEventListener('click', async () => {
     showPanel(null);
     const roamBtn = el<HTMLButtonElement>('btn-roam');
     roamBtn.disabled = true;
-    roamBtn.textContent = 'Roaming…';
-    setStatus('Finding next page…');
+    roamBtn.textContent = 'RoamingΓÇª';
+    setStatus('Finding next pageΓÇª');
     void reportCurrentEngagement();
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     const res = await sendToBackground<RoamData>({
@@ -515,7 +515,7 @@ document.addEventListener('DOMContentLoaded', () => {
     window.close();
   });
 
-  // ── Thumbs up ─────────────────────────────────────────────────────────────
+  // ΓöÇΓöÇ Thumbs up ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
   el('btn-upvote').addEventListener('click', async () => {
     showPanel(null);
     const flashDone = flashButton('btn-upvote', 'up');
@@ -536,11 +536,11 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // ── Thumbs down ───────────────────────────────────────────────────────────
+  // ΓöÇΓöÇ Thumbs down ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
   el('btn-downvote').addEventListener('click', async () => {
     showPanel(null);
     flashButton('btn-downvote', 'down');
-    setStatus('Finding next page…');
+    setStatus('Finding next pageΓÇª');
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     const url = tab?.url ?? '';
     void reportCurrentEngagement();
@@ -563,14 +563,14 @@ document.addEventListener('DOMContentLoaded', () => {
     window.close();
   });
 
-  // ── Config toggle ─────────────────────────────────────────────────────────
+  // ΓöÇΓöÇ Config toggle ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
   el('btn-config').addEventListener('click', () => {
     const open = el('panel-config').hidden;
     showPanel(open ? 'config' : null);
     if (open) loadYouSection();
   });
 
-  // ── Submit panel chips: populate from FALLBACK_CATEGORIES ──────────────────
+  // ΓöÇΓöÇ Submit panel chips: populate from FALLBACK_CATEGORIES ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
   {
     const container = el('category-chips');
     for (const cat of FALLBACK_CATEGORIES) {
@@ -582,7 +582,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  // ── Category chip selection + subcategory loading ──────────────────────────
+  // ΓöÇΓöÇ Category chip selection + subcategory loading ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
   let selectedCategory: string | null = null;
   el('category-chips').addEventListener('click', (e) => {
     const chip = (e.target as HTMLElement).closest<HTMLButtonElement>('.chip');
@@ -613,7 +613,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // ── Submit unknown URL ────────────────────────────────────────────────────
+  // ΓöÇΓöÇ Submit unknown URL ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
   const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
   el('btn-submit').addEventListener('click', async () => {
     if (!selectedCategory || !UUID_RE.test(selectedCategory)) return;
@@ -646,7 +646,7 @@ document.addEventListener('DOMContentLoaded', () => {
     setTimeout(() => window.close(), 2000);
   });
 
-  // ── Config panel actions ──────────────────────────────────────────────────
+  // ΓöÇΓöÇ Config panel actions ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
   let loadedCollections: Collection[] = [];
 
   async function loadCollectionsForDropdown(): Promise<void> {
@@ -682,7 +682,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
       if (!tab?.url) return;
       const addRes = await sendToBackground({ type: 'ADD_URL_TO_COLLECTION', url: tab.url, collectionId: res.data.id });
-      if (addRes.ok) { showToast('✓ Added to collection'); setTimeout(() => window.close(), 1500); } else { showError(addRes.error ?? "Couldn't add to collection."); }
+      if (addRes.ok) { showToast('Γ£ô Added to collection'); setTimeout(() => window.close(), 1500); } else { showError(addRes.error ?? "Couldn't add to collection."); }
     });
 
     const anchor = el<HTMLButtonElement>('btn-add-collection');
@@ -694,7 +694,7 @@ document.addEventListener('DOMContentLoaded', () => {
           const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
           if (!tab?.url) return;
           const res = await sendToBackground({ type: 'ADD_URL_TO_COLLECTION', url: tab.url, collectionId: col.id });
-          if (res.ok) { showToast('✓ Added to collection'); setTimeout(() => window.close(), 1500); } else { showError(res.error ?? "Couldn't add to collection."); }
+          if (res.ok) { showToast('Γ£ô Added to collection'); setTimeout(() => window.close(), 1500); } else { showError(res.error ?? "Couldn't add to collection."); }
         },
       })),
       newColBtn
@@ -706,7 +706,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!tab?.url) return;
     const res = await sendToBackground({ type: 'SAVE_LATER', url: tab.url, title: tab.title });
     if (res.ok) {
-      showToast('✓ Saved!');
+      showToast('Γ£ô Saved!');
       setTimeout(() => window.close(), 1500);
     }
   });
@@ -745,7 +745,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const remove = document.createElement('button');
         remove.className = 'saved-item-remove';
-        remove.textContent = '✕';
+        remove.textContent = 'Γ£ò';
         remove.title = 'Remove';
         remove.dataset.id = item.id;
 
@@ -873,11 +873,11 @@ document.addEventListener('DOMContentLoaded', () => {
           cursor: pointer;
           font-size: 13px;
         `;
-        linkBtn.textContent = `🔗 Copy link: ${col.name}`;
+        linkBtn.textContent = `≡ƒöù Copy link: ${col.name}`;
         linkBtn.addEventListener('click', async (e) => {
           e.stopPropagation();
           await navigator.clipboard.writeText(`https://roamtheweb.app/c/${col.slug}`);
-          linkBtn.textContent = '✓ Copied';
+          linkBtn.textContent = 'Γ£ô Copied';
         });
         linkBtn.addEventListener('mouseover', () => { linkBtn.style.background = 'var(--bg-hover)'; });
         linkBtn.addEventListener('mouseout', () => { linkBtn.style.background = 'transparent'; });
@@ -917,11 +917,11 @@ document.addEventListener('DOMContentLoaded', () => {
     showState('signedout');
   });
 
-  // ── Report broken link ────────────────────────────────────────────────────
+  // ΓöÇΓöÇ Report broken link ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
   el('btn-report-url').addEventListener('click', async () => {
     const btn = el<HTMLButtonElement>('btn-report-url');
     btn.disabled = true;
-    btn.textContent = 'Reporting…';
+    btn.textContent = 'ReportingΓÇª';
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     const url = tab?.url ?? '';
     if (!url) { btn.disabled = false; btn.textContent = 'Report broken link'; return; }
@@ -931,7 +931,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     const res = await sendToBackground({ type: 'REPORT_URL', url_id: check.data.url_id });
     if (!res.ok) { btn.disabled = false; btn.textContent = 'Report broken link'; return; }
-    btn.textContent = 'Reported ✓ — skipping…';
+    btn.textContent = 'Reported Γ£ô ΓÇö skippingΓÇª';
     showPanel(null);
     const roamRes = await sendToBackground<RoamData>({ type: 'ROAM' });
     if (!roamRes.ok) { showError(roamRes.error); return; }
@@ -940,7 +940,7 @@ document.addEventListener('DOMContentLoaded', () => {
     window.close();
   });
 
-  // ── Feedback ──────────────────────────────────────────────────────────────
+  // ΓöÇΓöÇ Feedback ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
   el('btn-send-feedback').addEventListener('click', () => {
     el<HTMLTextAreaElement>('feedback-message').value = '';
     el<HTMLInputElement>('feedback-email').value = '';
@@ -972,7 +972,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const submitBtn = el<HTMLButtonElement>('btn-feedback-submit');
     submitBtn.disabled = true;
-    submitBtn.textContent = 'Sending…';
+    submitBtn.textContent = 'SendingΓÇª';
     el('feedback-error').hidden = true;
 
     const isFirefox = navigator.userAgent.includes('Firefox');
@@ -988,7 +988,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     el('feedback-success').hidden = false;
-    submitBtn.textContent = 'Sent ✓';
+    submitBtn.textContent = 'Sent Γ£ô';
     setTimeout(() => {
       showPanel('config');
       showState('main');
@@ -996,7 +996,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }, 2000);
   });
 
-  // ── Notifications ─────────────────────────────────────────────────────────
+  // ΓöÇΓöÇ Notifications ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
   el('btn-notifications').addEventListener('click', async () => {
     const res = await sendToBackground<any[]>({ type: 'GET_NOTIFICATIONS' });
     const list = el('notif-list');
@@ -1017,7 +1017,7 @@ document.addEventListener('DOMContentLoaded', () => {
         text.appendChild(time);
         const del = document.createElement('button');
         del.className = 'notif-delete';
-        del.textContent = '✕';
+        del.textContent = 'Γ£ò';
         del.title = 'Delete';
         del.addEventListener('click', async (e) => {
           e.stopPropagation();
@@ -1048,13 +1048,13 @@ document.addEventListener('DOMContentLoaded', () => {
     chip.hidden = true;
   });
 
-  // ── Badges ────────────────────────────────────────────────────────────────
+  // ΓöÇΓöÇ Badges ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
   el('btn-web-badges').addEventListener('click', () => {
     chrome.tabs.create({ url: 'https://roamtheweb.app/badges' });
     window.close();
   });
 
-  // ── History ───────────────────────────────────────────────────────────────
+  // ΓöÇΓöÇ History ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
   el('btn-history').addEventListener('click', async () => {
     const res = await sendToBackground<{ url: string; title: string; visitedAt: number }[]>({ type: 'GET_URL_HISTORY', limit: 50 });
     const list = el('history-list');
@@ -1099,25 +1099,25 @@ document.addEventListener('DOMContentLoaded', () => {
     el('history-empty').hidden = false;
   });
 
-  // ── Language selector auto-save ───────────────────────────────────────────
+  // ΓöÇΓöÇ Language selector auto-save ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
   el('select-discovery-lang').addEventListener('change', () => {
     const lang = el<HTMLSelectElement>('select-discovery-lang').value;
     sendToBackground({ type: 'SET_DISCOVERY_LANGUAGE', language: lang });
   });
 
-  // ── Toggle: Public profile ────────────────────────────────────────────────
+  // ΓöÇΓöÇ Toggle: Public profile ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
   el('toggle-public-profile').addEventListener('change', () => {
     const checked = el<HTMLInputElement>('toggle-public-profile').checked;
     sendToBackground({ type: 'SET_PROFILE_PUBLIC', isPublic: checked });
   });
 
-  // ── Toggle: Paywall ───────────────────────────────────────────────────────
+  // ΓöÇΓöÇ Toggle: Paywall ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
   el('toggle-paywall').addEventListener('change', () => {
     const checked = el<HTMLInputElement>('toggle-paywall').checked;
     sendToBackground({ type: 'SET_PAYWALL_PREF', skip: checked });
   });
 
-  // ── Toggle: Focus mode ────────────────────────────────────────────────────
+  // ΓöÇΓöÇ Toggle: Focus mode ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
   el('toggle-focus').addEventListener('change', () => {
     focusModeEnabled = el<HTMLInputElement>('toggle-focus').checked;
     el('focus-pickers').hidden = !focusModeEnabled;
@@ -1147,7 +1147,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }, { once: true });
   }
 
-  // ── Web app links ─────────────────────────────────────────────────────────
+  // ΓöÇΓöÇ Web app links ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
   el('btn-web-leaderboard').addEventListener('click', () => {
     chrome.tabs.create({ url: 'https://roamtheweb.app/leaderboard' });
     window.close();
@@ -1161,7 +1161,7 @@ document.addEventListener('DOMContentLoaded', () => {
     window.close();
   });
 
-  // ── Translate toggle ──────────────────────────────────────────────────────
+  // ΓöÇΓöÇ Translate toggle ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
   el('btn-translate-page').addEventListener('click', async () => {
     await sendToBackground({ type: 'SET_AUTO_TRANSLATE', enabled: true });
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });

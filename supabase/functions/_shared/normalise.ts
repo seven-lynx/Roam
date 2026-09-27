@@ -1,4 +1,4 @@
-// URL normalization — canonical implementation for all Roam surfaces.
+// URL normalization ΓÇö canonical implementation for all Roam surfaces.
 //
 // Removes tracking parameters, standardizes protocol/hostname formatting,
 // and strips fragments. Run this on every URL before:

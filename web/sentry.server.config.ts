@@ -1,4 +1,4 @@
-// sentry.server.config.ts — Sentry initialisation for the Node.js server runtime.
+// sentry.server.config.ts ΓÇö Sentry initialisation for the Node.js server runtime.
 // This file is loaded automatically by the Next.js Sentry integration.
 // Set SENTRY_DSN in your .env / Vercel environment variables.
 

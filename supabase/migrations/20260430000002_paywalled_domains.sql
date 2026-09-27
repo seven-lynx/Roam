@@ -6,7 +6,7 @@
 -- =============================================================================
 
 
--- ── 1. paywalled_domains table ───────────────────────────────────────────────
+-- ΓöÇΓöÇ 1. paywalled_domains table ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 CREATE TABLE IF NOT EXISTS public.paywalled_domains (
   domain    TEXT        PRIMARY KEY,
   added_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -19,7 +19,7 @@ CREATE POLICY "paywalled_domains: public read"
   ON paywalled_domains FOR SELECT
   USING (TRUE);
 
--- ── 2. Seed known paywalled domains ─────────────────────────────────────────
+-- ΓöÇΓöÇ 2. Seed known paywalled domains ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 INSERT INTO public.paywalled_domains (domain) VALUES
   ('nytimes.com'),
   ('wsj.com'),
@@ -46,7 +46,7 @@ INSERT INTO public.paywalled_domains (domain) VALUES
   ('science.org')
 ON CONFLICT (domain) DO NOTHING;
 
--- ── 3. Update roam() to respect skip_paywalled ──────────────────────────────
+-- ΓöÇΓöÇ 3. Update roam() to respect skip_paywalled ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 DROP FUNCTION IF EXISTS public.roam(UUID, UUID, TEXT) CASCADE;
 
 CREATE OR REPLACE FUNCTION public.roam(
@@ -93,7 +93,7 @@ BEGIN
   END IF;
 
   IF p_collection_id IS NOT NULL THEN
-    -- ── Collection mode ──────────────────────────────────────────────────────
+    -- ΓöÇΓöÇ Collection mode ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
     SELECT u.id INTO v_url_id
     FROM urls u
     INNER JOIN collection_items ci ON ci.url_id = u.id
@@ -119,7 +119,7 @@ BEGIN
     LIMIT 1;
 
   ELSE
-    -- ── Standard mode ────────────────────────────────────────────────────────
+    -- ΓöÇΓöÇ Standard mode ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
     SELECT u.id INTO v_url_id
     FROM urls u
     LEFT JOIN subcategories sc ON sc.id = u.subcategory_id

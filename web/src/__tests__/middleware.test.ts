@@ -1,9 +1,9 @@
 /**
- * Tests for request proxy middleware (proxy.ts).
+ * Tests for request middleware (middleware.ts).
  * Verifies: admin route protection, unauthenticated passthrough, error recovery.
  */
 
-describe('Proxy Middleware (proxy)', () => {
+describe('Middleware', () => {
   let originalEnv: NodeJS.ProcessEnv;
 
   beforeEach(() => {
@@ -21,11 +21,11 @@ describe('Proxy Middleware (proxy)', () => {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = 'anon-key-123';
   }
 
-  // ─── matcher config ──────────────────────────────────────────────────────────
+  // ΓöÇΓöÇΓöÇ matcher config ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 
   describe('config.matcher', () => {
     it('should exclude static files and Next.js internals', () => {
-      // Need to mock next/server first before requiring proxy
+      // Need to mock next/server first before requiring middleware
       jest.doMock('next/server', () => ({
         NextResponse: {
           next: jest.fn(() => ({ status: 200 })),
@@ -33,7 +33,7 @@ describe('Proxy Middleware (proxy)', () => {
         },
       }));
 
-      const { config } = require('@/proxy');
+      const { config } = require('@/middleware');
 
       expect(Array.isArray(config.matcher)).toBe(true);
 
@@ -49,7 +49,7 @@ describe('Proxy Middleware (proxy)', () => {
     });
   });
 
-  // ─── admin route protection ──────────────────────────────────────────────────
+  // ΓöÇΓöÇΓöÇ admin route protection ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 
   describe('admin route protection', () => {
     it('should redirect unauthenticated users from /admin to /', async () => {
@@ -81,8 +81,8 @@ describe('Proxy Middleware (proxy)', () => {
         url: 'http://localhost:3000/admin',
       };
 
-      const { proxy } = require('@/proxy');
-      await proxy(mockRequest);
+      const { middleware } = require('@/middleware');
+      await middleware(mockRequest);
 
       expect(redirectSpy).toHaveBeenCalled();
       const redirectArg = redirectSpy.mock.calls[0][0] as URL;
@@ -125,8 +125,8 @@ describe('Proxy Middleware (proxy)', () => {
         url: 'http://localhost:3000/admin',
       };
 
-      const { proxy } = require('@/proxy');
-      await proxy(mockRequest);
+      const { middleware } = require('@/middleware');
+      await middleware(mockRequest);
 
       expect(redirectSpy).toHaveBeenCalled();
       redirectSpy.mockRestore();
@@ -166,15 +166,15 @@ describe('Proxy Middleware (proxy)', () => {
         url: 'http://localhost:3000/admin',
       };
 
-      const { proxy } = require('@/proxy');
-      await proxy(mockRequest);
+      const { middleware } = require('@/middleware');
+      await middleware(mockRequest);
 
       expect(redirectSpy).not.toHaveBeenCalled();
       redirectSpy.mockRestore();
     });
   });
 
-  // ─── public route passthrough ────────────────────────────────────────────────
+  // ΓöÇΓöÇΓöÇ public route passthrough ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 
   describe('public route passthrough', () => {
     it('should allow unauthenticated users to access /', async () => {
@@ -206,8 +206,8 @@ describe('Proxy Middleware (proxy)', () => {
         url: 'http://localhost:3000/',
       };
 
-      const { proxy } = require('@/proxy');
-      await proxy(mockRequest);
+      const { middleware } = require('@/middleware');
+      await middleware(mockRequest);
 
       expect(redirectSpy).not.toHaveBeenCalled();
       redirectSpy.mockRestore();
@@ -242,15 +242,15 @@ describe('Proxy Middleware (proxy)', () => {
         url: 'http://localhost:3000/join',
       };
 
-      const { proxy } = require('@/proxy');
-      await proxy(mockRequest);
+      const { middleware } = require('@/middleware');
+      await middleware(mockRequest);
 
       expect(redirectSpy).not.toHaveBeenCalled();
       redirectSpy.mockRestore();
     });
   });
 
-  // ─── error recovery ──────────────────────────────────────────────────────────
+  // ΓöÇΓöÇΓöÇ error recovery ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 
   describe('error recovery', () => {
     it('should return NextResponse.next() even when getUser throws', async () => {
@@ -281,8 +281,8 @@ describe('Proxy Middleware (proxy)', () => {
         url: 'http://localhost:3000/profile',
       };
 
-      const { proxy } = require('@/proxy');
-      const result = await proxy(mockRequest);
+      const { middleware } = require('@/middleware');
+      const result = await middleware(mockRequest);
 
       expect(result).toBeDefined();
       expect(nextSpy).toHaveBeenCalled();
@@ -321,8 +321,8 @@ describe('Proxy Middleware (proxy)', () => {
         url: 'http://localhost:3000/',
       };
 
-      const { proxy } = require('@/proxy');
-      const result = await proxy(mockRequest);
+      const { middleware } = require('@/middleware');
+      const result = await middleware(mockRequest);
 
       expect(result).toBeDefined();
       errorSpy.mockRestore();

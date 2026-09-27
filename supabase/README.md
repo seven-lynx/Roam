@@ -4,9 +4,9 @@ Roam's backend runs on Supabase and provides authentication, the PostgreSQL sche
 
 ## What lives here
 
-- `migrations/` — schema changes and RLS policies (142 migration files)
-- `functions/` — 22 Deno Edge Functions
-- `config.toml` — Supabase project configuration
+- `migrations/` ΓÇö schema changes and RLS policies (142 migration files)
+- `functions/` ΓÇö 22 Deno Edge Functions
+- `config.toml` ΓÇö Supabase project configuration
 
 ## Current responsibilities
 
@@ -25,7 +25,7 @@ Roam's backend runs on Supabase and provides authentication, the PostgreSQL sche
 
 ## Useful references
 
-- [API reference](../docs/API.md) — full request/response contracts for all functions
-- [ROADMAP](../docs/ROADMAP.md) — build history and upcoming work
-- [CONTEXT](../docs/CONTEXT.md) — current-state briefing and architectural decisions
-- [Main project README](../README.md) — architecture overview and development setup
+- [API reference](../docs/API.md) ΓÇö full request/response contracts for all functions
+- [ROADMAP](../docs/ROADMAP.md) ΓÇö build history and upcoming work
+- [CONTEXT](../docs/CONTEXT.md) ΓÇö current-state briefing and architectural decisions
+- [Main project README](../README.md) ΓÇö architecture overview and development setup

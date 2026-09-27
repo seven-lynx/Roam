@@ -6,13 +6,13 @@
 -- into interest_pair_scores when dwell/dwell time is reported.
 --
 -- Rules:
---   - A skip (skipped = TRUE, dwell < 3s) → soft downvote weight (0.5× of explicit)
---   - An engaged read (skipped = FALSE, dwell > 120s) → soft upvote weight (0.5×)
+--   - A skip (skipped = TRUE, dwell < 3s) ΓåÆ soft downvote weight (0.5├ù of explicit)
+--   - An engaged read (skipped = FALSE, dwell > 120s) ΓåÆ soft upvote weight (0.5├ù)
 --   - Each engagement event fires at most once per (user, url) pair
 --   - Uses canonical ordering (subcategory_a_id < subcategory_b_id)
 -- =============================================================================
 
--- ── 1. Trigger function to update pair scores on engagement report ───────────
+-- ΓöÇΓöÇ 1. Trigger function to update pair scores on engagement report ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 CREATE OR REPLACE FUNCTION public.update_pair_scores_from_engagement()
 RETURNS TRIGGER
 LANGUAGE plpgsql
@@ -25,7 +25,7 @@ DECLARE
   v_a             UUID;
   v_b             UUID;
 BEGIN
-  -- Only fire when engagement transitions from NULL → reported
+  -- Only fire when engagement transitions from NULL ΓåÆ reported
   IF OLD.dwell_ms IS NOT NULL OR OLD.skipped IS NOT NULL THEN
     RETURN NEW; -- already had engagement data, don't double-count
   END IF;
@@ -93,17 +93,17 @@ BEGIN
 END;
 $$;
 
--- ── 2. Trigger on seen_urls ──────────────────────────────────────────────────
+-- ΓöÇΓöÇ 2. Trigger on seen_urls ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 DROP TRIGGER IF EXISTS trg_seen_urls_engagement_pair_scores ON public.seen_urls;
 CREATE TRIGGER trg_seen_urls_engagement_pair_scores
   AFTER UPDATE OF dwell_ms, skipped ON public.seen_urls
   FOR EACH ROW
   EXECUTE FUNCTION public.update_pair_scores_from_engagement();
 
--- ── 3. Redeploy roam() as v28 — wire pair_weight boost ──────────────────────
+-- ΓöÇΓöÇ 3. Redeploy roam() as v28 ΓÇö wire pair_weight boost ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 -- The adjacent-serving section already uses interest_pair_scores.pair_weight.
 -- With engagement signals now feeding into it, pair weights become richer.
--- No SQL changes needed to roam() — the existing 12% adjacent-serving logic
+-- No SQL changes needed to roam() ΓÇö the existing 12% adjacent-serving logic
 -- (lines ~163-191 in v27) already queries interest_pair_scores and filters
 -- for pair_weight > 1.0. Engagement data will naturally produce stronger
 -- pair weights where skip patterns don't exist and dwell time is high.
@@ -162,7 +162,7 @@ BEGIN
     RAISE EXCEPTION 'Unauthorized';
   END IF;
 
-  -- ── Load user settings ────────────────────────────────────────────────────
+  -- ΓöÇΓöÇ Load user settings ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
   SELECT
     COALESCE(s.preferred_languages, ARRAY['en']),
     COALESCE(s.skip_paywalled, FALSE),
@@ -175,7 +175,7 @@ BEGIN
   IF v_skip_paywall    IS NULL THEN v_skip_paywall    := FALSE;        END IF;
   IF v_discovery_mode  IS NULL THEN v_discovery_mode  := 'discovery';  END IF;
 
-  -- ── Merge exclude domains ─────────────────────────────────────────────────
+  -- ΓöÇΓöÇ Merge exclude domains ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
   IF p_exclude_domains IS NOT NULL AND array_length(p_exclude_domains, 1) > 0 THEN
     v_excluded := p_exclude_domains;
     IF p_exclude_domain IS NOT NULL AND NOT p_exclude_domain = ANY(v_excluded) THEN
@@ -185,7 +185,7 @@ BEGIN
     v_excluded := ARRAY[p_exclude_domain];
   END IF;
 
-  -- ── Load exclusion sets as arrays ─────────────────────────────────────────
+  -- ΓöÇΓöÇ Load exclusion sets as arrays ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
   SELECT array_agg(url_id)
   INTO   v_seen_ids
   FROM (
@@ -195,7 +195,7 @@ BEGIN
     LIMIT  2000
   ) t;
 
-  -- URLs the user rapidly skipped — extend exclusion (don't re-serve quickly-skipped content)
+  -- URLs the user rapidly skipped ΓÇö extend exclusion (don't re-serve quickly-skipped content)
   SELECT array_agg(url_id)
   INTO   v_skip_penalty_ids
   FROM   seen_urls
@@ -221,7 +221,7 @@ BEGIN
     FROM   paywalled_domains;
   END IF;
 
-  -- ── Expand category prefs into flat subcategory ID array ──────────────────
+  -- ΓöÇΓöÇ Expand category prefs into flat subcategory ID array ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
   SELECT array_agg(DISTINCT sc.id)
   INTO   v_allowed_subcat_ids
   FROM   subcategories sc
@@ -242,7 +242,7 @@ BEGIN
   SELECT EXISTS (SELECT 1 FROM user_categories WHERE user_id = p_user_id)
   INTO v_has_categories;
 
-  -- ── Deep Dive: narrow to top-3 subcategories by calibrated_weight ─────────
+  -- ΓöÇΓöÇ Deep Dive: narrow to top-3 subcategories by calibrated_weight ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
   IF v_discovery_mode = 'deep_dive'
      AND p_subcategory_id IS NULL
      AND p_category_id    IS NULL
@@ -263,7 +263,7 @@ BEGIN
     END IF;
   END IF;
 
-  -- ── Discovery mode: 15% adjacent serving (up from 12% in v27) ─────────────
+  -- ΓöÇΓöÇ Discovery mode: 15% adjacent serving (up from 12% in v27) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
   v_adjacent_subcat_id := NULL;
   IF v_discovery_mode = 'discovery'
      AND random() < 0.15
@@ -295,9 +295,9 @@ BEGIN
 
   v_effective_subcat_id := COALESCE(p_subcategory_id, v_adjacent_subcat_id);
 
-  -- ═══════════════════════════════════════════════════════════════════════════
+  -- ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ
   --  COLLECTION MODE
-  -- ═══════════════════════════════════════════════════════════════════════════
+  -- ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ
   IF p_collection_id IS NOT NULL THEN
 
     SELECT c.id INTO v_url_id
@@ -376,9 +376,9 @@ BEGIN
       LIMIT 1;
     END IF;
 
-  -- ═══════════════════════════════════════════════════════════════════════════
+  -- ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ
   --  STANDARD MODE
-  -- ═══════════════════════════════════════════════════════════════════════════
+  -- ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ
   ELSE
 
     SELECT c.id INTO v_url_id
@@ -493,7 +493,7 @@ BEGIN
 
   END IF;
 
-  -- ── Record seen + domain cooldown ─────────────────────────────────────────
+  -- ΓöÇΓöÇ Record seen + domain cooldown ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
   IF v_url_id IS NOT NULL THEN
     INSERT INTO seen_urls (user_id, url_id)
     VALUES (p_user_id, v_url_id)

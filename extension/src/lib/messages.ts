@@ -1,4 +1,4 @@
-// messages.ts — Type-safe message protocol between popup and background SW
+// messages.ts ΓÇö Type-safe message protocol between popup and background SW
 
 import { Sentry } from './sentry';
 
@@ -133,13 +133,13 @@ export async function sendToBackground<T = unknown>(req: Request): Promise<Respo
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
       if (attempt > 0) {
-        // Brief pause — gives Chrome time to restart the SW before the retry.
+        // Brief pause ΓÇö gives Chrome time to restart the SW before the retry.
         await new Promise<void>((r) => setTimeout(r, 300));
       }
       return (await chrome.runtime.sendMessage(req)) as Response<T>;
     } catch (err) {
       if (attempt === 1) {
-        // Both attempts failed — capture to Sentry and return a safe error object.
+        // Both attempts failed ΓÇö capture to Sentry and return a safe error object.
         Sentry.captureException(err, {
           extra: { messageType: (req as { type: string }).type },
           tags: { context: 'sendToBackground' },

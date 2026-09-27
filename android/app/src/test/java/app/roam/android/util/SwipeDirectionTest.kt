@@ -5,7 +5,7 @@ import org.junit.Test
 
 class SwipeDirectionTest {
 
-    // ─── Threshold boundary ────────────────────────────────────────────────────
+    // ΓöÇΓöÇΓöÇ Threshold boundary ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 
     @Test
     fun `downward drag exactly at threshold does not trigger`() {
@@ -37,7 +37,7 @@ class SwipeDirectionTest {
         assertEquals("skip", resolveSwipeAction(-(DEFAULT_SWIPE_THRESHOLD_PX + 1f), 0f))
     }
 
-    // ─── Dominant axis ────────────────────────────────────────────────────────
+    // ΓöÇΓöÇΓöÇ Dominant axis ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 
     @Test
     fun `diagonal where dx dominates triggers like`() {
@@ -60,7 +60,7 @@ class SwipeDirectionTest {
         assertNull(resolveSwipeAction(200f, 200f))
     }
 
-    // ─── Short swipe ──────────────────────────────────────────────────────────
+    // ΓöÇΓöÇΓöÇ Short swipe ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 
     @Test
     fun `zero drag returns null`() {
@@ -74,7 +74,7 @@ class SwipeDirectionTest {
         assertNull(resolveSwipeAction(10f, -10f))
     }
 
-    // ─── Upward swipe is not a recognized action ───────────────────────────────
+    // ΓöÇΓöÇΓöÇ Upward swipe is not a recognized action ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 
     @Test
     fun `upward swipe returns null regardless of magnitude`() {
@@ -82,7 +82,7 @@ class SwipeDirectionTest {
         assertNull(resolveSwipeAction(0f, -500f))
     }
 
-    // ─── Custom threshold ─────────────────────────────────────────────────────
+    // ΓöÇΓöÇΓöÇ Custom threshold ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 
     @Test
     fun `custom threshold overrides the default`() {

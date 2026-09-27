@@ -1,5 +1,5 @@
 -- =============================================================================
--- roam() v12 — merge p_category_id (from 000001) into the v11 algorithm
+-- roam() v12 ΓÇö merge p_category_id (from 000001) into the v11 algorithm
 -- =============================================================================
 --
 -- Problem:
@@ -8,22 +8,22 @@
 --   freshness decay / exploration bonus / domain cooldown improvements, but
 --   targeted the wrong DROP signature (4-param) so the old 5-param function
 --   survived alongside the new 4-param one.  PostgreSQL now has two overloads
---   of roam() — calls without p_category_id are ambiguous and may throw
+--   of roam() ΓÇö calls without p_category_id are ambiguous and may throw
 --   "function roam(...) is not unique".
 --
 -- Fix:
 --   1. Drop BOTH overloads unconditionally.
 --   2. Re-create a single canonical function that has:
---      • All 5 parameters from 000001
+--      ΓÇó All 5 parameters from 000001
 --        (p_user_id, p_collection_id, p_exclude_domain,
 --         p_subcategory_id, p_category_id)
---      • category_id in the RETURN TABLE (from 000001)
---      • All v11 algorithm improvements from 000005
+--      ΓÇó category_id in the RETURN TABLE (from 000001)
+--      ΓÇó All v11 algorithm improvements from 000005
 --        (freshness decay, exploration bonus, domain cooldown, wilson_score
 --         floor > -0.1, seeder_score weighting)
---      • p_category_id guards in deep_dive / adjacent serving (from 000001)
---      • p_category_id WHERE filters in both standard-mode subqueries
---      • u.category_id in the final RETURN QUERY SELECT
+--      ΓÇó p_category_id guards in deep_dive / adjacent serving (from 000001)
+--      ΓÇó p_category_id WHERE filters in both standard-mode subqueries
+--      ΓÇó u.category_id in the final RETURN QUERY SELECT
 -- =============================================================================
 
 -- Drop both overloads so no ambiguity can remain.
@@ -68,7 +68,7 @@ BEGIN
     RAISE EXCEPTION 'Unauthorized';
   END IF;
 
-  -- ── Load user settings ────────────────────────────────────────────────────
+  -- ΓöÇΓöÇ Load user settings ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
   SELECT
     COALESCE(s.preferred_languages, ARRAY['en']),
     COALESCE(s.skip_paywalled, FALSE),
@@ -81,7 +81,7 @@ BEGIN
   IF v_skip_paywall    IS NULL THEN v_skip_paywall    := FALSE;        END IF;
   IF v_discovery_mode  IS NULL THEN v_discovery_mode  := 'discovery';  END IF;
 
-  -- ── Expand category prefs into flat subcategory ID array ─────────────────
+  -- ΓöÇΓöÇ Expand category prefs into flat subcategory ID array ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
   SELECT array_agg(DISTINCT sc.id)
   INTO   v_allowed_subcat_ids
   FROM   subcategories sc
@@ -102,8 +102,8 @@ BEGIN
   SELECT EXISTS (SELECT 1 FROM user_categories WHERE user_id = p_user_id)
   INTO v_has_categories;
 
-  -- ── Deep Dive: narrow to top-3 subcategories by calibrated_weight ─────────
-  -- Skip when a specific category/subcategory/collection is pinned — the
+  -- ΓöÇΓöÇ Deep Dive: narrow to top-3 subcategories by calibrated_weight ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+  -- Skip when a specific category/subcategory/collection is pinned ΓÇö the
   -- caller has already expressed intent; deep-dive narrowing would fight it.
   IF v_discovery_mode = 'deep_dive'
      AND p_subcategory_id IS NULL
@@ -125,7 +125,7 @@ BEGIN
     END IF;
   END IF;
 
-  -- ── Discovery mode: 12% adjacent serving ─────────────────────────────────
+  -- ΓöÇΓöÇ Discovery mode: 12% adjacent serving ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
   -- Disabled when the caller pins a category/subcategory/collection.
   v_adjacent_subcat_id := NULL;
   IF v_discovery_mode = 'discovery'
@@ -159,8 +159,8 @@ BEGIN
   v_effective_subcat_id := COALESCE(p_subcategory_id, v_adjacent_subcat_id);
 
   IF p_collection_id IS NOT NULL THEN
-    -- ── Collection mode ──────────────────────────────────────────────────────
-    -- p_category_id has no effect in collection mode — the collection already
+    -- ΓöÇΓöÇ Collection mode ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+    -- p_category_id has no effect in collection mode ΓÇö the collection already
     -- defines the URL pool.
     SELECT c.id INTO v_url_id
     FROM (
@@ -249,7 +249,7 @@ BEGIN
     LIMIT 1;
 
   ELSE
-    -- ── Standard mode ─────────────────────────────────────────────────────
+    -- ΓöÇΓöÇ Standard mode ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
     SELECT c.id INTO v_url_id
     FROM (
       SELECT u.id,
@@ -387,7 +387,7 @@ BEGIN
     LIMIT 1;
   END IF;
 
-  -- ── Record seen + domain cooldown ─────────────────────────────────────────
+  -- ΓöÇΓöÇ Record seen + domain cooldown ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
   IF v_url_id IS NOT NULL THEN
     INSERT INTO seen_urls (user_id, url_id)
     VALUES (p_user_id, v_url_id)

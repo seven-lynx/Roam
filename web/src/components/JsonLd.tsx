@@ -9,7 +9,7 @@ export function WebsiteSchema() {
           name: 'Roam',
           url: 'https://roamtheweb.app',
           description:
-            'Discover a random corner of the web. Roam is a community-driven web discovery platform — browser extension, Android app, and web.',
+            'Discover a random corner of the web. Roam is a community-driven web discovery platform ΓÇö browser extension, Android app, and web.',
           potentialAction: {
             '@type': 'SearchAction',
             target: {

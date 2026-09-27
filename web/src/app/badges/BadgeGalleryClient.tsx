@@ -82,7 +82,7 @@ export function BadgeGalleryClient() {
           <h1 className="text-2xl font-bold text-zinc-900 dark:text-white">Badge Gallery</h1>
           <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1">
             {isSignedIn
-              ? `${unlockedCount} unlocked · ${totalCount - unlockedCount} remaining`
+              ? `${unlockedCount} unlocked ┬╖ ${totalCount - unlockedCount} remaining`
               : `${totalCount} badges to discover`}
           </p>
         </div>
@@ -153,7 +153,7 @@ export function BadgeGalleryClient() {
           <>
             {filtered.length === 0 ? (
               <div className="text-center py-16 text-zinc-500 dark:text-zinc-400">
-                <span className="text-4xl block mb-3">🏅</span>
+                <span className="text-4xl block mb-3">≡ƒÅà</span>
                 <p className="text-sm">No badges match your filters.</p>
               </div>
             ) : (

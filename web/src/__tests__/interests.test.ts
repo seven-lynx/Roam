@@ -11,9 +11,9 @@ import type { InterestState, SubcategoryParentMap } from '@/lib/interests';
 
 /**
  * Build a mock SupabaseClient that supports the chaining pattern used by interests.ts:
- *   from(table).delete().eq(col, val)  → { error }
- *   from(table).select(cols).eq(col, val) → { data, error }
- *   from(table).insert(rows) → { error }
+ *   from(table).delete().eq(col, val)  ΓåÆ { error }
+ *   from(table).select(cols).eq(col, val) ΓåÆ { data, error }
+ *   from(table).insert(rows) ΓåÆ { error }
  */
 function mockSupabaseClient() {
   // Responses that can be reconfigured per test
@@ -58,7 +58,7 @@ function mockSupabaseClient() {
 }
 
 describe('Interests (lib/interests)', () => {
-  // ─── InterestState type ──────────────────────────────────────────────────────
+  // ΓöÇΓöÇΓöÇ InterestState type ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 
   describe('InterestState', () => {
     it('should allow pillar mode state', () => {
@@ -82,7 +82,7 @@ describe('Interests (lib/interests)', () => {
     });
   });
 
-  // ─── saveUserInterests ───────────────────────────────────────────────────────
+  // ΓöÇΓöÇΓöÇ saveUserInterests ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 
   describe('saveUserInterests', () => {
     it('should delete existing rows and insert pillar-level rows in pillars mode', async () => {
@@ -101,7 +101,7 @@ describe('Interests (lib/interests)', () => {
         parentMap,
       );
 
-      // Check that insert was called with correct rows — verify by checking
+      // Check that insert was called with correct rows ΓÇö verify by checking
       // no errors were thrown (which confirms the mock chaining worked)
     });
 
@@ -142,7 +142,7 @@ describe('Interests (lib/interests)', () => {
         parentMap,
       );
 
-      // Should not throw — delete succeeds, insert is skipped
+      // Should not throw ΓÇö delete succeeds, insert is skipped
     });
 
     it('should throw when delete fails', async () => {
@@ -183,7 +183,7 @@ describe('Interests (lib/interests)', () => {
     });
   });
 
-  // ─── loadUserInterests ──────────────────────────────────────────────────────
+  // ΓöÇΓöÇΓöÇ loadUserInterests ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 
   describe('loadUserInterests', () => {
     it('should return pillars mode when all rows have null subcategory_id', async () => {

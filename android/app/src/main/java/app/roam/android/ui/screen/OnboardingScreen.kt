@@ -1,4 +1,4 @@
-﻿package app.roam.android.ui.screen
+package app.roam.android.ui.screen
 
 import android.util.Log
 import androidx.compose.animation.AnimatedVisibility

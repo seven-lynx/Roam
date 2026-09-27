@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(`${origin}/signup`);
   }
 
-  // Build the response first — session cookies must be set directly on the
+  // Build the response first ΓÇö session cookies must be set directly on the
   // redirect response. Using cookieStore.set() from next/headers is NOT
   // sufficient here because those cookies don't get propagated to an explicit
   // NextResponse.redirect() object.
@@ -56,7 +56,7 @@ export async function GET(request: NextRequest) {
     .single();
 
   if (!profile?.username) {
-    // New OAuth user — send to category selection.
+    // New OAuth user ΓÇö send to category selection.
     // Copy session cookies onto the new redirect response.
     const newUserResponse = NextResponse.redirect(
       new URL(`${origin}/signup?step=categories`),

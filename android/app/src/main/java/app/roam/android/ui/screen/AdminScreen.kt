@@ -76,7 +76,7 @@ fun AdminScreen(
     var selectedTab by remember { mutableStateOf("queue") }
     var confirmDialog by remember { mutableStateOf<Pair<String, String>?>(null) } // action, itemId
 
-    // Queue status filter — defaults to "pending" for moderators, "all" for admins
+    // Queue status filter ΓÇö defaults to "pending" for moderators, "all" for admins
     var queueStatusFilter by remember { mutableStateOf(if (isAdmin) "all" else "pending") }
 
     // Load queue + stats + reports on mount
@@ -136,7 +136,7 @@ fun AdminScreen(
                 .verticalScroll(rememberScrollState())
                 .navigationBarsPadding(),
         ) {
-            // ── Stats Cards ──────────────────────────────────────────────
+            // ΓöÇΓöÇ Stats Cards ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
             SectionHeader("Overview")
             Row(
                 modifier = Modifier
@@ -153,7 +153,7 @@ fun AdminScreen(
 
             Spacer(Modifier.height(12.dp))
 
-            // ── Tab Bar ──────────────────────────────────────────────────
+            // ΓöÇΓöÇ Tab Bar ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -173,7 +173,7 @@ fun AdminScreen(
             HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
             Spacer(Modifier.height(8.dp))
 
-            // ── Tab Content ──────────────────────────────────────────────
+            // ΓöÇΓöÇ Tab Content ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
             when (selectedTab) {
                 "queue" -> QueueTab(
                     items = adminQueue,
@@ -217,7 +217,7 @@ fun AdminScreen(
         }
     }
 
-    // ── Confirmation dialog ────────────────────────────────────────────────
+    // ΓöÇΓöÇ Confirmation dialog ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
     if (confirmDialog != null) {
         val (action, itemId) = confirmDialog!!
         AlertDialog(
@@ -249,7 +249,7 @@ fun AdminScreen(
     }
 }
 
-// ── Reusable Components ───────────────────────────────────────────────────────
+// ΓöÇΓöÇ Reusable Components ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 
 @Composable
 private fun SectionHeader(title: String) {
@@ -295,7 +295,7 @@ private fun AdminTab(label: String, id: String, selected: String, onSelect: (Str
     }
 }
 
-// ── Queue Tab ─────────────────────────────────────────────────────────────────
+// ΓöÇΓöÇ Queue Tab ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 
 @Composable
 private fun QueueTab(
@@ -507,7 +507,7 @@ private fun QueueItemCard(
     }
 }
 
-// ── Analytics Tab (for moderators) ─────────────────────────────────────────────
+// ΓöÇΓöÇ Analytics Tab (for moderators) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 
 @Composable
 private fun AnalyticsTab(
@@ -667,7 +667,7 @@ private fun AnalyticsTab(
     }
 }
 
-// ── Reports Tab ───────────────────────────────────────────────────────────────
+// ΓöÇΓöÇ Reports Tab ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 
 @Composable
 private fun ReportsTab(
@@ -758,7 +758,7 @@ private fun ReportsTab(
     }
 }
 
-// ── Beta Tab ──────────────────────────────────────────────────────────────────
+// ΓöÇΓöÇ Beta Tab ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 
 @Composable
 private fun BetaTab(
@@ -774,7 +774,7 @@ private fun BetaTab(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
-                "Beta Signups • ${signups.size}",
+                "Beta Signups ΓÇó ${signups.size}",
                 style = MaterialTheme.typography.titleSmall,
             )
             TextButton(onClick = onRefresh) { Text("Refresh") }
@@ -820,7 +820,7 @@ private fun BetaTab(
     }
 }
 
-// ── System Tab ────────────────────────────────────────────────────────────────
+// ΓöÇΓöÇ System Tab ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 
 @Composable
 private fun SystemTab(

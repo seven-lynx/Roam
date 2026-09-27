@@ -2,7 +2,7 @@
 //
 // Edge Function isolates persist long enough between invocations that a
 // process-local Map gives effective rate limiting against a single client
-// hitting one region. It is *not* globally exact — a determined attacker
+// hitting one region. It is *not* globally exact ΓÇö a determined attacker
 // distributing requests across regions could exceed the cap by a factor of N
 // (where N = number of edge regions). For our threat model (username
 // enumeration, lightweight DoS from a single IP), this is sufficient.

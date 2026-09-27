@@ -18,16 +18,16 @@ interface SettingsClientProps {
 type SettingsTab = 'account' | 'notifications' | 'language' | 'discovery' | 'security' | 'data' | 'danger';
 
 const TABS: { id: SettingsTab; label: string; icon: string; danger?: boolean }[] = [
-  { id: 'account', label: 'Account', icon: '👤' },
-  { id: 'notifications', label: 'Notifications', icon: '🔔' },
-  { id: 'language', label: 'Language', icon: '🌐' },
-  { id: 'discovery', label: 'Discovery', icon: '🎯' },
-  { id: 'security', label: 'Security', icon: '🔒' },
-  { id: 'data', label: 'Data & Privacy', icon: '📁' },
-  { id: 'danger', label: 'Danger Zone', icon: '⚠️', danger: true },
+  { id: 'account', label: 'Account', icon: '≡ƒæñ' },
+  { id: 'notifications', label: 'Notifications', icon: '≡ƒöö' },
+  { id: 'language', label: 'Language', icon: '≡ƒîÉ' },
+  { id: 'discovery', label: 'Discovery', icon: '≡ƒÄ»' },
+  { id: 'security', label: 'Security', icon: '≡ƒöÆ' },
+  { id: 'data', label: 'Data & Privacy', icon: '≡ƒôü' },
+  { id: 'danger', label: 'Danger Zone', icon: 'ΓÜá∩╕Å', danger: true },
 ];
 
-// ── Two-step delete modal ─────────────────────────────────────────────────
+// ΓöÇΓöÇ Two-step delete modal ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 function DeleteModal({ onClose, onConfirm, loading }: { onClose: () => void; onConfirm: () => void; loading: boolean }) {
   const [step, setStep] = useState<1 | 2>(1);
   return (
@@ -63,7 +63,7 @@ function DeleteModal({ onClose, onConfirm, loading }: { onClose: () => void; onC
                 disabled={loading}
                 className="flex-1 rounded-lg bg-red-600 text-white py-2 text-sm font-medium hover:bg-red-700 disabled:opacity-50 transition-colors"
               >
-                {loading ? 'Deleting…' : 'Delete permanently'}
+                {loading ? 'DeletingΓÇª' : 'Delete permanently'}
               </button>
             </div>
           </>
@@ -73,7 +73,7 @@ function DeleteModal({ onClose, onConfirm, loading }: { onClose: () => void; onC
   );
 }
 
-// ── Toggle helper ─────────────────────────────────────────────────────────
+// ΓöÇΓöÇ Toggle helper ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 function Toggle({ checked, onChange, disabled }: { checked: boolean; onChange: () => void; disabled?: boolean }) {
   return (
     <button
@@ -89,7 +89,7 @@ function Toggle({ checked, onChange, disabled }: { checked: boolean; onChange: (
   );
 }
 
-// ── Section card ──────────────────────────────────────────────────────────
+// ΓöÇΓöÇ Section card ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 function Section({ title, children, danger }: { title: string; children: React.ReactNode; danger?: boolean }) {
   return (
     <section className={`rounded-2xl border p-6 ${danger ? 'border-red-200 dark:border-red-900' : 'border-zinc-200 dark:border-zinc-800'}`}>
@@ -111,20 +111,20 @@ function urlBase64ToUint8Array(base64String: string): ArrayBufferView {
   return outputArray as ArrayBufferView;
 }
 
-// ── Main component ─────────────────────────────────────────────────────────
+// ΓöÇΓöÇ Main component ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 const LANGUAGES = [
   { code: 'en', label: 'English' },
-  { code: 'fr', label: 'Français' },
+  { code: 'fr', label: 'Fran├ºais' },
   { code: 'de', label: 'Deutsch' },
   { code: 'it', label: 'Italiano' },
-  { code: 'es', label: 'Español' },
-  { code: 'pt', label: 'Português' },
+  { code: 'es', label: 'Espa├▒ol' },
+  { code: 'pt', label: 'Portugu├¬s' },
   { code: 'nl', label: 'Nederlands' },
   { code: 'pl', label: 'Polski' },
-  { code: 'ja', label: '日本語' },
-  { code: 'zh', label: '中文' },
-  { code: 'ru', label: 'Русский' },
-  { code: 'ko', label: '한국어' },
+  { code: 'ja', label: 'µùÑµ£¼Φ¬₧' },
+  { code: 'zh', label: 'Σ╕¡µûç' },
+  { code: 'ru', label: '╨á╤â╤ü╤ü╨║╨╕╨╣' },
+  { code: 'ko', label: 'φò£Ω╡¡∞û┤' },
 ] as const;
 
 export function SettingsClient({
@@ -187,7 +187,7 @@ export function SettingsClient({
     skipPaywalled !== initialSkipPaywalled ||
     JSON.stringify([...languages].sort()) !== JSON.stringify([...initialLanguages].sort());
 
-  // ── Handlers ───────────────────────────────────────────────────────────
+  // ΓöÇΓöÇ Handlers ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
   function handleLanguageToggle(code: string) {
     setSettingsSaveError(null);
     setSettingsSaveSuccess(null);
@@ -413,7 +413,7 @@ export function SettingsClient({
 
           {/* Content */}
           <div className="flex-1 min-w-0">
-            {/* Save settings bar — shown on any dirty tab */}
+            {/* Save settings bar ΓÇö shown on any dirty tab */}
             {isDirty && (
               <div className="flex flex-col gap-2 mb-6">
                 <button
@@ -422,14 +422,14 @@ export function SettingsClient({
                   disabled={savingSettings}
                   className="rounded-lg bg-amber-500 hover:bg-amber-400 text-white py-2.5 text-sm font-semibold transition-colors disabled:opacity-40"
                 >
-                  {savingSettings ? 'Saving…' : 'Save settings'}
+                  {savingSettings ? 'SavingΓÇª' : 'Save settings'}
                 </button>
                 {settingsSaveError && <p className="text-sm text-red-600 bg-red-50 dark:bg-red-950/40 rounded-lg px-4 py-2">{settingsSaveError}</p>}
                 {settingsSaveSuccess && <p className="text-sm text-green-600 bg-green-50 dark:bg-green-950/40 rounded-lg px-4 py-2">{settingsSaveSuccess}</p>}
               </div>
             )}
 
-            {/* ── Account Tab ─────────────────────────────── */}
+            {/* ΓöÇΓöÇ Account Tab ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ */}
             {tab === 'account' && (
               <Section title="Account">
                 <div className="flex flex-col gap-3 text-sm">
@@ -447,7 +447,7 @@ export function SettingsClient({
               </Section>
             )}
 
-            {/* ── Notifications Tab ──────────────────────── */}
+            {/* ΓöÇΓöÇ Notifications Tab ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ */}
             {tab === 'notifications' && (
               <Section title="Notifications">
                 <div className="flex items-center justify-between">
@@ -468,7 +468,7 @@ export function SettingsClient({
               </Section>
             )}
 
-            {/* ── Language Tab ─────────────────────────────── */}
+            {/* ΓöÇΓöÇ Language Tab ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ */}
             {tab === 'language' && (
               <Section title="Language">
                 <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-3">
@@ -498,7 +498,7 @@ export function SettingsClient({
               </Section>
             )}
 
-            {/* ── Discovery Tab ──────────────────────────── */}
+            {/* ΓöÇΓöÇ Discovery Tab ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ */}
             {tab === 'discovery' && (
               <Section title="Discovery">
                 <div className="flex items-center justify-between">
@@ -511,7 +511,7 @@ export function SettingsClient({
               </Section>
             )}
 
-            {/* ── Security Tab ──────────────────────────── */}
+            {/* ΓöÇΓöÇ Security Tab ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ */}
             {tab === 'security' && (
               <Section title="Security">
                 {isEmailUser ? (
@@ -557,7 +557,7 @@ export function SettingsClient({
                     {passwordSuccess && <p className="text-sm text-green-600 dark:text-green-400">{passwordSuccess}</p>}
                     <button type="submit" disabled={passwordLoading || !passwordFormValid}
                       className="rounded-lg bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 py-2.5 text-sm font-semibold hover:opacity-90 disabled:opacity-40 transition-opacity"
-                    >{passwordLoading ? 'Updating…' : 'Update password'}</button>
+                    >{passwordLoading ? 'UpdatingΓÇª' : 'Update password'}</button>
                   </form>
                 ) : (
                   <p className="text-sm text-zinc-500 dark:text-zinc-400">
@@ -568,7 +568,7 @@ export function SettingsClient({
               </Section>
             )}
 
-            {/* ── Data Tab ──────────────────────────────── */}
+            {/* ΓöÇΓöÇ Data Tab ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ */}
             {tab === 'data' && (
               <Section title="Data & Privacy">
                 <p className="text-sm text-zinc-500 dark:text-zinc-400 mb-4">
@@ -576,11 +576,11 @@ export function SettingsClient({
                 </p>
                 <button type="button" onClick={handleExportData} disabled={exportLoading}
                   className="w-full rounded-lg border border-zinc-300 dark:border-zinc-700 py-2.5 text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 disabled:opacity-50 transition-colors"
-                >{exportLoading ? 'Preparing download…' : 'Download my data'}</button>
+                >{exportLoading ? 'Preparing downloadΓÇª' : 'Download my data'}</button>
               </Section>
             )}
 
-            {/* ── Danger Tab ────────────────────────────── */}
+            {/* ΓöÇΓöÇ Danger Tab ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ */}
             {tab === 'danger' && (
               <Section title="Danger Zone" danger>
                 <div className="flex flex-col gap-4">

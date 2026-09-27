@@ -1,8 +1,8 @@
-// build.mjs — esbuild pipeline for the Roam browser extension
+// build.mjs ΓÇö esbuild pipeline for the Roam browser extension
 // Usage:
-//   node build.mjs             → single production build (Chrome)
-//   node build.mjs --firefox   → single production build (Firefox)
-//   node build.mjs --watch     → watch mode for development (Chrome)
+//   node build.mjs             ΓåÆ single production build (Chrome)
+//   node build.mjs --firefox   ΓåÆ single production build (Firefox)
+//   node build.mjs --watch     ΓåÆ watch mode for development (Chrome)
 
 import * as esbuild from 'esbuild';
 import { sentryEsbuildPlugin } from '@sentry/esbuild-plugin';
@@ -15,7 +15,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const watch = process.argv.includes('--watch');
 const firefox = process.argv.includes('--firefox');
 
-// ── Load env vars from root .env ────────────────────────────────────────────
+// ΓöÇΓöÇ Load env vars from root .env ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 function loadRootEnv() {
   try {
     const raw = readFileSync(resolve(__dirname, '../.env'), 'utf8');
@@ -163,11 +163,11 @@ if (watch) {
 
   copyStatics();
   await Promise.all(contexts.map((ctx) => ctx.watch()));
-  console.log('[roam] Watching for changes… (Ctrl+C to stop)');
+  console.log('[roam] Watching for changesΓÇª (Ctrl+C to stop)');
 } else {
   const canUploadMaps = sentryDsn && sentryAuthToken;
   if (!sentryAuthToken) {
-    console.warn('[roam] SENTRY_AUTH_TOKEN not set — source maps will NOT be uploaded to Sentry.');
+    console.warn('[roam] SENTRY_AUTH_TOKEN not set ΓÇö source maps will NOT be uploaded to Sentry.');
   }
 
   const buildPlugins = [];
@@ -204,5 +204,5 @@ if (watch) {
     console.error('[roam] Error creating zip file:', err);
     process.exit(1);
   }
-  console.log('[roam] Build complete → dist/');
+  console.log('[roam] Build complete ΓåÆ dist/');
 }

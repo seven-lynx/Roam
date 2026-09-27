@@ -51,7 +51,7 @@ Deno.serve(async (req) => {
       await refreshSnapshot(period)
     }
 
-    // Fetch the latest snapshot — only public profiles
+    // Fetch the latest snapshot ΓÇö only public profiles
     const { data: rankings, error } = await adminClient
       .from('leaderboard_snapshots')
       .select(`

@@ -1,4 +1,4 @@
-﻿package app.roam.android
+package app.roam.android
 import android.content.Intent
 import android.os.Bundle
 import android.util.Log

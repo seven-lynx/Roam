@@ -3,7 +3,7 @@
 -- query. Pre-computing them as materialized views brings reads to <1ms.
 -- pg_cron refreshes each view hourly (staggered to avoid contention).
 
--- ── Source breakdown ──────────────────────────────────────────────────────────
+-- ΓöÇΓöÇ Source breakdown ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 CREATE MATERIALIZED VIEW IF NOT EXISTS public.mv_analytics_sources AS
 SELECT source, COUNT(*)::int AS count
 FROM public.urls
@@ -13,7 +13,7 @@ GROUP BY source;
 CREATE UNIQUE INDEX IF NOT EXISTS mv_analytics_sources_pkey
   ON public.mv_analytics_sources (source);
 
--- ── Language distribution ─────────────────────────────────────────────────────
+-- ΓöÇΓöÇ Language distribution ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 CREATE MATERIALIZED VIEW IF NOT EXISTS public.mv_analytics_languages AS
 SELECT language, COUNT(*)::int AS count
 FROM public.urls
@@ -23,7 +23,7 @@ GROUP BY language;
 CREATE UNIQUE INDEX IF NOT EXISTS mv_analytics_languages_pkey
   ON public.mv_analytics_languages (language);
 
--- ── Dead URL rate by category ─────────────────────────────────────────────────
+-- ΓöÇΓöÇ Dead URL rate by category ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 CREATE MATERIALIZED VIEW IF NOT EXISTS public.mv_analytics_dead_by_category AS
 SELECT
   c.name AS category,
@@ -42,13 +42,13 @@ GROUP BY c.name;
 CREATE UNIQUE INDEX IF NOT EXISTS mv_analytics_dead_by_category_pkey
   ON public.mv_analytics_dead_by_category (category);
 
--- ── Partial index for approved URLs by subcategory (supports dead-rate queries)
+-- ΓöÇΓöÇ Partial index for approved URLs by subcategory (supports dead-rate queries)
 CREATE INDEX IF NOT EXISTS idx_urls_approved_subcat
   ON public.urls (subcategory_id)
   INCLUDE (inactive)
   WHERE approved = true;
 
--- ── Weekly cron jobs (Sunday 02:00 UTC, staggered 5 min apart) ───────────────
+-- ΓöÇΓöÇ Weekly cron jobs (Sunday 02:00 UTC, staggered 5 min apart) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 -- Requires pg_cron (already enabled on this project).
 SELECT cron.schedule(
   'refresh-mv-analytics-sources',

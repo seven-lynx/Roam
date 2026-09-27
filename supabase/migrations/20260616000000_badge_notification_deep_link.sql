@@ -61,7 +61,7 @@ BEGIN
     RAISE EXCEPTION 'You can only evaluate badges for yourself.';
   END IF;
 
-  -- ── Collect user stats ─────────────────────────────────────────────────────
+  -- ΓöÇΓöÇ Collect user stats ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
   SELECT COUNT(*) INTO v_roam_count FROM public.seen_urls WHERE user_id = p_user_id;
   SELECT COUNT(*) INTO v_save_count FROM public.saved_urls WHERE user_id = p_user_id;
   SELECT COUNT(*) INTO v_submit_count FROM public.moderation_queue WHERE submitted_by = p_user_id;
@@ -88,7 +88,7 @@ BEGIN
     INTO v_today_roam, v_today_save
     FROM public.user_daily_activity WHERE user_id = p_user_id AND date = CURRENT_DATE;
 
-  -- ── Evaluate each unearned badge ───────────────────────────────────────────
+  -- ΓöÇΓöÇ Evaluate each unearned badge ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
   FOR v_badge IN
     SELECT * FROM public.badges
     WHERE id NOT IN (SELECT badge_id FROM public.user_badges WHERE user_id = p_user_id)
@@ -199,7 +199,7 @@ BEGIN
         v_badge_xp_awarded := v_badge_xp_awarded + v_badge.xp_reward;
         v_new_count := v_new_count + 1;
 
-        -- ── Insert notification for badge unlock ─────────────────────────
+        -- ΓöÇΓöÇ Insert notification for badge unlock ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
         INSERT INTO public.notifications (user_id, type, title, body, data)
         VALUES (
           p_user_id,
@@ -233,7 +233,7 @@ BEGIN
     END IF;
   END LOOP;
 
-  -- ── Evaluate milestone badges ──────────────────────────────────────────────
+  -- ΓöÇΓöÇ Evaluate milestone badges ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
   FOR v_badge IN
     SELECT * FROM public.badges
     WHERE category = 'milestone' AND is_gift_only = FALSE
@@ -267,7 +267,7 @@ BEGIN
     END IF;
   END LOOP;
 
-  -- ── Award XP for all new badges ────────────────────────────────────────────
+  -- ΓöÇΓöÇ Award XP for all new badges ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
   IF v_badge_xp_awarded > 0 THEN
     INSERT INTO public.xp_log (user_id, action, xp_awarded, metadata)
     VALUES (p_user_id, 'badge_rewards', v_badge_xp_awarded, jsonb_build_object('badge_count', v_new_count));
@@ -277,10 +277,10 @@ BEGIN
   SELECT xp_total, public.calculate_level(xp_total) INTO v_xp_total, v_level FROM public.profiles WHERE id = p_user_id;
   UPDATE public.profiles SET level = v_level WHERE id = p_user_id AND level <> v_level;
 
-  -- ── Level-up notification ─────────────────────────────────────────────────
+  -- ΓöÇΓöÇ Level-up notification ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
   IF v_level > v_prev_level THEN
     INSERT INTO public.notifications (user_id, type, title, body, data)
-    VALUES (p_user_id, 'level_up', '🎉 Level Up! You''re now Level ' || v_level, 'Keep roaming to earn more badges and XP!', jsonb_build_object('level', v_level, 'rank', '', 'url', v_profile_url));
+    VALUES (p_user_id, 'level_up', '≡ƒÄë Level Up! You''re now Level ' || v_level, 'Keep roaming to earn more badges and XP!', jsonb_build_object('level', v_level, 'rank', '', 'url', v_profile_url));
   END IF;
 
 END;

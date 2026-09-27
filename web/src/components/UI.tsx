@@ -135,7 +135,7 @@ export function Toast({ message, variant = 'error', onDismiss }: { message: stri
         className="text-current opacity-70 hover:opacity-100 transition-opacity"
         aria-label="Dismiss"
       >
-        ✕
+        Γ£ò
       </button>
     </div>
   );

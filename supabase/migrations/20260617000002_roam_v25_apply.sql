@@ -1,4 +1,4 @@
--- roam() v25 — add p_exclude_domains TEXT[] parameter
+-- roam() v25 ΓÇö add p_exclude_domains TEXT[] parameter
 -- Applied manually because the original .skip file was intentionally skipped.
 -- The edge function sends p_exclude_domains as TEXT[] but the DB function only
 -- had 5 parameters, causing a 500 error on every roam() call.
@@ -131,7 +131,7 @@ BEGIN
     RETURN;
   END IF;
 
-  -- Standard mode — Phase 1
+  -- Standard mode ΓÇö Phase 1
   SELECT u.id, u.url, u.title, u.description, u.og_image_url,
          u.category_id, u.subcategory_id,
          (u.roam_score_static

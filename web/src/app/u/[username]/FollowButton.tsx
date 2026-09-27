@@ -68,7 +68,7 @@ export function FollowButton({ targetUserId, initialStatus, onFollowChange }: Fo
         if (insertError) {
           console.error('[FollowButton] Follow insert failed:', insertError);
           if (insertError.code === '23505') {
-            setStatus('following'); // already following — treat as success
+            setStatus('following'); // already following ΓÇö treat as success
           } else {
             setError(insertError.message);
           }
@@ -98,10 +98,10 @@ export function FollowButton({ targetUserId, initialStatus, onFollowChange }: Fo
     }
   }
 
-  // Still determining auth state — show nothing while checking
+  // Still determining auth state ΓÇö show nothing while checking
   if (isAuthenticated === null) return null;
 
-  // Not logged in — show a "Log in to follow" link
+  // Not logged in ΓÇö show a "Log in to follow" link
   if (!isAuthenticated) {
     const currentPath = typeof window !== 'undefined' ? window.location.pathname : `/u/${targetUserId}`;
     return (
@@ -126,7 +126,7 @@ export function FollowButton({ targetUserId, initialStatus, onFollowChange }: Fo
         disabled={loading}
         className={`shrink-0 rounded-lg px-4 py-2 text-sm font-medium transition-colors disabled:opacity-50 ${variant}`}
       >
-        {loading ? '…' : label}
+        {loading ? 'ΓÇª' : label}
       </button>
       {error && (
         <p className="text-xs text-red-500 dark:text-red-400">{error}</p>

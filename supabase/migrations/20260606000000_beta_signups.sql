@@ -1,7 +1,7 @@
--- beta_signups table — stores closed beta email signups from the landing page.
+-- beta_signups table ΓÇö stores closed beta email signups from the landing page.
 --
 -- RLS policy: anyone may INSERT (anonymous or authenticated).
---             SELECT is intentionally blocked for all roles — the list is read
+--             SELECT is intentionally blocked for all roles ΓÇö the list is read
 --             via the Supabase Dashboard table editor or Postgres client,
 --             bypassing RLS entirely.
 
@@ -20,7 +20,7 @@ CREATE POLICY "Anyone can sign up for beta"
   FOR INSERT
   WITH CHECK (true);
 
--- No SELECT policy — use the Supabase Dashboard or Postgres client to read.
+-- No SELECT policy ΓÇö use the Supabase Dashboard or Postgres client to read.
 
 -- Index for retrieving signups sorted by recency.
 CREATE INDEX beta_signups_created_at_idx ON beta_signups (created_at DESC);

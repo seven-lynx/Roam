@@ -24,12 +24,13 @@ build/
 .DS_Store
 Thumbs.db
 
-# Personal workspace files
+# Personal workspace files (local-only AI tooling notes; not part of the repo rules)
 CLAUDE.md
 web/CLAUDE.md
-web/AGENTS.md
 .github/copilot-instructions.md
 .github/skills/
+# NOTE: web/AGENTS.md is intentionally tracked ΓÇö it's the canonical rules file
+# for the web layer, distinct from any personal AI tooling notes.
 
 # gh CLI temp files
 gh_runs.json

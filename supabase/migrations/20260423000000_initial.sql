@@ -1,5 +1,5 @@
 -- =============================================================================
--- Roam — Initial Database Migration
+-- Roam ΓÇö Initial Database Migration
 -- =============================================================================
 -- Covers: all tables, indexes, RLS policies, Wilson score trigger,
 --         roam() RPC function, pg_cron cleanup job,
@@ -7,16 +7,16 @@
 -- =============================================================================
 
 
--- ── Extensions ────────────────────────────────────────────────────────────────
+-- ΓöÇΓöÇ Extensions ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 -- pg_cron: nightly seen_urls cleanup job.
 -- If this line errors, enable pg_cron from the Supabase dashboard
--- (Database → Extensions → pg_cron) and re-run.
+-- (Database ΓåÆ Extensions ΓåÆ pg_cron) and re-run.
 CREATE EXTENSION IF NOT EXISTS "pg_cron";
 
 
--- ── Helper: admin check ───────────────────────────────────────────────────────
+-- ΓöÇΓöÇ Helper: admin check ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 -- Used in RLS policies. Returns TRUE only for the user whose app_metadata
--- contains {"role": "admin"} — set via the Supabase dashboard on the owner
+-- contains {"role": "admin"} ΓÇö set via the Supabase dashboard on the owner
 -- account. Any policy that calls is_admin() will return FALSE for all other
 -- users, including unauthenticated callers.
 CREATE OR REPLACE FUNCTION public.is_admin()
@@ -30,7 +30,7 @@ AS $$
 $$;
 
 
--- ── Helper: updated_at trigger ────────────────────────────────────────────────
+-- ΓöÇΓöÇ Helper: updated_at trigger ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 CREATE OR REPLACE FUNCTION public.handle_updated_at()
 RETURNS TRIGGER
 LANGUAGE plpgsql
@@ -47,7 +47,7 @@ $$;
 -- =============================================================================
 
 
--- ── profiles ──────────────────────────────────────────────────────────────────
+-- ΓöÇΓöÇ profiles ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 -- One row per Supabase auth user. Created during the /join onboarding flow
 -- once the user has chosen a username.
 CREATE TABLE public.profiles (
@@ -61,7 +61,7 @@ CREATE TABLE public.profiles (
 );
 
 
--- ── categories ────────────────────────────────────────────────────────────────
+-- ΓöÇΓöÇ categories ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 -- The 8 top-level interest pillars. Seeded below; never written by users.
 CREATE TABLE public.categories (
   id         UUID     PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -72,7 +72,7 @@ CREATE TABLE public.categories (
 );
 
 
--- ── subcategories ─────────────────────────────────────────────────────────────
+-- ΓöÇΓöÇ subcategories ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 -- 72 subcategories (9 per pillar). Seeded below; never written by users.
 CREATE TABLE public.subcategories (
   id          UUID     PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -83,7 +83,7 @@ CREATE TABLE public.subcategories (
 );
 
 
--- ── user_categories ───────────────────────────────────────────────────────────
+-- ΓöÇΓöÇ user_categories ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 -- Records which categories / subcategories a user has selected.
 -- A row with subcategory_id = NULL means "entire pillar selected".
 -- A row with a subcategory_id means that specific subcategory is selected.
@@ -99,7 +99,7 @@ CREATE TABLE public.user_categories (
 );
 
 
--- ── urls ──────────────────────────────────────────────────────────────────────
+-- ΓöÇΓöÇ urls ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 -- Every URL in the discovery pool.
 -- `url` stores the normalised form (https, no www, no UTM, no trailing slash).
 -- `wilson_score` is recalculated by a trigger on every insert/update/delete
@@ -128,8 +128,8 @@ CREATE TRIGGER trg_urls_updated_at
   FOR EACH ROW EXECUTE FUNCTION public.handle_updated_at();
 
 
--- ── ratings ───────────────────────────────────────────────────────────────────
--- One row per user × URL rating event. value is +1 (up) or -1 (down).
+-- ΓöÇΓöÇ ratings ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+-- One row per user ├ù URL rating event. value is +1 (up) or -1 (down).
 -- Each user can rate a given URL only once; subsequent votes overwrite.
 CREATE TABLE public.ratings (
   id         UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -141,7 +141,7 @@ CREATE TABLE public.ratings (
 );
 
 
--- ── seen_urls ─────────────────────────────────────────────────────────────────
+-- ΓöÇΓöÇ seen_urls ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 -- Written by roam() the moment a URL is served. Excludes that URL from future
 -- recommendations for 30 days. Nightly pg_cron job removes rows older than 30
 -- days so this table never grows unboundedly.
@@ -154,7 +154,7 @@ CREATE TABLE public.seen_urls (
 );
 
 
--- ── collections ───────────────────────────────────────────────────────────────
+-- ΓöÇΓöÇ collections ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 -- User-created named lists of URLs. Public collections are accessible at
 -- /c/collection-slug on the web layer.
 CREATE TABLE public.collections (
@@ -172,7 +172,7 @@ CREATE TRIGGER trg_collections_updated_at
   FOR EACH ROW EXECUTE FUNCTION public.handle_updated_at();
 
 
--- ── collection_items ─────────────────────────────────────────────────────────
+-- ΓöÇΓöÇ collection_items ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 -- Junction table: URLs inside a collection.
 CREATE TABLE public.collection_items (
   id            UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -183,7 +183,7 @@ CREATE TABLE public.collection_items (
 );
 
 
--- ── follows ───────────────────────────────────────────────────────────────────
+-- ΓöÇΓöÇ follows ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 -- Asymmetric follow graph. is_pending = TRUE when the target profile is private
 -- and has not yet accepted the request.
 CREATE TABLE public.follows (
@@ -197,7 +197,7 @@ CREATE TABLE public.follows (
 );
 
 
--- ── moderation_queue ─────────────────────────────────────────────────────────
+-- ΓöÇΓöÇ moderation_queue ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 -- URLs submitted by users awaiting admin review.
 -- safe_browsing_passed is set by the submit-url Edge Function before insertion.
 CREATE TABLE public.moderation_queue (
@@ -266,7 +266,7 @@ ALTER TABLE public.follows           ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.moderation_queue  ENABLE ROW LEVEL SECURITY;
 
 
--- ── profiles ──────────────────────────────────────────────────────────────────
+-- ΓöÇΓöÇ profiles ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 -- Public profiles are readable by anyone. Private profiles are readable only by
 -- the owner. Users can only write their own profile row.
 CREATE POLICY "profiles: public profiles readable by everyone"
@@ -286,7 +286,7 @@ CREATE POLICY "profiles: users can delete own profile"
   USING (auth.uid() = id);
 
 
--- ── categories & subcategories ────────────────────────────────────────────────
+-- ΓöÇΓöÇ categories & subcategories ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 -- Read-only to everyone. Writes only via service role key (seeder scripts).
 CREATE POLICY "categories: readable by everyone"
   ON categories FOR SELECT
@@ -297,7 +297,7 @@ CREATE POLICY "subcategories: readable by everyone"
   USING (TRUE);
 
 
--- ── user_categories ───────────────────────────────────────────────────────────
+-- ΓöÇΓöÇ user_categories ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 -- Users manage only their own preference rows.
 CREATE POLICY "user_categories: users manage own"
   ON user_categories FOR ALL
@@ -305,7 +305,7 @@ CREATE POLICY "user_categories: users manage own"
   WITH CHECK (auth.uid() = user_id);
 
 
--- ── urls ──────────────────────────────────────────────────────────────────────
+-- ΓöÇΓöÇ urls ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 -- Approved URLs are readable by everyone (required for the Roam button to work
 -- without authentication on the web layer). Admin can read and write all rows.
 -- Seeder scripts use the service role key, which bypasses RLS entirely.
@@ -326,7 +326,7 @@ CREATE POLICY "urls: admin can delete"
   USING (public.is_admin());
 
 
--- ── ratings ───────────────────────────────────────────────────────────────────
+-- ΓöÇΓöÇ ratings ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 CREATE POLICY "ratings: users can read own"
   ON ratings FOR SELECT
   USING (auth.uid() = user_id);
@@ -341,7 +341,7 @@ CREATE POLICY "ratings: users can update own"
   WITH CHECK (auth.uid() = user_id);
 
 
--- ── seen_urls ─────────────────────────────────────────────────────────────────
+-- ΓöÇΓöÇ seen_urls ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 -- Written exclusively by roam() (SECURITY DEFINER), so no INSERT policy needed
 -- for regular users. Users can read their own rows for debugging/stats.
 CREATE POLICY "seen_urls: users can read own"
@@ -349,7 +349,7 @@ CREATE POLICY "seen_urls: users can read own"
   USING (auth.uid() = user_id);
 
 
--- ── collections ───────────────────────────────────────────────────────────────
+-- ΓöÇΓöÇ collections ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 -- Public collections are readable by everyone. Private collections are readable
 -- by the owner and by approved followers.
 CREATE POLICY "collections: public readable by everyone"
@@ -381,7 +381,7 @@ CREATE POLICY "collections: users can delete own"
   USING (auth.uid() = user_id);
 
 
--- ── collection_items ─────────────────────────────────────────────────────────
+-- ΓöÇΓöÇ collection_items ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 -- Inherits parent collection visibility rules.
 CREATE POLICY "collection_items: readable if parent collection is readable"
   ON collection_items FOR SELECT
@@ -423,7 +423,7 @@ CREATE POLICY "collection_items: collection owner can delete"
   );
 
 
--- ── follows ───────────────────────────────────────────────────────────────────
+-- ΓöÇΓöÇ follows ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 CREATE POLICY "follows: users can see own relationships"
   ON follows FOR SELECT
   USING (auth.uid() = follower_id OR auth.uid() = following_id);
@@ -441,7 +441,7 @@ CREATE POLICY "follows: either party can delete"
   USING (auth.uid() = follower_id OR auth.uid() = following_id);
 
 
--- ── moderation_queue ─────────────────────────────────────────────────────────
+-- ΓöÇΓöÇ moderation_queue ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 CREATE POLICY "moderation_queue: submitter and admin can read"
   ON moderation_queue FOR SELECT
   USING (auth.uid() = submitted_by OR public.is_admin());
@@ -465,7 +465,7 @@ CREATE POLICY "moderation_queue: admin can delete"
 -- Recalculates wilson_score (and upvotes/downvotes counts) on the urls table
 -- whenever a rating is inserted, updated, or deleted.
 -- Formula: Wilson score confidence interval at 95% (z = 1.96).
--- A URL with 10/10 upvotes scores higher than one with 600/1000 — the score
+-- A URL with 10/10 upvotes scores higher than one with 600/1000 ΓÇö the score
 -- converges toward the true approval rate as the sample size grows.
 
 CREATE OR REPLACE FUNCTION public.recalculate_wilson_score()
@@ -565,7 +565,7 @@ BEGIN
   END IF;
 
   IF p_collection_id IS NOT NULL THEN
-    -- ── Collection mode ────────────────────────────────────────────────────
+    -- ΓöÇΓöÇ Collection mode ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
     SELECT u.id INTO v_url_id
     FROM urls u
     INNER JOIN collection_items ci ON ci.url_id = u.id
@@ -579,7 +579,7 @@ BEGIN
     LIMIT 1;
 
   ELSE
-    -- ── Standard mode ──────────────────────────────────────────────────────
+    -- ΓöÇΓöÇ Standard mode ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
     -- If URLs have subcategories assigned, filter by user's selected subcategories.
     -- If URLs have NULL subcategories, filter by user's selected category pillars.
     SELECT u.id INTO v_url_id
@@ -672,14 +672,14 @@ $$;
 -- Fixed UUIDs so foreign keys in subcategories are stable across environments.
 
 INSERT INTO public.categories (id, name, slug, icon, sort_order) VALUES
-  ('c1000000-0000-0000-0000-000000000001', 'Science & Nature',  'science-nature',  '🔬', 1),
-  ('c1000000-0000-0000-0000-000000000002', 'Technology',        'technology',      '💻', 2),
-  ('c1000000-0000-0000-0000-000000000003', 'Arts & Culture',    'arts-culture',    '🎨', 3),
-  ('c1000000-0000-0000-0000-000000000004', 'History & Ideas',   'history-ideas',   '📜', 4),
-  ('c1000000-0000-0000-0000-000000000005', 'Games & Hobbies',   'games-hobbies',   '🎮', 5),
-  ('c1000000-0000-0000-0000-000000000006', 'Weird & Wonderful', 'weird-wonderful', '🌀', 6),
-  ('c1000000-0000-0000-0000-000000000007', 'People & Places',   'people-places',   '🌍', 7),
-  ('c1000000-0000-0000-0000-000000000008', 'Mind & Body',       'mind-body',       '🧠', 8);
+  ('c1000000-0000-0000-0000-000000000001', 'Science & Nature',  'science-nature',  '≡ƒö¼', 1),
+  ('c1000000-0000-0000-0000-000000000002', 'Technology',        'technology',      '≡ƒÆ╗', 2),
+  ('c1000000-0000-0000-0000-000000000003', 'Arts & Culture',    'arts-culture',    '≡ƒÄ¿', 3),
+  ('c1000000-0000-0000-0000-000000000004', 'History & Ideas',   'history-ideas',   '≡ƒô£', 4),
+  ('c1000000-0000-0000-0000-000000000005', 'Games & Hobbies',   'games-hobbies',   '≡ƒÄ«', 5),
+  ('c1000000-0000-0000-0000-000000000006', 'Weird & Wonderful', 'weird-wonderful', '≡ƒîÇ', 6),
+  ('c1000000-0000-0000-0000-000000000007', 'People & Places',   'people-places',   '≡ƒîì', 7),
+  ('c1000000-0000-0000-0000-000000000008', 'Mind & Body',       'mind-body',       '≡ƒºá', 8);
 
 
 -- =============================================================================
@@ -688,7 +688,7 @@ INSERT INTO public.categories (id, name, slug, icon, sort_order) VALUES
 
 INSERT INTO public.subcategories (category_id, name, slug, sort_order) VALUES
 
-  -- 🔬 Science & Nature
+  -- ≡ƒö¼ Science & Nature
   ('c1000000-0000-0000-0000-000000000001', 'Space & Astronomy',              'space-astronomy',             1),
   ('c1000000-0000-0000-0000-000000000001', 'Biology & Evolution',            'biology-evolution',           2),
   ('c1000000-0000-0000-0000-000000000001', 'Physics & Chemistry',            'physics-chemistry',           3),
@@ -699,7 +699,7 @@ INSERT INTO public.subcategories (category_id, name, slug, sort_order) VALUES
   ('c1000000-0000-0000-0000-000000000001', 'Oceanography & Marine Life',     'oceanography-marine-life',    8),
   ('c1000000-0000-0000-0000-000000000001', 'Paleontology & Natural History', 'paleontology-natural-history', 9),
 
-  -- 💻 Technology
+  -- ≡ƒÆ╗ Technology
   ('c1000000-0000-0000-0000-000000000002', 'Programming & Software Development', 'programming-software',    1),
   ('c1000000-0000-0000-0000-000000000002', 'Design & UX',                        'design-ux',               2),
   ('c1000000-0000-0000-0000-000000000002', 'AI & Machine Learning',              'ai-machine-learning',     3),
@@ -710,7 +710,7 @@ INSERT INTO public.subcategories (category_id, name, slug, sort_order) VALUES
   ('c1000000-0000-0000-0000-000000000002', 'Emerging Technology',                'emerging-technology',     8),
   ('c1000000-0000-0000-0000-000000000002', 'Open Source & Dev Communities',      'open-source',             9),
 
-  -- 🎨 Arts & Culture
+  -- ≡ƒÄ¿ Arts & Culture
   ('c1000000-0000-0000-0000-000000000003', 'Music',                       'music',                   1),
   ('c1000000-0000-0000-0000-000000000003', 'Film & Television',           'film-television',         2),
   ('c1000000-0000-0000-0000-000000000003', 'Visual Art & Painting',       'visual-art',              3),
@@ -721,7 +721,7 @@ INSERT INTO public.subcategories (category_id, name, slug, sort_order) VALUES
   ('c1000000-0000-0000-0000-000000000003', 'Theatre & Performance',       'theatre-performance',     8),
   ('c1000000-0000-0000-0000-000000000003', 'Fashion & Textiles',          'fashion-textiles',        9),
 
-  -- 📜 History & Ideas
+  -- ≡ƒô£ History & Ideas
   ('c1000000-0000-0000-0000-000000000004', 'Ancient & Medieval History',   'ancient-medieval-history',  1),
   ('c1000000-0000-0000-0000-000000000004', 'Modern History',               'modern-history',            2),
   ('c1000000-0000-0000-0000-000000000004', 'Philosophy & Ethics',          'philosophy-ethics',         3),
@@ -732,7 +732,7 @@ INSERT INTO public.subcategories (category_id, name, slug, sort_order) VALUES
   ('c1000000-0000-0000-0000-000000000004', 'Social History & Movements',   'social-history',            8),
   ('c1000000-0000-0000-0000-000000000004', 'Military History',             'military-history',          9),
 
-  -- 🎮 Games & Hobbies
+  -- ≡ƒÄ« Games & Hobbies
   ('c1000000-0000-0000-0000-000000000005', 'Video Games',                    'video-games',             1),
   ('c1000000-0000-0000-0000-000000000005', 'Board Games & Tabletop RPGs',    'board-games-tabletop',    2),
   ('c1000000-0000-0000-0000-000000000005', 'Sports & Athletics',             'sports-athletics',        3),
@@ -743,7 +743,7 @@ INSERT INTO public.subcategories (category_id, name, slug, sort_order) VALUES
   ('c1000000-0000-0000-0000-000000000005', 'Gardening & Horticulture',       'gardening-horticulture',  8),
   ('c1000000-0000-0000-0000-000000000005', 'Puzzles & Brain Teasers',        'puzzles-brain-teasers',   9),
 
-  -- 🌀 Weird & Wonderful
+  -- ≡ƒîÇ Weird & Wonderful
   ('c1000000-0000-0000-0000-000000000006', 'Oddities & Curiosities',            'oddities-curiosities',  1),
   ('c1000000-0000-0000-0000-000000000006', 'True Crime & Mysteries',            'true-crime-mysteries',  2),
   ('c1000000-0000-0000-0000-000000000006', 'Paranormal & Unexplained',          'paranormal-unexplained', 3),
@@ -754,7 +754,7 @@ INSERT INTO public.subcategories (category_id, name, slug, sort_order) VALUES
   ('c1000000-0000-0000-0000-000000000006', 'Unusual Places & Secret Spaces',    'unusual-places',        8),
   ('c1000000-0000-0000-0000-000000000006', 'Lost Media & Forgotten Things',     'lost-media',            9),
 
-  -- 🌍 People & Places
+  -- ≡ƒîì People & Places
   ('c1000000-0000-0000-0000-000000000007', 'Travel & Exploration',             'travel-exploration',    1),
   ('c1000000-0000-0000-0000-000000000007', 'Cities & Urban Life',              'cities-urban-life',     2),
   ('c1000000-0000-0000-0000-000000000007', 'Biographies & Profiles',           'biographies-profiles',  3),
@@ -765,7 +765,7 @@ INSERT INTO public.subcategories (category_id, name, slug, sort_order) VALUES
   ('c1000000-0000-0000-0000-000000000007', 'Maps & Cartography',               'maps-cartography',      8),
   ('c1000000-0000-0000-0000-000000000007', 'Festivals, Customs & Traditions',  'festivals-customs',     9),
 
-  -- 🧠 Mind & Body
+  -- ≡ƒºá Mind & Body
   ('c1000000-0000-0000-0000-000000000008', 'Psychology & Human Behaviour', 'psychology-behaviour',    1),
   ('c1000000-0000-0000-0000-000000000008', 'Mental Health & Wellbeing',    'mental-health',           2),
   ('c1000000-0000-0000-0000-000000000008', 'Fitness & Movement',           'fitness-movement',        3),

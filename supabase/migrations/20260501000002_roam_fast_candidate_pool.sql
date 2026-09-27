@@ -17,13 +17,13 @@
 --      overrides any shorter role-level setting.
 -- =============================================================================
 
--- ── Optional: composite index for fast candidate selection ───────────────────
+-- ΓöÇΓöÇ Optional: composite index for fast candidate selection ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 -- Lets the inner ORDER BY wilson_score DESC / LIMIT 100 use an index scan.
 CREATE INDEX IF NOT EXISTS idx_urls_roam_candidates
   ON public.urls (wilson_score DESC, language)
   WHERE approved = TRUE;
 
--- ── Rewrite roam() ───────────────────────────────────────────────────────────
+-- ΓöÇΓöÇ Rewrite roam() ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 DROP FUNCTION IF EXISTS public.roam(UUID, UUID, TEXT) CASCADE;
 
 CREATE FUNCTION public.roam(
@@ -57,7 +57,7 @@ BEGIN
     RAISE EXCEPTION 'Unauthorized';
   END IF;
 
-  -- ── Load user settings (single row lookup) ─────────────────────────────────
+  -- ΓöÇΓöÇ Load user settings (single row lookup) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
   SELECT
     COALESCE(s.preferred_languages, ARRAY['en']),
     COALESCE(s.skip_paywalled, FALSE)
@@ -68,7 +68,7 @@ BEGIN
   IF v_langs       IS NULL THEN v_langs       := ARRAY['en']; END IF;
   IF v_skip_paywall IS NULL THEN v_skip_paywall := FALSE; END IF;
 
-  -- ── Expand category preferences → flat subcategory ID list ────────────────
+  -- ΓöÇΓöÇ Expand category preferences ΓåÆ flat subcategory ID list ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
   -- Covers three selection styles:
   --   a) Explicitly selected subcategories (uc.subcategory_id IS NOT NULL)
   --   b) All subcategories of a whole-category selection where the user
@@ -100,7 +100,7 @@ BEGIN
   ) INTO v_has_categories;
 
   IF p_collection_id IS NOT NULL THEN
-    -- ── Collection mode ──────────────────────────────────────────────────────
+    -- ΓöÇΓöÇ Collection mode ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
     -- Pick top 100 candidates by wilson_score (cheap index+join), then
     -- randomise within that pool.
     SELECT c.id INTO v_url_id
@@ -131,7 +131,7 @@ BEGIN
     LIMIT 1;
 
   ELSE
-    -- ── Standard mode ────────────────────────────────────────────────────────
+    -- ΓöÇΓöÇ Standard mode ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
     SELECT c.id INTO v_url_id
     FROM (
       SELECT u.id, u.wilson_score
@@ -148,7 +148,7 @@ BEGIN
                )
              )
         AND  (
-               -- No category preferences → show everything
+               -- No category preferences ΓåÆ show everything
                NOT v_has_categories
                OR
                -- URL has a subcategory the user is allowed to see

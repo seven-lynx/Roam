@@ -1,4 +1,4 @@
-﻿-- Badges, Achievements & Gamification System
+-- Badges, Achievements & Gamification System
 -- Standalone migration â€” all references use is_admin() (no arg)
 -- which is the function defined in 20260423000000_initial.sql
 
@@ -494,4 +494,3 @@ LANGUAGE plpgsql STABLE SECURITY DEFINER AS $$
 BEGIN RETURN QUERY SELECT b.id, b.slug, b.name, b.description, b.icon, b.category, b.tier, b.required_count, ub.user_id IS NOT NULL AND ub.unlocked_at IS NOT NULL AS is_unlocked, ub.unlocked_at, COALESCE(ub.progress_current,0)::INT, b.is_hidden, b.is_gift_only, b.xp_reward, b.parent_badge_slug, ub.granted_by FROM public.badges b LEFT JOIN public.user_badges ub ON ub.badge_id = b.id AND ub.user_id = p_user_id ORDER BY CASE b.category WHEN 'exploration' THEN 1 WHEN 'collecting' THEN 2 WHEN 'curating' THEN 3 WHEN 'social' THEN 4 WHEN 'streaks' THEN 5 WHEN 'contributing' THEN 6 WHEN 'engagement' THEN 7 WHEN 'milestone' THEN 8 WHEN 'secret' THEN 9 WHEN 'gift' THEN 10 END, b.tier, b.name; END; $$;
 REVOKE EXECUTE ON FUNCTION public.get_user_badges FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.get_user_badges TO authenticated, service_role;
-

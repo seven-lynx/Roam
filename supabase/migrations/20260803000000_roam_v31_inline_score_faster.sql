@@ -1,21 +1,21 @@
 -- =============================================================================
--- roam() v31 — Inline scoring + wider sampling + pool-empty guard
+-- roam() v31 ΓÇö Inline scoring + wider sampling + pool-empty guard
 -- =============================================================================
 -- Changes from v30:
 --  1. Replace url_effective_score() helper with inline computation (eliminates
---     N+1 per-row sub-queries — the dominant performance bottleneck)
---  2. Increase TABLESAMPLE BERNOULLI from 5% → 15% (3× more candidates)
---  3. Reduce seen_urls cap from 10,000 → 3,000 (less exclusion pressure)
---  4. Increase Phase 2 fallback LIMIT from 100 → 500
+--     N+1 per-row sub-queries ΓÇö the dominant performance bottleneck)
+--  2. Increase TABLESAMPLE BERNOULLI from 5% ΓåÆ 15% (3├ù more candidates)
+--  3. Reduce seen_urls cap from 10,000 ΓåÆ 3,000 (less exclusion pressure)
+--  4. Increase Phase 2 fallback LIMIT from 100 ΓåÆ 500
 --  5. Add lightweight pool-empty confirmation before returning NULL (prevents
 --     false "seen everything" when sampling simply missed candidates)
---  6. Bump statement_timeout from 35s → 30s (queries should be faster now)
+--  6. Bump statement_timeout from 35s ΓåÆ 30s (queries should be faster now)
 -- =============================================================================
 
--- ── 1. Drop the old N+1 helper ───────────────────────────────────────────────
+-- ΓöÇΓöÇ 1. Drop the old N+1 helper ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 DROP FUNCTION IF EXISTS public.url_effective_score(UUID, UUID[], DOUBLE PRECISION[], UUID[]);
 
--- ── 2. Redeploy roam() as v31 ────────────────────────────────────────────────
+-- ΓöÇΓöÇ 2. Redeploy roam() as v31 ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 DROP FUNCTION IF EXISTS public.roam(UUID, UUID, TEXT, UUID, UUID) CASCADE;
 DROP FUNCTION IF EXISTS public.roam(UUID, UUID, TEXT, UUID, UUID, TEXT[]) CASCADE;
 
@@ -69,7 +69,7 @@ BEGIN
     RAISE EXCEPTION 'Unauthorized';
   END IF;
 
-  -- ── Load user settings ────────────────────────────────────────────────────
+  -- ΓöÇΓöÇ Load user settings ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
   SELECT
     COALESCE(s.preferred_languages, ARRAY['en']),
     COALESCE(s.skip_paywalled, FALSE),
@@ -82,7 +82,7 @@ BEGIN
   IF v_skip_paywall    IS NULL THEN v_skip_paywall    := FALSE;        END IF;
   IF v_discovery_mode  IS NULL THEN v_discovery_mode  := 'discovery';  END IF;
 
-  -- ── Merge exclude domains ─────────────────────────────────────────────────
+  -- ΓöÇΓöÇ Merge exclude domains ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
   IF p_exclude_domains IS NOT NULL AND array_length(p_exclude_domains, 1) > 0 THEN
     v_excluded := p_exclude_domains;
     IF p_exclude_domain IS NOT NULL AND NOT p_exclude_domain = ANY(v_excluded) THEN
@@ -92,8 +92,8 @@ BEGIN
     v_excluded := ARRAY[p_exclude_domain];
   END IF;
 
-  -- ── Load exclusion sets as arrays ─────────────────────────────────────────
-  -- v31: cap reduced from 10,000 → 3,000 for faster exclusion checks
+  -- ΓöÇΓöÇ Load exclusion sets as arrays ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+  -- v31: cap reduced from 10,000 ΓåÆ 3,000 for faster exclusion checks
   SELECT array_agg(url_id)
   INTO   v_seen_ids
   FROM (
@@ -103,7 +103,7 @@ BEGIN
     LIMIT  3000
   ) t;
 
-  -- URLs the user rapidly skipped — extend exclusion
+  -- URLs the user rapidly skipped ΓÇö extend exclusion
   SELECT array_agg(url_id)
   INTO   v_skip_penalty_ids
   FROM   seen_urls
@@ -142,7 +142,7 @@ BEGIN
     FROM   paywalled_domains;
   END IF;
 
-  -- ── Expand category prefs into flat subcategory ID array ──────────────────
+  -- ΓöÇΓöÇ Expand category prefs into flat subcategory ID array ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
   SELECT array_agg(DISTINCT sc.id)
   INTO   v_allowed_subcat_ids
   FROM   subcategories sc
@@ -163,7 +163,7 @@ BEGIN
   SELECT EXISTS (SELECT 1 FROM user_categories WHERE user_id = p_user_id)
   INTO v_has_categories;
 
-  -- ── Serendipity mode: 5% chance to pick from a never-seen subcategory ─────
+  -- ΓöÇΓöÇ Serendipity mode: 5% chance to pick from a never-seen subcategory ΓöÇΓöÇΓöÇΓöÇΓöÇ
   v_serendipity_subcat := NULL;
   IF v_discovery_mode = 'discovery'
      AND random() < 0.05
@@ -185,7 +185,7 @@ BEGIN
     LIMIT 1;
   END IF;
 
-  -- ── Deep Dive: narrow to top-3 subcategories by calibrated_weight ─────────
+  -- ΓöÇΓöÇ Deep Dive: narrow to top-3 subcategories by calibrated_weight ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
   IF v_discovery_mode = 'deep_dive'
      AND p_subcategory_id IS NULL
      AND p_category_id    IS NULL
@@ -206,7 +206,7 @@ BEGIN
     END IF;
   END IF;
 
-  -- ── Discovery mode: 25% adjacent serving ──────────────────────────────────
+  -- ΓöÇΓöÇ Discovery mode: 25% adjacent serving ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
   v_adjacent_subcat_id := NULL;
   IF v_discovery_mode = 'discovery'
      AND random() < 0.25
@@ -239,9 +239,9 @@ BEGIN
 
   v_effective_subcat_id := COALESCE(p_subcategory_id, v_adjacent_subcat_id, v_serendipity_subcat);
 
-  -- ═══════════════════════════════════════════════════════════════════════════
+  -- ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ
   --  COLLECTION MODE
-  -- ═══════════════════════════════════════════════════════════════════════════
+  -- ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ
   IF p_collection_id IS NOT NULL THEN
 
     -- v31: inline score (no per-row sub-query), BERNOULLI(15)
@@ -334,9 +334,9 @@ BEGIN
       LIMIT 1;
     END IF;
 
-  -- ═══════════════════════════════════════════════════════════════════════════
+  -- ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ
   --  STANDARD MODE
-  -- ═══════════════════════════════════════════════════════════════════════════
+  -- ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ
   ELSE
 
     -- v31: inline score, BERNOULLI(15)
@@ -465,10 +465,10 @@ BEGIN
 
   END IF;
 
-  -- ── Pool-empty guard: before returning NULL, confirm there really aren't
+  -- ΓöÇΓöÇ Pool-empty guard: before returning NULL, confirm there really aren't
   --     any unseen URLs that match the user's criteria. If the pool is
   --     non-empty but both phases missed, we retry once with an even wider
-  --     sample (BERNOULLI(30)) before giving up. ─────────────────────────────
+  --     sample (BERNOULLI(30)) before giving up. ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
   IF v_url_id IS NULL THEN
     -- Lightweight count check: are there unseen URLs at all?
     SELECT COUNT(*)
@@ -568,7 +568,7 @@ BEGIN
     END IF;
   END IF;
 
-  -- ── Record seen + domain cooldown ─────────────────────────────────────────
+  -- ΓöÇΓöÇ Record seen + domain cooldown ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
   IF v_url_id IS NOT NULL THEN
     INSERT INTO seen_urls (user_id, url_id)
     VALUES (p_user_id, v_url_id)

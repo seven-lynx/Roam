@@ -1,5 +1,5 @@
 -- =============================================================================
--- admin_analytics() v4 — materialize heavy queries to fix timeout
+-- admin_analytics() v4 ΓÇö materialize heavy queries to fix timeout
 -- =============================================================================
 -- Problem: v3 still times out at 30s because:
 --   1. DAU/WAU/MAU live-scans seen_urls (millions of rows from every roam() call)
@@ -10,11 +10,11 @@
 --   A. Create materialized views for active users and rejection-by-domain.
 --   B. Schedule hourly pg_cron refreshes.
 --   C. Replace the RPC to read from MVs (fast reads) instead of live queries.
---      The MVs give answers that are at most 1 hour stale — fine for an admin
+--      The MVs give answers that are at most 1 hour stale ΓÇö fine for an admin
 --      dashboard.
 -- =============================================================================
 
--- ── A. Materialized view: active users (DAU / WAU / MAU) ────────────────────
+-- ΓöÇΓöÇ A. Materialized view: active users (DAU / WAU / MAU) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 
 CREATE MATERIALIZED VIEW IF NOT EXISTS mv_admin_active_users AS
 SELECT
@@ -40,7 +40,7 @@ SELECT
     ) sub
   )::int AS mau;
 
--- ── B. Materialized view: rejection rate by domain ──────────────────────────
+-- ΓöÇΓöÇ B. Materialized view: rejection rate by domain ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 
 CREATE MATERIALIZED VIEW IF NOT EXISTS mv_admin_rejection_by_domain AS
 SELECT
@@ -58,14 +58,14 @@ HAVING COUNT(*) >= 5
 ORDER BY rejection_pct DESC
 LIMIT 15;
 
--- ── C. Unique indexes for CONCURRENTLY refresh ──────────────────────────────
+-- ΓöÇΓöÇ C. Unique indexes for CONCURRENTLY refresh ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 
 CREATE UNIQUE INDEX IF NOT EXISTS mv_admin_rejection_by_domain_pkey
   ON mv_admin_rejection_by_domain (domain);
 
 -- The active-users MV is single-row; no unique index needed.
 
--- ── D. Increment statement_timeout another 5s but read from MVs ─────────────
+-- ΓöÇΓöÇ D. Increment statement_timeout another 5s but read from MVs ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 
 DROP FUNCTION IF EXISTS public.admin_analytics() CASCADE;
 
@@ -89,7 +89,7 @@ DECLARE
   v_velocity           JSON;
   v_rejection_by_domain JSON;
 BEGIN
-  -- ── 1. Submissions per day, last 30 days ──────────────────────────────────
+  -- ΓöÇΓöÇ 1. Submissions per day, last 30 days ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
   SELECT json_agg(row ORDER BY row.date)
   INTO v_by_date
   FROM (
@@ -101,7 +101,7 @@ BEGIN
     GROUP BY 1
   ) row;
 
-  -- ── 2. Submissions by parent category (top 10, all time) ──────────────────
+  -- ΓöÇΓöÇ 2. Submissions by parent category (top 10, all time) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
   SELECT json_agg(row ORDER BY row.count DESC)
   INTO v_by_category
   FROM (
@@ -116,7 +116,7 @@ BEGIN
     LIMIT 10
   ) row;
 
-  -- ── 3. Top 10 URLs by wilson score ────────────────────────────────────────
+  -- ΓöÇΓöÇ 3. Top 10 URLs by wilson score ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
   SELECT json_agg(row ORDER BY row.wilson_score DESC)
   INTO v_top_urls
   FROM (
@@ -133,7 +133,7 @@ BEGIN
     LIMIT 10
   ) row;
 
-  -- ── 4. Queue stats: counts by status ──────────────────────────────────────
+  -- ΓöÇΓöÇ 4. Queue stats: counts by status ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
   SELECT json_build_object(
     'approved', COUNT(*) FILTER (WHERE status = 'approved')::int,
     'rejected', COUNT(*) FILTER (WHERE status = 'rejected')::int,
@@ -142,7 +142,7 @@ BEGIN
   INTO v_queue_stats
   FROM public.moderation_queue;
 
-  -- ── 5. Top rated categories (avg wilson score, min 5 rated URLs) ──────────
+  -- ΓöÇΓöÇ 5. Top rated categories (avg wilson score, min 5 rated URLs) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
   SELECT json_agg(row ORDER BY row.avg_score DESC)
   INTO v_top_rated_cats
   FROM (
@@ -159,7 +159,7 @@ BEGIN
     ORDER BY avg_score DESC
   ) row;
 
-  -- ── 6. Source breakdown (materialized view, refreshed hourly) ─────────────
+  -- ΓöÇΓöÇ 6. Source breakdown (materialized view, refreshed hourly) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
   SELECT json_agg(row ORDER BY row.count DESC)
   INTO v_sources
   FROM (
@@ -167,7 +167,7 @@ BEGIN
     ORDER BY count DESC LIMIT 20
   ) row;
 
-  -- ── 7. Language distribution (materialized view, refreshed hourly) ─────────
+  -- ΓöÇΓöÇ 7. Language distribution (materialized view, refreshed hourly) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
   SELECT json_agg(row ORDER BY row.count DESC)
   INTO v_languages
   FROM (
@@ -175,7 +175,7 @@ BEGIN
     ORDER BY count DESC LIMIT 15
   ) row;
 
-  -- ── 8. Dead URL rate by category (materialized view, refreshed hourly) ─────
+  -- ΓöÇΓöÇ 8. Dead URL rate by category (materialized view, refreshed hourly) ΓöÇΓöÇΓöÇΓöÇΓöÇ
   SELECT json_agg(row ORDER BY row.total DESC)
   INTO v_dead_by_category
   FROM (
@@ -184,7 +184,7 @@ BEGIN
     ORDER BY total DESC
   ) row;
 
-  -- ── 9. Active users: DAU / WAU / MAU ──────────────────────────────────────
+  -- ΓöÇΓöÇ 9. Active users: DAU / WAU / MAU ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
   -- Read from materialized view (refreshed hourly) instead of live query.
   SELECT json_build_object(
     'dau', COALESCE(dau, 0),
@@ -194,7 +194,7 @@ BEGIN
   INTO v_active_users
   FROM public.mv_admin_active_users;
 
-  -- ── 10. Submissions by day-of-week × hour-of-day ───────────────────────────
+  -- ΓöÇΓöÇ 10. Submissions by day-of-week ├ù hour-of-day ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
   SELECT json_agg(row ORDER BY row.dow, row.hour)
   INTO v_by_dow_hour
   FROM (
@@ -206,7 +206,7 @@ BEGIN
     GROUP BY 1, 2
   ) row;
 
-  -- ── 11. Velocity: approved URLs created this week vs last week ─────────────
+  -- ΓöÇΓöÇ 11. Velocity: approved URLs created this week vs last week ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
   SELECT json_build_object(
     'this_week', (SELECT COUNT(*)::int FROM public.urls
                   WHERE approved = true
@@ -218,7 +218,7 @@ BEGIN
   )
   INTO v_velocity;
 
-  -- ── 12. Rejection rate by domain ───────────────────────────────────────────
+  -- ΓöÇΓöÇ 12. Rejection rate by domain ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
   -- Read from materialized view (refreshed hourly) instead of live query.
   SELECT json_agg(row ORDER BY row.rejection_pct DESC)
   INTO v_rejection_by_domain
@@ -248,7 +248,7 @@ $$;
 REVOKE EXECUTE ON FUNCTION public.admin_analytics() FROM PUBLIC, anon, authenticated;
 GRANT  EXECUTE ON FUNCTION public.admin_analytics() TO service_role;
 
--- ── E. Schedule hourly refreshes ────────────────────────────────────────────
+-- ΓöÇΓöÇ E. Schedule hourly refreshes ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 
 SELECT cron.schedule(
   'refresh-mv-admin-active-users',

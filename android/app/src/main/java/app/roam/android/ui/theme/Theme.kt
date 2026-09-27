@@ -58,7 +58,7 @@ fun RoamTheme(
             val controller = WindowCompat.getInsetsController(window, view)
             // Always keep the status and navigation bars visible. WebView page loads
             // (theme-color, viewport-fit, fullscreen requests) can otherwise briefly
-            // hide the status bar during the loading → page transition.
+            // hide the status bar during the loading ΓåÆ page transition.
             controller.show(WindowInsetsCompat.Type.systemBars())
             controller.systemBarsBehavior =
                 WindowInsetsControllerCompat.BEHAVIOR_DEFAULT

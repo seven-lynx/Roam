@@ -8,7 +8,7 @@ export interface InterestState {
   selectedTopics: Set<string>;
 }
 
-/** Maps subcategory ID → parent category ID. */
+/** Maps subcategory ID ΓåÆ parent category ID. */
 export type SubcategoryParentMap = Map<string, string>;
 
 /**
@@ -30,12 +30,17 @@ export async function saveUserInterests(
     .eq('user_id', userId);
   if (delError) throw new Error(delError.message);
 
-  const rows =
+  type UserCategoryRow = {
+    user_id: string;
+    category_id: string | null;
+    subcategory_id: string | null;
+  };
+  const rows: UserCategoryRow[] =
     mode === 'pillars'
       ? Array.from(selectedPillars).map((category_id) => ({
           user_id: userId,
           category_id,
-          subcategory_id: null as string | null,
+          subcategory_id: null,
         }))
       : Array.from(selectedTopics).map((subcategory_id) => ({
           user_id: userId,

@@ -86,7 +86,7 @@ export function SiteShowcase() {
             />
           ) : (
             <div className="w-full h-full flex items-center justify-center">
-              <div className="text-4xl text-zinc-300 dark:text-zinc-600">🌐</div>
+              <div className="text-4xl text-zinc-300 dark:text-zinc-600">≡ƒîÉ</div>
             </div>
           )}
           {/* Gradient overlay at bottom */}
@@ -103,7 +103,7 @@ export function SiteShowcase() {
               {extractDomain(site.original_url)}
             </span>
             <span className="text-sm text-zinc-500 dark:text-zinc-400 flex items-center gap-1">
-              <span className="text-green-600 dark:text-green-400">↑</span>
+              <span className="text-green-600 dark:text-green-400">Γåæ</span>
               {site.upvotes}
             </span>
           </div>

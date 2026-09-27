@@ -76,7 +76,7 @@ fun ActivityFeedScreen(
         ) {
             if (loading) {
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text("Loading…", color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f))
+                    Text("LoadingΓÇª", color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f))
                 }
             } else if (error != null) {
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -89,7 +89,7 @@ fun ActivityFeedScreen(
             } else if (feed.isEmpty()) {
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text("📭", fontSize = 48.sp)
+                        Text("≡ƒô¡", fontSize = 48.sp)
                         Text("No activity yet", style = MaterialTheme.typography.bodyLarge)
                         Text("Follow people to see what they're discovering", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f))
                     }

@@ -19,7 +19,7 @@ export function CollectionItemsHeader({
       <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
         {itemCount} website{itemCount !== 1 ? 's' : ''}{owner && (
           <>
-            {' · by '}
+            {' ┬╖ by '}
             <Link
               href={`/u/${owner.username}`}
               className="hover:text-zinc-900 dark:hover:text-white transition-colors"
@@ -82,7 +82,7 @@ export function CollectionItemsList({ items }: { items: CollectionItem[] }) {
                 </span>
               </div>
               <div className="flex items-center gap-1 shrink-0 text-xs text-zinc-400">
-                <span className="text-green-600 dark:text-green-400">↑</span>
+                <span className="text-green-600 dark:text-green-400">Γåæ</span>
                 <span>{url.upvotes}</span>
               </div>
             </a>

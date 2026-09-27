@@ -1,4 +1,4 @@
-﻿package app.roam.android.ui.component
+package app.roam.android.ui.component
 
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Explore

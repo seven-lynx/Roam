@@ -30,7 +30,7 @@ CREATE INDEX IF NOT EXISTS idx_moderation_audit_log_admin
   ON public.moderation_audit_log (admin_id, decided_at DESC);
 
 
--- ── Trigger: auto-log status transitions out of 'pending' ────────────────────
+-- ΓöÇΓöÇ Trigger: auto-log status transitions out of 'pending' ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 -- Runs as SECURITY DEFINER so the insert succeeds regardless of RLS on the
 -- audit table. Only fires on real transitions (OLD.status = 'pending' AND
 -- NEW.status IN ('approved','rejected')); other updates are ignored.
@@ -58,7 +58,7 @@ CREATE TRIGGER trg_moderation_queue_audit
   EXECUTE FUNCTION public.log_moderation_decision();
 
 
--- ── RLS: admin-read-only ─────────────────────────────────────────────────────
+-- ΓöÇΓöÇ RLS: admin-read-only ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 ALTER TABLE public.moderation_audit_log ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS "moderation_audit_log: admin can read" ON public.moderation_audit_log;

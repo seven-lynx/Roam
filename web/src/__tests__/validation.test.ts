@@ -11,7 +11,7 @@ import {
   getPasswordStrengthLabel,
 } from '@/lib/validation'
 
-// ─── validateEmail ─────────────────────────────────────────────────────────────
+// ΓöÇΓöÇΓöÇ validateEmail ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 
 describe('validateEmail', () => {
   it('returns valid for a well-formed email', () => {
@@ -50,7 +50,7 @@ describe('validateEmail', () => {
   })
 })
 
-// ─── validatePassword ──────────────────────────────────────────────────────────
+// ΓöÇΓöÇΓöÇ validatePassword ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 
 describe('validatePassword', () => {
   it('returns invalid with strength "weak" for empty string', () => {
@@ -103,7 +103,7 @@ describe('validatePassword', () => {
   })
 })
 
-// ─── validatePasswordsMatch ────────────────────────────────────────────────────
+// ΓöÇΓöÇΓöÇ validatePasswordsMatch ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 
 describe('validatePasswordsMatch', () => {
   it('returns valid when passwords match', () => {
@@ -128,7 +128,7 @@ describe('validatePasswordsMatch', () => {
   })
 })
 
-// ─── getPasswordStrengthColor ──────────────────────────────────────────────────
+// ΓöÇΓöÇΓöÇ getPasswordStrengthColor ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 
 describe('getPasswordStrengthColor', () => {
   it('maps each strength to the correct Tailwind class', () => {
@@ -139,7 +139,7 @@ describe('getPasswordStrengthColor', () => {
   })
 })
 
-// ─── getPasswordStrengthLabel ──────────────────────────────────────────────────
+// ΓöÇΓöÇΓöÇ getPasswordStrengthLabel ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 
 describe('getPasswordStrengthLabel', () => {
   it('maps each strength to the correct display label', () => {

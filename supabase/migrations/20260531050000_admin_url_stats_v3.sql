@@ -1,10 +1,10 @@
 -- admin_url_stats() v3
 --
 -- Adds:
---   rated_urls       — count of active URLs that have been rated (wilson_score > 0)
---   unrated_urls     — active_urls minus rated_urls (approx)
---   new_ratings_week — new ratings submitted in the since_date window
---   avg_wilson_score — now filtered to rated-only (wilson_score > 0) for a meaningful signal
+--   rated_urls       ΓÇö count of active URLs that have been rated (wilson_score > 0)
+--   unrated_urls     ΓÇö active_urls minus rated_urls (approx)
+--   new_ratings_week ΓÇö new ratings submitted in the since_date window
+--   avg_wilson_score ΓÇö now filtered to rated-only (wilson_score > 0) for a meaningful signal
 --
 -- Uses a new partial index idx_urls_rated_partial for instant approximate counts.
 

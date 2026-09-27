@@ -33,8 +33,8 @@ class RoamApplication : Application() {
                     options.tracesSampleRate = if (BuildConfig.DEBUG) 1.0 else 0.1
                     options.isEnableUserInteractionTracing = false
                     // Drop noise auto-captured by the OkHttp integration:
-                    // - SentryHttpClientException (HTTP 500s from Sentry's own ingestion) — ROAM-ANDROID-7
-                    // - HttpRequestException with DNS failure messages — ROAM-ANDROID-Q/6/H
+                    // - SentryHttpClientException (HTTP 500s from Sentry's own ingestion) ΓÇö ROAM-ANDROID-7
+                    // - HttpRequestException with DNS failure messages ΓÇö ROAM-ANDROID-Q/6/H
                     //   These are transient network conditions the app already handles gracefully.
                     // Real app-thrown exceptions still reach Sentry via Sentry.captureException().
                     options.beforeSend = io.sentry.SentryOptions.BeforeSendCallback { event, hint ->
@@ -45,7 +45,7 @@ class RoamApplication : Application() {
                         // Drop Sentry's own internal HTTP client errors (ROAM-ANDROID-7)
                         if (excType == "SentryHttpClientException") return@BeforeSendCallback null
 
-                        // Drop DNS resolution failures — transient network conditions
+                        // Drop DNS resolution failures ΓÇö transient network conditions
                         // that the app already surfaces to the user as "Network unreachable"
                         // (ROAM-ANDROID-Q, ROAM-ANDROID-6, ROAM-ANDROID-H)
                         if (excType == "HttpRequestException" && (
@@ -62,7 +62,7 @@ class RoamApplication : Application() {
                             excValue.contains("Discovery failed", ignoreCase = true)
                         )) return@BeforeSendCallback null
 
-                        // Drop CancellationException — normal coroutine lifecycle behavior
+                        // Drop CancellationException ΓÇö normal coroutine lifecycle behavior
                         // when the user navigates away from a screen mid-request (ROAM-ANDROID-Z).
                         // These are not bugs; they're expected structured concurrency patterns.
                         if (excType == "CancellationException") return@BeforeSendCallback null
@@ -77,7 +77,7 @@ class RoamApplication : Application() {
             }
         }
 
-        // Schedule silent token refresh every 12 h (idempotent — KEEP policy)
+        // Schedule silent token refresh every 12 h (idempotent ΓÇö KEEP policy)
         TokenRefreshWorker.schedule(this)
 
         createNotificationChannel()

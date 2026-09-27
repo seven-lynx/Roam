@@ -2,11 +2,11 @@
 // Handles collection CRUD and item management for the authenticated user.
 //
 // Actions:
-//   create       — { action, name, slug, is_public? }
-//   update       — { action, id, name?, slug?, is_public? }
-//   delete       — { action, id }
-//   add_item     — { action, collection_id, url_id }  enforces 10K cap
-//   remove_item  — { action, collection_id, url_id }
+//   create       ΓÇö { action, name, slug, is_public? }
+//   update       ΓÇö { action, id, name?, slug?, is_public? }
+//   delete       ΓÇö { action, id }
+//   add_item     ΓÇö { action, collection_id, url_id }  enforces 10K cap
+//   remove_item  ΓÇö { action, collection_id, url_id }
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { corsHeaders } from '../_shared/cors.ts'
@@ -40,7 +40,7 @@ Deno.serve(async (req) => {
   const action = body.action as string | undefined
   if (!action) return json({ error: 'action required' }, 400)
 
-  // ── CREATE ────────────────────────────────────────────────────────────
+  // ΓöÇΓöÇ CREATE ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
   if (action === 'create') {
     const name = (body.name as string)?.trim() || ''
     const slug = (body.slug as string)?.trim().toLowerCase() || name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'collection'
@@ -92,7 +92,7 @@ Deno.serve(async (req) => {
     return json(data, 201)
   }
 
-  // ── UPDATE ────────────────────────────────────────────────────────────
+  // ΓöÇΓöÇ UPDATE ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
   if (action === 'update') {
     const id = body.id as string | undefined
     if (!id) return json({ error: 'id required' }, 400)
@@ -128,7 +128,7 @@ Deno.serve(async (req) => {
     return json(data)
   }
 
-  // ── DELETE ────────────────────────────────────────────────────────────
+  // ΓöÇΓöÇ DELETE ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
   if (action === 'delete') {
     const id = body.id as string | undefined
     if (!id) return json({ error: 'id required' }, 400)
@@ -143,7 +143,7 @@ Deno.serve(async (req) => {
     return json({ success: true })
   }
 
-  // ── ADD ITEM ──────────────────────────────────────────────────────────
+  // ΓöÇΓöÇ ADD ITEM ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
   if (action === 'add_item') {
     const collectionId = body.collection_id as string | undefined
     const urlId = body.url_id as string | undefined
@@ -194,7 +194,7 @@ Deno.serve(async (req) => {
     return json({ success: true })
   }
 
-  // ── REMOVE ITEM ───────────────────────────────────────────────────────
+  // ΓöÇΓöÇ REMOVE ITEM ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
   if (action === 'remove_item') {
     const collectionId = body.collection_id as string | undefined
     const urlId = body.url_id as string | undefined

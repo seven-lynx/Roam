@@ -48,7 +48,7 @@ export function TopSitesList({ sites, userId }: Props) {
               </div>
 
               <div className="flex items-center gap-1 shrink-0 text-xs text-zinc-400">
-                <span className="text-green-600 dark:text-green-400">↑</span>
+                <span className="text-green-600 dark:text-green-400">Γåæ</span>
                 <span>{site.upvotes}</span>
               </div>
             </a>
@@ -62,14 +62,14 @@ export function TopSitesList({ sites, userId }: Props) {
             href="/signup?mode=discover"
             className="text-sm text-blue-600 hover:underline font-medium"
           >
-            Discover the web →
+            Discover the web ΓåÆ
           </Link>
         ) : (
           <Link
             href="/signup"
             className="text-sm text-blue-600 hover:underline font-medium"
           >
-            Sign up to discover more →
+            Sign up to discover more ΓåÆ
           </Link>
         )}
       </div>

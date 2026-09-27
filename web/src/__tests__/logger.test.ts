@@ -40,7 +40,7 @@ describe('Logger (lib/logger)', () => {
     delete process.env.LOG_LEVEL
   }
 
-  // ─── logDebug ─────────────────────────────────────────────────────────────────
+  // ΓöÇΓöÇΓöÇ logDebug ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 
   describe('logDebug', () => {
     it('should call console.debug in development', () => {
@@ -88,7 +88,7 @@ describe('Logger (lib/logger)', () => {
     })
   })
 
-  // ─── logInfo ──────────────────────────────────────────────────────────────────
+  // ΓöÇΓöÇΓöÇ logInfo ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 
   describe('logInfo', () => {
     it('should call console.info in development', () => {
@@ -107,7 +107,7 @@ describe('Logger (lib/logger)', () => {
 
     it('should call console.info when LOG_LEVEL=info (server-side only)', () => {
       // In jsdom window is defined, so getLogLevel takes the client path.
-      // On client, LOG_LEVEL env var is not used — localStorage override or NODE_ENV is.
+      // On client, LOG_LEVEL env var is not used ΓÇö localStorage override or NODE_ENV is.
       // This test simulates the server path by temporarily hiding window.
       const originalWindow = global.window
       delete (global as Record<string, unknown>).window
@@ -128,7 +128,7 @@ describe('Logger (lib/logger)', () => {
     })
   })
 
-  // ─── logWarn ──────────────────────────────────────────────────────────────────
+  // ΓöÇΓöÇΓöÇ logWarn ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 
   describe('logWarn', () => {
     it('should call console.warn', () => {
@@ -146,7 +146,7 @@ describe('Logger (lib/logger)', () => {
     })
   })
 
-  // ─── logError ─────────────────────────────────────────────────────────────────
+  // ΓöÇΓöÇΓöÇ logError ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 
   describe('logError', () => {
     it('should always call console.error regardless of environment', () => {
@@ -193,7 +193,7 @@ describe('Logger (lib/logger)', () => {
     })
   })
 
-  // ─── setLogLevel ──────────────────────────────────────────────────────────────
+  // ΓöÇΓöÇΓöÇ setLogLevel ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 
   describe('setLogLevel', () => {
     it('should allow overriding log level at runtime', () => {
@@ -237,7 +237,7 @@ describe('Logger (lib/logger)', () => {
     })
   })
 
-  // ─── clearLogLevelOverride ───────────────────────────────────────────────────
+  // ΓöÇΓöÇΓöÇ clearLogLevelOverride ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 
   describe('clearLogLevelOverride', () => {
     it('should remove stored override from localStorage', () => {
@@ -251,7 +251,7 @@ describe('Logger (lib/logger)', () => {
     })
   })
 
-  // ─── sanitizeContext ──────────────────────────────────────────────────────────
+  // ΓöÇΓöÇΓöÇ sanitizeContext ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 
   describe('sanitizeContext', () => {
     it('should block known PII keys: email, password, token, secret, userId, id, url, response, body, payload', () => {
@@ -332,7 +332,7 @@ describe('Logger (lib/logger)', () => {
     })
   })
 
-  // ─── LogLevel enum ────────────────────────────────────────────────────────────
+  // ΓöÇΓöÇΓöÇ LogLevel enum ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 
   describe('LogLevel enum', () => {
     it('should export DEBUG=0, INFO=1, WARN=2, ERROR=3', () => {

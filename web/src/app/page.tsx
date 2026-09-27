@@ -45,17 +45,17 @@ export default async function Home() {
                 Community-curated discovery
               </div>
               <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight text-zinc-900 dark:text-white leading-tight">Discover a random corner of the web.</h1>
-              <p className="mt-4 text-lg text-zinc-500 dark:text-zinc-400 max-w-lg mx-auto lg:mx-0 leading-relaxed">One tap or click sends you somewhere new — curated by real ratings, filtered by your interests. No algorithms, no feeds, no noise.</p>
+              <p className="mt-4 text-lg text-zinc-500 dark:text-zinc-400 max-w-lg mx-auto lg:mx-0 leading-relaxed">One tap or click sends you somewhere new ΓÇö curated by real ratings, filtered by your interests. No algorithms, no feeds, no noise.</p>
               <div className="flex flex-col sm:flex-row gap-3 mt-8 justify-center lg:justify-start">
                 {user ? (
                   <>
                     <Link href="/profile" className="inline-flex items-center justify-center rounded-full bg-amber-500 hover:bg-amber-400 px-8 py-3 text-white font-semibold text-base transition-colors">Go to profile</Link>
-                    <Link href="/how-it-works" className="inline-flex items-center justify-center rounded-full border border-zinc-300 dark:border-zinc-700 px-8 py-3 text-zinc-800 dark:text-zinc-200 font-semibold text-base hover:bg-zinc-50 dark:hover:bg-zinc-900 transition-colors">How it works →</Link>
+                    <Link href="/how-it-works" className="inline-flex items-center justify-center rounded-full border border-zinc-300 dark:border-zinc-700 px-8 py-3 text-zinc-800 dark:text-zinc-200 font-semibold text-base hover:bg-zinc-50 dark:hover:bg-zinc-900 transition-colors">How it works ΓåÆ</Link>
                   </>
                 ) : (
                   <>
                     <Link href="/signup" className="inline-flex items-center justify-center rounded-full bg-amber-500 hover:bg-amber-400 text-white px-8 py-3 font-semibold text-base transition-colors">Get started</Link>
-                    <a href="#downloads" className="inline-flex items-center justify-center rounded-full border border-zinc-300 dark:border-zinc-700 px-8 py-3 text-zinc-800 dark:text-zinc-200 font-semibold text-base hover:bg-zinc-50 dark:hover:bg-zinc-900 transition-colors">Get the extension ↓</a>
+                    <a href="#downloads" className="inline-flex items-center justify-center rounded-full border border-zinc-300 dark:border-zinc-700 px-8 py-3 text-zinc-800 dark:text-zinc-200 font-semibold text-base hover:bg-zinc-50 dark:hover:bg-zinc-900 transition-colors">Get the extension Γåô</a>
                   </>
                 )}
               </div>
@@ -76,7 +76,7 @@ export default async function Home() {
       <section className="max-w-6xl mx-auto px-6 py-20">
         <h2 className="text-3xl font-bold text-zinc-900 dark:text-white text-center mb-12">How it works</h2>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-          {[{ step: '01', icon: '🎯', title: 'Pick your interests', desc: 'Select categories that match what you care about. Your discovery feed becomes personal.' }, { step: '02', icon: '🔄', title: 'Get a random page', desc: 'Tap the Roam button in your browser or Android app. One click = one new page, every time.' }, { step: '03', icon: '⭐', title: 'Rate and refine', desc: '👍 or 👎 to tell Roam what you like. Your votes shape what you see next.' }].map((item) => (
+          {[{ step: '01', icon: '≡ƒÄ»', title: 'Pick your interests', desc: 'Select categories that match what you care about. Your discovery feed becomes personal.' }, { step: '02', icon: '≡ƒöä', title: 'Get a random page', desc: 'Tap the Roam button in your browser or Android app. One click = one new page, every time.' }, { step: '03', icon: 'Γ¡É', title: 'Rate and refine', desc: '≡ƒæì or ≡ƒæÄ to tell Roam what you like. Your votes shape what you see next.' }].map((item) => (
             <div key={item.step} className="text-center p-6 rounded-2xl border border-zinc-200 dark:border-zinc-800 card-hover">
               <div className="text-4xl mb-4">{item.icon}</div><div className="text-xs font-semibold text-amber-500 uppercase tracking-wider mb-2">{item.step}</div><h3 className="text-lg font-semibold text-zinc-900 dark:text-white mb-2">{item.title}</h3><p className="text-sm text-zinc-500 dark:text-zinc-400 leading-relaxed">{item.desc}</p>
             </div>))}
@@ -107,17 +107,17 @@ export default async function Home() {
         <h2 className="text-3xl font-bold text-zinc-900 dark:text-white text-center mb-10">Get the app</h2>
         <div className="grid md:grid-cols-2 gap-6">
           <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 p-8 card-hover">
-            <div className="flex items-start gap-4"><span className="text-3xl">🌐</span><div className="flex-1"><h3 className="text-lg font-semibold text-zinc-900 dark:text-white">Browser Extension</h3><p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1 leading-relaxed">Click the Roam button while browsing to discover new pages. Rate with 👍👎 to personalize your recommendations.</p><div className="flex gap-3 mt-4"><a href="https://chromewebstore.google.com/detail/ojgphkdgkefokhjnojkddhalnlbajfpc?utm_source=roam-web" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 rounded-lg bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 px-4 py-2 text-sm font-medium hover:opacity-90 transition-opacity">Chrome</a><a href="https://addons.mozilla.org/firefox/addon/roam-the-web/" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-300 dark:border-zinc-700 px-4 py-2 text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-900 transition-colors">Firefox</a></div></div></div>
+            <div className="flex items-start gap-4"><span className="text-3xl">≡ƒîÉ</span><div className="flex-1"><h3 className="text-lg font-semibold text-zinc-900 dark:text-white">Browser Extension</h3><p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1 leading-relaxed">Click the Roam button while browsing to discover new pages. Rate with ≡ƒæì≡ƒæÄ to personalize your recommendations.</p><div className="flex gap-3 mt-4"><a href="https://chromewebstore.google.com/detail/ojgphkdgkefokhjnojkddhalnlbajfpc?utm_source=roam-web" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 rounded-lg bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 px-4 py-2 text-sm font-medium hover:opacity-90 transition-opacity">Chrome</a><a href="https://addons.mozilla.org/firefox/addon/roam-the-web/" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-300 dark:border-zinc-700 px-4 py-2 text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-900 transition-colors">Firefox</a></div></div></div>
           </div>
           <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 p-8 card-hover">
-            <div className="flex items-start gap-4"><span className="text-3xl">📱</span><div className="flex-1"><h3 className="text-lg font-semibold text-zinc-900 dark:text-white">Android App</h3><p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1 leading-relaxed">Swipe to discover. Tap to save. Read offline. The full Roam experience in your pocket.</p><div className="mt-4"><a href="https://play.google.com/store/apps/details?id=app.roam.android" target="_blank" rel="noopener noreferrer" className="inline-flex items-center rounded-lg bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 px-4 py-2 text-sm font-medium hover:opacity-90 transition-opacity">Download on Google Play</a></div></div></div>
+            <div className="flex items-start gap-4"><span className="text-3xl">≡ƒô▒</span><div className="flex-1"><h3 className="text-lg font-semibold text-zinc-900 dark:text-white">Android App</h3><p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1 leading-relaxed">Swipe to discover. Tap to save. Read offline. The full Roam experience in your pocket.</p><div className="mt-4"><a href="https://play.google.com/store/apps/details?id=app.roam.android" target="_blank" rel="noopener noreferrer" className="inline-flex items-center rounded-lg bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 px-4 py-2 text-sm font-medium hover:opacity-90 transition-opacity">Download on Google Play</a></div></div></div>
           </div>
         </div>
       </section>
       <section className="max-w-6xl mx-auto px-6 pb-20">
         <h2 className="text-3xl font-bold text-zinc-900 dark:text-white text-center mb-10">Why Roam?</h2>
         <div className="grid md:grid-cols-2 gap-6">
-          {[{ icon: '🎯', title: 'Your interests', desc: 'Select categories that match what you care about. Discovery is personalized, not algorithmic.' }, { icon: '⭐', title: 'Real ratings', desc: 'Pages are ranked by genuine user votes, not engagement metrics or ad revenue.' }, { icon: '🚫', title: 'No feeds', desc: 'One button = one page. No infinite scrolling, no rabbit holes, no notifications.' }, { icon: '🌐', title: 'Community-curated', desc: 'Real people submit and rate pages. The best content rises; the noise disappears.' }].map((item) => (
+          {[{ icon: '≡ƒÄ»', title: 'Your interests', desc: 'Select categories that match what you care about. Discovery is personalized, not algorithmic.' }, { icon: 'Γ¡É', title: 'Real ratings', desc: 'Pages are ranked by genuine user votes, not engagement metrics or ad revenue.' }, { icon: '≡ƒÜ½', title: 'No feeds', desc: 'One button = one page. No infinite scrolling, no rabbit holes, no notifications.' }, { icon: '≡ƒîÉ', title: 'Community-curated', desc: 'Real people submit and rate pages. The best content rises; the noise disappears.' }].map((item) => (
             <div key={item.title} className="flex items-start gap-4 p-5 rounded-xl border border-zinc-200 dark:border-zinc-800 card-hover"><span className="text-2xl shrink-0">{item.icon}</span><div><h3 className="font-semibold text-zinc-900 dark:text-white mb-1">{item.title}</h3><p className="text-sm text-zinc-500 dark:text-zinc-400 leading-relaxed">{item.desc}</p></div></div>))}
         </div>
       </section>
@@ -136,7 +136,7 @@ async function FeaturedCollections() {
   if (!collections || collections.length === 0) return null;
   return (
     <section className="max-w-6xl mx-auto px-6 pb-20">
-      <div className="flex items-center justify-between mb-8"><h2 className="text-3xl font-bold text-zinc-900 dark:text-white">Featured Collections</h2><Link href="/collections" className="text-sm font-medium text-amber-600 dark:text-amber-400 hover:underline">View all →</Link></div>
+      <div className="flex items-center justify-between mb-8"><h2 className="text-3xl font-bold text-zinc-900 dark:text-white">Featured Collections</h2><Link href="/collections" className="text-sm font-medium text-amber-600 dark:text-amber-400 hover:underline">View all ΓåÆ</Link></div>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {collections.map((col) => { const owner = col.profiles as unknown as { username: string; display_name: string } | null; return (<Link key={col.id} href={`/collections/${col.slug}`} className="flex flex-col justify-between rounded-xl border border-zinc-200 dark:border-zinc-800 p-5 hover:bg-zinc-50 dark:hover:bg-zinc-900 transition-colors group"><div><h3 className="text-base font-semibold text-zinc-900 dark:text-white group-hover:underline">{col.name}</h3>{owner && <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">by {owner.display_name || owner.username}</p>}</div></Link>); })}
       </div>

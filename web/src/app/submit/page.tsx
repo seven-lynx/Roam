@@ -9,14 +9,14 @@ import { useRequireAuth } from '@/lib/hooks';
 type Category = { id: string; label: string; emoji: string };
 
 const FALLBACK_CATEGORIES: Category[] = [
-  { id: 'c1000000-0000-0000-0000-000000000001', label: 'Science & Nature', emoji: '🔬' },
-  { id: 'c1000000-0000-0000-0000-000000000002', label: 'Technology', emoji: '💻' },
-  { id: 'c1000000-0000-0000-0000-000000000003', label: 'Arts & Culture', emoji: '🎨' },
-  { id: 'c1000000-0000-0000-0000-000000000004', label: 'History & Ideas', emoji: '📜' },
-  { id: 'c1000000-0000-0000-0000-000000000005', label: 'Games & Hobbies', emoji: '🎮' },
-  { id: 'c1000000-0000-0000-0000-000000000006', label: 'Weird & Wonderful', emoji: '🌀' },
-  { id: 'c1000000-0000-0000-0000-000000000007', label: 'People & Places', emoji: '🌍' },
-  { id: 'c1000000-0000-0000-0000-000000000008', label: 'Mind & Body', emoji: '🧠' },
+  { id: 'c1000000-0000-0000-0000-000000000001', label: 'Science & Nature', emoji: '≡ƒö¼' },
+  { id: 'c1000000-0000-0000-0000-000000000002', label: 'Technology', emoji: '≡ƒÆ╗' },
+  { id: 'c1000000-0000-0000-0000-000000000003', label: 'Arts & Culture', emoji: '≡ƒÄ¿' },
+  { id: 'c1000000-0000-0000-0000-000000000004', label: 'History & Ideas', emoji: '≡ƒô£' },
+  { id: 'c1000000-0000-0000-0000-000000000005', label: 'Games & Hobbies', emoji: '≡ƒÄ«' },
+  { id: 'c1000000-0000-0000-0000-000000000006', label: 'Weird & Wonderful', emoji: '≡ƒîÇ' },
+  { id: 'c1000000-0000-0000-0000-000000000007', label: 'People & Places', emoji: '≡ƒîì' },
+  { id: 'c1000000-0000-0000-0000-000000000008', label: 'Mind & Body', emoji: '≡ƒºá' },
 ];
 
 export default function SubmitPage() {
@@ -105,7 +105,7 @@ export default function SubmitPage() {
       setDescription('');
       setCategoryId('');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Something went wrong — please try again.');
+      setError(err instanceof Error ? err.message : 'Something went wrong ΓÇö please try again.');
     } finally {
       setLoading(false);
     }
@@ -117,7 +117,7 @@ export default function SubmitPage() {
     <div className="min-h-screen bg-white dark:bg-zinc-950">
       <main className="max-w-2xl mx-auto px-6 py-12">
         <Link href="/profile" className="text-zinc-500 hover:text-zinc-900 dark:hover:text-white transition-colors text-sm mb-8 inline-block">
-          ← Back to profile
+          ΓåÉ Back to profile
         </Link>
 
         <div className="flex flex-col gap-2 mb-8">
@@ -194,7 +194,7 @@ export default function SubmitPage() {
                 onChange={(e) => setDescription(e.target.value)}
                 rows={3}
                 maxLength={500}
-                placeholder="Briefly describe why this is worth reading…"
+                placeholder="Briefly describe why this is worth readingΓÇª"
                 className="w-full rounded-lg border border-zinc-300 dark:border-zinc-700 px-4 py-2.5 text-sm bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:focus:ring-white resize-none"
               />
             </div>
@@ -202,7 +202,7 @@ export default function SubmitPage() {
             {/* Category */}
             <div className="flex flex-col gap-1.5">
               <label htmlFor="category" className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
-                Category <span className="text-zinc-400 font-normal">(optional — helps the reviewer)</span>
+                Category <span className="text-zinc-400 font-normal">(optional ΓÇö helps the reviewer)</span>
               </label>
               <select
                 id="category"
@@ -210,7 +210,7 @@ export default function SubmitPage() {
                 onChange={(e) => setCategoryId(e.target.value)}
                 className="w-full rounded-lg border border-zinc-300 dark:border-zinc-700 px-4 py-2.5 text-sm bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:focus:ring-white"
               >
-                <option value="">— Select a category —</option>
+                <option value="">ΓÇö Select a category ΓÇö</option>
                 {categories.map((cat) => (
                   <option key={cat.id} value={cat.id}>
                     {cat.emoji} {cat.label}
@@ -236,7 +236,7 @@ export default function SubmitPage() {
               disabled={loading || !url.trim()}
               className="w-full rounded-lg bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 py-2.5 text-sm font-semibold hover:opacity-90 transition-opacity disabled:opacity-40"
             >
-              {loading ? 'Submitting…' : 'Submit for review'}
+              {loading ? 'SubmittingΓÇª' : 'Submit for review'}
             </button>
           </form>
         )}

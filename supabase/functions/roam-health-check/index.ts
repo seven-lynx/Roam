@@ -7,7 +7,7 @@
 //   3. roam() completes within the authenticated statement_timeout budget.
 //
 // If roam() returns empty while the pool is in the millions, that's the
-// "impossible" condition from ROAM_EXHAUSTED_INCIDENT.md — it should page.
+// "impossible" condition from ROAM_EXHAUSTED_INCIDENT.md ΓÇö it should page.
 // Reports to Sentry so an alert rule can fire.
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { corsHeaders } from '../_shared/cors.ts'
@@ -17,7 +17,7 @@ const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
 const report = initSentry('roam-health-check')
 
-// Dedicated test account — must exist in auth.users. Each probe consumes a URL
+// Dedicated test account ΓÇö must exist in auth.users. Each probe consumes a URL
 // for this user (same side effect as a real roam), so it should be a throwaway.
 const TEST_USER_ID = Deno.env.get('ROAM_TEST_USER_ID')
 
@@ -37,7 +37,7 @@ Deno.serve(async (req) => {
   const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
 
   try {
-    // ── 1. Pool count ────────────────────────────────────────────────────────
+    // ΓöÇΓöÇ 1. Pool count ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
     const { count: poolCount, error: countError } = await supabase
       .from('urls')
       .select('id', { count: 'exact', head: true })
@@ -50,7 +50,7 @@ Deno.serve(async (req) => {
       return json({ ok: false, error: 'pool_count_failed' }, 503)
     }
 
-    // ── 2. Probe roam() as the test user ────────────────────────────────────
+    // ΓöÇΓöÇ 2. Probe roam() as the test user ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
     if (!TEST_USER_ID) {
       await report(new Error('roam-health-check: ROAM_TEST_USER_ID not configured'), 'error')
       return json({ ok: false, error: 'test_user_not_configured' }, 500)
@@ -70,7 +70,7 @@ Deno.serve(async (req) => {
 
     const row = Array.isArray(data) ? data[0] : null
 
-    // ── 3. The "impossible" condition: empty result while pool is huge ──────
+    // ΓöÇΓöÇ 3. The "impossible" condition: empty result while pool is huge ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
     if (!row && (poolCount ?? 0) > 1_000_000) {
       await report(
         new Error(`roam-health-check: roam() returned empty while pool has ${poolCount} approved URLs`),
@@ -80,7 +80,7 @@ Deno.serve(async (req) => {
       return json({ ok: false, error: 'impossible_empty', pool_count: poolCount }, 503)
     }
 
-    // ── 4. Latency budget ───────────────────────────────────────────────────
+    // ΓöÇΓöÇ 4. Latency budget ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
     if (probeMs > BUDGET_MS) {
       await report(
         new Error(`roam-health-check: roam() took ${probeMs}ms > ${BUDGET_MS}ms budget`),

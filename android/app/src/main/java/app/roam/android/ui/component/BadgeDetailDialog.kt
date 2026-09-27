@@ -44,9 +44,9 @@ fun BadgeDetailDialog(
                 modifier = Modifier.padding(24.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
-                // Icon — large
+                // Icon ΓÇö large
                 Text(
-                    text = if (badge.isHidden && !badge.isUnlocked) "❓" else badge.icon,
+                    text = if (badge.isHidden && !badge.isUnlocked) "Γ¥ô" else badge.icon,
                     fontSize = 48.sp,
                 )
 
@@ -79,7 +79,7 @@ fun BadgeDetailDialog(
                 HorizontalDivider()
                 Spacer(Modifier.height(8.dp))
 
-                // Description — shows how to unlock or what it means
+                // Description ΓÇö shows how to unlock or what it means
                 Text(
                     text = "How to unlock",
                     style = MaterialTheme.typography.labelMedium,

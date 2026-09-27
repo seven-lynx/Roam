@@ -1,5 +1,5 @@
 -- =============================================================================
--- Report Materialized Views — mirror offline report queries for live access
+-- Report Materialized Views ΓÇö mirror offline report queries for live access
 -- Deploy in Supabase SQL Editor if REST API times out (>60s GROUP BY).
 -- =============================================================================
 

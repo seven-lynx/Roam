@@ -1,4 +1,4 @@
-# Roam Extension — Technical Design
+# Roam Extension ΓÇö Technical Design
 
 **Version:** 2.0 (rebuild)  
 **Last updated:** 2026-06-02  
@@ -8,7 +8,7 @@
 
 ## 1. Overview
 
-The Roam browser extension is a popup + background service worker pair. The user clicks the toolbar button, the popup opens, and they press Roam to navigate to a curated page. Everything else — voting, URL submission, collections, preferences — lives in the config panel.
+The Roam browser extension is a popup + background service worker pair. The user clicks the toolbar button, the popup opens, and they press Roam to navigate to a curated page. Everything else ΓÇö voting, URL submission, collections, preferences ΓÇö lives in the config panel.
 
 The rebuild has one goal: **retain every feature with the smallest, most maintainable codebase that correctly models MV3 constraints.**
 
@@ -34,7 +34,7 @@ Extension service workers can fetch cross-origin URLs but only in `mode: 'no-cor
 - `response.headers` is empty.
 - `response.ok` is always `false`.
 
-The previous `validateUrl()` in `queue.ts` attempted to validate URLs with `mode: 'no-cors'` and checked `response.status !== 0` — which was always false, meaning every URL unconditionally returned `valid = true`. The validation was a no-op.
+The previous `validateUrl()` in `queue.ts` attempted to validate URLs with `mode: 'no-cors'` and checked `response.status !== 0` ΓÇö which was always false, meaning every URL unconditionally returned `valid = true`. The validation was a no-op.
 
 **Conclusion:** URL validation by fetching in the SW is not possible without a CORS-enabled relay. Since the Supabase `urls` table contains only approved content, validation adds no value. Skip it.
 
@@ -55,7 +55,7 @@ Session storage is the right home for the prefetch cache. If the browser restart
 Firefox implements MV3 with some gaps:
 - `chrome.storage.session` is supported from Firefox 115.
 - `background.scripts` array in the manifest is required in addition to `service_worker` for Firefox compatibility; the build handles this.
-- `identity` permission (used for Chrome's `chrome.identity` API) is not available in Firefox. The extension uses Supabase OAuth redirects instead of `chrome.identity`, so this is not a blocker — but `identity` must be absent from `manifest.firefox.json`.
+- `identity` permission (used for Chrome's `chrome.identity` API) is not available in Firefox. The extension uses Supabase OAuth redirects instead of `chrome.identity`, so this is not a blocker ΓÇö but `identity` must be absent from `manifest.firefox.json`.
 - The `browser_specific_settings.gecko` block in `manifest.firefox.json` specifies `strict_min_version: "140.0"` and the extension ID `roam@roamtheweb.app`.
 
 ---
@@ -64,37 +64,37 @@ Firefox implements MV3 with some gaps:
 
 ```
 extension/
-├── build.mjs                  ← esbuild pipeline (Chrome + Firefox, watch mode)
-├── manifest.json              ← Chrome MV3 manifest
-├── manifest.firefox.json      ← Firefox MV3 manifest (adds gecko block, removes identity)
-├── package.json
-├── tsconfig.json
-├── vitest.config.ts
-├── DESIGN.md                  ← this file
-├── TESTING.md                 ← manual QA flows
-├── icons/
-│   ├── icon-16.png
-│   ├── icon-32.png
-│   ├── icon-48.png
-│   └── icon-128.png
-├── src/
-│   ├── background/
-│   │   └── background.ts      ← SW entry point. Message router + all handlers.
-│   ├── popup/
-│   │   ├── popup.html         ← Static HTML. All states present, toggled with hidden attr.
-│   │   ├── popup.css          ← All popup styles.
-│   │   └── popup.ts           ← Popup entry point. UI state machine + event handlers.
-│   ├── callback/
-│   │   ├── callback.html      ← Minimal page shown during OAuth redirect.
-│   │   └── callback.ts        ← Extracts tokens from URL, sends SAVE_SESSION to SW.
-│   └── lib/
-│       ├── constants.ts       ← FALLBACK_CATEGORIES (8 hardcoded UUIDs).
-│       ├── env.ts             ← Build-time env validation. Called once at SW startup.
-│       ├── messages.ts        ← Discriminated union Request/Response types + sendToBackground().
-│       ├── sentry.ts          ← Sentry init. Must be the first import in both entry points.
-│       └── supabase.ts        ← Supabase client factory. chromeStorageAdapter for session.
-└── dist/                      ← Chrome build output (gitignored)
-└── dist-firefox/              ← Firefox build output (gitignored)
+Γö£ΓöÇΓöÇ build.mjs                  ΓåÉ esbuild pipeline (Chrome + Firefox, watch mode)
+Γö£ΓöÇΓöÇ manifest.json              ΓåÉ Chrome MV3 manifest
+Γö£ΓöÇΓöÇ manifest.firefox.json      ΓåÉ Firefox MV3 manifest (adds gecko block, removes identity)
+Γö£ΓöÇΓöÇ package.json
+Γö£ΓöÇΓöÇ tsconfig.json
+Γö£ΓöÇΓöÇ vitest.config.ts
+Γö£ΓöÇΓöÇ DESIGN.md                  ΓåÉ this file
+Γö£ΓöÇΓöÇ TESTING.md                 ΓåÉ manual QA flows
+Γö£ΓöÇΓöÇ icons/
+Γöé   Γö£ΓöÇΓöÇ icon-16.png
+Γöé   Γö£ΓöÇΓöÇ icon-32.png
+Γöé   Γö£ΓöÇΓöÇ icon-48.png
+Γöé   ΓööΓöÇΓöÇ icon-128.png
+Γö£ΓöÇΓöÇ src/
+Γöé   Γö£ΓöÇΓöÇ background/
+Γöé   Γöé   ΓööΓöÇΓöÇ background.ts      ΓåÉ SW entry point. Message router + all handlers.
+Γöé   Γö£ΓöÇΓöÇ popup/
+Γöé   Γöé   Γö£ΓöÇΓöÇ popup.html         ΓåÉ Static HTML. All states present, toggled with hidden attr.
+Γöé   Γöé   Γö£ΓöÇΓöÇ popup.css          ΓåÉ All popup styles.
+Γöé   Γöé   ΓööΓöÇΓöÇ popup.ts           ΓåÉ Popup entry point. UI state machine + event handlers.
+Γöé   Γö£ΓöÇΓöÇ callback/
+Γöé   Γöé   Γö£ΓöÇΓöÇ callback.html      ΓåÉ Minimal page shown during OAuth redirect.
+Γöé   Γöé   ΓööΓöÇΓöÇ callback.ts        ΓåÉ Extracts tokens from URL, sends SAVE_SESSION to SW.
+Γöé   ΓööΓöÇΓöÇ lib/
+Γöé       Γö£ΓöÇΓöÇ constants.ts       ΓåÉ FALLBACK_CATEGORIES (8 hardcoded UUIDs).
+Γöé       Γö£ΓöÇΓöÇ env.ts             ΓåÉ Build-time env validation. Called once at SW startup.
+Γöé       Γö£ΓöÇΓöÇ messages.ts        ΓåÉ Discriminated union Request/Response types + sendToBackground().
+Γöé       Γö£ΓöÇΓöÇ sentry.ts          ΓåÉ Sentry init. Must be the first import in both entry points.
+Γöé       ΓööΓöÇΓöÇ supabase.ts        ΓåÉ Supabase client factory. chromeStorageAdapter for session.
+ΓööΓöÇΓöÇ dist/                      ΓåÉ Chrome build output (gitignored)
+ΓööΓöÇΓöÇ dist-firefox/              ΓåÉ Firefox build output (gitignored)
 ```
 
 **Deleted vs. original:**
@@ -112,8 +112,8 @@ extension/
 ### 4.1 Responsibilities
 
 - Validate build-time environment variables at startup (`validateEnvironment()`).
-- Register the `onMessage` listener — the single entry point for all popup requests.
-- Register the `onConnect` listener — used to keep the SW alive while the popup is open, and to trigger URL prefetching when the popup opens.
+- Register the `onMessage` listener ΓÇö the single entry point for all popup requests.
+- Register the `onConnect` listener ΓÇö used to keep the SW alive while the popup is open, and to trigger URL prefetching when the popup opens.
 - Handle all 22 message types (auth, roam, rate, collections, preferences, etc.).
 - Prefetch the next URL whenever the popup connects.
 
@@ -122,10 +122,10 @@ extension/
 Every SW activation (cold start or wake) runs module-level code once:
 
 ```
-1. validateEnvironment()          — throws and crashes SW with clear message if vars missing
-2. self.addEventListener(...)     — register unhandledrejection + error → Sentry
-3. chrome.runtime.onMessage       — register message router
-4. chrome.runtime.onConnect       — register keepalive + prefetch trigger
+1. validateEnvironment()          ΓÇö throws and crashes SW with clear message if vars missing
+2. self.addEventListener(...)     ΓÇö register unhandledrejection + error ΓåÆ Sentry
+3. chrome.runtime.onMessage       ΓÇö register message router
+4. chrome.runtime.onConnect       ΓÇö register keepalive + prefetch trigger
 ```
 
 The `getSupabase()` call is lazy (first call creates the client). The Supabase client rehydrates its session from `chrome.storage.local` automatically via `chromeStorageAdapter`.
@@ -134,40 +134,40 @@ The `getSupabase()` call is lazy (first call creates the client). The Supabase c
 
 ```
 chrome.runtime.onMessage
-  → dispatch(req)          — wraps _dispatch; sends failed non-expected types to Sentry
-    → _dispatch(req)       — switch on req.type, returns Response<T>
+  ΓåÆ dispatch(req)          ΓÇö wraps _dispatch; sends failed non-expected types to Sentry
+    ΓåÆ _dispatch(req)       ΓÇö switch on req.type, returns Response<T>
 ```
 
 All handlers return `{ ok: true, data: T }` or `{ ok: false, error: string }`. The `error` string is always user-facing (no stack traces, no internal IDs).
 
-Expected failure types that are NOT sent to Sentry: `SIGN_IN_EMAIL`, `SIGN_UP_EMAIL`, `GET_PROFILE` — these fail in normal operation (wrong password, no profile yet).
+Expected failure types that are NOT sent to Sentry: `SIGN_IN_EMAIL`, `SIGN_UP_EMAIL`, `GET_PROFILE` ΓÇö these fail in normal operation (wrong password, no profile yet).
 
 ### 4.4 Prefetch design
 
-**Problem:** Clicking Roam triggers an Edge Function call (~300–800ms). This delay is noticeable.
+**Problem:** Clicking Roam triggers an Edge Function call (~300ΓÇô800ms). This delay is noticeable.
 
 **Solution:** When the popup opens, the SW immediately fires a background `roam()` call and stores the result in `chrome.storage.session`. When the user clicks Roam, the handler reads from this cache first. If the cache has a valid entry (not older than 5 minutes), it returns instantly and fires the next prefetch without awaiting it. If the cache is empty or stale, it falls through to a live call.
 
 ```
 chrome.runtime.onConnect
-  └─ prefetchNext()                  ← fires immediately, does not block popup render
+  ΓööΓöÇ prefetchNext()                  ΓåÉ fires immediately, does not block popup render
 
 roam() handler:
   1. read chrome.storage.session['prefetch']
   2. if present AND age < 5min:
        a. delete from session storage
-       b. call prefetchNext() (no await — fire and forget)
+       b. call prefetchNext() (no await ΓÇö fire and forget)
        c. return cached URL
   3. else: live Edge Function call
 ```
 
-**prefetchNext() is safe to call concurrently.** If two `onConnect` events fire in quick succession (e.g. popup closed and reopened), both prefetches race to write the same key. The last write wins — both URLs come from the same pool, so there is no correctness problem.
+**prefetchNext() is safe to call concurrently.** If two `onConnect` events fire in quick succession (e.g. popup closed and reopened), both prefetches race to write the same key. The last write wins ΓÇö both URLs come from the same pool, so there is no correctness problem.
 
 **Why session storage, not local storage?** A prefetched URL from two days ago is useless (the page might be gone, the user's categories may have changed). Session storage is cleared on browser restart, which is the right TTL.
 
 **Why only 1 URL, not 3?** The old design tried to maintain 3 hot + 5 warming because it assumed validation would reject many URLs. Since we've established that validation is a no-op in this context, 1 URL is correct. Approved DB content is reliable. A cache depth of 1 eliminates the most noticeable latency case (first click after opening the popup) without the complexity of managing a queue.
 
-**The prefetch covers roaming modes too.** The standard `ROAM` call uses `prefetchNext()`. The `ROAM_COLLECTION` and `ROAM_CATEGORY` calls do NOT use the cache — those are context-specific and the cached URL was fetched without a collection/category constraint. They go live every time, and that is acceptable.
+**The prefetch covers roaming modes too.** The standard `ROAM` call uses `prefetchNext()`. The `ROAM_COLLECTION` and `ROAM_CATEGORY` calls do NOT use the cache ΓÇö those are context-specific and the cached URL was fetched without a collection/category constraint. They go live every time, and that is acceptable.
 
 ### 4.5 Domain diversity (lastRoamDomain)
 
@@ -184,8 +184,8 @@ When `ROAM_COLLECTION` or `ROAM_CATEGORY` is called, the same `lastRoamDomain` e
 | `SIGN_IN_GITHUB` | `signInWithOAuth('github')` | Same pattern |
 | `SIGN_IN_EMAIL` | `signInWithEmail()` | Direct password auth |
 | `SIGN_UP_EMAIL` | `signUpWithEmail()` | Returns `needsVerification: bool` |
-| `EXCHANGE_CODE` | `exchangeCode()` | PKCE code → session (called from callback.ts) |
-| `SAVE_SESSION` | `saveSession()` | Implicit grant tokens → session (called from callback.ts) |
+| `EXCHANGE_CODE` | `exchangeCode()` | PKCE code ΓåÆ session (called from callback.ts) |
+| `SAVE_SESSION` | `saveSession()` | Implicit grant tokens ΓåÆ session (called from callback.ts) |
 | `SIGN_OUT` | `signOut()` | Calls `clearAuthStorage()` to wipe all session keys |
 | `GET_CATEGORIES` | `getCategories()` | 20-minute in-memory TTL cache; falls back to FALLBACK_CATEGORIES |
 | `GET_USER_CATEGORIES` | `getUserCategories()` | Reads `user_categories` table |
@@ -194,14 +194,14 @@ When `ROAM_COLLECTION` or `ROAM_CATEGORY` is called, the same `lastRoamDomain` e
 | `ROAM_COLLECTION` | `roamCollection()` | Live call with `collection_id`. No prefetch. |
 | `ROAM_CATEGORY` | `roamCategory()` | Live call with `category_id`. No prefetch. |
 | `RATE` | `rate()` | POST to `rate` Edge Function |
-| `CHECK_URL` | `checkUrl()` | Normalise → exact match → trailing-slash match in `urls` table |
-| `SUBMIT_URL` | `submitUrl()` | UUID validation → POST to `submit-url` Edge Function |
+| `CHECK_URL` | `checkUrl()` | Normalise ΓåÆ exact match ΓåÆ trailing-slash match in `urls` table |
+| `SUBMIT_URL` | `submitUrl()` | UUID validation ΓåÆ POST to `submit-url` Edge Function |
 | `SAVE_LATER` | `saveLater()` | Appends to `saved_urls` array in `chrome.storage.local` |
 | `SET_PAYWALL_PREF` | `setPaywallPref()` | Writes to `chrome.storage.local` AND `user_settings` table |
 | `SET_LANGUAGE_PREF` | `setLanguagePref()` | Same dual-write pattern |
 | `GET_COLLECTIONS` | `getCollections()` | Reads `collections` + count join |
 | `CREATE_COLLECTION` | `createCollection()` | Inserts into `collections`; auto-generates slug |
-| `ADD_URL_TO_COLLECTION` | `addUrlToCollection()` | Normalise → lookup or create url row → insert collection_item |
+| `ADD_URL_TO_COLLECTION` | `addUrlToCollection()` | Normalise ΓåÆ lookup or create url row ΓåÆ insert collection_item |
 | `GET_PROFILE` | `getProfile()` | Reads `profiles` by user ID |
 | `SEND_FEEDBACK` | `sendFeedback()` | POST to `feedback` Edge Function |
 | `REPORT_URL` | `reportUrl()` | POST to `report-url` Edge Function |
@@ -218,7 +218,7 @@ When `ROAM_COLLECTION` or `ROAM_CATEGORY` is called, the same `lastRoamDomain` e
 
 A singleton `SupabaseClient` instantiated once per SW activation via the lazy `getSupabase()` factory.
 
-**Session persistence:** The client uses a custom `chromeStorageAdapter` backed by `chrome.storage.local`. Supabase v2 uses `getItem`/`setItem`/`removeItem`, all async — the adapter wraps them in Promises. This means the session (access token + refresh token) survives SW termination and is restored on the next activation automatically by the Supabase client's `autoRefreshToken` logic.
+**Session persistence:** The client uses a custom `chromeStorageAdapter` backed by `chrome.storage.local`. Supabase v2 uses `getItem`/`setItem`/`removeItem`, all async ΓÇö the adapter wraps them in Promises. This means the session (access token + refresh token) survives SW termination and is restored on the next activation automatically by the Supabase client's `autoRefreshToken` logic.
 
 **Auth config:**
 ```typescript
@@ -245,25 +245,25 @@ OAuth is the most complex flow because it spans three contexts: the SW, the popu
 
 ```
 Popup                        SW (background.ts)          callback.html tab
-  │                               │                             │
-  │──SIGN_IN_GOOGLE───────────────▶                             │
-  │                               │ signInWithOAuth('google')   │
-  │                               │ supabase.auth.signInWithOAuth(...)
-  │                               │ → returns {url: 'https://accounts.google.com/...'}
-  │                               │ chrome.tabs.create({ url })──────────────────▶
-  │◀──{ ok:true, signedIn:false }──│                             │
-  │                               │                    [user completes OAuth]
-  │ [polling GET_STATE every 500ms]                             │
-  │                               │                    callback.html loads with:
-  │                               │                    #access_token=...&refresh_token=...
-  │                               │                    OR ?code=...
-  │                               │                             │
-  │                               │◀──SAVE_SESSION / EXCHANGE_CODE
-  │                               │ session stored to chrome.storage.local
-  │                               │──{ ok:true, signedIn:true }──▶
-  │                               │                    tab.close()
-  │ [GET_STATE returns signedIn:true]
-  │ checkAndRouteAfterSignIn()
+  Γöé                               Γöé                             Γöé
+  ΓöéΓöÇΓöÇSIGN_IN_GOOGLEΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓû╢                             Γöé
+  Γöé                               Γöé signInWithOAuth('google')   Γöé
+  Γöé                               Γöé supabase.auth.signInWithOAuth(...)
+  Γöé                               Γöé ΓåÆ returns {url: 'https://accounts.google.com/...'}
+  Γöé                               Γöé chrome.tabs.create({ url })ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓû╢
+  ΓöéΓùÇΓöÇΓöÇ{ ok:true, signedIn:false }ΓöÇΓöÇΓöé                             Γöé
+  Γöé                               Γöé                    [user completes OAuth]
+  Γöé [polling GET_STATE every 500ms]                             Γöé
+  Γöé                               Γöé                    callback.html loads with:
+  Γöé                               Γöé                    #access_token=...&refresh_token=...
+  Γöé                               Γöé                    OR ?code=...
+  Γöé                               Γöé                             Γöé
+  Γöé                               ΓöéΓùÇΓöÇΓöÇSAVE_SESSION / EXCHANGE_CODE
+  Γöé                               Γöé session stored to chrome.storage.local
+  Γöé                               ΓöéΓöÇΓöÇ{ ok:true, signedIn:true }ΓöÇΓöÇΓû╢
+  Γöé                               Γöé                    tab.close()
+  Γöé [GET_STATE returns signedIn:true]
+  Γöé checkAndRouteAfterSignIn()
 ```
 
 ### 6.2 callback.ts
@@ -279,7 +279,7 @@ The 10-second timeout on the `sendMessage` call guards against the SW not respon
 
 ### 6.3 Popup polling
 
-After initiating OAuth, the popup polls `GET_STATE` every 500ms for up to 5 minutes. When `signedIn` becomes true, it stops polling and calls `checkAndRouteAfterSignIn()`. This is intentionally simple — no `chrome.storage.onChanged` listener, no event bus.
+After initiating OAuth, the popup polls `GET_STATE` every 500ms for up to 5 minutes. When `signedIn` becomes true, it stops polling and calls `checkAndRouteAfterSignIn()`. This is intentionally simple ΓÇö no `chrome.storage.onChanged` listener, no event bus.
 
 ---
 
@@ -290,44 +290,44 @@ After initiating OAuth, the popup polls `GET_STATE` every 500ms for up to 5 minu
 The popup has 7 mutually exclusive top-level states, each corresponding to a `<div id="state-*">` element in the HTML. Exactly one is visible at a time.
 
 ```
-signedout ──[btn-signin]────────────────────────────▶ auth
-                                                        │
-                               [btn-auth-email] ───────▶ email-auth
-                               [btn-auth-google/github]  │
-                                      │                  │
-                                      ▼                  ▼
+signedout ΓöÇΓöÇ[btn-signin]ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓû╢ auth
+                                                        Γöé
+                               [btn-auth-email] ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓû╢ email-auth
+                               [btn-auth-google/github]  Γöé
+                                      Γöé                  Γöé
+                                      Γû╝                  Γû╝
                                [OAuth callback]    [form submit]
-                                      │                  │
-                                      └────────┬─────────┘
-                                               ▼
-                                         categories ◀──[btn-category-prefs from main]
-                                               │
-                                         [save]│
-                                               ▼
-                                            main ◀──────── boot (if signedIn && hasCats)
-                                               │
-                          ┌────────────────────┼────────────────────┐
-                          │                    │                    │
+                                      Γöé                  Γöé
+                                      ΓööΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö¼ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÿ
+                                               Γû╝
+                                         categories ΓùÇΓöÇΓöÇ[btn-category-prefs from main]
+                                               Γöé
+                                         [save]Γöé
+                                               Γû╝
+                                            main ΓùÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ boot (if signedIn && hasCats)
+                                               Γöé
+                          ΓöîΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö╝ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÉ
+                          Γöé                    Γöé                    Γöé
                        error              noresults             feedback
 ```
 
 ### 7.2 Boot sequence
 
 On `DOMContentLoaded`:
-1. `chrome.runtime.connect({ name: 'popup-keepalive' })` — keeps SW alive for the duration of the popup session.
-2. `boot()` — sends `GET_STATE` to SW.
-   - `signedIn: false` → show `state-signedout`.
-   - `signedIn: true` → `checkAndRouteAfterSignIn()`:
+1. `chrome.runtime.connect({ name: 'popup-keepalive' })` ΓÇö keeps SW alive for the duration of the popup session.
+2. `boot()` ΓÇö sends `GET_STATE` to SW.
+   - `signedIn: false` ΓåÆ show `state-signedout`.
+   - `signedIn: true` ΓåÆ `checkAndRouteAfterSignIn()`:
      - Parallel fetch: `GET_USER_CATEGORIES` + `GET_CATEGORIES`.
-     - `selectedIds.length > 0` → populate chips + show `state-main`.
-     - `selectedIds.length === 0` → populate chips + show `state-categories` (first-time onboarding).
+     - `selectedIds.length > 0` ΓåÆ populate chips + show `state-main`.
+     - `selectedIds.length === 0` ΓåÆ populate chips + show `state-categories` (first-time onboarding).
 
 ### 7.3 Panels
 
 Within `state-main`, two optional panels overlap the primary controls:
 
-- `panel-submit` — shown when 👍 is pressed on an unknown URL. Displays category chips and a submit button.
-- `panel-config` — shown when ⚙️ is pressed. Contains current-page actions, roam modes, and account settings.
+- `panel-submit` ΓÇö shown when ≡ƒæì is pressed on an unknown URL. Displays category chips and a submit button.
+- `panel-config` ΓÇö shown when ΓÜÖ∩╕Å is pressed. Contains current-page actions, roam modes, and account settings.
 
 Panels are mutually exclusive. `showPanel(null)` hides both.
 
@@ -349,8 +349,8 @@ Positions the menu below the anchor button using `getBoundingClientRect()`. Dism
 ### 7.5 Thumbs-up flow
 
 ```
-user on a KNOWN url:        check → rate +1 → close
-user on an UNKNOWN url:     check → show panel-submit → user picks category → submitUrl → close
+user on a KNOWN url:        check ΓåÆ rate +1 ΓåÆ close
+user on an UNKNOWN url:     check ΓåÆ show panel-submit ΓåÆ user picks category ΓåÆ submitUrl ΓåÆ close
 user on a non-http url:     check returns !known, show panel-submit, submit may fail gracefully
 ```
 
@@ -363,9 +363,9 @@ Optimistic: Roam fires immediately in parallel with the check+rate so the user d
 ```
 fire ROAM (parallel)
 fire CHECK_URL (parallel)
-  → if known: RATE -1
+  ΓåÆ if known: RATE -1
 await ROAM result
-navigate tab → close popup
+navigate tab ΓåÆ close popup
 ```
 
 ---
@@ -429,9 +429,9 @@ Three variables are injected by esbuild's `define` at build time:
 
 | Variable | Source | Required |
 |---|---|---|
-| `__SUPABASE_URL__` | `../.env → SUPABASE_URL` | Yes (build fails) |
-| `__SUPABASE_ANON_KEY__` | `../.env → SUPABASE_ANON_KEY` | Yes (build fails) |
-| `__SENTRY_DSN__` | `../.env → SENTRY_DSN` | No (warn only) |
+| `__SUPABASE_URL__` | `../.env ΓåÆ SUPABASE_URL` | Yes (build fails) |
+| `__SUPABASE_ANON_KEY__` | `../.env ΓåÆ SUPABASE_ANON_KEY` | Yes (build fails) |
+| `__SENTRY_DSN__` | `../.env ΓåÆ SENTRY_DSN` | No (warn only) |
 
 `validateEnvironment()` in `env.ts` is called at SW startup and throws if `SUPABASE_URL` or `SUPABASE_ANON_KEY` are absent or malformed, immediately crashing the SW with a descriptive message. Sentry DSN absence is a warning only.
 
@@ -440,14 +440,14 @@ Three variables are injected by esbuild's `define` at build time:
 ```bash
 cd extension
 
-# Development (Chrome, watch mode — rebuilds on save)
-pnpm dev            # → node build.mjs --watch
+# Development (Chrome, watch mode ΓÇö rebuilds on save)
+pnpm dev            # ΓåÆ node build.mjs --watch
 
 # Production (Chrome)
-pnpm build          # → node build.mjs
+pnpm build          # ΓåÆ node build.mjs
 
 # Production (Firefox)
-pnpm build:firefox  # → node build.mjs --firefox
+pnpm build:firefox  # ΓåÆ node build.mjs --firefox
 ```
 
 ### 9.3 Entry points
@@ -474,10 +474,10 @@ Production Chrome builds upload source maps to Sentry via `@sentry/esbuild-plugi
 
 | Layer | Mechanism |
 |---|---|
-| SW unhandled rejections | `self.addEventListener('unhandledrejection', ...)` → Sentry |
-| SW runtime errors | `self.addEventListener('error', ...)` → Sentry |
+| SW unhandled rejections | `self.addEventListener('unhandledrejection', ...)` ΓåÆ Sentry |
+| SW runtime errors | `self.addEventListener('error', ...)` ΓåÆ Sentry |
 | Per-message failures | `dispatch()` wrapper logs non-expected failures to Sentry |
-| Popup unhandled rejections | `window.addEventListener('unhandledrejection', ...)` → Sentry |
+| Popup unhandled rejections | `window.addEventListener('unhandledrejection', ...)` ΓåÆ Sentry |
 | sendToBackground failure | Returns `{ ok: false, error: '...' }` after 2 attempts; captured to Sentry |
 
 ### 10.2 What goes to Sentry vs. what is shown to the user
@@ -499,7 +499,7 @@ All persistent state lives in `chrome.storage.local` unless noted.
 | `saved_urls` | string[] | URLs saved for later (local-only feature) | Never |
 | `skip_paywalled` | boolean | User's paywall preference | On sign-out (optional cleanup) |
 | `preferred_languages` | string[] | User's language preferences | On sign-out (optional cleanup) |
-| `prefetch` | `{data, cachedAt}` | **session storage** — prefetched RoamData | Browser restart; or on consumption |
+| `prefetch` | `{data, cachedAt}` | **session storage** ΓÇö prefetched RoamData | Browser restart; or on consumption |
 
 ---
 
@@ -507,7 +507,7 @@ All persistent state lives in `chrome.storage.local` unless noted.
 
 Categories change rarely (never in practice post-launch). The SW caches the `GET /categories` result in a module-level variable with a 20-minute TTL. Because the module is re-executed on each SW activation, the cache is effectively cleared every time the SW restarts anyway.
 
-If the DB fetch fails for any reason, `FALLBACK_CATEGORIES` from `constants.ts` is returned. These are the 8 hardcoded category rows with their real UUIDs from the migration — the popup will always have something to show.
+If the DB fetch fails for any reason, `FALLBACK_CATEGORIES` from `constants.ts` is returned. These are the 8 hardcoded category rows with their real UUIDs from the migration ΓÇö the popup will always have something to show.
 
 ---
 
@@ -516,7 +516,7 @@ If the DB fetch fails for any reason, `FALLBACK_CATEGORIES` from `constants.ts` 
 The normaliser runs in `background.ts` (local helper, not a shared file). It is called by `checkUrl()`, `submitUrl()`, and `addUrlToCollection()`.
 
 Rules applied in order:
-1. Parse with `new URL()` — reject anything that throws.
+1. Parse with `new URL()` ΓÇö reject anything that throws.
 2. Reject non-HTTP/HTTPS protocols.
 3. Force `https:`.
 4. Lowercase hostname.
@@ -533,17 +533,17 @@ This matches the normaliser in `supabase/functions/_shared/normalise.ts` (canoni
 
 See `TESTING.md` for the full manual QA checklist. Key flows:
 
-1. **Cold start** — close browser, reopen, click extension icon. SW should restart cleanly, popup shows correct state.
-2. **OAuth sign-in** — click Google, complete flow in the new tab, popup should update to categories or main state.
-3. **Email sign-in** — enter credentials, expect immediate main state.
-4. **Roam (cache hit)** — open popup, wait 1 second, click Roam. Should be near-instant.
-5. **Roam (cache miss)** — open popup, click Roam immediately. Should still work (live call).
-6. **Thumbs up (known URL)** — on a Roam-served page, click 👍, popup closes.
-7. **Thumbs up (unknown URL)** — on an arbitrary page, click 👍, category picker appears.
-8. **Thumbs down** — click 👎 on any page, navigate immediately to new URL.
-9. **Submit URL** — pick category, submit, popup closes.
-10. **Collections** — add to collection, create new, roam from collection.
-11. **Report link** — click report, confirm text shows, navigates to next URL.
-12. **Feedback** — open form, submit, see success message, auto-return to main.
-13. **Sign out** — click sign out, see signed-out state, reopen shows same.
-14. **Firefox parity** — load `dist-firefox/` in Firefox, repeat flows 1–5.
+1. **Cold start** ΓÇö close browser, reopen, click extension icon. SW should restart cleanly, popup shows correct state.
+2. **OAuth sign-in** ΓÇö click Google, complete flow in the new tab, popup should update to categories or main state.
+3. **Email sign-in** ΓÇö enter credentials, expect immediate main state.
+4. **Roam (cache hit)** ΓÇö open popup, wait 1 second, click Roam. Should be near-instant.
+5. **Roam (cache miss)** ΓÇö open popup, click Roam immediately. Should still work (live call).
+6. **Thumbs up (known URL)** ΓÇö on a Roam-served page, click ≡ƒæì, popup closes.
+7. **Thumbs up (unknown URL)** ΓÇö on an arbitrary page, click ≡ƒæì, category picker appears.
+8. **Thumbs down** ΓÇö click ≡ƒæÄ on any page, navigate immediately to new URL.
+9. **Submit URL** ΓÇö pick category, submit, popup closes.
+10. **Collections** ΓÇö add to collection, create new, roam from collection.
+11. **Report link** ΓÇö click report, confirm text shows, navigates to next URL.
+12. **Feedback** ΓÇö open form, submit, see success message, auto-return to main.
+13. **Sign out** ΓÇö click sign out, see signed-out state, reopen shows same.
+14. **Firefox parity** ΓÇö load `dist-firefox/` in Firefox, repeat flows 1ΓÇô5.

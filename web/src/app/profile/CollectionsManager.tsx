@@ -181,7 +181,7 @@ export function CollectionsManager({ userId, initialCollections }: Props) {
   return (
     <section>
       <h2 className="text-base font-semibold text-zinc-900 dark:text-white mb-3">Collections</h2>
-      <p className="text-xs text-zinc-400 mb-4">Max 20 collections · 200 items each. Make a collection public to share it.</p>
+      <p className="text-xs text-zinc-400 mb-4">Max 20 collections ┬╖ 200 items each. Make a collection public to share it.</p>
 
       {/* Create new */}
       <div className="flex gap-2 mb-4">
@@ -189,7 +189,7 @@ export function CollectionsManager({ userId, initialCollections }: Props) {
           value={newName}
           onChange={e => setNewName(e.target.value)}
           onKeyDown={e => e.key === 'Enter' && void createCollection()}
-          placeholder="New collection name…"
+          placeholder="New collection nameΓÇª"
           maxLength={80}
           className="flex-1 rounded-lg border border-zinc-300 dark:border-zinc-700 px-3 py-2 text-sm bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:focus:ring-white"
         />
@@ -198,7 +198,7 @@ export function CollectionsManager({ userId, initialCollections }: Props) {
           disabled={creating || !newName.trim()}
           className="shrink-0 bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 px-4 py-2 rounded-lg text-sm font-medium hover:opacity-90 disabled:opacity-50 transition-opacity"
         >
-          {creating ? 'Creating…' : 'Create'}
+          {creating ? 'CreatingΓÇª' : 'Create'}
         </button>
       </div>
       {createError && <p className="text-xs text-red-600 mb-3">{createError}</p>}
@@ -233,7 +233,7 @@ export function CollectionsManager({ userId, initialCollections }: Props) {
                   >
                     <span className="text-sm font-medium text-zinc-900 dark:text-white truncate">{col.name}</span>
                     <span className="shrink-0 text-xs text-zinc-400">{col.item_count}</span>
-                    <span className="shrink-0 text-xs text-zinc-400">{expandedId === col.id ? '▲' : '▼'}</span>
+                    <span className="shrink-0 text-xs text-zinc-400">{expandedId === col.id ? 'Γû▓' : 'Γû╝'}</span>
                   </button>
                 )}
 
@@ -251,7 +251,7 @@ export function CollectionsManager({ userId, initialCollections }: Props) {
                     title="Copy share link"
                     className="shrink-0 text-xs text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 transition-colors"
                   >
-                    {copied === col.id ? '✓' : '🔗'}
+                    {copied === col.id ? 'Γ£ô' : '≡ƒöù'}
                   </button>
                 )}
 
@@ -286,7 +286,7 @@ export function CollectionsManager({ userId, initialCollections }: Props) {
               {expandedId === col.id && (
                 <div className="border-t border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/50">
                   {loadingItems ? (
-                    <p className="px-4 py-3 text-xs text-zinc-400">Loading…</p>
+                    <p className="px-4 py-3 text-xs text-zinc-400">LoadingΓÇª</p>
                   ) : expandedItems.length === 0 ? (
                     <p className="px-4 py-3 text-xs text-zinc-400">No items yet. Add pages from the browser extension.</p>
                   ) : (
@@ -320,7 +320,7 @@ export function CollectionsManager({ userId, initialCollections }: Props) {
                               aria-label="Remove"
                               className="shrink-0 text-xs text-zinc-400 hover:text-red-500 transition-colors"
                             >
-                              ✕
+                              Γ£ò
                             </button>
                           </li>
                         );

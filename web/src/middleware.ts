@@ -6,7 +6,7 @@ import { logError } from '@/lib/logger'
 const PROTECTED_ROUTES = ['/profile', '/settings', '/submit']
 const AUTH_REDIRECT_ROUTES = ['/signup', '/android-beta']
 
-export async function proxy(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   try {
     let supabaseResponse = NextResponse.next({ request })
 
@@ -44,7 +44,7 @@ export async function proxy(request: NextRequest) {
       }
     } catch (error) {
       logError('middleware', 'Failed to retrieve authenticated user from Supabase', undefined, error as Error);
-      // Continue with unauthenticated user — all public paths remain accessible
+      // Continue with unauthenticated user ΓÇö all public paths remain accessible
     }
 
     const pathname = request.nextUrl.pathname
@@ -67,7 +67,7 @@ export async function proxy(request: NextRequest) {
       return NextResponse.redirect(new URL('/profile', request.url))
     }
 
-    // Protect /admin — redirect unauthenticated or non-admin users to /
+    // Protect /admin ΓÇö redirect unauthenticated or non-admin users to /
     if (pathname.startsWith('/admin')) {
       if (!user) {
         const url = new URL('/signup', request.url)
@@ -86,7 +86,7 @@ export async function proxy(request: NextRequest) {
       }
     }
 
-    // Protect /moderator — accessible to admins and moderators
+    // Protect /moderator ΓÇö accessible to admins and moderators
     if (pathname.startsWith('/moderator')) {
       if (!user) {
         const url = new URL('/signup', request.url)
@@ -108,7 +108,7 @@ export async function proxy(request: NextRequest) {
     return supabaseResponse
   } catch (error) {
     // Catch any unexpected errors in middleware
-    logError('middleware', 'Unexpected error in request proxy middleware', undefined, error as Error);
+    logError('middleware', 'Unexpected error in request middleware', undefined, error as Error);
     // Return a safe response that allows the request to continue (user will see page or auth required)
     return NextResponse.next()
   }

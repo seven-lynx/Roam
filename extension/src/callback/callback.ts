@@ -1,4 +1,4 @@
-// callback.ts — OAuth callback handler
+// callback.ts ΓÇö OAuth callback handler
 // Extracts the session from the redirect URL hash
 
 const urlParams = new URLSearchParams(location.hash.slice(1) || location.search.slice(1));
@@ -83,7 +83,7 @@ async function handleCallback() {
   }
 
   // No session data or code found
-  showError('No authorization code found. Make sure you added the extension callback URL to Supabase Authentication → URL Configuration. The URL should be: ' + chrome.runtime.getURL('callback.html'));
+  showError('No authorization code found. Make sure you added the extension callback URL to Supabase Authentication ΓåÆ URL Configuration. The URL should be: ' + chrome.runtime.getURL('callback.html'));
 }
 
 // Notifies the popup that sign-in is complete using postMessage, so even if

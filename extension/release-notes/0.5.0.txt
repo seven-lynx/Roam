@@ -1,7 +1,7 @@
 What's new in 0.5.0:
 
-• Faster discovery — Algorithm v31–v35 with inline scoring and parallel batch processing. Pages load faster and you'll see fewer "nothing found" states.
-• Prefetch focus mode fix — Focus-mode prefetch now correctly respects your category filters.
-• Better badge readability — Badge text is easier to read across all platforms.
-• Companion Android app v1.2.1 — Daily challenges, status bar fix, and algorithm improvements.
-• Various crash fixes and stability improvements.
+ΓÇó Faster discovery ΓÇö Algorithm v31ΓÇôv35 with inline scoring and parallel batch processing. Pages load faster and you'll see fewer "nothing found" states.
+ΓÇó Prefetch focus mode fix ΓÇö Focus-mode prefetch now correctly respects your category filters.
+ΓÇó Better badge readability ΓÇö Badge text is easier to read across all platforms.
+ΓÇó Companion Android app v1.2.1 ΓÇö Daily challenges, status bar fix, and algorithm improvements.
+ΓÇó Various crash fixes and stability improvements.

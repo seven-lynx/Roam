@@ -1,4 +1,4 @@
-﻿// background.ts — Roam extension background service worker
+// background.ts — Roam extension background service worker
 //
 // Event-driven only. No background loops.
 // Chrome may terminate and restart this SW at any time.

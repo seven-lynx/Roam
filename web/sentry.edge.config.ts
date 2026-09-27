@@ -1,4 +1,4 @@
-// sentry.edge.config.ts — Sentry initialisation for the Edge runtime (middleware, etc.).
+// sentry.edge.config.ts ΓÇö Sentry initialisation for the Edge runtime (middleware, etc.).
 
 import * as Sentry from '@sentry/nextjs';
 

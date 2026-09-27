@@ -47,7 +47,7 @@
         Sentry is initialised programmatically in RoamApplication.onCreate() using the
         SENTRY_DSN BuildConfig field from local.properties (never committed to source control).
         Disable the Sentry Gradle plugin's auto-init ContentProvider so it does not run before
-        RoamApplication.onCreate() — without a DSN in the manifest it would crash immediately.
+        RoamApplication.onCreate() ΓÇö without a DSN in the manifest it would crash immediately.
     -->
         <meta-data android:name="io.sentry.auto-init" android:value="false" />
 

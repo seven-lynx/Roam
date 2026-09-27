@@ -9,7 +9,7 @@ import { corsHeaders } from "../_shared/cors.ts";
 
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
-// ── Helpers ──────────────────────────────────────────────────────────
+// ΓöÇΓöÇ Helpers ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 function getDateInET(): Date {
   // Returns current date in America/New_York (ET)
   const now = new Date();
@@ -27,7 +27,7 @@ function isWeekend(date: Date): boolean {
   return d === 0 || d === 6;
 }
 
-// ── Holiday badge mapping ────────────────────────────────────────────
+// ΓöÇΓöÇ Holiday badge mapping ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 const HOLIDAY_MAP: Record<string, { month: number; day: number }> = {
   "new-years-day":       { month: 0, day: 1 },
   "new-years-eve":       { month: 11, day: 31 },
@@ -39,7 +39,7 @@ const HOLIDAY_MAP: Record<string, { month: number; day: number }> = {
   "cinco-de-mayo":       { month: 4, day: 5 },
   "independence-day":    { month: 6, day: 4 },
   "halloween":           { month: 9, day: 31 },
-  "thanksgiving":        { month: 10, day: 22 }, // Approximate — 4th Thursday of November
+  "thanksgiving":        { month: 10, day: 22 }, // Approximate ΓÇö 4th Thursday of November
   "christmas-day":       { month: 11, day: 25 },
   "pi-day":              { month: 2, day: 14 },
   "remembrance-day":     { month: 10, day: 11 },
@@ -51,7 +51,7 @@ const HOLIDAY_MAP: Record<string, { month: number; day: number }> = {
   "talk-like-pirate":    { month: 8, day: 19 },
 };
 
-// ── Solstice/Equinox approximations (2026) ───────────────────────────
+// ΓöÇΓöÇ Solstice/Equinox approximations (2026) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 function isSolsticeOrEquinox(date: Date): boolean {
   const m = date.getUTCMonth();
   const d = date.getUTCDate();
@@ -84,7 +84,7 @@ function isFirstDayOfSeason(date: Date): boolean {
   return (m === 2 && d === 20) || (m === 5 && d === 21) || (m === 8 && d === 22) || (m === 11 && d === 21);
 }
 
-// ── Main ─────────────────────────────────────────────────────────────
+// ΓöÇΓöÇ Main ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { status: 200, headers: corsHeaders });
@@ -101,7 +101,7 @@ Deno.serve(async (req: Request) => {
 
     console.log(`cron-secret-badges running for ${todayISO}`);
 
-    // ── Determine which holiday badges match today ──────────────────
+    // ΓöÇΓöÇ Determine which holiday badges match today ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
     const matchingBadges: string[] = [];
 
     // Check mapped holidays
@@ -138,7 +138,7 @@ Deno.serve(async (req: Request) => {
       matchingBadges.push("rosh-hashanah"); // Approximate Rosh Hashanah
     }
 
-    // Thanksgiving — 4th Thursday of November
+    // Thanksgiving ΓÇö 4th Thursday of November
     if (today.getUTCMonth() === 10 && today.getUTCDay() === 4) {
       const weekOfMonth = Math.ceil(today.getUTCDate() / 7);
       if (weekOfMonth === 4) matchingBadges.push("thanksgiving");
@@ -205,13 +205,13 @@ Deno.serve(async (req: Request) => {
       console.log(`Awarded ${totalAwarded} holiday badges total across ${users?.length ?? 0} users.`);
     }
 
-    // ── Check special global badges (non-date) ──────────────────────
+    // ΓöÇΓöÇ Check special global badges (non-date) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
     // time-traveler: if user has roamed URLs from >3 different years
     // polyglot: saved URLs in >3 different languages
-    // These require per-user queries — expensive for cron, so we skip for now.
+    // These require per-user queries ΓÇö expensive for cron, so we skip for now.
     // They're handled by batch repair (repair-badges-v3.mjs) instead.
 
-    // ── Eclipse hunter check ────────────────────────────────────────
+    // ΓöÇΓöÇ Eclipse hunter check ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
     // Next solar eclipse: Aug 12, 2026
     if (today.getUTCMonth() === 7 && today.getUTCDate() === 12) {
       console.log("Solar eclipse today! Awarding eclipse-hunter badge.");

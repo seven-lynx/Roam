@@ -24,7 +24,7 @@ Deno.serve(async (req: Request) => {
 
     const today = new Date().toISOString().slice(0, 10);
 
-    // ── Collect stats ───────────────────────────────────────────────
+    // ΓöÇΓöÇ Collect stats ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
     const [roamR, saveR, submitR, approvedR, collR, followerR, followingR, todayR, publicCollsR, profileR] =
       await Promise.all([
         sb.from("seen_urls").select("*", { count: "exact", head: true }).eq("user_id", user_id),
@@ -55,7 +55,7 @@ Deno.serve(async (req: Request) => {
       createdAt: profileR.data?.created_at,
     };
 
-    // ── Fetch badges ────────────────────────────────────────────────
+    // ΓöÇΓöÇ Fetch badges ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
     const { data: allBadges } = await sb.from("badges").select("*").eq("is_gift_only", false);
     const badgeMap = new Map<string, any>();
     for (const b of allBadges ?? []) badgeMap.set(b.slug, b);
@@ -90,7 +90,7 @@ Deno.serve(async (req: Request) => {
       const req = badge.required_count;
 
       switch (badge.slug) {
-        // ═══ Exploration ═══
+        // ΓòÉΓòÉΓòÉ Exploration ΓòÉΓòÉΓòÉ
         case "first-roam": qualifies = stats.roam >= 1; break;
         case "wanderer-bronze": qualifies = stats.roam >= 10; break;
         case "wanderer-silver": qualifies = stats.roam >= 50; break;
@@ -167,7 +167,7 @@ Deno.serve(async (req: Request) => {
         case "jet-setter":
           qualifies = false; break; // needs url_id distinct count
 
-        // ═══ Collecting ═══
+        // ΓòÉΓòÉΓòÉ Collecting ΓòÉΓòÉΓòÉ
         case "first-save": qualifies = stats.save >= 1; break;
         case "collector-bronze": qualifies = stats.save >= 10; break;
         case "collector-silver": qualifies = stats.save >= 50; break;
@@ -185,7 +185,7 @@ Deno.serve(async (req: Request) => {
         case "speed-collector": qualifies = stats.todaySave >= 10; break;
         case "mega-collector": qualifies = stats.todaySave >= 50; break;
 
-        // P3: tagger badges — count distinct categories in saved_urls
+        // P3: tagger badges ΓÇö count distinct categories in saved_urls
         case "tagger-bronze": {
           const { data: d } = await sb.from("saved_urls").select("url_id, urls!inner(category_id)").eq("user_id", user_id).limit(500);
           const cats = new Set<string>(); for (const r of (d ?? [])) { if ((r.urls as any)?.category_id) cats.add((r.urls as any).category_id); }
@@ -253,7 +253,7 @@ Deno.serve(async (req: Request) => {
           qualifies = (c ?? 0) >= 1; break;
         }
 
-        // ═══ Curating ═══
+        // ΓòÉΓòÉΓòÉ Curating ΓòÉΓòÉΓòÉ
         case "first-collection": qualifies = stats.collections >= 1; break;
         case "curator-bronze": qualifies = stats.collections >= 3; break;
         case "curator-silver": qualifies = stats.collections >= 10; break;
@@ -281,14 +281,14 @@ Deno.serve(async (req: Request) => {
           const { data: d } = await sb.from("collection_favorites").select("collection_id, collections!inner(user_id)").eq("collections.user_id", user_id);
           qualifies = (d?.length ?? 0) >= 100; break;
         }
-        // Complex curating badges (keep as-is — too complex for real-time edge fn)
+        // Complex curating badges (keep as-is ΓÇö too complex for real-time edge fn)
         case "pack-rat-bronze": case "pack-rat-silver": case "pack-rat-gold":
         case "curators-eye": case "niched-down": case "linker":
         case "micro-curator": case "mega-collection": case "solo-artist":
         case "weekly-publisher": case "collection-streak": case "daily-curation":
           qualifies = false; break; // batch repair handles these
 
-        // ═══ Social ═══
+        // ΓòÉΓòÉΓòÉ Social ΓòÉΓòÉΓòÉ
         case "social-butterfly-bronze": qualifies = stats.following >= 5; break;
         case "social-butterfly-silver": qualifies = stats.following >= 25; break;
         case "social-butterfly-gold": qualifies = stats.following >= 100; break;
@@ -361,7 +361,7 @@ Deno.serve(async (req: Request) => {
           qualifies = net >= 1; break;
         }
 
-        // ═══ Streaks ═══
+        // ΓòÉΓòÉΓòÉ Streaks ΓòÉΓòÉΓòÉ
         case "hot-streak-bronze": qualifies = stats.streak >= 3; break;
         case "hot-streak-silver": qualifies = stats.streak >= 7; break;
         case "hot-streak-gold": qualifies = stats.streak >= 30; break;
@@ -385,7 +385,7 @@ Deno.serve(async (req: Request) => {
           break;
         }
 
-        // ═══ Contributing ═══
+        // ΓòÉΓòÉΓòÉ Contributing ΓòÉΓòÉΓòÉ
         case "first-submission": qualifies = stats.submit >= 1; break;
         case "contributor-bronze": qualifies = stats.submit >= 5; break;
         case "contributor-silver": qualifies = stats.submit >= 25; break;
@@ -416,7 +416,7 @@ Deno.serve(async (req: Request) => {
           qualifies = weekendSubmits >= 3; break;
         }
 
-        // ═══ Engagement (P1: Rating Badges) ═══
+        // ΓòÉΓòÉΓòÉ Engagement (P1: Rating Badges) ΓòÉΓòÉΓòÉ
         case "rater-bronze": {
           const { count: c } = await sb.from("url_ratings").select("*", { count: "exact", head: true }).eq("user_id", user_id);
           qualifies = (c ?? 0) >= 25; break;
@@ -477,7 +477,7 @@ Deno.serve(async (req: Request) => {
         case "rate-spree": qualifies = false; break; // batch repair handles
         case "the-completionist-rate": qualifies = false; break; // batch repair handles
 
-        // ═══ Secret ═══
+        // ΓòÉΓòÉΓòÉ Secret ΓòÉΓòÉΓòÉ
         case "error-404-explorer": {
           const { count: c } = await sb.from("log_failed_urls").select("*", { count: "exact", head: true }).eq("user_id", user_id);
           qualifies = (c ?? 0) >= 25; break;
@@ -503,7 +503,7 @@ Deno.serve(async (req: Request) => {
       if (qualifies) toAward.push(badge);
     }
 
-    // ── Award badges ────────────────────────────────────────────────
+    // ΓöÇΓöÇ Award badges ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
     if (toAward.length > 0) {
       const rows = toAward.map((b: any) => ({
         user_id,
@@ -535,7 +535,7 @@ Deno.serve(async (req: Request) => {
       console.log(`Badges awarded to ${user_id}: ${toAward.map((b: any) => b.slug).join(", ")}`);
     }
 
-    // ── Challenge completion check ─────────────────────────────────
+    // ΓöÇΓöÇ Challenge completion check ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
     try {
       const now = new Date().toISOString();
       const { data: completableChallenges } = await sb

@@ -96,7 +96,7 @@ export function ShareUrlModal({ urlId, urlTitle, onClose }: Props) {
         {success && (
           <div className="mb-4 p-3 rounded-md bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800">
             <p className="text-sm text-green-700 dark:text-green-300">
-              ✓ URL shared with {selectedRecipient?.username}
+              Γ£ô URL shared with {selectedRecipient?.username}
             </p>
           </div>
         )}
