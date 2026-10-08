@@ -59,3 +59,13 @@ scripts/.cache/stumbleupon-awesome/
 
 # Misc
 *.log
+
+# Local / internal workspace (excluded from the public repo)
+# Roam uses a single public repo. Internal docs, seeders, AI files, and
+# secrets are kept OUT of version control - see CLAUDE.md "Repository layout".
+.roam-local/
+docs/
+scripts/
+.vscode/mcp.json
+android/app/google-services.json
+sync-public.ps1
