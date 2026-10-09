@@ -40,10 +40,9 @@ function getStartOfNextWeekUTC(date: Date): string {
 }
 
 function getStartOfNextMonthUTC(date: Date): string {
-  const d = new Date(date);
-  d.setUTCMonth(d.getUTCMonth() + 1, 1);
-  d.setUTCHours(0, 0, 0, 0);
-  return d.toISOString();
+  // Construct directly from components to avoid the setUTCMonth(+1, 1) overflow
+  // bug (e.g. Jan 31 -> Mar 1 instead of Feb 1).
+  return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + 1, 1)).toISOString();
 }
 
 function isMonday(date: Date): boolean {
@@ -59,13 +58,24 @@ function weightedRandomDraw<T extends { weight: number }>(items: T[], count: num
   if (items.length <= count) return [...items];
 
   const result: T[] = [];
-  const available = items.map((item, idx) => ({ item, idx, weight: item.weight || 1 }));
-  const totalWeight = available.reduce((sum, a) => sum + a.weight, 0);
+  const available = items.map((item) => ({ item, weight: item.weight || 1 }));
 
   for (let i = 0; i < count; i++) {
     if (available.length === 0) break;
+
+    // Recompute the total each iteration. Using a single pre-loop total biases
+    // later draws toward the first remaining item once `rand` exceeds the sum
+    // of the remaining weights.
+    const totalWeight = available.reduce((sum, a) => sum + a.weight, 0);
+    if (totalWeight <= 0) {
+      const idx = Math.floor(Math.random() * available.length);
+      result.push(available[idx].item);
+      available.splice(idx, 1);
+      continue;
+    }
+
     let rand = Math.random() * totalWeight;
-    let selectedIdx = 0;
+    let selectedIdx = available.length - 1;
     for (let j = 0; j < available.length; j++) {
       rand -= available[j].weight;
       if (rand <= 0) {
@@ -85,6 +95,17 @@ function weightedRandomDraw<T extends { weight: number }>(items: T[], count: num
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
+  }
+
+  // Only allow requests from the cron scheduler (or other authorized callers).
+  // Mirrors the guard in cron-streak-cleanup.
+  const authHeader = req.headers.get("Authorization");
+  const expectedSecret = Deno.env.get("CRON_SECRET");
+  if (expectedSecret && authHeader !== `Bearer ${expectedSecret}`) {
+    return new Response(JSON.stringify({ error: "Unauthorized" }), {
+      status: 401,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   }
 
   try {

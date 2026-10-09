@@ -192,18 +192,9 @@ jobs:
         # broken path filter (commit 8c8dab2). With the filter fixed, this
         # step actually runs `deno check` when edge function source changes.
         #
-        # Soft-fail policy: deno check is allowed to fail ONLY when every
-        # error is in supabase/functions/_shared/challenge-progress.ts (a
-        # file with pre-existing type issues that are tracked in RUNBOOK.md).
-        # Any other file failing fails the job. This keeps the check
-        # meaningful for new code while not blocking PRs on the known backlog.
-        # Note: supabase/functions/roam/index.ts no longer needs to be in the
-        # allowlist after this PR moved the EdgeRuntime declaration to
-        # _shared/deno-globals.d.ts.
-        #
-        # Transient esm.sh 522s are retried once before the allowlist check
-        # runs. The retry is intentionally narrow (one attempt) so a real
-        # type error doesn't get masked by 30s of sleeps.
+        # Transient esm.sh 522s are retried once before failing. The retry is
+        # intentionally narrow (one attempt) so a real type error doesn't get
+        # masked by 30s of sleeps.
         run: |
           set +e
           deno check supabase/functions/**/*.ts > /tmp/deno.out 2>&1
@@ -222,37 +213,7 @@ jobs:
           echo "::group::deno check output"
           cat /tmp/deno.out
           echo "::endgroup::"
-          # Find all unique files that produced errors.
-          # deno check error lines look like:
-          #   TS2339: Property 'x' does not exist on type '...'
-          #     at file:///workspace/supabase/functions/foo/index.ts:42:5
-          ERROR_FILES=$(grep -oE 'file://[^:]+:[0-9]+' /tmp/deno.out \
-            | sed -E 's#file://##; s#:[0-9]+:[0-9]+$##' \
-            | sort -u)
-          if [ -z "$ERROR_FILES" ]; then
-            # deno failed but produced no parseable file:line refs (network /
-            # cache failure). Treat as a real failure so it's visible.
-            echo "::error::deno check failed without parseable file:line refs."
-            exit 1
-          fi
-          # Allowlist of files known to have pre-existing type issues. Listed
-          # here (not in scripts/.agent-rules-allowlist) because this is a
-          # CI-side allowlist, not a rules-script allowlist.
-          ALLOWLIST="$(printf '%s\n' \
-            'supabase/functions/_shared/challenge-progress.ts')"
-          UNEXPECTED=0
-          for f in $ERROR_FILES; do
-            if ! printf '%s\n' "$ALLOWLIST" | grep -Fxq "$f"; then
-              echo "::error::deno check failed in $f (not in allowlist)"
-              UNEXPECTED=1
-            fi
-          done
-          if [ "$UNEXPECTED" -eq 1 ]; then
-            exit 1
-          fi
-          echo "deno check failed only in allowlisted files; treating as soft pass."
-          echo "See RUNBOOK.md for the suppression policy and review date."
-          exit 0
+          exit 1
         env:
           DENO_DIR: ~/.cache/deno
 

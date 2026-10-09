@@ -7,7 +7,7 @@ Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { status: 200, headers: corsHeaders });
   }
-  if (req.method !== "GET" && req.method !== "POST") {
+  if (req.method !== "GET") {
     return new Response(JSON.stringify({ error: "Method not allowed" }), {
       status: 405,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -50,7 +50,8 @@ Deno.serve(async (req: Request) => {
             goal_description,
             goal_count,
             xp_reward,
-            condition_type
+            condition_type,
+            time_restriction
           )
         )
       `)
@@ -77,6 +78,8 @@ Deno.serve(async (req: Request) => {
         goal_count: uc.challenge_instances?.challenges?.goal_count,
         xp_reward: uc.challenge_instances?.challenges?.xp_reward,
         type: uc.challenge_instances?.challenge_type,
+        condition_type: uc.challenge_instances?.challenges?.condition_type,
+        time_restriction: uc.challenge_instances?.challenges?.time_restriction,
         expires_at: uc.challenge_instances?.expires_at,
       },
     }));

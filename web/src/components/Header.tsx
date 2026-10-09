@@ -148,6 +148,16 @@ export function Header() {
                 Badges
               </Link>
               <Link
+                href="/challenges"
+                className={`text-sm font-medium transition-colors ${
+                  pathname === '/challenges'
+                    ? 'text-zinc-900 dark:text-white border-b-2 border-zinc-900 dark:border-white pb-0.5'
+                    : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white'
+                }`}
+              >
+                Challenges
+              </Link>
+              <Link
                 href="/following"
                 className={`text-sm font-medium transition-colors ${
                   pathname === '/following'
@@ -325,6 +335,9 @@ export function Header() {
               </Link>
               <Link href="/badges" className="text-zinc-700 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white">
                 Badges
+              </Link>
+              <Link href="/challenges" className="text-zinc-700 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white">
+                Challenges
               </Link>
               <Link href="/leaderboard" className="text-zinc-700 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white">
                 Leaderboard

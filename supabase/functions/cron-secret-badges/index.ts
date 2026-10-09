@@ -89,6 +89,17 @@ Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { status: 200, headers: corsHeaders });
   }
+
+  // Only allow requests from the cron scheduler (or other authorized callers).
+  const authHeader = req.headers.get("Authorization");
+  const expectedSecret = Deno.env.get("CRON_SECRET");
+  if (expectedSecret && authHeader !== `Bearer ${expectedSecret}`) {
+    return new Response(JSON.stringify({ error: "Unauthorized" }), {
+      status: 401,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
   try {
     const sb = createClient(
       Deno.env.get("SUPABASE_URL")!,

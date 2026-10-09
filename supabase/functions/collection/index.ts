@@ -10,7 +10,6 @@
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { corsHeaders } from '../_shared/cors.ts'
-import { incrementChallengeProgress } from '../_shared/challenge-progress.ts'
 
 const COLLECTION_ITEM_CAP = 10_000
 const RESERVED_SLUGS = new Set(['join', 'admin', 'privacy', 'terms', 'u', 'c'])
@@ -175,16 +174,17 @@ Deno.serve(async (req) => {
 
     if (error) return json({ error: error.message }, 500)
 
-    // Track collection add_item for challenge progress
+    // Track collection add_item in user_actions (triggers challenge progress).
+    // Uses the same user-JWT client and action_type as the create handler so
+    // challenge progress flows through the single on_user_action_challenge trigger.
     EdgeRuntime.waitUntil(
       (async () => {
         try {
-          const svcClient = createClient(
-            Deno.env.get('SUPABASE_URL')!,
-            Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
-            { auth: { persistSession: false } },
-          )
-          await incrementChallengeProgress(svcClient, user.id, 'collection_count')
+          await supabase.from('user_actions').insert({
+            user_id: user.id,
+            action_type: 'collection',
+            metadata: { collection_id: collectionId, url_id: urlId },
+          })
         } catch (e) {
           console.error('challenge progress failed', e)
         }
