@@ -199,9 +199,17 @@ Deno.serve(async (req) => {
     await admin.from('url_categories').insert(categoryIds.map((cid) => ({ url_id: urlId, category_id: cid })))
   }
 
-  // Insert url_tags (fire-and-forget)
+  // Insert url_tags — resolve tag slugs to vocabulary tag ids (fire-and-forget)
   if (tags.length > 0) {
-    await admin.from('url_tags').insert(tags.map((tag) => ({ url_id: urlId, tag, tagged_by: user.id })))
+    const { data: tagRows } = await admin.from('tags').select('id, slug').in('slug', tags)
+    const idBySlug = new Map((tagRows ?? []).map((t: { id: string; slug: string }) => [t.slug, t.id]))
+    const urlTagRows = tags
+      .map((slug) => idBySlug.get(slug))
+      .filter((id): id is string => Boolean(id))
+      .map((tagId) => ({ url_id: urlId, tag_id: tagId, confidence: 1.0, source: 'manual' }))
+    if (urlTagRows.length > 0) {
+      await admin.from('url_tags').insert(urlTagRows)
+    }
   }
 
   return json({ success: true, data: { ...inserted, tags, category_ids: categoryIds } })

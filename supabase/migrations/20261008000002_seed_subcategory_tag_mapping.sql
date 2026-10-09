@@ -1,7 +1,9 @@
 -- Seed the subcategory → tag migration bridge (see scripts/lib/tag-vocabulary.mjs).
 -- GENERATED FILE — do not edit by hand. Run: node scripts/generate-tag-artifacts.mjs
 
-INSERT INTO public.subcategory_tag_mapping (subcategory_slug, tag_slug) VALUES
+INSERT INTO public.subcategory_tag_mapping (subcategory_slug, tag_id)
+SELECT v.subcategory_slug, t.id
+FROM (VALUES
   ('space-astronomy', 'space-astronomy'),
   ('biology-evolution', 'biology'),
   ('biology-evolution', 'evolution'),
@@ -95,4 +97,6 @@ INSERT INTO public.subcategory_tag_mapping (subcategory_slug, tag_slug) VALUES
   ('mindfulness-meditation', 'mindfulness'),
   ('sleep-recovery', 'sleep'),
   ('relationships-social', 'relationships'),
-  ('personal-development', 'personal-development');
+  ('personal-development', 'personal-development')
+) AS v(subcategory_slug, tag_slug)
+JOIN public.tags t ON t.slug = v.tag_slug;

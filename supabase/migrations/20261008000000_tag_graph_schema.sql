@@ -116,8 +116,8 @@ CREATE TRIGGER trg_user_tag_weights_updated_at
 -- subcategory assignments can be backfilled into url_tags.
 CREATE TABLE public.subcategory_tag_mapping (
   subcategory_slug TEXT NOT NULL REFERENCES public.subcategories(slug) ON DELETE CASCADE,
-  tag_slug         TEXT NOT NULL REFERENCES public.tags(slug) ON DELETE CASCADE,
-  PRIMARY KEY (subcategory_slug, tag_slug)
+  tag_id           UUID NOT NULL REFERENCES public.tags(id) ON DELETE CASCADE,
+  PRIMARY KEY (subcategory_slug, tag_id)
 );
 
 
