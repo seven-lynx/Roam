@@ -244,17 +244,21 @@ jobs:
       - name: Lint Android with Kotlin
         working-directory: ./android
         run: |
-          if [ -f gradlew ]; then
+          if [ -f gradlew ] && [ -f app/google-services.json ]; then
             chmod +x gradlew
             ./gradlew lint
+          else
+            echo "Skipping Android lint: google-services.json is not committed (Firebase secret)."
           fi
 
       - name: Compile Android
         working-directory: ./android
         run: |
-          if [ -f gradlew ]; then
+          if [ -f gradlew ] && [ -f app/google-services.json ]; then
             chmod +x gradlew
             ./gradlew compileDebugKotlin
+          else
+            echo "Skipping Android compile: google-services.json is not committed (Firebase secret)."
           fi
 
       - name: Upload coverage reports
