@@ -1,2 +1,25 @@
 * text=auto eol=lf
 *.bat text eol=crlf
+
+# Binary assets must never be line-ending normalized or re-encoded.
+# (A repo migration in Oct 2026 re-encoded these as UTF-8 text, corrupting them.)
+*.png   binary
+*.jpg   binary
+*.jpeg  binary
+*.gif   binary
+*.ico   binary
+*.webp  binary
+*.wav   binary
+*.mp3   binary
+*.ogg   binary
+*.ttf   binary
+*.otf   binary
+*.woff  binary
+*.woff2 binary
+*.pdf   binary
+*.zip   binary
+*.gz    binary
+*.jar   binary
+*.apk   binary
+*.aab   binary
+*.bin   binary
