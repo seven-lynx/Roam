@@ -819,3 +819,177 @@ body {
   margin-top: 4px;
 }
 .subcategory-chips .chip-grid { margin-top: 4px; }
+
+/* ── Challenges state ──────────────────────────────────────────────────── */
+.challenges-body,
+.badges-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+}
+.challenges-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.challenges-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+}
+.challenges-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 360px;
+  overflow-y: auto;
+}
+.challenges-section-title {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+.challenge-card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+}
+.challenge-card--done {
+  border-color: #22c55e;
+  background: rgba(34, 197, 94, 0.08);
+}
+.challenge-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+.challenge-card-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+}
+.challenge-card-check {
+  color: #22c55e;
+  font-size: 14px;
+}
+.challenge-card-desc {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+.challenge-card-meta {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+.challenge-card-bar {
+  height: 6px;
+  border-radius: 3px;
+  background: var(--border);
+  overflow: hidden;
+}
+.challenge-card-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 300ms ease;
+}
+.challenges-empty,
+.challenges-error,
+.badges-empty,
+.badges-error {
+  font-size: 12px;
+  color: var(--text-muted);
+  text-align: center;
+  padding: 16px 0;
+}
+.challenges-error,
+.badges-error {
+  color: #e05252;
+}
+
+/* ── Badges state ─────────────────────────────────────────────────────── */
+.badges-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.badges-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+}
+.badges-count {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+.badges-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+  max-height: 320px;
+  overflow-y: auto;
+  padding: 2px;
+}
+.badge-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 4px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  cursor: pointer;
+  transition: background var(--transition), border-color var(--transition);
+}
+.badge-item:hover {
+  background: var(--bg-hover);
+  border-color: var(--accent);
+}
+.badge-item--unlocked {
+  border-color: #3b82f6;
+}
+.badge-item-icon {
+  font-size: 20px;
+  line-height: 1;
+}
+.badge-item:not(.badge-item--unlocked) .badge-item-icon {
+  opacity: 0.35;
+}
+.badge-item-name {
+  font-size: 9px;
+  color: var(--text);
+  text-align: center;
+  line-height: 1.2;
+  width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+.badge-item:not(.badge-item--unlocked) .badge-item-name {
+  color: var(--text-muted);
+}
+.badge-item-bar {
+  width: 100%;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--border);
+  overflow: hidden;
+}
+.badge-item-fill {
+  height: 100%;
+  background: #3b82f6;
+  border-radius: 2px;
+}

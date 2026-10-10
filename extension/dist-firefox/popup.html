@@ -163,7 +163,8 @@
       <section class="panel-section">
         <h3 class="panel-section-title">You</h3>
         <button id="btn-notifications" class="panel-row">Notifications <span id="notif-count-chip" class="count-chip" hidden>0</span></button>
-        <button id="btn-web-badges"      class="panel-row">Badges <span id="badge-count-chip" class="count-chip" hidden>0</span></button>
+        <button id="btn-challenges" class="panel-row">Challenges <span id="challenge-count-chip" class="count-chip" hidden>0</span></button>
+        <button id="btn-badges"      class="panel-row">Badges <span id="badge-count-chip" class="count-chip" hidden>0</span></button>
         <button id="btn-history" class="panel-row">History</button>
         <div id="stats-row" class="stats-row" hidden>Roamed: <span id="stat-roamed">0</span> · Submitted: <span id="stat-submitted">0</span></div>
       </section>
@@ -286,6 +287,34 @@
       <div id="history-list" class="history-list"></div>
       <p id="history-empty" class="history-empty" hidden>No browsing history yet.</p>
       <button id="btn-clear-history" class="btn-secondary">Clear history</button>
+    </div>
+  </div>
+
+  <!-- ── Challenges state ─────────────────────────────────────────────── -->
+  <div id="state-challenges" class="state" hidden>
+    <div class="challenges-body">
+      <div class="challenges-header">
+        <button id="btn-back-challenges" class="btn-back">← Back</button>
+        <p class="challenges-title">Challenges</p>
+      </div>
+      <div id="challenges-list" class="challenges-list"></div>
+      <p id="challenges-empty" class="challenges-empty" hidden>No active challenges. Come back later!</p>
+      <p id="challenges-error" class="challenges-error" hidden></p>
+    </div>
+  </div>
+
+  <!-- ── Badges state ──────────────────────────────────────────────────── -->
+  <div id="state-badges" class="state" hidden>
+    <div class="badges-body">
+      <div class="badges-header">
+        <button id="btn-back-badges" class="btn-back">← Back</button>
+        <p class="badges-title">Badges</p>
+        <span id="badges-count" class="badges-count"></span>
+      </div>
+      <div id="badges-grid" class="badges-grid"></div>
+      <p id="badges-empty" class="badges-empty" hidden>No badges yet.</p>
+      <p id="badges-error" class="badges-error" hidden></p>
+      <button id="btn-web-badges" class="btn-secondary">Open full gallery ↗</button>
     </div>
   </div>
 

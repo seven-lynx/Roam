@@ -3,7 +3,7 @@
 import '../lib/sentry'; // must be first — initialises Sentry if SENTRY_DSN is set
 import { Sentry } from '../lib/sentry';
 import { sendToBackground } from '../lib/messages';
-import type { StateData, RoamData, CheckUrlData, Collection, CategoryItem, ProfileData, SubcategoryItem, SavedUrlItem } from '../lib/messages';
+import type { StateData, RoamData, CheckUrlData, Collection, CategoryItem, ProfileData, SubcategoryItem, SavedUrlItem, ChallengeData, BadgeData } from '../lib/messages';
 import { FALLBACK_CATEGORIES } from '../lib/constants';
 
 // ── Global error capture ───────────────────────────────────────────────────
@@ -27,7 +27,7 @@ function el<T extends HTMLElement>(id: string): T {
   return e as T;
 }
 
-type AppState = 'signedout' | 'auth' | 'email-auth' | 'categories' | 'error' | 'noresults' | 'main' | 'feedback' | 'saved' | 'notifications' | 'history';
+type AppState = 'signedout' | 'auth' | 'email-auth' | 'categories' | 'error' | 'noresults' | 'main' | 'feedback' | 'saved' | 'notifications' | 'history' | 'challenges' | 'badges';
 
 // Report engagement on the previous URL before requesting the next Roam.
 async function reportCurrentEngagement(): Promise<void> {
@@ -42,7 +42,7 @@ async function reportCurrentEngagement(): Promise<void> {
 }
 
 function showState(name: AppState) {
-  for (const s of ['signedout', 'auth', 'email-auth', 'categories', 'error', 'noresults', 'main', 'feedback', 'saved', 'notifications', 'history'] as const) {
+  for (const s of ['signedout', 'auth', 'email-auth', 'categories', 'error', 'noresults', 'main', 'feedback', 'saved', 'notifications', 'history', 'challenges', 'badges'] as const) {
     el(`state-${s}`).hidden = s !== name;
   }
 }
@@ -272,9 +272,17 @@ async function loadYouSection() {
     }
   });
   // Badges count
-  sendToBackground<any[]>({ type: 'GET_BADGES' }).then(res => {
+  sendToBackground<BadgeData[]>({ type: 'GET_BADGES' }).then(res => {
     if (res.ok && res.data.length > 0) {
       const chip = el('badge-count-chip');
+      chip.textContent = String(res.data.length);
+      chip.hidden = false;
+    }
+  });
+  // Challenges count
+  sendToBackground<ChallengeData[]>({ type: 'GET_CHALLENGES' }).then(res => {
+    if (res.ok && res.data.length > 0) {
+      const chip = el('challenge-count-chip');
       chip.textContent = String(res.data.length);
       chip.hidden = false;
     }
@@ -1052,6 +1060,156 @@ document.addEventListener('DOMContentLoaded', () => {
   el('btn-web-badges').addEventListener('click', () => {
     chrome.tabs.create({ url: 'https://roamtheweb.app/badges' });
     window.close();
+  });
+
+  el('btn-badges').addEventListener('click', async () => {
+    showPanel(null);
+    showState('badges');
+    const grid = el('badges-grid');
+    const empty = el('badges-empty');
+    const err = el('badges-error');
+    grid.textContent = '';
+    empty.hidden = true;
+    err.hidden = true;
+    const res = await sendToBackground<BadgeData[]>({ type: 'GET_BADGES' });
+    if (!res.ok) {
+      err.textContent = res.error;
+      err.hidden = false;
+      return;
+    }
+    const badges = res.data ?? [];
+    if (badges.length === 0) {
+      empty.hidden = false;
+      return;
+    }
+    const unlocked = badges.filter((b) => b.is_unlocked).length;
+    el('badges-count').textContent = `${unlocked} / ${badges.length}`;
+    for (const b of badges) {
+      const hidden = b.is_hidden && !b.is_unlocked;
+      const item = document.createElement('button');
+      item.className = 'badge-item' + (b.is_unlocked ? ' badge-item--unlocked' : '');
+      item.title = hidden ? '???' : `${b.name}: ${b.description}`;
+
+      const icon = document.createElement('span');
+      icon.className = 'badge-item-icon';
+      icon.textContent = hidden ? '?' : b.icon;
+      item.appendChild(icon);
+
+      const name = document.createElement('span');
+      name.className = 'badge-item-name';
+      name.textContent = hidden ? '???' : b.name;
+      item.appendChild(name);
+
+      if (!b.is_unlocked && b.required_count != null && b.required_count > 0) {
+        const bar = document.createElement('div');
+        bar.className = 'badge-item-bar';
+        const fill = document.createElement('div');
+        fill.className = 'badge-item-fill';
+        const pct = Math.min((b.progress_current / b.required_count) * 100, 100);
+        fill.style.width = `${pct}%`;
+        bar.appendChild(fill);
+        item.appendChild(bar);
+      }
+      grid.appendChild(item);
+    }
+  });
+
+  el('btn-back-badges').addEventListener('click', () => {
+    showPanel('config');
+    showState('main');
+  });
+
+  el('btn-challenges').addEventListener('click', async () => {
+    showPanel(null);
+    showState('challenges');
+    const list = el('challenges-list');
+    const empty = el('challenges-empty');
+    const err = el('challenges-error');
+    list.textContent = '';
+    empty.hidden = true;
+    err.hidden = true;
+    const res = await sendToBackground<ChallengeData[]>({ type: 'GET_CHALLENGES' });
+    if (!res.ok) {
+      err.textContent = res.error;
+      err.hidden = false;
+      return;
+    }
+    const challenges = res.data ?? [];
+    if (challenges.length === 0) {
+      empty.hidden = false;
+      return;
+    }
+    const sections: { label: string; type: 'daily' | 'weekly' | 'monthly' }[] = [
+      { label: 'Daily', type: 'daily' },
+      { label: 'Weekly', type: 'weekly' },
+      { label: 'Monthly', type: 'monthly' },
+    ];
+    const typeColors: Record<'daily' | 'weekly' | 'monthly', string> = {
+      daily: '#3b82f6',
+      weekly: '#a855f7',
+      monthly: '#d97706',
+    };
+    for (const section of sections) {
+      const items = challenges.filter((c) => c.challenge.type === section.type);
+      if (items.length === 0) continue;
+      const header = document.createElement('div');
+      header.className = 'challenges-section-title';
+      header.textContent = section.label;
+      list.appendChild(header);
+      for (const c of items) {
+        const goal = c.challenge.goal_count;
+        const progress = goal > 0 ? Math.min(c.progress_current / goal, 1) : 0;
+        const completed = !!c.completed_at;
+
+        const card = document.createElement('div');
+        card.className = 'challenge-card' + (completed ? ' challenge-card--done' : '');
+
+        const head = document.createElement('div');
+        head.className = 'challenge-card-head';
+        const title = document.createElement('span');
+        title.className = 'challenge-card-title';
+        title.textContent = c.challenge.title;
+        head.appendChild(title);
+        if (completed) {
+          const check = document.createElement('span');
+          check.className = 'challenge-card-check';
+          check.textContent = '✓';
+          head.appendChild(check);
+        }
+        card.appendChild(head);
+
+        const desc = document.createElement('div');
+        desc.className = 'challenge-card-desc';
+        desc.textContent = c.challenge.goal_description || '';
+        card.appendChild(desc);
+
+        const meta = document.createElement('div');
+        meta.className = 'challenge-card-meta';
+        const progText = document.createElement('span');
+        progText.textContent = `${c.progress_current} / ${goal}`;
+        const xp = document.createElement('span');
+        xp.textContent = `+${c.challenge.xp_reward} XP`;
+        meta.appendChild(progText);
+        meta.appendChild(xp);
+        card.appendChild(meta);
+
+        const bar = document.createElement('div');
+        bar.className = 'challenge-card-bar';
+        const fill = document.createElement('div');
+        fill.className = 'challenge-card-fill';
+        fill.style.width = `${Math.round(progress * 100)}%`;
+        fill.style.background = completed ? '#22c55e' : typeColors[section.type];
+        bar.appendChild(fill);
+        card.appendChild(bar);
+
+        list.appendChild(card);
+      }
+    }
+  });
+
+  el('btn-back-challenges').addEventListener('click', () => {
+    showPanel('config');
+    showState('main');
   });
 
   // ── History ───────────────────────────────────────────────────────────────

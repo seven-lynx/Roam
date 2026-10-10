@@ -6,7 +6,7 @@
 
 import { Sentry } from '../lib/sentry';
 import { validateEnvironment } from '../lib/env';
-import type { Request, Response, StateData, RoamData, CheckUrlData, Collection, CategoryItem, ProfileData, SubcategoryItem, SavedUrlItem } from '../lib/messages';
+import type { Request, Response, StateData, RoamData, CheckUrlData, Collection, CategoryItem, ProfileData, SubcategoryItem, SavedUrlItem, ChallengeData, BadgeData } from '../lib/messages';
 import { getSupabase, clearAuthStorage } from '../lib/supabase';
 import { FALLBACK_CATEGORIES } from '../lib/constants';
 
@@ -400,6 +400,7 @@ async function _dispatch(req: Request): Promise<Response> {
     case 'MARK_NOTIFICATIONS_READ': return markNotificationsRead();
     case 'DELETE_NOTIFICATION':   return deleteNotification(req.notificationId);
     case 'GET_BADGES':            return getBadges();
+    case 'GET_CHALLENGES':        return getChallenges();
     case 'GET_URL_HISTORY':       return getUrlHistory(req.limit);
     case 'CLEAR_URL_HISTORY':     return clearUrlHistory();
     default:                      return { ok: false, error: 'Something went wrong. Please try again.' };
@@ -1202,13 +1203,23 @@ async function deleteNotification(notificationId: string): Promise<Response<null
 }
 
 // ── Badges ────────────────────────────────────────────────────────────────────
-async function getBadges(): Promise<Response<any[]>> {
+async function getBadges(): Promise<Response<BadgeData[]>> {
   const session = (await getSupabase().auth.getSession()).data.session;
   if (!session) return { ok: false, error: 'Not signed in.' };
   const { data, error } = await getSupabase()
     .rpc('get_user_badges', { p_user_id: session.user.id });
   if (error) return { ok: false, error: error.message };
-  return { ok: true, data: (data ?? []) as any[] };
+  return { ok: true, data: (data ?? []) as BadgeData[] };
+}
+
+// ── Challenges ────────────────────────────────────────────────────────────────
+async function getChallenges(): Promise<Response<ChallengeData[]>> {
+  const session = (await getSupabase().auth.getSession()).data.session;
+  if (!session) return { ok: false, error: 'Not signed in.' };
+  const { data, error } = await getSupabase().functions.invoke('challenges');
+  if (error) return { ok: false, error: error.message };
+  const payload = (data ?? {}) as { challenges?: ChallengeData[] };
+  return { ok: true, data: payload.challenges ?? [] };
 }
 
 // ── URL History ───────────────────────────────────────────────────────────────

@@ -46,6 +46,7 @@ export type Request =
   | { type: 'MARK_NOTIFICATIONS_READ' }
   | { type: 'DELETE_NOTIFICATION'; notificationId: string }
   | { type: 'GET_BADGES' }
+  | { type: 'GET_CHALLENGES' }
   | { type: 'GET_URL_HISTORY'; limit?: number }
   | { type: 'CLEAR_URL_HISTORY' }
   | { type: 'DELETE_COLLECTION'; collectionId: string }
@@ -124,6 +125,45 @@ export interface SubcategoryItem {
   name: string;
   category_id: string;
   sort_order: number;
+}
+
+export interface ChallengeInfo {
+  id: string;
+  key: string;
+  title: string;
+  goal_description: string | null;
+  goal_count: number;
+  xp_reward: number;
+  type: 'daily' | 'weekly' | 'monthly';
+  condition_type: string;
+  time_restriction: string | null;
+  expires_at: string;
+}
+
+export interface ChallengeData {
+  instance_id: string;
+  progress_current: number;
+  completed_at: string | null;
+  challenge: ChallengeInfo;
+}
+
+export interface BadgeData {
+  id: string;
+  slug: string;
+  name: string;
+  description: string;
+  icon: string;
+  category: string;
+  tier: number;
+  required_count: number | null;
+  is_unlocked: boolean;
+  unlocked_at: string | null;
+  progress_current: number;
+  is_hidden: boolean;
+  is_gift_only: boolean;
+  xp_reward: number;
+  parent_badge_slug: string | null;
+  granted_by: string | null;
 }
 
 /** Type-safe wrapper around chrome.runtime.sendMessage.
