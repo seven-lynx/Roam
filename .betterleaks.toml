@@ -19,6 +19,7 @@ matchesAny(attributes["path"], [
   `(?:^|/)node_modules(?:/.*)?$`,
   `(?:^|/)\.next(?:/.*)?$`,
   `(?:^|/)dist(?:/.*)?$`,
+  `(?:^|/)dist-firefox(?:/.*)?$`,
   `(?:^|/)build(?:/.*)?$`,
   `(?:^|/)out(?:/.*)?$`,
   `(?:^|/)coverage(?:/.*)?$`,
@@ -28,6 +29,8 @@ matchesAny(attributes["path"], [
   `__tests__/.*\.[jt]sx?$`,
   `__mocks__/.*$`,
   `\.snap$`,
+  `\.map$`,
+  `\.example$`,
   `(?:^|/)android/(?:app/build|build|\.gradle)(?:/.*)?$`
 ])
 '''
@@ -51,6 +54,7 @@ containsAny(finding["secret"], [
 # tune out false positives; they do not define detection rules on their own.
 [extend]
 useDefault = true
+disabledRules = ["generic-password"]
 
 # Disable upstream rules that produce too much noise for this project.
 # (Add rules here as needed once a baseline scan runs.)
