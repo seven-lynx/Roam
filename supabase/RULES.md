@@ -1,4 +1,4 @@
-# RULES.md ΓÇö Supabase Backend
+# RULES.md — Supabase Backend
 
 Read `../RULES.md` first. This file adds backend-specific rules.
 
@@ -6,13 +6,13 @@ Read `../RULES.md` first. This file adds backend-specific rules.
 - PostgreSQL (Supabase)
 - Deno Edge Functions (TypeScript)
 - Supabase CLI for migrations + deploys
-- 161+ migrations in `supabase/migrations/` (history of all schema changes)
-- 27+ edge functions in `supabase/functions/`
+- 164 migrations in `supabase/migrations/` (history of all schema changes)
+- 27 edge functions in `supabase/functions/`
 
 ## Hard rules (backend-specific)
 
 ### S.1 `authenticated` role has `statement_timeout=8s`
-This is non-obvious and load-bearing. Every PL/pgSQL function in the public schema must complete within 8s for a normal user, or users see `57014` errors. The verification harness (`scripts/verify-roam-rpc.mjs`) MUST connect as `authenticated` and respect the timeout. The admin/Management-API session has `statement_timeout=2min` ΓÇö **do not verify with admin**.
+This is non-obvious and load-bearing. Every PL/pgSQL function in the public schema must complete within 8s for a normal user, or users see `57014` errors. The verification harness (`scripts/verify-roam-rpc.mjs`) MUST connect as `authenticated` and respect the timeout. The admin/Management-API session has `statement_timeout=2min` — **do not verify with admin**.
 
 ### S.2 No `.skip` files in the active directory
 If a migration needs to be skipped, move it to `supabase/migrations/_superseded/` and document why in `SUPERSEDED.md`. The active directory should only contain migrations that will be applied in timestamp order.
@@ -26,7 +26,7 @@ Any state derived from a primary user action (`save`, `rate`, `discover`, `follo
 Edge functions may call RPCs that wrap these, but the canonical writer is the trigger.
 
 ### S.4 RLS is the security boundary
-Middleware redirects are UX, not security. Every table accessible from the client must have an RLS policy. Every policy must be tested with a real JWT ΓÇö see the test cases in `web/src/__tests__/security.test.ts`.
+Middleware redirects are UX, not security. Every table accessible from the client must have an RLS policy. Every policy must be tested with a real JWT — see the test cases in `web/src/__tests__/security.test.ts`.
 
 When you add a new table:
 1. Add `ALTER TABLE x ENABLE ROW LEVEL SECURITY;`
@@ -40,7 +40,7 @@ Non-additive migrations (DROP, ALTER TYPE) must include a paired rollback in `RU
 - Wrap handlers in try/catch and return JSON errors with status codes.
 - Use the `rateLimit()` helper from `_shared/rate-limit.ts` for any function callable by unauthenticated clients.
 - Use the `initSentry()` helper from `_shared/sentry.ts` for error reporting.
-- Never `console.log` in production functions ΓÇö use Sentry capture.
+- Never `console.log` in production functions — use Sentry capture.
 
 ### S.7 URL normalization is canonical in `_shared/normalise.ts`
 The browser extension and seeders have copies of `normalizeUrl()`. The Deno version in `_shared/` is the canonical one. If you change tracking-param handling, update all three and add a test.
@@ -50,7 +50,7 @@ The browser extension and seeders have copies of `normalizeUrl()`. The Deno vers
 - Writing to `user_actions` from an edge function (use a trigger)
 - Empty `try { } catch { }` in edge functions
 - `console.log` in production edge functions
-- Migrations with `array_agg(u.*)` (the v31 42P01 bug ΓÇö re-introduces alias ambiguity)
+- Migrations with `array_agg(u.*)` (the v31 42P01 bug — re-introduces alias ambiguity)
 - New tables without RLS
 - New edge functions without a paired `_tests/<name>.test.ts`
 - `.skip` files in `supabase/migrations/` (use `_superseded/` instead)

@@ -29,7 +29,7 @@ CLAUDE.md
 web/CLAUDE.md
 .github/copilot-instructions.md
 .github/skills/
-# NOTE: web/AGENTS.md is intentionally tracked ΓÇö it's the canonical rules file
+# NOTE: web/AGENTS.md is intentionally tracked — it's the canonical rules file
 # for the web layer, distinct from any personal AI tooling notes.
 
 # gh CLI temp files
@@ -66,6 +66,9 @@ scripts/.cache/stumbleupon-awesome/
 .roam-local/
 docs/
 scripts/
+# Backend tooling under supabase/scripts is tracked (unlike the local-only
+# root scripts/ directory used for offline seeders and AI tooling).
+!supabase/scripts/
 .vscode/mcp.json
 android/app/google-services.json
 sync-public.ps1

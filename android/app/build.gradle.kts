@@ -22,8 +22,8 @@ android {
         applicationId = "app.roam.android"
         minSdk = 26
         targetSdk = 36
-        versionCode = 31
-        versionName = "1.2.0"
+        versionCode = 32
+        versionName = "1.2.1"
 
 
 
@@ -124,7 +124,7 @@ dependencies {
     // Serialization
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")
 
-    // Image loading (Coil 3 ΓÇö Compose-native, supports async + crossfade)
+    // Image loading (Coil 3 — Compose-native, supports async + crossfade)
     implementation("io.coil-kt.coil3:coil-compose:3.1.0")
     implementation("io.coil-kt.coil3:coil-network-okhttp:3.1.0")
 
@@ -135,7 +135,7 @@ dependencies {
     implementation(platform("com.google.firebase:firebase-bom:34.14.0"))
     implementation("com.google.firebase:firebase-messaging")
 
-    // Baseline profiles ΓÇö install AOT-compiled profile on first launch
+    // Baseline profiles — install AOT-compiled profile on first launch
     implementation("androidx.fragment:fragment-ktx:1.8.6")
     implementation("androidx.profileinstaller:profileinstaller:1.3.1")
 
