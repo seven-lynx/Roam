@@ -1,13 +1,13 @@
 -- =============================================================================
--- roam() v30 ΓÇö Subcategory rotation + score deduplication
+-- roam() v30 — Subcategory rotation + score deduplication
 -- =============================================================================
 -- Changes from v29:
---  1. Subcategory rotation: deprioritize the last 3 subcategories served (0.3├ù)
+--  1. Subcategory rotation: deprioritize the last 3 subcategories served (0.3×)
 --  2. Extract eff_score into url_effective_score() helper function (DRY)
 --  3. Added v_recent_subcats array (last 3 subcategories from seen_urls)
 -- =============================================================================
 
--- ΓöÇΓöÇ 1. Helper: compute effective score for a URL row ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+-- ── 1. Helper: compute effective score for a URL row ───────────────────────
 DROP FUNCTION IF EXISTS public.url_effective_score(
   p_url_id              UUID,
   p_score_subcats       UUID[],
@@ -66,7 +66,7 @@ BEGIN
     ELSE 1.0 / (1 + v_serve_count * 0.1)
   END;
 
-  -- Interest weight: 0.4ΓÇô2.0├ù based on user's calibrated weight for this subcategory
+  -- Interest weight: 0.4–2.0× based on user's calibrated weight for this subcategory
   v_interest_weight := LEAST(GREATEST(COALESCE(
     p_score_weights[array_position(p_score_subcats, v_subcat_id)],
     1.0), 0.4), 2.0);
@@ -94,7 +94,7 @@ BEGIN
 END;
 $$;
 
--- ΓöÇΓöÇ 2. Redeploy roam() as v30 ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+-- ── 2. Redeploy roam() as v30 ──────────────────────────────────────────────
 DROP FUNCTION IF EXISTS public.roam(UUID, UUID, TEXT, UUID, UUID) CASCADE;
 DROP FUNCTION IF EXISTS public.roam(UUID, UUID, TEXT, UUID, UUID, TEXT[]) CASCADE;
 
@@ -147,7 +147,7 @@ BEGIN
     RAISE EXCEPTION 'Unauthorized';
   END IF;
 
-  -- ΓöÇΓöÇ Load user settings ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+  -- ── Load user settings ────────────────────────────────────────────────────
   SELECT
     COALESCE(s.preferred_languages, ARRAY['en']),
     COALESCE(s.skip_paywalled, FALSE),
@@ -160,7 +160,7 @@ BEGIN
   IF v_skip_paywall    IS NULL THEN v_skip_paywall    := FALSE;        END IF;
   IF v_discovery_mode  IS NULL THEN v_discovery_mode  := 'discovery';  END IF;
 
-  -- ΓöÇΓöÇ Merge exclude domains ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+  -- ── Merge exclude domains ─────────────────────────────────────────────────
   IF p_exclude_domains IS NOT NULL AND array_length(p_exclude_domains, 1) > 0 THEN
     v_excluded := p_exclude_domains;
     IF p_exclude_domain IS NOT NULL AND NOT p_exclude_domain = ANY(v_excluded) THEN
@@ -170,7 +170,7 @@ BEGIN
     v_excluded := ARRAY[p_exclude_domain];
   END IF;
 
-  -- ΓöÇΓöÇ Load exclusion sets as arrays ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+  -- ── Load exclusion sets as arrays ─────────────────────────────────────────
   SELECT array_agg(url_id)
   INTO   v_seen_ids
   FROM (
@@ -180,7 +180,7 @@ BEGIN
     LIMIT  10000
   ) t;
 
-  -- URLs the user rapidly skipped ΓÇö extend exclusion
+  -- URLs the user rapidly skipped — extend exclusion
   SELECT array_agg(url_id)
   INTO   v_skip_penalty_ids
   FROM   seen_urls
@@ -219,7 +219,7 @@ BEGIN
     FROM   paywalled_domains;
   END IF;
 
-  -- ΓöÇΓöÇ Expand category prefs into flat subcategory ID array ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+  -- ── Expand category prefs into flat subcategory ID array ──────────────────
   SELECT array_agg(DISTINCT sc.id)
   INTO   v_allowed_subcat_ids
   FROM   subcategories sc
@@ -240,7 +240,7 @@ BEGIN
   SELECT EXISTS (SELECT 1 FROM user_categories WHERE user_id = p_user_id)
   INTO v_has_categories;
 
-  -- ΓöÇΓöÇ Serendipity mode: 5% chance to pick from a never-seen subcategory ΓöÇΓöÇΓöÇΓöÇΓöÇ
+  -- ── Serendipity mode: 5% chance to pick from a never-seen subcategory ─────
   v_serendipity_subcat := NULL;
   IF v_discovery_mode = 'discovery'
      AND random() < 0.05
@@ -262,7 +262,7 @@ BEGIN
     LIMIT 1;
   END IF;
 
-  -- ΓöÇΓöÇ Deep Dive: narrow to top-3 subcategories by calibrated_weight ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+  -- ── Deep Dive: narrow to top-3 subcategories by calibrated_weight ─────────
   IF v_discovery_mode = 'deep_dive'
      AND p_subcategory_id IS NULL
      AND p_category_id    IS NULL
@@ -283,7 +283,7 @@ BEGIN
     END IF;
   END IF;
 
-  -- ΓöÇΓöÇ Discovery mode: 25% adjacent serving ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+  -- ── Discovery mode: 25% adjacent serving ──────────────────────────────────
   v_adjacent_subcat_id := NULL;
   IF v_discovery_mode = 'discovery'
      AND random() < 0.25
@@ -316,9 +316,9 @@ BEGIN
 
   v_effective_subcat_id := COALESCE(p_subcategory_id, v_adjacent_subcat_id, v_serendipity_subcat);
 
-  -- ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ
+  -- ═══════════════════════════════════════════════════════════════════════════
   --  COLLECTION MODE
-  -- ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ
+  -- ═══════════════════════════════════════════════════════════════════════════
   IF p_collection_id IS NOT NULL THEN
 
     -- v30: uses url_effective_score() helper
@@ -374,9 +374,9 @@ BEGIN
       LIMIT 1;
     END IF;
 
-  -- ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ
+  -- ═══════════════════════════════════════════════════════════════════════════
   --  STANDARD MODE
-  -- ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ
+  -- ═══════════════════════════════════════════════════════════════════════════
   ELSE
 
     -- v30: uses url_effective_score() helper
@@ -468,7 +468,7 @@ BEGIN
 
   END IF;
 
-  -- ΓöÇΓöÇ Record seen + domain cooldown ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+  -- ── Record seen + domain cooldown ─────────────────────────────────────────
   IF v_url_id IS NOT NULL THEN
     INSERT INTO seen_urls (user_id, url_id)
     VALUES (p_user_id, v_url_id)

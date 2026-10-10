@@ -9,10 +9,10 @@
 --   calibrated_weight = upvote_count / (upvote_count + downvote_count) / 0.5
 --
 --   Examples:
---     80% upvotes ΓåÆ 0.8 / 0.5 = 1.6  (+60% boost)
---     50% upvotes ΓåÆ 0.5 / 0.5 = 1.0  (neutral, no change)
---     30% upvotes ΓåÆ 0.3 / 0.5 = 0.6  (-40% penalty)
---     cold start  ΓåÆ                 = 1.0  (default, no data)
+--     80% upvotes → 0.8 / 0.5 = 1.6  (+60% boost)
+--     50% upvotes → 0.5 / 0.5 = 1.0  (neutral, no change)
+--     30% upvotes → 0.3 / 0.5 = 0.6  (-40% penalty)
+--     cold start  →                 = 1.0  (default, no data)
 --
 -- EFFECTIVE SCORE in roam():
 --   eff_score = wilson_score * CLAMP(calibrated_weight, 0.4, 2.0)
@@ -22,7 +22,7 @@
 --   The upper clamp (2.0) prevents runaway over-weighting.
 -- =============================================================================
 
--- ΓöÇΓöÇ 1. user_interest_scores table ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+-- ── 1. user_interest_scores table ────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS public.user_interest_scores (
   user_id           UUID        NOT NULL REFERENCES auth.users    ON DELETE CASCADE,
   subcategory_id    UUID        NOT NULL REFERENCES subcategories ON DELETE CASCADE,
@@ -41,7 +41,7 @@ CREATE POLICY "interest_scores: users can read own"
   ON public.user_interest_scores FOR SELECT
   USING (auth.uid() = user_id);
 
--- ΓöÇΓöÇ 2. Trigger: maintain interest scores on every rating event ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+-- ── 2. Trigger: maintain interest scores on every rating event ───────────────
 CREATE OR REPLACE FUNCTION public.update_interest_scores()
 RETURNS TRIGGER LANGUAGE plpgsql SECURITY DEFINER
 SET search_path = public AS $$
@@ -108,7 +108,7 @@ CREATE TRIGGER trg_ratings_interest_scores
   AFTER INSERT OR UPDATE OR DELETE ON public.ratings
   FOR EACH ROW EXECUTE FUNCTION public.update_interest_scores();
 
--- ΓöÇΓöÇ 3. Backfill from existing ratings ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+-- ── 3. Backfill from existing ratings ────────────────────────────────────────
 INSERT INTO user_interest_scores
   (user_id, subcategory_id, upvote_count, downvote_count, calibrated_weight, last_updated)
 SELECT
@@ -131,7 +131,7 @@ ON CONFLICT (user_id, subcategory_id) DO UPDATE SET
   calibrated_weight = EXCLUDED.calibrated_weight,
   last_updated      = EXCLUDED.last_updated;
 
--- ΓöÇΓöÇ 4. roam() v6: calibrated weight scoring ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+-- ── 4. roam() v6: calibrated weight scoring ──────────────────────────────────
 --
 -- Replaces the additive affinity formula:
 --   wilson_score * (1 + 0.3 * clamp(affinity, 0, 10) / 10)
@@ -139,7 +139,7 @@ ON CONFLICT (user_id, subcategory_id) DO UPDATE SET
 -- With calibrated weight:
 --   wilson_score * clamp(calibrated_weight, 0.4, 2.0)
 --
--- Cold-start (no ratings yet): calibrated_weight defaults to 1.0 ΓåÆ neutral.
+-- Cold-start (no ratings yet): calibrated_weight defaults to 1.0 → neutral.
 -- =============================================================================
 
 DROP FUNCTION IF EXISTS public.roam(UUID, UUID, TEXT, UUID) CASCADE;
@@ -175,7 +175,7 @@ BEGIN
     RAISE EXCEPTION 'Unauthorized';
   END IF;
 
-  -- ΓöÇΓöÇ Load user settings ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+  -- ── Load user settings ────────────────────────────────────────────────────
   SELECT
     COALESCE(s.preferred_languages, ARRAY['en']),
     COALESCE(s.skip_paywalled, FALSE)
@@ -186,7 +186,7 @@ BEGIN
   IF v_langs        IS NULL THEN v_langs        := ARRAY['en']; END IF;
   IF v_skip_paywall IS NULL THEN v_skip_paywall := FALSE;       END IF;
 
-  -- ΓöÇΓöÇ Expand category prefs into flat subcategory ID array ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+  -- ── Expand category prefs into flat subcategory ID array ─────────────────
   SELECT array_agg(DISTINCT sc.id)
   INTO   v_allowed_subcat_ids
   FROM   subcategories sc
@@ -208,7 +208,7 @@ BEGIN
   INTO v_has_categories;
 
   IF p_collection_id IS NOT NULL THEN
-    -- ΓöÇΓöÇ Collection mode ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+    -- ── Collection mode ──────────────────────────────────────────────────────
     SELECT c.id INTO v_url_id
     FROM (
       -- Random sample (~10% of collection rows)
@@ -276,7 +276,7 @@ BEGIN
     LIMIT 1;
 
   ELSE
-    -- ΓöÇΓöÇ Standard mode (with optional subcategory pin) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+    -- ── Standard mode (with optional subcategory pin) ─────────────────────
     SELECT c.id INTO v_url_id
     FROM (
       -- Random sample (~10% of the urls table)

@@ -50,7 +50,7 @@ function validateEnvironment(): EnvVars {
   const SENTRY_AUTH_TOKEN = process.env.SENTRY_AUTH_TOKEN;
   if (!SENTRY_AUTH_TOKEN && process.env.VERCEL) {
     // In Vercel production/preview, warn if missing but don't fail
-    console.warn('[env] SENTRY_AUTH_TOKEN missing ΓÇö source maps may not upload to Sentry');
+    console.warn('[env] SENTRY_AUTH_TOKEN missing — source maps may not upload to Sentry');
   }
 
   // Report errors

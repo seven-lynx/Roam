@@ -85,7 +85,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       }
     }
   } catch {
-    // sitemap generation should not fail ΓÇö skip dynamic entries
+    // sitemap generation should not fail — skip dynamic entries
   }
 
   return staticPages;

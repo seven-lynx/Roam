@@ -49,7 +49,7 @@ export function NotificationBell() {
       if (error) return;
       setUnreadCount(count ?? 0);
     } catch {
-      // silently ignore ΓÇö notifications table may not exist yet
+      // silently ignore — notifications table may not exist yet
     }
   }
 
@@ -57,7 +57,7 @@ export function NotificationBell() {
   useEffect(() => {
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('/sw.js').catch(() => {
-        // SW registration failed silently ΓÇö push won't work but app still functions
+        // SW registration failed silently — push won't work but app still functions
       });
     }
   }, []);
@@ -175,12 +175,12 @@ export function NotificationBell() {
 
   function getIcon(type: string): string {
     switch (type) {
-      case 'url_approved': return 'Γ£à';
-      case 'url_rejected': return 'Γ¥î';
-      case 'new_follower': return '≡ƒæñ';
-      case 'badge_unlocked': return '≡ƒÅà';
-      case 'level_up': return 'Γ¼å∩╕Å';
-      default: return '≡ƒöö';
+      case 'url_approved': return '✅';
+      case 'url_rejected': return '❌';
+      case 'new_follower': return '👤';
+      case 'badge_unlocked': return '🏅';
+      case 'level_up': return '⬆️';
+      default: return '🔔';
     }
   }
 
@@ -239,7 +239,7 @@ export function NotificationBell() {
           <div className="overflow-y-auto flex-1">
             {notifications.length === 0 ? (
               <div className="px-4 py-8 text-center text-sm text-zinc-500 dark:text-zinc-400">
-                <p className="text-2xl mb-2">≡ƒöö</p>
+                <p className="text-2xl mb-2">🔔</p>
                 <p>No notifications yet.</p>
                 <p className="text-xs mt-1">You&rsquo;ll be notified when your URL submissions are reviewed.</p>
               </div>

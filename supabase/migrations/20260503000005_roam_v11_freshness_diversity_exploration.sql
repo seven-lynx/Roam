@@ -1,12 +1,12 @@
 -- =============================================================================
--- roam() v11 ΓÇö three algorithmic improvements (Task 8.21)
+-- roam() v11 — three algorithmic improvements (Task 8.21)
 -- =============================================================================
 --
 -- 1. FRESHNESS DECAY (published_at)
 --    F(t) = GREATEST(EXP(-0.001 * age_days), 0.2)
---    Half-life Γëê 693 days (~2 years).  Floor of 0.2 keeps evergreen content
+--    Half-life ≈ 693 days (~2 years).  Floor of 0.2 keeps evergreen content
 --    (Wikipedia, classic essays) from being permanently buried.
---    published_at IS NULL ΓåÆ F = 0.7  (mild penalty for unknown age)
+--    published_at IS NULL → F = 0.7  (mild penalty for unknown age)
 --
 -- 2. DOMAIN DIVERSITY COOLDOWN (user_domain_cooldowns)
 --    After serving a URL in discovery mode, its domain is suppressed for
@@ -19,11 +19,11 @@
 --    Prevents unvoted content from being permanently invisible.
 --
 -- Updated eff_score formula (v11):
---   base  = wilson_score + 0.3┬╖seeder_score + 0.15┬╖(n=0)
---   E     = base ┬╖ clamp(calibrated_weight, 0.4, 2.0) ┬╖ F(t)
+--   base  = wilson_score + 0.3·seeder_score + 0.15·(n=0)
+--   E     = base · clamp(calibrated_weight, 0.4, 2.0) · F(t)
 -- =============================================================================
 
--- ΓöÇΓöÇ 1. Domain cooldown table ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+-- ── 1. Domain cooldown table ──────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS public.user_domain_cooldowns (
   user_id        UUID        NOT NULL REFERENCES auth.users ON DELETE CASCADE,
   domain         TEXT        NOT NULL,
@@ -39,7 +39,7 @@ CREATE POLICY "domain_cooldowns: users can read own"
   ON public.user_domain_cooldowns FOR SELECT
   USING (auth.uid() = user_id);
 
--- ΓöÇΓöÇ 2. roam() v11 ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+-- ── 2. roam() v11 ─────────────────────────────────────────────────────────────
 DROP FUNCTION IF EXISTS public.roam(UUID, UUID, TEXT, UUID) CASCADE;
 
 CREATE FUNCTION public.roam(
@@ -78,7 +78,7 @@ BEGIN
     RAISE EXCEPTION 'Unauthorized';
   END IF;
 
-  -- ΓöÇΓöÇ Load user settings ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+  -- ── Load user settings ────────────────────────────────────────────────────
   SELECT
     COALESCE(s.preferred_languages, ARRAY['en']),
     COALESCE(s.skip_paywalled, FALSE),
@@ -91,7 +91,7 @@ BEGIN
   IF v_skip_paywall    IS NULL THEN v_skip_paywall    := FALSE;        END IF;
   IF v_discovery_mode  IS NULL THEN v_discovery_mode  := 'discovery';  END IF;
 
-  -- ΓöÇΓöÇ Expand category prefs into flat subcategory ID array ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+  -- ── Expand category prefs into flat subcategory ID array ─────────────────
   SELECT array_agg(DISTINCT sc.id)
   INTO   v_allowed_subcat_ids
   FROM   subcategories sc
@@ -112,7 +112,7 @@ BEGIN
   SELECT EXISTS (SELECT 1 FROM user_categories WHERE user_id = p_user_id)
   INTO v_has_categories;
 
-  -- ΓöÇΓöÇ Deep Dive: narrow to top-3 subcategories by calibrated_weight ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+  -- ── Deep Dive: narrow to top-3 subcategories by calibrated_weight ─────────
   IF v_discovery_mode = 'deep_dive'
      AND p_subcategory_id IS NULL
      AND p_collection_id  IS NULL
@@ -132,7 +132,7 @@ BEGIN
     END IF;
   END IF;
 
-  -- ΓöÇΓöÇ Discovery mode: 12% adjacent serving ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+  -- ── Discovery mode: 12% adjacent serving ─────────────────────────────────
   v_adjacent_subcat_id := NULL;
   IF v_discovery_mode = 'discovery'
      AND random() < 0.12
@@ -164,7 +164,7 @@ BEGIN
   v_effective_subcat_id := COALESCE(p_subcategory_id, v_adjacent_subcat_id);
 
   IF p_collection_id IS NOT NULL THEN
-    -- ΓöÇΓöÇ Collection mode ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+    -- ── Collection mode ──────────────────────────────────────────────────────
     SELECT c.id INTO v_url_id
     FROM (
       SELECT u.id,
@@ -252,7 +252,7 @@ BEGIN
     LIMIT 1;
 
   ELSE
-    -- ΓöÇΓöÇ Standard mode ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+    -- ── Standard mode ─────────────────────────────────────────────────────
     SELECT c.id INTO v_url_id
     FROM (
       SELECT u.id,
@@ -380,7 +380,7 @@ BEGIN
     LIMIT 1;
   END IF;
 
-  -- ΓöÇΓöÇ Record seen + domain cooldown ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+  -- ── Record seen + domain cooldown ─────────────────────────────────────────
   IF v_url_id IS NOT NULL THEN
     INSERT INTO seen_urls (user_id, url_id)
     VALUES (p_user_id, v_url_id)

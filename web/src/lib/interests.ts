@@ -8,7 +8,7 @@ export interface InterestState {
   selectedTopics: Set<string>;
 }
 
-/** Maps subcategory ID ΓåÆ parent category ID. */
+/** Maps subcategory ID → parent category ID. */
 export type SubcategoryParentMap = Map<string, string>;
 
 /**

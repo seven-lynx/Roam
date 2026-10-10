@@ -1,12 +1,12 @@
 -- =============================================================================
--- roam() v13 ΓÇö conditional fallback + ANALYZE (ROAM-ANDROID-7)
+-- roam() v13 — conditional fallback + ANALYZE (ROAM-ANDROID-7)
 -- =============================================================================
 --
 -- Problem:
 --   The UNION ALL structure in v12 means both the TABLESAMPLE branch AND the
 --   full ORDER BY fallback run on every single call. With 3.15 M rows in urls,
 --   the fallback ORDER BY (wilson_score + 0.3*seeder_score) DESC LIMIT 100
---   scans the whole table on each request ΓÇö even when TABLESAMPLE already
+--   scans the whole table on each request — even when TABLESAMPLE already
 --   found a good candidate. This causes persistent statement_timeout hits.
 --
 --   idx_urls_fallback_sort (added in 20260505000000) shows 0 scans because
@@ -14,8 +14,8 @@
 --
 -- Fix:
 --   1. Split the UNION ALL into two sequential PL/pgSQL phases:
---        Phase 1 ΓÇö TABLESAMPLE BERNOULLI(10): fast random sample, O(315k rows)
---        Phase 2 ΓÇö ORDER BY fallback:          only executed when phase 1 returns NULL
+--        Phase 1 — TABLESAMPLE BERNOULLI(10): fast random sample, O(315k rows)
+--        Phase 2 — ORDER BY fallback:          only executed when phase 1 returns NULL
 --      The expensive full-table scan now only runs when TABLESAMPLE misses,
 --      which happens only on cold starts or highly-filtered pools.
 --
@@ -67,7 +67,7 @@ BEGIN
     RAISE EXCEPTION 'Unauthorized';
   END IF;
 
-  -- ΓöÇΓöÇ Load user settings ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+  -- ── Load user settings ────────────────────────────────────────────────────
   SELECT
     COALESCE(s.preferred_languages, ARRAY['en']),
     COALESCE(s.skip_paywalled, FALSE),
@@ -80,7 +80,7 @@ BEGIN
   IF v_skip_paywall    IS NULL THEN v_skip_paywall    := FALSE;        END IF;
   IF v_discovery_mode  IS NULL THEN v_discovery_mode  := 'discovery';  END IF;
 
-  -- ΓöÇΓöÇ Expand category prefs into flat subcategory ID array ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+  -- ── Expand category prefs into flat subcategory ID array ─────────────────
   SELECT array_agg(DISTINCT sc.id)
   INTO   v_allowed_subcat_ids
   FROM   subcategories sc
@@ -101,7 +101,7 @@ BEGIN
   SELECT EXISTS (SELECT 1 FROM user_categories WHERE user_id = p_user_id)
   INTO v_has_categories;
 
-  -- ΓöÇΓöÇ Deep Dive: narrow to top-3 subcategories by calibrated_weight ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+  -- ── Deep Dive: narrow to top-3 subcategories by calibrated_weight ─────────
   IF v_discovery_mode = 'deep_dive'
      AND p_subcategory_id IS NULL
      AND p_category_id    IS NULL
@@ -122,7 +122,7 @@ BEGIN
     END IF;
   END IF;
 
-  -- ΓöÇΓöÇ Discovery mode: 12% adjacent serving ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+  -- ── Discovery mode: 12% adjacent serving ─────────────────────────────────
   v_adjacent_subcat_id := NULL;
   IF v_discovery_mode = 'discovery'
      AND random() < 0.12
@@ -154,12 +154,12 @@ BEGIN
 
   v_effective_subcat_id := COALESCE(p_subcategory_id, v_adjacent_subcat_id);
 
-  -- ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ
+  -- ═══════════════════════════════════════════════════════════════════════════
   --  COLLECTION MODE
-  -- ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ
+  -- ═══════════════════════════════════════════════════════════════════════════
   IF p_collection_id IS NOT NULL THEN
 
-    -- Phase 1: TABLESAMPLE ΓÇö fast random pick from ~10% of collection rows
+    -- Phase 1: TABLESAMPLE — fast random pick from ~10% of collection rows
     SELECT c.id INTO v_url_id
     FROM (
       SELECT u.id,
@@ -201,7 +201,7 @@ BEGIN
     ORDER BY (c.eff_score + 0.1) * random() DESC
     LIMIT 1;
 
-    -- Phase 2: fallback ΓÇö only when TABLESAMPLE found nothing (small collections)
+    -- Phase 2: fallback — only when TABLESAMPLE found nothing (small collections)
     IF v_url_id IS NULL THEN
       SELECT c.id INTO v_url_id
       FROM (
@@ -247,13 +247,13 @@ BEGIN
       LIMIT 1;
     END IF;
 
-  -- ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ
+  -- ═══════════════════════════════════════════════════════════════════════════
   --  STANDARD MODE
-  -- ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ
+  -- ═══════════════════════════════════════════════════════════════════════════
   ELSE
 
-    -- Phase 1: TABLESAMPLE ΓÇö fast random pick from ~10% of the urls table
-    -- (Γëê315k rows at current scale). Uses idx_urls_roam_candidates for the
+    -- Phase 1: TABLESAMPLE — fast random pick from ~10% of the urls table
+    -- (≈315k rows at current scale). Uses idx_urls_roam_candidates for the
     -- candidate scan; O(315k) not O(3.15M).
     SELECT c.id INTO v_url_id
     FROM (
@@ -317,7 +317,7 @@ BEGIN
     ORDER BY (c.eff_score + 0.1) * random() DESC
     LIMIT 1;
 
-    -- Phase 2: full-scan fallback ΓÇö only executed when TABLESAMPLE returned
+    -- Phase 2: full-scan fallback — only executed when TABLESAMPLE returned
     -- nothing. This uses idx_urls_fallback_sort (expression index on the score
     -- expression) to avoid a full sort. Rare path: triggered only when the
     -- BERNOULLI(10) sample happens to miss all qualifying rows, which is
@@ -390,7 +390,7 @@ BEGIN
 
   END IF;
 
-  -- ΓöÇΓöÇ Record seen + domain cooldown ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+  -- ── Record seen + domain cooldown ─────────────────────────────────────────
   IF v_url_id IS NOT NULL THEN
     INSERT INTO seen_urls (user_id, url_id)
     VALUES (p_user_id, v_url_id)

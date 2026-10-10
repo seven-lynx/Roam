@@ -14,15 +14,15 @@
 --     know exactly what they want and want depth over breadth.
 --
 -- The roam() function reads discovery_mode on each call and branches
--- accordingly. No change to the public API ΓÇö no new parameters needed.
+-- accordingly. No change to the public API — no new parameters needed.
 -- =============================================================================
 
--- ΓöÇΓöÇ 1. Add discovery_mode column to user_settings ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+-- ── 1. Add discovery_mode column to user_settings ────────────────────────────
 ALTER TABLE public.user_settings
   ADD COLUMN IF NOT EXISTS discovery_mode TEXT NOT NULL DEFAULT 'discovery'
     CHECK (discovery_mode IN ('discovery', 'deep_dive'));
 
--- ΓöÇΓöÇ 2. roam() v8: respect discovery_mode ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+-- ── 2. roam() v8: respect discovery_mode ─────────────────────────────────────
 
 DROP FUNCTION IF EXISTS public.roam(UUID, UUID, TEXT, UUID) CASCADE;
 
@@ -61,7 +61,7 @@ BEGIN
     RAISE EXCEPTION 'Unauthorized';
   END IF;
 
-  -- ΓöÇΓöÇ Load user settings ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+  -- ── Load user settings ────────────────────────────────────────────────────
   SELECT
     COALESCE(s.preferred_languages, ARRAY['en']),
     COALESCE(s.skip_paywalled, FALSE),
@@ -74,7 +74,7 @@ BEGIN
   IF v_skip_paywall    IS NULL THEN v_skip_paywall    := FALSE;        END IF;
   IF v_discovery_mode  IS NULL THEN v_discovery_mode  := 'discovery';  END IF;
 
-  -- ΓöÇΓöÇ Expand category prefs into flat subcategory ID array ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+  -- ── Expand category prefs into flat subcategory ID array ─────────────────
   SELECT array_agg(DISTINCT sc.id)
   INTO   v_allowed_subcat_ids
   FROM   subcategories sc
@@ -95,7 +95,7 @@ BEGIN
   SELECT EXISTS (SELECT 1 FROM user_categories WHERE user_id = p_user_id)
   INTO v_has_categories;
 
-  -- ΓöÇΓöÇ Deep Dive: narrow to top-3 subcategories by calibrated_weight ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+  -- ── Deep Dive: narrow to top-3 subcategories by calibrated_weight ─────────
   IF v_discovery_mode = 'deep_dive'
      AND p_subcategory_id IS NULL
      AND p_collection_id  IS NULL
@@ -116,7 +116,7 @@ BEGIN
     END IF;
   END IF;
 
-  -- ΓöÇΓöÇ Discovery mode: 12% adjacent serving ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+  -- ── Discovery mode: 12% adjacent serving ─────────────────────────────────
   v_adjacent_subcat_id := NULL;
   IF v_discovery_mode = 'discovery'
      AND random() < 0.12
@@ -149,7 +149,7 @@ BEGIN
   v_effective_subcat_id := COALESCE(p_subcategory_id, v_adjacent_subcat_id);
 
   IF p_collection_id IS NOT NULL THEN
-    -- ΓöÇΓöÇ Collection mode ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+    -- ── Collection mode ──────────────────────────────────────────────────────
     SELECT c.id INTO v_url_id
     FROM (
       SELECT u.id,
@@ -215,7 +215,7 @@ BEGIN
     LIMIT 1;
 
   ELSE
-    -- ΓöÇΓöÇ Standard mode ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+    -- ── Standard mode ─────────────────────────────────────────────────────
     SELECT c.id INTO v_url_id
     FROM (
       SELECT u.id,

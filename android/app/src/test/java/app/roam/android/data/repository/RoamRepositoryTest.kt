@@ -11,7 +11,7 @@ import org.junit.Test
 /**
  * Unit tests for [RoamRepository] that exercise code paths which do not
  * require a live network connection:
- *   - Input validation guards (rate value must be ┬▒1)
+ *   - Input validation guards (rate value must be ±1)
  *   - JSON deserialization of the shapes returned by the Edge Functions
  *   - [UserSettings] default values
  */
@@ -20,11 +20,11 @@ class RoamRepositoryTest {
 
     private val json = Json { ignoreUnknownKeys = true }
 
-    // ΓöÇΓöÇΓöÇ Input validation ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+    // ─── Input validation ──────────────────────────────────────────────────────
 
     @Test
     fun `rate value 1 passes require check`() {
-        // require(value == 1 || value == -1) ΓÇö must not throw
+        // require(value == 1 || value == -1) — must not throw
         require(1 == 1 || 1 == -1)
     }
 
@@ -43,7 +43,7 @@ class RoamRepositoryTest {
         require(2 == 1 || 2 == -1)
     }
 
-    // ΓöÇΓöÇΓöÇ Model defaults ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+    // ─── Model defaults ────────────────────────────────────────────────────────
 
     @Test
     fun `UserSettings default preferred languages is English only`() {
@@ -63,7 +63,7 @@ class RoamRepositoryTest {
         assertEquals("", settings.userId)
     }
 
-    // ΓöÇΓöÇΓöÇ RoamUrl deserialization ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+    // ─── RoamUrl deserialization ───────────────────────────────────────────────
 
     @Test
     fun `RoamUrl deserializes full payload correctly`() {

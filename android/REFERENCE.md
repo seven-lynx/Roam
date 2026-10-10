@@ -1,10 +1,10 @@
-# Android App ΓÇö Developer Reference
+# Android App — Developer Reference
 
 Accurate as of Stage 14 (May 2026). If a file listed here doesn't exist or a file exists that isn't listed, update this document.
 
 ---
 
-## Sentry ΓÇö Fetching Unresolved Issues
+## Sentry — Fetching Unresolved Issues
 
 Auth token is stored in `local.properties` as `SENTRY_AUTH_TOKEN`. Org slug: `7-lynx`. Project slug: `roam-android`.
 
@@ -13,7 +13,7 @@ Auth token is stored in `local.properties` as `SENTRY_AUTH_TOKEN`. Org slug: `7-
 $t = (Get-Content .\local.properties | Select-String 'SENTRY_AUTH_TOKEN=(.+)').Matches.Groups[1].Value
 $h = @{Authorization="Bearer $t"}
 Invoke-RestMethod "https://us.sentry.io/api/0/projects/7-lynx/roam-android/issues/?query=is:unresolved&limit=25" -Headers $h |
-  ForEach-Object { "$($_.shortId) [$($_.level)] x$($_.count) ΓÇö $($_.title)" }
+  ForEach-Object { "$($_.shortId) [$($_.level)] x$($_.count) — $($_.title)" }
 
 # 2. Get latest event for a specific issue (use numeric id from above)
 $r = Invoke-WebRequest "https://us.sentry.io/api/0/issues/<NUMERIC_ID>/events/latest/" -Headers $h -UseBasicParsing
@@ -32,7 +32,7 @@ $raw = Get-Content "$env:TEMP\sentry_event.json" -Raw
 Invoke-RestMethod "https://us.sentry.io/api/0/issues/<NUMERIC_ID>/" -Method Put -Headers $h -Body '{"status":"resolved"}' -ContentType "application/json"
 ```
 
-> Note: `ConvertFrom-Json` fails on large Sentry payloads in PowerShell 5.1 ΓÇö always use regex on the raw string or save to file and use Python if available.
+> Note: `ConvertFrom-Json` fails on large Sentry payloads in PowerShell 5.1 — always use regex on the raw string or save to file and use Python if available.
 
 ---
 
@@ -41,7 +41,7 @@ Invoke-RestMethod "https://us.sentry.io/api/0/issues/<NUMERIC_ID>/" -Method Put 
 | Layer | Library | Version |
 |---|---|---|
 | Language | Kotlin | 2.2.10 |
-| UI | Jetpack Compose + Material3 | BOM `2024.12.01` ΓåÆ M3 `1.3.1` |
+| UI | Jetpack Compose + Material3 | BOM `2024.12.01` → M3 `1.3.1` |
 | Navigation | `navigation-compose` | `2.8.4` |
 | Async | Kotlin Coroutines + Flow | bundled |
 | Backend | Supabase Kotlin SDK | BOM `3.0.2` |
@@ -59,65 +59,65 @@ Invoke-RestMethod "https://us.sentry.io/api/0/issues/<NUMERIC_ID>/" -Method Put 
 
 ```
 android/
-Γö£ΓöÇΓöÇ app/
-Γöé   Γö£ΓöÇΓöÇ proguard-rules.pro          # R8 keep rules (Supabase, Sentry, Ktor, serialization)
-Γöé   Γö£ΓöÇΓöÇ src/
-Γöé   Γöé   Γö£ΓöÇΓöÇ main/
-Γöé   Γöé   Γöé   Γö£ΓöÇΓöÇ baseline-prof.txt   # AOT hints for profileinstaller
-Γöé   Γöé   Γöé   Γö£ΓöÇΓöÇ AndroidManifest.xml
-Γöé   Γöé   Γöé   ΓööΓöÇΓöÇ java/app/roam/android/
-Γöé   Γöé   Γöé       Γö£ΓöÇΓöÇ RoamApplication.kt          # Env check ΓåÆ Supabase ΓåÆ Sentry ΓåÆ WorkManager
-Γöé   Γöé   Γöé       Γö£ΓöÇΓöÇ MainActivity.kt             # Single activity; auth state router
-Γöé   Γöé   Γöé       Γö£ΓöÇΓöÇ data/
-Γöé   Γöé   Γöé       Γöé   Γö£ΓöÇΓöÇ SupabaseClient.kt        # Global `supabase` singleton (val)
-Γöé   Γöé   Γöé       Γöé   ΓööΓöÇΓöÇ repository/
-Γöé   Γöé   Γöé       Γöé       ΓööΓöÇΓöÇ RoamRepository.kt    # All network calls (Edge Functions + PostgREST)
-Γöé   Γöé   Γöé       Γö£ΓöÇΓöÇ model/
-Γöé   Γöé   Γöé       Γöé   Γö£ΓöÇΓöÇ CategoryItem.kt          # Category + FALLBACK list
-Γöé   Γöé   Γöé       Γöé   Γö£ΓöÇΓöÇ Collection.kt
-Γöé   Γöé   Γöé       Γöé   Γö£ΓöÇΓöÇ RoamUrl.kt               # Shape returned by /functions/v1/roam
-Γöé   Γöé   Γöé       Γöé   Γö£ΓöÇΓöÇ UserProfile.kt
-Γöé   Γöé   Γöé       Γöé   ΓööΓöÇΓöÇ UserSettings.kt
-Γöé   Γöé   Γöé       Γö£ΓöÇΓöÇ ui/
-Γöé   Γöé   Γöé       Γöé   Γö£ΓöÇΓöÇ component/
-Γöé   Γöé   Γöé       Γöé   Γöé   Γö£ΓöÇΓöÇ BottomBar.kt          # 4-tab NavigationBar
-Γöé   Γöé   Γöé       Γöé   Γöé   Γö£ΓöÇΓöÇ ConfigBottomSheet.kt  # Long-press context menu
-Γöé   Γöé   Γöé       Γöé   Γöé   Γö£ΓöÇΓöÇ RoamWebView.kt        # AndroidView WebView wrapper
-Γöé   Γöé   Γöé       Γöé   Γöé   ΓööΓöÇΓöÇ SubmitBottomSheet.kt  # Submit-a-URL sheet
-Γöé   Γöé   Γöé       Γöé   Γö£ΓöÇΓöÇ screen/
-Γöé   Γöé   Γöé       Γöé   Γöé   Γö£ΓöÇΓöÇ MainScreen.kt         # NavHost + DiscoverTab
-Γöé   Γöé   Γöé       Γöé   Γöé   Γö£ΓöÇΓöÇ SavedScreen.kt        # Saved URLs + Collections tabs
-Γöé   Γöé   Γöé       Γöé   Γöé   Γö£ΓöÇΓöÇ ProfileScreen.kt      # Avatar, bio, category chips, stats
-Γöé   Γöé   Γöé       Γöé   Γöé   Γö£ΓöÇΓöÇ SettingsScreen.kt     # Toggles, language, sign-out
-Γöé   Γöé   Γöé       Γöé   Γöé   Γö£ΓöÇΓöÇ CategoryOnboardingScreen.kt  # Post-signup interest picker
-Γöé   Γöé   Γöé       Γöé   Γöé   Γö£ΓöÇΓöÇ OnboardingScreen.kt   # Google or email/password sign-in
-Γöé   Γöé   Γöé       Γöé   Γöé   ΓööΓöÇΓöÇ SplashScreen.kt
-Γöé   Γöé   Γöé       Γöé   ΓööΓöÇΓöÇ theme/
-Γöé   Γöé   Γöé       Γö£ΓöÇΓöÇ util/
-Γöé   Γöé   Γöé       Γöé   Γö£ΓöÇΓöÇ ConnectivityFlow.kt       # Flow<Boolean> via NetworkCallback
-Γöé   Γöé   Γöé       Γöé   Γö£ΓöÇΓöÇ Env.kt                    # Startup validation of BuildConfig fields
-Γöé   Γöé   Γöé       Γöé   Γö£ΓöÇΓöÇ Logger.kt
-Γöé   Γöé   Γöé       Γöé   ΓööΓöÇΓöÇ SwipeDirection.kt         # resolveSwipeAction(dx, dy) ΓåÆ "roam"|"like"|"skip"|null
-Γöé   Γöé   Γöé       Γö£ΓöÇΓöÇ viewmodel/
-Γöé   Γöé   Γöé       Γöé   Γö£ΓöÇΓöÇ AuthViewModel.kt          # Loading/Unauthenticated/NeedsOnboarding/Authenticated
-Γöé   Γöé   Γöé       Γöé   ΓööΓöÇΓöÇ MainViewModel.kt          # All discovery + profile + offline-queue state
-Γöé   Γöé   Γöé       ΓööΓöÇΓöÇ worker/
-Γöé   Γöé   Γöé           ΓööΓöÇΓöÇ TokenRefreshWorker.kt     # CoroutineWorker; 12-hour periodic token refresh
-Γöé   Γöé   ΓööΓöÇΓöÇ test/
-Γöé   Γöé       ΓööΓöÇΓöÇ java/app/roam/android/
-Γöé   Γöé           Γö£ΓöÇΓöÇ data/repository/
-Γöé   Γöé           Γöé   ΓööΓöÇΓöÇ RoamRepositoryTest.kt     # JSON deserialization + input validation
-Γöé   Γöé           Γö£ΓöÇΓöÇ util/
-Γöé   Γöé           Γöé   ΓööΓöÇΓöÇ SwipeDirectionTest.kt     # 21 boundary/axis/threshold tests
-Γöé   Γöé           ΓööΓöÇΓöÇ viewmodel/
-Γöé   Γöé               ΓööΓöÇΓöÇ MainViewModelTest.kt      # 22 tests ΓÇö state transitions, ratings, prefetch
-Γö£ΓöÇΓöÇ build.gradle.kts                # Plugin versions
-Γö£ΓöÇΓöÇ gradle.properties               # R8 full mode, JVM args
-Γö£ΓöÇΓöÇ local.properties                # NEVER COMMIT ΓÇö SUPABASE_URL, SUPABASE_ANON_KEY, SENTRY_DSN
-Γö£ΓöÇΓöÇ local.properties.example        # Template (committed, no secrets)
-Γö£ΓöÇΓöÇ REFERENCE.md                    # This file
-Γö£ΓöÇΓöÇ README.md                       # Quick-start
-ΓööΓöÇΓöÇ TESTING.md                      # How to run tests
+├── app/
+│   ├── proguard-rules.pro          # R8 keep rules (Supabase, Sentry, Ktor, serialization)
+│   ├── src/
+│   │   ├── main/
+│   │   │   ├── baseline-prof.txt   # AOT hints for profileinstaller
+│   │   │   ├── AndroidManifest.xml
+│   │   │   └── java/app/roam/android/
+│   │   │       ├── RoamApplication.kt          # Env check → Supabase → Sentry → WorkManager
+│   │   │       ├── MainActivity.kt             # Single activity; auth state router
+│   │   │       ├── data/
+│   │   │       │   ├── SupabaseClient.kt        # Global `supabase` singleton (val)
+│   │   │       │   └── repository/
+│   │   │       │       └── RoamRepository.kt    # All network calls (Edge Functions + PostgREST)
+│   │   │       ├── model/
+│   │   │       │   ├── CategoryItem.kt          # Category + FALLBACK list
+│   │   │       │   ├── Collection.kt
+│   │   │       │   ├── RoamUrl.kt               # Shape returned by /functions/v1/roam
+│   │   │       │   ├── UserProfile.kt
+│   │   │       │   └── UserSettings.kt
+│   │   │       ├── ui/
+│   │   │       │   ├── component/
+│   │   │       │   │   ├── BottomBar.kt          # 4-tab NavigationBar
+│   │   │       │   │   ├── ConfigBottomSheet.kt  # Long-press context menu
+│   │   │       │   │   ├── RoamWebView.kt        # AndroidView WebView wrapper
+│   │   │       │   │   └── SubmitBottomSheet.kt  # Submit-a-URL sheet
+│   │   │       │   ├── screen/
+│   │   │       │   │   ├── MainScreen.kt         # NavHost + DiscoverTab
+│   │   │       │   │   ├── SavedScreen.kt        # Saved URLs + Collections tabs
+│   │   │       │   │   ├── ProfileScreen.kt      # Avatar, bio, category chips, stats
+│   │   │       │   │   ├── SettingsScreen.kt     # Toggles, language, sign-out
+│   │   │       │   │   ├── CategoryOnboardingScreen.kt  # Post-signup interest picker
+│   │   │       │   │   ├── OnboardingScreen.kt   # Google or email/password sign-in
+│   │   │       │   │   └── SplashScreen.kt
+│   │   │       │   └── theme/
+│   │   │       ├── util/
+│   │   │       │   ├── ConnectivityFlow.kt       # Flow<Boolean> via NetworkCallback
+│   │   │       │   ├── Env.kt                    # Startup validation of BuildConfig fields
+│   │   │       │   ├── Logger.kt
+│   │   │       │   └── SwipeDirection.kt         # resolveSwipeAction(dx, dy) → "roam"|"like"|"skip"|null
+│   │   │       ├── viewmodel/
+│   │   │       │   ├── AuthViewModel.kt          # Loading/Unauthenticated/NeedsOnboarding/Authenticated
+│   │   │       │   └── MainViewModel.kt          # All discovery + profile + offline-queue state
+│   │   │       └── worker/
+│   │   │           └── TokenRefreshWorker.kt     # CoroutineWorker; 12-hour periodic token refresh
+│   │   └── test/
+│   │       └── java/app/roam/android/
+│   │           ├── data/repository/
+│   │           │   └── RoamRepositoryTest.kt     # JSON deserialization + input validation
+│   │           ├── util/
+│   │           │   └── SwipeDirectionTest.kt     # 21 boundary/axis/threshold tests
+│   │           └── viewmodel/
+│   │               └── MainViewModelTest.kt      # 22 tests — state transitions, ratings, prefetch
+├── build.gradle.kts                # Plugin versions
+├── gradle.properties               # R8 full mode, JVM args
+├── local.properties                # NEVER COMMIT — SUPABASE_URL, SUPABASE_ANON_KEY, SENTRY_DSN
+├── local.properties.example        # Template (committed, no secrets)
+├── REFERENCE.md                    # This file
+├── README.md                       # Quick-start
+└── TESTING.md                      # How to run tests
 ```
 
 ---
@@ -128,17 +128,17 @@ android/
 
 ```
 MainActivity
-  ΓööΓöÇΓöÇ setContent { RoamTheme }
-        ΓööΓöÇΓöÇ AuthViewModel.authState (StateFlow)
-              Γö£ΓöÇΓöÇ Loading        ΓåÆ SplashScreen
-              Γö£ΓöÇΓöÇ Unauthenticated ΓåÆ OnboardingScreen
-              Γö£ΓöÇΓöÇ NeedsOnboarding ΓåÆ CategoryOnboardingScreen(mainVm)
-              ΓööΓöÇΓöÇ Authenticated  ΓåÆ MainScreen(mainVm)
-                    ΓööΓöÇΓöÇ NavHost (4 routes)
-                          Γö£ΓöÇΓöÇ Discover ΓåÆ DiscoverTab(mainVm)
-                          Γö£ΓöÇΓöÇ Saved   ΓåÆ SavedScreen(mainVm)
-                          Γö£ΓöÇΓöÇ Profile ΓåÆ ProfileScreen(mainVm)
-                          ΓööΓöÇΓöÇ Settings ΓåÆ SettingsScreen(mainVm)
+  └── setContent { RoamTheme }
+        └── AuthViewModel.authState (StateFlow)
+              ├── Loading        → SplashScreen
+              ├── Unauthenticated → OnboardingScreen
+              ├── NeedsOnboarding → CategoryOnboardingScreen(mainVm)
+              └── Authenticated  → MainScreen(mainVm)
+                    └── NavHost (4 routes)
+                          ├── Discover → DiscoverTab(mainVm)
+                          ├── Saved   → SavedScreen(mainVm)
+                          ├── Profile → ProfileScreen(mainVm)
+                          └── Settings → SettingsScreen(mainVm)
 ```
 
 ### RoamState
@@ -148,7 +148,7 @@ sealed interface RoamState {
     Idle         // app just started, nothing fetched yet
     Loading      // waiting for Edge Function response (shows shimmer skeleton)
     Loaded(roamUrl: RoamUrl)  // card displayed
-    Exhausted    // 404 ΓÇö user has seen everything in the pool
+    Exhausted    // 404 — user has seen everything in the pool
     Error(message: String)    // network/server failure (shows banner + Retry)
 }
 ```
@@ -159,7 +159,7 @@ sealed interface RoamState {
 
 | Queue | Target size | Contents |
 |---|---|---|
-| **Hot** (`hotQueue`) | 3 | HEAD-validated URLs ΓÇö served instantly on tap, no Loading state shown |
+| **Hot** (`hotQueue`) | 3 | HEAD-validated URLs — served instantly on tap, no Loading state shown |
 | **Warm** (`warmQueue`) | 5 | Fetched from the Edge Function but not yet HEAD-checked |
 
 `startPrefillQueue()` runs a loop that concurrently: (1) keeps warm topped up with cheap API calls, and (2) promotes warm entries to hot by HEAD-checking each URL. On every `roam()` that succeeds (from queue or live fetch), `startPrefillQueue()` is re-triggered to refill. If both queues are empty (first launch, filter change, offline recovery), `roam()` falls back to a live fetch with up to 3 retries.
@@ -174,7 +174,7 @@ sealed interface RoamState {
 
 ### Supabase calls all go through `RoamRepository`
 
-The `supabase` singleton is an `internal val` in `data/SupabaseClient.kt`. Repository methods wrap every call in `runCatching` ΓÇö callers never throw. ViewModels call repository methods inside `viewModelScope.launch { runCatching { ... } }`.
+The `supabase` singleton is an `internal val` in `data/SupabaseClient.kt`. Repository methods wrap every call in `runCatching` — callers never throw. ViewModels call repository methods inside `viewModelScope.launch { runCatching { ... } }`.
 
 ### No `Columns.NONE` / server-side COUNT in supabase-kt BOM 3.0.2
 
@@ -192,7 +192,7 @@ No `.crossfade()` on `ImageRequest.Builder`. Use `SubcomposeAsyncImage` with exp
 
 ### Spring physics everywhere
 
-All animations use `spring()` ΓÇö swipe return, NavHost enter/exit transitions, shimmer is the only `tween`. No `AnimatedVisibility` with default spec.
+All animations use `spring()` — swipe return, NavHost enter/exit transitions, shimmer is the only `tween`. No `AnimatedVisibility` with default spec.
 
 ### `BuildConfig` fields
 
@@ -200,9 +200,9 @@ All animations use `spring()` ΓÇö swipe return, NavHost enter/exit transition
 |---|---|---|
 | `SUPABASE_URL` | `local.properties` | Supabase project URL |
 | `SUPABASE_ANON_KEY` | `local.properties` | Supabase anon key |
-| `SENTRY_DSN` | `local.properties` | Sentry DSN (optional ΓÇö app works without it) |
+| `SENTRY_DSN` | `local.properties` | Sentry DSN (optional — app works without it) |
 
-`Env.validateAtStartup()` in `RoamApplication.onCreate()` checks `SUPABASE_URL` and `SUPABASE_ANON_KEY` are present and HTTPS. `SENTRY_DSN` is optional ΓÇö missing means Sentry is silently skipped.
+`Env.validateAtStartup()` in `RoamApplication.onCreate()` checks `SUPABASE_URL` and `SUPABASE_ANON_KEY` are present and HTTPS. `SENTRY_DSN` is optional — missing means Sentry is silently skipped.
 
 ---
 
@@ -233,16 +233,16 @@ cd android
 
 ```
 app start
-  ΓööΓöÇ AuthViewModel.init
-        ΓööΓöÇ supabase.auth.sessionStatus.collect
-              Γö£ΓöÇ Authenticated ΓåÆ checkOnboarding()
-              Γöé     Γö£ΓöÇ getUserCategoryIds().isEmpty() ΓåÆ NeedsOnboarding
-              Γöé     ΓööΓöÇ has categories             ΓåÆ Authenticated
-              Γö£ΓöÇ NotAuthenticated ΓåÆ Unauthenticated
-              ΓööΓöÇ (loading)       ΓåÆ Loading (shows SplashScreen)
+  └─ AuthViewModel.init
+        └─ supabase.auth.sessionStatus.collect
+              ├─ Authenticated → checkOnboarding()
+              │     ├─ getUserCategoryIds().isEmpty() → NeedsOnboarding
+              │     └─ has categories             → Authenticated
+              ├─ NotAuthenticated → Unauthenticated
+              └─ (loading)       → Loading (shows SplashScreen)
 ```
 
-`markOnboardingComplete()` on `AuthViewModel` sets state directly to `Authenticated` ΓÇö no re-check needed.
+`markOnboardingComplete()` on `AuthViewModel` sets state directly to `Authenticated` — no re-check needed.
 
 ---
 
@@ -252,7 +252,7 @@ app start
 |---|---|---|
 | `MainViewModelTest` | 26 | Initial state, sheet toggles, collection filter, language prefs, paywall pref, roam transitions (Loaded/Exhausted/Error/offline), prefetch cache, thumbsUp/thumbsDown rating + submit-sheet fallback, saveForLater/removeSavedUrl |
 | `RoamRepositoryTest` | 11 | `rate()` input validation, `UserSettings` defaults, `RoamUrl` full/minimal/unknown-keys JSON deserialization |
-| `SwipeDirectionTest` | 15 | Threshold boundary (at/above/below), dominant-axis, 45┬░ diagonal, upward swipe, zero drag, custom threshold |
+| `SwipeDirectionTest` | 15 | Threshold boundary (at/above/below), dominant-axis, 45° diagonal, upward swipe, zero drag, custom threshold |
 
 Run with:
 ```powershell

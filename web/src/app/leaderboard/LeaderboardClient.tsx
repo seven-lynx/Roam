@@ -99,7 +99,7 @@ export function LeaderboardClient() {
           <div className="flex flex-col gap-2">
             {entries.length === 0 && (
               <div className="text-center py-16 text-zinc-500 dark:text-zinc-400">
-                <span className="text-4xl block mb-3">≡ƒÅå</span>
+                <span className="text-4xl block mb-3">🏆</span>
                 <p className="text-sm">No rankings yet. Be the first to roam!</p>
               </div>
             )}
@@ -119,7 +119,7 @@ export function LeaderboardClient() {
                   `}
                 >
                   <div className="w-8 text-center font-bold text-lg tabular-nums">
-                    {entry.rank <= 3 ? ['≡ƒÑç', '≡ƒÑê', '≡ƒÑë'][entry.rank - 1] : `#${entry.rank}`}
+                    {entry.rank <= 3 ? ['🥇', '🥈', '🥉'][entry.rank - 1] : `#${entry.rank}`}
                   </div>
 
                   <div className="flex items-center justify-center w-10 h-10 rounded-full bg-gradient-to-br from-purple-400 to-blue-500 text-white font-bold text-sm shrink-0">
@@ -132,8 +132,8 @@ export function LeaderboardClient() {
                     </p>
                     <div className="flex items-center gap-3 text-xs text-zinc-500 dark:text-zinc-400">
                       <span>Lv.{entry.level}</span>
-                      <span>≡ƒÅà {entry.badge_count}</span>
-                      {entry.streak_days > 0 && <span>≡ƒöÑ {entry.streak_days}</span>}
+                      <span>🏅 {entry.badge_count}</span>
+                      {entry.streak_days > 0 && <span>🔥 {entry.streak_days}</span>}
                     </div>
                   </div>
 

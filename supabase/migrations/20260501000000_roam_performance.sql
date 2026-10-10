@@ -10,10 +10,10 @@
 
 SET statement_timeout = 0;
 
--- ΓöÇΓöÇ 1. Add domain column ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+-- ── 1. Add domain column ─────────────────────────────────────────────────────
 -- Strips scheme, optional "www.", and path/query/fragment.
--- "https://www.nytimes.com/foo?q=1" ΓåÆ "nytimes.com"
--- "https://blogs.wsj.com/bar"       ΓåÆ "blogs.wsj.com"
+-- "https://www.nytimes.com/foo?q=1" → "nytimes.com"
+-- "https://blogs.wsj.com/bar"       → "blogs.wsj.com"
 
 ALTER TABLE public.urls ADD COLUMN IF NOT EXISTS domain TEXT;
 
@@ -26,7 +26,7 @@ SET domain = lower(
 )
 WHERE domain IS NULL;
 
--- ΓöÇΓöÇ 2. Trigger: auto-populate domain on every insert/update ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+-- ── 2. Trigger: auto-populate domain on every insert/update ─────────────────
 CREATE OR REPLACE FUNCTION public.set_url_domain()
 RETURNS TRIGGER LANGUAGE plpgsql AS $$
 BEGIN
@@ -45,7 +45,7 @@ CREATE TRIGGER trg_urls_domain
   BEFORE INSERT OR UPDATE OF url ON public.urls
   FOR EACH ROW EXECUTE FUNCTION public.set_url_domain();
 
--- ΓöÇΓöÇ 3. Indexes ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+-- ── 3. Indexes ───────────────────────────────────────────────────────────────
 -- Primary scan path: approved rows filtered by language
 CREATE INDEX IF NOT EXISTS idx_urls_language_approved
   ON public.urls (language)
@@ -59,7 +59,7 @@ CREATE INDEX IF NOT EXISTS idx_urls_domain
 CREATE INDEX IF NOT EXISTS idx_seen_urls_user_url
   ON public.seen_urls (user_id, url_id);
 
--- ΓöÇΓöÇ 4. Rewrite roam() using domain column ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+-- ── 4. Rewrite roam() using domain column ────────────────────────────────────
 DROP FUNCTION IF EXISTS public.roam(UUID, UUID, TEXT) CASCADE;
 
 CREATE FUNCTION public.roam(
@@ -102,7 +102,7 @@ BEGIN
   IF v_skip_paywall IS NULL THEN v_skip_paywall := FALSE; END IF;
 
   IF p_collection_id IS NOT NULL THEN
-    -- ΓöÇΓöÇ Collection mode ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+    -- ── Collection mode ──────────────────────────────────────────────────────
     SELECT u.id INTO v_url_id
     FROM urls u
     INNER JOIN collection_items ci ON ci.url_id = u.id
@@ -128,7 +128,7 @@ BEGIN
     LIMIT 1;
 
   ELSE
-    -- ΓöÇΓöÇ Standard mode ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+    -- ── Standard mode ────────────────────────────────────────────────────────
     SELECT u.id INTO v_url_id
     FROM urls u
     LEFT JOIN subcategories sc ON sc.id = u.subcategory_id

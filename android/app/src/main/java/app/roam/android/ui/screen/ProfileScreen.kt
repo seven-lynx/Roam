@@ -125,7 +125,7 @@ fun ProfileScreen(
         ) {
             Spacer(Modifier.height(8.dp))
 
-            // Level progress card ΓÇö use unlocked badges count for consistency
+            // Level progress card — use unlocked badges count for consistency
             LevelProgressBar(
                 level = profile?.level ?: 1,
                 xpTotal = profile?.xpTotal ?: 0,
@@ -165,7 +165,7 @@ fun ProfileScreen(
                     StatCell(
                         label = "Joined",
                         value = (profile?.createdAt?.takeIf { it.isNotBlank() }
-                            ?.take(10) ?: "ΓÇö"),
+                            ?.take(10) ?: "—"),
                     )
                 }
             }
@@ -215,7 +215,7 @@ fun ProfileScreen(
                         color = MaterialTheme.colorScheme.primary,
                     )
                     TextButton(onClick = onNavigateToBadges) {
-                        Text("View all ΓåÆ")
+                        Text("View all →")
                     }
                 }
                 Row(

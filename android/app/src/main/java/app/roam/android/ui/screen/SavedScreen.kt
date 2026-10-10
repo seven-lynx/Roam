@@ -338,7 +338,7 @@ private fun SavedTab(
                         },
                         modifier = Modifier.fillMaxWidth(),
                     ) {
-                        Text("New collectionΓÇª", modifier = Modifier.fillMaxWidth())
+                        Text("New collection…", modifier = Modifier.fillMaxWidth())
                     }
                 }
             },
@@ -411,7 +411,7 @@ private fun CollectionsTab(
                 )
                 Text("No collections yet", style = MaterialTheme.typography.titleMedium)
                 Text(
-                    "Use the ΓÜÖ menu while browsing to create your first collection.",
+                    "Use the ⚙ menu while browsing to create your first collection.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
                 )
@@ -441,7 +441,7 @@ private fun CollectionsTab(
                             overflow = TextOverflow.Ellipsis,
                         )
                         Text(
-                            text = "${collection.itemCount} items${if (collection.isPublic) " ΓÇó Public" else ""}",
+                            text = "${collection.itemCount} items${if (collection.isPublic) " • Public" else ""}",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.55f),
                         )

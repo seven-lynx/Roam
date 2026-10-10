@@ -1,4 +1,4 @@
-# RULES.md ΓÇö Extension (MV3)
+# RULES.md — Extension (MV3)
 
 Read `../RULES.md` first. This file adds extension-platform rules.
 
@@ -18,7 +18,7 @@ The extension has **no runtime env loader**. All env vars are injected at build 
 3. Declare it in `extension/src/lib/env.ts`.
 4. Validate it with `validateEnvironment()` at SW startup.
 
-Missing any of these four steps ΓåÆ the extension will silently work with an empty value.
+Missing any of these four steps → the extension will silently work with an empty value.
 
 ### E.2 No background loops
 MV3 service workers are terminated aggressively. Loops, timers, and `setInterval` will be killed mid-execution. Use **event-driven** patterns:
@@ -34,11 +34,11 @@ MV3 service workers are terminated aggressively. Loops, timers, and `setInterval
 Every `permissions` entry in `manifest.json` must be exercised by code in `src/`. If you add a permission, add a test that uses it and document why in this file's "Permissions table" below.
 
 ### E.5 OAuth uses `chrome.identity` (not optional)
-The OAuth flow at `background.ts:455` uses `chrome.identity.launchWebAuthFlow`. Firefox supports this API. **Do not remove `identity` from `manifest.json`** ΓÇö it is in active use.
+The OAuth flow at `background.ts:455` uses `chrome.identity.launchWebAuthFlow`. Firefox supports this API. **Do not remove `identity` from `manifest.json`** — it is in active use.
 
 ### E.6 Storage layers
-- `chrome.storage.session` ΓÇö ephemeral (lost on browser close). Use for prefetch cache, current URL.
-- `chrome.storage.local` ΓÇö persistent. Use for auth tokens, user preferences, persistent queues.
+- `chrome.storage.session` — ephemeral (lost on browser close). Use for prefetch cache, current URL.
+- `chrome.storage.local` — persistent. Use for auth tokens, user preferences, persistent queues.
 - Do **not** mix semantics (see historical `prefetch_queue` vs `prefetch_queue_persist` confusion).
 
 ### E.7 URL normalization must match the canonical implementations

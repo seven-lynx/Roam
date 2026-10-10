@@ -63,7 +63,7 @@ private fun android.content.Context.findActivity(): android.app.Activity? {
 /**
  * Force the system status/navigation bars to stay visible and keep their icon
  * appearance in sync with the current theme. WebView page loads and HTML5
- * fullscreen requests can otherwise briefly hide them during the loading ΓåÆ
+ * fullscreen requests can otherwise briefly hide them during the loading →
  * page transition, or leave icons the wrong color (e.g. white-on-white).
  */
 private fun ensureSystemBarsVisible(view: android.view.View, darkMode: Boolean) {
@@ -82,7 +82,7 @@ private fun ensureSystemBarsVisible(view: android.view.View, darkMode: Boolean) 
  *
  * Why localStorage (not sessionStorage):
  *  - sessionStorage is wiped when Android kills the WebView renderer in the
- *    background ΓÇö the common case on screen lock / app switch.
+ *    background — the common case on screen lock / app switch.
  *  - localStorage is disk-backed and survives renderer death.
  *
  * Mechanism:
@@ -214,7 +214,7 @@ fun RoamWebView(
     val webViewRef = remember { mutableStateOf<WebView?>(null) }
     // Keep a stable url reference for use inside the lifecycle observer
     val urlRef = remember { mutableStateOf(url) }
-    // Kotlin-side scroll backup ΓÇö evaluateJavascript save is async and can lose the
+    // Kotlin-side scroll backup — evaluateJavascript save is async and can lose the
     // race against pauseTimers() on ON_PAUSE. We keep the last known Y here.
     var savedScrollY by remember { mutableStateOf(0) }
     var savedScrollUrl by remember { mutableStateOf<String?>(null) }
@@ -228,13 +228,13 @@ fun RoamWebView(
         // Reset the error state whenever we get a new URL to try.
         // This ensures that "Try next page" can actually escape the error screen.
         loadError = false
-        // New navigation ΓÇö clear scroll backup for the previous page.
+        // New navigation — clear scroll backup for the previous page.
         if (url != savedScrollUrl) {
             savedScrollY = 0
             savedScrollUrl = url
         }
     }
-    // Snapshot of the last visible viewport ΓÇö shown as an overlay while the page reloads
+    // Snapshot of the last visible viewport — shown as an overlay while the page reloads
     // after renderer death, eliminating the white-screen flash.
     var snapshotBitmap by remember { mutableStateOf<Bitmap?>(null) }
     var showSnapshot by remember { mutableStateOf(false) }
@@ -272,7 +272,7 @@ fun RoamWebView(
                     val wv = webViewRef.value ?: return@LifecycleEventObserver
                     wv.onResume()
                     wv.resumeTimers()
-                    // Re-assert system bars after resume ΓÇö some OEMs / WebView versions
+                    // Re-assert system bars after resume — some OEMs / WebView versions
                     // leave them hidden after backgrounding during a page load.
                     ensureSystemBarsVisible(wv, darkModeRef.value)
                     // If the renderer was killed while backgrounded, the WebView url is null.
@@ -317,7 +317,7 @@ fun RoamWebView(
                             snapshotBitmap = bmp
                         }
                         // CRITICAL: save scroll BEFORE pauseTimers(). evaluateJavascript is
-                        // async ΓÇö if we pause immediately the JS never runs and localStorage
+                        // async — if we pause immediately the JS never runs and localStorage
                         // stays empty. Pause only after the callback (or a short timeout).
                         fun finishPause() {
                             if (!pausePending) return
@@ -356,7 +356,7 @@ fun RoamWebView(
     }
 
 
-    // url == null means we're waiting for the first roam ΓÇö keep the WebView out of the
+    // url == null means we're waiting for the first roam — keep the WebView out of the
     // tree until we have something to load. The loading overlay is handled by DiscoverTab.
     if (url == null) {
         Box(modifier = modifier.fillMaxSize())
@@ -428,7 +428,7 @@ fun RoamWebView(
                         }
 
                         // Refuse HTML5 fullscreen / immersive requests so pages cannot
-                        // hide the system status bar (common flash during load ΓåÆ reveal).
+                        // hide the system status bar (common flash during load → reveal).
                         override fun onShowCustomView(
                             view: android.view.View?,
                             callback: CustomViewCallback?,
@@ -462,7 +462,7 @@ fun RoamWebView(
                         }
 
                         override fun onPageFinished(view: WebView, loadedUrl: String) {
-                            // Page loaded successfully ΓÇö reset the counter
+                            // Page loaded successfully — reset the counter
                             redirectCount = 0
                             lastRedirectHost = null
                             onUrlChanged(loadedUrl)
@@ -475,7 +475,7 @@ fun RoamWebView(
                             onPageFinishedForPrefetch()
                             // Re-assert system bars after each page load so a site's
                             // theme-color / viewport / fullscreen hints cannot leave
-                            // the status bar hidden during the overlay ΓåÆ page reveal.
+                            // the status bar hidden during the overlay → page reveal.
                             ensureSystemBarsVisible(view, darkModeRef.value)
                             // Inject the localStorage scroll-memory script. It
                             // self-restores on load with height-aware polling, and
@@ -519,7 +519,7 @@ fun RoamWebView(
                         // The renderer process was killed. On some devices (Samsung One UI 6),
                         // constructing a new WebView after renderer death throws
                         // AndroidRuntimeException. Show the error UI instead of trying to
-                        // recreate the WebView ΓÇö it recovers after a fresh roam.
+                        // recreate the WebView — it recovers after a fresh roam.
                         override fun onRenderProcessGone(view: WebView, detail: RenderProcessGoneDetail): Boolean {
                             Handler(Looper.getMainLooper()).post {
                                 webViewRef.value = null
@@ -548,7 +548,7 @@ fun RoamWebView(
                             if (host != null && host == lastRedirectHost) {
                                 redirectCount++
                                 if (redirectCount >= 10) {
-                                    android.util.Log.w("RoamWebView", "Redirect loop detected on $host ΓÇö aborting")
+                                    android.util.Log.w("RoamWebView", "Redirect loop detected on $host — aborting")
                                     loadError = true
                                     onLoadingChanged(false)
                                     return true // Cancel the navigation
@@ -560,7 +560,7 @@ fun RoamWebView(
                             return false // Load normally in WebView
                         }
 
-                        // Deprecated overload ΓÇö some OEM WebView implementations (Samsung,
+                        // Deprecated overload — some OEM WebView implementations (Samsung,
                         // Huawei) and server-side redirects still route through this path.
                         // Without this override, non-http schemes can fire ACTION_VIEW
                         // intents that open the system browser or other apps.
@@ -576,7 +576,7 @@ fun RoamWebView(
                             if (host != null && host == lastRedirectHost) {
                                 redirectCount++
                                 if (redirectCount >= 10) {
-                                    android.util.Log.w("RoamWebView", "Redirect loop detected on $host (legacy path) ΓÇö aborting")
+                                    android.util.Log.w("RoamWebView", "Redirect loop detected on $host (legacy path) — aborting")
                                     loadError = true
                                     onLoadingChanged(false)
                                     return true
@@ -591,7 +591,7 @@ fun RoamWebView(
                     // Restore saved session (back/forward stack + scroll) or load fresh
                     // Pre-emptively assert system bars are visible before loading.
                     // WebView engine can briefly hide bars between loadUrl() and
-                    // onPageStarted ΓÇö calling ensureSystemBarsVisible here closes that gap.
+                    // onPageStarted — calling ensureSystemBarsVisible here closes that gap.
                     ensureSystemBarsVisible(this@apply, darkModeRef.value)
                     if (!savedState.isEmpty) {
                         restoreState(savedState)
@@ -641,7 +641,7 @@ fun RoamWebView(
 }
 
 /**
- * Invisible 1├ù1dp WebView that loads [url] in the background, warming the shared WebView
+ * Invisible 1×1dp WebView that loads [url] in the background, warming the shared WebView
  * disk cache so the main WebView displays it near-instantly when the user taps Roam.
  *
  * Uses [key] so a fresh instance is created whenever the URL changes. The composable is
@@ -661,7 +661,7 @@ fun BackgroundPrefetchWebView(
             factory = { context ->
                 try {
                     WebView(context).apply {
-                        // Block all navigation ΓÇö this WebView only exists to warm the
+                        // Block all navigation — this WebView only exists to warm the
                         // disk cache. Any window.open(), target="_blank", or navigation
                         // must be suppressed so it never opens the system browser.
                         webViewClient = object : WebViewClient() {

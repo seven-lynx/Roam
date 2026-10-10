@@ -11,29 +11,29 @@ Complete documentation of all Supabase Edge Functions and PostgreSQL RPC functio
 ## Table of Contents
 
 - [Edge Functions (HTTP API)](#edge-functions-http-api)
-  - [`roam` ΓÇö Get discovery URL](#roam--get-discovery-url)
-  - [`rate` ΓÇö Rate a URL](#rate--rate-a-url)
-  - [`submit-url` ΓÇö Submit unknown URL](#submit-url--submit-unknown-url)
-  - [`profile` ΓÇö Get public profile](#profile--get-public-profile)
-  - [`collection` ΓÇö Manage collections](#collection--manage-collections)
-  - [`follow` ΓÇö Manage follows](#follow--manage-follows)
-  - [`save-url` ΓÇö Save/unsave URLs](#save-url--saveunsave-urls)
-  - [`share-url` ΓÇö Share URLs with users](#share-url--share-urls-with-users)
-  - [`leaderboard` ΓÇö Fetch leaderboard rankings](#leaderboard--fetch-leaderboard-rankings)
-  - [`feedback` ΓÇö Submit feedback](#feedback--submit-feedback)
-  - [`report-url` ΓÇö Report broken link](#report-url--report-broken-link)
-  - [`log-failed-urls` ΓÇö Log failed URLs](#log-failed-urls--log-failed-urls)
-  - [`report-engagement` ΓÇö Report dwell time and skip status](#report-engagement--report-dwell-time-and-skip-status)
-  - [`activity-feed` ΓÇö Following activity feed](#activity-feed--following-activity-feed)
-  - [`admin-moderation` ΓÇö Admin moderation queue](#admin-moderation--admin-moderation-queue)
-  - [`scrape-url` ΓÇö Moderator OG scraper](#scrape-url--moderator-og-scraper)
-  - [`export-user` ΓÇö Export user data](#export-user--export-user-data)
-  - [`delete-user` ΓÇö Delete user account](#delete-user--delete-user-account)
-  - [`beta-signup` ΓÇö Beta waitlist signup](#beta-signup--beta-waitlist-signup)
-  - [`send-bulk-email` ΓÇö Send bulk emails to subscribers](#send-bulk-email--send-bulk-emails-to-subscribers)
+  - [`roam` — Get discovery URL](#roam--get-discovery-url)
+  - [`rate` — Rate a URL](#rate--rate-a-url)
+  - [`submit-url` — Submit unknown URL](#submit-url--submit-unknown-url)
+  - [`profile` — Get public profile](#profile--get-public-profile)
+  - [`collection` — Manage collections](#collection--manage-collections)
+  - [`follow` — Manage follows](#follow--manage-follows)
+  - [`save-url` — Save/unsave URLs](#save-url--saveunsave-urls)
+  - [`share-url` — Share URLs with users](#share-url--share-urls-with-users)
+  - [`leaderboard` — Fetch leaderboard rankings](#leaderboard--fetch-leaderboard-rankings)
+  - [`feedback` — Submit feedback](#feedback--submit-feedback)
+  - [`report-url` — Report broken link](#report-url--report-broken-link)
+  - [`log-failed-urls` — Log failed URLs](#log-failed-urls--log-failed-urls)
+  - [`report-engagement` — Report dwell time and skip status](#report-engagement--report-dwell-time-and-skip-status)
+  - [`activity-feed` — Following activity feed](#activity-feed--following-activity-feed)
+  - [`admin-moderation` — Admin moderation queue](#admin-moderation--admin-moderation-queue)
+  - [`scrape-url` — Moderator OG scraper](#scrape-url--moderator-og-scraper)
+  - [`export-user` — Export user data](#export-user--export-user-data)
+  - [`delete-user` — Delete user account](#delete-user--delete-user-account)
+  - [`beta-signup` — Beta waitlist signup](#beta-signup--beta-waitlist-signup)
+  - [`send-bulk-email` — Send bulk emails to subscribers](#send-bulk-email--send-bulk-emails-to-subscribers)
 - [RPC Functions (Database)](#rpc-functions-database)
-  - [`roam()` ΓÇö Weighted-random URL discovery](#roam--weighted-random-url-discovery)
-  - [`admin_url_stats()` ΓÇö Fetch admin dashboard statistics](#admin_url_stats--fetch-admin-dashboard-statistics)
+  - [`roam()` — Weighted-random URL discovery](#roam--weighted-random-url-discovery)
+  - [`admin_url_stats()` — Fetch admin dashboard statistics](#admin_url_stats--fetch-admin-dashboard-statistics)
 - [Error Codes](#error-codes)
 - [Rate Limiting](#rate-limiting)
 - [Examples](#examples)
@@ -44,7 +44,7 @@ Complete documentation of all Supabase Edge Functions and PostgreSQL RPC functio
 
 All Edge Functions are accessed at: `https://<PROJECT_ID>.supabase.co/functions/v1/<function_name>`
 
-### `roam` ΓÇö Get discovery URL
+### `roam` — Get discovery URL
 
 Returns a single weighted-random unseen URL matching the user's category preferences and language settings. Supports batch requests for prefetching.
 
@@ -60,12 +60,12 @@ Returns a single weighted-random unseen URL matching the user's category prefere
   "exclude_domains": ["example.com"], // Optional: exclude multiple domains
   "category_id": "uuid|null",        // Optional: filter to a specific pillar category
   "subcategory_id": "uuid|null",     // Optional: filter to a specific subcategory
-  "count": 1,                        // Optional: batch count (1ΓÇô10, defaults to 1)
+  "count": 1,                        // Optional: batch count (1–10, defaults to 1)
   "prefetch": false                  // Optional: when true, suppresses gamification awards
 }
 ```
 
-**Response (200) ΓÇö Single URL (count=1):**
+**Response (200) — Single URL (count=1):**
 ```json
 {
   "id": "uuid",
@@ -79,7 +79,7 @@ Returns a single weighted-random unseen URL matching the user's category prefere
 }
 ```
 
-**Response (200) ΓÇö Batch (count>1):**
+**Response (200) — Batch (count>1):**
 ```json
 [
   { "id": "uuid", "url": "...", "title": "...", "wilson_score": 0.85 },
@@ -88,10 +88,10 @@ Returns a single weighted-random unseen URL matching the user's category prefere
 ```
 
 **Error Responses:**
-- **401** ΓÇö Unauthorized (invalid or missing token)
-- **404** ΓÇö No URLs available (all categories explored or language-filtered to empty pool)
-- **500** ΓÇö Internal server error (non-timeout RPC errors)
-- **503** ΓÇö Discovery timed out (RPC query exceeded 35s statement timeout)
+- **401** — Unauthorized (invalid or missing token)
+- **404** — No URLs available (all categories explored or language-filtered to empty pool)
+- **500** — Internal server error (non-timeout RPC errors)
+- **503** — Discovery timed out (RPC query exceeded 35s statement timeout)
 
 **Notes:**
 - Internally calls the `roam()` RPC function which handles seen URL tracking, language filtering, paywall filtering, domain cooldown, and scoring
@@ -124,7 +124,7 @@ const { data } = await supabase.functions.invoke('roam', {
 
 ---
 
-### `rate` ΓÇö Rate a URL
+### `rate` — Rate a URL
 
 Records a user's vote (thumbs up/down) on a URL. Automatically updates the URL's Wilson score (used for ranking).
 
@@ -150,10 +150,10 @@ Records a user's vote (thumbs up/down) on a URL. Automatically updates the URL's
 ```
 
 **Error Responses:**
-- **400** ΓÇö Invalid `url_id` or `value` (must be ┬▒1)
-- **401** ΓÇö Unauthorized
-- **404** ΓÇö URL not found
-- **500** ΓÇö Internal server error
+- **400** — Invalid `url_id` or `value` (must be ±1)
+- **401** — Unauthorized
+- **404** — URL not found
+- **500** — Internal server error
 
 **Notes:**
 - Upserting: if the user has already rated this URL, their previous vote is replaced
@@ -169,7 +169,7 @@ await supabase.functions.invoke('rate', {
 
 ---
 
-### `submit-url` ΓÇö Submit unknown URL
+### `submit-url` — Submit unknown URL
 
 Submits a new URL for moderation. Normalizes the URL, checks rate limits, runs Safe Browsing API, and adds to moderation queue.
 
@@ -195,12 +195,12 @@ Submits a new URL for moderation. Normalizes the URL, checks rate limits, runs S
 ```
 
 **Error Responses:**
-- **400** ΓÇö Invalid URL (not a valid HTTP/HTTPS URL after normalization)
-- **401** ΓÇö Unauthorized
-- **422** ΓÇö Safe Browsing API rejected URL as unsafe (malware, phishing, etc.)
-- **429** ΓÇö Rate limit exceeded (max 10 submissions per hour per user)
-- **500** ΓÇö Internal server error
-- **503** ΓÇö Safe Browsing API temporarily unavailable (network error or API service down)
+- **400** — Invalid URL (not a valid HTTP/HTTPS URL after normalization)
+- **401** — Unauthorized
+- **422** — Safe Browsing API rejected URL as unsafe (malware, phishing, etc.)
+- **429** — Rate limit exceeded (max 10 submissions per hour per user)
+- **500** — Internal server error
+- **503** — Safe Browsing API temporarily unavailable (network error or API service down)
 
 **Details:**
 - **URL Normalization:** HTTPS enforced, `www.` stripped, UTM/tracking params removed, fragments stripped, trailing slashes removed
@@ -229,7 +229,7 @@ if (response.error?.status === 422) {
 
 ---
 
-### `profile` ΓÇö Get public profile
+### `profile` — Get public profile
 
 Fetches a user's public profile data including gamification stats, badges, and public collections. Supports both GET and POST for compatibility with web and Android clients.
 
@@ -238,7 +238,7 @@ Fetches a user's public profile data including gamification stats, badges, and p
 **Authentication:** None required (public)
 
 **Query Parameters (GET):**
-- `username` (required) ΓÇö The username to fetch
+- `username` (required) — The username to fetch
 
 **Request Body (POST):**
 ```json
@@ -287,15 +287,15 @@ Fetches a user's public profile data including gamification stats, badges, and p
 ```
 
 **Error Responses:**
-- **400** ΓÇö Missing username parameter
-- **404** ΓÇö User not found
-- **405** ΓÇö Method not allowed (must be GET or POST)
-- **429** ΓÇö Rate limit exceeded (60 requests per minute per IP)
-- **500** ΓÇö Internal server error
+- **400** — Missing username parameter
+- **404** — User not found
+- **405** — Method not allowed (must be GET or POST)
+- **429** — Rate limit exceeded (60 requests per minute per IP)
+- **500** — Internal server error
 
 **Notes:**
 - Badges are fetched via `get_user_badges()` RPC and synced to profile `badge_count` if they drift
-- Effective streak (`streak_days`) computed via `get_effective_streak()` ΓÇö resets to 0 if last activity > 24 hours ago
+- Effective streak (`streak_days`) computed via `get_effective_streak()` — resets to 0 if last activity > 24 hours ago
 - All counts (followers, following, collections) computed at request time via service-role client
 - Private profiles are hidden from unauthenticated callers (RLS on `profiles` table)
 
@@ -309,7 +309,7 @@ const profile = await response.json();
 
 ---
 
-### `collection` ΓÇö Manage collections
+### `collection` — Manage collections
 
 Create, update, and manage collections. Handles multiple actions via the `action` parameter.
 
@@ -382,15 +382,15 @@ Create, update, and manage collections. Handles multiple actions via the `action
 ```
 
 **Error Responses:**
-- **400** ΓÇö Invalid input (empty title, invalid slug, etc.)
-- **401** ΓÇö Unauthorized
-- **409** ΓÇö Slug already exists (for create action)
-- **413** ΓÇö Collection item limit exceeded (max 10,000 items per user)
-- **500** ΓÇö Internal server error
+- **400** — Invalid input (empty title, invalid slug, etc.)
+- **401** — Unauthorized
+- **409** — Slug already exists (for create action)
+- **413** — Collection item limit exceeded (max 10,000 items per user)
+- **500** — Internal server error
 
 **Validation:**
-- **title:** 1ΓÇô200 characters, required
-- **slug:** 1ΓÇô100 characters, lowercase alphanumeric + hyphens, must not collide with reserved routes (`join`, `admin`, `privacy`, `terms`, `u`, `c`)
+- **title:** 1–200 characters, required
+- **slug:** 1–100 characters, lowercase alphanumeric + hyphens, must not collide with reserved routes (`join`, `admin`, `privacy`, `terms`, `u`, `c`)
 - **Item limit:** Max 10,000 total items across all user's collections
 
 **Example (Web):**
@@ -413,7 +413,7 @@ const collections = await supabase.functions.invoke('collection', {
 
 ---
 
-### `follow` ΓÇö Manage follows
+### `follow` — Manage follows
 
 Follow/unfollow users, send follow requests for private profiles.
 
@@ -438,11 +438,11 @@ Follow/unfollow users, send follow requests for private profiles.
 ```
 
 **Error Responses:**
-- **400** ΓÇö Invalid action or target user
-- **401** ΓÇö Unauthorized
-- **404** ΓÇö User not found
-- **409** ΓÇö Already following / request already sent
-- **500** ΓÇö Internal server error
+- **400** — Invalid action or target user
+- **401** — Unauthorized
+- **404** — User not found
+- **409** — Already following / request already sent
+- **500** — Internal server error
 
 **Details:**
 - **Public profiles:** Follow is immediate (status = 'following')
@@ -459,7 +459,7 @@ await supabase.functions.invoke('follow', {
 
 ---
 
-### `save-url` ΓÇö Save/unsave URLs
+### `save-url` — Save/unsave URLs
 
 Save a URL to a private "saved for later" list.
 
@@ -500,10 +500,10 @@ Save a URL to a private "saved for later" list.
 ```
 
 **Error Responses:**
-- **400** ΓÇö Invalid url_id
-- **401** ΓÇö Unauthorized
-- **404** ΓÇö URL not found
-- **500** ΓÇö Internal server error
+- **400** — Invalid url_id
+- **401** — Unauthorized
+- **404** — URL not found
+- **500** — Internal server error
 
 **Notes:**
 - Saved URLs are private to the user (not visible in public profile)
@@ -511,7 +511,7 @@ Save a URL to a private "saved for later" list.
 
 ---
 
-### `leaderboard` ΓÇö Fetch leaderboard rankings
+### `leaderboard` — Fetch leaderboard rankings
 
 Fetches leaderboard rankings by XP for weekly, monthly, and all-time periods.
 
@@ -548,9 +548,9 @@ Fetches leaderboard rankings by XP for weekly, monthly, and all-time periods.
 ```
 
 **Error Responses:**
-- **400** ΓÇö Invalid period (must be one of: weekly, monthly, all_time)
-- **401** ΓÇö Unauthorized
-- **500** ΓÇö Internal server error
+- **400** — Invalid period (must be one of: weekly, monthly, all_time)
+- **401** — Unauthorized
+- **500** — Internal server error
 
 **Details:**
 - **Weekly:** Resets every Monday at 00:00 UTC
@@ -569,7 +569,7 @@ console.log(data.rankings);
 
 ---
 
-### `feedback` ΓÇö Submit feedback
+### `feedback` — Submit feedback
 
 Submit in-app feedback or bug reports.
 
@@ -595,12 +595,12 @@ Submit in-app feedback or bug reports.
 ```
 
 **Error Responses:**
-- **400** ΓÇö Invalid input (empty message, invalid email)
-- **429** ΓÇö Rate limit exceeded (5 submissions per 10 minutes per IP)
-- **500** ΓÇö Internal server error
+- **400** — Invalid input (empty message, invalid email)
+- **429** — Rate limit exceeded (5 submissions per 10 minutes per IP)
+- **500** — Internal server error
 
 **Validation:**
-- **message:** 1ΓÇô2000 characters
+- **message:** 1–2000 characters
 - **email:** Optional but must be valid format if provided
 - **platform:** Required, must be one of: web, extension, android
 
@@ -621,7 +621,7 @@ await supabase.functions.invoke('feedback', {
 
 ---
 
-### `share-url` ΓÇö Share URLs with users
+### `share-url` — Share URLs with users
 
 Share a URL directly with another user (peer-to-peer). Recipient receives a push notification.
 
@@ -687,12 +687,12 @@ Share a URL directly with another user (peer-to-peer). Recipient receives a push
 ```
 
 **Error Responses:**
-- **400** ΓÇö Invalid recipient_id, url_id, or action
-- **401** ΓÇö Unauthorized
-- **404** ΓÇö Recipient or URL not found
-- **409** ΓÇö URL already shared with this recipient (duplicate share)
-- **429** ΓÇö Rate limit exceeded (50 shares per minute per user)
-- **500** ΓÇö Internal server error
+- **400** — Invalid recipient_id, url_id, or action
+- **401** — Unauthorized
+- **404** — Recipient or URL not found
+- **409** — URL already shared with this recipient (duplicate share)
+- **429** — Rate limit exceeded (50 shares per minute per user)
+- **500** — Internal server error
 
 **Details:**
 - **Share validation:** Prevents sharing with self; checks recipient and URL exist
@@ -705,7 +705,7 @@ Share a URL directly with another user (peer-to-peer). Recipient receives a push
 **Notes:**
 - Notifications are sent via `pg_notify` event listener (handled by push notification service)
 - Recipient can tap notification to view URL directly
-- No "inbox" or "messages" feature ΓÇö just notification-driven sharing
+- No "inbox" or "messages" feature — just notification-driven sharing
 - Recipient can then save, rate, or share the URL with others
 
 **Example (Web):**
@@ -760,7 +760,7 @@ if (share.data.ok) {
 
 ---
 
-### `report-url` ΓÇö Report broken link
+### `report-url` — Report broken link
 
 Marks a URL as inactive so it never surfaces in discovery again, and logs the report to the `url_reports` audit table.
 
@@ -771,7 +771,7 @@ Marks a URL as inactive so it never surfaces in discovery again, and logs the re
 **Request Body:**
 ```json
 {
-  "url_id": "uuid"  // Required ΓÇö ID of the URL to report
+  "url_id": "uuid"  // Required — ID of the URL to report
 }
 ```
 
@@ -783,15 +783,15 @@ Marks a URL as inactive so it never surfaces in discovery again, and logs the re
 ```
 
 **Error Responses:**
-- **400** ΓÇö Invalid or missing `url_id` (must be a valid UUID)
-- **401** ΓÇö Unauthorized (unauthenticated requests rejected)
-- **429** ΓÇö Rate limit exceeded (20 reports per 10 minutes per user)
-- **500** ΓÇö Failed to update URL record
+- **400** — Invalid or missing `url_id` (must be a valid UUID)
+- **401** — Unauthorized (unauthenticated requests rejected)
+- **429** — Rate limit exceeded (20 reports per 10 minutes per user)
+- **500** — Failed to update URL record
 
 **Details:**
 - Sets `urls.inactive = TRUE` on the target URL; the `roam()` function filters `AND NOT u.inactive` across all candidate branches (v10+)
 - Inserts a row into `url_reports (id, user_id, url_id, reported_at)` for admin audit
-- Only affects URLs where `approved = TRUE` ΓÇö a safety guard against misuse on unreviewed submissions
+- Only affects URLs where `approved = TRUE` — a safety guard against misuse on unreviewed submissions
 - The INSERT into `url_reports` is best-effort: if it fails, the URL is still marked inactive and 200 is returned
 - Rate limited per `user_id`, not IP, to prevent abuse via proxy rotation
 
@@ -815,7 +815,7 @@ supabase.functions.invoke("report-url", buildJsonObject {
 
 ---
 
-### `log-failed-urls` ΓÇö Log failed URLs
+### `log-failed-urls` — Log failed URLs
 
 Extension/app internal endpoint: batch log failed URLs for moderation review.
 
@@ -846,9 +846,9 @@ Extension/app internal endpoint: batch log failed URLs for moderation review.
 ```
 
 **Error Responses:**
-- **400** ΓÇö Invalid input
-- **401** ΓÇö Unauthorized
-- **500** ΓÇö Internal server error
+- **400** — Invalid input
+- **401** — Unauthorized
+- **500** — Internal server error
 
 **Notes:**
 - Inserts failed URLs into `moderation_queue` with `status = 'auto_flagged'`
@@ -857,9 +857,9 @@ Extension/app internal endpoint: batch log failed URLs for moderation review.
 
 ---
 
-### `report-engagement` ΓÇö Report dwell time and skip status
+### `report-engagement` — Report dwell time and skip status
 
-Reports how long the user dwelled on a served URL and whether they skipped it. Called before requesting the next Roam. Idempotent ΓÇö last write wins.
+Reports how long the user dwelled on a served URL and whether they skipped it. Called before requesting the next Roam. Idempotent — last write wins.
 
 **Endpoint:** `POST /functions/v1/report-engagement`
 
@@ -882,14 +882,14 @@ Reports how long the user dwelled on a served URL and whether they skipped it. C
 ```
 
 **Error Responses:**
-- **400** ΓÇö Invalid input (missing url_id, negative dwell_ms, or missing skipped)
-- **401** ΓÇö Unauthorized
-- **405** ΓÇö Method not allowed (must be POST)
-- **500** ΓÇö Internal server error
+- **400** — Invalid input (missing url_id, negative dwell_ms, or missing skipped)
+- **401** — Unauthorized
+- **405** — Method not allowed (must be POST)
+- **500** — Internal server error
 
 **Details:**
 - Updates the `seen_urls` row (created by the `roam()` RPC) with `dwell_ms` and `skipped` status
-- The `seen_urls` row must already exist ΓÇö this function does not create it
+- The `seen_urls` row must already exist — this function does not create it
 - Idempotent: multiple calls for the same `(user, url)` are safe, last write wins
 - Typical client logic: `dwell = now - pageLoadTimestamp`, `skipped = dwell < 3000ms`
 
@@ -907,7 +907,7 @@ await supabase.functions.invoke('report-engagement', {
 
 ---
 
-### `activity-feed` ΓÇö Following activity feed
+### `activity-feed` — Following activity feed
 
 Returns paged activity from users the authenticated user follows (public profiles only).
 
@@ -916,9 +916,9 @@ Returns paged activity from users the authenticated user follows (public profile
 **Authentication:** Required (Bearer token)
 
 **Query Parameters:**
-- `limit` ΓÇö Max items (default 50, capped at 100)
-- `offset` ΓÇö Pagination offset (default 0)
-- `before` ΓÇö ISO timestamp; returns activities before this time (for cursor-based pagination)
+- `limit` — Max items (default 50, capped at 100)
+- `offset` — Pagination offset (default 0)
+- `before` — ISO timestamp; returns activities before this time (for cursor-based pagination)
 
 **Response (200):**
 ```json
@@ -941,8 +941,8 @@ Returns paged activity from users the authenticated user follows (public profile
 ```
 
 **Error Responses:**
-- **401** ΓÇö Unauthorized
-- **500** ΓÇö Internal server error
+- **401** — Unauthorized
+- **500** — Internal server error
 
 **Details:**
 - Backed by the `get_activity_feed()` RPC function
@@ -964,7 +964,7 @@ const { activities, has_more } = await res.json();
 
 ---
 
-### `admin-moderation` ΓÇö Admin moderation queue
+### `admin-moderation` — Admin moderation queue
 
 Admin/moderator endpoint for managing the URL moderation queue, URL reports, and stats.
 
@@ -1034,19 +1034,19 @@ Admin/moderator endpoint for managing the URL moderation queue, URL reports, and
 ```
 
 **Error Responses:**
-- **400** ΓÇö Invalid action or missing required parameters
-- **401** ΓÇö Unauthorized (invalid or missing token)
-- **403** ΓÇö Forbidden (user is not admin or moderator)
-- **405** ΓÇö Method not allowed (must be POST)
-- **500** ΓÇö Internal server error
+- **400** — Invalid action or missing required parameters
+- **401** — Unauthorized (invalid or missing token)
+- **403** — Forbidden (user is not admin or moderator)
+- **405** — Method not allowed (must be POST)
+- **500** — Internal server error
 
 **Details:**
-- `list` ΓÇö Returns moderation queue entries with submitter profile and subcategory info
-- `approve` ΓÇö Updates moderation_queue status to 'approved', upserts URL into `urls` table
-- `reject` ΓÇö Updates moderation_queue status to 'rejected'
-- `stats` ΓÇö Returns aggregate counts: pending, approved, rejected, reports
-- `reports` ΓÇö Returns `url_reports` grouped by URL with report counts
-- `restore` ΓÇö Sets `urls.inactive = false` (reactivates a reported URL)
+- `list` — Returns moderation queue entries with submitter profile and subcategory info
+- `approve` — Updates moderation_queue status to 'approved', upserts URL into `urls` table
+- `reject` — Updates moderation_queue status to 'rejected'
+- `stats` — Returns aggregate counts: pending, approved, rejected, reports
+- `reports` — Returns `url_reports` grouped by URL with report counts
+- `restore` — Sets `urls.inactive = false` (reactivates a reported URL)
 - Uses service-role key for RLS-bypassing write operations
 
 **Example (Web admin):**
@@ -1064,7 +1064,7 @@ await supabase.functions.invoke('admin-moderation', {
 
 ---
 
-### `scrape-url` ΓÇö Moderator OG scraper
+### `scrape-url` — Moderator OG scraper
 
 Moderator-only endpoint. Fetches OG metadata for a URL and inserts it directly into the `urls` table with `approved=true`, bypassing the moderation queue.
 
@@ -1097,18 +1097,18 @@ Moderator-only endpoint. Fetches OG metadata for a URL and inserts it directly i
 ```
 
 **Error Responses:**
-- **400** ΓÇö Invalid URL or missing required fields
-- **401** ΓÇö Unauthorized
-- **403** ΓÇö Forbidden (user is not admin or moderator)
-- **422** ΓÇö Safe Browsing API rejected URL as unsafe
-- **500** ΓÇö Failed to fetch OG metadata or insert URL
-- **503** ΓÇö Safe Browsing API temporarily unavailable
+- **400** — Invalid URL or missing required fields
+- **401** — Unauthorized
+- **403** — Forbidden (user is not admin or moderator)
+- **422** — Safe Browsing API rejected URL as unsafe
+- **500** — Failed to fetch OG metadata or insert URL
+- **503** — Safe Browsing API temporarily unavailable
 
 **Details:**
 - Fetches the target URL with a 10s timeout and extracts OG metadata (`og:title`, `og:description`, `og:image`, `language`, canonical URL)
 - Normalizes the URL via the shared `normalizeUrl()` utility
 - Checks Safe Browsing API before inserting
-- Tags are normalized to lowercase hyphenated slugs (e.g., "Machine Learning" ΓåÆ "machine-learning")
+- Tags are normalized to lowercase hyphenated slugs (e.g., "Machine Learning" → "machine-learning")
 - Inserts directly into `urls` with `approved=true`, bypassing the moderation queue entirely
 - Used by seeders and manual content curation workflows
 
@@ -1126,7 +1126,7 @@ const res = await supabase.functions.invoke('scrape-url', {
 
 ---
 
-### `export-user` ΓÇö Export user data
+### `export-user` — Export user data
 
 Exports all user data as a JSON file for GDPR compliance. Returns a download link.
 
@@ -1144,9 +1144,9 @@ Exports all user data as a JSON file for GDPR compliance. Returns a download lin
 ```
 
 **Error Responses:**
-- **401** ΓÇö Unauthorized (invalid or missing token)
-- **429** ΓÇö Rate limit exceeded (1 export per 24 hours per user)
-- **500** ΓÇö Internal server error
+- **401** — Unauthorized (invalid or missing token)
+- **429** — Rate limit exceeded (1 export per 24 hours per user)
+- **500** — Internal server error
 
 **Details:**
 - Generates a complete export of user profile, categories, ratings, collections, follows, and submission history
@@ -1165,7 +1165,7 @@ if (response.data.ok) {
 
 ---
 
-### `delete-user` ΓÇö Delete user account
+### `delete-user` — Delete user account
 
 Permanently deletes the authenticated user and all associated data (GDPR right to be forgotten).
 
@@ -1189,9 +1189,9 @@ Permanently deletes the authenticated user and all associated data (GDPR right t
 ```
 
 **Error Responses:**
-- **400** ΓÇö Missing or false `confirm` field
-- **401** ΓÇö Unauthorized (invalid or missing token)
-- **500** ΓÇö Internal server error
+- **400** — Missing or false `confirm` field
+- **401** — Unauthorized (invalid or missing token)
+- **500** — Internal server error
 
 **Details:**
 - Deletes the user from `auth.users` (Supabase Auth)
@@ -1215,7 +1215,7 @@ if (confirm('Are you sure? This cannot be undone.')) {
 
 ---
 
-### `beta-signup` ΓÇö Beta waitlist signup
+### `beta-signup` — Beta waitlist signup
 
 (Public endpoint) Adds an email to the beta waitlist.
 
@@ -1238,9 +1238,9 @@ if (confirm('Are you sure? This cannot be undone.')) {
 ```
 
 **Error Responses:**
-- **400** ΓÇö Invalid email format
-- **409** ΓÇö Email already registered on the waitlist
-- **500** ΓÇö Internal server error
+- **400** — Invalid email format
+- **409** — Email already registered on the waitlist
+- **500** — Internal server error
 
 **Details:**
 - Email is stored in the `beta_signups` table
@@ -1248,7 +1248,7 @@ if (confirm('Are you sure? This cannot be undone.')) {
 
 ---
 
-### `send-bulk-email` ΓÇö Send bulk emails to subscribers
+### `send-bulk-email` — Send bulk emails to subscribers
 
 Admin-only endpoint for sending bulk emails to beta signup subscribers.
 
@@ -1273,10 +1273,10 @@ Admin-only endpoint for sending bulk emails to beta signup subscribers.
 ```
 
 **Error Responses:**
-- **400** ΓÇö Missing subject or body_html
-- **401** ΓÇö Unauthorized
-- **403** ΓÇö Forbidden (not admin)
-- **500** ΓÇö Internal server error
+- **400** — Missing subject or body_html
+- **401** — Unauthorized
+- **403** — Forbidden (not admin)
+- **500** — Internal server error
 
 ---
 
@@ -1284,7 +1284,7 @@ Admin-only endpoint for sending bulk emails to beta signup subscribers.
 
 Called via `supabase.rpc()`, not HTTP. These are PostgreSQL functions that run server-side.
 
-### `roam()` ΓÇö Weighted-random URL discovery
+### `roam()` — Weighted-random URL discovery
 
 Primary RPC function for URL discovery. Selects a weighted-random URL from the user's categories, excludes seen URLs, handles language filtering and paywall filtering. **Current version: v29.**
 
@@ -1301,12 +1301,12 @@ SELECT * FROM roam(
 ```
 
 **Parameters:**
-- `p_user_id` ΓÇö User ID (required)
-- `p_collection_id` ΓÇö Collection ID (optional; if provided, ignores category preferences)
-- `p_exclude_domain` ΓÇö Single domain to exclude (legacy; prefer `p_exclude_domains`)
-- `p_category_id` ΓÇö Filter to a specific pillar category (optional)
-- `p_subcategory_id` ΓÇö Filter to a specific subcategory (optional)
-- `p_exclude_domains` ΓÇö Array of domains to exclude (optional; merged with `p_exclude_domain` if both provided)
+- `p_user_id` — User ID (required)
+- `p_collection_id` — Collection ID (optional; if provided, ignores category preferences)
+- `p_exclude_domain` — Single domain to exclude (legacy; prefer `p_exclude_domains`)
+- `p_category_id` — Filter to a specific pillar category (optional)
+- `p_subcategory_id` — Filter to a specific subcategory (optional)
+- `p_exclude_domains` — Array of domains to exclude (optional; merged with `p_exclude_domain` if both provided)
 
 **Returns (single row):**
 ```
@@ -1314,14 +1314,14 @@ id, url, title, description, og_image_url, category_id, subcategory_id, wilson_s
 ```
 
 **Scoring Algorithm (v29):**
-- **Candidate pool:** `TABLESAMPLE BERNOULLI(5)` ΓÇö samples 5% of eligible URLs for a larger and more diverse candidate set
-- **Domain cooldown:** 24 hours (prevents domain fatigue ΓÇö the same domain won't surface again within a day)
+- **Candidate pool:** `TABLESAMPLE BERNOULLI(5)` — samples 5% of eligible URLs for a larger and more diverse candidate set
+- **Domain cooldown:** 24 hours (prevents domain fatigue — the same domain won't surface again within a day)
 - **Seen URL window:** 10,000 most recent seen URLs (prevents power-user cliff at 2,000)
 - **Score weighting:** 70% Wilson score / 30% random (signal matters more than pure randomness)
 - **Exploration bonus:** Low-serve-count URLs get an extra boost to surface underexplored content
 - **Serendipity mode:** 5% chance to pick from a subcategory the user has never visited
 - **Subcategory rotation:** 25% chance of adjacent subcategory (same pillar, different subcategory)
-- **Recency decay:** Very gentle (-0.0003) ΓÇö evergreen content stays competitive
+- **Recency decay:** Very gentle (-0.0003) — evergreen content stays competitive
 - **Language filtering:** Filters `urls` where language matches `user_settings.preferred_languages`; defaults to `['en']`
 - **Paywall filtering:** If `user_settings.skip_paywalled = true`, excludes domains from `paywalled_domains` table
 - **Seen URL exclusion:** Skips URLs in the user's `seen_urls` table
@@ -1331,7 +1331,7 @@ id, url, title, description, og_image_url, category_id, subcategory_id, wilson_s
 
 ---
 
-### `admin_url_stats()` ΓÇö Fetch admin dashboard statistics
+### `admin_url_stats()` — Fetch admin dashboard statistics
 
 Efficiently fetches aggregated dashboard statistics for the admin panel without timing out on the large `urls` table.
 
@@ -1341,7 +1341,7 @@ SELECT * FROM admin_url_stats(since_date timestamp = NULL)
 ```
 
 **Parameters:**
-- `since_date` ΓÇö Optional; defaults to 7 days ago. Filters "new this week" statistics.
+- `since_date` — Optional; defaults to 7 days ago. Filters "new this week" statistics.
 
 **Returns (single row):**
 ```
@@ -1393,7 +1393,7 @@ console.log(`Active users (7d): ${stats.data.active_users_week}`);
 | **413** | Payload too large (collection item limit) | Remove items from collection before adding more |
 | **422** | Unprocessable content (Safe Browsing rejection) | URL flagged as unsafe; don't resubmit |
 | **429** | Too many requests (rate limit exceeded) | Wait + retry (see Retry-After header) |
-| **500** | Internal server error | Retry after 1ΓÇô5 seconds; if persists, contact support |
+| **500** | Internal server error | Retry after 1–5 seconds; if persists, contact support |
 | **503** | Service unavailable (Safe Browsing API down or query timeout) | Temporarily unavailable; retry later |
 
 ---

@@ -31,7 +31,7 @@ import app.roam.android.viewmodel.MainViewModel
 /**
  * Shown once, immediately after a new user completes OAuth.
  *
- * The user picks ΓëÑ 1 interest category (or specific topics), then taps "Start Roaming".
+ * The user picks ≥ 1 interest category (or specific topics), then taps "Start Roaming".
  * Tapping "Skip" goes straight to Discover without saving any categories.
  * [onComplete] transitions [AuthViewModel] to [AuthState.Authenticated].
  */
@@ -98,7 +98,7 @@ fun CategoryOnboardingScreen(
                         onClick = { vm.setInterestMode("topics") },
                         modifier = Modifier.wrapContentWidth(Alignment.Start),
                     ) {
-                        Text("Choose specific topics instead ΓåÆ")
+                        Text("Choose specific topics instead →")
                     }
                 }
                 Spacer(Modifier.height(32.dp))
@@ -109,7 +109,7 @@ fun CategoryOnboardingScreen(
                     onClick = { vm.setInterestMode("pillars") },
                     modifier = Modifier.wrapContentWidth(Alignment.Start),
                 ) {
-                    Text("ΓåÉ Choose categories instead")
+                    Text("← Choose categories instead")
                 }
                 Spacer(Modifier.height(8.dp))
             }

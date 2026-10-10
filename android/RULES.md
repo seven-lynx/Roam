@@ -1,4 +1,4 @@
-# RULES.md ΓÇö Android
+# RULES.md — Android
 
 Read `../RULES.md` first. This file adds Android-platform rules.
 
@@ -23,7 +23,7 @@ val SUPABASE_ANON_KEY = BuildConfig.SUPABASE_ANON_KEY
 Do not commit `local.properties`. Do not paste secrets in `build.gradle.kts` defaults.
 
 ### A.2 FCM service account is stored as a JSON blob in a Vercel env var, not in the repo
-The push-notify edge function needs FCM access. The Firebase service account JSON lives in `FCM_SERVICE_ACCOUNT` on Vercel. The file `*-firebase-adminsdk-*.json` is gitignored and excluded from the public mirror ΓÇö **do not commit or reference it.**
+The push-notify edge function needs FCM access. The Firebase service account JSON lives in `FCM_SERVICE_ACCOUNT` on Vercel. The file `*-firebase-adminsdk-*.json` is gitignored and excluded from the public mirror — **do not commit or reference it.**
 
 ### A.3 URL normalization must match the canonical implementations
 The Kotlin `normalizeUrl()` function must stay in sync with:

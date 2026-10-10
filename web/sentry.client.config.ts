@@ -1,4 +1,4 @@
-// sentry.client.config.ts ΓÇö Sentry initialisation for the browser (client components).
+// sentry.client.config.ts — Sentry initialisation for the browser (client components).
 // This file is loaded automatically by the Next.js Sentry integration.
 // Set NEXT_PUBLIC_SENTRY_DSN in your .env / Vercel environment variables.
 

@@ -6,7 +6,7 @@
 -- inserts one row into user_actions. A BEFORE INSERT trigger calls
 -- increment_challenge_progress() to update challenge counters in real-time.
 
--- ΓöÇΓöÇ Table ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+-- ── Table ──────────────────────────────────────────────────────────────────
 
 CREATE TABLE IF NOT EXISTS public.user_actions (
   id          BIGSERIAL PRIMARY KEY,
@@ -47,20 +47,20 @@ CREATE POLICY "Service role can insert actions"
   TO service_role
   WITH CHECK (true);
 
--- ΓöÇΓöÇ Trigger function ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+-- ── Trigger function ───────────────────────────────────────────────────────
 
 -- Maps action_type to challenge condition_type (action_type + '_count')
 -- and calls incrementChallengeProgress for the user.
 --
 -- Condition types covered:
---   roam       ΓåÆ roam_count
---   rate       ΓåÆ rate_count
---   save       ΓåÆ save_count
---   follow     ΓåÆ follow_count
---   submit     ΓåÆ submit_count
---   collection ΓåÆ collection_count
---   share      ΓåÆ share_count
---   report     ΓåÆ report_count
+--   roam       → roam_count
+--   rate       → rate_count
+--   save       → save_count
+--   follow     → follow_count
+--   submit     → submit_count
+--   collection → collection_count
+--   share      → share_count
+--   report     → report_count
 --
 -- Note: category_count, domain_count, subcategory_count, and session_count
 -- challenges are not tracked via user_actions. They require aggregating

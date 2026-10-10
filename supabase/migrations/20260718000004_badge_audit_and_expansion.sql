@@ -1,6 +1,6 @@
 -- Badge Audit & Expansion
 -- 1. Fix 7 dead badges (remove deep-reader)
--- 2. Fix 6 exact-match bugs (= ΓåÆ >=)
+-- 2. Fix 6 exact-match bugs (= → >=)
 -- 3. Create revoke_badge function
 -- 4. Add 50 new badges with real unlock conditions
 -- 5. Full evaluate_badges replacement
@@ -16,80 +16,80 @@ DELETE FROM public.badges WHERE slug = 'deep-reader';
 
 -- Exploration (8)
 INSERT INTO public.badges (slug, name, description, icon, category, tier, required_count, xp_reward) VALUES
-('subcategory-specialist', 'Subcategory Specialist', 'Roam 5+ URLs in a single subcategory', '≡ƒö¼', 'exploration', 1, NULL, 30),
-('day-tripper', 'Day Tripper', 'Roam 10+ URLs between 9AM-5PM in one day', 'ΓÿÇ∩╕Å', 'exploration', 1, NULL, 25),
-('nocturnal', 'Nocturnal', 'Roam 20+ URLs between 10PM-4AM', '≡ƒªë', 'exploration', 2, NULL, 50),
-('world-traveler', 'World Traveler', 'Roam URLs in 3+ languages', '≡ƒîì', 'exploration', 2, NULL, 50),
-('speed-reader', 'Speed Reader', 'Roam 50+ URLs in under 30 minutes', 'ΓÜí', 'exploration', 3, NULL, 75),
-('explorer-supreme', 'Explorer Supreme', 'Roam in every category in a single day', '≡ƒææ', 'exploration', 4, NULL, 200),
-('domain-hoarder', 'Domain Hoarder', 'Roam URLs from 100+ unique domains', '≡ƒÅó', 'exploration', 2, NULL, 75),
-('fresh-finds', 'Fresh Finds', 'Roam 5 URLs that are less than 24 hours old', '≡ƒåò', 'exploration', 1, NULL, 25)
+('subcategory-specialist', 'Subcategory Specialist', 'Roam 5+ URLs in a single subcategory', '🔬', 'exploration', 1, NULL, 30),
+('day-tripper', 'Day Tripper', 'Roam 10+ URLs between 9AM-5PM in one day', '☀️', 'exploration', 1, NULL, 25),
+('nocturnal', 'Nocturnal', 'Roam 20+ URLs between 10PM-4AM', '🦉', 'exploration', 2, NULL, 50),
+('world-traveler', 'World Traveler', 'Roam URLs in 3+ languages', '🌍', 'exploration', 2, NULL, 50),
+('speed-reader', 'Speed Reader', 'Roam 50+ URLs in under 30 minutes', '⚡', 'exploration', 3, NULL, 75),
+('explorer-supreme', 'Explorer Supreme', 'Roam in every category in a single day', '👑', 'exploration', 4, NULL, 200),
+('domain-hoarder', 'Domain Hoarder', 'Roam URLs from 100+ unique domains', '🏢', 'exploration', 2, NULL, 75),
+('fresh-finds', 'Fresh Finds', 'Roam 5 URLs that are less than 24 hours old', '🆕', 'exploration', 1, NULL, 25)
 ON CONFLICT (slug) DO NOTHING;
 
 -- Collecting (8)
 INSERT INTO public.badges (slug, name, description, icon, category, tier, required_count, xp_reward) VALUES
-('tag-master', 'Tag Master', 'Save URLs across 8+ subcategories', '≡ƒÅ╖∩╕Å', 'collecting', 2, NULL, 50),
-('weekly-collector', 'Weekly Collector', 'Save 5+ URLs every day for a week', '≡ƒôà', 'collecting', 2, NULL, 75),
-('quick-save', 'Quick Save', 'Save 3 URLs within 60 seconds', '≡ƒÆ¿', 'collecting', 1, NULL, 25),
-('weekend-hoarder', 'Weekend Hoarder', 'Save 50 URLs on a Saturday or Sunday', '≡ƒ¢Æ', 'collecting', 2, NULL, 50),
-('language-collector', 'Language Collector', 'Save URLs in 5+ languages', '≡ƒùú∩╕Å', 'collecting', 2, NULL, 50),
-('long-term-storage', 'Long-Term Storage', 'Have a saved URL older than 90 days', '≡ƒôª', 'collecting', 3, NULL, 100),
-('save-streak', 'Save Streak', 'Save at least 1 URL for 14 consecutive days', '≡ƒöû', 'collecting', 3, NULL, 100),
-('collectors-collector', 'Collector''s Collector', 'Save 100 URLs from 100 different domains', '≡ƒîÉ', 'collecting', 3, NULL, 150)
+('tag-master', 'Tag Master', 'Save URLs across 8+ subcategories', '🏷️', 'collecting', 2, NULL, 50),
+('weekly-collector', 'Weekly Collector', 'Save 5+ URLs every day for a week', '📅', 'collecting', 2, NULL, 75),
+('quick-save', 'Quick Save', 'Save 3 URLs within 60 seconds', '💨', 'collecting', 1, NULL, 25),
+('weekend-hoarder', 'Weekend Hoarder', 'Save 50 URLs on a Saturday or Sunday', '🛒', 'collecting', 2, NULL, 50),
+('language-collector', 'Language Collector', 'Save URLs in 5+ languages', '🗣️', 'collecting', 2, NULL, 50),
+('long-term-storage', 'Long-Term Storage', 'Have a saved URL older than 90 days', '📦', 'collecting', 3, NULL, 100),
+('save-streak', 'Save Streak', 'Save at least 1 URL for 14 consecutive days', '🔖', 'collecting', 3, NULL, 100),
+('collectors-collector', 'Collector''s Collector', 'Save 100 URLs from 100 different domains', '🌐', 'collecting', 3, NULL, 150)
 ON CONFLICT (slug) DO NOTHING;
 
 -- Curating (8)
 INSERT INTO public.badges (slug, name, description, icon, category, tier, required_count, xp_reward) VALUES
-('thematic', 'Thematic', 'Create 3 collections with descriptions in the same subcategory', '≡ƒÄ¿', 'curating', 2, NULL, 50),
-('curators-pick', 'Curator''s Pick', 'Have a public collection favorited by 3+ users', 'Γ¡É', 'curating', 2, NULL, 75),
-('micro-curator', 'Micro-Curator', 'Create 5 collections with exactly 1 item each', '≡ƒöì', 'curating', 1, NULL, 25),
-('mega-collection', 'Mega-Collection', 'Create a collection with 500+ URLs', '≡ƒÅù∩╕Å', 'curating', 4, NULL, 200),
-('diverse-collections', 'Diverse Collections', 'Create collections covering 5+ different categories', '≡ƒîê', 'curating', 2, NULL, 50),
-('weekly-publisher', 'Weekly Publisher', 'Create a new collection every week for 4 weeks', '≡ƒô░', 'curating', 2, NULL, 75),
-('linker', 'Linker', 'Add the same URL to 3+ of your own collections', '≡ƒöù', 'curating', 1, NULL, 25),
-('collection-streak', 'Collection Streak', 'Create a collection for 4 consecutive weeks', '≡ƒôà', 'curating', 3, NULL, 100)
+('thematic', 'Thematic', 'Create 3 collections with descriptions in the same subcategory', '🎨', 'curating', 2, NULL, 50),
+('curators-pick', 'Curator''s Pick', 'Have a public collection favorited by 3+ users', '⭐', 'curating', 2, NULL, 75),
+('micro-curator', 'Micro-Curator', 'Create 5 collections with exactly 1 item each', '🔍', 'curating', 1, NULL, 25),
+('mega-collection', 'Mega-Collection', 'Create a collection with 500+ URLs', '🏗️', 'curating', 4, NULL, 200),
+('diverse-collections', 'Diverse Collections', 'Create collections covering 5+ different categories', '🌈', 'curating', 2, NULL, 50),
+('weekly-publisher', 'Weekly Publisher', 'Create a new collection every week for 4 weeks', '📰', 'curating', 2, NULL, 75),
+('linker', 'Linker', 'Add the same URL to 3+ of your own collections', '🔗', 'curating', 1, NULL, 25),
+('collection-streak', 'Collection Streak', 'Create a collection for 4 consecutive weeks', '📅', 'curating', 3, NULL, 100)
 ON CONFLICT (slug) DO NOTHING;
 
 -- Social (8)
 INSERT INTO public.badges (slug, name, description, icon, category, tier, required_count, xp_reward) VALUES
-('mutual-admiration', 'Mutual Admiration', 'Mutual follow with 5+ users', '≡ƒñ¥', 'social', 2, NULL, 50),
-('follow-back', 'Follow Back', 'Follow someone who followed you first', 'Γå⌐∩╕Å', 'social', 1, NULL, 25),
-('first-follower', 'First Follower', 'Be the first to follow a new user', '≡ƒÑç', 'social', 3, NULL, 100),
-('follower-50', 'Fifty Followers', 'Reach 50 followers', '≡ƒæÑ', 'social', 2, NULL, 75),
-('share-happy-hour', 'Share Happy Hour', 'Share 5 URLs in one hour', '≡ƒì╕', 'social', 1, NULL, 25),
-('link-in-bio', 'Link In Bio', 'Complete your profile AND have 1+ public collection', '≡ƒôï', 'social', 1, NULL, 25),
-('verified-roamer', 'Verified Roamer', 'Complete profile AND 30+ day active streak', 'Γ£à', 'social', 3, NULL, 150),
-('social-network', 'Social Network', 'Follow users who follow 3+ other users each', '≡ƒò╕∩╕Å', 'social', 2, NULL, 50)
+('mutual-admiration', 'Mutual Admiration', 'Mutual follow with 5+ users', '🤝', 'social', 2, NULL, 50),
+('follow-back', 'Follow Back', 'Follow someone who followed you first', '↩️', 'social', 1, NULL, 25),
+('first-follower', 'First Follower', 'Be the first to follow a new user', '🥇', 'social', 3, NULL, 100),
+('follower-50', 'Fifty Followers', 'Reach 50 followers', '👥', 'social', 2, NULL, 75),
+('share-happy-hour', 'Share Happy Hour', 'Share 5 URLs in one hour', '🍸', 'social', 1, NULL, 25),
+('link-in-bio', 'Link In Bio', 'Complete your profile AND have 1+ public collection', '📋', 'social', 1, NULL, 25),
+('verified-roamer', 'Verified Roamer', 'Complete profile AND 30+ day active streak', '✅', 'social', 3, NULL, 150),
+('social-network', 'Social Network', 'Follow users who follow 3+ other users each', '🕸️', 'social', 2, NULL, 50)
 ON CONFLICT (slug) DO NOTHING;
 
 -- Streaks (6)
 INSERT INTO public.badges (slug, name, description, icon, category, tier, required_count, xp_reward) VALUES
-('weekend-streak', 'Weekend Streak', 'Active 4 weekends in a row', '≡ƒÅû∩╕Å', 'streaks', 1, NULL, 30),
-('double-digits', 'Double Digits', '10-day roaming streak', '≡ƒöƒ', 'streaks', 1, NULL, 40),
-('twenty-one', 'Twenty-One', '21-day roaming streak', '≡ƒâÅ', 'streaks', 2, NULL, 75),
-('the-marathon', 'The Marathon', '42-day roaming streak', '≡ƒÅâ', 'streaks', 3, NULL, 150),
-('seasoned', 'Seasoned', '90-day roaming streak', '≡ƒìé', 'streaks', 4, NULL, 300),
-('half-year-hero', 'Half-Year Hero', '180-day roaming streak', '≡ƒÅå', 'streaks', 5, NULL, 500)
+('weekend-streak', 'Weekend Streak', 'Active 4 weekends in a row', '🏖️', 'streaks', 1, NULL, 30),
+('double-digits', 'Double Digits', '10-day roaming streak', '🔟', 'streaks', 1, NULL, 40),
+('twenty-one', 'Twenty-One', '21-day roaming streak', '🃏', 'streaks', 2, NULL, 75),
+('the-marathon', 'The Marathon', '42-day roaming streak', '🏃', 'streaks', 3, NULL, 150),
+('seasoned', 'Seasoned', '90-day roaming streak', '🍂', 'streaks', 4, NULL, 300),
+('half-year-hero', 'Half-Year Hero', '180-day roaming streak', '🏆', 'streaks', 5, NULL, 500)
 ON CONFLICT (slug) DO NOTHING;
 
 -- Contributing (6)
 INSERT INTO public.badges (slug, name, description, icon, category, tier, required_count, xp_reward) VALUES
-('fast-track', 'Fast Track', 'Submission approved within 1 hour', '≡ƒÜÇ', 'contributing', 2, NULL, 50),
-('category-filler', 'Category Filler', 'Submit to a category with fewer than 100 URLs', '≡ƒôè', 'contributing', 1, NULL, 25),
-('subcategory-scout', 'Subcategory Scout', 'Submit to 5 different subcategories', '≡ƒº¡', 'contributing', 2, NULL, 50),
-('weekend-submitter', 'Weekend Submitter', 'Submit 3 URLs on a Saturday or Sunday', '≡ƒô¥', 'contributing', 1, NULL, 25),
-('pioneer', 'Pioneer', 'Be among the first 5 to submit to a subcategory', '≡ƒÅ┤', 'contributing', 3, NULL, 100),
-('community-builder', 'Community Builder', 'Have 5+ submissions get 100+ roams each', '≡ƒÅÿ∩╕Å', 'contributing', 4, NULL, 250)
+('fast-track', 'Fast Track', 'Submission approved within 1 hour', '🚀', 'contributing', 2, NULL, 50),
+('category-filler', 'Category Filler', 'Submit to a category with fewer than 100 URLs', '📊', 'contributing', 1, NULL, 25),
+('subcategory-scout', 'Subcategory Scout', 'Submit to 5 different subcategories', '🧭', 'contributing', 2, NULL, 50),
+('weekend-submitter', 'Weekend Submitter', 'Submit 3 URLs on a Saturday or Sunday', '📝', 'contributing', 1, NULL, 25),
+('pioneer', 'Pioneer', 'Be among the first 5 to submit to a subcategory', '🏴', 'contributing', 3, NULL, 100),
+('community-builder', 'Community Builder', 'Have 5+ submissions get 100+ roams each', '🏘️', 'contributing', 4, NULL, 250)
 ON CONFLICT (slug) DO NOTHING;
 
 -- Engagement (6)
 INSERT INTO public.badges (slug, name, description, icon, category, tier, required_count, xp_reward) VALUES
-('daily-routine', 'Daily Routine', 'Roam, save, AND rate all in the same day', 'Γ£à', 'engagement', 1, NULL, 25),
-('rate-spree', 'Rate Spree', 'Rate 25 URLs in a single day', 'ΓÜí', 'engagement', 2, NULL, 50),
-('the-completionist-rate', 'The Completionist', 'Rate at least 1 URL in every category', '≡ƒÅà', 'engagement', 3, NULL, 100),
-('well-rounded', 'Well-Rounded', 'Use all 3 discovery modes in a single day', '≡ƒöä', 'engagement', 1, NULL, 25),
-('session-surfer', 'Session Surfer', 'Roam 100+ URLs in a single day', '≡ƒÅä', 'engagement', 3, NULL, 150),
-('voting-power', 'Voting Power', 'Cast 100+ total votes', '≡ƒù│∩╕Å', 'engagement', 2, NULL, 50)
+('daily-routine', 'Daily Routine', 'Roam, save, AND rate all in the same day', '✅', 'engagement', 1, NULL, 25),
+('rate-spree', 'Rate Spree', 'Rate 25 URLs in a single day', '⚡', 'engagement', 2, NULL, 50),
+('the-completionist-rate', 'The Completionist', 'Rate at least 1 URL in every category', '🏅', 'engagement', 3, NULL, 100),
+('well-rounded', 'Well-Rounded', 'Use all 3 discovery modes in a single day', '🔄', 'engagement', 1, NULL, 25),
+('session-surfer', 'Session Surfer', 'Roam 100+ URLs in a single day', '🏄', 'engagement', 3, NULL, 150),
+('voting-power', 'Voting Power', 'Cast 100+ total votes', '🗳️', 'engagement', 2, NULL, 50)
 ON CONFLICT (slug) DO NOTHING;
 
 -- Set parent_badge_slug for tiered badges
@@ -624,7 +624,7 @@ BEGIN
 
   IF v_level > v_prev_level THEN
     INSERT INTO public.notifications (user_id, type, title, body, data)
-    VALUES (p_user_id, 'level_up', '≡ƒÄë Level Up! You''re now Level ' || v_level, 'Keep roaming to earn more badges and XP!', jsonb_build_object('level', v_level, 'rank', '', 'url', v_profile_url));
+    VALUES (p_user_id, 'level_up', '🎉 Level Up! You''re now Level ' || v_level, 'Keep roaming to earn more badges and XP!', jsonb_build_object('level', v_level, 'rank', '', 'url', v_profile_url));
   END IF;
 
   PERFORM public.sync_profile_badge_count(p_user_id);

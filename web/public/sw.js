@@ -1,10 +1,10 @@
-// Service worker for push notifications ΓÇö v2.0.0
+// Service worker for push notifications — v2.0.0
 // Registered by the NotificationBell component when user enables push.
 
 const CACHE_KEY = 'roam-sw-v2';
 
 self.addEventListener('install', (event) => {
-  // Activate immediately ΓÇö don't wait for old tabs to close
+  // Activate immediately — don't wait for old tabs to close
   event.waitUntil(self.skipWaiting());
 });
 

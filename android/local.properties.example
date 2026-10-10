@@ -1,4 +1,4 @@
-# Supabase credentials ΓÇö copy this to local.properties and fill in the values.
+# Supabase credentials — copy this to local.properties and fill in the values.
 # local.properties is gitignored and must never be committed.
 
 SUPABASE_URL=https://your-project-ref.supabase.co
@@ -8,7 +8,7 @@ SENTRY_AUTH_TOKEN=your-sentry-auth-token-here
 SENTRY_ORG=your-organization-slug
 SENTRY_PROJECT=your-project-slug
 
-# Release signing ΓÇö do NOT put these in local.properties.
+# Release signing — do NOT put these in local.properties.
 # Store them in ~/.gradle/gradle.properties instead (outside the repo):
 #
 #   ROAM_RELEASE_STORE_FILE=/absolute/path/to/roam-release.jks

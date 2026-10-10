@@ -87,7 +87,7 @@ function BadgeUnlockToast({ queue, dequeue }: { queue: UnlockEvent[]; dequeue: (
           <div className="flex items-start gap-3">
             <span className="text-4xl">{current.badge.icon}</span>
             <div className="flex-1 min-w-0">
-              <p className="font-bold text-gray-900 dark:text-white">Badge Unlocked! ≡ƒÄë</p>
+              <p className="font-bold text-gray-900 dark:text-white">Badge Unlocked! 🎉</p>
               <p className="text-lg font-semibold text-gray-800 dark:text-gray-200 mt-0.5">
                 {current.badge.name}
               </p>

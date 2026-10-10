@@ -76,7 +76,7 @@ export default function SignupPageContent() {
     router.replace(`/signup?${params.toString()}`, { scroll: false });
   }
 
-  // ΓöÇΓöÇ Validation helpers ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+  // ── Validation helpers ────────────────────────────────────────────────────
   function handleEmailChange(value: string) {
     setEmail(value);
     setEmailError(value ? (validateEmail(value).error ?? null) : null);
@@ -103,7 +103,7 @@ export default function SignupPageContent() {
 
   const signinFormValid = email && password && !emailError;
 
-  // ΓöÇΓöÇ OAuth ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+  // ── OAuth ─────────────────────────────────────────────────────────────────
   async function handleOAuth() {
     setError(null);
     setLoading(true);
@@ -121,12 +121,12 @@ export default function SignupPageContent() {
       }
     } catch (err) {
       Sentry.captureException(err, { tags: { context: "google-oauth" } });
-      setError(err instanceof Error ? err.message : "Sign-in failed ΓÇö please try again.");
+      setError(err instanceof Error ? err.message : "Sign-in failed — please try again.");
       setLoading(false);
     }
   }
 
-  // ΓöÇΓöÇ Email sign-up ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+  // ── Email sign-up ─────────────────────────────────────────────────────────
   async function handleSignUp(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
@@ -154,7 +154,7 @@ export default function SignupPageContent() {
     }
   }
 
-  // ΓöÇΓöÇ Email sign-in ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+  // ── Email sign-in ─────────────────────────────────────────────────────────
   async function handleSignIn(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
@@ -173,7 +173,7 @@ export default function SignupPageContent() {
     }
   }
 
-  // ΓöÇΓöÇ Interest helpers ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+  // ── Interest helpers ──────────────────────────────────────────────────────
   function handlePillarToggle(id: string) {
     setSelectedPillars((prev) => {
       const next = new Set(prev);
@@ -208,7 +208,7 @@ export default function SignupPageContent() {
 
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) { setError("Not signed in ΓÇö please refresh and try again."); setLoading(false); return; }
+      if (!user) { setError("Not signed in — please refresh and try again."); setLoading(false); return; }
 
       const subcategoryParentMap = new Map(subcategories.map((s) => [s.id, s.category_id]));
       await saveUserInterests(supabase, user.id, interestMode, selectedPillars, selectedTopics, subcategoryParentMap);
@@ -236,19 +236,19 @@ export default function SignupPageContent() {
       router.replace("/profile");
     } catch (err) {
       Sentry.captureException(err, { tags: { context: "category-selection" } });
-      setError(err instanceof Error ? err.message : "Something went wrong ΓÇö please try again.");
+      setError(err instanceof Error ? err.message : "Something went wrong — please try again.");
       setLoading(false);
     }
   }
 
-  // ΓöÇΓöÇ Category picker ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+  // ── Category picker ───────────────────────────────────────────────────────
   if (showCategories) {
     return (
       <div className="flex min-h-[calc(100vh-8rem)] flex-col items-center justify-center px-6 py-16 bg-white dark:bg-zinc-950">
         <form onSubmit={handleCategories} className="w-full max-w-lg flex flex-col gap-8">
           <div className="text-center">
             <h1 className="text-3xl font-bold text-zinc-900 dark:text-white">What are you into?</h1>
-            <p className="mt-2 text-zinc-500 dark:text-zinc-400">Pick at least one ΓÇö you can change this later.</p>
+            <p className="mt-2 text-zinc-500 dark:text-zinc-400">Pick at least one — you can change this later.</p>
           </div>
 
           <InterestPicker
@@ -269,14 +269,14 @@ export default function SignupPageContent() {
             disabled={loading || !hasSelection}
             className="rounded-full bg-zinc-900 dark:bg-white px-8 py-3 text-white dark:text-zinc-900 font-semibold hover:opacity-90 transition-opacity disabled:opacity-50"
           >
-            {loading ? "SavingΓÇª" : "Start exploring ΓåÆ"}
+            {loading ? "Saving…" : "Start exploring →"}
           </button>
         </form>
       </div>
     );
   }
 
-  // ΓöÇΓöÇ Account form ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+  // ── Account form ──────────────────────────────────────────────────────────
   const oauthButtons = (
     <div className="flex flex-col gap-3">
       <button
@@ -350,7 +350,7 @@ export default function SignupPageContent() {
         )}
 
         {mode === "create" ? (
-          /* ΓöÇΓöÇ Create account form ΓöÇΓöÇ */
+          /* ── Create account form ── */
           <form onSubmit={handleSignUp} className="flex flex-col gap-4" noValidate>
             <div className="flex flex-col gap-1.5">
               <label htmlFor="email" className="text-sm font-medium text-zinc-700 dark:text-zinc-300">Email</label>
@@ -424,11 +424,11 @@ export default function SignupPageContent() {
               disabled={loading || !createFormValid}
               className="w-full rounded-lg bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 py-2.5 text-sm font-semibold hover:opacity-90 transition-opacity disabled:opacity-40"
             >
-              {loading ? "Creating accountΓÇª" : "Create account"}
+              {loading ? "Creating account…" : "Create account"}
             </button>
           </form>
         ) : (
-          /* ΓöÇΓöÇ Sign in form ΓöÇΓöÇ */
+          /* ── Sign in form ── */
           <form onSubmit={handleSignIn} className="flex flex-col gap-4" noValidate>
             <div className="flex flex-col gap-1.5">
               <label htmlFor="signin-email" className="text-sm font-medium text-zinc-700 dark:text-zinc-300">Email</label>
@@ -466,7 +466,7 @@ export default function SignupPageContent() {
               disabled={loading || !signinFormValid}
               className="w-full rounded-lg bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 py-2.5 text-sm font-semibold hover:opacity-90 transition-opacity disabled:opacity-40"
             >
-              {loading ? "Signing inΓÇª" : "Sign in"}
+              {loading ? "Signing in…" : "Sign in"}
             </button>
           </form>
         )}

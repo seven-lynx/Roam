@@ -150,10 +150,10 @@ jobs:
         uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d
         with:
           # token-only filter; default branch protection must allow this token.
-          # See RULES.md ┬º1.6┬╜ (workflow path-filter rule).
+          # See RULES.md §1.6½ (workflow path-filter rule).
           token: ${{ secrets.GITHUB_TOKEN }}
           filter: 'supabase/functions'
-          # Exclude the test directory ΓÇö test-only PRs should not pay the
+          # Exclude the test directory — test-only PRs should not pay the
           # deno check cost. Anything else under supabase/functions is in scope.
           filters: |
             edge:
@@ -304,7 +304,7 @@ jobs:
   build-extension:
     name: Build Extension for Stores
     # Only build the extension bundle when extension/ changed AND we're
-    # pushing to main. PR builds are wasteful ΓÇö the actual store release
+    # pushing to main. PR builds are wasteful — the actual store release
     # happens via the deploy workflow on main.
     needs: [lint-and-test, changed-paths]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.changed-paths.outputs.extension == 'true'
@@ -392,7 +392,7 @@ jobs:
       - name: Upload Trivy results to GitHub Security
         # github/codeql-action/upload-sarif requires 'security-events: write'.
         # Same-repo PRs have the scope (see job-level permissions above). Fork
-        # PRs do not ΓÇö the runner hits "Resource not accessible by integration"
+        # PRs do not — the runner hits "Resource not accessible by integration"
         # when it tries to call the GitHub Security API. We skip the upload
         # for forks and fall back to uploading the SARIF as an artifact so
         # reviewers can still inspect it.

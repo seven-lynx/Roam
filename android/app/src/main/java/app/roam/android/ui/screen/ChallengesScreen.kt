@@ -145,7 +145,7 @@ private fun ChallengeCard(challenge: ChallengeData) {
                 }
                 if (isCompleted) {
                     Text(
-                        text = "Γ£ô",
+                        text = "✓",
                         fontSize = 20.sp,
                         color = Color(0xFF22C55E)
                     )

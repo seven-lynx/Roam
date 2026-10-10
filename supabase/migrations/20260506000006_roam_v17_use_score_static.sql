@@ -1,5 +1,5 @@
 -- =============================================================================
--- roam() v17 ΓÇö use roam_score_static directly (Fix 6 completion)
+-- roam() v17 — use roam_score_static directly (Fix 6 completion)
 -- =============================================================================
 --
 -- Prerequisite (must be done before applying this migration):
@@ -22,7 +22,7 @@
 --     longer needed and adds a per-row function call.
 --
 -- Expected improvement:
---   - Eliminates 4├ù per-row arithmetic (wilson_score + 0.3 * seeder_score)
+--   - Eliminates 4× per-row arithmetic (wilson_score + 0.3 * seeder_score)
 --     across ~787k TABLESAMPLE rows per call.
 --   - Phase 2 ORDER BY can use idx_urls_roam_score_static (index scan + LIMIT)
 --     instead of a full filesort on the candidate set.
@@ -77,7 +77,7 @@ BEGIN
     RAISE EXCEPTION 'Unauthorized';
   END IF;
 
-  -- ΓöÇΓöÇ Load user settings ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+  -- ── Load user settings ────────────────────────────────────────────────────
   SELECT
     COALESCE(s.preferred_languages, ARRAY['en']),
     COALESCE(s.skip_paywalled, FALSE),
@@ -90,7 +90,7 @@ BEGIN
   IF v_skip_paywall    IS NULL THEN v_skip_paywall    := FALSE;        END IF;
   IF v_discovery_mode  IS NULL THEN v_discovery_mode  := 'discovery';  END IF;
 
-  -- ΓöÇΓöÇ Load exclusion sets as arrays (3 sequential reads) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+  -- ── Load exclusion sets as arrays (3 sequential reads) ───────────────────
   SELECT array_agg(url_id)
   INTO   v_seen_ids
   FROM   seen_urls
@@ -108,21 +108,21 @@ BEGIN
   WHERE  user_id = p_user_id
     AND  suppressed_until > NOW();
 
-  -- ΓöÇΓöÇ Load interest score map as parallel arrays (1 sequential read) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+  -- ── Load interest score map as parallel arrays (1 sequential read) ────────
   SELECT array_agg(subcategory_id ORDER BY subcategory_id),
          array_agg(calibrated_weight ORDER BY subcategory_id)
   INTO   v_score_subcats, v_score_weights
   FROM   user_interest_scores
   WHERE  user_id = p_user_id;
 
-  -- ΓöÇΓöÇ Pre-load paywalled domains once (only when skip_paywall is active) ΓöÇΓöÇΓöÇΓöÇ
+  -- ── Pre-load paywalled domains once (only when skip_paywall is active) ────
   IF v_skip_paywall THEN
     SELECT array_agg(domain)
     INTO   v_paywalled_domains
     FROM   paywalled_domains;
   END IF;
 
-  -- ΓöÇΓöÇ Expand category prefs into flat subcategory ID array ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+  -- ── Expand category prefs into flat subcategory ID array ─────────────────
   SELECT array_agg(DISTINCT sc.id)
   INTO   v_allowed_subcat_ids
   FROM   subcategories sc
@@ -143,7 +143,7 @@ BEGIN
   SELECT EXISTS (SELECT 1 FROM user_categories WHERE user_id = p_user_id)
   INTO v_has_categories;
 
-  -- ΓöÇΓöÇ Deep Dive: narrow to top-3 subcategories by calibrated_weight ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+  -- ── Deep Dive: narrow to top-3 subcategories by calibrated_weight ─────────
   IF v_discovery_mode = 'deep_dive'
      AND p_subcategory_id IS NULL
      AND p_category_id    IS NULL
@@ -164,7 +164,7 @@ BEGIN
     END IF;
   END IF;
 
-  -- ΓöÇΓöÇ Discovery mode: 12% adjacent serving ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+  -- ── Discovery mode: 12% adjacent serving ─────────────────────────────────
   v_adjacent_subcat_id := NULL;
   IF v_discovery_mode = 'discovery'
      AND random() < 0.12
@@ -196,9 +196,9 @@ BEGIN
 
   v_effective_subcat_id := COALESCE(p_subcategory_id, v_adjacent_subcat_id);
 
-  -- ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ
+  -- ═══════════════════════════════════════════════════════════════════════════
   --  COLLECTION MODE
-  -- ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ
+  -- ═══════════════════════════════════════════════════════════════════════════
   IF p_collection_id IS NOT NULL THEN
 
     -- Phase 1: TABLESAMPLE BERNOULLI(25)
@@ -232,7 +232,7 @@ BEGIN
     ORDER BY (c.eff_score + 0.1) * random() DESC
     LIMIT 1;
 
-    -- Phase 2: fallback ΓÇö only when TABLESAMPLE found nothing (small collections)
+    -- Phase 2: fallback — only when TABLESAMPLE found nothing (small collections)
     IF v_url_id IS NULL THEN
       SELECT c.id INTO v_url_id
       FROM (
@@ -267,12 +267,12 @@ BEGIN
       LIMIT 1;
     END IF;
 
-  -- ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ
+  -- ═══════════════════════════════════════════════════════════════════════════
   --  STANDARD MODE
-  -- ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ
+  -- ═══════════════════════════════════════════════════════════════════════════
   ELSE
 
-    -- Phase 1: TABLESAMPLE BERNOULLI(25) ΓÇö ~787k rows at current scale (~25% of 3.15M)
+    -- Phase 1: TABLESAMPLE BERNOULLI(25) — ~787k rows at current scale (~25% of 3.15M)
     SELECT c.id INTO v_url_id
     FROM (
       SELECT u.id,
@@ -320,7 +320,7 @@ BEGIN
     ORDER BY (c.eff_score + 0.1) * random() DESC
     LIMIT 1;
 
-    -- Phase 2: full-scan fallback ΓÇö only executed when TABLESAMPLE returned nothing
+    -- Phase 2: full-scan fallback — only executed when TABLESAMPLE returned nothing
     IF v_url_id IS NULL THEN
       SELECT c.id INTO v_url_id
       FROM (
@@ -374,7 +374,7 @@ BEGIN
 
   END IF;
 
-  -- ΓöÇΓöÇ Record seen + domain cooldown ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+  -- ── Record seen + domain cooldown ─────────────────────────────────────────
   IF v_url_id IS NOT NULL THEN
     INSERT INTO seen_urls (user_id, url_id)
     VALUES (p_user_id, v_url_id)

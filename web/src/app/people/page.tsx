@@ -4,7 +4,7 @@ import { createClient } from '@/lib/supabase/server';
 import { PeopleClient, type PersonResult } from './PeopleClient';
 
 export const metadata: Metadata = {
-  title: 'Find people ΓÇö Roam',
+  title: 'Find people — Roam',
   description: 'Search for people to follow and discover new curators on Roam.',
 };
 

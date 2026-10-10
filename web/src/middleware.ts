@@ -44,7 +44,7 @@ export async function middleware(request: NextRequest) {
       }
     } catch (error) {
       logError('middleware', 'Failed to retrieve authenticated user from Supabase', undefined, error as Error);
-      // Continue with unauthenticated user ΓÇö all public paths remain accessible
+      // Continue with unauthenticated user — all public paths remain accessible
     }
 
     const pathname = request.nextUrl.pathname
@@ -67,7 +67,7 @@ export async function middleware(request: NextRequest) {
       return NextResponse.redirect(new URL('/profile', request.url))
     }
 
-    // Protect /admin ΓÇö redirect unauthenticated or non-admin users to /
+    // Protect /admin — redirect unauthenticated or non-admin users to /
     if (pathname.startsWith('/admin')) {
       if (!user) {
         const url = new URL('/signup', request.url)
@@ -86,7 +86,7 @@ export async function middleware(request: NextRequest) {
       }
     }
 
-    // Protect /moderator ΓÇö accessible to admins and moderators
+    // Protect /moderator — accessible to admins and moderators
     if (pathname.startsWith('/moderator')) {
       if (!user) {
         const url = new URL('/signup', request.url)

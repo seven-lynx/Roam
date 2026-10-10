@@ -55,7 +55,7 @@ function AccordionSection({ title, description, defaultOpen = false, children }:
           <h2 className="text-sm font-semibold text-zinc-900 dark:text-white">{title}</h2>
           {description && <p className="text-xs text-zinc-400 dark:text-zinc-500 mt-0.5">{description}</p>}
         </div>
-        <span className="text-zinc-400 text-sm shrink-0 ml-3">{open ? "Γû┤" : "Γû╛"}</span>
+        <span className="text-zinc-400 text-sm shrink-0 ml-3">{open ? "▴" : "▾"}</span>
       </button>
       {open && <div className="px-4 py-4 border-t border-zinc-200 dark:border-zinc-800">{children}</div>}
     </div>
@@ -187,7 +187,7 @@ export default function AdminAnalytics() {
           <StatCard label="Total URLs" value={data.sourceBreakdown.reduce((s, r) => s + r.count, 0).toLocaleString()} />
           <StatCard label="Active Users (DAU)" value={data.activeUsers.dau.toLocaleString()} color="text-blue-600 dark:text-blue-400" />
           <StatCard label="Queue Pending" value={data.queueStats.pending.toLocaleString()} color="text-amber-600 dark:text-amber-400" />
-          <StatCard label="This Week" value={data.velocity.thisWeek.toLocaleString()} description={data.velocity.lastWeek > 0 ? `${data.velocity.thisWeek >= data.velocity.lastWeek ? "Γåæ" : "Γåô"} vs LW` : undefined} />
+          <StatCard label="This Week" value={data.velocity.thisWeek.toLocaleString()} description={data.velocity.lastWeek > 0 ? `${data.velocity.thisWeek >= data.velocity.lastWeek ? "↑" : "↓"} vs LW` : undefined} />
         </div>
       </div>
       
@@ -212,7 +212,7 @@ export default function AdminAnalytics() {
               }))}
               color="bg-blue-500"
             />
-            <p className="text-xs text-zinc-400 mt-2">DAU ΓÇö last 30 days</p>
+            <p className="text-xs text-zinc-400 mt-2">DAU — last 30 days</p>
           </>
         )}
       </AccordionSection>
@@ -276,7 +276,7 @@ export default function AdminAnalytics() {
           headers={[
             { key: "title", label: "Title" },
             { key: "score", label: "Score" },
-            { key: "votes", label: "≡ƒæì/≡ƒæÄ" },
+            { key: "votes", label: "👍/👎" },
           ]}
           rows={data.topUrls.map((u) => ({
             title: <a href={u.url} target="_blank" rel="noopener noreferrer" className="text-blue-600 dark:text-blue-400 hover:underline text-xs">{u.title}</a>,
@@ -323,7 +323,7 @@ export default function AdminAnalytics() {
       </AccordionSection>
 
       {/* Submission Timing - simplified for mobile */}
-      <AccordionSection title="Submission Timing" description="Day-of-week ├ù hour (ET)" defaultOpen={expandedAll}>
+      <AccordionSection title="Submission Timing" description="Day-of-week × hour (ET)" defaultOpen={expandedAll}>
         {data.submissionsByDowHour.length > 0 ? (
           <div className="flex flex-col gap-4">
             {/* By Day of Week */}

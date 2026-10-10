@@ -37,7 +37,7 @@ export default function FeedbackWidget() {
       );
       const data = await res.json();
       if (!res.ok) {
-        setErrorText(data.error ?? 'Something went wrong ΓÇö please try again.');
+        setErrorText(data.error ?? 'Something went wrong — please try again.');
         setStatus('error');
         return;
       }
@@ -70,7 +70,7 @@ export default function FeedbackWidget() {
                 className="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 text-xl leading-none"
                 aria-label="Close"
               >
-                ├ù
+                ×
               </button>
             </div>
 
@@ -81,7 +81,7 @@ export default function FeedbackWidget() {
             ) : (
               <>
                 <p className="text-sm text-zinc-500 dark:text-zinc-400 -mt-2">
-                  Bug, suggestion, or just saying hi ΓÇö we read everything.
+                  Bug, suggestion, or just saying hi — we read everything.
                 </p>
 
                 <textarea
@@ -98,7 +98,7 @@ export default function FeedbackWidget() {
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="Email (optional ΓÇö for follow-up)"
+                  placeholder="Email (optional — for follow-up)"
                   className="w-full rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white p-3 text-sm focus:outline-none focus:border-zinc-500 dark:focus:border-zinc-400"
                 />
 
@@ -111,7 +111,7 @@ export default function FeedbackWidget() {
                   disabled={!message.trim() || status === 'sending'}
                   className="rounded-full bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 font-semibold py-2.5 text-sm hover:opacity-90 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed"
                 >
-                  {status === 'sending' ? 'SendingΓÇª' : 'Send feedback'}
+                  {status === 'sending' ? 'Sending…' : 'Send feedback'}
                 </button>
               </>
             )}

@@ -15,13 +15,13 @@
 --   12% of requests: find the user's top primary subcategory, find its best
 --   pair partner from interest_pair_scores, and serve from that adjacent
 --   subcategory. This enables serendipitous discovery within the user's
---   demonstrated interest space ΓÇö no explicit "explore mode" needed.
+--   demonstrated interest space — no explicit "explore mode" needed.
 --
 -- Pairs are stored in canonical order (subcategory_a_id < subcategory_b_id)
 -- to avoid duplicate rows.
 -- =============================================================================
 
--- ΓöÇΓöÇ 1. interest_pair_scores table ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+-- ── 1. interest_pair_scores table ────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS public.interest_pair_scores (
   user_id          UUID    NOT NULL REFERENCES auth.users    ON DELETE CASCADE,
   subcategory_a_id UUID    NOT NULL REFERENCES subcategories ON DELETE CASCADE,
@@ -42,7 +42,7 @@ CREATE POLICY "pair_scores: users can read own"
   ON public.interest_pair_scores FOR SELECT
   USING (auth.uid() = user_id);
 
--- ΓöÇΓöÇ 2. Trigger: maintain pair scores on every rating ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+-- ── 2. Trigger: maintain pair scores on every rating ─────────────────────────
 --
 -- Fires AFTER trg_ratings_interest_scores (alphabetical order), so
 -- user_interest_scores already reflects the latest rating when this runs.
@@ -126,7 +126,7 @@ CREATE TRIGGER trg_ratings_pair_scores
   AFTER INSERT OR UPDATE OR DELETE ON public.ratings
   FOR EACH ROW EXECUTE FUNCTION public.update_pair_scores();
 
--- ΓöÇΓöÇ 3. Backfill pairs from existing user_interest_scores ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+-- ── 3. Backfill pairs from existing user_interest_scores ─────────────────────
 -- For each user, cross-join their top subcategories (calibrated_weight >= 0.8)
 -- and seed pair scores as the geometric mean of their individual weights.
 INSERT INTO interest_pair_scores
@@ -151,7 +151,7 @@ ON CONFLICT (user_id, subcategory_a_id, subcategory_b_id) DO UPDATE SET
   pair_weight    = EXCLUDED.pair_weight,
   last_updated   = EXCLUDED.last_updated;
 
--- ΓöÇΓöÇ 4. roam() v7: adjacent subcategory serving (12% of requests) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+-- ── 4. roam() v7: adjacent subcategory serving (12% of requests) ─────────────
 --
 -- When random() < 0.12 and no explicit subcategory/collection pin is active:
 --   1. Find the user's top subcategory by calibrated_weight ("primary")
@@ -198,7 +198,7 @@ BEGIN
     RAISE EXCEPTION 'Unauthorized';
   END IF;
 
-  -- ΓöÇΓöÇ Load user settings ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+  -- ── Load user settings ────────────────────────────────────────────────────
   SELECT
     COALESCE(s.preferred_languages, ARRAY['en']),
     COALESCE(s.skip_paywalled, FALSE)
@@ -209,7 +209,7 @@ BEGIN
   IF v_langs        IS NULL THEN v_langs        := ARRAY['en']; END IF;
   IF v_skip_paywall IS NULL THEN v_skip_paywall := FALSE;       END IF;
 
-  -- ΓöÇΓöÇ Expand category prefs into flat subcategory ID array ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+  -- ── Expand category prefs into flat subcategory ID array ─────────────────
   SELECT array_agg(DISTINCT sc.id)
   INTO   v_allowed_subcat_ids
   FROM   subcategories sc
@@ -230,7 +230,7 @@ BEGIN
   SELECT EXISTS (SELECT 1 FROM user_categories WHERE user_id = p_user_id)
   INTO v_has_categories;
 
-  -- ΓöÇΓöÇ Adjacent subcategory (12% of standard, un-pinned requests) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+  -- ── Adjacent subcategory (12% of standard, un-pinned requests) ───────────
   v_adjacent_subcat_id := NULL;
   IF random() < 0.12
      AND p_subcategory_id IS NULL
@@ -262,7 +262,7 @@ BEGIN
   v_effective_subcat_id := COALESCE(p_subcategory_id, v_adjacent_subcat_id);
 
   IF p_collection_id IS NOT NULL THEN
-    -- ΓöÇΓöÇ Collection mode ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+    -- ── Collection mode ──────────────────────────────────────────────────────
     SELECT c.id INTO v_url_id
     FROM (
       -- Random sample (~10% of collection rows)
@@ -330,7 +330,7 @@ BEGIN
     LIMIT 1;
 
   ELSE
-    -- ΓöÇΓöÇ Standard mode (with optional subcategory pin or adjacent serving) ΓöÇΓöÇ
+    -- ── Standard mode (with optional subcategory pin or adjacent serving) ──
     SELECT c.id INTO v_url_id
     FROM (
       -- Random sample (~10% of the urls table)

@@ -1,5 +1,5 @@
 -- =============================================================================
--- roam() v35 ΓÇö Hoist domain LIKE checks out of the per-candidate loop
+-- roam() v35 — Hoist domain LIKE checks out of the per-candidate loop
 -- =============================================================================
 -- Problem (from ROAM_EXHAUSTED_INCIDENT.md):
 --   roam() ran 15-18s against an 8s ceiling. v34 (SYSTEM(2) sampling) got it to
@@ -18,7 +18,7 @@
 --      non-sampled fallback path.
 -- =============================================================================
 
--- ΓöÇΓöÇ 1. Covering partial index for candidate filtering ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+-- ── 1. Covering partial index for candidate filtering ───────────────────────
 -- `approved = TRUE` has zero selectivity (all 1.58M rows are approved), so this
 -- index is NOT for the TABLESAMPLE path (which scans the heap). It accelerates:
 --   - the pool-empty count check (lines ~473-490 in v31)
@@ -28,7 +28,7 @@ CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_urls_roam_candidate
 ON urls (category_id, subcategory_id, language)
 WHERE approved = TRUE AND wilson_score > -0.1;
 
--- ΓöÇΓöÇ 2. Redeploy roam() as v35 ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+-- ── 2. Redeploy roam() as v35 ────────────────────────────────────────────────
 DROP FUNCTION IF EXISTS public.roam(UUID, UUID, TEXT, UUID, UUID) CASCADE;
 DROP FUNCTION IF EXISTS public.roam(UUID, UUID, TEXT, UUID, UUID, TEXT[]) CASCADE;
 
@@ -83,7 +83,7 @@ BEGIN
     RAISE EXCEPTION 'Unauthorized';
   END IF;
 
-  -- ΓöÇΓöÇ Load user settings ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+  -- ── Load user settings ────────────────────────────────────────────────────
   SELECT
     COALESCE(s.preferred_languages, ARRAY['en']),
     COALESCE(s.skip_paywalled, FALSE),
@@ -96,7 +96,7 @@ BEGIN
   IF v_skip_paywall    IS NULL THEN v_skip_paywall    := FALSE;        END IF;
   IF v_discovery_mode  IS NULL THEN v_discovery_mode  := 'discovery';  END IF;
 
-  -- ΓöÇΓöÇ Merge exclude domains ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+  -- ── Merge exclude domains ─────────────────────────────────────────────────
   IF p_exclude_domains IS NOT NULL AND array_length(p_exclude_domains, 1) > 0 THEN
     v_excluded := p_exclude_domains;
     IF p_exclude_domain IS NOT NULL AND NOT p_exclude_domain = ANY(v_excluded) THEN
@@ -106,7 +106,7 @@ BEGIN
     v_excluded := ARRAY[p_exclude_domain];
   END IF;
 
-  -- ΓöÇΓöÇ Load exclusion sets as arrays ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+  -- ── Load exclusion sets as arrays ─────────────────────────────────────────
   SELECT array_agg(url_id)
   INTO   v_seen_ids
   FROM (
@@ -116,7 +116,7 @@ BEGIN
     LIMIT  3000
   ) t;
 
-  -- URLs the user rapidly skipped ΓÇö extend exclusion
+  -- URLs the user rapidly skipped — extend exclusion
   SELECT array_agg(url_id)
   INTO   v_skip_penalty_ids
   FROM   seen_urls
@@ -164,7 +164,7 @@ BEGIN
     FROM   paywalled_domains;
   END IF;
 
-  -- ΓöÇΓöÇ Expand category prefs into flat subcategory ID array ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+  -- ── Expand category prefs into flat subcategory ID array ──────────────────
   SELECT array_agg(DISTINCT sc.id)
   INTO   v_allowed_subcat_ids
   FROM   subcategories sc
@@ -185,7 +185,7 @@ BEGIN
   SELECT EXISTS (SELECT 1 FROM user_categories WHERE user_id = p_user_id)
   INTO v_has_categories;
 
-  -- ΓöÇΓöÇ Serendipity mode: 5% chance to pick from a never-seen subcategory ΓöÇΓöÇΓöÇΓöÇΓöÇ
+  -- ── Serendipity mode: 5% chance to pick from a never-seen subcategory ─────
   v_serendipity_subcat := NULL;
   IF v_discovery_mode = 'discovery'
      AND random() < 0.05
@@ -207,7 +207,7 @@ BEGIN
     LIMIT 1;
   END IF;
 
-  -- ΓöÇΓöÇ Deep Dive: narrow to top-3 subcategories by calibrated_weight ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+  -- ── Deep Dive: narrow to top-3 subcategories by calibrated_weight ─────────
   IF v_discovery_mode = 'deep_dive'
      AND p_subcategory_id IS NULL
      AND p_category_id    IS NULL
@@ -228,7 +228,7 @@ BEGIN
     END IF;
   END IF;
 
-  -- ΓöÇΓöÇ Discovery mode: 25% adjacent serving ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+  -- ── Discovery mode: 25% adjacent serving ──────────────────────────────────
   v_adjacent_subcat_id := NULL;
   IF v_discovery_mode = 'discovery'
      AND random() < 0.25
@@ -261,9 +261,9 @@ BEGIN
 
   v_effective_subcat_id := COALESCE(p_subcategory_id, v_adjacent_subcat_id, v_serendipity_subcat);
 
-  -- ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ
+  -- ═══════════════════════════════════════════════════════════════════════════
   --  COLLECTION MODE
-  -- ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ
+  -- ═══════════════════════════════════════════════════════════════════════════
   IF p_collection_id IS NOT NULL THEN
 
     -- v35: array membership checks instead of per-row NOT EXISTS LIKE subqueries
@@ -346,9 +346,9 @@ BEGIN
       LIMIT 1;
     END IF;
 
-  -- ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ
+  -- ═══════════════════════════════════════════════════════════════════════════
   --  STANDARD MODE
-  -- ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ
+  -- ═══════════════════════════════════════════════════════════════════════════
   ELSE
 
     -- v35: array membership checks instead of per-row NOT EXISTS LIKE subqueries
@@ -467,8 +467,8 @@ BEGIN
 
   END IF;
 
-  -- ΓöÇΓöÇ Pool-empty guard: before returning NULL, confirm there really aren't
-  --     any unseen URLs that match the user's criteria. ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+  -- ── Pool-empty guard: before returning NULL, confirm there really aren't
+  --     any unseen URLs that match the user's criteria. ──────────────────────
   IF v_url_id IS NULL THEN
     SELECT COUNT(*)
     INTO   v_pool_check
@@ -567,7 +567,7 @@ BEGIN
     END IF;
   END IF;
 
-  -- ΓöÇΓöÇ Post-filter: apply the subdomain LIKE pattern to the single candidate ΓöÇ
+  -- ── Post-filter: apply the subdomain LIKE pattern to the single candidate ─
   -- The per-row NOT EXISTS LIKE subqueries were hoisted out of the candidate
   -- loop. Now that we have a single candidate, check whether its domain is a
   -- subdomain of any suppressed/excluded base domain. If so, discard it and
@@ -590,7 +590,7 @@ BEGIN
     END IF;
   END IF;
 
-  -- ΓöÇΓöÇ Record seen + domain cooldown ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+  -- ── Record seen + domain cooldown ─────────────────────────────────────────
   IF v_url_id IS NOT NULL THEN
     INSERT INTO seen_urls (user_id, url_id)
     VALUES (p_user_id, v_url_id)

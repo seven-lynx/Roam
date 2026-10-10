@@ -84,7 +84,7 @@ export function LevelProgress({ level, xpTotal, streakDays, maxStreak, badgeCoun
           <p className="text-xs text-gray-500 dark:text-gray-400">Badges</p>
         </div>
         <div className="flex-1 border-l border-gray-100 dark:border-gray-800">
-          <p className="text-lg font-bold text-gray-900 dark:text-white">≡ƒöÑ {streakDays}</p>
+          <p className="text-lg font-bold text-gray-900 dark:text-white">🔥 {streakDays}</p>
           <p className="text-xs text-gray-500 dark:text-gray-400">Day Streak</p>
         </div>
         <div className="flex-1 border-l border-gray-100 dark:border-gray-800">

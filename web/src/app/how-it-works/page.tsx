@@ -3,7 +3,7 @@ import Image from "next/image";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "How Roam Works ΓÇö Rediscover the Web",
+  title: "How Roam Works — Rediscover the Web",
   description:
     "Roam balances community quality, editorial signal, your taste, freshness, and exploration to pick pages you'll enjoy. No algorithms, no feeds, no noise.",
 };
@@ -26,7 +26,7 @@ export default function HowItWorks() {
           </h1>
           <p className="text-lg text-zinc-500 dark:text-zinc-400 max-w-xl leading-relaxed">
             One button. One page. A discovery engine that balances community
-            quality, your taste, and serendipity ΓÇö without any algorithmic feed.
+            quality, your taste, and serendipity — without any algorithmic feed.
           </p>
         </section>
 
@@ -34,10 +34,10 @@ export default function HowItWorks() {
         <section className="text-left bg-zinc-50 dark:bg-zinc-900/50 rounded-2xl border border-zinc-200 dark:border-zinc-800 p-6">
           <h2 className="text-lg font-bold text-zinc-900 dark:text-white mb-3">TL;DR</h2>
           <ul className="text-sm text-zinc-600 dark:text-zinc-300 space-y-2 list-disc list-inside">
-            <li>Press <strong className="text-zinc-900 dark:text-white">Roam</strong> ΓåÆ land on a curated page</li>
-            <li>Rate ≡ƒæì≡ƒæÄ ΓåÆ your taste shapes future discoveries</li>
+            <li>Press <strong className="text-zinc-900 dark:text-white">Roam</strong> → land on a curated page</li>
+            <li>Rate 👍👎 → your taste shapes future discoveries</li>
             <li>Five signals decide what you see: community votes, editorial quality, your preferences, freshness, and serendipity</li>
-            <li>Downvote a domain twice ΓåÆ auto-muted for 30 days</li>
+            <li>Downvote a domain twice → auto-muted for 30 days</li>
             <li>Open source, community-curated, no algorithms optimizing for engagement</li>
           </ul>
         </section>
@@ -69,7 +69,7 @@ export default function HowItWorks() {
           </h2>
           <div className="grid gap-5 text-zinc-600 dark:text-zinc-300 leading-relaxed">
             <div className="flex gap-3">
-              <span className="text-2xl shrink-0">≡ƒöÿ</span>
+              <span className="text-2xl shrink-0">🔘</span>
               <p>
                 <strong className="text-zinc-900 dark:text-white">
                   Press the button.
@@ -79,7 +79,7 @@ export default function HowItWorks() {
               </p>
             </div>
             <div className="flex gap-3">
-              <span className="text-2xl shrink-0">≡ƒæì</span>
+              <span className="text-2xl shrink-0">👍</span>
               <p>
                 <strong className="text-zinc-900 dark:text-white">
                   Rate what you see.
@@ -89,7 +89,7 @@ export default function HowItWorks() {
               </p>
             </div>
             <div className="flex gap-3">
-              <span className="text-2xl shrink-0">≡ƒÆ╛</span>
+              <span className="text-2xl shrink-0">💾</span>
               <p>
                 <strong className="text-zinc-900 dark:text-white">
                   Save for later.
@@ -99,7 +99,7 @@ export default function HowItWorks() {
               </p>
             </div>
             <div className="flex gap-3">
-              <span className="text-2xl shrink-0">≡ƒöü</span>
+              <span className="text-2xl shrink-0">🔁</span>
               <p>
                 <strong className="text-zinc-900 dark:text-white">
                   Roam again.
@@ -123,7 +123,7 @@ export default function HowItWorks() {
           </p>
           <div className="grid sm:grid-cols-2 gap-5">
             <div className="border border-zinc-200 dark:border-zinc-800 rounded-xl p-5">
-              <div className="text-2xl mb-2">≡ƒÅå</div>
+              <div className="text-2xl mb-2">🏆</div>
               <h3 className="font-semibold text-zinc-900 dark:text-white mb-1">
                 Community quality
               </h3>
@@ -134,29 +134,29 @@ export default function HowItWorks() {
               </p>
             </div>
             <div className="border border-zinc-200 dark:border-zinc-800 rounded-xl p-5">
-              <div className="text-2xl mb-2">≡ƒô░</div>
+              <div className="text-2xl mb-2">📰</div>
               <h3 className="font-semibold text-zinc-900 dark:text-white mb-1">
                 Editorial signal
               </h3>
               <p className="text-sm text-zinc-500 dark:text-zinc-400 leading-relaxed">
-                Source reputation ΓÇö HN score, citation count, Reddit karma, and
-                more ΓÇö gives an independent quality baseline before any Roam
+                Source reputation — HN score, citation count, Reddit karma, and
+                more — gives an independent quality baseline before any Roam
                 user even votes.
               </p>
             </div>
             <div className="border border-zinc-200 dark:border-zinc-800 rounded-xl p-5">
-              <div className="text-2xl mb-2">≡ƒÄ»</div>
+              <div className="text-2xl mb-2">🎯</div>
               <h3 className="font-semibold text-zinc-900 dark:text-white mb-1">
                 Your taste
               </h3>
               <p className="text-sm text-zinc-500 dark:text-zinc-400 leading-relaxed">
-                Topics you upvote appear more often (up to 2├ù weight).
-                Downvoting doesn&rsquo;t hide a topic ΓÇö it just dials the weight
+                Topics you upvote appear more often (up to 2× weight).
+                Downvoting doesn&rsquo;t hide a topic — it just dials the weight
                 back slightly. Calibrated per subcategory.
               </p>
             </div>
             <div className="border border-zinc-200 dark:border-zinc-800 rounded-xl p-5">
-              <div className="text-2xl mb-2">≡ƒòÉ</div>
+              <div className="text-2xl mb-2">🕐</div>
               <h3 className="font-semibold text-zinc-900 dark:text-white mb-1">
                 Freshness
               </h3>
@@ -168,7 +168,7 @@ export default function HowItWorks() {
             </div>
           </div>
           <div className="mt-5 border border-zinc-200 dark:border-zinc-800 rounded-xl p-5">
-            <div className="text-2xl mb-2">≡ƒÄ▓</div>
+            <div className="text-2xl mb-2">🎲</div>
             <h3 className="font-semibold text-zinc-900 dark:text-white mb-1">
               Exploration bonus
             </h3>
@@ -187,21 +187,21 @@ export default function HowItWorks() {
           </h2>
           <div className="grid sm:grid-cols-2 gap-5 text-zinc-600 dark:text-zinc-300">
             <div className="flex gap-3">
-              <span className="text-2xl shrink-0">≡ƒÄÜ∩╕Å</span>
+              <span className="text-2xl shrink-0">🎚️</span>
               <div>
                 <h3 className="font-semibold text-zinc-900 dark:text-white mb-1">
                   Topic affinity
                 </h3>
                 <p className="text-sm leading-relaxed">
                   Your upvotes and downvotes calibrate how often each
-                  subcategory appears. Fine-grained ΓÇö the system tracks
+                  subcategory appears. Fine-grained — the system tracks
                   preferences across 70+ subcategories like Science, Art, and
                   Gaming.
                 </p>
               </div>
             </div>
             <div className="flex gap-3">
-              <span className="text-2xl shrink-0">≡ƒöç</span>
+              <span className="text-2xl shrink-0">🔇</span>
               <div>
                 <h3 className="font-semibold text-zinc-900 dark:text-white mb-1">
                   Domain muting
@@ -214,7 +214,7 @@ export default function HowItWorks() {
               </div>
             </div>
             <div className="flex gap-3">
-              <span className="text-2xl shrink-0">ΓÅ▒∩╕Å</span>
+              <span className="text-2xl shrink-0">⏱️</span>
               <div>
                 <h3 className="font-semibold text-zinc-900 dark:text-white mb-1">
                   Domain cooldown
@@ -226,7 +226,7 @@ export default function HowItWorks() {
               </div>
             </div>
             <div className="flex gap-3">
-              <span className="text-2xl shrink-0">≡ƒÄ»</span>
+              <span className="text-2xl shrink-0">🎯</span>
               <div>
                 <h3 className="font-semibold text-zinc-900 dark:text-white mb-1">
                   Focus & collection modes
@@ -247,7 +247,7 @@ export default function HowItWorks() {
           </h2>
           <div className="grid gap-4 text-zinc-600 dark:text-zinc-300 leading-relaxed">
             <div className="flex gap-3">
-              <span className="text-2xl shrink-0">≡ƒôñ</span>
+              <span className="text-2xl shrink-0">📤</span>
               <p>
                 <strong className="text-zinc-900 dark:text-white">
                   Submit pages.
@@ -257,18 +257,18 @@ export default function HowItWorks() {
               </p>
             </div>
             <div className="flex gap-3">
-              <span className="text-2xl shrink-0">≡ƒôè</span>
+              <span className="text-2xl shrink-0">📊</span>
               <p>
                 <strong className="text-zinc-900 dark:text-white">
                   Wilson score ranking.
                 </strong>{" "}
                 Every vote recalculates the page&rsquo;s community score
-                automatically. No cron jobs, no batch processing ΓÇö rankings are
+                automatically. No cron jobs, no batch processing — rankings are
                 always live.
               </p>
             </div>
             <div className="flex gap-3">
-              <span className="text-2xl shrink-0">≡ƒôé</span>
+              <span className="text-2xl shrink-0">📂</span>
               <p>
                 <strong className="text-zinc-900 dark:text-white">
                   Public and private collections.
@@ -277,7 +277,7 @@ export default function HowItWorks() {
               </p>
             </div>
               <div className="flex gap-3">
-              <span className="text-2xl shrink-0">≡ƒæÑ</span>
+              <span className="text-2xl shrink-0">👥</span>
               <p>
                 <strong className="text-zinc-900 dark:text-white">
                   Follow users.
@@ -296,14 +296,14 @@ export default function HowItWorks() {
           </h2>
           <div className="grid sm:grid-cols-3 gap-5">
             <div className="border border-zinc-200 dark:border-zinc-800 rounded-xl p-5">
-              <div className="text-3xl mb-3">≡ƒº⌐</div>
+              <div className="text-3xl mb-3">🧩</div>
               <h3 className="font-semibold text-zinc-900 dark:text-white mb-2">
                 Browser extension
               </h3>
               <p className="text-sm text-zinc-500 dark:text-zinc-400 leading-relaxed mb-4">
                 Click the roam button while browsing to discover new pages. Rate
-                pages with ≡ƒæì≡ƒæÄ to personalize your recommendations. Deliberately
-                non-intrusive ΓÇö nothing is injected into pages you visit.
+                pages with 👍👎 to personalize your recommendations. Deliberately
+                non-intrusive — nothing is injected into pages you visit.
               </p>
               <div className="flex gap-2">
                 <a
@@ -312,7 +312,7 @@ export default function HowItWorks() {
                   rel="noopener noreferrer"
                   className="text-blue-600 hover:underline text-sm font-semibold"
                 >
-                  Chrome ΓåÆ
+                  Chrome →
                 </a>
                 <a
                   href="https://addons.mozilla.org/firefox/addon/roam-the-web/"
@@ -320,12 +320,12 @@ export default function HowItWorks() {
                   rel="noopener noreferrer"
                   className="text-blue-600 hover:underline text-sm font-semibold"
                 >
-                  Firefox ΓåÆ
+                  Firefox →
                 </a>
               </div>
             </div>
             <div className="border border-zinc-200 dark:border-zinc-800 rounded-xl p-5">
-              <div className="text-3xl mb-3">≡ƒô▒</div>
+              <div className="text-3xl mb-3">📱</div>
               <h3 className="font-semibold text-zinc-900 dark:text-white mb-2">
                 Android app
               </h3>
@@ -338,13 +338,13 @@ export default function HowItWorks() {
               </span>
             </div>
             <div className="border border-zinc-200 dark:border-zinc-800 rounded-xl p-5">
-              <div className="text-3xl mb-3">≡ƒîÉ</div>
+              <div className="text-3xl mb-3">🌐</div>
               <h3 className="font-semibold text-zinc-900 dark:text-white mb-2">
                 Web
               </h3>
               <p className="text-sm text-zinc-500 dark:text-zinc-400 leading-relaxed">
                 Manage your account, set your interests, browse collections, and
-                moderate submissions ΓÇö all from the web dashboard.
+                moderate submissions — all from the web dashboard.
               </p>
             </div>
           </div>
@@ -358,8 +358,8 @@ export default function HowItWorks() {
 
           <details className="border border-zinc-200 dark:border-zinc-800 rounded-xl p-4 mb-3 group">
             <summary className="font-medium text-zinc-900 dark:text-white cursor-pointer list-none">
-              <span className="mr-2 text-zinc-400 group-open:hidden">ΓåÆ</span>
-              <span className="mr-2 text-zinc-400 hidden group-open:inline">Γåô</span>
+              <span className="mr-2 text-zinc-400 group-open:hidden">→</span>
+              <span className="mr-2 text-zinc-400 hidden group-open:inline">↓</span>
               Why did I see the same page twice?
             </summary>
             <p className="mt-3 text-sm text-zinc-600 dark:text-zinc-400 leading-relaxed">
@@ -372,8 +372,8 @@ export default function HowItWorks() {
 
           <details className="border border-zinc-200 dark:border-zinc-800 rounded-xl p-4 mb-3 group">
             <summary className="font-medium text-zinc-900 dark:text-white cursor-pointer list-none">
-              <span className="mr-2 text-zinc-400 group-open:hidden">ΓåÆ</span>
-              <span className="mr-2 text-zinc-400 hidden group-open:inline">Γåô</span>
+              <span className="mr-2 text-zinc-400 group-open:hidden">→</span>
+              <span className="mr-2 text-zinc-400 hidden group-open:inline">↓</span>
               How do I stop seeing a particular site?
             </summary>
             <p className="mt-3 text-sm text-zinc-600 dark:text-zinc-400 leading-relaxed">
@@ -385,12 +385,12 @@ export default function HowItWorks() {
 
           <details className="border border-zinc-200 dark:border-zinc-800 rounded-xl p-4 mb-3 group">
             <summary className="font-medium text-zinc-900 dark:text-white cursor-pointer list-none">
-              <span className="mr-2 text-zinc-400 group-open:hidden">ΓåÆ</span>
-              <span className="mr-2 text-zinc-400 hidden group-open:inline">Γåô</span>
+              <span className="mr-2 text-zinc-400 group-open:hidden">→</span>
+              <span className="mr-2 text-zinc-400 hidden group-open:inline">↓</span>
               How do I submit a URL?
             </summary>
             <p className="mt-3 text-sm text-zinc-600 dark:text-zinc-400 leading-relaxed">
-              Click &ldquo;Submit URL&rdquo; from your profile, or use the ≡ƒæì button on an
+              Click &ldquo;Submit URL&rdquo; from your profile, or use the 👍 button on an
               unknown page in the browser extension or Android app. All submissions go
               through moderation before appearing in the discovery pool. Max 10 per hour.
             </p>
@@ -398,25 +398,25 @@ export default function HowItWorks() {
 
           <details className="border border-zinc-200 dark:border-zinc-800 rounded-xl p-4 mb-3 group">
             <summary className="font-medium text-zinc-900 dark:text-white cursor-pointer list-none">
-              <span className="mr-2 text-zinc-400 group-open:hidden">ΓåÆ</span>
-              <span className="mr-2 text-zinc-400 hidden group-open:inline">Γåô</span>
+              <span className="mr-2 text-zinc-400 group-open:hidden">→</span>
+              <span className="mr-2 text-zinc-400 hidden group-open:inline">↓</span>
               What happens if I downvote everything?
             </summary>
             <p className="mt-3 text-sm text-zinc-600 dark:text-zinc-400 leading-relaxed">
-              Downvoting doesn&rsquo;t block topics ΓÇö it just slightly reduces how often
-              they appear (the weight goes from 1├ù to 0.8├ù). If you truly dislike a site,
+              Downvoting doesn&rsquo;t block topics — it just slightly reduces how often
+              they appear (the weight goes from 1× to 0.8×). If you truly dislike a site,
               two downvotes from the same domain mutes it for 30 days.
             </p>
           </details>
 
           <details className="border border-zinc-200 dark:border-zinc-800 rounded-xl p-4 mb-3 group">
             <summary className="font-medium text-zinc-900 dark:text-white cursor-pointer list-none">
-              <span className="mr-2 text-zinc-400 group-open:hidden">ΓåÆ</span>
-              <span className="mr-2 text-zinc-400 hidden group-open:inline">Γåô</span>
+              <span className="mr-2 text-zinc-400 group-open:hidden">→</span>
+              <span className="mr-2 text-zinc-400 hidden group-open:inline">↓</span>
               Is Roam really open source?
             </summary>
             <p className="mt-3 text-sm text-zinc-600 dark:text-zinc-400 leading-relaxed">
-              Yes ΓÇö the source code for the website, browser extension, and Android app is
+              Yes — the source code for the website, browser extension, and Android app is
               available under the MIT license on{' '}
               <a
                 href="https://github.com/seven-lynx/Roam"
@@ -433,8 +433,8 @@ export default function HowItWorks() {
 
           <details className="border border-zinc-200 dark:border-zinc-800 rounded-xl p-4 mb-3 group">
             <summary className="font-medium text-zinc-900 dark:text-white cursor-pointer list-none">
-              <span className="mr-2 text-zinc-400 group-open:hidden">ΓåÆ</span>
-              <span className="mr-2 text-zinc-400 hidden group-open:inline">Γåô</span>
+              <span className="mr-2 text-zinc-400 group-open:hidden">→</span>
+              <span className="mr-2 text-zinc-400 hidden group-open:inline">↓</span>
               Can I use Roam without an account?
             </summary>
             <p className="mt-3 text-sm text-zinc-600 dark:text-zinc-400 leading-relaxed">

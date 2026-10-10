@@ -13,13 +13,13 @@
 -- 2. SUBCATEGORY AFFINITY
 --    Each upvote on a URL increases the user's affinity score for that URL's
 --    subcategory; downvotes decrease it. roam() multiplies wilson_score by
---    (1 + 0.3 ├ù clamp(affinity, 0, 10) / 10) ΓÇö up to +30% for subcategories
+--    (1 + 0.3 × clamp(affinity, 0, 10) / 10) — up to +30% for subcategories
 --    the user has consistently upvoted. Negative affinity is clamped to 0:
 --    it never suppresses content (domain suppression handles repeated dislikes).
 --    A trigger on `ratings` maintains the table; existing ratings are backfilled.
 -- =============================================================================
 
--- ΓöÇΓöÇ 1. user_suppressed_domains ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+-- ── 1. user_suppressed_domains ───────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS public.user_suppressed_domains (
   user_id          UUID        NOT NULL REFERENCES auth.users ON DELETE CASCADE,
   domain           TEXT        NOT NULL,
@@ -36,7 +36,7 @@ CREATE POLICY "suppressed_domains: users can read own"
   ON public.user_suppressed_domains FOR SELECT
   USING (auth.uid() = user_id);
 
--- ΓöÇΓöÇ 2. user_subcategory_affinity ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+-- ── 2. user_subcategory_affinity ─────────────────────────────────────────────
 -- score = running sum of votes (+1 / -1) for URLs in that subcategory.
 CREATE TABLE IF NOT EXISTS public.user_subcategory_affinity (
   user_id        UUID   NOT NULL REFERENCES auth.users    ON DELETE CASCADE,
@@ -50,7 +50,7 @@ CREATE POLICY "affinity: users can read own"
   ON public.user_subcategory_affinity FOR SELECT
   USING (auth.uid() = user_id);
 
--- ΓöÇΓöÇ 3. Trigger: maintain domain suppression ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+-- ── 3. Trigger: maintain domain suppression ──────────────────────────────────
 CREATE OR REPLACE FUNCTION public.update_domain_suppression()
 RETURNS TRIGGER LANGUAGE plpgsql SECURITY DEFINER
 SET search_path = public AS $$
@@ -99,7 +99,7 @@ CREATE TRIGGER trg_ratings_domain_suppression
   AFTER INSERT OR UPDATE OR DELETE ON public.ratings
   FOR EACH ROW EXECUTE FUNCTION public.update_domain_suppression();
 
--- ΓöÇΓöÇ 4. Trigger: maintain subcategory affinity ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+-- ── 4. Trigger: maintain subcategory affinity ────────────────────────────────
 CREATE OR REPLACE FUNCTION public.update_subcategory_affinity()
 RETURNS TRIGGER LANGUAGE plpgsql SECURITY DEFINER
 SET search_path = public AS $$
@@ -115,7 +115,7 @@ BEGIN
   ELSIF TG_OP = 'UPDATE' THEN
     SELECT subcategory_id INTO v_subcat_id FROM urls WHERE id = NEW.url_id;
     v_uid   := NEW.user_id;
-    v_delta := NEW.value - OLD.value;  -- e.g. flip +1ΓåÆ-1 gives delta = -2
+    v_delta := NEW.value - OLD.value;  -- e.g. flip +1→-1 gives delta = -2
   ELSE -- DELETE
     SELECT subcategory_id INTO v_subcat_id FROM urls WHERE id = OLD.url_id;
     v_uid   := OLD.user_id;
@@ -139,7 +139,7 @@ CREATE TRIGGER trg_ratings_subcategory_affinity
   AFTER INSERT OR UPDATE OR DELETE ON public.ratings
   FOR EACH ROW EXECUTE FUNCTION public.update_subcategory_affinity();
 
--- ΓöÇΓöÇ 5. Backfill from existing ratings ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+-- ── 5. Backfill from existing ratings ────────────────────────────────────────
 
 -- Affinity backfill
 INSERT INTO user_subcategory_affinity (user_id, subcategory_id, score)
@@ -162,7 +162,7 @@ GROUP  BY r.user_id, u.domain
 HAVING COUNT(*) >= 2
 ON CONFLICT (user_id, domain) DO NOTHING;
 
--- ΓöÇΓöÇ 6. roam() v5: affinity-weighted + domain suppression ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+-- ── 6. roam() v5: affinity-weighted + domain suppression ─────────────────────
 DROP FUNCTION IF EXISTS public.roam(UUID, UUID, TEXT) CASCADE;
 
 CREATE FUNCTION public.roam(
@@ -195,7 +195,7 @@ BEGIN
     RAISE EXCEPTION 'Unauthorized';
   END IF;
 
-  -- ΓöÇΓöÇ Load user settings ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+  -- ── Load user settings ────────────────────────────────────────────────────
   SELECT
     COALESCE(s.preferred_languages, ARRAY['en']),
     COALESCE(s.skip_paywalled, FALSE)
@@ -206,7 +206,7 @@ BEGIN
   IF v_langs        IS NULL THEN v_langs        := ARRAY['en']; END IF;
   IF v_skip_paywall IS NULL THEN v_skip_paywall := FALSE;       END IF;
 
-  -- ΓöÇΓöÇ Expand category prefs into flat subcategory ID array ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+  -- ── Expand category prefs into flat subcategory ID array ─────────────────
   SELECT array_agg(DISTINCT sc.id)
   INTO   v_allowed_subcat_ids
   FROM   subcategories sc
@@ -228,7 +228,7 @@ BEGIN
   INTO v_has_categories;
 
   IF p_collection_id IS NOT NULL THEN
-    -- ΓöÇΓöÇ Collection mode ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+    -- ── Collection mode ──────────────────────────────────────────────────────
     SELECT c.id INTO v_url_id
     FROM (
       -- Random sample
@@ -292,7 +292,7 @@ BEGIN
     LIMIT 1;
 
   ELSE
-    -- ΓöÇΓöÇ Standard mode ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+    -- ── Standard mode ────────────────────────────────────────────────────────
     SELECT c.id INTO v_url_id
     FROM (
       -- Random sample (~10% of table pages, different every call)

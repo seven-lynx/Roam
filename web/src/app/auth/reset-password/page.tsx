@@ -11,7 +11,7 @@ export default function ResetPasswordPage() {
   return (
     <Suspense fallback={
       <div className="flex min-h-[calc(100vh-8rem)] flex-col items-center justify-center px-6 py-16 bg-white dark:bg-zinc-950">
-        <p className="text-sm text-zinc-500">Verifying linkΓÇª</p>
+        <p className="text-sm text-zinc-500">Verifying link…</p>
       </div>
     }>
       <ResetPasswordContent />
@@ -98,15 +98,15 @@ function ResetPasswordContent() {
           <div className="text-center flex flex-col gap-4">
             <p className="text-sm text-red-600">{initError}</p>
             <Link href="/forgot-password" className="text-sm text-zinc-500 hover:text-zinc-900 dark:hover:text-white transition-colors">
-              Request a new reset link ΓåÆ
+              Request a new reset link →
             </Link>
           </div>
         ) : success ? (
           <p className="text-center text-sm text-green-600 dark:text-green-400">
-            Password updated. Redirecting to your profileΓÇª
+            Password updated. Redirecting to your profile…
           </p>
         ) : !sessionReady ? (
-          <p className="text-center text-sm text-zinc-500">Verifying linkΓÇª</p>
+          <p className="text-center text-sm text-zinc-500">Verifying link…</p>
         ) : (
           <form onSubmit={handleSubmit} className="flex flex-col gap-4" noValidate>
             {error && (
@@ -152,7 +152,7 @@ function ResetPasswordContent() {
               disabled={loading || !isValid}
               className="w-full rounded-lg bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 py-2.5 text-sm font-semibold hover:opacity-90 transition-opacity disabled:opacity-40"
             >
-              {loading ? 'UpdatingΓÇª' : 'Update password'}
+              {loading ? 'Updating…' : 'Update password'}
             </button>
           </form>
         )}

@@ -16,11 +16,11 @@ export const DEBUG = {
       chrome.storage.local.get(['url_queue'], (result) => {
         const q = result.url_queue;
         if (!q) {
-          console.log('Γ¥î Queue not initialized');
+          console.log('❌ Queue not initialized');
           resolve(null);
           return;
         }
-        console.log(`≡ƒôè Queue State:`);
+        console.log(`📊 Queue State:`);
         console.log(`   Hot: ${q.hot.length}/3`);
         console.log(`   Warming: ${q.warming.length}/5`);
         console.table(q.hot.map((u: any) => ({
@@ -48,10 +48,10 @@ export const DEBUG = {
     return new Promise((resolve) => {
       chrome.runtime.sendMessage({ type: 'GET_STATE' }, (res: any) => {
         if (res.ok && res.data.signedIn) {
-          console.log(`Γ£à Signed in as: ${res.data.email}`);
+          console.log(`✅ Signed in as: ${res.data.email}`);
           console.log(`   User ID: ${res.data.userId}`);
         } else {
-          console.log('Γ¥î Not signed in');
+          console.log('❌ Not signed in');
         }
         resolve(res.data);
       });
@@ -65,7 +65,7 @@ export const DEBUG = {
     return new Promise((resolve) => {
       chrome.storage.local.get(['saved_urls'], (result) => {
         const saved = result.saved_urls || [];
-        console.log(`≡ƒôî Saved URLs (${saved.length}):`);
+        console.log(`📌 Saved URLs (${saved.length}):`);
         saved.forEach((url: string, i: number) => {
           console.log(`   ${i + 1}. ${url}`);
         });
@@ -81,7 +81,7 @@ export const DEBUG = {
     return new Promise((resolve) => {
       chrome.storage.local.get(['skip_paywalled'], (result) => {
         const skip = result.skip_paywalled ?? false;
-        console.log(`≡ƒöÆ Skip paywalled: ${skip ? 'Γ£à ON' : 'Γ¥î OFF'}`);
+        console.log(`🔒 Skip paywalled: ${skip ? '✅ ON' : '❌ OFF'}`);
         resolve(skip);
       });
     });
@@ -91,13 +91,13 @@ export const DEBUG = {
    * Send a message to background and log
    */
   async send(req: any) {
-    console.log(`≡ƒôñ Sending:`, req);
+    console.log(`📤 Sending:`, req);
     return new Promise((resolve) => {
       chrome.runtime.sendMessage(req, (res: any) => {
         if (res.ok) {
-          console.log(`Γ£à Response:`, res.data);
+          console.log(`✅ Response:`, res.data);
         } else {
-          console.error(`Γ¥î Error:`, res.error);
+          console.error(`❌ Error:`, res.error);
         }
         resolve(res);
       });
@@ -109,7 +109,7 @@ export const DEBUG = {
    */
   async clearStorage() {
     chrome.storage.local.clear(() => {
-      console.log('≡ƒùæ∩╕Å  Storage cleared');
+      console.log('🗑️  Storage cleared');
     });
   },
 
@@ -119,7 +119,7 @@ export const DEBUG = {
   async getAllStorage() {
     return new Promise((resolve) => {
       chrome.storage.local.get(null, (result) => {
-        console.log('≡ƒôª All Storage:');
+        console.log('📦 All Storage:');
         Object.entries(result).forEach(([key, value]: [string, any]) => {
           if (typeof value === 'object') {
             console.log(`   ${key}:`, value);
@@ -136,10 +136,10 @@ export const DEBUG = {
    * Test a single roam call
    */
   async testRoam() {
-    console.log('≡ƒÄ» Testing Roam...');
+    console.log('🎯 Testing Roam...');
     const res = await this.send({ type: 'ROAM' });
     if (res.ok) {
-      console.log(`Γ£à Got URL: ${res.data.url}`);
+      console.log(`✅ Got URL: ${res.data.url}`);
     }
     return res;
   },
@@ -148,10 +148,10 @@ export const DEBUG = {
    * Test get collections
    */
   async testGetCollections() {
-    console.log('≡ƒôÜ Testing Get Collections...');
+    console.log('📚 Testing Get Collections...');
     const res = await this.send({ type: 'GET_COLLECTIONS' });
     if (res.ok) {
-      console.log(`Γ£à Collections (${res.data.length}):`);
+      console.log(`✅ Collections (${res.data.length}):`);
       res.data.forEach((c: any) => {
         console.log(`   - ${c.name} (${c.item_count} items)`);
       });
@@ -163,10 +163,10 @@ export const DEBUG = {
    * Test create collection
    */
   async testCreateCollection(name: string) {
-    console.log(`≡ƒô¥ Testing Create Collection: "${name}"...`);
+    console.log(`📝 Testing Create Collection: "${name}"...`);
     const res = await this.send({ type: 'CREATE_COLLECTION', name });
     if (res.ok) {
-      console.log(`Γ£à Created: ${res.data.name} (ID: ${res.data.id.slice(0, 8)}...)`);
+      console.log(`✅ Created: ${res.data.name} (ID: ${res.data.id.slice(0, 8)}...)`);
     }
     return res;
   },
@@ -175,10 +175,10 @@ export const DEBUG = {
    * Test check URL
    */
   async testCheckUrl(url: string) {
-    console.log(`≡ƒöì Testing Check URL: ${url}...`);
+    console.log(`🔍 Testing Check URL: ${url}...`);
     const res = await this.send({ type: 'CHECK_URL', url });
     if (res.ok) {
-      console.log(`Γ£à Known: ${res.data.known}, Category: ${res.data.category_id}`);
+      console.log(`✅ Known: ${res.data.known}, Category: ${res.data.category_id}`);
     }
     return res;
   },
@@ -187,10 +187,10 @@ export const DEBUG = {
    * Test save later
    */
   async testSaveLater(url: string) {
-    console.log(`≡ƒÆ╛ Testing Save Later: ${url}...`);
+    console.log(`💾 Testing Save Later: ${url}...`);
     const res = await this.send({ type: 'SAVE_LATER', url });
     if (res.ok) {
-      console.log(`Γ£à Saved`);
+      console.log(`✅ Saved`);
     }
     return res;
   },
@@ -200,7 +200,7 @@ export const DEBUG = {
    */
   help() {
     console.log(`
-≡ƒöº Roam Extension Debug Tools
+🔧 Roam Extension Debug Tools
 
 Queue & Storage:
   DEBUG.getQueueState()      - Show queue status (hot/warming)
@@ -235,4 +235,4 @@ if (process.env.NODE_ENV === 'development') {
 }
 
 // Also log help on load
-console.log('≡ƒÜÇ Debug tools loaded! Type: DEBUG.help()');
+console.log('🚀 Debug tools loaded! Type: DEBUG.help()');

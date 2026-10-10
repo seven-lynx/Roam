@@ -1,4 +1,4 @@
-// env.ts ΓÇö Build-time environment validation for the Roam extension.
+// env.ts — Build-time environment validation for the Roam extension.
 // Variables are injected by esbuild `define` in build.mjs.
 // Called once at SW startup; throws immediately with a clear message if required vars are absent.
 
@@ -16,5 +16,5 @@ export function validateEnvironment(): void {
   if (!key)
     throw new Error('[roam] SUPABASE_ANON_KEY is missing. Set it in the root .env file.');
   if (!dsn)
-    console.warn('[roam] SENTRY_DSN not set ΓÇö error reporting disabled.');
+    console.warn('[roam] SENTRY_DSN not set — error reporting disabled.');
 }

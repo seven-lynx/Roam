@@ -106,7 +106,7 @@ export function Footer() {
 
         {/* Bottom bar */}
         <div className="mt-10 pt-6 border-t border-zinc-200 dark:border-zinc-800 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-zinc-400">
-          <span>┬⌐ {year} Roam. All rights reserved.</span>
+          <span>© {year} Roam. All rights reserved.</span>
           <div className="flex items-center gap-4">
             <a
               href="https://github.com/seven-lynx/Roam"

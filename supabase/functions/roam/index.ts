@@ -13,7 +13,7 @@ const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
 const SUPABASE_ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY')!
 const report = initSentry('roam')
 
-// ΓöÇΓöÇ In-memory circuit breaker ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+// ── In-memory circuit breaker ────────────────────────────────────────────────
 // If roam() fails repeatedly (e.g. a migration raises on every call), short-
 // circuit requests to a fast 503 instead of letting each one burn a DB
 // connection until statement_timeout. Per-isolate state; a fleet-wide outage
@@ -63,7 +63,7 @@ Deno.serve(async (req) => {
       return json({ error: 'Invalid JSON' }, 400)
     }
     
-    // ΓöÇΓöÇ Diagnostic ping: returns user + RPC test to isolate failure ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+    // ── Diagnostic ping: returns user + RPC test to isolate failure ──────────
     if (body.diag === true) {
       const testResult = await supabase.rpc('roam', { p_user_id: user.id })
       return json({ ok: true, user_id: user.id, user_email: user.email, rpc_data: testResult.data, rpc_error: testResult.error }, 200)
@@ -89,13 +89,13 @@ Deno.serve(async (req) => {
     if (categoryId)     rpcParams.p_category_id     = categoryId
     if (subcategoryId)  rpcParams.p_subcategory_id  = subcategoryId
 
-    // ΓöÇΓöÇ Circuit breaker: fail fast instead of hammering a broken RPC ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+    // ── Circuit breaker: fail fast instead of hammering a broken RPC ─────────
     if (isCircuitOpen()) {
       return json({ error: 'Discovery temporarily unavailable. Please try again.', retryable: true }, 503)
     }
 
-    // ΓöÇΓöÇ Batch discovery (sequential) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
-    // Calls the roam RPC sequentially ΓÇö parallelization is left to the caller
+    // ── Batch discovery (sequential) ──────────────────────────────────────────
+    // Calls the roam RPC sequentially — parallelization is left to the caller
     // (Android prefetch loop) to avoid overwhelming DB connection pools.
     const isPrefetch = body.prefetch === true
     let timedOut = false

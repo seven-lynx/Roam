@@ -35,7 +35,7 @@ export default function ModerationActions({ item }: { item: QueueItem }) {
   if (status === "done") {
     return (
       <span className={`text-sm font-medium ${decision === "approved" ? "text-green-600" : "text-red-500"}`}>
-        {decision === "approved" ? "Γ£ô Approved" : "Γ£ù Rejected"}
+        {decision === "approved" ? "✓ Approved" : "✗ Rejected"}
       </span>
     );
   }

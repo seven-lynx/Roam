@@ -17,7 +17,7 @@ function originAllowed(origin: string): boolean {
 
 export function getCorsHeaders(origin: string | null): Record<string, string> {
   // When the origin is missing or unverified, do NOT echo back a wildcard or
-  // a default-allowed origin ΓÇö that's a CORS bypass. Return empty string
+  // a default-allowed origin — that's a CORS bypass. Return empty string
   // instead so the browser rejects the response.
   const allowed = origin && originAllowed(origin) ? origin : '';
   return {
@@ -29,7 +29,7 @@ export function getCorsHeaders(origin: string | null): Record<string, string> {
 }
 
 // Backward-compatible static export for existing consumers.
-// ΓÜá Prefer getCorsHeaders(req) ΓÇö this static export echoes the production
+// ⚠ Prefer getCorsHeaders(req) — this static export echoes the production
 // origin by default which is not safe when the request origin is unknown.
 export const corsHeaders = {
   'Access-Control-Allow-Origin': ALLOWED_ORIGINS[0],

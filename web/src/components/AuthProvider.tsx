@@ -4,7 +4,7 @@ import { createContext, useContext, useEffect, useState } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import { createClient } from '@/lib/supabase/client';
 
-// Stable singleton ΓÇö avoids re-creating the client on every render
+// Stable singleton — avoids re-creating the client on every render
 const supabaseClient = createClient();
 export interface Profile {
   id: string;

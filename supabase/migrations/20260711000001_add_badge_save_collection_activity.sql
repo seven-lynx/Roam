@@ -1,14 +1,14 @@
 -- Add badge_unlocked, url_saved, and url_added_to_collection to the activity feed.
 -- Followers will see these alongside existing url_rated, url_submitted, collection_created.
 
--- ΓöÇΓöÇ 1. Add new columns to user_activity ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+-- ── 1. Add new columns to user_activity ──────────────────────────────────────
 ALTER TABLE user_activity
   ADD COLUMN IF NOT EXISTS badge_icon TEXT,
   ADD COLUMN IF NOT EXISTS badge_name TEXT,
   ADD COLUMN IF NOT EXISTS subject_url TEXT,
   ADD COLUMN IF NOT EXISTS collection_slug TEXT;
 
--- ΓöÇΓöÇ 2. Trigger: badge_unlocked activity ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+-- ── 2. Trigger: badge_unlocked activity ──────────────────────────────────────
 CREATE OR REPLACE FUNCTION record_badge_activity()
 RETURNS trigger AS $$
 DECLARE
@@ -53,7 +53,7 @@ CREATE TRIGGER trg_badge_insert_activity
   AFTER INSERT ON user_badges
   FOR EACH ROW EXECUTE FUNCTION record_badge_insert_activity();
 
--- ΓöÇΓöÇ 3. Trigger: url_saved activity ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+-- ── 3. Trigger: url_saved activity ───────────────────────────────────────────
 CREATE OR REPLACE FUNCTION record_save_activity()
 RETURNS trigger AS $$
 DECLARE
@@ -74,7 +74,7 @@ CREATE TRIGGER trg_save_activity
   AFTER INSERT ON saved_urls
   FOR EACH ROW EXECUTE FUNCTION record_save_activity();
 
--- ΓöÇΓöÇ 4. Trigger: url_added_to_collection activity ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+-- ── 4. Trigger: url_added_to_collection activity ─────────────────────────────
 CREATE OR REPLACE FUNCTION record_collection_item_activity()
 RETURNS trigger AS $$
 DECLARE
@@ -101,7 +101,7 @@ CREATE TRIGGER trg_collection_item_activity
   AFTER INSERT ON collection_items
   FOR EACH ROW EXECUTE FUNCTION record_collection_item_activity();
 
--- ΓöÇΓöÇ 5. Update get_activity_feed to include new columns and pagination ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+-- ── 5. Update get_activity_feed to include new columns and pagination ────────
 DROP FUNCTION IF EXISTS get_activity_feed(INT);
 CREATE OR REPLACE FUNCTION get_activity_feed(
   p_limit  INT DEFAULT 50,

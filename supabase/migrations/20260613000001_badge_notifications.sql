@@ -7,7 +7,7 @@
 -- on notifications INSERT) automatically sends FCM/Web Push.
 -- =============================================================================
 
--- ΓöÇΓöÇ 1. Expand notification type CHECK constraint ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+-- ── 1. Expand notification type CHECK constraint ──────────────────────────────
 ALTER TABLE public.notifications
   DROP CONSTRAINT IF EXISTS notifications_type_check;
 
@@ -15,7 +15,7 @@ ALTER TABLE public.notifications
   ADD CONSTRAINT notifications_type_check
   CHECK (type IN ('url_approved', 'url_rejected', 'new_follower', 'badge_unlocked', 'level_up'));
 
--- ΓöÇΓöÇ 2. Update evaluate_badges to insert notifications ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+-- ── 2. Update evaluate_badges to insert notifications ─────────────────────────
 -- Recreate the function with notification insertion added.
 CREATE OR REPLACE FUNCTION public.evaluate_badges(p_user_id UUID)
 RETURNS TABLE(
@@ -64,7 +64,7 @@ BEGIN
     RAISE EXCEPTION 'You can only evaluate badges for yourself.';
   END IF;
 
-  -- ΓöÇΓöÇ Collect user stats ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+  -- ── Collect user stats ─────────────────────────────────────────────────────
   SELECT COUNT(*) INTO v_roam_count FROM public.seen_urls WHERE user_id = p_user_id;
   SELECT COUNT(*) INTO v_save_count FROM public.saved_urls WHERE user_id = p_user_id;
   SELECT COUNT(*) INTO v_submit_count FROM public.moderation_queue WHERE submitted_by = p_user_id;
@@ -91,7 +91,7 @@ BEGIN
     INTO v_today_roam, v_today_save
     FROM public.user_daily_activity WHERE user_id = p_user_id AND date = CURRENT_DATE;
 
-  -- ΓöÇΓöÇ Evaluate each unearned badge ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+  -- ── Evaluate each unearned badge ───────────────────────────────────────────
   FOR v_badge IN
     SELECT * FROM public.badges
     WHERE id NOT IN (SELECT badge_id FROM public.user_badges WHERE user_id = p_user_id)
@@ -202,7 +202,7 @@ BEGIN
         v_badge_xp_awarded := v_badge_xp_awarded + v_badge.xp_reward;
         v_new_count := v_new_count + 1;
 
-        -- ΓöÇΓöÇ Insert notification for badge unlock ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+        -- ── Insert notification for badge unlock ─────────────────────────
         INSERT INTO public.notifications (user_id, type, title, body, data)
         VALUES (
           p_user_id,
@@ -236,7 +236,7 @@ BEGIN
     END IF;
   END LOOP;
 
-  -- ΓöÇΓöÇ Evaluate milestone badges ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+  -- ── Evaluate milestone badges ──────────────────────────────────────────────
   FOR v_badge IN
     SELECT * FROM public.badges
     WHERE category = 'milestone' AND is_gift_only = FALSE
@@ -270,7 +270,7 @@ BEGIN
     END IF;
   END LOOP;
 
-  -- ΓöÇΓöÇ Award XP for all new badges ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+  -- ── Award XP for all new badges ────────────────────────────────────────────
   IF v_badge_xp_awarded > 0 THEN
     INSERT INTO public.xp_log (user_id, action, xp_awarded, metadata)
     VALUES (p_user_id, 'badge_rewards', v_badge_xp_awarded, jsonb_build_object('badge_count', v_new_count));
@@ -280,10 +280,10 @@ BEGIN
   SELECT xp_total, public.calculate_level(xp_total) INTO v_xp_total, v_level FROM public.profiles WHERE id = p_user_id;
   UPDATE public.profiles SET level = v_level WHERE id = p_user_id AND level <> v_level;
 
-  -- ΓöÇΓöÇ Level-up notification ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+  -- ── Level-up notification ─────────────────────────────────────────────────
   IF v_level > v_prev_level THEN
     INSERT INTO public.notifications (user_id, type, title, body, data)
-    VALUES (p_user_id, 'level_up', '≡ƒÄë Level Up! You''re now Level ' || v_level, 'Keep roaming to earn more badges and XP!', jsonb_build_object('level', v_level, 'rank', '', 'url', v_profile_url));
+    VALUES (p_user_id, 'level_up', '🎉 Level Up! You''re now Level ' || v_level, 'Keep roaming to earn more badges and XP!', jsonb_build_object('level', v_level, 'rank', '', 'url', v_profile_url));
   END IF;
 
 END;

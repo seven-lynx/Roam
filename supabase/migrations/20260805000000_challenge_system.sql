@@ -2,14 +2,14 @@
 -- Challenge System: tables, seed data, 21 challenge badges, notification type
 -- =============================================================================
 -- Creates the full challenge infrastructure:
---   - challenges (catalog pool ΓÇö 34 rows)
+--   - challenges (catalog pool — 34 rows)
 --   - challenge_instances (active instances per user or global)
 --   - user_challenges (per-user progress tracking)
 --   - 21 challenge-related badges in public.badges
 --   - 'challenge_complete' notification type
 -- =============================================================================
 
--- ΓöÇΓöÇ 1. Challenge catalog ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+-- ── 1. Challenge catalog ───────────────────────────────────────────────────
 CREATE TABLE public.challenges (
   id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   challenge_type    TEXT NOT NULL CHECK (challenge_type IN ('daily','weekly','monthly')),
@@ -24,7 +24,7 @@ CREATE TABLE public.challenges (
   weight            INT DEFAULT 1
 );
 
--- ΓöÇΓöÇ 2. Active challenge instances ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+-- ── 2. Active challenge instances ──────────────────────────────────────────
 CREATE TABLE public.challenge_instances (
   id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   challenge_id    UUID REFERENCES public.challenges(id) ON DELETE CASCADE,
@@ -38,7 +38,7 @@ CREATE TABLE public.challenge_instances (
 CREATE INDEX idx_challenge_instances_type_expires
   ON public.challenge_instances(challenge_type, expires_at);
 
--- ΓöÇΓöÇ 3. Per-user progress ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+-- ── 3. Per-user progress ──────────────────────────────────────────────────
 CREATE TABLE public.user_challenges (
   user_id                UUID REFERENCES public.profiles(id) ON DELETE CASCADE,
   instance_id            UUID REFERENCES public.challenge_instances(id) ON DELETE CASCADE,
@@ -52,7 +52,7 @@ CREATE INDEX idx_user_challenges_user ON public.user_challenges(user_id);
 CREATE INDEX idx_user_challenges_completed ON public.user_challenges(user_id, completed_at)
   WHERE completed_at IS NOT NULL;
 
--- ΓöÇΓöÇ 4. RLS policies ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+-- ── 4. RLS policies ────────────────────────────────────────────────────────
 ALTER TABLE public.challenges ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.challenge_instances ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.user_challenges ENABLE ROW LEVEL SECURITY;
@@ -90,7 +90,7 @@ DO $$ BEGIN
     WITH CHECK (true);
 EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
--- ΓöÇΓöÇ 5. Seed challenge pool (34 challenges) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+-- ── 5. Seed challenge pool (34 challenges) ─────────────────────────────────
 
 -- Daily challenges (18)
 INSERT INTO public.challenges (challenge_type, challenge_key, title, goal_description, goal_count, xp_reward, condition_type, time_restriction, weight)
@@ -138,32 +138,32 @@ VALUES
 ('monthly', 'monthly-streak-20', 'Streak Master', 'Maintain a 20-day streak', 20, 1200, 'streak_days'),
 ('monthly', 'monthly-save-diversity', 'Save Diversity', 'Save from 10 different categories', 10, 1000, 'save_count');
 
--- ΓöÇΓöÇ 6. Insert 21 challenge-related badges ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+-- ── 6. Insert 21 challenge-related badges ──────────────────────────────────
 INSERT INTO public.badges (slug, name, description, icon, category, tier, required_count, xp_reward, is_hidden)
 VALUES
-('first-challenge', 'First Challenge', 'Complete your first challenge', '≡ƒÄ»', 'engagement', 0, 1, 50, false),
-('challenge-accepted', 'Challenge Accepted', 'Complete 50 challenges', 'Γ£à', 'engagement', 1, 50, 100, false),
-('challenge-master', 'Challenge Master', 'Complete 250 challenges', '≡ƒÅå', 'engagement', 2, 250, 250, false),
-('challenge-addict', 'Challenge Addict', 'Complete 1000 challenges', '≡ƒöÑ', 'engagement', 3, 1000, 500, false),
-('daily-devotion', 'Daily Devotion', 'Complete 5 daily challenges', '≡ƒôà', 'engagement', 0, 5, 75, false),
-('daily-driver', 'Daily Driver', 'Complete 25 daily challenges', '≡ƒÜù', 'engagement', 1, 25, 150, false),
-('daily-dynamo', 'Daily Dynamo', 'Complete 100 daily challenges', 'ΓÜí', 'engagement', 2, 100, 300, false),
-('weekly-warrior', 'Weekly Warrior', 'Complete 5 weekly challenges', '≡ƒùí∩╕Å', 'engagement', 0, 5, 100, false),
-('weekly-champion', 'Weekly Champion', 'Complete 25 weekly challenges', '≡ƒææ', 'engagement', 1, 25, 200, false),
-('weekly-legend', 'Weekly Legend', 'Complete 50 weekly challenges', '≡ƒîƒ', 'engagement', 2, 50, 400, false),
-('monthly-mastery', 'Monthly Mastery', 'Complete 3 monthly challenges', '≡ƒôå', 'engagement', 0, 3, 150, false),
-('monthly-mogul', 'Monthly Mogul', 'Complete 12 monthly challenges', '≡ƒÆ╝', 'engagement', 1, 12, 350, false),
-('overachiever', 'Overachiever', 'Exceed a challenge goal by 50%', '≡ƒôê', 'engagement', 0, NULL, 100, false),
-('triple-threat', 'Triple Threat', 'Complete daily + weekly + monthly in same day', '≡ƒÄ¬', 'engagement', 0, NULL, 200, false),
-('perfect-week', 'Perfect Week', 'Complete ALL active weekly challenges', 'Γ£¿', 'engagement', 0, NULL, 300, false),
-('perfect-month', 'Perfect Month', 'Complete ALL active monthly challenges', '≡ƒÆÄ', 'engagement', 0, NULL, 500, false),
-('last-minute-save', 'Last Minute Save', 'Complete a challenge in its final hour', 'ΓÅ░', 'engagement', 0, NULL, 100, false),
-('speed-challenger', 'Speed Challenger', 'Complete a daily challenge within 1 hour', '≡ƒÅâ', 'engagement', 0, NULL, 150, false),
-('streak-challenger', 'Streak Challenger', 'Complete 1+ challenge per day for 7 days', '≡ƒöÑ', 'engagement', 0, NULL, 200, false),
-('january-grind', 'January Grind', 'Complete 20 daily challenges in January', 'Γ¥ä∩╕Å', 'engagement', 0, NULL, 300, true),
-('challenge-hoarder', 'Challenge Hoarder', 'Have 5+ active challenges and complete all', '≡ƒôª', 'engagement', 0, NULL, 150, false);
+('first-challenge', 'First Challenge', 'Complete your first challenge', '🎯', 'engagement', 0, 1, 50, false),
+('challenge-accepted', 'Challenge Accepted', 'Complete 50 challenges', '✅', 'engagement', 1, 50, 100, false),
+('challenge-master', 'Challenge Master', 'Complete 250 challenges', '🏆', 'engagement', 2, 250, 250, false),
+('challenge-addict', 'Challenge Addict', 'Complete 1000 challenges', '🔥', 'engagement', 3, 1000, 500, false),
+('daily-devotion', 'Daily Devotion', 'Complete 5 daily challenges', '📅', 'engagement', 0, 5, 75, false),
+('daily-driver', 'Daily Driver', 'Complete 25 daily challenges', '🚗', 'engagement', 1, 25, 150, false),
+('daily-dynamo', 'Daily Dynamo', 'Complete 100 daily challenges', '⚡', 'engagement', 2, 100, 300, false),
+('weekly-warrior', 'Weekly Warrior', 'Complete 5 weekly challenges', '🗡️', 'engagement', 0, 5, 100, false),
+('weekly-champion', 'Weekly Champion', 'Complete 25 weekly challenges', '👑', 'engagement', 1, 25, 200, false),
+('weekly-legend', 'Weekly Legend', 'Complete 50 weekly challenges', '🌟', 'engagement', 2, 50, 400, false),
+('monthly-mastery', 'Monthly Mastery', 'Complete 3 monthly challenges', '📆', 'engagement', 0, 3, 150, false),
+('monthly-mogul', 'Monthly Mogul', 'Complete 12 monthly challenges', '💼', 'engagement', 1, 12, 350, false),
+('overachiever', 'Overachiever', 'Exceed a challenge goal by 50%', '📈', 'engagement', 0, NULL, 100, false),
+('triple-threat', 'Triple Threat', 'Complete daily + weekly + monthly in same day', '🎪', 'engagement', 0, NULL, 200, false),
+('perfect-week', 'Perfect Week', 'Complete ALL active weekly challenges', '✨', 'engagement', 0, NULL, 300, false),
+('perfect-month', 'Perfect Month', 'Complete ALL active monthly challenges', '💎', 'engagement', 0, NULL, 500, false),
+('last-minute-save', 'Last Minute Save', 'Complete a challenge in its final hour', '⏰', 'engagement', 0, NULL, 100, false),
+('speed-challenger', 'Speed Challenger', 'Complete a daily challenge within 1 hour', '🏃', 'engagement', 0, NULL, 150, false),
+('streak-challenger', 'Streak Challenger', 'Complete 1+ challenge per day for 7 days', '🔥', 'engagement', 0, NULL, 200, false),
+('january-grind', 'January Grind', 'Complete 20 daily challenges in January', '❄️', 'engagement', 0, NULL, 300, true),
+('challenge-hoarder', 'Challenge Hoarder', 'Have 5+ active challenges and complete all', '📦', 'engagement', 0, NULL, 150, false);
 
--- ΓöÇΓöÇ 7. Add challenge_complete notification type ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+-- ── 7. Add challenge_complete notification type ────────────────────────────
 ALTER TABLE public.notifications
   DROP CONSTRAINT IF EXISTS notifications_type_check;
 

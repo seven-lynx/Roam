@@ -12,19 +12,19 @@ The badge system awards badges to users based on their activity (roaming, saving
 
 ```
 User Action (roam, save, follow, submit, etc.)
-         Γöé
-         Γû╝
+         │
+         ▼
 Edge Function (roam, save-url, follow, submit-url, etc.)
-         Γöé
-         Γö£ΓöÇΓöÇΓû║ xp_log INSERT (XP awarded for the action itself)
-         Γöé
-         ΓööΓöÇΓöÇΓû║ evaluate-badges edge function (fire-and-forget)
-                    Γöé
-                    Γö£ΓöÇΓöÇΓû║ user_badges UPSERT (newly earned badges)
-                    Γö£ΓöÇΓöÇΓû║ xp_log INSERT (badge XP rewards)
-                    Γö£ΓöÇΓöÇΓû║ profiles.xp_total UPDATE (SUM of all xp_log entries)
-                    Γö£ΓöÇΓöÇΓû║ profiles.level UPDATE (derived from xp_total)
-                    ΓööΓöÇΓöÇΓû║ profiles.badge_count SYNC
+         │
+         ├──► xp_log INSERT (XP awarded for the action itself)
+         │
+         └──► evaluate-badges edge function (fire-and-forget)
+                    │
+                    ├──► user_badges UPSERT (newly earned badges)
+                    ├──► xp_log INSERT (badge XP rewards)
+                    ├──► profiles.xp_total UPDATE (SUM of all xp_log entries)
+                    ├──► profiles.level UPDATE (derived from xp_total)
+                    └──► profiles.badge_count SYNC
 ```
 
 ---
@@ -40,7 +40,7 @@ Edge Function (roam, save-url, follow, submit-url, etc.)
 
 ### Derived Fields
 
-- **`profiles.xp_total`** = `SUM(xp_log.xp_awarded)` for that user ΓÇö **not independently maintained**
+- **`profiles.xp_total`** = `SUM(xp_log.xp_awarded)` for that user — **not independently maintained**
 - **`profiles.level`** = `FLOOR(SQRT(xp_total / 100)) + 1`
 - **`profiles.badge_count`** = `COUNT(user_badges)` where `unlocked_at IS NOT NULL`
 
@@ -59,9 +59,9 @@ FLOOR(SQRT(p_xp::NUMERIC / 100))::INT + 1
 | Save URL | 15 XP |
 | Submit URL (approved) | 25 XP |
 | Badge earned | Varies (set in `badges.xp_reward`) |
-| Level up bonus | 50 ├ù new_level |
+| Level up bonus | 50 × new_level |
 
-XP is **idempotent** ΓÇö the `xp_log` table has a unique constraint on `(user_id, action, metadata->>url_id, date_trunc('day', created_at))` to prevent double-counting.
+XP is **idempotent** — the `xp_log` table has a unique constraint on `(user_id, action, metadata->>url_id, date_trunc('day', created_at))` to prevent double-counting.
 
 ---
 
@@ -76,21 +76,21 @@ This is the **single authoritative badge evaluator**. It runs:
 - **Batch repair:** Called for every user via `scripts/repair-badges-comprehensive.mjs`
 
 It handles ~150 badges across these categories:
-- **Exploration** ΓÇö roam count, session badges, time-of-day badges
-- **Collecting** ΓÇö save count, category diversity, save streaks
-- **Curating** ΓÇö collection count, public collections, collection favorites
-- **Contributing** ΓÇö submissions, approval rate, submission streaks
-- **Social** ΓÇö followers, following, mutual connections, profile completion
-- **Streaks** ΓÇö daily streak milestones
-- **Milestones** ΓÇö level-based badges, total XP badges
-- **Engagement** ΓÇö URL ratings
-- **Secret** ΓÇö special conditions (error-404, etc.)
+- **Exploration** — roam count, session badges, time-of-day badges
+- **Collecting** — save count, category diversity, save streaks
+- **Curating** — collection count, public collections, collection favorites
+- **Contributing** — submissions, approval rate, submission streaks
+- **Social** — followers, following, mutual connections, profile completion
+- **Streaks** — daily streak milestones
+- **Milestones** — level-based badges, total XP badges
+- **Engagement** — URL ratings
+- **Secret** — special conditions (error-404, etc.)
 
 ### Legacy Evaluator: SQL RPC
 
 **File:** `supabase/migrations/20260730000006_fix_ambiguous_columns.sql`
 
-The SQL `evaluate_badges(p_user_id UUID)` function exists but is **less complete** ΓÇö it evaluates ~60 badges and is missing dozens of edge-function-only badges (rating badges, session badges, time-based badges, tagger badges, etc.). It also hardcodes `rater-*` and several other badges to `v_count := 0`.
+The SQL `evaluate_badges(p_user_id UUID)` function exists but is **less complete** — it evaluates ~60 badges and is missing dozens of edge-function-only badges (rating badges, session badges, time-based badges, tagger badges, etc.). It also hardcodes `rater-*` and several other badges to `v_count := 0`.
 
 **Prefer the edge function** for all badge evaluation. The SQL RPC is retained for reference but should not be used for new badge logic.
 
@@ -109,9 +109,9 @@ node scripts/repair-badges-comprehensive.mjs
 ```
 
 **Phases:**
-1. **Clean Wipe** (Management API SQL) ΓÇö atomic `DO $$` block: backs up gift badges, wipes all non-gift badge data, cleans `badge_rewards` XP entries, recalculates `xp_total` and `level` from remaining `xp_log` entries
-2. **Badge Rebuild** (HTTP) ΓÇö calls the `evaluate-badges` edge function for every user in batches of 5
-3. **Verify & Sync** (Management API SQL) ΓÇö fixes badge counts, verifies XP Γåö `xp_log` consistency, realigns levels
+1. **Clean Wipe** (Management API SQL) — atomic `DO $$` block: backs up gift badges, wipes all non-gift badge data, cleans `badge_rewards` XP entries, recalculates `xp_total` and `level` from remaining `xp_log` entries
+2. **Badge Rebuild** (HTTP) — calls the `evaluate-badges` edge function for every user in batches of 5
+3. **Verify & Sync** (Management API SQL) — fixes badge counts, verifies XP ↔ `xp_log` consistency, realigns levels
 
 ### Audit: `scripts/audit-badges-full.mjs`
 
@@ -141,9 +141,9 @@ Badges with `is_gift_only = TRUE` are **never auto-awarded**. They are hand-gran
 ## Streaks
 
 Streaks are managed by:
-- **`profiles.streak_days`** ΓÇö incremented daily when a user has activity
-- **`public.reset_stale_streaks()`** ΓÇö resets streaks to 0 for users whose last activity was >24 hours ago
-- **`supabase/functions/cron-streak-cleanup/`** ΓÇö scheduled edge function that calls `reset_stale_streaks()`
+- **`profiles.streak_days`** — incremented daily when a user has activity
+- **`public.reset_stale_streaks()`** — resets streaks to 0 for users whose last activity was >24 hours ago
+- **`supabase/functions/cron-streak-cleanup/`** — scheduled edge function that calls `reset_stale_streaks()`
 
 The `profile` edge function computes `effectiveStreak` via `get_effective_streak()` RPC, which checks if the user's last activity is within 24 hours before returning the streak count.
 

@@ -52,7 +52,7 @@ object Env {
       }
     }
 
-    // Check SENTRY_DSN (optional ΓÇö app works without it, Sentry just becomes a no-op)
+    // Check SENTRY_DSN (optional — app works without it, Sentry just becomes a no-op)
     val sentryDsn = getStringFromBuildConfig("SENTRY_DSN")
     if (sentryDsn.isNotEmpty() && !sentryDsn.startsWith("https://")) {
       errors.add("SENTRY_DSN must be HTTPS (received: $sentryDsn)")

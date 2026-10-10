@@ -10,7 +10,7 @@
 --
 -- This migration:
 --   1. Adds roam_score_static DOUBLE PRECISION to public.urls (nullable,
---      no default ΓÇö instant metadata operation in PG12+)
+--      no default — instant metadata operation in PG12+)
 --   2. Creates a BEFORE INSERT OR UPDATE trigger to keep it in sync
 --
 -- Backfill and index MUST be run manually via Supabase Studio SQL editor

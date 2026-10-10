@@ -14,7 +14,7 @@
 -- The set of allowed action_types is the canonical set: roam, rate, save,
 -- follow, submit, collection, share, report.
 
--- ΓöÇΓöÇΓöÇ 1. CHECK constraint on action_type ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+-- ─── 1. CHECK constraint on action_type ──────────────────────────────────────
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM pg_constraint WHERE conname = 'user_actions_action_type_valid'
@@ -28,7 +28,7 @@ DO $$ BEGIN
   END IF;
 END $$;
 
--- ΓöÇΓöÇΓöÇ 2. Replace the open INSERT policy ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+-- ─── 2. Replace the open INSERT policy ───────────────────────────────────────
 -- Drop the broad "Authenticated users can insert own actions" policy and
 -- replace it with one that constrains action_type to the canonical set.
 -- Trigger writes go through the same gate because the trigger context is
@@ -47,7 +47,7 @@ CREATE POLICY "Authenticated users can insert own actions"
     )
   );
 
--- ΓöÇΓöÇΓöÇ 3. Per-user daily rate limit ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+-- ─── 3. Per-user daily rate limit ────────────────────────────────────────────
 -- Cap each user at 200 insertable actions per UTC day for the high-frequency
 -- action_types. Anything beyond this is rejected by trigger.
 CREATE OR REPLACE FUNCTION public.enforce_user_actions_rate_limit()
@@ -76,7 +76,7 @@ CREATE TRIGGER user_actions_rate_limit_trigger
   FOR EACH ROW
   EXECUTE FUNCTION public.enforce_user_actions_rate_limit();
 
--- ΓöÇΓöÇΓöÇ 4. Documentation comment ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+-- ─── 4. Documentation comment ────────────────────────────────────────────────
 COMMENT ON TABLE public.user_actions IS
   'Audit log of user actions. INSERT is restricted to authenticated users inserting their own rows with a constrained action_type and capped at 200 high-frequency actions per UTC day. Service-role writes are unrestricted.';
 COMMENT ON POLICY "Authenticated users can insert own actions" ON public.user_actions IS

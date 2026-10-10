@@ -11,7 +11,7 @@ import { corsHeaders } from "../_shared/cors.ts";
 
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
-// ΓöÇΓöÇ Helpers ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+// ── Helpers ──────────────────────────────────────────────────────────
 
 function getUTCDate(): Date {
   return new Date();
@@ -53,7 +53,7 @@ function isFirstOfMonth(date: Date): boolean {
   return date.getUTCDate() === 1;
 }
 
-// Weighted random draw ΓÇö picks `count` items from array using weight field
+// Weighted random draw — picks `count` items from array using weight field
 function weightedRandomDraw<T extends { weight: number }>(items: T[], count: number): T[] {
   if (items.length <= count) return [...items];
 
@@ -90,7 +90,7 @@ function weightedRandomDraw<T extends { weight: number }>(items: T[], count: num
   return result;
 }
 
-// ΓöÇΓöÇ Main handler ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+// ── Main handler ─────────────────────────────────────────────────────
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -121,7 +121,7 @@ Deno.serve(async (req) => {
 
     const results: Record<string, unknown> = {};
 
-    // ΓöÇΓöÇ 1. Cleanup: delete expired challenge instances ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+    // ── 1. Cleanup: delete expired challenge instances ────────────────
     // CASCADE deletes their user_challenges rows too.
     const { error: deleteErr, count: deletedCount } = await supabase
       .from("challenge_instances")
@@ -136,9 +136,9 @@ Deno.serve(async (req) => {
       console.log(`Deleted ${deletedCount} expired challenge instances`);
     }
 
-    // ΓöÇΓöÇ 1b. Safety net: delete orphaned user_challenges (no matching instance) ΓöÇ
+    // ── 1b. Safety net: delete orphaned user_challenges (no matching instance) ─
     // Fetch all user_challenges and all instances, then delete orphans in JS.
-    // This is a belt-and-suspenders safety net ΓÇö the CASCADE from step 1 handles
+    // This is a belt-and-suspenders safety net — the CASCADE from step 1 handles
     // the normal case. This catches any edge cases from partial failures.
     try {
       const { data: allUc } = await supabase
@@ -184,7 +184,7 @@ Deno.serve(async (req) => {
       results.orphan_cleanup_error = String(orphanCatchErr);
     }
 
-    // ΓöÇΓöÇ Fetch all active profiles once (used by daily, weekly, monthly) ΓöÇ
+    // ── Fetch all active profiles once (used by daily, weekly, monthly) ─
     const { data: profiles, error: profilesErr } = await supabase
       .from("profiles")
       .select("id");
@@ -196,7 +196,7 @@ Deno.serve(async (req) => {
 
     const userIds = profiles ? profiles.map((p) => p.id) : [];
 
-    // ΓöÇΓöÇ 2. Daily challenges: global instances + per-user assignment ΓöÇΓöÇΓöÇ
+    // ── 2. Daily challenges: global instances + per-user assignment ───
     try {
       // Delete any existing daily global instances (should already be gone from step 1,
       // but ensures clean slate)
@@ -291,7 +291,7 @@ Deno.serve(async (req) => {
       results.daily_section_error = String(dailyCatchErr);
     }
 
-    // ΓöÇΓöÇ 3. Weekly challenges (Monday only) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+    // ── 3. Weekly challenges (Monday only) ────────────────────────────
     try {
       if (isMonday(now)) {
         // Delete old weekly global instances (they cascade to user_challenges)
@@ -370,7 +370,7 @@ Deno.serve(async (req) => {
       results.weekly_section_error = String(weeklyCatchErr);
     }
 
-    // ΓöÇΓöÇ 4. Monthly challenges (1st of month only) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+    // ── 4. Monthly challenges (1st of month only) ─────────────────────
     try {
       if (isFirstOfMonth(now)) {
         const { error: delMonthErr } = await supabase

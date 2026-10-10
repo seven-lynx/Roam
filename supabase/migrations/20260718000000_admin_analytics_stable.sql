@@ -31,7 +31,7 @@ DECLARE
   v_daily_stats_last30  JSON;
   v_total_counts        JSON;
 BEGIN
-  -- ΓöÇΓöÇ 1. Submissions per day, last 30 days ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+  -- ── 1. Submissions per day, last 30 days ──────────────────────────────────
   SELECT json_agg(row ORDER BY row.date)
   INTO v_by_date
   FROM (
@@ -43,7 +43,7 @@ BEGIN
     GROUP BY 1
   ) row;
 
-  -- ΓöÇΓöÇ 2. Submissions by parent category (top 10, all time) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+  -- ── 2. Submissions by parent category (top 10, all time) ──────────────────
   SELECT json_agg(row ORDER BY row.count DESC)
   INTO v_by_category
   FROM (
@@ -58,7 +58,7 @@ BEGIN
     LIMIT 10
   ) row;
 
-  -- ΓöÇΓöÇ 3. Top 10 URLs by wilson score ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+  -- ── 3. Top 10 URLs by wilson score ────────────────────────────────────────
   SELECT json_agg(row ORDER BY row.wilson_score DESC)
   INTO v_top_urls
   FROM (
@@ -75,7 +75,7 @@ BEGIN
     LIMIT 10
   ) row;
 
-  -- ΓöÇΓöÇ 4. Queue stats: counts by status ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+  -- ── 4. Queue stats: counts by status ──────────────────────────────────────
   SELECT json_build_object(
     'approved', COUNT(*) FILTER (WHERE status = 'approved')::int,
     'rejected', COUNT(*) FILTER (WHERE status = 'rejected')::int,
@@ -84,7 +84,7 @@ BEGIN
   INTO v_queue_stats
   FROM public.moderation_queue;
 
-  -- ΓöÇΓöÇ 5. Top rated categories (avg wilson score, min 5 rated URLs) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+  -- ── 5. Top rated categories (avg wilson score, min 5 rated URLs) ──────────
   SELECT json_agg(row ORDER BY row.avg_score DESC)
   INTO v_top_rated_cats
   FROM (
@@ -101,7 +101,7 @@ BEGIN
     ORDER BY avg_score DESC
   ) row;
 
-  -- ΓöÇΓöÇ 6. Source breakdown (materialized view, refreshed hourly) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+  -- ── 6. Source breakdown (materialized view, refreshed hourly) ─────────────
   SELECT json_agg(row ORDER BY row.count DESC)
   INTO v_sources
   FROM (
@@ -109,7 +109,7 @@ BEGIN
     ORDER BY count DESC LIMIT 20
   ) row;
 
-  -- ΓöÇΓöÇ 7. Language distribution (materialized view, refreshed hourly) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+  -- ── 7. Language distribution (materialized view, refreshed hourly) ─────────
   SELECT json_agg(row ORDER BY row.count DESC)
   INTO v_languages
   FROM (
@@ -117,7 +117,7 @@ BEGIN
     ORDER BY count DESC LIMIT 15
   ) row;
 
-  -- ΓöÇΓöÇ 8. Dead URL rate by category (materialized view, refreshed hourly) ΓöÇΓöÇΓöÇΓöÇΓöÇ
+  -- ── 8. Dead URL rate by category (materialized view, refreshed hourly) ─────
   SELECT json_agg(row ORDER BY row.total DESC)
   INTO v_dead_by_category
   FROM (
@@ -126,7 +126,7 @@ BEGIN
     ORDER BY total DESC
   ) row;
 
-  -- ΓöÇΓöÇ 9. Active users: DAU/MAU from daily_stats; WAU still computed live ΓöÇΓöÇΓöÇΓöÇ
+  -- ── 9. Active users: DAU/MAU from daily_stats; WAU still computed live ────
   SELECT json_build_object(
     'dau', COALESCE((SELECT dau FROM public.daily_stats WHERE date = CURRENT_DATE), 0),
     'wau', COALESCE((SELECT COUNT(DISTINCT user_id)::int FROM (
@@ -140,7 +140,7 @@ BEGIN
   )
   INTO v_active_users;
 
-  -- ΓöÇΓöÇ 9b. Daily stats trend (last 30 days) for admin sparklines ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+  -- ── 9b. Daily stats trend (last 30 days) for admin sparklines ─────────────
   SELECT json_agg(row ORDER BY row.date)
   INTO v_daily_stats_last30
   FROM (
@@ -157,7 +157,7 @@ BEGIN
     ORDER BY date
   ) row;
 
-  -- ΓöÇΓöÇ 9c. All-time total counts from the latest daily_stats row ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+  -- ── 9c. All-time total counts from the latest daily_stats row ──────────────
   SELECT json_build_object(
     'total_roams',   COALESCE((SELECT total_roams   FROM public.daily_stats WHERE date = CURRENT_DATE), 0),
     'total_saves',   COALESCE((SELECT total_saves   FROM public.daily_stats WHERE date = CURRENT_DATE), 0),
@@ -165,7 +165,7 @@ BEGIN
   )
   INTO v_total_counts;
 
-  -- ΓöÇΓöÇ 10. Submissions by day-of-week ├ù hour-of-day ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+  -- ── 10. Submissions by day-of-week × hour-of-day ───────────────────────────
   SELECT json_agg(row ORDER BY row.dow, row.hour)
   INTO v_by_dow_hour
   FROM (
@@ -177,7 +177,7 @@ BEGIN
     GROUP BY 1, 2
   ) row;
 
-  -- ΓöÇΓöÇ 11. Velocity: approved URLs created this week vs last week ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+  -- ── 11. Velocity: approved URLs created this week vs last week ─────────────
   SELECT json_build_object(
     'this_week', (SELECT COUNT(*)::int FROM public.urls
                   WHERE approved = true
@@ -189,7 +189,7 @@ BEGIN
   )
   INTO v_velocity;
 
-  -- ΓöÇΓöÇ 12. Rejection rate by domain ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+  -- ── 12. Rejection rate by domain ───────────────────────────────────────────
   SELECT json_agg(row ORDER BY row.rejection_pct DESC)
   INTO v_rejection_by_domain
   FROM (

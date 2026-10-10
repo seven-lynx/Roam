@@ -1,17 +1,17 @@
 -- =============================================================================
--- roam() v14 ΓÇö pre-load exclusions + interest score map (Fix 1 + Fix 2)
+-- roam() v14 — pre-load exclusions + interest score map (Fix 1 + Fix 2)
 -- =============================================================================
 --
 -- Problem (from DISCOVERY_PIPELINE_AUDIT.md):
 --
---   Issue 2 ΓÇö Three correlated NOT EXISTS subqueries inside the TABLESAMPLE
---   loop (~315k rows ├ù 3 subqueries = ~945k index lookups per call):
+--   Issue 2 — Three correlated NOT EXISTS subqueries inside the TABLESAMPLE
+--   loop (~315k rows × 3 subqueries = ~945k index lookups per call):
 --     NOT EXISTS (SELECT 1 FROM seen_urls          WHERE user_id = X AND url_id  = u.id)
---     NOT EXISTS (SELECT 1 FROM user_domain_cooldowns WHERE user_id = X AND domain = u.domain ΓÇª)
---     NOT EXISTS (SELECT 1 FROM user_suppressed_domains WHERE user_id = X AND domain = u.domain ΓÇª)
+--     NOT EXISTS (SELECT 1 FROM user_domain_cooldowns WHERE user_id = X AND domain = u.domain …)
+--     NOT EXISTS (SELECT 1 FROM user_suppressed_domains WHERE user_id = X AND domain = u.domain …)
 --   Cost grows with the size of the user's seen_urls history.
 --
---   Issue 5 ΓÇö user_interest_scores LEFT JOINed on every TABLESAMPLE row.
+--   Issue 5 — user_interest_scores LEFT JOINed on every TABLESAMPLE row.
 --   Since many URLs share subcategory IDs, the same join key is resolved
 --   thousands of times redundantly across the ~315k-row sample.
 --
@@ -21,7 +21,7 @@
 --        AND (v_seen_ids IS NULL        OR u.id     != ALL(v_seen_ids))
 --        AND (v_cooled_domains IS NULL  OR u.domain != ALL(v_cooled_domains))
 --        AND (v_suppressed_domains IS NULL OR u.domain != ALL(v_suppressed_domains))
---      NOTE: NULL guard is critical ΓÇö array_agg() on zero rows returns NULL,
+--      NOTE: NULL guard is critical — array_agg() on zero rows returns NULL,
 --      and (x != ALL(NULL)) evaluates to NULL (unknown), which would
 --      incorrectly exclude ALL rows from the result.
 --
@@ -82,7 +82,7 @@ BEGIN
     RAISE EXCEPTION 'Unauthorized';
   END IF;
 
-  -- ΓöÇΓöÇ Load user settings ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+  -- ── Load user settings ────────────────────────────────────────────────────
   SELECT
     COALESCE(s.preferred_languages, ARRAY['en']),
     COALESCE(s.skip_paywalled, FALSE),
@@ -95,7 +95,7 @@ BEGIN
   IF v_skip_paywall    IS NULL THEN v_skip_paywall    := FALSE;        END IF;
   IF v_discovery_mode  IS NULL THEN v_discovery_mode  := 'discovery';  END IF;
 
-  -- ΓöÇΓöÇ Fix 1: load exclusion sets as arrays (3 sequential reads) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+  -- ── Fix 1: load exclusion sets as arrays (3 sequential reads) ────────────
   SELECT array_agg(url_id)
   INTO   v_seen_ids
   FROM   seen_urls
@@ -113,14 +113,14 @@ BEGIN
   WHERE  user_id = p_user_id
     AND  suppressed_until > NOW();
 
-  -- ΓöÇΓöÇ Fix 2: load interest score map as parallel arrays (1 sequential read) ΓöÇ
+  -- ── Fix 2: load interest score map as parallel arrays (1 sequential read) ─
   SELECT array_agg(subcategory_id ORDER BY subcategory_id),
          array_agg(calibrated_weight ORDER BY subcategory_id)
   INTO   v_score_subcats, v_score_weights
   FROM   user_interest_scores
   WHERE  user_id = p_user_id;
 
-  -- ΓöÇΓöÇ Expand category prefs into flat subcategory ID array ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+  -- ── Expand category prefs into flat subcategory ID array ─────────────────
   SELECT array_agg(DISTINCT sc.id)
   INTO   v_allowed_subcat_ids
   FROM   subcategories sc
@@ -141,7 +141,7 @@ BEGIN
   SELECT EXISTS (SELECT 1 FROM user_categories WHERE user_id = p_user_id)
   INTO v_has_categories;
 
-  -- ΓöÇΓöÇ Deep Dive: narrow to top-3 subcategories by calibrated_weight ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+  -- ── Deep Dive: narrow to top-3 subcategories by calibrated_weight ─────────
   IF v_discovery_mode = 'deep_dive'
      AND p_subcategory_id IS NULL
      AND p_category_id    IS NULL
@@ -162,7 +162,7 @@ BEGIN
     END IF;
   END IF;
 
-  -- ΓöÇΓöÇ Discovery mode: 12% adjacent serving ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+  -- ── Discovery mode: 12% adjacent serving ─────────────────────────────────
   v_adjacent_subcat_id := NULL;
   IF v_discovery_mode = 'discovery'
      AND random() < 0.12
@@ -194,12 +194,12 @@ BEGIN
 
   v_effective_subcat_id := COALESCE(p_subcategory_id, v_adjacent_subcat_id);
 
-  -- ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ
+  -- ═══════════════════════════════════════════════════════════════════════════
   --  COLLECTION MODE
-  -- ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ
+  -- ═══════════════════════════════════════════════════════════════════════════
   IF p_collection_id IS NOT NULL THEN
 
-    -- Phase 1: TABLESAMPLE ΓÇö fast random pick from ~10% of collection rows
+    -- Phase 1: TABLESAMPLE — fast random pick from ~10% of collection rows
     SELECT c.id INTO v_url_id
     FROM (
       SELECT u.id,
@@ -234,7 +234,7 @@ BEGIN
     ORDER BY (c.eff_score + 0.1) * random() DESC
     LIMIT 1;
 
-    -- Phase 2: fallback ΓÇö only when TABLESAMPLE found nothing (small collections)
+    -- Phase 2: fallback — only when TABLESAMPLE found nothing (small collections)
     IF v_url_id IS NULL THEN
       SELECT c.id INTO v_url_id
       FROM (
@@ -273,12 +273,12 @@ BEGIN
       LIMIT 1;
     END IF;
 
-  -- ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ
+  -- ═══════════════════════════════════════════════════════════════════════════
   --  STANDARD MODE
-  -- ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ
+  -- ═══════════════════════════════════════════════════════════════════════════
   ELSE
 
-    -- Phase 1: TABLESAMPLE ΓÇö fast random pick from ~10% of the urls table
+    -- Phase 1: TABLESAMPLE — fast random pick from ~10% of the urls table
     SELECT c.id INTO v_url_id
     FROM (
       SELECT u.id,
@@ -330,7 +330,7 @@ BEGIN
     ORDER BY (c.eff_score + 0.1) * random() DESC
     LIMIT 1;
 
-    -- Phase 2: full-scan fallback ΓÇö only executed when TABLESAMPLE returned nothing
+    -- Phase 2: full-scan fallback — only executed when TABLESAMPLE returned nothing
     IF v_url_id IS NULL THEN
       SELECT c.id INTO v_url_id
       FROM (
@@ -388,7 +388,7 @@ BEGIN
 
   END IF;
 
-  -- ΓöÇΓöÇ Record seen + domain cooldown ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+  -- ── Record seen + domain cooldown ─────────────────────────────────────────
   IF v_url_id IS NOT NULL THEN
     INSERT INTO seen_urls (user_id, url_id)
     VALUES (p_user_id, v_url_id)

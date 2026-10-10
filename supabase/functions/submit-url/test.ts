@@ -85,7 +85,7 @@ async function testSafeBrowsingAPI() {
     throw new Error(`Expected 400 for invalid URL, got ${invalidResponse.status}`)
   }
 
-  console.log('Γ£ô All Safe Browsing tests passed')
+  console.log('✓ All Safe Browsing tests passed')
 }
 
 // Run tests

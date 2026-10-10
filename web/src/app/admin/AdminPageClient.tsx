@@ -273,7 +273,7 @@ export default function AdminPageClient() {
                 {statusCounts.pending}
               </span>
             )}
-            <span className="ml-auto text-zinc-400 text-lg leading-none">{menuOpen ? "Γû┤" : "Γû╛"}</span>
+            <span className="ml-auto text-zinc-400 text-lg leading-none">{menuOpen ? "▴" : "▾"}</span>
           </button>
 
           {menuOpen && (
@@ -361,7 +361,7 @@ function QueueView({
       <button onClick={() => setFiltersOpen(!filtersOpen)}
         className="flex items-center gap-2 text-xs font-medium text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-300 transition-colors self-start"
       >
-        <span>{filtersOpen ? "Γû┤" : "Γû╛"}</span><span>Filters & Sort</span>
+        <span>{filtersOpen ? "▴" : "▾"}</span><span>Filters & Sort</span>
         {statusFilter !== "all" && <span className="rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 px-2 py-0.5 text-[10px]">{statusFilter}</span>}
       </button>
       {filtersOpen && (
@@ -396,7 +396,7 @@ function QueueView({
                 : item.status === "rejected" ? "bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400"
                 : "bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400"}`}>{item.status}</span>
             </div>
-            <span className="text-[10px] text-zinc-400">{item.created_at ? new Date(item.created_at).toLocaleString('en-US', { timeZone: 'America/New_York', timeZoneName: 'short' }) : 'ΓÇö'}</span>
+            <span className="text-[10px] text-zinc-400">{item.created_at ? new Date(item.created_at).toLocaleString('en-US', { timeZone: 'America/New_York', timeZoneName: 'short' }) : '—'}</span>
           </button>
         ))}
       </div>}
@@ -421,11 +421,11 @@ function ReportsView({ reportedLinks, loading, restoringId, onRestore }: {
             <div className="flex items-center justify-between mt-2 text-xs">
               <div className="flex items-center gap-3 text-zinc-500 dark:text-zinc-400">
                 <span><strong className="text-zinc-700 dark:text-zinc-300">{r.report_count}</strong> reports</span>
-                <span>{r.reported_at ? new Date(r.reported_at).toLocaleDateString('en-US', { timeZone: 'America/New_York' }) : 'ΓÇö'}</span>
+                <span>{r.reported_at ? new Date(r.reported_at).toLocaleDateString('en-US', { timeZone: 'America/New_York' }) : '—'}</span>
               </div>
               <div className="flex items-center gap-2">
                 <span className={`text-[10px] font-medium px-2 py-0.5 rounded ${r.inactive ? "bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400" : "bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400"}`}>{r.inactive ? "Inactive" : "Active"}</span>
-                {r.inactive && <button onClick={() => onRestore(r.url_id)} disabled={restoringId === r.url_id} className="text-[10px] px-2 py-1 rounded-lg bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700 disabled:opacity-50 transition-colors">{restoringId === r.url_id ? "ΓÇª" : "Restore"}</button>}
+                {r.inactive && <button onClick={() => onRestore(r.url_id)} disabled={restoringId === r.url_id} className="text-[10px] px-2 py-1 rounded-lg bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700 disabled:opacity-50 transition-colors">{restoringId === r.url_id ? "…" : "Restore"}</button>}
               </div>
             </div>
           </div>
@@ -452,9 +452,9 @@ function BetaView({ signups, loading, deletingId, onDelete }: {
             <div key={s.id} className="flex items-center justify-between py-2.5 px-3 rounded-lg bg-zinc-50 dark:bg-zinc-900/50">
               <div className="flex-1 min-w-0">
                 <span className="font-mono text-xs text-zinc-700 dark:text-zinc-300 break-all">{s.email}</span>
-                <span className="block text-[10px] text-zinc-400 mt-0.5">{s.created_at ? new Date(s.created_at).toLocaleString('en-US', { timeZone: 'America/New_York', timeZoneName: 'short' }) : 'ΓÇö'}</span>
+                <span className="block text-[10px] text-zinc-400 mt-0.5">{s.created_at ? new Date(s.created_at).toLocaleString('en-US', { timeZone: 'America/New_York', timeZoneName: 'short' }) : '—'}</span>
               </div>
-              <button onClick={() => onDelete(s.id)} disabled={deletingId === s.id} className="shrink-0 ml-3 text-xs px-3 py-1.5 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/40 disabled:opacity-50 transition-colors">{deletingId === s.id ? "ΓÇª" : "Delete"}</button>
+              <button onClick={() => onDelete(s.id)} disabled={deletingId === s.id} className="shrink-0 ml-3 text-xs px-3 py-1.5 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/40 disabled:opacity-50 transition-colors">{deletingId === s.id ? "…" : "Delete"}</button>
             </div>
           ))}
         </div>}

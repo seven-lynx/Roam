@@ -17,33 +17,33 @@ The Next.js 16 web application for Roam. The web surface is the account-manageme
 ## Features
 
 ### Onboarding
-- **Create account** ΓÇö Google OAuth or email/password
-- **Pick interests** ΓÇö select categories you care about (pillar or topic mode)
-- **Email verification** ΓÇö confirmation flow for email sign-up
+- **Create account** — Google OAuth or email/password
+- **Pick interests** — select categories you care about (pillar or topic mode)
+- **Email verification** — confirmation flow for email sign-up
 
 ### Account hub
-- **Profile** ΓÇö view and edit public profile details, manage collections and saved URLs
-- **Settings** ΓÇö discovery mode, email notifications, appearance (light/dark/system), change password, data export, account deletion
-- **Password reset** ΓÇö request and complete password changes via `/forgot-password` and `/auth/reset-password`
+- **Profile** — view and edit public profile details, manage collections and saved URLs
+- **Settings** — discovery mode, email notifications, appearance (light/dark/system), change password, data export, account deletion
+- **Password reset** — request and complete password changes via `/forgot-password` and `/auth/reset-password`
 
 ### Social & Gamification
-- **Public profiles** (`/u/[username]`) ΓÇö view user profiles with activity, collections, badges, and XP
-- **Collections** (`/collections/[slug]`) ΓÇö public collection browsing
-- **Follow/unfollow** ΓÇö manage follows from profile pages
-- **Leaderboard** (`/leaderboard`) ΓÇö weekly, monthly, and all-time XP rankings
-- **Badge gallery** (`/badges`) ΓÇö 70+ badges with unlock details and progress tracking
+- **Public profiles** (`/u/[username]`) — view user profiles with activity, collections, badges, and XP
+- **Collections** (`/collections/[slug]`) — public collection browsing
+- **Follow/unfollow** — manage follows from profile pages
+- **Leaderboard** (`/leaderboard`) — weekly, monthly, and all-time XP rankings
+- **Badge gallery** (`/badges`) — 70+ badges with unlock details and progress tracking
 
 ### Admin
-- **Moderation queue** ΓÇö review and approve/reject submissions with detail view, filtering, search, sort
-- **Undo decisions** ΓÇö re-open previously decided items
-- **Dashboard statistics** ΓÇö 15 stat cards (content, engagement, users) with request-time caching
-- **Dead links tab** ΓÇö review user-reported broken links
+- **Moderation queue** — review and approve/reject submissions with detail view, filtering, search, sort
+- **Undo decisions** — re-open previously decided items
+- **Dashboard statistics** — 15 stat cards (content, engagement, users) with request-time caching
+- **Dead links tab** — review user-reported broken links
 
 ### Other
-- **URL submission** (`/submit`) ΓÇö submit new URLs for moderation
-- **How It Works** (`/how-it-works`) ΓÇö product tour
-- **Android Beta** (`/android-beta`) ΓÇö beta tester sign-up
-- **Privacy / Terms** ΓÇö public legal pages
+- **URL submission** (`/submit`) — submit new URLs for moderation
+- **How It Works** (`/how-it-works`) — product tour
+- **Android Beta** (`/android-beta`) — beta tester sign-up
+- **Privacy / Terms** — public legal pages
 
 ## Route Map
 
@@ -109,72 +109,72 @@ The server hot-reloads as you edit files.
 
 ```
 web/
-Γö£ΓöÇΓöÇ src/
-Γöé   Γö£ΓöÇΓöÇ app/               # Next.js App Router pages and layouts
-Γöé   Γöé   Γö£ΓöÇΓöÇ admin/         # Admin moderation dashboard (protected)
-Γöé   Γöé   Γö£ΓöÇΓöÇ api/           # API route handlers
-Γöé   Γöé   Γö£ΓöÇΓöÇ auth/          # OAuth callback, verify-email, reset-password
-Γöé   Γöé   Γö£ΓöÇΓöÇ badges/        # Badge gallery with unlock details
-Γöé   Γöé   Γö£ΓöÇΓöÇ collections/   # Public collection listing + [slug] detail
-Γöé   Γöé   Γö£ΓöÇΓöÇ error.tsx      # Global error boundary
-Γöé   Γöé   Γö£ΓöÇΓöÇ following/     # Activity feed from followed users
-Γöé   Γöé   Γö£ΓöÇΓöÇ forgot-password/
-Γöé   Γöé   Γö£ΓöÇΓöÇ how-it-works/  # Product tour
-Γöé   Γöé   Γö£ΓöÇΓöÇ leaderboard/   # Weekly, monthly, and all-time XP rankings
-Γöé   Γöé   Γö£ΓöÇΓöÇ privacy/       # Privacy Policy
-Γöé   Γöé   Γö£ΓöÇΓöÇ profile/       # Profile view + edit (protected)
-Γöé   Γöé   Γö£ΓöÇΓöÇ settings/      # User account settings (protected)
-Γöé   Γöé   Γö£ΓöÇΓöÇ signup/        # Alternative sign-up flow
-Γöé   Γöé   Γö£ΓöÇΓöÇ submit/        # URL submission
-Γöé   Γöé   Γö£ΓöÇΓöÇ terms/         # Terms of Service
-Γöé   Γöé   Γö£ΓöÇΓöÇ u/             # Public user profiles ([username])
-Γöé   Γöé   ΓööΓöÇΓöÇ android-beta/  # Beta program sign-up
-Γöé   Γö£ΓöÇΓöÇ components/        # Reusable React components
-Γöé   Γöé   Γö£ΓöÇΓöÇ Header.tsx     # Navigation header (server component)
-Γöé   Γöé   Γö£ΓöÇΓöÇ Footer.tsx     # Site footer
-Γöé   Γöé   Γö£ΓöÇΓöÇ ErrorBoundary.tsx
-Γöé   Γöé   Γö£ΓöÇΓöÇ FeedbackWidget.tsx
-Γöé   Γöé   Γö£ΓöÇΓöÇ ThemeToggle.tsx
-Γöé   Γöé   ΓööΓöÇΓöÇ ...
-Γöé   Γö£ΓöÇΓöÇ lib/
-Γöé   Γöé   Γö£ΓöÇΓöÇ supabase/      # Supabase client factories
-Γöé   Γöé   Γöé   Γö£ΓöÇΓöÇ client.ts  # Client-side Supabase instance
-Γöé   Γöé   Γöé   Γö£ΓöÇΓöÇ server.ts  # Server-side Supabase instance
-Γöé   Γöé   Γöé   ΓööΓöÇΓöÇ shared.ts  # Shared validation
-Γöé   Γöé   Γö£ΓöÇΓöÇ env.ts         # Environment variable validation
-Γöé   Γöé   Γö£ΓöÇΓöÇ hooks.ts       # Shared React hooks
-Γöé   Γöé   Γö£ΓöÇΓöÇ logger.ts      # Structured logging + Sentry
-Γöé   Γöé   Γö£ΓöÇΓöÇ constants.ts   # Shared constants
-Γöé   Γöé   ΓööΓöÇΓöÇ interests.ts   # Interest/category utilities
-Γöé   Γö£ΓöÇΓöÇ globals.css        # Tailwind CSS imports
-Γöé   ΓööΓöÇΓöÇ layout.tsx         # Root layout with ThemeProvider + ErrorBoundary
-Γö£ΓöÇΓöÇ public/                # Static assets (logos, icons)
-Γö£ΓöÇΓöÇ jest.config.js         # Jest testing configuration
-Γö£ΓöÇΓöÇ jest.setup.js          # Test environment setup
-Γö£ΓöÇΓöÇ next.config.ts         # Next.js configuration (with Sentry)
-Γö£ΓöÇΓöÇ tsconfig.json          # TypeScript configuration
-ΓööΓöÇΓöÇ package.json           # Dependencies
+├── src/
+│   ├── app/               # Next.js App Router pages and layouts
+│   │   ├── admin/         # Admin moderation dashboard (protected)
+│   │   ├── api/           # API route handlers
+│   │   ├── auth/          # OAuth callback, verify-email, reset-password
+│   │   ├── badges/        # Badge gallery with unlock details
+│   │   ├── collections/   # Public collection listing + [slug] detail
+│   │   ├── error.tsx      # Global error boundary
+│   │   ├── following/     # Activity feed from followed users
+│   │   ├── forgot-password/
+│   │   ├── how-it-works/  # Product tour
+│   │   ├── leaderboard/   # Weekly, monthly, and all-time XP rankings
+│   │   ├── privacy/       # Privacy Policy
+│   │   ├── profile/       # Profile view + edit (protected)
+│   │   ├── settings/      # User account settings (protected)
+│   │   ├── signup/        # Alternative sign-up flow
+│   │   ├── submit/        # URL submission
+│   │   ├── terms/         # Terms of Service
+│   │   ├── u/             # Public user profiles ([username])
+│   │   └── android-beta/  # Beta program sign-up
+│   ├── components/        # Reusable React components
+│   │   ├── Header.tsx     # Navigation header (server component)
+│   │   ├── Footer.tsx     # Site footer
+│   │   ├── ErrorBoundary.tsx
+│   │   ├── FeedbackWidget.tsx
+│   │   ├── ThemeToggle.tsx
+│   │   └── ...
+│   ├── lib/
+│   │   ├── supabase/      # Supabase client factories
+│   │   │   ├── client.ts  # Client-side Supabase instance
+│   │   │   ├── server.ts  # Server-side Supabase instance
+│   │   │   └── shared.ts  # Shared validation
+│   │   ├── env.ts         # Environment variable validation
+│   │   ├── hooks.ts       # Shared React hooks
+│   │   ├── logger.ts      # Structured logging + Sentry
+│   │   ├── constants.ts   # Shared constants
+│   │   └── interests.ts   # Interest/category utilities
+│   ├── globals.css        # Tailwind CSS imports
+│   └── layout.tsx         # Root layout with ThemeProvider + ErrorBoundary
+├── public/                # Static assets (logos, icons)
+├── jest.config.js         # Jest testing configuration
+├── jest.setup.js          # Test environment setup
+├── next.config.ts         # Next.js configuration (with Sentry)
+├── tsconfig.json          # TypeScript configuration
+└── package.json           # Dependencies
 ```
 
 ## Key Files
 
 ### Authentication & Data
-- **`src/lib/supabase/client.ts`** ΓÇö Creates Supabase client for browser (persistent session, auto-refresh)
-- **`src/lib/supabase/server.ts`** ΓÇö Creates Supabase client for server components (request-scoped)
-- **`src/lib/supabase/shared.ts`** ΓÇö Shared env var validation for both clients
+- **`src/lib/supabase/client.ts`** — Creates Supabase client for browser (persistent session, auto-refresh)
+- **`src/lib/supabase/server.ts`** — Creates Supabase client for server components (request-scoped)
+- **`src/lib/supabase/shared.ts`** — Shared env var validation for both clients
 
 ### Pages
-- **`src/app/admin/page.tsx`** ΓÇö Server-side auth check, redirects non-admins
-- **`src/app/admin/AdminPageClient.tsx`** ΓÇö Client-side queue UI with filtering, search, sorting, tabs
-- **`src/app/admin/ModerationDetail.tsx`** ΓÇö Modal for detailed submission review and undo
-- **`src/app/layout.tsx`** ΓÇö Root layout wrapping all pages with ErrorBoundary and ThemeProvider
-- **`src/app/profile/page.tsx`** ΓÇö Server shell with parallel data fetch, hands off to ProfileClient
-- **`src/app/auth/callback/route.ts`** ΓÇö OAuth code exchange, routes new vs returning users
+- **`src/app/admin/page.tsx`** — Server-side auth check, redirects non-admins
+- **`src/app/admin/AdminPageClient.tsx`** — Client-side queue UI with filtering, search, sorting, tabs
+- **`src/app/admin/ModerationDetail.tsx`** — Modal for detailed submission review and undo
+- **`src/app/layout.tsx`** — Root layout wrapping all pages with ErrorBoundary and ThemeProvider
+- **`src/app/profile/page.tsx`** — Server shell with parallel data fetch, hands off to ProfileClient
+- **`src/app/auth/callback/route.ts`** — OAuth code exchange, routes new vs returning users
 
 ### Utilities
-- **`src/lib/env.ts`** ΓÇö Validates NEXT_PUBLIC_* env vars at module import time
-- **`src/components/ErrorBoundary.tsx`** ΓÇö React class component catching render-time errors
-- **`src/lib/logger.ts`** ΓÇö Structured logging with Sentry integration and PII sanitization
+- **`src/lib/env.ts`** — Validates NEXT_PUBLIC_* env vars at module import time
+- **`src/components/ErrorBoundary.tsx`** — React class component catching render-time errors
+- **`src/lib/logger.ts`** — Structured logging with Sentry integration and PII sanitization
 
 ## Common Tasks
 
@@ -304,4 +304,4 @@ pnpm dev -- -p 3001
 - [Supabase Documentation](https://supabase.com/docs)
 - [Tailwind CSS](https://tailwindcss.com/docs)
 - [Sentry for JavaScript](https://docs.sentry.io/platforms/javascript/)
-- [Main project README](../README.md) ΓÇö architecture overview
+- [Main project README](../README.md) — architecture overview

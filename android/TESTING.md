@@ -62,7 +62,7 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 **Pre-test checklist:**
 - [ ] `local.properties` has `SUPABASE_URL` and `SUPABASE_ANON_KEY` (`SENTRY_DSN` optional)
 - [ ] Device has a network connection (WiFi or mobile data)
-- [ ] Chrome (or another Custom Tabs provider) is installed ΓÇö required for OAuth
+- [ ] Chrome (or another Custom Tabs provider) is installed — required for OAuth
 - [ ] `adb logcat` is running to catch `FATAL EXCEPTION` / ANR traces
 
 ---
@@ -74,7 +74,7 @@ The app supports Google OAuth via Chrome Custom Tabs and an inline email/passwor
 ### 3.1 First sign-in
 
 **Steps:**
-1. Launch the app ΓåÆ SplashScreen ΓåÆ OnboardingScreen.
+1. Launch the app → SplashScreen → OnboardingScreen.
 2. Tap **Continue with Google**.
 3. A Chrome Custom Tab opens the Google account chooser.
 4. Pick a test account and authorize.
@@ -89,7 +89,7 @@ The app supports Google OAuth via Chrome Custom Tabs and an inline email/passwor
 ### 3.2 Email/password sign-in
 
 **Steps:**
-1. Launch the app ΓåÆ SplashScreen ΓåÆ OnboardingScreen.
+1. Launch the app → SplashScreen → OnboardingScreen.
 2. Tap **Continue with Email**.
 3. Enter email and password.
 4. Tap **Create Account** or **Sign In**.
@@ -118,7 +118,7 @@ The app supports Google OAuth via Chrome Custom Tabs and an inline email/passwor
 3. Relaunch.
 
 **Expected:**
-- User stays signed in ΓÇö no OnboardingScreen.
+- User stays signed in — no OnboardingScreen.
 - `TokenRefreshWorker` is scheduled (12 h periodic, KEEP policy); a missing refresh
   token resolves to `success()` and does not loop.
 
@@ -138,7 +138,7 @@ adb shell am start -a android.intent.action.VIEW `
 ### 3.6 Sign out
 
 **Steps:**
-1. Go to **Settings** ΓåÆ **Sign out**.
+1. Go to **Settings** → **Sign out**.
 
 **Expected:**
 - Returns to OnboardingScreen.
@@ -156,9 +156,9 @@ adb shell am start -a android.intent.action.VIEW `
 
 **Expected:**
 - First roam after sign-in is near-instant (hot queue pre-filled).
-- Page renders full-screen in the WebView; the status bar shows `Category ┬╖ domain`.
+- Page renders full-screen in the WebView; the status bar shows `Category · domain`.
 - The hot(3)/warm(5) prefetch queues refill in the background on `Dispatchers.IO`
-  (no main-thread network ΓåÆ no ANR).
+  (no main-thread network → no ANR).
 - If the pool is empty, an **Exhausted** state is shown; on network failure an
   **Error** banner with a retry path appears.
 
@@ -178,7 +178,7 @@ adb shell am start -a android.intent.action.VIEW `
 ### 4.3 Swipe gestures
 
 **Steps:**
-1. Swipe down ΓåÆ roam; swipe right ΓåÆ like; swipe left ΓåÆ skip.
+1. Swipe down → roam; swipe right → like; swipe left → skip.
 
 **Expected:**
 - Matches `resolveSwipeAction` (see `SwipeDirectionTest`): dominant axis wins, drags
@@ -187,14 +187,14 @@ adb shell am start -a android.intent.action.VIEW `
 ### 4.4 Focus mode
 
 **Steps:**
-1. Open the config sheet ΓåÆ enable **Focus mode** and pick a category (and optionally a
+1. Open the config sheet → enable **Focus mode** and pick a category (and optionally a
    subcategory).
 2. Roam several times.
 
 **Expected:**
 - Results are restricted to the chosen category/subcategory.
 - Changing the category/subcategory clears both prefetch queues and refills.
-- Focus mode is ephemeral ΓÇö it resets to off on the next app launch.
+- Focus mode is ephemeral — it resets to off on the next app launch.
 
 ---
 
@@ -203,7 +203,7 @@ adb shell am start -a android.intent.action.VIEW `
 ### 5.1 Save for later
 
 **Steps:**
-1. Long-press / open the config sheet on a loaded page ΓåÆ **Save for later**.
+1. Long-press / open the config sheet on a loaded page → **Save for later**.
 2. Go to the **Saved** screen.
 
 **Expected:**
@@ -214,7 +214,7 @@ adb shell am start -a android.intent.action.VIEW `
 ### 5.2 Add to collection
 
 **Steps:**
-1. Config sheet ΓåÆ **Add to collection**.
+1. Config sheet → **Add to collection**.
 2. Pick an existing collection, or create one inline and add.
 
 **Expected:**
@@ -224,20 +224,20 @@ adb shell am start -a android.intent.action.VIEW `
 ### 5.3 Submit a URL
 
 **Steps:**
-1. **Settings** ΓåÆ **Submit a URL** (or thumbs-up on an unknown page).
+1. **Settings** → **Submit a URL** (or thumbs-up on an unknown page).
 2. Paste a URL, pick a category, optionally pick a subcategory (only shown after a
    category is chosen), tap **Submit**.
 
 **Expected:**
 - **Submit** is disabled until both a URL and a category are provided.
 - **Cancel** dismisses without sending.
-- On success a toast ("Submitted for review ΓÇö thanks!") shows for ~4 s; on failure a
+- On success a toast ("Submitted for review — thanks!") shows for ~4 s; on failure a
   "Couldn't submit" toast with the error.
 
 ### 5.4 Report broken link
 
 **Steps:**
-1. Config sheet ΓåÆ **Report broken link**.
+1. Config sheet → **Report broken link**.
 
 **Expected:**
 - The URL is reported (server sets `inactive = TRUE`), the sheet closes, and the app
@@ -255,7 +255,7 @@ adb shell am start -a android.intent.action.VIEW `
 | Dark mode for web pages | On | SharedPreferences (`web_dark_mode`) |
 | JavaScript enabled | On | SharedPreferences (`js_enabled`) |
 | Translate target language | `en` | SharedPreferences (`translate_language`) |
-| Auto-translate current page | Off (per-page) | In-memory only ΓÇö resets each roam |
+| Auto-translate current page | Off (per-page) | In-memory only — resets each roam |
 | Interest categories | (onboarding) | Supabase `user_categories` |
 
 **Checks:**
@@ -277,9 +277,9 @@ adb shell am start -a android.intent.action.VIEW `
 
 **Expected:**
 - Field edits debounce ~800 ms, then upsert to `profiles`.
-- Avatar is compressed to Γëñ 600 px JPEG and uploaded to the `avatars` bucket; the new
+- Avatar is compressed to ≤ 600 px JPEG and uploaded to the `avatars` bucket; the new
   public URL appears immediately.
-- Stats (pages roamed / submitted) load via server-side COUNT ΓÇö no full-row fetch.
+- Stats (pages roamed / submitted) load via server-side COUNT — no full-row fetch.
 - Category chips reflect `user_categories` and toggle optimistically.
 
 ---
@@ -289,14 +289,14 @@ adb shell am start -a android.intent.action.VIEW `
 ### 8.1 Backgrounding
 
 **Steps:**
-1. Load a page ΓåÆ press Home ΓåÆ wait 10 s ΓåÆ reopen the app.
-2. Lock the screen on a loaded page ΓåÆ unlock.
+1. Load a page → press Home → wait 10 s → reopen the app.
+2. Lock the screen on a loaded page → unlock.
 
 **Expected:**
 - No blank-screen bug: `onPause/onResume` toggle `pauseTimers/resumeTimers`.
 - Scroll position is restored after a reload.
 - If the renderer was killed (`onRenderProcessGone`), the WebView is recreated via the
-  `key(webViewKey)` bump and state is restored from the saved `Bundle` ΓÇö no crash.
+  `key(webViewKey)` bump and state is restored from the saved `Bundle` — no crash.
 
 ### 8.2 In-page navigation & controls
 
@@ -319,7 +319,7 @@ adb shell am start -a android.intent.action.VIEW `
 2. Tap **Roam**.
 
 **Expected:**
-- An offline message is shown ("You appear to be offlineΓÇª") ΓÇö not a generic crash.
+- An offline message is shown ("You appear to be offline…") — not a generic crash.
 - No retry storm; offline errors are not sent to Sentry.
 
 ### 9.2 Offline rating queue
@@ -337,12 +337,12 @@ adb shell am start -a android.intent.action.VIEW `
 
 ## 10. Security & Compliance
 
-- [ ] All traffic is HTTPS ΓÇö `usesCleartextTraffic="false"` and
+- [ ] All traffic is HTTPS — `usesCleartextTraffic="false"` and
       `network_security_config.xml` are in effect (verify with a proxy).
 - [ ] `SUPABASE_URL` / `SUPABASE_ANON_KEY` / `SENTRY_DSN` come from `BuildConfig`
-      (injected from `local.properties`) ΓÇö never hard-coded or committed.
+      (injected from `local.properties`) — never hard-coded or committed.
 - [ ] `Env.validateAtStartup()` fails fast if Supabase keys are missing or non-HTTPS.
-- [ ] Data access is gated by Supabase RLS ΓÇö the anon key alone cannot read other
+- [ ] Data access is gated by Supabase RLS — the anon key alone cannot read other
       users' rows.
 - [ ] No secrets printed to Logcat.
 
@@ -376,7 +376,7 @@ adb shell am start -W -n app.roam.android/.MainActivity
 
 ## 12. Compatibility Matrix
 
-Run the core flows (Sections 3ΓÇô9) on each:
+Run the core flows (Sections 3–9) on each:
 
 | API | Android | Status |
 |---|---|---|
@@ -390,7 +390,7 @@ Run the core flows (Sections 3ΓÇô9) on each:
 
 - [ ] `testDebugUnitTest` is green (52 tests)
 - [ ] Google OAuth completes and returns via `app.roam.android://callback`
-- [ ] New user ΓåÆ category onboarding; returning user ΓåÆ Discover
+- [ ] New user → category onboarding; returning user → Discover
 - [ ] Session persists across force-stop / relaunch
 - [ ] Sign out clears the session
 - [ ] Roam loads pages; prefetch refills without ANR

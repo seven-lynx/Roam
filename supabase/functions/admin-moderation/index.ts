@@ -6,12 +6,12 @@
 // server actions. This edge function covers moderation queue + stats + reports.
 //
 // Actions:
-//   list     ΓÇö returns all moderation_queue entries with submitter profile + subcategory
-//   approve  ΓÇö body: { id } ΓÇö updates moderation_queue.status = 'approved', upserts into urls
-//   reject   ΓÇö body: { id } ΓÇö updates moderation_queue.status = 'rejected'
-//   stats    ΓÇö returns { pending, approved, rejected, reports }
-//   reports  ΓÇö returns grouped url_reports with report count
-//   restore  ΓÇö body: { url_id } ΓÇö sets urls.inactive = false
+//   list     — returns all moderation_queue entries with submitter profile + subcategory
+//   approve  — body: { id } — updates moderation_queue.status = 'approved', upserts into urls
+//   reject   — body: { id } — updates moderation_queue.status = 'rejected'
+//   stats    — returns { pending, approved, rejected, reports }
+//   reports  — returns grouped url_reports with report count
+//   restore  — body: { url_id } — sets urls.inactive = false
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { getCorsHeaders } from '../_shared/cors.ts'
@@ -35,7 +35,7 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: getCorsHeaders(origin) })
   if (req.method !== 'POST') return json({ error: 'Method not allowed' }, 405)
 
-  // Authenticate via user JWT (not service key ΓÇö verifies the user is signed in)
+  // Authenticate via user JWT (not service key — verifies the user is signed in)
   const supabase = createClient(
     Deno.env.get('SUPABASE_URL')!,
     Deno.env.get('SUPABASE_ANON_KEY')!,
@@ -45,7 +45,7 @@ Deno.serve(async (req) => {
   const { data: { user }, error: authError } = await supabase.auth.getUser()
   if (authError || !user) return json({ error: 'Unauthorized' }, 401)
 
-  // Role check ΓÇö must be admin or moderator.
+  // Role check — must be admin or moderator.
   // First check the JWT app_metadata (works for fresh tokens). If the
   // JWT doesn't carry the role (token was issued before role assignment),
   // fall back to a DB lookup using the service-role client.
@@ -59,19 +59,19 @@ Deno.serve(async (req) => {
   )
 
   if (!role) {
-    // JWT lacks app_metadata.role ΓÇö look up from auth.users via service client
+    // JWT lacks app_metadata.role — look up from auth.users via service client
     const { data: userRecord, error: roleLookupErr } = await adminClient.auth.admin.getUserById(user.id)
     if (!roleLookupErr && userRecord.user) {
       role = userRecord.user.app_metadata?.role as string | undefined
     }
     if (!role) {
       console.warn(`[admin-moderation] Role lookup failed for user ${user.id}: ${roleLookupErr?.message ?? 'no role in user record'}`)
-      return json({ error: 'Forbidden ΓÇö admin or moderator role required' }, 403)
+      return json({ error: 'Forbidden — admin or moderator role required' }, 403)
     }
   }
 
   if (role !== 'admin' && role !== 'moderator') {
-    return json({ error: 'Forbidden ΓÇö admin or moderator role required' }, 403)
+    return json({ error: 'Forbidden — admin or moderator role required' }, 403)
   }
   const isAdmin = role === 'admin'
 
@@ -99,7 +99,7 @@ Deno.serve(async (req) => {
   }
 })
 
-// ΓöÇΓöÇ Handlers ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+// ── Handlers ─────────────────────────────────────────────────────────────────
 
 // deno-lint-ignore no-explicit-any
 async function handleList(admin: any) {
@@ -214,12 +214,12 @@ async function handleApprove(
 
   if (upsertErr) {
     console.error('Failed to upsert into urls:', upsertErr)
-    // Don't fail the request ΓÇö the moderation state is already updated
+    // Don't fail the request — the moderation state is already updated
   }
 
-  // ΓöÇΓöÇ Notify the original submitter ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
-  // Fire-and-forget ΓÇö don't block the response for notification delivery.
-  // The INSERT into notifications triggers the DB webhook ΓåÆ push-notify ΓåÆ FCM/Web Push.
+  // ── Notify the original submitter ───────────────────────────────────────
+  // Fire-and-forget — don't block the response for notification delivery.
+  // The INSERT into notifications triggers the DB webhook → push-notify → FCM/Web Push.
   
   if (item.submitted_by && item.submitted_by !== actor.id) {
     const shortUrl = item.url.length > 60 ? item.url.slice(0, 57) + '...' : item.url
@@ -228,7 +228,7 @@ async function handleApprove(
       .insert({
         user_id: item.submitted_by,
         type: 'url_approved',
-        title: 'Γ£à Your submission was approved!',
+        title: '✅ Your submission was approved!',
         body: `"${item.title || shortUrl}" is now live on Roam.`,
         data: { url: item.url },
       })

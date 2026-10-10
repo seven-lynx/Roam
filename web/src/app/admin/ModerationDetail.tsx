@@ -79,10 +79,10 @@ export default function ModerationDetail({
   if (!item) return null;
 
   const safeBrowsingStatus = item.safe_browsing_passed
-    ? "Γ£ô Passed"
+    ? "✓ Passed"
     : item.safe_browsing_passed === false
-      ? "Γ£ù Rejected"
-      : "ΓÇö";
+      ? "✗ Rejected"
+      : "—";
 
   async function handleDecision(action: "approved" | "rejected") {
     if (!item) return;
@@ -176,7 +176,7 @@ export default function ModerationDetail({
               onClick={onClose}
               className="flex items-center gap-2 text-sm font-medium text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-300 transition-colors"
             >
-              <span className="text-lg leading-none">ΓåÉ</span>
+              <span className="text-lg leading-none">←</span>
               <span className="hidden sm:inline">Back</span>
             </button>
             <h2 className="text-sm sm:text-lg font-semibold text-zinc-900 dark:text-white">URL Details</h2>
@@ -238,7 +238,7 @@ export default function ModerationDetail({
                   }}
                   className="flex-1 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg px-3 py-2.5 text-sm text-zinc-900 dark:text-white"
                 >
-                  <option value="">ΓÇö Category ΓÇö</option>
+                  <option value="">— Category —</option>
                   {categories.map((cat) => (
                     <option key={cat.id} value={cat.id}>{cat.name}</option>
                   ))}
@@ -248,7 +248,7 @@ export default function ModerationDetail({
                   onChange={(e) => setSelectedSubcategoryId(e.target.value || null)}
                   className="flex-1 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg px-3 py-2.5 text-sm text-zinc-900 dark:text-white"
                 >
-                  <option value="">ΓÇö Subcategory ΓÇö</option>
+                  <option value="">— Subcategory —</option>
                   {filteredSubcategories.map((sub) => (
                     <option key={sub.id} value={sub.id}>{sub.name}</option>
                   ))}
@@ -281,7 +281,7 @@ export default function ModerationDetail({
               </label>
               <div className="bg-zinc-50 dark:bg-zinc-800 rounded-lg px-3 py-2.5 text-xs sm:text-sm text-zinc-900 dark:text-white">
                 {emailLoading
-                  ? "LoadingΓÇª"
+                  ? "Loading…"
                   : submitterEmail ?? item.profile?.username ?? item.submitted_by ?? "Unknown"}
               </div>
             </div>
@@ -292,7 +292,7 @@ export default function ModerationDetail({
                 Submitted
               </label>
               <div className="bg-zinc-50 dark:bg-zinc-800 rounded-lg px-3 py-2.5 text-xs sm:text-sm text-zinc-900 dark:text-white">
-                {item.created_at ? new Date(item.created_at).toLocaleString('en-US', { timeZone: 'America/New_York', timeZoneName: 'short' }) : 'ΓÇö'}
+                {item.created_at ? new Date(item.created_at).toLocaleString('en-US', { timeZone: 'America/New_York', timeZoneName: 'short' }) : '—'}
               </div>
             </div>
 

@@ -1,5 +1,6 @@
 package app.roam.android.model
 
+import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonNames
@@ -16,6 +17,7 @@ data class AppNotification(
     @SerialName("created_at") val createdAt: String = "",
 )
 
+@OptIn(ExperimentalSerializationApi::class)
 @Serializable
 data class AppNotificationData(
     // Moderation notifications (url_approved, url_rejected)

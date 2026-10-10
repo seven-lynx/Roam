@@ -46,13 +46,13 @@ export function useToast(duration = 4000) {
 
 export type { Profile } from '@/components/AuthProvider';
 
-/** Thin wrapper ΓÇö prefer useAuth() directly. */
+/** Thin wrapper — prefer useAuth() directly. */
 export function useSession() {
   const { session, loading } = useAuth();
   return { session, loading };
 }
 
-/** Thin wrapper ΓÇö prefer useAuth() directly. */
+/** Thin wrapper — prefer useAuth() directly. */
 export function useProfile() {
   const { profile, loading } = useAuth();
   return { profile, loading, error: null };

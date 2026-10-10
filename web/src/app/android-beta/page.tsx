@@ -27,7 +27,7 @@ export default function AndroidBetaPage() {
       );
       const data = await res.json();
       if (!res.ok) {
-        setMessage(data.error ?? 'Something went wrong ΓÇö please try again.');
+        setMessage(data.error ?? 'Something went wrong — please try again.');
         setStatus('error');
         return;
       }
@@ -79,7 +79,7 @@ export default function AndroidBetaPage() {
               disabled={!email.trim() || status === 'submitting'}
               className="rounded-full bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 font-semibold py-3 text-base hover:opacity-90 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed"
             >
-              {status === 'submitting' ? 'JoiningΓÇª' : 'Join the Android Beta'}
+              {status === 'submitting' ? 'Joining…' : 'Join the Android Beta'}
             </button>
           </form>
         )}

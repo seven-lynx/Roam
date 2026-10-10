@@ -1,14 +1,14 @@
 -- admin_analytics()
 --
 -- Returns eight datasets for /admin analytics tab:
---   1. submissions_by_date      ΓÇö daily submission counts, last 30 days
---   2. submissions_by_category  ΓÇö top-10 parent categories by submission count
---   3. top_urls                 ΓÇö top-10 URLs by wilson_score (uses idx_urls_rated)
---   4. queue_stats              ΓÇö approved / rejected / pending counts
---   5. top_rated_categories     ΓÇö avg wilson score per category (min 5 rated URLs)
---   6. source_breakdown         ΓÇö URL count per seeder source (from MV, hourly)
---   7. language_distribution    ΓÇö URL count per language (from MV, hourly)
---   8. dead_by_category         ΓÇö dead URL % per category (from MV, hourly)
+--   1. submissions_by_date      — daily submission counts, last 30 days
+--   2. submissions_by_category  — top-10 parent categories by submission count
+--   3. top_urls                 — top-10 URLs by wilson_score (uses idx_urls_rated)
+--   4. queue_stats              — approved / rejected / pending counts
+--   5. top_rated_categories     — avg wilson score per category (min 5 rated URLs)
+--   6. source_breakdown         — URL count per seeder source (from MV, hourly)
+--   7. language_distribution    — URL count per language (from MV, hourly)
+--   8. dead_by_category         — dead URL % per category (from MV, hourly)
 --
 -- All aggregation done in Postgres; nothing downloaded to the client.
 -- Called via supabase.rpc('admin_analytics') through a server action.
@@ -31,7 +31,7 @@ DECLARE
   v_languages        JSON;
   v_dead_by_category JSON;
 BEGIN
-  -- ΓöÇΓöÇ 1. Submissions per day, last 30 days ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+  -- ── 1. Submissions per day, last 30 days ──────────────────────────────────
   SELECT json_agg(row ORDER BY row.date)
   INTO v_by_date
   FROM (
@@ -43,7 +43,7 @@ BEGIN
     GROUP BY 1
   ) row;
 
-  -- ΓöÇΓöÇ 2. Submissions by parent category (top 10, all time) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+  -- ── 2. Submissions by parent category (top 10, all time) ──────────────────
   SELECT json_agg(row ORDER BY row.count DESC)
   INTO v_by_category
   FROM (
@@ -58,7 +58,7 @@ BEGIN
     LIMIT 10
   ) row;
 
-  -- ΓöÇΓöÇ 3. Top 10 URLs by wilson score ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+  -- ── 3. Top 10 URLs by wilson score ────────────────────────────────────────
   SELECT json_agg(row ORDER BY row.wilson_score DESC)
   INTO v_top_urls
   FROM (
@@ -75,7 +75,7 @@ BEGIN
     LIMIT 10
   ) row;
 
-  -- ΓöÇΓöÇ 4. Queue stats: counts by status ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+  -- ── 4. Queue stats: counts by status ──────────────────────────────────────
   SELECT json_build_object(
     'approved', COUNT(*) FILTER (WHERE status = 'approved')::int,
     'rejected', COUNT(*) FILTER (WHERE status = 'rejected')::int,
@@ -84,7 +84,7 @@ BEGIN
   INTO v_queue_stats
   FROM public.moderation_queue;
 
-  -- ΓöÇΓöÇ 5. Top rated categories (avg wilson score, min 5 rated URLs) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+  -- ── 5. Top rated categories (avg wilson score, min 5 rated URLs) ──────────
   SELECT json_agg(row ORDER BY row.avg_score DESC)
   INTO v_top_rated_cats
   FROM (
@@ -101,7 +101,7 @@ BEGIN
     ORDER BY avg_score DESC
   ) row;
 
-  -- ΓöÇΓöÇ 6. Source breakdown (materialized view, refreshed hourly) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+  -- ── 6. Source breakdown (materialized view, refreshed hourly) ─────────────
   SELECT json_agg(row ORDER BY row.count DESC)
   INTO v_sources
   FROM (
@@ -109,7 +109,7 @@ BEGIN
     ORDER BY count DESC LIMIT 20
   ) row;
 
-  -- ΓöÇΓöÇ 7. Language distribution (materialized view, refreshed hourly) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+  -- ── 7. Language distribution (materialized view, refreshed hourly) ─────────
   SELECT json_agg(row ORDER BY row.count DESC)
   INTO v_languages
   FROM (
@@ -117,7 +117,7 @@ BEGIN
     ORDER BY count DESC LIMIT 15
   ) row;
 
-  -- ΓöÇΓöÇ 8. Dead URL rate by category (materialized view, refreshed hourly) ΓöÇΓöÇΓöÇΓöÇΓöÇ
+  -- ── 8. Dead URL rate by category (materialized view, refreshed hourly) ─────
   SELECT json_agg(row ORDER BY row.total DESC)
   INTO v_dead_by_category
   FROM (

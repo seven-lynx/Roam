@@ -5,13 +5,13 @@
 //
 // Follower/following counts are fetched with the service role key to bypass
 // the follows RLS (which restricts reads to the involved parties). Counts are
-// aggregate numbers ΓÇö no private relationship data is exposed.
+// aggregate numbers — no private relationship data is exposed.
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { corsHeaders } from '../_shared/cors.ts'
 import { clientIp, rateLimit } from '../_shared/rate-limit.ts'
 
-// 60 requests per minute per IP ΓÇö enough for normal browsing of profile pages,
+// 60 requests per minute per IP — enough for normal browsing of profile pages,
 // well below the rate needed for username enumeration (~5 req/sec sustained).
 const RATE_LIMIT = 60
 const WINDOW_MS = 60_000
@@ -45,7 +45,7 @@ Deno.serve(async (req) => {
     try {
       const body = await req.json()
       username = body?.username
-    } catch { /* body not JSON or empty ΓÇö fall through to error below */ }
+    } catch { /* body not JSON or empty — fall through to error below */ }
   }
 
   if (!username) return json({ error: 'username parameter is required (provide as ?username= or JSON body)' }, 400)

@@ -3,32 +3,32 @@
 ## Compact form
 
 ```
-W = ( p╠é + z┬▓/2n ΓêÆ zΓêÜ((p╠é(1ΓêÆp╠é))/n + z┬▓/4n┬▓) ) / (1 + z┬▓/n)
+W = ( p̂ + z²/2n − z√((p̂(1−p̂))/n + z²/4n²) ) / (1 + z²/n)
 
-C = clamp( (u≡¥£Å / (u≡¥£Å + d≡¥£Å)) / 0.5,  0.4, 2.0 )
+C = clamp( (u𝜏 / (u𝜏 + d𝜏)) / 0.5,  0.4, 2.0 )
 
-F = { published_at known ΓåÆ max(exp(ΓêÆ0.001┬╖t), 0.2)
-    { published_at NULL  ΓåÆ 0.7                        half-life Γëê 2 yrs, floor 0.2
+F = { published_at known → max(exp(−0.001·t), 0.2)
+    { published_at NULL  → 0.7                        half-life ≈ 2 yrs, floor 0.2
 
-E = (W + 0.3┬╖S + 0.15┬╖[n=0]) ┬╖ C ┬╖ F
+E = (W + 0.3·S + 0.15·[n=0]) · C · F
 
-rank = (E + 0.1) ┬╖ r  ΓåÆ  argmax  ΓåÆ  pick URL
+rank = (E + 0.1) · r  →  argmax  →  pick URL
 ```
 
 **Legend**
 
 | Symbol        | Meaning |
 |---------------|---------|
-| p╠é            | upvote rate for this URL = u / n |
+| p̂            | upvote rate for this URL = u / n |
 | n             | total votes on this URL = u + d |
 | u, d          | upvotes, downvotes on this URL |
 | z             | 1.96 (95% confidence) |
-| W Γêê [0,1]    | Wilson score (community quality) |
-| S Γêê [0,1]    | seeder score (source quality, set at ingest) |
-| u≡¥£Å, d≡¥£Å       | your upvotes / downvotes in topic ╧ä |
-| C Γêê [0.4, 2] | your interest weight for topic ╧ä |
+| W ∈ [0,1]    | Wilson score (community quality) |
+| S ∈ [0,1]    | seeder score (source quality, set at ingest) |
+| u𝜏, d𝜏       | your upvotes / downvotes in topic τ |
+| C ∈ [0.4, 2] | your interest weight for topic τ |
 | t             | age in days since published_at |
-| F Γêê [0.2, 1] | freshness multiplier |
+| F ∈ [0.2, 1] | freshness multiplier |
 | [n=0]         | 1 if URL has no votes yet, else 0 (exploration bonus) |
 | E             | effective score |
 | r ~ U(0,1)   | random jitter |
@@ -45,19 +45,19 @@ rank = (E + 0.1) ┬╖ r  ΓåÆ  argmax  ΓåÆ  pick URL
 
 ---
 
-## 1. Wilson Score ΓÇö content quality signal
+## 1. Wilson Score — content quality signal
 
 Computed by trigger on every vote insert/update/delete. Uses the **Wilson score lower confidence bound** at 95% (z = 1.96):
 
 ```
-W = (p╠é + z┬▓/2n ΓêÆ zΓêÜ((p╠é(1ΓêÆp╠é) + z┬▓/4n) / n)) / (1 + z┬▓/n)
+W = (p̂ + z²/2n − z√((p̂(1−p̂) + z²/4n) / n)) / (1 + z²/n)
 ```
 
-where `p╠é = upvotes / n`, `n = upvotes + downvotes`. Defaults to `0` with no votes.
+where `p̂ = upvotes / n`, `n = upvotes + downvotes`. Defaults to `0` with no votes.
 
 ---
 
-## 2. Seeder Score ΓÇö editorial quality signal
+## 2. Seeder Score — editorial quality signal
 
 A normalised [0, 1] float set at ingest time, based on each source's social signal:
 
@@ -72,7 +72,7 @@ A normalised [0, 1] float set at ingest time, based on each source's social sign
 
 ---
 
-## 3. Calibrated Weight ΓÇö personalisation multiplier
+## 3. Calibrated Weight — personalisation multiplier
 
 Maintained per `(user_id, subcategory_id)` by trigger on every rating:
 
@@ -82,7 +82,7 @@ C = (upvote_count / (upvote_count + downvote_count)) / 0.5
 
 Clamped to [0.4, 2.0] at query time. Cold start = `1.0`.
 
-Examples: 80% upvote rate ΓåÆ `1.6├ù`, 50% ΓåÆ `1.0├ù`, 30% ΓåÆ `0.6├ù`.
+Examples: 80% upvote rate → `1.6×`, 50% → `1.0×`, 30% → `0.6×`.
 
 ---
 
@@ -91,11 +91,11 @@ Examples: 80% upvote rate ΓåÆ `1.6├ù`, 50% ΓåÆ `1.0├ù`, 30% ΓåÆ `
 Applied per URL using `published_at`:
 
 ```
-F = max(exp(ΓêÆ0.001 ┬╖ t), 0.2)    if published_at is known
+F = max(exp(−0.001 · t), 0.2)    if published_at is known
 F = 0.7                           if published_at is NULL
 ```
 
-`t` = age in days. Half-life Γëê 693 days (~2 years). Floor of `0.2` keeps evergreen content (Wikipedia, classic essays) surfacing. `NULL` gets a mild `0.7` penalty rather than full score or full penalty.
+`t` = age in days. Half-life ≈ 693 days (~2 years). Floor of `0.2` keeps evergreen content (Wikipedia, classic essays) surfacing. `NULL` gets a mild `0.7` penalty rather than full score or full penalty.
 
 ---
 
@@ -108,12 +108,12 @@ URLs with **zero votes** receive `+0.15` added to their base score. The bonus di
 ## 6. Effective Score
 
 ```
-E = (W + 0.3┬╖S + 0.15┬╖[n=0]) ┬╖ C ┬╖ F
+E = (W + 0.3·S + 0.15·[n=0]) · C · F
 ```
 
 The `0.3` coefficient means seeder_score contributes at most `0.3` to the base, so community voting dominates once a URL has ratings. `[n=0]` is 1 when the URL has no votes yet, else 0.
 
-The base `W + 0.3┬╖S` is precomputed into a `roam_score_static` column and kept current by a trigger on every vote. The query uses `roam_score_static` directly to avoid per-row arithmetic across the TABLESAMPLE pool.
+The base `W + 0.3·S` is precomputed into a `roam_score_static` column and kept current by a trigger on every vote. The query uses `roam_score_static` directly to avoid per-row arithmetic across the TABLESAMPLE pool.
 
 ---
 
@@ -128,10 +128,10 @@ The `+0.1` floor prevents zero-score URLs from being permanently buried.
 
 ---
 
-## 8. Candidate pool ΓÇö TABLESAMPLE + conditional fallback
+## 8. Candidate pool — TABLESAMPLE + conditional fallback
 
-1. **Phase 1**: `TABLESAMPLE BERNOULLI(25)` ΓÇö random ~25% of the table (~787k rows at current scale), no sequential scan
-2. **Phase 2** (conditional): only executed when Phase 1 finds no eligible URL ΓÇö top **100** by `roam_score_static` for standard mode, top **50** for collection mode
+1. **Phase 1**: `TABLESAMPLE BERNOULLI(25)` — random ~25% of the table (~787k rows at current scale), no sequential scan
+2. **Phase 2** (conditional): only executed when Phase 1 finds no eligible URL — top **100** by `roam_score_static` for standard mode, top **50** for collection mode
 
 Both phases apply: `approved = TRUE`, `wilson_score > -0.1`, language match, domain suppression, paywall opt-out, not already seen.
 

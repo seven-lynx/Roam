@@ -82,7 +82,7 @@ jobs:
           fi
           echo "PASS: no new migrations contain the v31 alias bug pattern."
 
-      # ΓöÇΓöÇ Database-backed check (only on push to main, deploy-time) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+      # ── Database-backed check (only on push to main, deploy-time) ───────
       # This catches the alias bug pattern in a fully resolved function body
       # AFTER migrations have been applied. It requires Docker, so we only
       # run it on the protected main branch where Docker rate limits matter

@@ -2,17 +2,17 @@
 -- User discovery + follow notifications
 -- =============================================================================
 -- Adds the missing pieces that make the follow graph usable:
---   1. notify_on_new_follower  ΓÇö a trigger that inserts a 'new_follower'
+--   1. notify_on_new_follower  — a trigger that inserts a 'new_follower'
 --      notification when someone follows you (the type already existed in the
 --      schema and UI, but nothing ever created the row).
---   2. search_users            ΓÇö full-user search by username / display name,
+--   2. search_users            — full-user search by username / display name,
 --      across every public profile (not just existing connections).
---   3. get_follow_suggestions  ΓÇö "People you may like": popular public profiles
+--   3. get_follow_suggestions  — "People you may like": popular public profiles
 --      the current user does not already follow.
 -- =============================================================================
 
 
--- ΓöÇΓöÇ 1. new_follower notification ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+-- ── 1. new_follower notification ──────────────────────────────────────────────
 -- Fires on a completed follow (is_pending = FALSE), whether the row is inserted
 -- directly (public profile) or transitions out of pending (accepted request).
 -- SECURITY DEFINER because notifications has no user-facing INSERT policy.
@@ -43,7 +43,7 @@ BEGIN
     FROM public.profiles
    WHERE id = NEW.follower_id;
 
-  -- No profile (shouldn't happen) ΓÇö skip silently.
+  -- No profile (shouldn't happen) — skip silently.
   IF v_username IS NULL THEN
     RETURN NEW;
   END IF;
@@ -80,7 +80,7 @@ CREATE TRIGGER trg_notify_new_follower_update
   EXECUTE FUNCTION public.notify_on_new_follower();
 
 
--- ΓöÇΓöÇ 2. search_users ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+-- ── 2. search_users ───────────────────────────────────────────────────────────
 -- Searches every public profile by username or display name. Returns the
 -- follower count and whether the current viewer already follows each result.
 -- Available to anon (search still works logged-out; is_following is just FALSE).
@@ -128,7 +128,7 @@ $$;
 GRANT EXECUTE ON FUNCTION public.search_users(TEXT, INT) TO authenticated, anon;
 
 
--- ΓöÇΓöÇ 3. get_follow_suggestions ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+-- ── 3. get_follow_suggestions ─────────────────────────────────────────────────
 -- "People you may like": popular public profiles the viewer does not follow yet.
 CREATE OR REPLACE FUNCTION public.get_follow_suggestions(p_limit INT DEFAULT 12)
 RETURNS TABLE (

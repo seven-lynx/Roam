@@ -12,7 +12,7 @@
 --      push-notify edge function picks it up and delivers a push message
 -- =============================================================================
 
--- ΓöÇΓöÇ 1. Add url_shared to the type CHECK constraint ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+-- ── 1. Add url_shared to the type CHECK constraint ─────────────────────────
 ALTER TABLE public.notifications
   DROP CONSTRAINT IF EXISTS notifications_type_check;
 
@@ -20,7 +20,7 @@ ALTER TABLE public.notifications
   ADD CONSTRAINT notifications_type_check
   CHECK (type IN ('url_approved', 'url_rejected', 'new_follower', 'badge_unlocked', 'level_up', 'url_shared'));
 
--- ΓöÇΓöÇ 2. Rewrite share_url_with_user to emit a notification ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+-- ── 2. Rewrite share_url_with_user to emit a notification ──────────────────
 CREATE OR REPLACE FUNCTION share_url_with_user(
   p_recipient_id uuid,
   p_url_id uuid

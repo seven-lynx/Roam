@@ -94,7 +94,7 @@ fun UserSearchSheet(
                 }
             } else if (userSearchLoading) {
                 Box(Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
-                    Text("SearchingΓÇª", color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f))
+                    Text("Searching…", color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f))
                 }
             } else if (userSearchResults.isEmpty()) {
                 Box(Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {

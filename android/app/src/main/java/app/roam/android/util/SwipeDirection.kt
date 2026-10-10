@@ -8,10 +8,10 @@ internal const val DEFAULT_SWIPE_THRESHOLD_PX = 120f
 /**
  * Resolves a drag delta into a named swipe action.
  *
- * - Swipe **down** past [threshold] ΓåÆ "roam" (discover next)
- * - Swipe **right** past [threshold] ΓåÆ "like" (thumbs up)
- * - Swipe **left**  past [threshold] ΓåÆ "skip" (thumbs down)
- * - Below threshold or ambiguous ΓåÆ `null`
+ * - Swipe **down** past [threshold] → "roam" (discover next)
+ * - Swipe **right** past [threshold] → "like" (thumbs up)
+ * - Swipe **left**  past [threshold] → "skip" (thumbs down)
+ * - Below threshold or ambiguous → `null`
  *
  * In all cases the dominant axis must exceed the cross-axis magnitude.
  */

@@ -4,7 +4,7 @@ import { createClient } from '@/lib/supabase/server';
 import { ActivityFeedClient } from './ActivityFeedClient';
 
 export const metadata: Metadata = {
-  title: 'Following ΓÇö Roam',
+  title: 'Following — Roam',
   description: 'See what people you follow are discovering on Roam.',
 };
 

@@ -111,7 +111,7 @@ Deno.test('URL Normalization - Trailing Slash Handling', () => {
 Deno.test('URL Normalization - Unicode and Special Characters', () => {
   // Unicode characters in pathname should be preserved
   assertEquals(
-    normalizeUrl('https://example.com/├╝ber'),
+    normalizeUrl('https://example.com/über'),
     'https://example.com/%C3%BCber'
   )
 
@@ -122,7 +122,7 @@ Deno.test('URL Normalization - Unicode and Special Characters', () => {
   )
 
   // Unicode in query parameters should be handled
-  const url = normalizeUrl('https://example.com/search?q=caf├⌐')
+  const url = normalizeUrl('https://example.com/search?q=café')
   assertEquals(url, 'https://example.com/search?q=caf%C3%A9')
 })
 

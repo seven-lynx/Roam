@@ -73,7 +73,7 @@ export function UsernamePrompt() {
             disabled={loading || username.trim().length < 3}
             className="w-full rounded-lg bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 py-2.5 text-sm font-semibold hover:opacity-90 transition-opacity disabled:opacity-40"
           >
-            {loading ? 'SavingΓÇª' : 'Set username'}
+            {loading ? 'Saving…' : 'Set username'}
           </button>
         </form>
       </div>

@@ -44,10 +44,10 @@ BEGIN
     RAISE EXCEPTION 'Unknown action: %', p_action;
   END IF;
 
-  -- ΓöÇΓöÇ Idempotency check ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+  -- ── Idempotency check ──────────────────────────────────────────────────
   -- If an idempotency key is provided, check if we've already awarded XP for
   -- this key within the last hour. If so, return current XP without awarding
-  -- again ΓÇö the caller gets the same result as if the award succeeded.
+  -- again — the caller gets the same result as if the award succeeded.
   IF p_idempotency_key IS NOT NULL THEN
     IF EXISTS (
       SELECT 1 FROM public.xp_log
@@ -55,11 +55,11 @@ BEGIN
         AND idempotency_key = p_idempotency_key
         AND created_at > now() - INTERVAL '1 hour'
     ) THEN
-      -- Already awarded ΓÇö return current XP/level as a no-op
+      -- Already awarded — return current XP/level as a no-op
       SELECT xp_total, public.calculate_level(xp_total)
         INTO v_new_xp, v_new_lvl
         FROM public.profiles WHERE id = p_user_id;
-      xp_awarded   := 0;  -- zero means "idempotent ΓÇö already awarded"
+      xp_awarded   := 0;  -- zero means "idempotent — already awarded"
       new_xp_total := v_new_xp;
       new_level    := v_new_lvl;
       RETURN NEXT;
@@ -67,7 +67,7 @@ BEGIN
     END IF;
   END IF;
 
-  -- ΓöÇΓöÇ Normal XP award path ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+  -- ── Normal XP award path ───────────────────────────────────────────────
   INSERT INTO public.xp_log (user_id, action, xp_awarded, metadata, idempotency_key)
   VALUES (p_user_id, p_action, v_xp, p_metadata, p_idempotency_key);
 
@@ -96,7 +96,7 @@ BEGIN
     VALUES (
       p_user_id,
       'level_up',
-      '≡ƒÄë Level Up! You''re now Level ' || v_new_lvl,
+      '🎉 Level Up! You''re now Level ' || v_new_lvl,
       'Keep roaming to earn more badges and XP!',
       jsonb_build_object(
         'level', v_new_lvl,

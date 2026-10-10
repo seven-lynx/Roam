@@ -35,7 +35,7 @@ export function RandomPageButton() {
       disabled={loading}
       className="inline-flex items-center justify-center rounded-full border border-amber-300 dark:border-amber-700 px-8 py-3 text-amber-700 dark:text-amber-300 font-semibold text-base hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-colors disabled:opacity-50"
     >
-      {loading ? 'LoadingΓÇª' : 'Try a random page ≡ƒÄ▓'}
+      {loading ? 'Loading…' : 'Try a random page 🎲'}
     </button>
   );
 }

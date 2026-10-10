@@ -1,5 +1,5 @@
 -- =============================================================================
--- roam() v20 ΓÇö reduce TABLESAMPLE and cap seen_urls load
+-- roam() v20 — reduce TABLESAMPLE and cap seen_urls load
 -- =============================================================================
 --
 -- Problem (ROAM-ANDROID-4 / ROAM-ANDROID-6):
@@ -7,14 +7,14 @@
 --   the Android 15-second HTTP timeout. Root cause: Phase 1 uses
 --   TABLESAMPLE BERNOULLI(25) which samples ~775k rows at 3.1M scale.
 --   PostgreSQL must score and sort all ~775k rows including a random()
---   factor, which exhausts work_mem and causes a filesort ΓÇö taking 10ΓÇô20s.
+--   factor, which exhausts work_mem and causes a filesort — taking 10–20s.
 --
 -- Fix:
---   1. BERNOULLI(25) ΓåÆ BERNOULLI(1) in both Phase 1 queries.
---      1% of 3.1M = ~31k rows ΓåÆ fits in work_mem ΓåÆ in-memory sort ΓåÆ <1s.
+--   1. BERNOULLI(25) → BERNOULLI(1) in both Phase 1 queries.
+--      1% of 3.1M = ~31k rows → fits in work_mem → in-memory sort → <1s.
 --      Still far more than enough candidates for quality discovery.
 --   2. Cap the seen_urls array load to the 2000 most-recent entries to
---      prevent worst-case O(n┬▓) if the cap trigger backlog hasn't cleared.
+--      prevent worst-case O(n²) if the cap trigger backlog hasn't cleared.
 --
 -- No other logic changes from v18.
 -- =============================================================================
@@ -69,7 +69,7 @@ BEGIN
     RAISE EXCEPTION 'Unauthorized';
   END IF;
 
-  -- ΓöÇΓöÇ Load user settings ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+  -- ── Load user settings ────────────────────────────────────────────────────
   SELECT
     COALESCE(s.preferred_languages, ARRAY['en']),
     COALESCE(s.skip_paywalled, FALSE),
@@ -82,7 +82,7 @@ BEGIN
   IF v_skip_paywall    IS NULL THEN v_skip_paywall    := FALSE;        END IF;
   IF v_discovery_mode  IS NULL THEN v_discovery_mode  := 'discovery';  END IF;
 
-  -- ΓöÇΓöÇ Load exclusion sets as arrays (3 sequential reads) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+  -- ── Load exclusion sets as arrays (3 sequential reads) ───────────────────
   -- Cap seen_urls at 2000 most-recent to bound the != ALL() array scan even if
   -- the per-user cap trigger has a backlog of older rows.
   SELECT array_agg(url_id)
@@ -106,21 +106,21 @@ BEGIN
   WHERE  user_id = p_user_id
     AND  suppressed_until > NOW();
 
-  -- ΓöÇΓöÇ Load interest score map as parallel arrays (1 sequential read) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+  -- ── Load interest score map as parallel arrays (1 sequential read) ────────
   SELECT array_agg(uis.subcategory_id ORDER BY uis.subcategory_id),
          array_agg(uis.calibrated_weight ORDER BY uis.subcategory_id)
   INTO   v_score_subcats, v_score_weights
   FROM   user_interest_scores uis
   WHERE  uis.user_id = p_user_id;
 
-  -- ΓöÇΓöÇ Pre-load paywalled domains once (only when skip_paywall is active) ΓöÇΓöÇΓöÇΓöÇ
+  -- ── Pre-load paywalled domains once (only when skip_paywall is active) ────
   IF v_skip_paywall THEN
     SELECT array_agg(domain)
     INTO   v_paywalled_domains
     FROM   paywalled_domains;
   END IF;
 
-  -- ΓöÇΓöÇ Expand category prefs into flat subcategory ID array ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+  -- ── Expand category prefs into flat subcategory ID array ─────────────────
   SELECT array_agg(DISTINCT sc.id)
   INTO   v_allowed_subcat_ids
   FROM   subcategories sc
@@ -141,7 +141,7 @@ BEGIN
   SELECT EXISTS (SELECT 1 FROM user_categories WHERE user_id = p_user_id)
   INTO v_has_categories;
 
-  -- ΓöÇΓöÇ Deep Dive: narrow to top-3 subcategories by calibrated_weight ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+  -- ── Deep Dive: narrow to top-3 subcategories by calibrated_weight ─────────
   IF v_discovery_mode = 'deep_dive'
      AND p_subcategory_id IS NULL
      AND p_category_id    IS NULL
@@ -162,7 +162,7 @@ BEGIN
     END IF;
   END IF;
 
-  -- ΓöÇΓöÇ Discovery mode: 12% adjacent serving ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+  -- ── Discovery mode: 12% adjacent serving ─────────────────────────────────
   v_adjacent_subcat_id := NULL;
   IF v_discovery_mode = 'discovery'
      AND random() < 0.12
@@ -194,12 +194,12 @@ BEGIN
 
   v_effective_subcat_id := COALESCE(p_subcategory_id, v_adjacent_subcat_id);
 
-  -- ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ
+  -- ═══════════════════════════════════════════════════════════════════════════
   --  COLLECTION MODE
-  -- ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ
+  -- ═══════════════════════════════════════════════════════════════════════════
   IF p_collection_id IS NOT NULL THEN
 
-    -- Phase 1: TABLESAMPLE BERNOULLI(1) ΓÇö ~31k rows at 3.1M scale
+    -- Phase 1: TABLESAMPLE BERNOULLI(1) — ~31k rows at 3.1M scale
     SELECT c.id INTO v_url_id
     FROM (
       SELECT u.id,
@@ -230,7 +230,7 @@ BEGIN
     ORDER BY (c.eff_score + 0.1) * random() DESC
     LIMIT 1;
 
-    -- Phase 2: fallback ΓÇö only when TABLESAMPLE found nothing (small collections)
+    -- Phase 2: fallback — only when TABLESAMPLE found nothing (small collections)
     IF v_url_id IS NULL THEN
       SELECT c.id INTO v_url_id
       FROM (
@@ -265,12 +265,12 @@ BEGIN
       LIMIT 1;
     END IF;
 
-  -- ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ
+  -- ═══════════════════════════════════════════════════════════════════════════
   --  STANDARD MODE
-  -- ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ
+  -- ═══════════════════════════════════════════════════════════════════════════
   ELSE
 
-    -- Phase 1: TABLESAMPLE BERNOULLI(1) ΓÇö ~31k rows at 3.1M scale
+    -- Phase 1: TABLESAMPLE BERNOULLI(1) — ~31k rows at 3.1M scale
     SELECT c.id INTO v_url_id
     FROM (
       SELECT u.id,
@@ -318,7 +318,7 @@ BEGIN
     ORDER BY (c.eff_score + 0.1) * random() DESC
     LIMIT 1;
 
-    -- Phase 2: full-scan fallback ΓÇö only executed when TABLESAMPLE returned nothing
+    -- Phase 2: full-scan fallback — only executed when TABLESAMPLE returned nothing
     IF v_url_id IS NULL THEN
       SELECT c.id INTO v_url_id
       FROM (
@@ -372,7 +372,7 @@ BEGIN
 
   END IF;
 
-  -- ΓöÇΓöÇ Record seen + domain cooldown ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+  -- ── Record seen + domain cooldown ─────────────────────────────────────────
   IF v_url_id IS NOT NULL THEN
     INSERT INTO seen_urls (user_id, url_id)
     VALUES (p_user_id, v_url_id)

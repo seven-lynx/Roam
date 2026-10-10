@@ -1,12 +1,12 @@
 -- =============================================================================
--- roam() v21 ΓÇö fix category filter + add category-level interest scoring
+-- roam() v21 — fix category filter + add category-level interest scoring
 -- =============================================================================
 --
 -- Bug 1: People & Places served at ~45% despite not being a declared interest.
 --   Root cause: `OR (u.subcategory_id IS NULL AND v_has_categories)` in the
 --   standard-mode WHERE clause allowed any URL with a NULL subcategory through,
 --   regardless of whether its category was in the user's interests.
---   People & Places has 1.4M URLs (94.5% unsegmented) ΓÇö the largest pool ΓÇö
+--   People & Places has 1.4M URLs (94.5% unsegmented) — the largest pool —
 --   so it dominated TABLESAMPLE BERNOULLI(1) at roughly its proportional share
 --   (~43%) of all approved unsegmented URLs.
 --   Fix: restrict the unsegmented-URL pass-through to the user's declared
@@ -15,13 +15,13 @@
 -- Bug 2: user_interest_scores not learning from most ratings.
 --   Root cause: update_interest_scores() no-ops when subcategory_id IS NULL.
 --   Most URLs lack subcategory assignment (Technology: 1.1%, Science: 6.5%),
---   so 98%+ of ratings never updated any weights ΓÇö personalization was dead.
+--   so 98%+ of ratings never updated any weights — personalization was dead.
 --   Fix: add user_category_scores table; update the trigger to record
 --   category-level votes even for unsegmented URLs; roam() now uses category
 --   weight as a COALESCE fallback when a URL has no subcategory.
 -- =============================================================================
 
--- ΓöÇΓöÇ 1. user_category_scores table ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+-- ── 1. user_category_scores table ────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS public.user_category_scores (
   user_id           UUID        NOT NULL REFERENCES auth.users  ON DELETE CASCADE,
   category_id       UUID        NOT NULL REFERENCES categories  ON DELETE CASCADE,
@@ -40,10 +40,10 @@ CREATE POLICY "category_scores: users can read own"
   ON public.user_category_scores FOR SELECT
   USING (auth.uid() = user_id);
 
--- ΓöÇΓöÇ 2. Updated interest-score trigger (subcategory + category) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+-- ── 2. Updated interest-score trigger (subcategory + category) ───────────────
 --
 -- Replaces the existing update_interest_scores() function body. The trigger
--- registration on the ratings table is unchanged ΓÇö the existing
+-- registration on the ratings table is unchanged — the existing
 -- trg_ratings_interest_scores trigger picks up the new function automatically.
 --
 CREATE OR REPLACE FUNCTION public.update_interest_scores()
@@ -140,7 +140,7 @@ BEGIN
 END;
 $$;
 
--- ΓöÇΓöÇ 3. Backfill user_category_scores from existing ratings ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+-- ── 3. Backfill user_category_scores from existing ratings ───────────────────
 INSERT INTO user_category_scores
   (user_id, category_id, upvote_count, downvote_count, calibrated_weight)
 SELECT
@@ -168,7 +168,7 @@ ON CONFLICT (user_id, category_id) DO UPDATE
       calibrated_weight = EXCLUDED.calibrated_weight,
       last_updated      = NOW();
 
--- ΓöÇΓöÇ 4. roam() v21 ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+-- ── 4. roam() v21 ─────────────────────────────────────────────────────────────
 DROP FUNCTION IF EXISTS public.roam(UUID, UUID, TEXT, UUID, UUID) CASCADE;
 
 CREATE FUNCTION public.roam(
@@ -222,7 +222,7 @@ BEGIN
     RAISE EXCEPTION 'Unauthorized';
   END IF;
 
-  -- ΓöÇΓöÇ Load user settings ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+  -- ── Load user settings ────────────────────────────────────────────────────
   SELECT
     COALESCE(s.preferred_languages, ARRAY['en']),
     COALESCE(s.skip_paywalled, FALSE),
@@ -235,7 +235,7 @@ BEGIN
   IF v_skip_paywall    IS NULL THEN v_skip_paywall    := FALSE;        END IF;
   IF v_discovery_mode  IS NULL THEN v_discovery_mode  := 'discovery';  END IF;
 
-  -- ΓöÇΓöÇ Load exclusion sets as arrays (3 sequential reads) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+  -- ── Load exclusion sets as arrays (3 sequential reads) ───────────────────
   -- Cap seen_urls at 2000 most-recent to bound the != ALL() array scan even if
   -- the per-user cap trigger has a backlog of older rows.
   SELECT array_agg(url_id)
@@ -259,7 +259,7 @@ BEGIN
   WHERE  user_id = p_user_id
     AND  suppressed_until > NOW();
 
-  -- ΓöÇΓöÇ Load interest score maps (2 reads) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+  -- ── Load interest score maps (2 reads) ────────────────────────────────────
   -- Subcategory-level weights (for segmented URLs)
   SELECT array_agg(uis.subcategory_id ORDER BY uis.subcategory_id),
          array_agg(uis.calibrated_weight ORDER BY uis.subcategory_id)
@@ -274,14 +274,14 @@ BEGIN
   FROM   user_category_scores ucs
   WHERE  ucs.user_id = p_user_id;
 
-  -- ΓöÇΓöÇ Pre-load paywalled domains once (only when skip_paywall is active) ΓöÇΓöÇΓöÇΓöÇ
+  -- ── Pre-load paywalled domains once (only when skip_paywall is active) ────
   IF v_skip_paywall THEN
     SELECT array_agg(domain)
     INTO   v_paywalled_domains
     FROM   paywalled_domains;
   END IF;
 
-  -- ΓöÇΓöÇ Expand category prefs into flat subcategory ID array ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+  -- ── Expand category prefs into flat subcategory ID array ─────────────────
   SELECT array_agg(DISTINCT sc.id)
   INTO   v_allowed_subcat_ids
   FROM   subcategories sc
@@ -303,13 +303,13 @@ BEGIN
   INTO v_has_categories;
 
   -- Flat list of the user's declared category IDs (for filtering unsegmented
-  -- URLs ΓÇö a superset of the category_ids implied by v_allowed_subcat_ids)
+  -- URLs — a superset of the category_ids implied by v_allowed_subcat_ids)
   SELECT array_agg(DISTINCT uc.category_id)
   INTO   v_allowed_cat_ids
   FROM   user_categories uc
   WHERE  uc.user_id = p_user_id;
 
-  -- ΓöÇΓöÇ Deep Dive: narrow to top-3 subcategories by calibrated_weight ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+  -- ── Deep Dive: narrow to top-3 subcategories by calibrated_weight ─────────
   IF v_discovery_mode = 'deep_dive'
      AND p_subcategory_id IS NULL
      AND p_category_id    IS NULL
@@ -330,7 +330,7 @@ BEGIN
     END IF;
   END IF;
 
-  -- ΓöÇΓöÇ Discovery mode: 12% adjacent serving ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+  -- ── Discovery mode: 12% adjacent serving ─────────────────────────────────
   v_adjacent_subcat_id := NULL;
   IF v_discovery_mode = 'discovery'
      AND random() < 0.12
@@ -362,12 +362,12 @@ BEGIN
 
   v_effective_subcat_id := COALESCE(p_subcategory_id, v_adjacent_subcat_id);
 
-  -- ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ
+  -- ═══════════════════════════════════════════════════════════════════════════
   --  COLLECTION MODE
-  -- ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ
+  -- ═══════════════════════════════════════════════════════════════════════════
   IF p_collection_id IS NOT NULL THEN
 
-    -- Phase 1: TABLESAMPLE BERNOULLI(1) ΓÇö ~31k rows at 3.1M scale
+    -- Phase 1: TABLESAMPLE BERNOULLI(1) — ~31k rows at 3.1M scale
     SELECT c.id INTO v_url_id
     FROM (
       SELECT u.id,
@@ -399,7 +399,7 @@ BEGIN
     ORDER BY (c.eff_score + 0.1) * random() DESC
     LIMIT 1;
 
-    -- Phase 2: fallback ΓÇö only when TABLESAMPLE found nothing (small collections)
+    -- Phase 2: fallback — only when TABLESAMPLE found nothing (small collections)
     IF v_url_id IS NULL THEN
       SELECT c.id INTO v_url_id
       FROM (
@@ -435,12 +435,12 @@ BEGIN
       LIMIT 1;
     END IF;
 
-  -- ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ
+  -- ═══════════════════════════════════════════════════════════════════════════
   --  STANDARD MODE
-  -- ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ
+  -- ═══════════════════════════════════════════════════════════════════════════
   ELSE
 
-    -- Phase 1: TABLESAMPLE BERNOULLI(1) ΓÇö ~31k rows at 3.1M scale
+    -- Phase 1: TABLESAMPLE BERNOULLI(1) — ~31k rows at 3.1M scale
     SELECT c.id INTO v_url_id
     FROM (
       SELECT u.id,
@@ -489,7 +489,7 @@ BEGIN
     ORDER BY (c.eff_score + 0.1) * random() DESC
     LIMIT 1;
 
-    -- Phase 2: full-scan fallback ΓÇö only executed when TABLESAMPLE returned nothing
+    -- Phase 2: full-scan fallback — only executed when TABLESAMPLE returned nothing
     IF v_url_id IS NULL THEN
       SELECT c.id INTO v_url_id
       FROM (
@@ -544,7 +544,7 @@ BEGIN
 
   END IF;
 
-  -- ΓöÇΓöÇ Record seen + domain cooldown ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+  -- ── Record seen + domain cooldown ─────────────────────────────────────────
   IF v_url_id IS NOT NULL THEN
     INSERT INTO seen_urls (user_id, url_id)
     VALUES (p_user_id, v_url_id)

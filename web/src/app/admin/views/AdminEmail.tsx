@@ -51,7 +51,7 @@ export default function AdminEmail({
           <div className="flex flex-col sm:flex-row sm:items-center gap-3">
             <button onClick={onSend} disabled={sending || !subject.trim() || !body.trim()}
               className="rounded-lg bg-amber-600 text-white py-2.5 px-4 text-sm font-semibold hover:bg-amber-700 disabled:opacity-40 transition-opacity w-full sm:w-auto"
-            >{sending ? "SendingΓÇª" : "Send to All"}</button>
+            >{sending ? "Sending…" : "Send to All"}</button>
             {result && <p className="text-sm text-green-600 dark:text-green-400">{result}</p>}
             {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
           </div>
@@ -62,7 +62,7 @@ export default function AdminEmail({
       {body.trim() && (
         <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 p-4 sm:p-6">
           <h2 className="text-base sm:text-lg font-semibold text-zinc-900 dark:text-white mb-1">Preview</h2>
-          <p className="text-xs text-zinc-400 dark:text-zinc-500 mb-3">Rough preview ΓÇö email clients may render differently.</p>
+          <p className="text-xs text-zinc-400 dark:text-zinc-500 mb-3">Rough preview — email clients may render differently.</p>
           <div className="rounded-lg border border-zinc-100 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 p-3 text-sm text-zinc-700 dark:text-zinc-300 font-mono whitespace-pre-wrap break-words max-h-64 overflow-y-auto">
             {body}
           </div>

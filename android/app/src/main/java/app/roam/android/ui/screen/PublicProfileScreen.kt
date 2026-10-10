@@ -103,7 +103,7 @@ fun PublicProfileScreen(
             when {
                 publicProfileLoading -> {
                     Spacer(Modifier.height(64.dp))
-                    Text("LoadingΓÇª", color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f))
+                    Text("Loading…", color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f))
                 }
                 publicProfileError != null -> {
                     Spacer(Modifier.height(64.dp))
@@ -157,7 +157,7 @@ fun PublicProfileScreen(
                             enabled = !followLoading,
                             colors = if (followStatus == "following") ButtonDefaults.outlinedButtonColors() else ButtonDefaults.buttonColors(),
                         ) {
-                            Text(if (followLoading) "ΓÇª" else if (followStatus == "following") "Following" else "Follow")
+                            Text(if (followLoading) "…" else if (followStatus == "following") "Following" else "Follow")
                         }
                         OutlinedButton(onClick = {
                             val clip = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
@@ -170,7 +170,7 @@ fun PublicProfileScreen(
 
                     Spacer(Modifier.height(12.dp))
 
-                    // Level/XP ΓÇö use unlocked badges count for consistency
+                    // Level/XP — use unlocked badges count for consistency
                     if (profile.xpTotal > 0) {
                         LevelProgressBar(
                             level = profile.level,

@@ -1,12 +1,12 @@
 // POST /functions/v1/send-bulk-email
 // Sends a bulk email to all users with email_notifications enabled.
-// Admin only ΓÇö requires Authorization header with service role key.
+// Admin only — requires Authorization header with service role key.
 //
 // Body: { subject: string, bodyMarkdown: string }
 //
 // The Edge Function:
 //   1. Queries user_settings WHERE email_notifications = true
-//   2. Resolves user_id ΓåÆ email via auth.admin.listUsers()
+//   2. Resolves user_id → email via auth.admin.listUsers()
 //   3. Renders Markdown to HTML + plain-text fallback
 //   4. Appends unsubscribe link to footer
 //   5. Sends via Resend API in batches of 50
@@ -15,9 +15,9 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { initSentry } from '../_shared/sentry.ts'
 
-// ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ
-// CORS ΓÇö admin-only endpoint, restrict to our web app
-// ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ
+// ═══════════════════════════════════════════════════════════════════════════
+// CORS — admin-only endpoint, restrict to our web app
+// ═══════════════════════════════════════════════════════════════════════════
 const corsHeaders = {
   'Access-Control-Allow-Origin': 'https://roamtheweb.app',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -31,14 +31,14 @@ function json(body: unknown, status = 200) {
   })
 }
 
-// Sentry reporting ΓÇö silently disabled if SENTRY_DSN is not set
+// Sentry reporting — silently disabled if SENTRY_DSN is not set
 const report = initSentry('send-bulk-email')
 
-// ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ
-// Simple Markdown ΓåÆ HTML renderer
+// ═══════════════════════════════════════════════════════════════════════════
+// Simple Markdown → HTML renderer
 // Handles the most common formatting needed for admin emails:
 //   **bold**, *italic*, # headings, - lists, paragraphs, links
-// ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ
+// ═══════════════════════════════════════════════════════════════════════════
 function markdownToHtml(md: string): string {
   let html = md
     // Escape HTML entities first
@@ -64,14 +64,14 @@ function markdownToHtml(md: string): string {
   // Wrap consecutive <li>s in <ul>
   html = html.replace(/(<li[^>]*>.*<\/li>\n?)+/g, '<ul style="padding-left:20px;margin:8px 0">$&</ul>')
 
-  // Paragraphs: double newlines ΓåÆ <p>
+  // Paragraphs: double newlines → <p>
   html = html.replace(/\n\n/g, '</p><p style="margin:0 0 12px">')
   html = '<p style="margin:0 0 12px">' + html + '</p>'
 
   // Clean up empty paragraphs
   html = html.replace(/<p[^>]*>\s*<\/p>/g, '')
 
-  // Single newlines ΓåÆ <br>
+  // Single newlines → <br>
   html = html.replace(/\n/g, '<br>')
 
   return html
@@ -87,9 +87,9 @@ function stripHtml(html: string): string {
     .trim()
 }
 
-// ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ
+// ═══════════════════════════════════════════════════════════════════════════
 // Create a signed unsubscribe token
-// ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ
+// ═══════════════════════════════════════════════════════════════════════════
 async function createUnsubscribeToken(
   userId: string,
   secret: string,
@@ -121,9 +121,9 @@ async function createUnsubscribeToken(
   return btoa(`${payload}.${sigHex}`)
 }
 
-// ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ
+// ═══════════════════════════════════════════════════════════════════════════
 // Main handler
-// ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ
+// ═══════════════════════════════════════════════════════════════════════════
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
   if (req.method !== 'POST') return json({ error: 'Method not allowed' }, 405)
@@ -140,7 +140,7 @@ Deno.serve(async (req: Request) => {
   const authHeader = req.headers.get('authorization') ?? ''
   const token = authHeader.replace(/^Bearer\s+/i, '')
   if (token !== serviceRoleKey) {
-    return json({ error: 'Unauthorized ΓÇö service role key required' }, 401)
+    return json({ error: 'Unauthorized — service role key required' }, 401)
   }
 
   // Parse body
@@ -161,7 +161,7 @@ Deno.serve(async (req: Request) => {
 
   const adminClient = createClient(supabaseUrl, serviceRoleKey)
 
-  // ΓöÇΓöÇ Step 1: Get all user_ids with notifications enabled ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+  // ── Step 1: Get all user_ids with notifications enabled ────────────────
   const { data: settings_rows, error: settingsError } = await adminClient
     .from('user_settings')
     .select('user_id')
@@ -179,9 +179,9 @@ Deno.serve(async (req: Request) => {
 
   const userIds = settings_rows.map(r => r.user_id)
 
-  // ΓöÇΓöÇ Step 2: Resolve emails via auth.admin.listUsers() ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+  // ── Step 2: Resolve emails via auth.admin.listUsers() ──────────────────
   // listUsers returns max 1000 per page; paginate if needed
-  const emailMap = new Map<string, string>() // userId ΓåÆ email
+  const emailMap = new Map<string, string>() // userId → email
   let page = 1
   const perPage = 1000
 
@@ -221,13 +221,13 @@ Deno.serve(async (req: Request) => {
     return json({ sent: 0, message: 'No email addresses resolved for recipients' })
   }
 
-  // ΓöÇΓöÇ Step 3: Render email ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+  // ── Step 3: Render email ─────────────────────────────────────────────────
   const mailFromDomain = 'mail.roamtheweb.app'
   const webDomain = 'roamtheweb.app'
   const htmlBody = markdownToHtml(bodyMarkdown)
   const textBody = stripHtml(htmlBody)
 
-  // ΓöÇΓöÇ Step 4: Send via Resend in batches of 50 ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+  // ── Step 4: Send via Resend in batches of 50 ──────────────────────────────
   const BATCH_SIZE = 50
   let successCount = 0
   let failCount = 0
@@ -280,7 +280,7 @@ Deno.serve(async (req: Request) => {
     }
   }
 
-  // ΓöÇΓöÇ Step 5: Log to email_log ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+  // ── Step 5: Log to email_log ──────────────────────────────────────────────
   const { error: logError } = await adminClient
     .from('email_log')
     .insert({
@@ -289,7 +289,7 @@ Deno.serve(async (req: Request) => {
       recipient_count: recipients.length,
       success_count: successCount,
       fail_count: failCount,
-      sent_by: '00000000-0000-0000-0000-000000000000', // placeholderΓÇöEdge Function has no auth user
+      sent_by: '00000000-0000-0000-0000-000000000000', // placeholder—Edge Function has no auth user
       sender_type: 'manual',
     })
 

@@ -4,9 +4,9 @@
 
 This guide provides step-by-step instructions for submitting Roam to app and extension stores:
 
-1. **Chrome Web Store** (browser extension) ΓÇö Γ£à Submitted, live (paid $5 one-time fee)
-2. **Firefox Add-ons (AMO)** (browser extension) ΓÇö Γ£à Submitted, live (free)
-3. **Google Play Store** (Android app) ΓÇö Γ£à Submitted, live (paid $25 one-time account fee)
+1. **Chrome Web Store** (browser extension) — ✅ Submitted, live (paid $5 one-time fee)
+2. **Firefox Add-ons (AMO)** (browser extension) — ✅ Submitted, live (free)
+3. **Google Play Store** (Android app) — ✅ Submitted, live (paid $25 one-time account fee)
 
 **Timeline:** 
 - Chrome Web Store: 1-3 days review
@@ -31,11 +31,11 @@ Asset dimensions and formats are documented inline below. (A future
 reference; until then, this section is the source of truth.)
 
 **Icon:**
-- 128├ù128px (required, displayed in store)
+- 128×128px (required, displayed in store)
 - Location: `extension/icons/icon-128.png`
 
 **Screenshots (Required: At least 1, Max 5):**
-- Dimensions: 1280├ù800 or 640├ù400 pixels
+- Dimensions: 1280×800 or 640×400 pixels
 - Format: JPEG or 24-bit PNG (NO alpha channel)
 - Location: `extension/assets/screenshots/`
 - Show key features (search, rate, collect)
@@ -43,12 +43,12 @@ reference; until then, this section is the source of truth.)
 - No heavy text overlays
 
 **Small Promo Tile:**
-- Dimensions: 440├ù280 pixels
+- Dimensions: 440×280 pixels
 - Format: JPEG or 24-bit PNG (NO alpha channel)
 - Location: `extension/assets/promo-tile-small.png`
 
 **Marquee Promo Tile (Optional):**
-- Dimensions: 1400├ù560 pixels
+- Dimensions: 1400×560 pixels
 - Format: JPEG or 24-bit PNG (NO alpha channel)
 - Location: `extension/assets/promo-tile-marquee.png`
 
@@ -63,14 +63,14 @@ reference; until then, this section is the source of truth.)
   Roam is a collaborative web discovery platform that helps you find, rate, and curate your favorite content.
 
   Features:
-  ΓÇó Discover curated collections across categories (News, Research, Learning, Entertainment)
-  ΓÇó Rate and review URLs to improve recommendations
-  ΓÇó Create and share personal collections
-  ΓÇó Build your profile with interests and preferences
-  ΓÇó Follow other users to see their discoveries
-  ΓÇó Cross-platform sync (web app, Android, browser extension)
-  ΓÇó Dark mode support
-  ΓÇó Private by default, share what you want
+  • Discover curated collections across categories (News, Research, Learning, Entertainment)
+  • Rate and review URLs to improve recommendations
+  • Create and share personal collections
+  • Build your profile with interests and preferences
+  • Follow other users to see their discoveries
+  • Cross-platform sync (web app, Android, browser extension)
+  • Dark mode support
+  • Private by default, share what you want
 
   How it works:
   1. Create an account (email or Google OAuth)
@@ -80,11 +80,11 @@ reference; until then, this section is the source of truth.)
   5. Share with friends or keep private
 
   Why Roam?
-  ΓÇó Community-driven: Real people curating real content
-  ΓÇó Smart recommendations: Algorithm learns your preferences
-  ΓÇó No algorithmic feeds: Transparent, human-curated content
-  ΓÇó Privacy-first: Your data, your control
-  ΓÇó Free: No ads, no paywalls
+  • Community-driven: Real people curating real content
+  • Smart recommendations: Algorithm learns your preferences
+  • No algorithmic feeds: Transparent, human-curated content
+  • Privacy-first: Your data, your control
+  • Free: No ads, no paywalls
 
   Website: https://roamtheweb.app
   Privacy Policy: https://roamtheweb.app/privacy
@@ -115,14 +115,14 @@ ls -la dist/
 **Expected Files in `dist/`:**
 ```
 dist/
-Γö£ΓöÇΓöÇ manifest.json
-Γö£ΓöÇΓöÇ background.js
-Γö£ΓöÇΓöÇ callback.html
-Γö£ΓöÇΓöÇ callback.js
-Γö£ΓöÇΓöÇ popup.html
-Γö£ΓöÇΓöÇ popup.js
-Γö£ΓöÇΓöÇ popup.css
-ΓööΓöÇΓöÇ (assets, images, etc.)
+├── manifest.json
+├── background.js
+├── callback.html
+├── callback.js
+├── popup.html
+├── popup.js
+├── popup.css
+└── (assets, images, etc.)
 ```
 
 ### 1.4 Submit to Chrome Web Store
@@ -150,8 +150,8 @@ dist/
 3. **Full description:** (4000 chars) Copy from 1.2
 4. **Category:** Productivity
 5. **Language:** English
-6. **Icon:** Upload 128├ù128px icon
-7. **Screenshots:** Upload 1280├ù800px screenshots (2-5 recommended)
+6. **Icon:** Upload 128×128px icon
+7. **Screenshots:** Upload 1280×800px screenshots (2-5 recommended)
    - Feature 1: "Browse curated collections"
    - Feature 2: "Rate and get recommendations"
    - Feature 3: "Create personal collections"
@@ -200,12 +200,12 @@ dist/
 ### 2.2 Required Assets
 
 **Icon:**
-- 48├ù48px (minimum)
-- 128├ù128px (recommended)
+- 48×48px (minimum)
+- 128×128px (recommended)
 - Save as: `extension/icons/icon-firefox.png`
 
 **Screenshots:**
-- 1280├ù800px or 1920├ù1080px (PNG/JPG)
+- 1280×800px or 1920×1080px (PNG/JPG)
 - Max 5 screenshots
 - Include captions/descriptions
 
@@ -244,7 +244,7 @@ npm run build:firefox
 3. Create account or sign in with Firefox/Mozilla account
 
 **Step 2: Submit Add-on**
-1. Click profile icon ΓåÆ "Dashboard"
+1. Click profile icon → "Dashboard"
 2. Click "Submit a new add-on"
 3. Choose "On this website" (Firefox only)
 
@@ -273,15 +273,15 @@ npm run build:firefox
    - Android compatible: Yes (if tested)
 
 3. **Graphics Tab:**
-   - Icon (128├ù128): Upload
-   - Screenshots: Upload 2-5 (1280├ù800 minimum)
+   - Icon (128×128): Upload
+   - Screenshots: Upload 2-5 (1280×800 minimum)
    - Category previews: Generated automatically
 
 4. **Permissions Tab:**
    - Review requested permissions
    - Provide justification for each:
-     - "tabs" ΓÇö needed to submit current tab URL
-     - "activeTab" ΓÇö access current page context
+     - "tabs" — needed to submit current tab URL
+     - "activeTab" — access current page context
 
 5. **Abuse & Licensing:**
    - License: Mozilla Public License (MPL-2.0)
@@ -302,7 +302,7 @@ npm run build:firefox
 4. Click "Submit"
 
 **Step 6: Monitor Review**
-- Dashboard shows status: "Awaiting Review" ΓåÆ "Approved" or "Rejected"
+- Dashboard shows status: "Awaiting Review" → "Approved" or "Rejected"
 - Review typically 1-7 days
 - Email notification on approval/rejection
 - If issues, fix and resubmit via dashboard
@@ -327,15 +327,15 @@ npm run build:firefox
 ### 3.2 Required Assets
 
 **App Icon:**
-- 512├ù512px PNG (high-res icon for store)
+- 512×512px PNG (high-res icon for store)
 - Create at: `android/app/src/main/ic_launcher/`
 - Also need launcher icon in app itself
 
 **Screenshots:**
-- Phone screenshots: 1080├ù1920px (min 2, max 8)
+- Phone screenshots: 1080×1920px (min 2, max 8)
   - Landscape and portrait both accepted
   - Show key features: signup, discover, rate, collect
-- Tablet screenshots: 1440├ù2560px (optional but recommended)
+- Tablet screenshots: 1440×2560px (optional but recommended)
 - No marketing overlays (text/graphics okay)
 
 **Store Listing Text:**
@@ -348,14 +348,14 @@ npm run build:firefox
   and build personal collections with friends.
 
   FEATURES:
-  Γ£ô Discover curated collections across categories
-  Γ£ô Rate and review URLs to get personalized recommendations  
-  Γ£ô Create and share personal collections
-  Γ£ô Build your profile with interests
-  Γ£ô Follow users to see their discoveries
-  Γ£ô Sync across Android app, browser extension, and web
-  Γ£ô Dark mode support
-  Γ£ô Privacy-first: Your data stays yours
+  ✓ Discover curated collections across categories
+  ✓ Rate and review URLs to get personalized recommendations  
+  ✓ Create and share personal collections
+  ✓ Build your profile with interests
+  ✓ Follow users to see their discoveries
+  ✓ Sync across Android app, browser extension, and web
+  ✓ Dark mode support
+  ✓ Privacy-first: Your data stays yours
 
   HOW IT WORKS:
   1. Sign up with email or Google
@@ -365,11 +365,11 @@ npm run build:firefox
   5. Share with friends or keep private
 
   WHY ROAM?
-  ΓÇó Human-curated: Real people finding real content
-  ΓÇó Smart recommendations: Algorithm learns your taste
-  ΓÇó No feeds: Browse at your own pace
-  ΓÇó Privacy respected: Transparent data control
-  ΓÇó Free: No ads, no subscriptions
+  • Human-curated: Real people finding real content
+  • Smart recommendations: Algorithm learns your taste
+  • No feeds: Browse at your own pace
+  • Privacy respected: Transparent data control
+  • Free: No ads, no subscriptions
 
   Website: https://roamtheweb.app
   Privacy Policy: https://roamtheweb.app/privacy
@@ -423,7 +423,7 @@ keytool -genkey -v -keystore roam.keystore \
 # - CN (name): Your name or company
 # - OU, O, L, ST, C: Your details
 
-# Keep roam.keystore SAFE ΓÇö it's needed for all future updates
+# Keep roam.keystore SAFE — it's needed for all future updates
 ```
 
 **Step 3: Build Release Bundle (AAB)**
@@ -481,9 +481,9 @@ adb install-multiple app-release.apks
    - Content rating: 12+ or unrated
 
 2. **Graphics:**
-   - App icon: 512├ù512px PNG
-   - Feature graphic: 1024├ù500px PNG (header)
-   - Screenshots: 1080├ù1920px PNGs (2-8)
+   - App icon: 512×512px PNG
+   - Feature graphic: 1024×500px PNG (header)
+   - Screenshots: 1080×1920px PNGs (2-8)
      - Best practices:
        - Show main feature first
        - Include text overlay (optional)
@@ -516,16 +516,16 @@ adb install-multiple app-release.apks
 3. Choose "Production" (or "Internal testing" first)
 
 **Internal Testing (Recommended First):**
-1. Click "Internal testing" ΓåÆ "Create release"
+1. Click "Internal testing" → "Create release"
 2. Upload AAB: `app/build/outputs/bundle/release/app-release.aab`
-3. Click "Review release" ΓåÆ "Start rollout to Internal testing"
+3. Click "Review release" → "Start rollout to Internal testing"
 4. Share test link with team
 5. Collect feedback for 1-2 days
 6. Fix any issues
 7. Then move to production
 
 **Production Release:**
-1. Click "Production" ΓåÆ "Create release"
+1. Click "Production" → "Create release"
 2. Upload AAB: `app/build/outputs/bundle/release/app-release.aab`
 3. Release name: "1.0.0" (matches app versionName)
 4. Release notes (optional):
@@ -543,7 +543,7 @@ adb install-multiple app-release.apks
 
 **Step 5: Monitor Review**
 
-- Status changes: "In review" ΓåÆ "Ready for review" ΓåÆ "Live"
+- Status changes: "In review" → "Ready for review" → "Live"
 - Review typically 24 hours to 7 days
 - Check "Release notes" section for approval status
 - Email notification when approved/rejected
@@ -569,8 +569,8 @@ adb install-multiple app-release.apks
 
 - [ ] Extension builds: `npm run build`
 - [ ] manifest.json valid
-- [ ] Icons prepared (128├ù128)
-- [ ] Screenshots ready (1280├ù800, 2-5 recommended)
+- [ ] Icons prepared (128×128)
+- [ ] Screenshots ready (1280×800, 2-5 recommended)
 - [ ] Store listing text complete
 - [ ] Privacy policy available
 - [ ] $5 payment method ready
@@ -581,7 +581,7 @@ adb install-multiple app-release.apks
 
 - [ ] Extension builds: `npm run build`
 - [ ] Firefox manifest compatible
-- [ ] Icons prepared (128├ù128)
+- [ ] Icons prepared (128×128)
 - [ ] Screenshots ready
 - [ ] Store listing text complete
 - [ ] Privacy policy available
@@ -594,8 +594,8 @@ adb install-multiple app-release.apks
 - [ ] App builds: `./gradlew bundleRelease`
 - [ ] Signing certificate configured
 - [ ] Version code incremented
-- [ ] App icons prepared (512├ù512)
-- [ ] Screenshots ready (1080├ù1920, 2-8)
+- [ ] App icons prepared (512×512)
+- [ ] Screenshots ready (1080×1920, 2-8)
 - [ ] Store listing complete
 - [ ] Content rating done
 - [ ] Privacy policy updated
@@ -652,7 +652,7 @@ adb install-multiple app-release.apks
 | "Functionality vague" | Add more detail to description |
 | "Privacy policy missing" | Update manifest and listing with URL |
 | "Permissions not justified" | Explain why each permission needed |
-| "Icon too small" | Use 128├ù128 PNG |
+| "Icon too small" | Use 128×128 PNG |
 
 ### Firefox AMO
 

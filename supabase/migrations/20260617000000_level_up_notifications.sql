@@ -8,15 +8,15 @@
 -- actions (roam, save, submit, etc.) and from admin-gifted badges.
 --
 -- This migration replaces:
---   1. award_xp()     ΓÇô adds a level_up notification
---   2. grant_badge()  ΓÇô adds badge_unlocked + level_up notifications
---   3. evaluate_badges() ΓÇô no logic change; re-created only to keep the
+--   1. award_xp()     – adds a level_up notification
+--   2. grant_badge()  – adds badge_unlocked + level_up notifications
+--   3. evaluate_badges() – no logic change; re-created only to keep the
 --      latest version (20260616000000) in one authoritative file for clarity
 -- =============================================================================
 
--- ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ
--- 1. award_xp ΓÇö now emits level_up notification
--- ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ
+-- ═════════════════════════════════════════════════════════════════════════════
+-- 1. award_xp — now emits level_up notification
+-- ═════════════════════════════════════════════════════════════════════════════
 CREATE OR REPLACE FUNCTION public.award_xp(
   p_user_id   UUID,
   p_action    TEXT,
@@ -68,7 +68,7 @@ BEGIN
     VALUES (
       p_user_id,
       'level_up',
-      '≡ƒÄë Level Up! You''re now Level ' || v_new_lvl,
+      '🎉 Level Up! You''re now Level ' || v_new_lvl,
       'Keep roaming to earn more badges and XP!',
       jsonb_build_object(
         'level', v_new_lvl,
@@ -89,9 +89,9 @@ REVOKE EXECUTE ON FUNCTION public.award_xp(UUID, TEXT, JSONB) FROM PUBLIC, anon;
 GRANT  EXECUTE ON FUNCTION public.award_xp(UUID, TEXT, JSONB) TO authenticated, service_role;
 
 
--- ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ
--- 2. grant_badge ΓÇö now emits badge_unlocked + level_up notifications
--- ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ
+-- ═════════════════════════════════════════════════════════════════════════════
+-- 2. grant_badge — now emits badge_unlocked + level_up notifications
+-- ═════════════════════════════════════════════════════════════════════════════
 CREATE OR REPLACE FUNCTION public.grant_badge(
   p_user_id    UUID,
   p_badge_slug TEXT,
@@ -171,7 +171,7 @@ BEGIN
         VALUES (
           p_user_id,
           'level_up',
-          '≡ƒÄë Level Up! You''re now Level ' || v_new_lvl,
+          '🎉 Level Up! You''re now Level ' || v_new_lvl,
           'Keep roaming to earn more badges and XP!',
           jsonb_build_object(
             'level', v_new_lvl,
@@ -201,12 +201,12 @@ REVOKE EXECUTE ON FUNCTION public.grant_badge(UUID, TEXT, UUID) FROM PUBLIC, ano
 GRANT  EXECUTE ON FUNCTION public.grant_badge(UUID, TEXT, UUID) TO authenticated, service_role;
 
 
--- ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ
--- 3. evaluate_badges ΓÇö re-create latest version (no logic change vs 20260616000000)
+-- ═════════════════════════════════════════════════════════════════════════════
+-- 3. evaluate_badges — re-create latest version (no logic change vs 20260616000000)
 --    This is included so the function definition lives in a single file.
---    The logic is identical to the last migration ΓÇö badge_unlocked and level_up
+--    The logic is identical to the last migration — badge_unlocked and level_up
 --    notifications are emitted inside this function.
--- ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ
+-- ═════════════════════════════════════════════════════════════════════════════
 CREATE OR REPLACE FUNCTION public.evaluate_badges(p_user_id UUID)
 RETURNS TABLE(
   badge_id           UUID,
@@ -254,7 +254,7 @@ BEGIN
     RAISE EXCEPTION 'You can only evaluate badges for yourself.';
   END IF;
 
-  -- ΓöÇΓöÇ Collect user stats ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+  -- ── Collect user stats ─────────────────────────────────────────────────────
   SELECT COUNT(*) INTO v_roam_count FROM public.seen_urls WHERE user_id = p_user_id;
   SELECT COUNT(*) INTO v_save_count FROM public.saved_urls WHERE user_id = p_user_id;
   SELECT COUNT(*) INTO v_submit_count FROM public.moderation_queue WHERE submitted_by = p_user_id;
@@ -280,7 +280,7 @@ BEGIN
     INTO v_today_roam, v_today_save
     FROM public.user_daily_activity WHERE user_id = p_user_id AND date = CURRENT_DATE;
 
-  -- ΓöÇΓöÇ Evaluate each unearned badge ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+  -- ── Evaluate each unearned badge ───────────────────────────────────────────
   FOR v_badge IN
     SELECT * FROM public.badges
     WHERE id NOT IN (SELECT badge_id FROM public.user_badges WHERE user_id = p_user_id)
@@ -424,7 +424,7 @@ BEGIN
     END IF;
   END LOOP;
 
-  -- ΓöÇΓöÇ Evaluate milestone badges ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+  -- ── Evaluate milestone badges ──────────────────────────────────────────────
   FOR v_badge IN
     SELECT * FROM public.badges
     WHERE category = 'milestone' AND is_gift_only = FALSE
@@ -458,7 +458,7 @@ BEGIN
     END IF;
   END LOOP;
 
-  -- ΓöÇΓöÇ Award XP for all new badges ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+  -- ── Award XP for all new badges ────────────────────────────────────────────
   IF v_badge_xp_awarded > 0 THEN
     INSERT INTO public.xp_log (user_id, action, xp_awarded, metadata)
     VALUES (p_user_id, 'badge_rewards', v_badge_xp_awarded, jsonb_build_object('badge_count', v_new_count));
@@ -468,10 +468,10 @@ BEGIN
   SELECT xp_total, public.calculate_level(xp_total) INTO v_xp_total, v_level FROM public.profiles WHERE id = p_user_id;
   UPDATE public.profiles SET level = v_level WHERE id = p_user_id AND level <> v_level;
 
-  -- ΓöÇΓöÇ Level-up notification (for level gains caused by badge XP) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+  -- ── Level-up notification (for level gains caused by badge XP) ─────────────
   IF v_level > v_prev_level THEN
     INSERT INTO public.notifications (user_id, type, title, body, data)
-    VALUES (p_user_id, 'level_up', '≡ƒÄë Level Up! You''re now Level ' || v_level, 'Keep roaming to earn more badges and XP!', jsonb_build_object('level', v_level, 'rank', '', 'url', v_profile_url));
+    VALUES (p_user_id, 'level_up', '🎉 Level Up! You''re now Level ' || v_level, 'Keep roaming to earn more badges and XP!', jsonb_build_object('level', v_level, 'rank', '', 'url', v_profile_url));
   END IF;
 
 END;

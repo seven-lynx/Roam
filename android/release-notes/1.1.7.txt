@@ -1,6 +1,6 @@
 Roam 1.1.7
 
-ΓÇó Admin & moderator panels now appear automatically for privileged accounts
-ΓÇó Reading position is restored when you return to the app after switching away
-ΓÇó Status bar no longer flashes or hides during page loads
-ΓÇó Config sheet handle is easier to grab
+• Admin & moderator panels now appear automatically for privileged accounts
+• Reading position is restored when you return to the app after switching away
+• Status bar no longer flashes or hides during page loads
+• Config sheet handle is easier to grab

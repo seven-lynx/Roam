@@ -27,8 +27,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: { default: "Roam", template: "%s ┬╖ Roam" },
-  description: "Discover a random corner of the web. Roam is a StumbleUpon-style web discovery engine ΓÇö browser extension, Android app, and web.",
+  title: { default: "Roam", template: "%s · Roam" },
+  description: "Discover a random corner of the web. Roam is a StumbleUpon-style web discovery engine — browser extension, Android app, and web.",
   icons: {
     icon: [
       { url: "/icon-16.png", sizes: "16x16", type: "image/png" },
@@ -55,7 +55,7 @@ export default async function RootLayout({
       ? (await supabase.auth.getSession()).data.session
       : null;
   } catch {
-    // Supabase unavailable ΓÇö render without auth state
+    // Supabase unavailable — render without auth state
   }
 
   return (

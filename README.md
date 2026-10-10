@@ -1,4 +1,4 @@
-# Roam ΓÇö Rediscover the Web
+# Roam — Rediscover the Web
 
 > Press one button. Land somewhere interesting.
 
@@ -12,10 +12,10 @@ Press the button and land on a real page, curated by real users, matched to what
 
 | Component | Status |
 |---|---|
-| Supabase backend | Γ£à Live |
-| Web app | Γ£à Live |
-| Browser extension (Chrome + Firefox) | Γ£à Live ΓÇö published on Chrome Web Store and Firefox AMO |
-| Android app | Γ£à Live ΓÇö published on Google Play Store |
+| Supabase backend | ✅ Live |
+| Web app | ✅ Live |
+| Browser extension (Chrome + Firefox) | ✅ Live — published on Chrome Web Store and Firefox AMO |
+| Android app | ✅ Live — published on Google Play Store |
 
 ---
 
@@ -23,14 +23,14 @@ Press the button and land on a real page, curated by real users, matched to what
 
 The discovery function runs directly in PostgreSQL. When you press the button, it balances five signals to pick a page you'll likely enjoy:
 
-- **Community quality** ΓÇö statistically-correct ranking (Wilson score) that handles small vote counts fairly
-- **Editorial signal** ΓÇö source reputation (HN score, citation count, Reddit karma, etc.)
-- **Your taste** ΓÇö topics you upvote more often surface more; topics you downvote dial back. Calibrated per subcategory.
-- **Freshness** ΓÇö recently published pages get a mild boost; very old ones fade gradually
-- **Exploration bonus** ΓÇö newly seeded pages receive a small boost to keep fresh content circulating
-- **Inline scoring** ΓÇö all per-row sub-queries eliminated; scoring computed inline for dramatically faster discovery
-- **Parallel batch** ΓÇö multiple candidate URLs fetched and validated concurrently via `Promise.allSettled`
-- **Pool-empty guard** ΓÇö automatic retry with wider sampling when the initial pool is exhausted
+- **Community quality** — statistically-correct ranking (Wilson score) that handles small vote counts fairly
+- **Editorial signal** — source reputation (HN score, citation count, Reddit karma, etc.)
+- **Your taste** — topics you upvote more often surface more; topics you downvote dial back. Calibrated per subcategory.
+- **Freshness** — recently published pages get a mild boost; very old ones fade gradually
+- **Exploration bonus** — newly seeded pages receive a small boost to keep fresh content circulating
+- **Inline scoring** — all per-row sub-queries eliminated; scoring computed inline for dramatically faster discovery
+- **Parallel batch** — multiple candidate URLs fetched and validated concurrently via `Promise.allSettled`
+- **Pool-empty guard** — automatic retry with wider sampling when the initial pool is exhausted
 
 
 ---
@@ -40,34 +40,34 @@ The discovery function runs directly in PostgreSQL. When you press the button, i
 **Discovery**
 - One button, filtered to your interests
 - 30-minute domain cooldown prevents seeing the same site twice in a row
-- Occasional adjacent topic in discovery mode ΓÇö intentional serendipity
+- Occasional adjacent topic in discovery mode — intentional serendipity
 - Focus mode lets you narrow discovery to specific topics or categories you select
 - Collection mode stays within a saved list
 
 **Personalisation**
-- Topic affinity: upvoting a topic more often increases how frequently it appears (up to 2├ù weight; floor 0.4├ù). Downvoting doesn't hide a topic ΓÇö it just dials the weight back slightly. Calibrated per subcategory.
+- Topic affinity: upvoting a topic more often increases how frequently it appears (up to 2× weight; floor 0.4×). Downvoting doesn't hide a topic — it just dials the weight back slightly. Calibrated per subcategory.
 - Domain muting: two downvotes from the same domain triggers a 30-day auto-mute
 - Language filter, paywall opt-out
 - Subcategories: the system tracks your preferences within 72 subcategories across 8 category pillars for granular personalization
 
 **Community**
 - URL submission with moderation queue and duplicate detection
-- Wilson score ranking ΓÇö statistically correct; a page with 10/10 upvotes ranks accurately against one with 800/1000
+- Wilson score ranking — statistically correct; a page with 10/10 upvotes ranks accurately against one with 800/1000
 - Thumbs up/down with automatic score recalculation on every vote
 
 **Collections & social**
 - Public or private collections, saved with one tap
 - Follow users, browse their activity
 - Profile pages with stats (pages rated, submitted, followers)
-- Activity feed ΓÇö see what people you follow are discovering and rating
-- URL sharing ΓÇö send a URL directly to another user with push notification
-- Pillar vs. topic interest selection ΓÇö toggle between broad category discovery or specific subcategory focus
+- Activity feed — see what people you follow are discovering and rating
+- URL sharing — send a URL directly to another user with push notification
+- Pillar vs. topic interest selection — toggle between broad category discovery or specific subcategory focus
 
 **Gamification**
 - ~150 badges across 12 categories (discovery, curation, streaks, social, niches, and more)
-- Level progression (1ΓÇô50) with XP earned from rating, submitting, and discovering
-- Daily challenges ΓÇö complete tasks like rating URLs, discovering pages, and exploring categories to earn bonus XP
-- Leaderboard ΓÇö compete on weekly, monthly, and all-time XP rankings
+- Level progression (1–50) with XP earned from rating, submitting, and discovering
+- Daily challenges — complete tasks like rating URLs, discovering pages, and exploring categories to earn bonus XP
+- Leaderboard — compete on weekly, monthly, and all-time XP rankings
 - Badge gallery with unlock details and progress tracking
 - Push/email notifications for badge unlocks, level-ups, and challenge completions
 
@@ -77,12 +77,12 @@ The discovery function runs directly in PostgreSQL. When you press the button, i
 
 ### Browser extension
 
-Deliberately non-intrusive. Click, roam, rate, close ΓÇö nothing is injected into pages you visit.
+Deliberately non-intrusive. Click, roam, rate, close — nothing is injected into pages you visit.
 
 - Prefetch cache (chrome.storage.session) for near-instant navigation
 - Detects and rates the page you're currently viewing
 - Chrome (MV3) and Firefox (MV3)
-- Event-driven service worker architecture ΓÇö no background loops
+- Event-driven service worker architecture — no background loops
 
 ### Android app
 
@@ -90,8 +90,8 @@ Deliberately non-intrusive. Click, roam, rate, close ΓÇö nothing is injected 
 - Prefetch pipeline for instant card-to-card navigation
 - Browsing history screen with search and filtering
 - Push notifications for new features, badge unlocks, level-ups, and shared URLs
-- Activity feed ΓÇö see what people you follow are discovering and rating
-- Leaderboard ΓÇö weekly, monthly, and all-time XP rankings
+- Activity feed — see what people you follow are discovering and rating
+- Leaderboard — weekly, monthly, and all-time XP rankings
 - Badge gallery with ~150 badges and level progression
 - Public profiles, follows, and URL sharing
 - Material Design 3 / Jetpack Compose
@@ -112,7 +112,7 @@ See [web/README.md](web/README.md) for the current route map and UI spec.
 
 ## Architecture
 
-### Backend ΓÇö Supabase (PostgreSQL)
+### Backend — Supabase (PostgreSQL)
 
 The database does the heavy lifting. Discovery runs as a `plpgsql` RPC (`roam()`) invoked via a Deno Edge Function. Row-Level Security enforces all access control at the database level. Every successful discovery is tracked via `serve_count` for analytics.
 
@@ -122,7 +122,7 @@ Edge Functions (Deno) handle operations that need more than a simple query: `roa
 
 | Table | Purpose |
 |---|---|
-| `urls` | All discovered pages ΓÇö URL, title, description, votes, scores, source |
+| `urls` | All discovered pages — URL, title, description, votes, scores, source |
 | `ratings` | Per-user votes |
 | `seen_urls` | Tracks what each user has already been served |
 | `user_interest_scores` | Per-user, per-subcategory calibration weights |
@@ -137,8 +137,8 @@ Edge Functions (Deno) handle operations that need more than a simple query: `roa
 | `url_reports` | User reports of broken/dead links |
 | `push_tokens` / `notifications` | Push notification infrastructure |
 | `beta_signups` / `feedback` | Waitlist signups and in-app feedback |
-| `badges` / `user_badges` | Gamification ΓÇö badge definitions and per-user unlocks |
-| `user_activity` | Activity feed ΓÇö recent actions by followed users |
+| `badges` / `user_badges` | Gamification — badge definitions and per-user unlocks |
+| `user_activity` | Activity feed — recent actions by followed users |
 | `shared_urls` | Peer-to-peer URL sharing between users |
 | `seeding_runs` | Seeder execution audit log |
 | `email_notifications` | Email notification preferences and tracking |
@@ -157,35 +157,35 @@ Kotlin + Jetpack Compose + Supabase Kotlin SDK. Single-activity MVVM with `MainV
 
 ```
 roam/
-Γö£ΓöÇΓöÇ supabase/
-Γöé   Γö£ΓöÇΓöÇ migrations/         # 151 active SQL migrations (+ 5 superseded in _superseded/)
-Γöé   ΓööΓöÇΓöÇ functions/          # 27 Deno Edge Functions
-Γöé       ΓööΓöÇΓöÇ _shared/        # CORS, auth helpers, rate limiting, Sentry
-Γöé
-Γö£ΓöÇΓöÇ web/                    # Next.js app (Vercel)
-Γöé   ΓööΓöÇΓöÇ src/
-Γöé       Γö£ΓöÇΓöÇ app/            # App router pages
-Γöé       Γö£ΓöÇΓöÇ components/
-Γöé       ΓööΓöÇΓöÇ lib/
-Γöé
-Γö£ΓöÇΓöÇ extension/              # Chrome + Firefox extension
-Γöé   ΓööΓöÇΓöÇ src/
-Γöé       Γö£ΓöÇΓöÇ background/     # Service worker
-Γöé       Γö£ΓöÇΓöÇ popup/          # UI
-Γöé       Γö£ΓöÇΓöÇ callback/       # OAuth callback page
-Γöé       ΓööΓöÇΓöÇ lib/            # Supabase client, messages
-Γöé
-Γö£ΓöÇΓöÇ android/                # Kotlin + Compose app
-Γöé   ΓööΓöÇΓöÇ app/src/main/java/app/roam/android/
-Γöé       Γö£ΓöÇΓöÇ ui/             # Compose screens & components
-Γöé       Γö£ΓöÇΓöÇ viewmodel/
-Γöé       Γö£ΓöÇΓöÇ data/
-Γöé       ΓööΓöÇΓöÇ model/
-Γöé
-Γö£ΓöÇΓöÇ scripts/                # Content seeders & utilities
-Γöé   ΓööΓöÇΓöÇ lib/                # Shared seeding library
-Γöé
-ΓööΓöÇΓöÇ docs/                   # Audit docs, reports, roadmap, API reference
+├── supabase/
+│   ├── migrations/         # 151 active SQL migrations (+ 5 superseded in _superseded/)
+│   └── functions/          # 27 Deno Edge Functions
+│       └── _shared/        # CORS, auth helpers, rate limiting, Sentry
+│
+├── web/                    # Next.js app (Vercel)
+│   └── src/
+│       ├── app/            # App router pages
+│       ├── components/
+│       └── lib/
+│
+├── extension/              # Chrome + Firefox extension
+│   └── src/
+│       ├── background/     # Service worker
+│       ├── popup/          # UI
+│       ├── callback/       # OAuth callback page
+│       └── lib/            # Supabase client, messages
+│
+├── android/                # Kotlin + Compose app
+│   └── app/src/main/java/app/roam/android/
+│       ├── ui/             # Compose screens & components
+│       ├── viewmodel/
+│       ├── data/
+│       └── model/
+│
+├── scripts/                # Content seeders & utilities
+│   └── lib/                # Shared seeding library
+│
+└── docs/                   # Audit docs, reports, roadmap, API reference
 ```
 
 ---
@@ -215,8 +215,8 @@ pnpm install
 pnpm build   # outputs to dist/ (Chrome) and dist-firefox/
 pnpm dev     # watch mode
 
-# Load in Chrome: chrome://extensions ΓåÆ Developer mode ΓåÆ Load unpacked ΓåÆ dist/
-# Load in Firefox: about:debugging ΓåÆ This Firefox ΓåÆ Load Temporary Add-on ΓåÆ dist-firefox/manifest.json
+# Load in Chrome: chrome://extensions → Developer mode → Load unpacked → dist/
+# Load in Firefox: about:debugging → This Firefox → Load Temporary Add-on → dist-firefox/manifest.json
 ```
 
 ### Web
@@ -308,13 +308,13 @@ Sentry: https://7-lynx.sentry.io/projects/
 
 ## Troubleshooting
 
-**"Unauthorized" from Supabase** ΓÇö check your anon key is set correctly and the relevant RLS policies exist.
+**"Unauthorized" from Supabase** — check your anon key is set correctly and the relevant RLS policies exist.
 
-**Extension not detecting current page** ΓÇö verify `callback.ts` is loaded (DevTools ΓåÆ Sources ΓåÆ Extensions) and `manifest.json` has the right `content_scripts` entry. Reload with F5.
+**Extension not detecting current page** — verify `callback.ts` is loaded (DevTools → Sources → Extensions) and `manifest.json` has the right `content_scripts` entry. Reload with F5.
 
-**Android won't build** ΓÇö run `./gradlew clean` and re-sync. Check `local.properties` has valid credentials.
+**Android won't build** — run `./gradlew clean` and re-sync. Check `local.properties` has valid credentials.
 
-**Pop-up appears blank after install** ΓÇö the service worker may not have started yet. Open the popup once, wait 2 seconds, and try again.
+**Pop-up appears blank after install** — the service worker may not have started yet. Open the popup once, wait 2 seconds, and try again.
 
 ---
 
@@ -338,7 +338,7 @@ Run `pnpm lint` before pushing. Use TypeScript throughout.
 
 **Dual Licensed:**
 
-- **Open Source:** MIT License ([LICENSE](LICENSE)) ΓÇö Free to use, modify, and distribute for personal, research, and open-source projects.
+- **Open Source:** MIT License ([LICENSE](LICENSE)) — Free to use, modify, and distribute for personal, research, and open-source projects.
 - **Commercial:** For commercial deployments, white-label services, or closed-source modifications, see [COMMERCIAL_LICENSE.md](COMMERCIAL_LICENSE.md).
 
 **In short:**
@@ -351,13 +351,13 @@ Run `pnpm lint` before pushing. Use TypeScript throughout.
 
 ## Project documents
 
-- [`CONTRIBUTING.md`](CONTRIBUTING.md) ΓÇö how to file PRs and the contributor licence grant.
-- [`CODE_OF_CONDUCT.md`](CODE_OF_CONDUCT.md) ΓÇö expected behaviour and reporting.
-- [`SECURITY.md`](SECURITY.md) ΓÇö how to report vulnerabilities.
-- [`RULES.md`](RULES.md) ΓÇö the project rulebook; read before opening a PR.
-- [`RUNBOOK.md`](RUNBOOK.md) ΓÇö operational incidents and their resolutions.
-- [`docs/API.md`](docs/API.md) ΓÇö Edge Function + RPC contracts.
-- [`docs/ROADMAP.md`](docs/ROADMAP.md) ΓÇö current work and post-launch plans.
+- [`CONTRIBUTING.md`](CONTRIBUTING.md) — how to file PRs and the contributor licence grant.
+- [`CODE_OF_CONDUCT.md`](CODE_OF_CONDUCT.md) — expected behaviour and reporting.
+- [`SECURITY.md`](SECURITY.md) — how to report vulnerabilities.
+- [`RULES.md`](RULES.md) — the project rulebook; read before opening a PR.
+- [`RUNBOOK.md`](RUNBOOK.md) — operational incidents and their resolutions.
+- [`docs/API.md`](docs/API.md) — Edge Function + RPC contracts.
+- [`docs/ROADMAP.md`](docs/ROADMAP.md) — current work and post-launch plans.
 
 ---
 

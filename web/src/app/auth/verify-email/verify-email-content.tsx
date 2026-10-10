@@ -46,14 +46,14 @@ export default function VerifyEmailContent() {
         )}
 
         {resent ? (
-          <p className="text-sm text-green-600 dark:text-green-400">Email resent ΓÇö check your inbox again.</p>
+          <p className="text-sm text-green-600 dark:text-green-400">Email resent — check your inbox again.</p>
         ) : (
           <button
             onClick={handleResend}
             disabled={loading || !email}
             className="text-sm text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white underline underline-offset-2 disabled:opacity-50"
           >
-            {loading ? 'SendingΓÇª' : "Didn't get it? Resend"}
+            {loading ? 'Sending…' : "Didn't get it? Resend"}
           </button>
         )}
 
@@ -61,7 +61,7 @@ export default function VerifyEmailContent() {
           href="/signup"
           className="text-sm text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white transition-colors"
         >
-          ΓåÉ Use a different address
+          ← Use a different address
         </Link>
       </div>
     </div>

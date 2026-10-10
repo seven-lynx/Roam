@@ -118,7 +118,7 @@ export function ActivityFeedClient({ initialActivities, followingCount }: Props)
   if (followingCount === 0) {
     return (
       <div className="text-center py-16">
-        <p className="text-4xl mb-4">≡ƒº¡</p>
+        <p className="text-4xl mb-4">🧭</p>
         <p className="text-base font-medium text-zinc-700 dark:text-zinc-300 mb-2">
           Follow curators to see their discoveries
         </p>
@@ -138,7 +138,7 @@ export function ActivityFeedClient({ initialActivities, followingCount }: Props)
   if (activities.length === 0 && !loading) {
     return (
       <div className="text-center py-16">
-        <p className="text-4xl mb-4">≡ƒôí</p>
+        <p className="text-4xl mb-4">📡</p>
         <p className="text-base font-medium text-zinc-700 dark:text-zinc-300 mb-2">
           Nothing yet from people you follow
         </p>
@@ -181,7 +181,7 @@ export function ActivityFeedClient({ initialActivities, followingCount }: Props)
             disabled={loading}
             className="px-4 py-2 text-sm font-medium text-zinc-700 dark:text-zinc-300 border border-zinc-300 dark:border-zinc-700 rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-900 transition-colors disabled:opacity-50"
           >
-            {loading ? 'LoadingΓÇª' : 'Load more'}
+            {loading ? 'Loading…' : 'Load more'}
           </button>
         </div>
       )}

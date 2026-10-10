@@ -34,13 +34,13 @@ These are enforced by `scripts/check-rules.mjs` and CI:
 
 - **No hardcoded secrets.** Prefixes checked: `AIza`, `sk-`, `sntryu_`,
   `sbp_`, `sb_secret_`, `sb_publishable_`, `re_`, `KGAT_`. See the rulebook
-  at the repo root (┬º 1.3) and [`docs/SECRETS_AUDIT.md`](docs/SECRETS_AUDIT.md).
+  at the repo root (§ 1.3) and [`docs/SECRETS_AUDIT.md`](docs/SECRETS_AUDIT.md).
 - **Row-Level Security on every table.** RLS is the security boundary;
   middleware redirects are UX, not enforcement. See the Supabase backend
   rule file for details.
 - **Service-role keys never reach the client.** The extension build
   refuses to bundle `SUPABASE_SERVICE_ROLE_KEY`. See the browser
-  extension rule file (┬º E.1).
+  extension rule file (§ E.1).
 - **Trivy + TruffleHog run on every PR.** See
   `.github/workflows/ci.yml`.
 
@@ -57,4 +57,4 @@ The public mirror is built by `sync-public.ps1`, which strips:
 - `android/app/google-services.json`
 
 If a security-sensitive file ever appears in the public mirror, that is a
-bug ΓÇö file a public issue or email the maintainer.
+bug — file a public issue or email the maintainer.

@@ -1,8 +1,8 @@
 -- =============================================================================
 -- Add missing tables that badges reference but never got created:
---   1. url_ratings        ΓÇö up/down rating per URL per user
---   2. collection_favorites ΓÇö users favoriting public collections
---   3. log_failed_urls    ΓÇö 404 tracking for error-404-explorer badge
+--   1. url_ratings        — up/down rating per URL per user
+--   2. collection_favorites — users favoriting public collections
+--   3. log_failed_urls    — 404 tracking for error-404-explorer badge
 -- =============================================================================
 
 -- 1. URL Ratings (up/down voting)

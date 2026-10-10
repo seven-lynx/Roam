@@ -17,7 +17,7 @@
 -- =============================================================================
 
 
--- ΓöÇΓöÇ 1. Language column on urls ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+-- ── 1. Language column on urls ────────────────────────────────────────────────
 -- Default 'en' covers all existing seeded content which is English-only.
 -- Non-English seeders (if added later) must explicitly pass a language tag.
 ALTER TABLE public.urls
@@ -34,7 +34,7 @@ ALTER TABLE public.moderation_queue
   ADD COLUMN IF NOT EXISTS language TEXT NOT NULL DEFAULT 'en';
 
 
--- ΓöÇΓöÇ 2. user_settings table ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+-- ── 2. user_settings table ───────────────────────────────────────────────────
 -- One row per user. Created lazily (on first save or sign-up).
 -- preferred_languages: BCP-47 codes the user wants to see.
 -- Default is {'en'} (English only).
@@ -58,12 +58,12 @@ CREATE POLICY "user_settings: users manage own"
   WITH CHECK (auth.uid() = user_id);
 
 
--- ΓöÇΓöÇ 3. Restore full roam() with language filtering ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+-- ── 3. Restore full roam() with language filtering ───────────────────────────
 -- Replaces the minimal debug stub from migration 20260426000005.
 -- Parameters:
---   p_user_id         ΓÇö caller's user ID (must match auth.uid())
---   p_collection_id   ΓÇö if provided, draws from this collection only
---   p_exclude_domain  ΓÇö optional domain to exclude (anti-repetition)
+--   p_user_id         — caller's user ID (must match auth.uid())
+--   p_collection_id   — if provided, draws from this collection only
+--   p_exclude_domain  — optional domain to exclude (anti-repetition)
 --
 -- Language behaviour:
 --   Reads preferred_languages from user_settings. If no row exists, defaults
@@ -111,7 +111,7 @@ BEGIN
   END IF;
 
   IF p_collection_id IS NOT NULL THEN
-    -- ΓöÇΓöÇ Collection mode ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+    -- ── Collection mode ──────────────────────────────────────────────────────
     -- Ignore category preferences; draw from the specified collection.
     -- Language filter still applies.
     SELECT u.id INTO v_url_id
@@ -132,7 +132,7 @@ BEGIN
     LIMIT 1;
 
   ELSE
-    -- ΓöÇΓöÇ Standard mode ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+    -- ── Standard mode ────────────────────────────────────────────────────────
     SELECT u.id INTO v_url_id
     FROM urls u
     LEFT JOIN subcategories sc ON sc.id = u.subcategory_id
@@ -143,7 +143,7 @@ BEGIN
         OR u.url !~ ('^https?://([^/]*\.)?' || regexp_replace(p_exclude_domain, '\.', '\\.', 'g') || '(/|$)')
       )
       AND (
-        -- Case 1: URL has a subcategory assigned ΓÇö match user's category prefs
+        -- Case 1: URL has a subcategory assigned — match user's category prefs
         (u.subcategory_id IS NOT NULL AND sc.id IS NOT NULL AND (
           -- User explicitly selected this subcategory
           EXISTS (
@@ -168,7 +168,7 @@ BEGIN
           )
         ))
         OR
-        -- Case 2: URL has no subcategory ΓÇö allow if user selected any pillar
+        -- Case 2: URL has no subcategory — allow if user selected any pillar
         (u.subcategory_id IS NULL AND EXISTS (
           SELECT 1 FROM user_categories uc
           WHERE uc.user_id = p_user_id

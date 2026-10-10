@@ -1,4 +1,4 @@
-/* ΓöÇΓöÇ Reset & base ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ */
+/* ── Reset & base ──────────────────────────────────────────────────────── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
@@ -25,11 +25,11 @@ body {
   overflow-x: hidden;
 }
 
-/* ΓöÇΓöÇ State visibility ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ */
+/* ── State visibility ──────────────────────────────────────────────────── */
 .state[hidden] { display: none !important; }
 .state         { display: block; }
 
-/* ΓöÇΓöÇ Signed-out state ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ */
+/* ── Signed-out state ──────────────────────────────────────────────────── */
 .signedout-body {
   display: flex;
   flex-direction: column;
@@ -40,7 +40,7 @@ body {
 .signedout-logo { width: 40px; height: 40px; }
 .signedout-msg  { color: var(--text-muted); text-align: center; }
 
-/* ΓöÇΓöÇ Error state ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ */
+/* ── Error state ───────────────────────────────────────────────────────── */
 .error-body {
   display: flex;
   flex-direction: column;
@@ -51,7 +51,7 @@ body {
 .error-msg { color: var(--text-muted); text-align: center; }
 .error-sub  { color: var(--text-muted); font-size: 12px; text-align: center; margin-top: -4px; }
 
-/* ΓöÇΓöÇ Submit inline error ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ */
+/* ── Submit inline error ────────────────────────────────────────────────── */
 .submit-error {
   color: #e05252;
   font-size: 12px;
@@ -60,7 +60,7 @@ body {
   margin: 0;
 }
 
-/* ΓöÇΓöÇ Submit inline success ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ */
+/* ── Submit inline success ──────────────────────────────────────────────── */
 .submit-success {
   color: #2a9d5c;
   font-size: 12px;
@@ -69,7 +69,7 @@ body {
   margin: 0;
 }
 
-/* ΓöÇΓöÇ Status bar ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ */
+/* ── Status bar ───────────────────────────────────────────────────────── */
 .status-bar {
   padding: 0 10px 6px;
   font-size: 11px;
@@ -80,7 +80,7 @@ body {
 }
 .status-bar[hidden] { display: none !important; }
 
-/* ΓöÇΓöÇ Primary controls row ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ */
+/* ── Primary controls row ──────────────────────────────────────────────── */
 .controls {
   display: grid;
   grid-template-columns: 1fr auto auto auto;
@@ -120,7 +120,7 @@ body {
 .btn-icon:hover  { background: var(--bg-hover); border-color: var(--accent); }
 .btn-icon[aria-expanded="true"] { background: var(--bg-hover); border-color: var(--accent); }
 
-/* ΓöÇΓöÇ Panels ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ */
+/* ── Panels ────────────────────────────────────────────────────────────── */
 .panel[hidden] { display: none !important; }
 .panel {
   border-top: 1px solid var(--border);
@@ -137,7 +137,7 @@ body {
   letter-spacing: 0.06em;
 }
 
-/* ΓöÇΓöÇ Category chips ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ */
+/* ── Category chips ────────────────────────────────────────────────────── */
 .chip-grid {
   display: flex;
   flex-wrap: wrap;
@@ -157,7 +157,7 @@ body {
 .chip:hover        { background: var(--bg-hover); border-color: var(--accent); }
 .chip.selected     { background: var(--accent); border-color: var(--accent); color: #fff; }
 
-/* ΓöÇΓöÇ Config panel sections ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ */
+/* ── Config panel sections ─────────────────────────────────────────────── */
 .panel-section         { display: flex; flex-direction: column; gap: 2px; }
 .panel-section + .panel-section { margin-top: 8px; border-top: 1px solid var(--border); padding-top: 8px; }
 .panel-section-title   { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 4px; }
@@ -183,7 +183,7 @@ body {
 .panel-row--toggle      { cursor: default; }
 .panel-row--toggle:hover{ background: transparent; }
 
-/* ΓöÇΓöÇ Toggle switch ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ */
+/* ── Toggle switch ─────────────────────────────────────────────────────── */
 .toggle { position: relative; display: inline-block; width: 36px; height: 20px; cursor: pointer; }
 .toggle input { opacity: 0; width: 0; height: 0; }
 .toggle-track {
@@ -207,7 +207,7 @@ body {
 .toggle input:checked + .toggle-track              { background: var(--accent); }
 .toggle input:checked + .toggle-track::after       { transform: translateX(16px); }
 
-/* ΓöÇΓöÇ Language picker ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ */
+/* ── Language picker ──────────────────────────────────────────────────── */
 .panel-row--languages { align-items: center; }
 .lang-summary {
   background: none;
@@ -243,7 +243,7 @@ body {
 }
 .lang-option input[type="checkbox"] { accent-color: var(--accent); cursor: pointer; }
 
-/* ΓöÇΓöÇ Shared buttons ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ */
+/* ── Shared buttons ────────────────────────────────────────────────────── */
 .btn-primary {
   background: var(--accent);
   color: #fff;
@@ -271,7 +271,7 @@ body {
 }
 .btn-secondary:hover { background: var(--bg-hover); }
 
-/* ΓöÇΓöÇ Dynamic dropdowns ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ */
+/* ── Dynamic dropdowns ─────────────────────────────────────────────────── */
 .dropdown-menu {
   position: fixed;
   background: var(--bg-panel);
@@ -308,7 +308,7 @@ body {
   border-radius: 0 0 var(--radius-sm) var(--radius-sm);
 }
 
-/* ΓöÇΓöÇ Button feedback animations ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ */
+/* ── Button feedback animations ─────────────────────────────────────────── */
 @keyframes flash-up {
   0%   { background: var(--bg-panel); border-color: var(--border); }
   35%  { background: rgba(74, 222, 128, 0.25); border-color: #4ade80; }
@@ -322,7 +322,7 @@ body {
 .btn-icon--flash-up   { animation: flash-up   500ms ease forwards; }
 .btn-icon--flash-down { animation: flash-down 500ms ease forwards; }
 
-/* ΓöÇΓöÇ Auth / email / categories states ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ */
+/* ── Auth / email / categories states ──────────────────────────────── */
 .auth-body, .email-auth-body, .categories-body {
   display: flex;
   flex-direction: column;
@@ -390,7 +390,7 @@ body {
   padding: 2px 0;
 }
 
-/* ΓöÇΓöÇ Auth tabs ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ */
+/* ── Auth tabs ──────────────────────────────────────────────────────── */
 .auth-tabs {
   display: flex;
   border: 1px solid var(--border);
@@ -414,7 +414,7 @@ body {
   font-weight: 600;
 }
 
-/* ΓöÇΓöÇ Email form ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ */
+/* ── Email form ─────────────────────────────────────────────────────── */
 .email-form {
   display: flex;
   flex-direction: column;
@@ -448,7 +448,7 @@ body {
   padding: 2px 0;
 }
 
-/* ΓöÇΓöÇ Categories state ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ */
+/* ── Categories state ───────────────────────────────────────────────── */
 .categories-header {
   display: flex;
   align-items: center;
@@ -466,7 +466,7 @@ body {
 }
 .categories-chips { margin-bottom: 4px; }
 
-/* ΓöÇΓöÇ Interest mode toggle ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ */
+/* ── Interest mode toggle ───────────────────────────────────────────── */
 .interest-mode-toggle {
   display: flex;
   gap: 0;
@@ -499,7 +499,7 @@ body {
   margin: 8px 0 4px;
 }
 
-/* ΓöÇΓöÇ Feedback state ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ */
+/* ── Feedback state ─────────────────────────────────────────────────── */
 .feedback-body {
   display: flex;
   flex-direction: column;
@@ -543,7 +543,7 @@ body {
   padding: 4px 0;
 }
 
-/* ΓöÇΓöÇ Saved pages state ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ */
+/* ── Saved pages state ───────────────────────────────────────────────────── */
 .saved-body {
   display: flex;
   flex-direction: column;
@@ -617,7 +617,7 @@ body {
   padding: 16px 0;
 }
 
-/* ΓöÇΓöÇ Notifications state ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ */
+/* ── Notifications state ────────────────────────────────────────────────── */
 .notif-body {
   display: flex;
   flex-direction: column;
@@ -686,7 +686,7 @@ body {
   padding: 16px 0;
 }
 
-/* ΓöÇΓöÇ History state ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ */
+/* ── History state ──────────────────────────────────────────────────────── */
 .history-body {
   display: flex;
   flex-direction: column;
@@ -748,7 +748,7 @@ body {
   padding: 16px 0;
 }
 
-/* ΓöÇΓöÇ Badge count chip ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ */
+/* ── Badge count chip ───────────────────────────────────────────────────── */
 .count-chip {
   background: var(--accent);
   color: #fff;
@@ -759,7 +759,7 @@ body {
   margin-left: 6px;
 }
 
-/* ΓöÇΓöÇ Toast (save confirmation) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ */
+/* ── Toast (save confirmation) ──────────────────────────────────────────── */
 .toast {
   position: fixed;
   bottom: 8px;
@@ -784,7 +784,7 @@ body {
   to   { opacity: 0; }
 }
 
-/* ΓöÇΓöÇ Collection edit row ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ */
+/* ── Collection edit row ────────────────────────────────────────────────── */
 .col-edit-row {
   display: flex;
   align-items: center;
@@ -805,7 +805,7 @@ body {
 .col-edit-btn:hover { background: var(--bg-hover); color: var(--text); }
 .col-edit-btn--danger:hover { color: #f87171; }
 
-/* ΓöÇΓöÇ Stats row (inline) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ */
+/* ── Stats row (inline) ─────────────────────────────────────────────────── */
 .stats-row {
   font-size: 11px;
   color: var(--text-muted);
@@ -814,7 +814,7 @@ body {
 }
 .stats-row span { color: var(--text); font-weight: 600; }
 
-/* ΓöÇΓöÇ Subcategory chips on submit panel ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ */
+/* ── Subcategory chips on submit panel ──────────────────────────────────── */
 .subcategory-chips {
   margin-top: 4px;
 }

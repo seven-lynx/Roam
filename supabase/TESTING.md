@@ -1,4 +1,4 @@
-# Roam Supabase Backend ΓÇö Testing Guide
+# Roam Supabase Backend — Testing Guide
 
 This guide covers the quickest checks for migrations, Edge Functions, and data access.
 

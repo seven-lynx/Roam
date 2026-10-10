@@ -1,5 +1,5 @@
 -- =============================================================================
--- share_events ΓÇö Track URL/content sharing for share-related badges
+-- share_events — Track URL/content sharing for share-related badges
 -- =============================================================================
 CREATE TABLE IF NOT EXISTS public.share_events (
   id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),

@@ -1,4 +1,4 @@
-// supabase.ts ΓÇö Supabase client factory for the extension
+// supabase.ts — Supabase client factory for the extension
 //
 // The SUPABASE_URL and SUPABASE_ANON_KEY constants are injected at build time
 // by esbuild's `define` option (read from the root .env by build.mjs).
@@ -38,7 +38,7 @@ let _client: SupabaseClient | null = null;
 /**
  * Returns the shared Supabase client for this service-worker activation.
  * Service workers are re-created by the browser on each activation, so the
- * module runs fresh ΓÇö calling createClient() once per activation is correct.
+ * module runs fresh — calling createClient() once per activation is correct.
  */
 export function getSupabase(): SupabaseClient {
   if (!_client) {

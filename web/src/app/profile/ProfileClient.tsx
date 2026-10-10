@@ -191,7 +191,7 @@ export function ProfileClient({ userId, email, profile, allCategories, allSubcat
       {!profile?.username && <UsernamePrompt />}
 
       <div className="max-w-2xl mx-auto px-6 py-12 flex flex-col gap-8">
-        {/* ΓöÇΓöÇ Level Progress Card ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ */}
+        {/* ── Level Progress Card ──────────────────────── */}
         <LevelProgress
           level={profile?.level ?? 1}
           xpTotal={profile?.xp_total ?? 0}
@@ -200,7 +200,7 @@ export function ProfileClient({ userId, email, profile, allCategories, allSubcat
           badgeCount={unlockedCount}
         />
 
-        {/* ΓöÇΓöÇ Profile Header Card ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ */}
+        {/* ── Profile Header Card ──────────────────────── */}
         <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 p-6 flex flex-col sm:flex-row items-start gap-5">
           {/* Avatar */}
           <div className="flex items-center justify-center w-16 h-16 rounded-full bg-gradient-to-br from-amber-400 to-amber-500 text-white text-2xl font-bold shrink-0">
@@ -233,7 +233,7 @@ export function ProfileClient({ userId, email, profile, allCategories, allSubcat
               <div className="w-px h-8 bg-zinc-200 dark:bg-zinc-800" />
               <div className="text-center">
                 <div className="text-lg font-bold text-zinc-900 dark:text-white">
-                  {isPublic ? '≡ƒîÉ' : '≡ƒöÆ'}
+                  {isPublic ? '🌐' : '🔒'}
                 </div>
                 <div className="text-xs text-zinc-400">{isPublic ? 'Public' : 'Private'}</div>
               </div>
@@ -246,13 +246,13 @@ export function ProfileClient({ userId, email, profile, allCategories, allSubcat
                   href={`/u/${profile.username}`}
                   className="text-xs text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-300 transition-colors"
                 >
-                  View public profile Γåù
+                  View public profile ↗
                 </Link>
                 <button
                   onClick={copyProfileLink}
                   className="text-xs text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-300 transition-colors"
                 >
-                  Copy link ≡ƒöù
+                  Copy link 🔗
                 </button>
               </div>
             )}
@@ -269,7 +269,7 @@ export function ProfileClient({ userId, email, profile, allCategories, allSubcat
           </div>
         </div>
 
-        {/* ΓöÇΓöÇ Tab bar ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ */}
+        {/* ── Tab bar ─────────────────────────────────── */}
         <div className="flex items-center gap-2 border-b border-zinc-200 dark:border-zinc-800 overflow-x-auto">
           {tabs.map(tab => (
             <button
@@ -289,7 +289,7 @@ export function ProfileClient({ userId, email, profile, allCategories, allSubcat
           ))}
         </div>
 
-        {/* ΓöÇΓöÇ Tab content ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ */}
+        {/* ── Tab content ──────────────────────────────── */}
         {activeTab === 'collections' && (
           <CollectionsManager userId={userId} initialCollections={initialCollections} />
         )}
@@ -308,7 +308,7 @@ export function ProfileClient({ userId, email, profile, allCategories, allSubcat
                 href="/badges"
                 className="text-xs text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-300 transition-colors"
               >
-                View all badges ΓåÆ
+                View all badges →
               </Link>
             </div>
             <BadgeDisplay badges={badges} showLocked={true} />
@@ -370,7 +370,7 @@ export function ProfileClient({ userId, email, profile, allCategories, allSubcat
                     className="text-sm text-zinc-500 hover:text-zinc-900 dark:hover:text-white transition-colors"
                     aria-label="Edit bio"
                   >
-                    Edit Γ£Ä
+                    Edit ✎
                   </button>
                 )}
               </div>
@@ -383,7 +383,7 @@ export function ProfileClient({ userId, email, profile, allCategories, allSubcat
                     rows={3}
                     maxLength={160}
                     className="w-full rounded-lg border border-zinc-300 dark:border-zinc-700 px-4 py-2.5 text-sm bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:focus:ring-white resize-none"
-                    placeholder="Tell the world a bit about yourselfΓÇª"
+                    placeholder="Tell the world a bit about yourself…"
                     autoFocus
                   />
                   <div className="flex gap-2 justify-end">
@@ -398,7 +398,7 @@ export function ProfileClient({ userId, email, profile, allCategories, allSubcat
                       disabled={bioLoading}
                       className="text-sm bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 px-4 py-1.5 rounded-lg font-medium hover:opacity-90 disabled:opacity-50 transition-opacity"
                     >
-                      {bioLoading ? 'SavingΓÇª' : 'Save'}
+                      {bioLoading ? 'Saving…' : 'Save'}
                     </button>
                   </div>
                 </div>
@@ -431,11 +431,11 @@ export function ProfileClient({ userId, email, profile, allCategories, allSubcat
                   disabled={interestsSaving}
                   className="text-sm bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 px-5 py-2 rounded-lg font-medium hover:opacity-90 disabled:opacity-50 transition-opacity"
                 >
-                  {interestsSaving ? 'SavingΓÇª' : 'Save interests'}
+                  {interestsSaving ? 'Saving…' : 'Save interests'}
                 </button>
               )}
               {interestsSaved && (
-                <p className="text-sm text-green-600 dark:text-green-400 mt-2">Γ£ô Interests saved</p>
+                <p className="text-sm text-green-600 dark:text-green-400 mt-2">✓ Interests saved</p>
               )}
             </section>
 
@@ -455,7 +455,7 @@ export function ProfileClient({ userId, email, profile, allCategories, allSubcat
                       rel="noopener noreferrer"
                       className="text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white transition-colors"
                     >
-                      Chrome ΓåÆ
+                      Chrome →
                     </a>
                     <a
                       href="https://addons.mozilla.org/firefox/addon/roam-the-web/"
@@ -463,14 +463,14 @@ export function ProfileClient({ userId, email, profile, allCategories, allSubcat
                       rel="noopener noreferrer"
                       className="text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white transition-colors"
                     >
-                      Firefox ΓåÆ
+                      Firefox →
                     </a>
                   </div>
                 </div>
                 <div className="flex flex-col gap-2">
                   <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wide">Android app</p>
                   <Link href="/android-beta" className="text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white transition-colors">
-                    Join the beta ΓåÆ
+                    Join the beta →
                   </Link>
                 </div>
               </div>

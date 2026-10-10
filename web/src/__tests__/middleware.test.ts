@@ -21,7 +21,7 @@ describe('Middleware', () => {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = 'anon-key-123';
   }
 
-  // ΓöÇΓöÇΓöÇ matcher config ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+  // ─── matcher config ──────────────────────────────────────────────────────────
 
   describe('config.matcher', () => {
     it('should exclude static files and Next.js internals', () => {
@@ -49,7 +49,7 @@ describe('Middleware', () => {
     });
   });
 
-  // ΓöÇΓöÇΓöÇ admin route protection ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+  // ─── admin route protection ──────────────────────────────────────────────────
 
   describe('admin route protection', () => {
     it('should redirect unauthenticated users from /admin to /', async () => {
@@ -174,7 +174,7 @@ describe('Middleware', () => {
     });
   });
 
-  // ΓöÇΓöÇΓöÇ public route passthrough ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+  // ─── public route passthrough ────────────────────────────────────────────────
 
   describe('public route passthrough', () => {
     it('should allow unauthenticated users to access /', async () => {
@@ -250,7 +250,7 @@ describe('Middleware', () => {
     });
   });
 
-  // ΓöÇΓöÇΓöÇ error recovery ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+  // ─── error recovery ──────────────────────────────────────────────────────────
 
   describe('error recovery', () => {
     it('should return NextResponse.next() even when getUser throws', async () => {

@@ -88,12 +88,12 @@ export function SavedUrlsManager({ userId, initialSavedUrls }: Props) {
     <section>
       <div className="flex items-baseline justify-between mb-3">
         <h2 className="text-base font-semibold text-zinc-900 dark:text-white">Saved URLs</h2>
-        <p className="text-xs text-zinc-400">Expires after 30 days ┬╖ max 50</p>
+        <p className="text-xs text-zinc-400">Expires after 30 days · max 50</p>
       </div>
 
       {items.length === 0 ? (
         <div className="text-center py-8">
-          <p className="text-3xl mb-3">≡ƒöû</p>
+          <p className="text-3xl mb-3">🔖</p>
           <p className="text-sm text-zinc-600 dark:text-zinc-400 font-medium">
               {"You haven't saved any URLs yet"}
           </p>
@@ -106,7 +106,7 @@ export function SavedUrlsManager({ userId, initialSavedUrls }: Props) {
             rel="noopener noreferrer"
             className="inline-block mt-3 text-xs text-blue-600 hover:underline font-medium"
           >
-            Get the Chrome extension ΓåÆ
+            Get the Chrome extension →
           </a>
         </div>
       ) : (
@@ -128,7 +128,7 @@ export function SavedUrlsManager({ userId, initialSavedUrls }: Props) {
                 disabled={batchLoading}
                 className="text-xs px-3 py-1.5 rounded-md text-red-600 hover:bg-red-50 dark:hover:bg-red-950 transition-colors disabled:opacity-50"
               >
-                {batchLoading ? 'ΓÇª' : 'Delete'}
+                {batchLoading ? '…' : 'Delete'}
               </button>
               <button
                 onClick={() => setSelected(new Set())}
@@ -203,7 +203,7 @@ export function SavedUrlsManager({ userId, initialSavedUrls }: Props) {
                       title="Remove"
                       className="text-zinc-400 hover:text-red-500 transition-colors text-sm"
                     >
-                      Γ£ò
+                      ✕
                     </button>
                   </div>
                 </li>
@@ -218,7 +218,7 @@ export function SavedUrlsManager({ userId, initialSavedUrls }: Props) {
   );
 }
 
-// ΓöÇΓöÇ Inline collection picker ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+// ── Inline collection picker ──────────────────────────────────────────────────
 
 function CollectionPicker({ onSelect, onClose }: { onSelect: (id: string) => void; onClose: () => void }) {
   const supabase = createClient();
@@ -247,7 +247,7 @@ function CollectionPicker({ onSelect, onClose }: { onSelect: (id: string) => voi
         <button onClick={onClose} className="text-xs text-zinc-400 hover:text-zinc-600 transition-colors">Cancel</button>
       </div>
       {loading ? (
-        <p className="text-xs text-zinc-400">LoadingΓÇª</p>
+        <p className="text-xs text-zinc-400">Loading…</p>
       ) : collections.length === 0 ? (
         <p className="text-xs text-zinc-400">No collections yet. Create one above.</p>
       ) : (

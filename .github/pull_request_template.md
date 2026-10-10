@@ -28,20 +28,20 @@ Read the rulebook at the repo root first.
 
 - [ ] No `[deploy]`, `[ship]`, `[prod]`, or `[release]` tags in any commit message
 - [ ] No hints at automated authorship in any committed file (comments, doc, commit message)
-- [ ] No hardcoded secrets (checked against the ┬º 1.3 prefixes in the rulebook)
+- [ ] No hardcoded secrets (checked against the § 1.3 prefixes in the rulebook)
 - [ ] No `.skip` migrations added to `supabase/migrations/` (use `_superseded/` if applicable)
 - [ ] No new duplicate filenames between `web/src/components/` and `web/src/app/<route>/`
 - [ ] No `proxy.ts` reintroduced (use `middleware.ts`)
 
 ### Behavior-change checks
 
-- [ ] New env var ΓåÆ `.env.example` updated in same PR (root, `web/`, `extension/`, or `android/` as applicable)
-- [ ] New edge function ΓåÆ test added in `supabase/functions/_tests/`
-- [ ] New React component ΓåÆ test added in `web/src/__tests__/`
-- [ ] New SQL function or RPC ΓåÆ `scripts/verify-roam-rpc.mjs` extended or new verification script added
-- [ ] Migration that adds a trigger ΓåÆ rollback documented in `RUNBOOK.md`
-- [ ] New RLS policy ΓåÆ security test added in `web/src/__tests__/security.test.ts`
-- [ ] New manifest permission ΓåÆ documented in the browser extension rule file's "Permissions table"
+- [ ] New env var → `.env.example` updated in same PR (root, `web/`, `extension/`, or `android/` as applicable)
+- [ ] New edge function → test added in `supabase/functions/_tests/`
+- [ ] New React component → test added in `web/src/__tests__/`
+- [ ] New SQL function or RPC → `scripts/verify-roam-rpc.mjs` extended or new verification script added
+- [ ] Migration that adds a trigger → rollback documented in `RUNBOOK.md`
+- [ ] New RLS policy → security test added in `web/src/__tests__/security.test.ts`
+- [ ] New manifest permission → documented in the browser extension rule file's "Permissions table"
 
 ### Local CI loop (run before pushing)
 
@@ -60,10 +60,10 @@ supabase db reset && node scripts/verify-roam-rpc.mjs
 
 ### Documentation
 
-- [ ] New env var ΓåÆ `.env.example` updated
-- [ ] New edge function ΓåÆ `docs/API.md` updated
-- [ ] New SQL table/column ΓåÆ migration comment block describes intent
-- [ ] Resolved audit item ΓåÆ checkbox ticked in `docs/WEB_AUDIT_REPORT.md`
+- [ ] New env var → `.env.example` updated
+- [ ] New edge function → `docs/API.md` updated
+- [ ] New SQL table/column → migration comment block describes intent
+- [ ] Resolved audit item → checkbox ticked in `docs/WEB_AUDIT_REPORT.md`
 
 ## How to verify
 

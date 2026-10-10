@@ -77,10 +77,10 @@ fun ConfigBottomSheet(
 
     // Language list for the translate picker
     val translateLanguages = listOf(
-        "en" to "English", "fr" to "Fran├ºais", "de" to "Deutsch",
-        "it" to "Italiano", "es" to "Espa├▒ol", "pt" to "Portugu├¬s",
-        "nl" to "Nederlands", "pl" to "Polski", "ja" to "µùÑµ£¼Φ¬₧",
-        "zh" to "Σ╕¡µûç", "ru" to "╨á╤â╤ü╤ü╨║╨╕╨╣", "ko" to "φò£Ω╡¡∞û┤",
+        "en" to "English", "fr" to "Français", "de" to "Deutsch",
+        "it" to "Italiano", "es" to "Español", "pt" to "Português",
+        "nl" to "Nederlands", "pl" to "Polski", "ja" to "日本語",
+        "zh" to "中文", "ru" to "Русский", "ko" to "한국어",
     )
 
     Column(
@@ -89,7 +89,7 @@ fun ConfigBottomSheet(
             .verticalScroll(rememberScrollState())
             .padding(bottom = 16.dp),
     ) {
-            // ΓöÇΓöÇ Section 1: Current page ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+            // ── Section 1: Current page ──────────────────────────────────────
             Text(
                 text = "Current page",
                 style = MaterialTheme.typography.labelMedium,
@@ -161,7 +161,7 @@ fun ConfigBottomSheet(
                 onClick = { collectionPickerMode = "add"; collectionPickerOpen = true },
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
             ) {
-                Text("Add to collectionΓÇª", modifier = Modifier.fillMaxWidth())
+                Text("Add to collection…", modifier = Modifier.fillMaxWidth())
             }
 
             Spacer(modifier = Modifier.height(4.dp))
@@ -171,16 +171,16 @@ fun ConfigBottomSheet(
                     .padding(horizontal = 16.dp, vertical = 4.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                OutlinedButton(onClick = onNavBack,    modifier = Modifier.weight(1f)) { Text("ΓåÉ Back") }
-                OutlinedButton(onClick = onNavReload,  modifier = Modifier.weight(1f)) { Text("Γå╗ Reload") }
-                OutlinedButton(onClick = onNavForward, modifier = Modifier.weight(1f)) { Text("Forward ΓåÆ") }
+                OutlinedButton(onClick = onNavBack,    modifier = Modifier.weight(1f)) { Text("← Back") }
+                OutlinedButton(onClick = onNavReload,  modifier = Modifier.weight(1f)) { Text("↻ Reload") }
+                OutlinedButton(onClick = onNavForward, modifier = Modifier.weight(1f)) { Text("Forward →") }
             }
 
             Spacer(modifier = Modifier.height(8.dp))
             HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
             Spacer(modifier = Modifier.height(8.dp))
 
-            // ΓöÇΓöÇ Section 2: Roam mode ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+            // ── Section 2: Roam mode ─────────────────────────────────────────
             Text(
                 text = "Roam mode",
                 style = MaterialTheme.typography.labelMedium,
@@ -203,14 +203,14 @@ fun ConfigBottomSheet(
                 },
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
             ) {
-                Text("Roam a collectionΓÇª", modifier = Modifier.fillMaxWidth())
+                Text("Roam a collection…", modifier = Modifier.fillMaxWidth())
             }
 
             TextButton(
                 onClick = onManageCollections,
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
             ) {
-                Text("Manage collections Γåù", modifier = Modifier.fillMaxWidth())
+                Text("Manage collections ↗", modifier = Modifier.fillMaxWidth())
             }
 
             Spacer(modifier = Modifier.height(4.dp))
@@ -226,7 +226,7 @@ fun ConfigBottomSheet(
                 )
             }
 
-            // ΓöÇΓöÇ Section 3: Saved for later ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+            // ── Section 3: Saved for later ───────────────────────────────────
             if (savedUrls.isNotEmpty()) {
                 Spacer(modifier = Modifier.height(8.dp))
                 HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
@@ -273,7 +273,7 @@ fun ConfigBottomSheet(
         }
     }
 
-    // ΓöÇΓöÇ Collection picker dialog (Add to collection OR Roam a collection) ΓöÇΓöÇ
+    // ── Collection picker dialog (Add to collection OR Roam a collection) ──
     if (collectionPickerOpen) {
         AlertDialog(
             onDismissRequest = { collectionPickerOpen = false },
@@ -312,11 +312,11 @@ fun ConfigBottomSheet(
         )
     }
 
-    // ΓöÇΓöÇ Translate language picker dialog ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+    // ── Translate language picker dialog ─────────────────────────────────
     if (translateDialogOpen) {
         AlertDialog(
             onDismissRequest = { translateDialogOpen = false },
-            title = { Text("Translate toΓÇª") },
+            title = { Text("Translate to…") },
             text = {
                 Column {
                     translateLanguages.forEach { (code, label) ->
@@ -339,7 +339,7 @@ fun ConfigBottomSheet(
         )
     }
 
-    // ΓöÇΓöÇ Share picker dialog ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+    // ── Share picker dialog ───────────────────────────────────────────────
     if (shareDialogOpen) {
         AlertDialog(
             onDismissRequest = { shareDialogOpen = false },
@@ -353,7 +353,7 @@ fun ConfigBottomSheet(
                         },
                         modifier = Modifier.fillMaxWidth(),
                     ) {
-                        Text("Share viaΓÇª", modifier = Modifier.fillMaxWidth())
+                        Text("Share via…", modifier = Modifier.fillMaxWidth())
                     }
                     TextButton(
                         onClick = {
@@ -373,7 +373,7 @@ fun ConfigBottomSheet(
         )
     }
 
-    // ΓöÇΓöÇ New-collection dialog ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+    // ── New-collection dialog ──────────────────────────────────────────────
     if (newCollectionDialogOpen) {
         AlertDialog(
             onDismissRequest = { newCollectionDialogOpen = false },

@@ -8,7 +8,7 @@
 </head>
 <body>
 
-  <!-- ΓöÇΓöÇ Signed-out state ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ -->
+  <!-- ── Signed-out state ───────────────────────────────────────────── -->
   <div id="state-signedout" class="state" hidden>
     <div class="signedout-body">
       <img src="icon-48.png" alt="Roam" class="signedout-logo" />
@@ -17,7 +17,7 @@
     </div>
   </div>
 
-  <!-- ΓöÇΓöÇ Error state ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ -->
+  <!-- ── Error state ────────────────────────────────────────────────── -->
   <div id="state-error" class="state" hidden>
     <div class="error-body">
       <p class="error-msg">Can't reach Roam right now.</p>
@@ -25,7 +25,7 @@
     </div>
   </div>
 
-  <!-- ΓöÇΓöÇ No results state ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ -->
+  <!-- ── No results state ──────────────────────────────────────────── -->
   <div id="state-noresults" class="state" hidden>
     <div class="error-body">
       <p class="error-msg">You've explored everything in your categories!</p>
@@ -34,10 +34,10 @@
     </div>
   </div>
 
-  <!-- ΓöÇΓöÇ Auth methods state ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ -->
+  <!-- ── Auth methods state ─────────────────────────────────────────── -->
   <div id="state-auth" class="state" hidden>
     <div class="auth-body">
-      <button id="btn-back-auth" class="btn-back">ΓåÉ Back</button>
+      <button id="btn-back-auth" class="btn-back">← Back</button>
       <p class="auth-title">Sign in or sign up</p>
       <button id="btn-auth-google" class="btn-oauth">
         <svg class="oauth-icon" viewBox="0 0 24 24" width="16" height="16">
@@ -50,16 +50,16 @@
       </button>
       <div class="auth-divider"><span>or</span></div>
       <button id="btn-auth-email" class="btn-oauth">
-        Γ£ë Continue with Email
+        ✉ Continue with Email
       </button>
-      <p id="auth-waiting" class="auth-waiting" hidden>Opening sign-inΓÇª come back after completing it.</p>
+      <p id="auth-waiting" class="auth-waiting" hidden>Opening sign-in… come back after completing it.</p>
     </div>
   </div>
 
-  <!-- ΓöÇΓöÇ Email auth state ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ -->
+  <!-- ── Email auth state ──────────────────────────────────────────── -->
   <div id="state-email-auth" class="state" hidden>
     <div class="email-auth-body">
-      <button id="btn-back-email" class="btn-back">ΓåÉ Back</button>
+      <button id="btn-back-email" class="btn-back">← Back</button>
       <div class="auth-tabs">
         <button id="tab-signin" class="auth-tab auth-tab--active">Sign in</button>
         <button id="tab-signup" class="auth-tab">Sign up</button>
@@ -76,11 +76,11 @@
     </div>
   </div>
 
-  <!-- ΓöÇΓöÇ Categories state ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ -->
+  <!-- ── Categories state ──────────────────────────────────────────── -->
   <div id="state-categories" class="state" hidden>
     <div class="categories-body">
       <div class="categories-header">
-        <button id="btn-back-categories" class="btn-back">ΓåÉ Back</button>
+        <button id="btn-back-categories" class="btn-back">← Back</button>
         <p class="categories-title">Your categories</p>
       </div>
       <p class="categories-sub">Pick what you want to roam.</p>
@@ -96,24 +96,24 @@
     </div>
   </div>
 
-  <!-- ΓöÇΓöÇ Main state ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ -->
+  <!-- ── Main state ─────────────────────────────────────────────────── -->
   <div id="state-main" class="state" hidden>
 
     <!-- 4 primary controls -->
     <div class="controls">
       <button id="btn-roam"     class="btn-roam"    title="Roam">Roam</button>
-      <button id="btn-upvote"   class="btn-icon"    title="Thumbs up">≡ƒæì</button>
-      <button id="btn-downvote" class="btn-icon"    title="Thumbs down">≡ƒæÄ</button>
-      <button id="btn-config"   class="btn-icon btn-config-toggle" title="Settings" aria-expanded="false">ΓÜÖ∩╕Å</button>
+      <button id="btn-upvote"   class="btn-icon"    title="Thumbs up">👍</button>
+      <button id="btn-downvote" class="btn-icon"    title="Thumbs down">👎</button>
+      <button id="btn-config"   class="btn-icon btn-config-toggle" title="Settings" aria-expanded="false">⚙️</button>
     </div>
 
     <!-- Status bar: category of current page, or transient fetch status -->
     <div id="status-bar" class="status-bar" hidden></div>
 
     <!-- Toast (save confirmation) -->
-    <div id="toast" class="toast" hidden>Γ£ô Saved!</div>
+    <div id="toast" class="toast" hidden>✓ Saved!</div>
 
-    <!-- Submit panel (expands on ≡ƒæì for unknown pages) -->
+    <!-- Submit panel (expands on 👍 for unknown pages) -->
     <div id="panel-submit" class="panel" hidden>
       <p class="panel-label">Add this page to Roam?</p>
       <div id="category-chips" class="chip-grid">
@@ -130,23 +130,23 @@
       <button id="btn-submit" class="btn-primary" disabled>Submit</button>
     </div>
 
-    <!-- Config panel (expands on ΓÜÖ∩╕Å) -->
+    <!-- Config panel (expands on ⚙️) -->
     <div id="panel-config" class="panel" hidden>
 
       <section class="panel-section">
         <h3 class="panel-section-title">Current page</h3>
-        <button id="btn-add-collection" class="panel-row">Add to collectionΓÇª</button>
+        <button id="btn-add-collection" class="panel-row">Add to collection…</button>
         <button id="btn-save-later"     class="panel-row">Save for later</button>
         <button id="btn-saved-pages"    class="panel-row">Saved pages</button>
         <button id="btn-share"          class="panel-row">Copy link</button>
-        <button id="btn-share-with-user" class="panel-row">Share with a friendΓÇª</button>
+        <button id="btn-share-with-user" class="panel-row">Share with a friend…</button>
       </section>
 
       <section class="panel-section">
         <h3 class="panel-section-title">Roam mode</h3>
         <button id="btn-roam-category"   class="panel-row">Roam within this category</button>
-        <button id="btn-roam-collection" class="panel-row">Roam a collectionΓÇª</button>
-        <button id="btn-manage-collections" class="panel-row">Manage collections Γåù</button>
+        <button id="btn-roam-collection" class="panel-row">Roam a collection…</button>
+        <button id="btn-manage-collections" class="panel-row">Manage collections ↗</button>
         <div class="panel-row panel-row--toggle">
           <span>Focus mode</span>
           <label class="toggle">
@@ -165,7 +165,7 @@
         <button id="btn-notifications" class="panel-row">Notifications <span id="notif-count-chip" class="count-chip" hidden>0</span></button>
         <button id="btn-web-badges"      class="panel-row">Badges <span id="badge-count-chip" class="count-chip" hidden>0</span></button>
         <button id="btn-history" class="panel-row">History</button>
-        <div id="stats-row" class="stats-row" hidden>Roamed: <span id="stat-roamed">0</span> ┬╖ Submitted: <span id="stat-submitted">0</span></div>
+        <div id="stats-row" class="stats-row" hidden>Roamed: <span id="stat-roamed">0</span> · Submitted: <span id="stat-submitted">0</span></div>
       </section>
 
       <section class="panel-section">
@@ -189,31 +189,31 @@
         <div class="panel-row panel-row--languages">
           <span>Discovery language</span>
           <select id="select-discovery-lang" class="lang-select">
-            <option value="ar">╪º┘ä╪╣╪▒╪¿┘è╪⌐</option>
-            <option value="zh">Σ╕¡µûç</option>
+            <option value="ar">العربية</option>
+            <option value="zh">中文</option>
             <option value="nl">Nederlands</option>
             <option value="en" selected>English</option>
-            <option value="fr">Fran├ºais</option>
+            <option value="fr">Français</option>
             <option value="de">Deutsch</option>
             <option value="it">Italiano</option>
-            <option value="ja">µùÑµ£¼Φ¬₧</option>
-            <option value="ko">φò£Ω╡¡∞û┤</option>
+            <option value="ja">日本語</option>
+            <option value="ko">한국어</option>
             <option value="pl">Polski</option>
-            <option value="pt">Portugu├¬s</option>
-            <option value="ru">╨á╤â╤ü╤ü╨║╨╕╨╣</option>
-            <option value="es">Espa├▒ol</option>
+            <option value="pt">Português</option>
+            <option value="ru">Русский</option>
+            <option value="es">Español</option>
           </select>
         </div>
-        <button id="btn-category-prefs" class="panel-row">Category preferences Γåù</button>
+        <button id="btn-category-prefs" class="panel-row">Category preferences ↗</button>
         <button id="btn-report-url"      class="panel-row">Report broken link</button>
         <button id="btn-send-feedback"   class="panel-row">Send feedback</button>
       </section>
 
       <section class="panel-section">
         <h3 class="panel-section-title">Open in web app</h3>
-        <button id="btn-web-leaderboard" class="panel-row">Leaderboard Γåù</button>
-        <button id="btn-web-following"   class="panel-row">Following & activity Γåù</button>
-        <button id="btn-web-settings"    class="panel-row">Settings Γåù</button>
+        <button id="btn-web-leaderboard" class="panel-row">Leaderboard ↗</button>
+        <button id="btn-web-following"   class="panel-row">Following & activity ↗</button>
+        <button id="btn-web-settings"    class="panel-row">Settings ↗</button>
       </section>
 
       <section class="panel-section">
@@ -225,12 +225,12 @@
 
   </div>
 
-  <!-- ΓöÇΓöÇ Feedback state ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ -->
+  <!-- ── Feedback state ───────────────────────────────────────────── -->
   <div id="state-feedback" class="state" hidden>
     <div class="feedback-body">
-      <button id="btn-back-feedback" class="btn-back">ΓåÉ Back</button>
+      <button id="btn-back-feedback" class="btn-back">← Back</button>
       <p class="feedback-title">Send feedback</p>
-      <p class="feedback-sub">Bug, suggestion, or just saying hi ΓÇö we read everything.</p>
+      <p class="feedback-sub">Bug, suggestion, or just saying hi — we read everything.</p>
       <textarea
         id="feedback-message"
         class="feedback-textarea"
@@ -243,7 +243,7 @@
         id="feedback-email"
         type="email"
         class="form-input"
-        placeholder="Email (optional ΓÇö for follow-up)"
+        placeholder="Email (optional — for follow-up)"
         autocomplete="email"
       />
       <p id="feedback-error" class="auth-error" hidden></p>
@@ -255,7 +255,7 @@
   <div id="state-saved" class="state" hidden>
     <div class="saved-body">
       <div class="saved-header">
-        <button id="btn-back-saved" class="btn-back">ΓåÉ Back</button>
+        <button id="btn-back-saved" class="btn-back">← Back</button>
         <p class="saved-title">Saved pages</p>
       </div>
       <div id="saved-list" class="saved-list"></div>
@@ -263,11 +263,11 @@
     </div>
   </div>
 
-  <!-- ΓöÇΓöÇ Notifications state ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ -->
+  <!-- ── Notifications state ─────────────────────────────────────── -->
   <div id="state-notifications" class="state" hidden>
     <div class="notif-body">
       <div class="notif-header">
-        <button id="btn-back-notifications" class="btn-back">ΓåÉ Back</button>
+        <button id="btn-back-notifications" class="btn-back">← Back</button>
         <p class="notif-title">Notifications</p>
         <button id="btn-mark-all-read" class="notif-mark-read">Mark all read</button>
       </div>
@@ -276,11 +276,11 @@
     </div>
   </div>
 
-  <!-- ΓöÇΓöÇ History state ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ -->
+  <!-- ── History state ────────────────────────────────────────────── -->
   <div id="state-history" class="state" hidden>
     <div class="history-body">
       <div class="history-header">
-        <button id="btn-back-history" class="btn-back">ΓåÉ Back</button>
+        <button id="btn-back-history" class="btn-back">← Back</button>
         <p class="history-title">History</p>
       </div>
       <div id="history-list" class="history-list"></div>

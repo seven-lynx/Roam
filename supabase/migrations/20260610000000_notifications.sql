@@ -2,12 +2,12 @@
 -- In-app notifications system
 -- =============================================================================
 -- Adds:
---   1. notifications table ΓÇö stores user notifications (url_approved, url_rejected, etc.)
---   2. Trigger on moderation_queue ΓÇö inserts a notification when status changes
---      from 'pending' ΓåÆ 'approved' or 'rejected'
+--   1. notifications table — stores user notifications (url_approved, url_rejected, etc.)
+--   2. Trigger on moderation_queue — inserts a notification when status changes
+--      from 'pending' → 'approved' or 'rejected'
 -- =============================================================================
 
--- ΓöÇΓöÇ 1. notifications table ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+-- ── 1. notifications table ──────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS public.notifications (
   id          UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id     UUID        NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
@@ -24,7 +24,7 @@ CREATE INDEX IF NOT EXISTS idx_notifications_user_unread
   ON public.notifications (user_id, created_at DESC)
   WHERE read = FALSE;
 
--- ΓöÇΓöÇ 2. RLS policies ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+-- ── 2. RLS policies ─────────────────────────────────────────────────────────
 ALTER TABLE public.notifications ENABLE ROW LEVEL SECURITY;
 
 -- Users can read their own notifications
@@ -43,9 +43,9 @@ CREATE POLICY "notifications: owner can delete"
   ON notifications FOR DELETE
   USING (auth.uid() = user_id);
 
--- No INSERT policy ΓÇö notifications are created by the trigger below (SECURITY DEFINER)
+-- No INSERT policy — notifications are created by the trigger below (SECURITY DEFINER)
 
--- ΓöÇΓöÇ 3. Trigger: notify on moderation decision ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+-- ── 3. Trigger: notify on moderation decision ────────────────────────────────
 -- Fires when moderation_queue.status changes from 'pending' to 'approved' or
 -- 'rejected'. Inserts a notification for the submitter.
 CREATE OR REPLACE FUNCTION public.notify_on_moderation_decision()

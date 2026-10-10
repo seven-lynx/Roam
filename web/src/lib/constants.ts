@@ -4,14 +4,14 @@
 
 /** Fallback categories used when DB fetch fails */
 export const FALLBACK_CATEGORIES = [
-  { id: "c1000000-0000-0000-0000-000000000001", label: "Science & Nature", emoji: "≡ƒö¼" },
-  { id: "c1000000-0000-0000-0000-000000000002", label: "Technology", emoji: "≡ƒÆ╗" },
-  { id: "c1000000-0000-0000-0000-000000000003", label: "Arts & Culture", emoji: "≡ƒÄ¿" },
-  { id: "c1000000-0000-0000-0000-000000000004", label: "History & Ideas", emoji: "≡ƒô£" },
-  { id: "c1000000-0000-0000-0000-000000000005", label: "Games & Hobbies", emoji: "≡ƒÄ«" },
-  { id: "c1000000-0000-0000-0000-000000000006", label: "Weird & Wonderful", emoji: "≡ƒîÇ" },
-  { id: "c1000000-0000-0000-0000-000000000007", label: "People & Places", emoji: "≡ƒîì" },
-  { id: "c1000000-0000-0000-0000-000000000008", label: "Mind & Body", emoji: "≡ƒºá" },
+  { id: "c1000000-0000-0000-0000-000000000001", label: "Science & Nature", emoji: "🔬" },
+  { id: "c1000000-0000-0000-0000-000000000002", label: "Technology", emoji: "💻" },
+  { id: "c1000000-0000-0000-0000-000000000003", label: "Arts & Culture", emoji: "🎨" },
+  { id: "c1000000-0000-0000-0000-000000000004", label: "History & Ideas", emoji: "📜" },
+  { id: "c1000000-0000-0000-0000-000000000005", label: "Games & Hobbies", emoji: "🎮" },
+  { id: "c1000000-0000-0000-0000-000000000006", label: "Weird & Wonderful", emoji: "🌀" },
+  { id: "c1000000-0000-0000-0000-000000000007", label: "People & Places", emoji: "🌍" },
+  { id: "c1000000-0000-0000-0000-000000000008", label: "Mind & Body", emoji: "🧠" },
 ];
 
 /** Extension URLs for download pages */

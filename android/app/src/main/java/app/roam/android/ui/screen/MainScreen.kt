@@ -147,7 +147,7 @@ fun MainScreen(
                 onNavigateToInterests = onNavigateToInterests,
             )
 
-            // ΓöÇΓöÇ You tab (hub) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+            // ── You tab (hub) ──────────────────────────────────────
             AnimatedVisibility(
                 visible = currentTab == RoamTab.You.route,
                 enter = fadeIn(spring()),
@@ -175,7 +175,7 @@ fun MainScreen(
                 )
             }
 
-            // ΓöÇΓöÇ Settings ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+            // ── Settings ───────────────────────────────────────────
             AnimatedVisibility(
                 visible = currentTab == RoamTab.Settings.route,
                 enter = fadeIn(spring()),
@@ -192,7 +192,7 @@ fun MainScreen(
                 )
             }
 
-            // ΓöÇΓöÇ Saved ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+            // ── Saved ──────────────────────────────────────────────
             AnimatedVisibility(
                 visible = currentTab == RoamTab.Saved.route,
                 enter = fadeIn(spring()),
@@ -208,7 +208,7 @@ fun MainScreen(
                 )
             }
 
-            // ΓöÇΓöÇ Profile ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+            // ── Profile ────────────────────────────────────────────
             AnimatedVisibility(
                 visible = currentTab == RoamTab.Profile.route,
                 enter = fadeIn(spring()),
@@ -222,7 +222,7 @@ fun MainScreen(
                 )
             }
 
-            // ΓöÇΓöÇ History ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+            // ── History ────────────────────────────────────────────
             AnimatedVisibility(
                 visible = currentTab == RoamTab.History.route,
                 enter = fadeIn(spring()),
@@ -238,7 +238,7 @@ fun MainScreen(
                 )
             }
 
-            // ΓöÇΓöÇ Notifications ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+            // ── Notifications ──────────────────────────────────────
             AnimatedVisibility(
                 visible = currentTab == RoamTab.Notifications.route,
                 enter = fadeIn(spring()),
@@ -254,7 +254,7 @@ fun MainScreen(
                 )
             }
 
-            // ΓöÇΓöÇ Activity Feed ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+            // ── Activity Feed ──────────────────────────────────────
             AnimatedVisibility(
                 visible = currentTab == RoamTab.ActivityFeed.route,
                 enter = fadeIn(spring()),
@@ -274,7 +274,7 @@ fun MainScreen(
                 )
             }
 
-            // ΓöÇΓöÇ Badges ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+            // ── Badges ─────────────────────────────────────────────
             AnimatedVisibility(
                 visible = currentTab == RoamTab.Badges.route,
                 enter = fadeIn(spring()),
@@ -283,7 +283,7 @@ fun MainScreen(
                 BadgesScreen(vm = vm, onNavigateBack = { currentTab = RoamTab.You.route })
             }
 
-            // ΓöÇΓöÇ Challenges ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+            // ── Challenges ─────────────────────────────────────────
             AnimatedVisibility(
                 visible = currentTab == RoamTab.Challenges.route,
                 enter = fadeIn(spring()),
@@ -292,7 +292,7 @@ fun MainScreen(
                 ChallengesScreen(vm = vm, onNavigateBack = { currentTab = RoamTab.You.route })
             }
 
-            // ΓöÇΓöÇ Leaderboard ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+            // ── Leaderboard ────────────────────────────────────────
             AnimatedVisibility(
                 visible = currentTab == RoamTab.Leaderboard.route,
                 enter = fadeIn(spring()),
@@ -308,7 +308,7 @@ fun MainScreen(
                 )
             }
 
-            // ΓöÇΓöÇ Public Profile ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+            // ── Public Profile ─────────────────────────────────────
             AnimatedVisibility(
                 visible = currentTab == RoamTab.PublicProfile.route && viewedUsername != null,
                 enter = fadeIn(spring()),
@@ -325,7 +325,7 @@ fun MainScreen(
                 )
             }
 
-            // ΓöÇΓöÇ Admin / Moderator Panel ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+            // ── Admin / Moderator Panel ─────────────────────────────
             val adminModeEnabled by vm.adminModeEnabled.collectAsState()
             val moderatorModeEnabled by vm.moderatorModeEnabled.collectAsState()
             val openInBrowser: (String) -> Unit = { url ->
@@ -349,7 +349,7 @@ fun MainScreen(
                 )
             }
 
-            // ΓöÇΓöÇ User Search Sheet ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+            // ── User Search Sheet ──────────────────────────────────
             if (showUserSearch) {
                 UserSearchSheet(
                     vm = vm,
@@ -362,7 +362,7 @@ fun MainScreen(
                 )
             }
 
-            // ΓöÇΓöÇ Interactive Tour (top-level, survives tab switches) ΓöÇΓöÇ
+            // ── Interactive Tour (top-level, survives tab switches) ──
             if (!vm.hasSeenWalkthrough()) {
                 Tour(
                     onDismiss = { vm.markWalkthroughSeen() },
@@ -373,7 +373,7 @@ fun MainScreen(
         }
     }
 
-    // ΓöÇΓöÇ Global toast ΓÇö rendered at the top level so it overlays ALL tabs ΓöÇΓöÇ
+    // ── Global toast — rendered at the top level so it overlays ALL tabs ──
     // Previously this was inside DiscoverTab, so it was invisible when the user
     // was on the You/Settings/etc. tabs. Now it shows regardless of active tab.
     submitToast?.let { msg ->
@@ -410,7 +410,7 @@ fun MainScreen(
     }
 }
 
-// ΓöÇΓöÇ Discover tab ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+// ── Discover tab ──────────────────────────────────────────────────────────────
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -451,7 +451,7 @@ private fun DiscoverTab(
             // Only roam if we don't already have a URL loaded (e.g. from a
             // persisted session restored by MainViewModel after process death).
             // Note: using remember (not rememberSaveable) so this resets to
-            // false after process death ΓÇö otherwise the app stays stuck on
+            // false after process death — otherwise the app stays stuck on
             // the loading screen because the flag prevents the first roam.
             if ((state is RoamState.Idle || currentUrl == null) && rawUrl == null) {
                 vm.roam()
@@ -500,12 +500,12 @@ private fun DiscoverTab(
     val displaySubcategory = if (!isRoaming) subcategoryName ?: lastSubcategoryName else null
     val displayDomain = if (!isRoaming) domain ?: lastDomain else null
 
-    // While true, ignore sheetΓåÆVM reverse sync (used during resume re-assert so a
+    // While true, ignore sheet→VM reverse sync (used during resume re-assert so a
     // stale Expanded value cannot flip showConfigSheet back to true).
     var suppressSheetToVm by remember { mutableStateOf(false) }
     val showConfigSheetLatest = rememberUpdatedState(showConfigSheet)
 
-    // VM flag ΓåÆ physical sheet (open/close from tap handle, Tour, etc.)
+    // VM flag → physical sheet (open/close from tap handle, Tour, etc.)
     LaunchedEffect(showConfigSheet) {
         try {
             if (showConfigSheet) scaffoldState.bottomSheetState.expand()
@@ -527,7 +527,7 @@ private fun DiscoverTab(
     // Mirror settled sheet state back so the flag stays accurate.
     // drop(1) skips the initial emission (PartiallyExpanded) so we don't
     // flip showConfigSheet to false on first composition before the sheet
-    // settles ΓÇö that would create a feedback loop locking the sheet open.
+    // settles — that would create a feedback loop locking the sheet open.
     LaunchedEffect(scaffoldState.bottomSheetState) {
         snapshotFlow { scaffoldState.bottomSheetState.currentValue }
             .drop(1)
@@ -541,7 +541,7 @@ private fun DiscoverTab(
             }
     }
 
-    // After backgroundΓåÆforeground, Material3 often remeasures and leaves the sheet
+    // After background→foreground, Material3 often remeasures and leaves the sheet
     // Expanded even though showConfigSheet is still false. Re-apply the VM flag on
     // every resume (after a short settle delay for insets / WebView restore).
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -557,7 +557,7 @@ private fun DiscoverTab(
                     } else {
                         scaffoldState.bottomSheetState.partialExpand()
                     }
-                    // Let the sheet settle before accepting swipeΓåÆVM updates again.
+                    // Let the sheet settle before accepting swipe→VM updates again.
                     delay(120)
                 } catch (_: Exception) {
                 } finally {
@@ -664,7 +664,7 @@ private fun DiscoverTab(
                     moderatorModeEnabled = vm.moderatorModeEnabled.collectAsState().value,
                     onAdminNavigateToUrl = { url ->
                         // Open admin panels in the system browser instead of the
-                        // WebView ΓÇö avoids Google OAuth "Use secure browsers" block.
+                        // WebView — avoids Google OAuth "Use secure browsers" block.
                         val intent = Intent(Intent.ACTION_VIEW, android.net.Uri.parse(url))
                         activity.startActivity(intent)
                         scope.launch { scaffoldState.bottomSheetState.partialExpand() }
@@ -695,7 +695,7 @@ private fun DiscoverTab(
                                 Text("Roaming\u2026", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             } else {
                                 // If rawUrl is null and state is Idle (not Loading),
-                                // we're waiting for the first roam ΓÇö show a loading
+                                // we're waiting for the first roam — show a loading
                                 // indicator in the status bar instead of bare "Roam".
                                 if (rawUrl == null && state is RoamState.Idle) {
                                     CircularProgressIndicator(Modifier.size(14.dp), strokeWidth = 2.dp, color = MaterialTheme.colorScheme.primary)

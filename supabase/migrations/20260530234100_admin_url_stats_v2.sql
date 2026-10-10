@@ -1,9 +1,9 @@
 -- admin_url_stats() v2
 --
 -- Extends the RPC with three new aggregates needed by /admin/dashboard:
---   total_serves     ΓÇö SUM(serve_count) across all approved+active URLs
---   avg_wilson_score ΓÇö AVG(wilson_score) across approved+active URLs
---   active_users_week ΓÇö COUNT(DISTINCT user_id) from ratings in the window
+--   total_serves     — SUM(serve_count) across all approved+active URLs
+--   avg_wilson_score — AVG(wilson_score) across approved+active URLs
+--   active_users_week — COUNT(DISTINCT user_id) from ratings in the window
 
 DROP FUNCTION IF EXISTS public.admin_url_stats(timestamptz);
 

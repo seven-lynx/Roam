@@ -72,7 +72,7 @@ export function InterestPicker({
             onClick={() => onModeChange('topics')}
             className="self-start text-sm text-zinc-500 hover:text-zinc-900 dark:hover:text-white transition-colors underline underline-offset-2"
           >
-            Choose specific topics instead ΓåÆ
+            Choose specific topics instead →
           </button>
         )}
       </div>
@@ -87,7 +87,7 @@ export function InterestPicker({
         onClick={() => onModeChange('pillars')}
         className="self-start text-sm text-zinc-500 hover:text-zinc-900 dark:hover:text-white transition-colors underline underline-offset-2"
       >
-        ΓåÉ Choose categories instead
+        ← Choose categories instead
       </button>
 
       <div className="flex flex-col gap-6">

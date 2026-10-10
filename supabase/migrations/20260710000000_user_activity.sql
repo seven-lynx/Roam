@@ -27,7 +27,7 @@ CREATE POLICY "followers can view activity"
 CREATE INDEX IF NOT EXISTS idx_user_activity_feed
   ON user_activity(user_id, created_at DESC);
 
--- ΓöÇΓöÇ Triggers to auto-populate activity ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+-- ── Triggers to auto-populate activity ─────────────────────────────────
 
 -- Trigger on ratings (thumbs up / thumbs down)
 CREATE OR REPLACE FUNCTION record_rating_activity()
@@ -77,7 +77,7 @@ CREATE TRIGGER trg_collection_activity
   AFTER INSERT ON collections
   FOR EACH ROW EXECUTE FUNCTION record_collection_activity();
 
--- ΓöÇΓöÇ RPC: Get activity feed for the current user ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+-- ── RPC: Get activity feed for the current user ────────────────────────
 
 CREATE OR REPLACE FUNCTION get_activity_feed(p_limit INT DEFAULT 30)
 RETURNS TABLE (

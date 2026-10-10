@@ -16,13 +16,13 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 
 sealed interface AuthState {
-    /** Still determining ΓÇö show a splash/loading indicator */
+    /** Still determining — show a splash/loading indicator */
     data object Loading : AuthState
-    /** Valid session exists ΓÇö show the main screen */
+    /** Valid session exists — show the main screen */
     data object Authenticated : AuthState
-    /** No session ΓÇö redirect to onboarding */
+    /** No session — redirect to onboarding */
     data object Unauthenticated : AuthState
-    /** Authenticated but no interest categories set yet ΓÇö show native category picker */
+    /** Authenticated but no interest categories set yet — show native category picker */
     data object NeedsOnboarding : AuthState
 }
 
@@ -47,7 +47,7 @@ class AuthViewModel(
                     SessionStatus.Initializing -> AuthState.Loading
                     is SessionStatus.RefreshFailure -> AuthState.Unauthenticated
                 }
-                Log.d(TAG, "ΓåÆ AuthState = $next")
+                Log.d(TAG, "→ AuthState = $next")
                 _authState.value = next
 
                 if (next == AuthState.Authenticated || next == AuthState.NeedsOnboarding) {
@@ -81,7 +81,7 @@ class AuthViewModel(
             Log.d(TAG, "checkOnboarding attempt ${attempt + 1}: categories=$categories, error=${categoriesResult.exceptionOrNull()?.message}")
             if (categories != null) {
                 val state = if (categories.isEmpty()) AuthState.NeedsOnboarding else AuthState.Authenticated
-                Log.d(TAG, "checkOnboarding resolved ΓåÆ $state (${categories.size} categories)")
+                Log.d(TAG, "checkOnboarding resolved → $state (${categories.size} categories)")
                 return state
             }
 

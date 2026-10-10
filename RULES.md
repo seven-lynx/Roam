@@ -1,4 +1,4 @@
-# RULES.md ΓÇö Roam Repository
+# RULES.md — Roam Repository
 
 > **Read this before writing any code, commit, or PR.**
 > These rules are enforced by CI (`scripts/check-rules.mjs` + `.github/workflows/rules-check.yml`).
@@ -22,15 +22,15 @@ Commit-message-driven deploys have caused **multiple production incidents** in t
 **How to deploy:**
 1. Push your branch and open a PR.
 2. After CI passes, request review and merge to `main`.
-3. Go to Actions ΓåÆ "Deploy Supabase Migrations & Functions" ΓåÆ **Run workflow** (this is `workflow_dispatch`-only, behind the `production` GitHub Environment with required reviewers).
+3. Go to Actions → "Deploy Supabase Migrations & Functions" → **Run workflow** (this is `workflow_dispatch`-only, behind the `production` GitHub Environment with required reviewers).
 
 **Forbidden tags:** `[deploy]`, `[ship]`, `[prod]`, `[release]`.
 
 ### 1.2 No references to automated tooling authorship in this repo
 **No file in this repo may reference automated tooling that produced it, attribution comments, or hints at how the work was produced.** This includes:
-- Commit messages (`fix: handle edge case [generated]`, `AI: improve`, etc. ΓÇö no)
-- Code comments (`// AI-generated`, `// prompted by`, etc. ΓÇö no)
-- Documentation (no "this README was written by ΓÇª" notes, no RULES.md path names in visible docs)
+- Commit messages (`fix: handle edge case [generated]`, `AI: improve`, etc. — no)
+- Code comments (`// AI-generated`, `// prompted by`, etc. — no)
+- Documentation (no "this README was written by …" notes, no RULES.md path names in visible docs)
 - Pull request descriptions
 - Inline attribution comments
 
@@ -41,7 +41,7 @@ Commit-message-driven deploys have caused **multiple production incidents** in t
 ### 1.3 No hardcoded secrets
 - Never commit `.env`, `.env.local`, `*-firebase-adminsdk-*.json`, `*.jks`, or any file containing API keys.
 - All secrets are loaded from env vars (see `.env.example` files at `web/`, `extension/`, `android/`, and root).
-- `sync-public.ps1` filters internal files from the public mirror ΓÇö verify your changes are not on the exclusion list by mistake.
+- `sync-public.ps1` filters internal files from the public mirror — verify your changes are not on the exclusion list by mistake.
 
 **Enforced prefixes to grep for:** `AIza`, `sk-`, `sntryu_`, `sbp_`, `sb_secret_`, `sb_publishable_`, `re_`, `KGAT_`.
 
@@ -81,21 +81,21 @@ supabase db reset && node scripts/verify-roam-rpc.mjs
 ```
 
 ### 2.3 Tests are required for behavior changes
-- New edge function ΓåÆ add Deno tests in `supabase/functions/_tests/`.
-- New React component ΓåÆ add Jest test in `web/src/__tests__/`.
-- New SQL function ΓåÆ add a verification script or extension to `verify-roam-rpc.mjs`.
+- New edge function → add Deno tests in `supabase/functions/_tests/`.
+- New React component → add Jest test in `web/src/__tests__/`.
+- New SQL function → add a verification script or extension to `verify-roam-rpc.mjs`.
 - "Just refactoring" is fine without tests **if** the diff is purely mechanical (rename, extract).
 
 ### 2.4 Documentation is part of the change
-- New env var ΓåÆ `.env.example` update.
-- New edge function ΓåÆ `docs/API.md` entry.
-- New SQL table or column ΓåÆ `docs/API.md` and a migration comment block describing intent.
-- Incident ΓåÆ `RUNBOOK.md` entry.
-- Resolved audit item ΓåÆ close the checkbox in `docs/WEB_AUDIT_REPORT.md`.
+- New env var → `.env.example` update.
+- New edge function → `docs/API.md` entry.
+- New SQL table or column → `docs/API.md` and a migration comment block describing intent.
+- Incident → `RUNBOOK.md` entry.
+- Resolved audit item → close the checkbox in `docs/WEB_AUDIT_REPORT.md`.
 
 ### 2.5 No silent error swallowing
 - `catch {}` empty catches must be commented: `catch { /* Supabase unavailable; fall back to fallback categories */ }`. Or replaced with a Sentry capture + user-visible message.
-- Do not use `Promise<void>` returned from `supabase.from(...).insert(...)` without `await` ΓÇö the prior audit found an entire function's worth of these in `save-url` and had to be rewritten.
+- Do not use `Promise<void>` returned from `supabase.from(...).insert(...)` without `await` — the prior audit found an entire function's worth of these in `save-url` and had to be rewritten.
 
 ### 2.6 Type safety
 - TypeScript throughout (`web/`, `extension/`).
@@ -138,7 +138,7 @@ These are checked by `scripts/check-rules.mjs`:
 | `.skip` migration in active `supabase/migrations/` | Use `_superseded/` instead |
 | New file in `web/src/components/` whose name exists in `web/src/app/<route>/` | Duplicate-`FollowButton` pattern |
 | `proxy.ts` anywhere in `web/src/` | Should be `middleware.ts` |
-| `contains(fromJSON([...]))` in an `if:` predicate in any `.github/workflows/*.yml` | `contains()` does element matching on arrays, not glob matching ΓÇö use `dorny/paths-filter` (Hard Rule 1.6┬╜) |
+| `contains(fromJSON([...]))` in an `if:` predicate in any `.github/workflows/*.yml` | `contains()` does element matching on arrays, not glob matching — use `dorny/paths-filter` (Hard Rule 1.6½) |
 | Attribution of automated authorship in any committed file | Violates Hard Rule 1.2 |
 
 Each rule can be locally waived with an allowlist file (`scripts/.rules-allowlist`). Use sparingly.
@@ -157,7 +157,7 @@ Each rule can be locally waived with an allowlist file (`scripts/.rules-allowlis
 | New manifest permission | Document why in `extension/RULES.md` and add test in `extension/src/__tests__/` |
 | Bug fix | Add a regression test that fails without the fix |
 
-Coverage floor: maintain ΓëÑ30% on the existing tracked suites; aim for 50%.
+Coverage floor: maintain ≥30% on the existing tracked suites; aim for 50%.
 
 ---
 
@@ -183,7 +183,7 @@ Coverage floor: maintain ΓëÑ30% on the existing tracked suites; aim for 50%.
 - Production secrets are managed in Vercel + Supabase dashboards (see `docs/SECRETS_AUDIT.md`).
 - Local secrets are loaded from `.env` (root), `web/.env.local`, `android/local.properties`.
 - Never paste secrets in issues, PRs, commit messages, or chat.
-- Rotation procedure: see `docs/SECRETS_AUDIT.md` ┬º "Rotation checklist".
+- Rotation procedure: see `docs/SECRETS_AUDIT.md` § "Rotation checklist".
 
 ---
 
@@ -232,7 +232,7 @@ The `middleware.ts` redirects are UX, not security. The actual security boundary
 
 This rule exists because of the August 2026 outage where `roam()` "passed" verification under `service_role` (2-minute timeout) but timed out for every user.
 
-### 1.6┬╜ Workflow path-filter predicates must use `dorny/paths-filter`, not `contains(fromJSON([...]))`
+### 1.6½ Workflow path-filter predicates must use `dorny/paths-filter`, not `contains(fromJSON([...]))`
 
 The GitHub Actions `contains()` helper does **element** matching on arrays, not glob matching. So
 ```yaml
@@ -260,7 +260,7 @@ is **always false** (no element of the array equals the literal `'**'`), and the
 This is enforced by the rules-check workflow on the resulting YAML; any `contains(fromJSON([...]))` predicate inside an `if:` is now caught by `check-rules.mjs` (R10, see below).
 
 ### 1.7 No duplicate component filenames
-Naming a file in `web/src/components/` the same as one in `web/src/app/<route>/` is a CRIT-level footgun. The duplicate `FollowButton.tsx` was a silent bug for months. **Forbidden** ΓÇö `check-rules.mjs` catches new duplicates.
+Naming a file in `web/src/components/` the same as one in `web/src/app/<route>/` is a CRIT-level footgun. The duplicate `FollowButton.tsx` was a silent bug for months. **Forbidden** — `check-rules.mjs` catches new duplicates.
 
 ### 1.8 `proxy.ts` does not exist
 Next.js 16 reads `middleware.ts` (or `src/middleware.ts`). The historical `proxy.ts` was renamed to `middleware.ts`. If you need middleware behavior, add it to `web/src/middleware.ts`.
