@@ -235,6 +235,11 @@ jobs:
 
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
+        with:
+          # The legacy 'tools' SDK package was removed by Google (see
+          # android-actions/setup-android#537). Override the default
+          # 'tools platform-tools' to install only what still exists.
+          packages: platform-tools
 
       - name: Lint Android with Kotlin
         working-directory: ./android
