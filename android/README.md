@@ -246,6 +246,9 @@ Ratings that fail due to no connectivity are pushed onto `pendingRatings`. `conn
 | Dark mode for web pages | On | SharedPreferences |
 | Preferred languages | `["en"]` | Supabase `user_settings` |
 | Interest categories | (onboarding) | Supabase `user_categories` |
+| Sound effects | On | SharedPreferences |
+| Haptic feedback | On | SharedPreferences |
+| Celebration animations | On | SharedPreferences |
 
 ## Permissions
 

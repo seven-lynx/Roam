@@ -8,9 +8,11 @@ import android.os.Vibrator
 import android.os.VibratorManager
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import app.roam.android.R
 import app.roam.android.data.repository.RetryableRoamException
 import app.roam.android.data.repository.RoamRepository
 import app.roam.android.model.Badge
+import app.roam.android.model.CelebrationEvent
 import app.roam.android.model.CategoryItem
 import app.roam.android.model.ChallengeData
 import app.roam.android.model.SubcategoryItem
@@ -24,6 +26,7 @@ import app.roam.android.model.serializeHistory
 import app.roam.android.model.AppNotification
 import app.roam.android.model.UserProfile
 import app.roam.android.data.supabase
+import app.roam.android.util.SoundManager
 import app.roam.android.util.connectivityFlow
 import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.auth.status.SessionStatus
@@ -93,6 +96,10 @@ class MainViewModel(
     private val WALKTHROUGH_SEEN_KEY = "walkthrough_seen"
     private val LAST_URL_KEY = "last_url"
     private val LAST_URL_TITLE_KEY = "last_url_title"
+    private val SOUND_EFFECTS_KEY = "sound_effects"
+    private val HAPTIC_FEEDBACK_KEY = "haptic_feedback"
+    private val CELEBRATION_ANIMATIONS_KEY = "celebration_animations"
+    private val CELEBRATION_WATERMARK_KEY = "celebration_watermark"
     private val MAX_HISTORY_ENTRIES = 100
 
     private val _state = MutableStateFlow<RoamState>(RoamState.Idle)
@@ -583,6 +590,33 @@ class MainViewModel(
         }
     }
 
+    /** Whether celebratory sound effects are enabled. */
+    private val _soundEffectsEnabled = MutableStateFlow(prefs.getBoolean(SOUND_EFFECTS_KEY, true))
+    val soundEffectsEnabled: StateFlow<Boolean> = _soundEffectsEnabled.asStateFlow()
+
+    fun setSoundEffectsEnabled(enabled: Boolean) {
+        _soundEffectsEnabled.value = enabled
+        prefs.edit().putBoolean(SOUND_EFFECTS_KEY, enabled).apply()
+    }
+
+    /** Whether haptic (vibration) feedback is enabled. */
+    private val _hapticFeedbackEnabled = MutableStateFlow(prefs.getBoolean(HAPTIC_FEEDBACK_KEY, true))
+    val hapticFeedbackEnabled: StateFlow<Boolean> = _hapticFeedbackEnabled.asStateFlow()
+
+    fun setHapticFeedbackEnabled(enabled: Boolean) {
+        _hapticFeedbackEnabled.value = enabled
+        prefs.edit().putBoolean(HAPTIC_FEEDBACK_KEY, enabled).apply()
+    }
+
+    /** Whether full-screen celebration animations play for badges/levels/challenges. */
+    private val _celebrationAnimationsEnabled = MutableStateFlow(prefs.getBoolean(CELEBRATION_ANIMATIONS_KEY, true))
+    val celebrationAnimationsEnabled: StateFlow<Boolean> = _celebrationAnimationsEnabled.asStateFlow()
+
+    fun setCelebrationAnimationsEnabled(enabled: Boolean) {
+        _celebrationAnimationsEnabled.value = enabled
+        prefs.edit().putBoolean(CELEBRATION_ANIMATIONS_KEY, enabled).apply()
+    }
+
     /** Unread notification count */
     private val _unreadNotificationCount = MutableStateFlow(0)
     val unreadNotificationCount: StateFlow<Int> = _unreadNotificationCount.asStateFlow()
@@ -594,6 +628,124 @@ class MainViewModel(
     /** True while notifications are being fetched */
     private val _notificationsLoading = MutableStateFlow(false)
     val notificationsLoading: StateFlow<Boolean> = _notificationsLoading.asStateFlow()
+
+    // ── Celebrations ──────────────────────────────────────────────────────────
+
+    /** The celebration currently being shown (null = none). */
+    private val _celebration = MutableStateFlow<CelebrationEvent?>(null)
+    val celebration: StateFlow<CelebrationEvent?> = _celebration.asStateFlow()
+
+    private val celebrationQueue = ArrayDeque<CelebrationEvent>()
+
+    /** Called by the overlay when the user dismisses it / it auto-dismisses. */
+    fun onCelebrationDismissed() {
+        if (celebrationQueue.isEmpty()) {
+            _celebration.value = null
+        } else {
+            presentCelebration(celebrationQueue.removeFirst())
+        }
+    }
+
+    private fun enqueueCelebration(event: CelebrationEvent) {
+        celebrationQueue.addLast(event)
+        if (_celebration.value == null) {
+            presentCelebration(celebrationQueue.removeFirst())
+        }
+    }
+
+    private fun presentCelebration(event: CelebrationEvent) {
+        _celebration.value = event
+        playCelebrationFeedback(event)
+    }
+
+    private fun playCelebrationFeedback(event: CelebrationEvent) {
+        val app = getApplication<Application>()
+        val resId = when (event) {
+            is CelebrationEvent.BadgeUnlocked -> R.raw.badge_earn
+            is CelebrationEvent.LevelUp -> R.raw.level_up
+            is CelebrationEvent.ChallengeComplete -> R.raw.challenge_complete
+        }
+        if (_soundEffectsEnabled.value) SoundManager.play(app, resId)
+        celebrationHaptic(app, event)
+    }
+
+    /**
+     * Polls recent notifications for new badge/level/challenge events and enqueues
+     * celebrations. Uses a persisted `created_at` watermark so events are never
+     * celebrated twice across app restarts.
+     */
+    fun checkForNewCelebrations() {
+        if (!repo.hasSession()) return
+        viewModelScope.launch {
+            val notifications = runCatching { repo.getNotifications(limit = 20) }
+                .getOrDefault(emptyList())
+            if (notifications.isEmpty()) return@launch
+
+            val watermark = prefs.getString(CELEBRATION_WATERMARK_KEY, null)
+            if (watermark == null) {
+                // First run — don't celebrate the user's entire history. Record the
+                // newest notification and start watching from here.
+                notifications.firstOrNull()?.let {
+                    prefs.edit().putString(CELEBRATION_WATERMARK_KEY, it.createdAt).apply()
+                }
+                return@launch
+            }
+
+            val fresh = notifications.filter { it.createdAt > watermark }
+            if (fresh.isEmpty()) return@launch
+
+            fresh.maxByOrNull { it.createdAt }?.let {
+                prefs.edit().putString(CELEBRATION_WATERMARK_KEY, it.createdAt).apply()
+            }
+
+            // Oldest first so a level-up + badge earned together play in order.
+            fresh.sortedBy { it.createdAt }.forEach { notification ->
+                val event = celebrationFor(notification) ?: return@forEach
+                if (_celebrationAnimationsEnabled.value) {
+                    enqueueCelebration(event)
+                } else {
+                    playCelebrationFeedback(event)
+                    showTransientToast(celebrationToastText(event))
+                }
+            }
+
+            refreshGamificationState()
+        }
+    }
+
+    private fun celebrationFor(notification: AppNotification): CelebrationEvent? = when (notification.type) {
+        "badge_unlocked" -> CelebrationEvent.BadgeUnlocked(
+            Badge(
+                name = notification.data?.badgeName ?: "New Badge",
+                icon = notification.data?.badgeIcon ?: "\uD83C\uDFC5",
+                xpReward = notification.data?.xpReward ?: 0,
+            ),
+        )
+        "level_up" -> notification.data?.newLevel?.let {
+            CelebrationEvent.LevelUp(it, _profile.value?.xpTotal ?: 0L)
+        }
+        "challenge_complete" -> CelebrationEvent.ChallengeComplete(
+            title = notification.title.removePrefix("Challenge Complete: ").removeSuffix("!"),
+            xpReward = notification.data?.xp ?: 0,
+        )
+        else -> null
+    }
+
+    private fun celebrationToastText(event: CelebrationEvent): String = when (event) {
+        is CelebrationEvent.BadgeUnlocked -> "${event.badge.icon} Badge unlocked: ${event.badge.name}" +
+            if (event.badge.xpReward > 0) " (+${event.badge.xpReward} XP)" else ""
+        is CelebrationEvent.LevelUp -> "Level up! You're now Level ${event.newLevel}"
+        is CelebrationEvent.ChallengeComplete -> "Challenge complete: ${event.title}" +
+            if (event.xpReward > 0) " (+${event.xpReward} XP)" else ""
+    }
+
+    private fun refreshGamificationState() {
+        viewModelScope.launch {
+            runCatching { _profile.value = repo.getProfile() }
+            runCatching { _badges.value = repo.getBadges() }
+            runCatching { _challenges.value = repo.getChallenges() }
+        }
+    }
 
     /** Toggles profile public/private. */
     fun toggleProfilePublic() {
@@ -715,6 +867,19 @@ class MainViewModel(
                 }
             }
         }
+
+        // Preload sound effects so the first celebration has its audio ready.
+        SoundManager.init(application)
+
+        // Periodically poll for new badge/level/challenge notifications. This catches
+        // events awarded server-side (e.g. challenge completion triggered by a DB trigger)
+        // that the app doesn't otherwise observe in the action that caused them.
+        viewModelScope.launch {
+            while (true) {
+                delay(60_000)
+                checkForNewCelebrations()
+            }
+        }
     }
 
     fun roam(excludeDomain: String? = null) {
@@ -832,6 +997,7 @@ class MainViewModel(
                     recordUrlVisit(roamUrl.url, roamUrl.title ?: roamUrl.url)
                     startPrefillQueue(excludeDomain = extractDomain(roamUrl.url))
                     loadChallenges()
+                    checkForNewCelebrations()
                 }
             } else {
                 val e = lastException ?: Exception("Unknown error")
@@ -1050,6 +1216,7 @@ class MainViewModel(
             }
             // Thumbs up just records the rating — no navigation, user may still be reading
             loadChallenges()
+            checkForNewCelebrations()
         }
     }
 
@@ -1076,6 +1243,7 @@ class MainViewModel(
                 }
             }
             loadChallenges()
+            checkForNewCelebrations()
             roam(excludeDomain = excludeDomain)
         }
     }
@@ -1100,6 +1268,7 @@ class MainViewModel(
                     _submitToast.value = "Couldn't submit: ${err.message ?: "unknown error"}"
                 },
             )
+            checkForNewCelebrations()
         }
         viewModelScope.launch {
             delay(4000)
@@ -1163,14 +1332,29 @@ class MainViewModel(
         recordUrlVisit(url, (_state.value as? RoamState.Loaded)?.roamUrl?.title ?: url)
     }
 
-    private fun haptic(context: Context) {
+    private fun vibrate(context: Context, effect: VibrationEffect) {
+        if (!_hapticFeedbackEnabled.value) return
         val vibrator = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
             (context.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as VibratorManager).defaultVibrator
         } else {
             @Suppress("DEPRECATION")
             context.getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
         }
-        vibrator.vibrate(VibrationEffect.createOneShot(40, VibrationEffect.DEFAULT_AMPLITUDE))
+        vibrator.vibrate(effect)
+    }
+
+    private fun haptic(context: Context) {
+        vibrate(context, VibrationEffect.createOneShot(40, VibrationEffect.DEFAULT_AMPLITUDE))
+    }
+
+    /** Distinct haptic patterns per celebration type. */
+    private fun celebrationHaptic(context: Context, event: CelebrationEvent) {
+        val pattern = when (event) {
+            is CelebrationEvent.BadgeUnlocked -> longArrayOf(0, 60, 60, 60)
+            is CelebrationEvent.LevelUp -> longArrayOf(0, 80, 60, 80, 60, 80)
+            is CelebrationEvent.ChallengeComplete -> longArrayOf(0, 40, 50, 40, 50, 40)
+        }
+        vibrate(context, VibrationEffect.createWaveform(pattern, -1))
     }
 
     fun saveForLater() {
@@ -1208,6 +1392,7 @@ class MainViewModel(
         }
         _savedConfirmation.value = true
         loadChallenges()
+        checkForNewCelebrations()
         viewModelScope.launch {
             kotlinx.coroutines.delay(2000)
             _savedConfirmation.value = false

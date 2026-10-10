@@ -85,6 +85,9 @@ fun SettingsScreen(
     val jsEnabled by vm.jsEnabled.collectAsState()
     val prefetchWebView by vm.prefetchWebView.collectAsState()
     val notificationsEnabled by vm.notificationsEnabled.collectAsState()
+    val soundEffectsEnabled by vm.soundEffectsEnabled.collectAsState()
+    val hapticFeedbackEnabled by vm.hapticFeedbackEnabled.collectAsState()
+    val celebrationAnimationsEnabled by vm.celebrationAnimationsEnabled.collectAsState()
     val sheetGestureMode by vm.sheetGestureMode.collectAsState()
     val categories by vm.categories.collectAsState()
     val subcategories by vm.subcategories.collectAsState()
@@ -186,6 +189,32 @@ fun SettingsScreen(
                 subtitle = "Receive alerts for your activity",
                 checked = notificationsEnabled,
                 onCheckedChange = { vm.setNotificationsEnabled(it) },
+            )
+
+            HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+            Spacer(Modifier.height(8.dp))
+
+            SectionHeader("Feedback & Effects")
+
+            SettingsToggleRow(
+                title = "Sound effects",
+                subtitle = "Play sounds for badges, levels and challenges",
+                checked = soundEffectsEnabled,
+                onCheckedChange = { vm.setSoundEffectsEnabled(it) },
+            )
+
+            SettingsToggleRow(
+                title = "Haptic feedback",
+                subtitle = "Vibrate on taps and celebrations",
+                checked = hapticFeedbackEnabled,
+                onCheckedChange = { vm.setHapticFeedbackEnabled(it) },
+            )
+
+            SettingsToggleRow(
+                title = "Celebration animations",
+                subtitle = "Show full-screen animations for achievements",
+                checked = celebrationAnimationsEnabled,
+                onCheckedChange = { vm.setCelebrationAnimationsEnabled(it) },
             )
 
             HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))

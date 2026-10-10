@@ -2,6 +2,7 @@ package app.roam.android.model
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.JsonNames
 
 @Serializable
 data class AppNotification(
@@ -26,10 +27,17 @@ data class AppNotificationData(
     @SerialName("follower_id") val followerId: String? = null,
     // Badge notifications (badge_unlocked)
     @SerialName("badge_id") val badgeId: String? = null,
+    @SerialName("badge_slug") val badgeSlug: String? = null,
     @SerialName("badge_name") val badgeName: String? = null,
     @SerialName("badge_icon") val badgeIcon: String? = null,
-    // Level-up notifications (level_up)
-    @SerialName("new_level") val newLevel: Int? = null,
+    @SerialName("xp_reward") val xpReward: Int? = null,
+    // Level-up notifications (level_up). Backends emit "new_level" in some paths
+    // and "level" in others — accept both.
+    @SerialName("new_level")
+    @JsonNames("level")
+    val newLevel: Int? = null,
+    // Challenge-complete notifications (challenge_complete)
+    @SerialName("xp") val xp: Int? = null,
     // Shared deep-link (badge_unlocked, level_up)
     @SerialName("v_profile_url") val vProfileUrl: String? = null,
     // URL share notification (url_shared)

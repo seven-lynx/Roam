@@ -62,6 +62,7 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import app.roam.android.MainActivity
 import app.roam.android.ui.component.BackgroundPrefetchWebView
 import app.roam.android.ui.component.BottomBar
+import app.roam.android.ui.component.CelebrationOverlay
 import app.roam.android.ui.component.ConfigBottomSheet
 import app.roam.android.ui.component.RoamTab
 import app.roam.android.ui.component.Tour
@@ -116,6 +117,7 @@ fun MainScreen(
     }
 
     val submitToast by vm.submitToast.collectAsState()
+    val celebration by vm.celebration.collectAsState()
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
@@ -395,6 +397,16 @@ fun MainScreen(
                 )
             }
         }
+    }
+
+    // ── Full-screen celebration overlay ──────────────────────────────────────
+    // Rendered above everything (including the toast) so badge/level/challenge
+    // moments are impossible to miss regardless of the active tab.
+    celebration?.let { event ->
+        CelebrationOverlay(
+            event = event,
+            onDismiss = { vm.onCelebrationDismissed() },
+        )
     }
 }
 

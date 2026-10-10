@@ -2,6 +2,18 @@
 
 All notable changes to the Roam Android app.
 
+## [1.2.1] - 2026-10-10
+
+### Added
+- Full-screen celebration animations for badge unlocks, level-ups, and challenge completions (spring pop-in card, tier-colored confetti, and distinct haptic patterns per event).
+- Sound effects for gamification moments (badge earned, level up, challenge complete) via a new SoundPool-based `SoundManager`.
+- "Feedback & Effects" settings: sound effects, haptic feedback, and celebration animations toggles.
+- `CelebrationEvent` pipeline that detects new `badge_unlocked` / `level_up` / `challenge_complete` notifications and plays celebrations sequentially without double-firing (watermarked by `created_at`).
+
+### Changed
+- Tap haptic feedback now respects the "Haptic feedback" setting.
+- `AppNotificationData` now parses `xp_reward`, `xp`, and `badge_slug`, and accepts both `new_level` / `level` for level-up notifications.
+
 ## [1.2.0] - 2026-08-05
 
 ### Added
