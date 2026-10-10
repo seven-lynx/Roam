@@ -7,7 +7,7 @@
 **[Executive Summary](#-executive-summary) · [Reading Guide](#how-to-read-this-document) · [Project Progress](#-project-progress)**
 
 ### By Priority
-- **[⚠️ Critical Issues](#-critical-issues)** (0 blocking, 3 in progress)
+- **[⚠️ Critical Issues](#-critical-issues)** (0 blocking)
 - **[Stages by Status](#-stages-by-status)**
 - **[Next Task](#next-task)** · [Post-Launch](#post-launch)
 
@@ -36,33 +36,25 @@
 
 ## Executive Summary
 
-**Roam Status:** **All critical functionality implemented.** Code compiles, tests pass, all platform builds verified.
+**Roam Status:** **Live and published (v1.2.1).** All four surfaces — Supabase backend, web app, browser extension (Chrome + Firefox), and Android app — are in production.
 
-**Completion:** 
-- ✅ **Stages 1, 2, 5, 8:** Fully complete (72 tasks)
-- ⚙️ **Stages 3, 4:** Core complete; 25 enhancement/seeder tasks planned (optional)
-- ✅ **Stage 6:** Android app complete and published on Google Play (29/29 tasks)
-- ⏳ **Stages 7 & 9:** Testing and security hardening (29 tasks remaining)
-- ⏳ **Stages 10, 11 & 12:** Web polish, hardening, and rebuild (42 tasks remaining)
-- ✅ **Stage 13:** Extension rebuild complete (9/9 tasks)
-- ✅ **Stage 14:** Android rebuild complete (8/11 tasks; 14.2/14.3/14.11 partial — swipe/card/test cancelled)
-- ✅ **Stage 15:** P0 reliability hardening complete (6/6 tasks)
-- 📋 **Post-Launch:** Roadmap ready (24 tasks planned)
+**Completion:**
+- ✅ **Core launch complete** — Stages 1, 2, 5, 6, 8, 12, 13, 14, 15 done; Stage 3 (web) and Stage 4 (seeding) are core-complete with optional enhancements remaining
+- ⏳ **Non-blocking remainder** — Stage 7 (end-to-end testing), Stage 9 (security audit), and Stages 10/11 (polish & hardening) have a few optional items left
+- 📋 **Post-Launch:** Roadmap ready
 
-**Major Milestones (Completed May 1, 2026):**
-- ✅ Supabase backend with 18+ tables, 25+ RLS policies, 27 Edge Functions
-- ✅ Web app (Next.js) with dashboard, admin panel, onboarding, profile pages
-- ✅ Browser extension (Chrome + Firefox) with event-driven SW, popup prefetch, category filtering
-- ✅ Android app (Kotlin + Compose) with full parity to extension; 500+ lines of UI
-- ✅ ~1.6M URLs seeded from 100+ sources (Wikipedia, Curlie, NASA, NPR, GitHub, arXiv, Guardian, Longform publications, Mastodon, etc.); 600+ seeder scripts across those sources
-- ✅ Centralized logging, Sentry error tracking, form validation, admin moderation UI
-- ✅ GitHub Actions CI/CD pipeline with automated tests
-- ✅ 75+ tests across all platforms with 30%+ coverage on critical paths
+**Major Milestones:**
+- ✅ Supabase backend: 164 migrations, 27 Edge Functions, RLS on every table
+- ✅ Web app (Next.js 16), browser extension (MV3), Android app (Kotlin/Compose) — all published
+- ✅ ~990K URLs live in the discovery pool (down from ~2.8M after dead-URL cleanup)
+- ✅ Gamification: ~150 badges, levels (1–50), daily challenges, leaderboards
+- ✅ Tag system: schema + vocabulary deployed (discovery wiring pending — see `docs/TAG_SYSTEM.md`)
+- ✅ CI/CD, Sentry, GDPR compliance, interest calibration, adjacent-category serendipity
 
 **Immediate Next Steps:**
-1. Stage 7: Finalize end-to-end testing (9 tasks)
-2. Stage 9.10: Complete OAuth testing checklist (web session + Android deep-link)
-3. Complete dead URL cleanup (~2M URLs remaining)
+1. Wire the tag system into `roam()` (`tag_boost` — Phase E)
+2. Complete remaining Stage 7 end-to-end testing
+3. Finish optional seeder/coverage work (see `docs/SEEDER_COVERAGE_GAP_REPORT.md`)
 
 **Known Issues:** None blocking launch. Pre-launch testing (Stage 7) underway.
 
@@ -103,18 +95,18 @@
 - Stage 3 (Web): 11/14 tasks ✅ *(3 admin enhancement tasks planned)*
 - Stage 4 (Seeding): 40/61 tasks ✅ *(22 optional seeders planned)*
 - Stage 5 (Extension): 26/26 tasks ✅
+- Stage 6 (Android): 29/29 tasks ✅ *(published on Google Play)*
 - Stage 8 (Infrastructure): 5/5 tasks ✅
+- Stage 12 (Web Rebuild): 21/22 tasks ✅
 - Stage 13 (Extension Rebuild): 9/9 tasks ✅
 - Stage 14 (Android Rebuild): 8/11 tasks ✅ *(3 cancelled: swipe, card UI, swipe/Paparazzi tests)*
 - Stage 15 (P0 Reliability): 6/6 tasks ✅
 
 ### ⏳ In Progress
-- Stage 6 (Android): 29/29 tasks ✅ (complete, published on Google Play)
 - Stage 7 (Testing): 0/9 tasks
 - Stage 9 (Security Audit): 32/37 tasks
 - Stage 10 (Web Polish): 6/20 tasks
 - Stage 11 (Hardening): 29/34 tasks
-- Stage 12 (Web Rebuild): 21/22 tasks
 
 ### Post-Launch Roadmap
 - Pool quality (8.1–8.3): wilson floor, broken link reporting, dead-link cleanup scripts

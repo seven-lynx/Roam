@@ -2,7 +2,7 @@
 
 Complete documentation of all Supabase Edge Functions and PostgreSQL RPC functions used by Roam clients.
 
-**Last Updated:** 2026-07-29  
+**Last Updated:** 2026-10-10  
 **Base URL:** `https://<PROJECT_ID>.supabase.co`  
 **Authentication:** Bearer token in `Authorization: Bearer <JWT>` header (except public endpoints)
 
@@ -31,6 +31,13 @@ Complete documentation of all Supabase Edge Functions and PostgreSQL RPC functio
   - [`delete-user` — Delete user account](#delete-user--delete-user-account)
   - [`beta-signup` — Beta waitlist signup](#beta-signup--beta-waitlist-signup)
   - [`send-bulk-email` — Send bulk emails to subscribers](#send-bulk-email--send-bulk-emails-to-subscribers)
+  - [`challenges` — List active challenges](#challenges--list-active-challenges)
+  - [`evaluate-badges` — Evaluate and award badges](#evaluate-badges--evaluate-and-award-badges)
+  - [`push-notify` — Send push notifications (webhook)](#push-notify--send-push-notifications-webhook)
+  - [`roam-health-check` — Health-check the discovery RPC](#roam-health-check--health-check-the-discovery-rpc)
+  - [`cron-daily-challenges` — Daily challenge rotation (scheduled)](#cron-daily-challenges--daily-challenge-rotation-scheduled)
+  - [`cron-secret-badges` — Daily secret badge check (scheduled)](#cron-secret-badges--daily-secret-badge-check-scheduled)
+  - [`cron-streak-cleanup` — Reset stale streaks (scheduled)](#cron-streak-cleanup--reset-stale-streaks-scheduled)
 - [RPC Functions (Database)](#rpc-functions-database)
   - [`roam()` — Weighted-random URL discovery](#roam--weighted-random-url-discovery)
   - [`admin_url_stats()` — Fetch admin dashboard statistics](#admin_url_stats--fetch-admin-dashboard-statistics)
@@ -1277,6 +1284,182 @@ Admin-only endpoint for sending bulk emails to beta signup subscribers.
 - **401** — Unauthorized
 - **403** — Forbidden (not admin)
 - **500** — Internal server error
+
+---
+
+### `challenges` — List active challenges
+
+Returns the authenticated user's active (unexpired) challenge instances with current progress, for the daily/weekly/monthly challenge rotation.
+
+**Endpoint:** `GET /functions/v1/challenges`
+
+**Authentication:** Required (Bearer token)
+
+**Response (200):**
+```json
+{
+  "challenges": [
+    {
+      "instance_id": "uuid",
+      "progress_current": 3,
+      "completed_at": null,
+      "challenge": {
+        "id": "uuid",
+        "key": "rate-5-urls",
+        "title": "Rate 5 URLs",
+        "goal_description": "Rate five pages today",
+        "goal_count": 5,
+        "xp_reward": 50,
+        "type": "daily",
+        "condition_type": "rate",
+        "time_restriction": null,
+        "expires_at": "2026-10-11T00:00:00Z"
+      }
+    }
+  ]
+}
+```
+
+**Error Responses:**
+- **401** — Unauthorized
+- **405** — Method not allowed
+- **500** — Internal server error
+
+---
+
+### `evaluate-badges` — Evaluate and award badges
+
+The canonical badge evaluator (replaces the legacy SQL `evaluate_badges()` RPC). Computes a user's activity stats, compares them against ~150 badge definitions, and awards any newly earned badges plus their XP. Called fire-and-forget by other edge functions after user actions, and by the badge-repair tooling.
+
+**Endpoint:** `POST /functions/v1/evaluate-badges`
+
+**Authentication:** Required (service role)
+
+**Request Body:**
+```json
+{
+  "user_id": "uuid"
+}
+```
+
+**Response (200):**
+```json
+{
+  "awarded": 2,
+  "badges": ["slug-of-badge", "another-badge"]
+}
+```
+
+**Error Responses:**
+- **400** — Missing or invalid `user_id`
+- **500** — Internal server error
+
+---
+
+### `push-notify` — Send push notifications (webhook)
+
+Triggered by a Supabase Database Webhook when a row is inserted into the `notifications` table. Sends push messages via Firebase Cloud Messaging (Android tokens) and the Web Push API (browser subscriptions).
+
+**Endpoint:** `POST /functions/v1/push-notify`
+
+**Authentication:** Server-to-server (Supabase webhook); restricted CORS
+
+**Request Body (webhook payload):**
+```json
+{
+  "type": "INSERT",
+  "table": "notifications",
+  "record": {
+    "id": "uuid",
+    "user_id": "uuid",
+    "type": "badge_unlock",
+    "title": "New badge unlocked",
+    "body": "You earned the Explorer badge",
+    "data": {}
+  }
+}
+```
+
+**Response (200):**
+```json
+{
+  "ok": true
+}
+```
+
+**Error Responses:**
+- **500** — Internal server error
+
+---
+
+### `roam-health-check` — Health-check the discovery RPC
+
+Cron-triggered health check for the `roam()` discovery RPC. Verifies the pool is non-empty, that `roam()` returns a row for a dedicated test user, and that it completes within the `authenticated` 8s statement-timeout budget. Reports failures to Sentry for alerting.
+
+**Endpoint:** `POST /functions/v1/roam-health-check`
+
+**Authentication:** Service role (`SUPABASE_SERVICE_ROLE_KEY`); requires `ROAM_TEST_USER_ID` env var
+
+**Response (200):**
+```json
+{
+  "ok": true,
+  "pool_count": 2800000,
+  "probe_ms": 320,
+  "total_ms": 480
+}
+```
+
+**Error Responses:**
+- **405** — Method not allowed
+- **500** — `ROAM_TEST_USER_ID` not configured, or uncaught error
+- **503** — Pool count failed, `roam()` raised, empty result while pool is large, or latency budget exceeded (`ok: false`)
+
+---
+
+### `cron-daily-challenges` — Daily challenge rotation (scheduled)
+
+Runs once per day (00:00 UTC) via Supabase cron. Creates global challenge instances and assigns 1–3 daily challenges per user, plus weekly (Monday) and monthly (1st) instances.
+
+**Endpoint:** `POST /functions/v1/cron-daily-challenges`
+
+**Authentication:** Service role (`SUPABASE_SERVICE_ROLE_KEY`)
+
+**Response (200):** JSON status of the rotation run.
+
+---
+
+### `cron-secret-badges` — Daily secret badge check (scheduled)
+
+Runs once per day via Supabase cron. Evaluates date-based, time-based, holiday, and special-condition badges that cannot be evaluated during normal user actions.
+
+**Endpoint:** `POST /functions/v1/cron-secret-badges`
+
+**Authentication:** Service role (`SUPABASE_SERVICE_ROLE_KEY`)
+
+**Response (200):** JSON status of the badge check run.
+
+---
+
+### `cron-streak-cleanup` — Reset stale streaks (scheduled)
+
+Runs on a schedule (every 6 hours) via Supabase cron. Resets `streak_days` to 0 for users whose last activity was more than 24 hours ago, by calling `reset_stale_streaks()`.
+
+**Endpoint:** `POST /functions/v1/cron-streak-cleanup`
+
+**Authentication:** Optional `Authorization: Bearer <CRON_SECRET>` (required only if `CRON_SECRET` is set)
+
+**Response (200):**
+```json
+{
+  "success": true,
+  "reset_count": 12
+}
+```
+
+**Error Responses:**
+- **401** — Unauthorized (missing/invalid `CRON_SECRET`)
+- **500** — Cleanup failed
 
 ---
 

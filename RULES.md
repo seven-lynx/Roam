@@ -34,14 +34,14 @@ Commit-message-driven deploys have caused **multiple production incidents** in t
 - Pull request descriptions
 - Inline attribution comments
 
-**Why:** The public mirror (synced via `sync-public.ps1`) must not contain anything that hints at automated authorship. This is enforced by `scripts/check-rules.mjs`.
+**Why:** The public repository must not contain anything that hints at automated authorship. This is enforced by `scripts/check-rules.mjs`.
 
 **Allowed neutral wording:** "this commit", "automated test", "script", "tooling".
 
 ### 1.3 No hardcoded secrets
 - Never commit `.env`, `.env.local`, `*-firebase-adminsdk-*.json`, `*.jks`, or any file containing API keys.
 - All secrets are loaded from env vars (see `.env.example` files at `web/`, `extension/`, `android/`, and root).
-- `sync-public.ps1` filters internal files from the public mirror — verify your changes are not on the exclusion list by mistake.
+- The `.gitignore` excludes internal files from the public repository — verify your changes are not on the exclusion list by mistake.
 
 **Enforced prefixes to grep for:** `AIza`, `sk-`, `sntryu_`, `sbp_`, `sb_secret_`, `sb_publishable_`, `re_`, `KGAT_`.
 
@@ -91,7 +91,7 @@ supabase db reset && node scripts/verify-roam-rpc.mjs
 - New edge function → `docs/API.md` entry.
 - New SQL table or column → `docs/API.md` and a migration comment block describing intent.
 - Incident → `RUNBOOK.md` entry.
-- Resolved audit item → close the checkbox in `docs/WEB_AUDIT_REPORT.md`.
+- Resolved audit item → close the checkbox in the internal `WEB_AUDIT_REPORT.md` (local-only).
 
 ### 2.5 No silent error swallowing
 - `catch {}` empty catches must be commented: `catch { /* Supabase unavailable; fall back to fallback categories */ }`. Or replaced with a Sentry capture + user-visible message.
@@ -180,10 +180,10 @@ Coverage floor: maintain ≥30% on the existing tracked suites; aim for 50%.
 ## 7. Env / secrets rules
 
 - All env vars documented in the relevant `.env.example` file.
-- Production secrets are managed in Vercel + Supabase dashboards (see `docs/SECRETS_AUDIT.md`).
+- Production secrets are managed in Vercel + Supabase dashboards (see the internal secrets audit, local-only).
 - Local secrets are loaded from `.env` (root), `web/.env.local`, `android/local.properties`.
 - Never paste secrets in issues, PRs, commit messages, or chat.
-- Rotation procedure: see `docs/SECRETS_AUDIT.md` § "Rotation checklist".
+- Rotation procedure: see the internal secrets audit § "Rotation checklist" (local-only).
 
 ---
 

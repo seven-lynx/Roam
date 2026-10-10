@@ -63,7 +63,7 @@ supabase db reset && node scripts/verify-roam-rpc.mjs
 - [ ] New env var → `.env.example` updated
 - [ ] New edge function → `docs/API.md` updated
 - [ ] New SQL table/column → migration comment block describes intent
-- [ ] Resolved audit item → checkbox ticked in `docs/WEB_AUDIT_REPORT.md`
+- [ ] Resolved audit item → checkbox ticked in the internal `WEB_AUDIT_REPORT.md` (local-only)
 
 ## How to verify
 

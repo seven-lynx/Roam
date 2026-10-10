@@ -158,7 +158,7 @@ Kotlin + Jetpack Compose + Supabase Kotlin SDK. Single-activity MVVM with `MainV
 ```
 roam/
 ├── supabase/
-│   ├── migrations/         # 151 active SQL migrations (+ 5 superseded in _superseded/)
+│   ├── migrations/         # 164 migrations (full schema history)
 │   └── functions/          # 27 Deno Edge Functions
 │       └── _shared/        # CORS, auth helpers, rate limiting, Sentry
 │
@@ -187,6 +187,12 @@ roam/
 │
 └── docs/                   # Audit docs, reports, roadmap, API reference
 ```
+
+> Note: `scripts/` and `docs/` contain a mix of public (tracked) and
+> local-only (gitignored) files. Only the reference docs under `docs/`
+> (API, ALGORITHM, BADGE_SYSTEM_ARCHITECTURE, ROADMAP, STORE_SUBMISSION_GUIDE)
+> and the CI rule-enforcement scripts under `scripts/` are committed — see
+> `.gitignore` for the exact allowlist.
 
 ---
 
@@ -283,10 +289,10 @@ supabase secrets list
 ## Tests
 
 ```bash
-cd extension && pnpm test       # Vitest (16 tests)
-cd web && pnpm test             # Jest (19 tests)
+cd extension && pnpm test       # Vitest
+cd web && pnpm test             # Jest (watch mode)
 cd web && pnpm test:ci          # Jest CI (coverage + no-watch)
-cd android && ./gradlew test    # JUnit (6 tests)
+cd android && ./gradlew test    # JUnit
 cd android && ./gradlew connectedAndroidTest   # requires emulator
 ```
 

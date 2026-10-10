@@ -4,9 +4,9 @@
 
 **Please do not file a public GitHub issue for security bugs.**
 
-Send vulnerability reports by email to the address listed in
-[`README.md`](README.md). Encrypt sensitive details with the PGP key
-published on the maintainer's profile (linked from the same README).
+Send vulnerability reports by email to `developer@roamtheweb.app`. For
+sensitive details, request the maintainer's PGP key by email first and
+encrypt your report with it.
 
 A good report includes:
 
@@ -34,7 +34,8 @@ These are enforced by `scripts/check-rules.mjs` and CI:
 
 - **No hardcoded secrets.** Prefixes checked: `AIza`, `sk-`, `sntryu_`,
   `sbp_`, `sb_secret_`, `sb_publishable_`, `re_`, `KGAT_`. See the rulebook
-  at the repo root (§ 1.3) and [`docs/SECRETS_AUDIT.md`](docs/SECRETS_AUDIT.md).
+  at the repo root (§ 1.3); the full rotation checklist lives in the internal
+  (local-only) secrets audit.
 - **Row-Level Security on every table.** RLS is the security boundary;
   middleware redirects are UX, not enforcement. See the Supabase backend
   rule file for details.
@@ -44,17 +45,20 @@ These are enforced by `scripts/check-rules.mjs` and CI:
 - **Trivy + TruffleHog run on every PR.** See
   `.github/workflows/ci.yml`.
 
-## Public mirror hygiene
+## Public repo hygiene
 
-The public mirror is built by `sync-public.ps1`, which strips:
+Roam is a single public repository — there is no separate private repo.
+Internal-only files (audit reports, offline seeder scripts, AI/agent notes,
+and secrets) are kept out of git via `.gitignore`:
 
-- `docs/` (internal design docs, incident retros)
-- `scripts/` (seeder scripts, internal tooling)
-- `.github/skills/`, `.github/copilot-instructions.md`, `CLAUDE.md`,
-  `web/CLAUDE.md`, `web/RULES.md`
-- `.github/workflows/deploy.yml`, `health-check.yml`, `reports.yml`
+- `docs/` (internal design docs, incident retros) — except the public
+  reference docs that are explicitly allowlisted
+- `scripts/` (seeder scripts, offline tooling) — except the CI
+  rule-enforcement scripts that are explicitly allowlisted
+- `.roam-local/`, `.github/skills/`, `.github/copilot-instructions.md`,
+  `CLAUDE.md`, `web/CLAUDE.md`
 - `**/*-firebase-adminsdk-*.json` (Firebase service-account files)
-- `android/app/google-services.json`
+- `android/app/google-services.json`, `android/roam-release.jks`
 
-If a security-sensitive file ever appears in the public mirror, that is a
-bug — file a public issue or email the maintainer.
+If a security-sensitive file ever appears in the public repository, that is
+a bug — file a public issue or email the maintainer.
