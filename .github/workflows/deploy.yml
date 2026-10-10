@@ -1,0 +1,121 @@
+name: Deploy Supabase Migrations & Functions
+
+# Supabase-only deployment. The web app deploys via Vercel's own
+# push-to-main integration; the extension and Android app ship through the
+# Chrome Web Store / Firefox AMO / Google Play (manual or a separate release
+# workflow). This workflow deliberately has NO push/commit-message triggers —
+# see Hard Rule 1.1 (the `[deploy]` tag caused multiple production incidents).
+#
+# To run: Actions -> "Deploy Supabase Migrations & Functions" -> Run workflow.
+# The `production` environment enforces required reviewers before dispatch.
+
+on:
+  workflow_dispatch:
+    inputs:
+      deploy_functions:
+        description: 'Deploy Edge Functions (all)'
+        type: boolean
+        default: true
+        required: true
+      include_all:
+        description: 'Force-push migrations with --include-all'
+        type: boolean
+        default: false
+        required: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    name: Deploy Supabase
+    runs-on: ubuntu-latest
+    environment: production
+    # Never cancel an in-flight database deploy (Hard Rule 6.4).
+    concurrency:
+      group: deploy-supabase
+      cancel-in-progress: false
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: '10'
+
+      - name: Setup Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      # Link using a personal-access token (preferred over --password: the
+      # CLI's pgx driver cannot authenticate DB passwords containing
+      # URL-special characters — see RUNBOOK.md 28P01 entry).
+      - name: Link Supabase project
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: supabase link --project-ref "${{ vars.SUPABASE_PROJECT_REF }}"
+
+      # ── Pre-deploy gates ─────────────────────────────────────────────────
+      # Each gate is a lesson learned from a past outage. Do not reorder.
+      - name: Type-check Edge Functions
+        run: deno check supabase/functions/**/*.ts
+
+      - name: Preview migrations (dry-run)
+        run: supabase db push --dry-run
+
+      # Executes roam() for real under the `authenticated` role's 8s timeout.
+      # This is the gate that caught the Aug 2026 42P01 outage that was
+      # invisible in Sentry (Hard Rule 1.6).
+      - name: Verify roam() RPC under authenticated role
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+        run: node scripts/verify-roam-rpc.mjs
+
+      # ── Deploy ───────────────────────────────────────────────────────────
+      - name: Apply migrations
+        run: |
+          if [ "${{ inputs.include_all }}" = "true" ]; then
+            supabase db push --include-all
+          else
+            supabase db push
+          fi
+
+      - name: Deploy Edge Functions
+        if: inputs.deploy_functions
+        run: supabase functions deploy
+
+      # ── Post-deploy verification ─────────────────────────────────────────
+      - name: Poll roam-health-check until green
+        env:
+          SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          endpoint="${SUPABASE_URL}/functions/v1/roam-health-check"
+          for i in $(seq 1 12); do
+            status=$(curl -s -o /dev/null -w '%{http_code}' \
+              -X POST "$endpoint" \
+              -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
+              -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}")
+            if [ "$status" = "200" ]; then
+              echo "roam-health-check green"
+              exit 0
+            fi
+            echo "roam-health-check not ready (HTTP $status); retrying in 10s..."
+            sleep 10
+          done
+          echo "::error::roam-health-check did not pass within 2 minutes"
+          exit 1

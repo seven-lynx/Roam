@@ -64,8 +64,21 @@ scripts/.cache/stumbleupon-awesome/
 # Roam uses a single public repo. Internal docs, seeders, AI files, and
 # secrets are kept OUT of version control - see CLAUDE.md "Repository layout".
 .roam-local/
-docs/
-scripts/
+# Only the public reference docs under docs/ are tracked; everything else
+# (audit reports, incident retros, email digests) stays local-only.
+docs/*
+!docs/ALGORITHM.md
+!docs/API.md
+!docs/BADGE_SYSTEM_ARCHITECTURE.md
+!docs/ROADMAP.md
+!docs/STORE_SUBMISSION_GUIDE.md
+# Only the CI rule-enforcement scripts are tracked; seeders and offline
+# tooling under scripts/ stay local-only.
+scripts/*
+!scripts/check-rules.mjs
+!scripts/validate-env.mjs
+!scripts/verify-roam-rpc.mjs
+!scripts/.rules-allowlist
 # Backend tooling under supabase/scripts is tracked (unlike the local-only
 # root scripts/ directory used for offline seeders and AI tooling).
 !supabase/scripts/
