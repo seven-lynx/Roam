@@ -231,7 +231,7 @@ Usage:
 
 // Expose to window in dev mode
 if (process.env.NODE_ENV === 'development') {
-  (window as any).DEBUG = DEBUG;
+  (window as unknown as { DEBUG: typeof DEBUG }).DEBUG = DEBUG;
 }
 
 // Also log help on load

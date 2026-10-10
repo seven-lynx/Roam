@@ -208,7 +208,7 @@ Deno.serve(async (req: Request) => {
                 level: Math.floor(Math.sqrt(newXp / 100)) + 1,
               }).eq("id", user.id);
             }
-            try { await sb.rpc("sync_profile_badge_count", { p_user_id: user.id }); } catch {}
+            try { await sb.rpc("sync_profile_badge_count", { p_user_id: user.id }); } catch { /* badge count sync is non-critical */ }
           }
           totalAwarded += toAward.length;
         }
@@ -246,7 +246,7 @@ Deno.serve(async (req: Request) => {
                 metadata: { source: "cron_eclipse" },
               });
             }
-            try { await sb.rpc("sync_profile_badge_count", { p_user_id: user.id }); } catch {}
+            try { await sb.rpc("sync_profile_badge_count", { p_user_id: user.id }); } catch { /* badge count sync is non-critical */ }
           }
         }
       }

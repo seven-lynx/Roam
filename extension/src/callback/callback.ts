@@ -24,14 +24,14 @@ async function handleCallback() {
       const timeoutPromise = new Promise((_resolve, reject) =>
         setTimeout(() => reject(new Error('Service worker response timeout')), 10000)
       );
-      const response = await Promise.race([
+      const response = (await Promise.race([
         chrome.runtime.sendMessage({
           type: 'SAVE_SESSION',
           accessToken,
           refreshToken,
         }),
         timeoutPromise,
-      ]) as any;
+      ])) as { ok: boolean; error?: string };
 
       console.log('[roam-callback] Save session response:', response);
       if (!response.ok) {
@@ -57,13 +57,13 @@ async function handleCallback() {
       const timeoutPromise = new Promise((_resolve, reject) =>
         setTimeout(() => reject(new Error('Service worker response timeout')), 10000)
       );
-      const response = await Promise.race([
+      const response = (await Promise.race([
         chrome.runtime.sendMessage({
           type: 'EXCHANGE_CODE',
           code,
         }),
         timeoutPromise,
-      ]) as any;
+      ])) as { ok: boolean; error?: string };
 
       console.log('[roam-callback] Exchange response:', response);
       if (!response.ok) {

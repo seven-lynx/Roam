@@ -93,7 +93,7 @@ describe('check-rules.mjs', () => {
     writeFileSync(join(workDir, 'allowed.ts'), `const x = something as any;\n`);
     // mkdirSync must run before writeFileSync for the scripts/ directory.
     mkdirSync(join(workDir, 'scripts'), { recursive: true });
-    writeFileSync(join(workDir, 'scripts', '.agent-rules-allowlist'), `R9: allowed.ts\n`);
+    writeFileSync(join(workDir, 'scripts', '.rules-allowlist'), `R9: allowed.ts\n`);
     const result = runScript(workDir);
     expect(result.status).toBe(0);
   });

@@ -413,7 +413,7 @@ async function getState(): Promise<Response<StateData>> {
   if (error) return { ok: false, error: error.message };
   if (!session) return { ok: true, data: { signedIn: false } };
 
-  const expiresAt = (session as any).expires_at as number | undefined ?? 0;
+  const expiresAt = session.expires_at ?? 0;
   if (expiresAt <= Math.floor(Date.now() / 1000) + 60) {
     const { data: refreshed, error: rErr } = await getSupabase().auth.refreshSession();
     if (rErr) {
@@ -642,7 +642,7 @@ async function setUserInterests(pillarIds: string[], topicIds: string[]): Promis
       .select('id, category_id')
       .in('id', topicIds);
     if (scError || !scData) return { ok: false, error: "Couldn't save your preferences. Please try again." };
-    const parentMap = Object.fromEntries((scData as any[]).map((r: any) => [r.id, r.category_id]));
+    const parentMap = Object.fromEntries((scData as Array<{ id: string; category_id: string }>).map((r) => [r.id, r.category_id]));
     const rows = topicIds.map((id) => ({ user_id: session.user.id, category_id: parentMap[id], subcategory_id: id }));
     const { error: insError } = await getSupabase().from('user_categories').insert(rows);
     if (insError) return { ok: false, error: "Couldn't save your preferences. Please try again." };
@@ -668,10 +668,12 @@ async function callRoamApi(body: Record<string, unknown> = {}): Promise<Response
     const supabase = getSupabase();
     const { data, error } = await supabase.functions.invoke('roam', { body: mergedBody });
     if (error) {
-      const status = (error as any).context?.status;
+      type FnError = { context?: { status?: number; json?: () => Promise<{ error?: string }> } };
+      const fnErr = error as FnError;
+      const status = fnErr.context?.status;
       if (status === 404) return { ok: true, data: { url: '' } } as Response<RoamData>;
       let parsed: { error?: string } | null = null;
-      try { parsed = await (error as any).context?.json?.(); } catch { /* ignore */ }
+      try { parsed = (await fnErr.context?.json?.()) ?? null; } catch { /* ignore */ }
       if (parsed?.error) return { ok: false, error: parsed.error } as Response<RoamData>;
       return { ok: false, error: error.message } as Response<RoamData>;
     }
@@ -1021,7 +1023,8 @@ async function getProfileStats(): Promise<Response<{ roamed: number; submitted: 
     .eq('id', session.user.id)
     .single();
   if (error || !stats) return { ok: true, data: { roamed: 0, submitted: 0 } };
-  return { ok: true, data: { roamed: (stats as any).roamed_count ?? 0, submitted: (stats as any).submitted_count ?? 0 } };
+  const profileStats = stats as { roamed_count?: number; submitted_count?: number };
+  return { ok: true, data: { roamed: profileStats.roamed_count ?? 0, submitted: profileStats.submitted_count ?? 0 } };
 }
 
 // ── Feedback & moderation ─────────────────────────────────────────────────────
@@ -1031,8 +1034,8 @@ async function sendFeedback(message: string, email: string | undefined, platform
   if (session) headers['Authorization'] = `Bearer ${session.access_token}`;
   const res = await fetch(`${__SUPABASE_URL__}/functions/v1/feedback`, { method: 'POST', headers, body: JSON.stringify({ message, email: email || undefined, platform }) });
   if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    return { ok: false, error: (err as any).error ?? "Couldn't send your feedback. Please try again." };
+    const err = (await res.json().catch(() => ({}))) as { error?: string };
+    return { ok: false, error: err.error ?? "Couldn't send your feedback. Please try again." };
   }
   return { ok: true, data: null };
 }
@@ -1042,8 +1045,8 @@ async function reportUrl(url_id: string): Promise<Response<null>> {
   if (!session) return { ok: false, error: 'You must be signed in to report a link.' };
   const res = await fetch(`${__SUPABASE_URL__}/functions/v1/report-url`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` }, body: JSON.stringify({ url_id }) });
   if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    return { ok: false, error: (err as any).error ?? "Couldn't report the link. Please try again." };
+    const err = (await res.json().catch(() => ({}))) as { error?: string };
+    return { ok: false, error: err.error ?? "Couldn't report the link. Please try again." };
   }
   return { ok: true, data: null };
 }
@@ -1087,8 +1090,8 @@ async function reportEngagement(url_id: string, dwell_ms: number, skipped: boole
       body: JSON.stringify({ url_id, dwell_ms, skipped }),
     });
     if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      console.warn('[roam] reportEngagement failed:', (err as any).error ?? res.status);
+      const err = (await res.json().catch(() => ({}))) as { error?: string };
+      console.warn('[roam] reportEngagement failed:', err.error ?? res.status);
     }
   } catch {
     // Never block UX — engagement reporting is fire-and-forget
@@ -1141,7 +1144,9 @@ async function shareUrlWithUser(url: string, recipientId: string): Promise<Respo
   return { ok: true, data: { share_id: data?.share_id, message: data?.message } };
 }
 
-async function getShareRecipients(search?: string): Promise<Response<Array<{ user_id: string; username: string; display_name: string | null; avatar_url: string | null; relationship: string }>>> {
+type ShareRecipient = { user_id: string; username: string; display_name: string | null; avatar_url: string | null; relationship: string };
+
+async function getShareRecipients(search?: string): Promise<Response<ShareRecipient[]>> {
   const session = (await getSupabase().auth.getSession()).data.session;
   if (!session) return { ok: false, error: 'Not signed in.' };
   const { data, error } = await getSupabase().functions.invoke('share-url', {
@@ -1149,7 +1154,7 @@ async function getShareRecipients(search?: string): Promise<Response<Array<{ use
   });
   if (error) return { ok: false, error: error.message };
   if (data?.error) return { ok: false, error: data.error };
-  return { ok: true, data: (data?.recipients ?? []) as any[] };
+  return { ok: true, data: (data?.recipients ?? []) as ShareRecipient[] };
 }
 
 // ── Notifications ─────────────────────────────────────────────────────────────
@@ -1163,7 +1168,7 @@ async function getNotifications(): Promise<Response<any[]>> {
     .order('created_at', { ascending: false })
     .limit(30);
   if (error) return { ok: false, error: error.message };
-  return { ok: true, data: (data ?? []) as any[] };
+  return { ok: true, data: data ?? [] };
 }
 
 async function getUnreadNotificationCount(): Promise<Response<number>> {

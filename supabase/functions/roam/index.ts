@@ -105,9 +105,10 @@ Deno.serve(async (req) => {
     for (let i = 0; i < count; i++) {
       const { data, error } = await supabase.rpc('roam', rpcParams)
       if (error) {
-        const errCode = (error as any)?.code ?? 'unknown'
-        const errMsg = (error as any)?.message ?? ''
-        const errDetails = (error as any)?.details ?? ''
+        const pgError = error as { code?: string; message?: string; details?: string }
+        const errCode = pgError.code ?? 'unknown'
+        const errMsg = pgError.message ?? ''
+        const errDetails = pgError.details ?? ''
         console.error('roam RPC error', JSON.stringify({ code: errCode, message: errMsg, details: errDetails, attempt: i + 1, rpcParams }))
         // Capture the underlying pg error to Sentry so a broken function pings.
         await report(new Error(`roam RPC error ${errCode}: ${errMsg}`), 'error', {

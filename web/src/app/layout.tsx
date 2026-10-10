@@ -68,7 +68,7 @@ export default async function RootLayout({
         {/* Anti-FOUC script: prevent theme flash by setting dark class before paint */}
         <script
           dangerouslySetInnerHTML={{
-            __html: `(function(){try{var e=localStorage.getItem("theme");if(e==="dark"||(e!=="light"&&window.matchMedia("(prefers-color-scheme:dark)").matches))document.documentElement.classList.add("dark")}catch(e){}})()`,
+            __html: `(function(){try{var e=localStorage.getItem("theme");if(e==="dark"||(e!=="light"&&window.matchMedia("(prefers-color-scheme:dark)").matches))document.documentElement.classList.add("dark")}catch(e){/* noop */}})()`,
           }}
         />
       </head>

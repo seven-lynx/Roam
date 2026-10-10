@@ -28,16 +28,18 @@ jobs:
       - name: Run scripts/check-rules.mjs
         run: node scripts/check-rules.mjs
 
-      - name: Run scripts/validate-env.mjs
-        run: node scripts/validate-env.mjs
+      # NOTE: validate-env.mjs is a local pre-deploy check that requires
+      # web/.env.local (gitignored, so never present in CI). It is intentionally
+      # not run here; it belongs in the deploy workflow / local pre-push.
 
   verify-roam-static:
     name: Static guard for roam() SQL safety
     runs-on: ubuntu-latest
-    # Same concurrency group as the rules job above so a re-pushed commit
-    # doesn't run both jobs twice.
+    # Distinct concurrency group from the rules job above. Sharing a group with
+    # `cancel-in-progress: true` makes two jobs in the same run cancel each other,
+    # so the rules job never actually ran.
     concurrency:
-      group: rules-check-${{ github.event.pull_request.number || github.ref }}
+      group: rules-check-static-${{ github.event.pull_request.number || github.ref }}
       cancel-in-progress: true
     steps:
       - name: Checkout code

@@ -326,16 +326,17 @@ async function handleReports(admin: any) {
     reported_at: string
   }>()
 
-  for (const row of (data ?? []) as any[]) {
-    const urlData = Array.isArray(row.url) ? (row.url[0] ?? null) : row.url
+  type JoinedUrl = { url: string; title: string | null; inactive: boolean }
+  for (const row of (data ?? []) as Array<{ url_id: string; reported_at: string; url: JoinedUrl | JoinedUrl[] | null }>) {
+    const urlData: JoinedUrl | null = Array.isArray(row.url) ? (row.url[0] ?? null) : row.url
     if (!row.url_id || !urlData) continue
     const existing = grouped.get(row.url_id)
     if (!existing) {
       grouped.set(row.url_id, {
         url_id: row.url_id,
-        url: (urlData as any).url ?? '',
-        title: (urlData as any).title ?? null,
-        inactive: (urlData as any).inactive ?? false,
+        url: urlData.url ?? '',
+        title: urlData.title ?? null,
+        inactive: urlData.inactive ?? false,
         report_count: 1,
         reported_at: row.reported_at,
       })
