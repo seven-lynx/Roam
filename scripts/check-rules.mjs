@@ -61,7 +61,7 @@ const RULES_FILES = new Set([
   'CONTRIBUTING.md', 'RUNBOOK.md', '.github/pull_request_template.md',
   'scripts/check-rules.mjs', 'scripts/.rules-allowlist',
   '.env.example', 'web/.env.example', 'extension/.env.example',
-  'android/.env.example', 'docs/CONTEXT.md',
+  'android/.env.example',
   // Public-facing contributor docs. They explicitly reference the rulebook
   // by name in places; the wording is hand-curated to comply with R2.
   'README.md', 'CODE_OF_CONDUCT.md', 'SECURITY.md', 'LICENSE',
