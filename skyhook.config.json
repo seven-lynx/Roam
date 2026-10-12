@@ -13,11 +13,24 @@
     "provider": "supabase",
     "schemaFile": "scripts/skyhook/schema.json"
   },
+  "tagging": {
+    "enabled": true,
+    "providers": [
+      { "id": "lmstudio", "baseUrl": "http://localhost:1234/v1" }
+    ],
+    "model": "qwen2.5-7b-instruct-1m@q4_k_m",
+    "promptFile": "docs/tagging-prompt.md",
+    "worker": {
+      "batchSize": 25,
+      "modelSource": "llm"
+    }
+  },
   "pipeline": {
     "status": "scripts/pipeline-status.mjs",
+    "offlineDb": "scripts/reports/offline/roam.db",
     "jobs": {
       "export": {
-        "label": "Update export",
+        "label": "Pull untagged",
         "command": ["scripts/export-untagged-urls.mjs"]
       },
       "export-full": {
@@ -26,8 +39,16 @@
         "danger": true
       },
       "tag": {
-        "label": "Start tagging",
-        "command": ["scripts/run-full-pipeline.mjs", "--tag"]
+        "label": "Start tagger",
+        "command": ["scripts/node_modules/skyhook/bin/skyhook.js", "tag"]
+      },
+      "retag-add": {
+        "label": "Second pass (add tags)",
+        "command": ["scripts/node_modules/skyhook/bin/skyhook.js", "tag", "--mode", "retag-add"]
+      },
+      "retag-replace": {
+        "label": "Second pass (replace tags)",
+        "command": ["scripts/node_modules/skyhook/bin/skyhook.js", "tag", "--mode", "retag-replace"]
       },
       "push": {
         "label": "Push to database",
