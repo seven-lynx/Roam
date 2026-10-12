@@ -28,14 +28,15 @@
   "pipeline": {
     "status": "scripts/pipeline-status.mjs",
     "offlineDb": "scripts/reports/offline/roam.db",
+    "knownUrlsDb": "scripts/.cache/known-urls.db",
     "jobs": {
       "export": {
         "label": "Pull untagged",
-        "command": ["scripts/export-untagged-urls.mjs"]
+        "command": ["scripts/node_modules/skyhook/bin/skyhook.js", "pull"]
       },
       "export-full": {
-        "label": "Full rebuild",
-        "command": ["scripts/reports/export-db.mjs"],
+        "label": "Pull all (force)",
+        "command": ["scripts/node_modules/skyhook/bin/skyhook.js", "pull", "--force"],
         "danger": true
       },
       "tag": {
@@ -52,7 +53,7 @@
       },
       "push": {
         "label": "Push to database",
-        "command": ["scripts/run-full-pipeline.mjs", "--push"]
+        "command": ["scripts/node_modules/skyhook/bin/skyhook.js", "upload"]
       }
     }
   }
