@@ -12,5 +12,27 @@
   "storage": {
     "provider": "supabase",
     "schemaFile": "scripts/skyhook/schema.json"
+  },
+  "pipeline": {
+    "status": "scripts/pipeline-status.mjs",
+    "jobs": {
+      "export": {
+        "label": "Update export",
+        "command": ["scripts/export-untagged-urls.mjs"]
+      },
+      "export-full": {
+        "label": "Full rebuild",
+        "command": ["scripts/reports/export-db.mjs"],
+        "danger": true
+      },
+      "tag": {
+        "label": "Start tagging",
+        "command": ["scripts/run-full-pipeline.mjs", "--tag"]
+      },
+      "push": {
+        "label": "Push to database",
+        "command": ["scripts/run-full-pipeline.mjs", "--push"]
+      }
+    }
   }
 }
