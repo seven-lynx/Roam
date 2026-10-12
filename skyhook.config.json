@@ -1,0 +1,16 @@
+{
+  "name": "roam",
+  "userAgent": "Roam-Seeder/1.0 (+https://roamtheweb.app)",
+  "seedersDir": "scripts",
+  "dataDir": "scripts/.cache",
+  "categoriesFile": "scripts/skyhook/categories.json",
+  "manifestFile": "scripts/seeders-manifest.json",
+  "descriptionsFile": "scripts/seeders-descriptions.json",
+  "stateDb": "scripts/.cache/seeder-state.db",
+  "logDir": "scripts/.cache/logs",
+  "stagedDir": "scripts/.cache/staged",
+  "storage": {
+    "provider": "supabase",
+    "schemaFile": "scripts/skyhook/schema.json"
+  }
+}
