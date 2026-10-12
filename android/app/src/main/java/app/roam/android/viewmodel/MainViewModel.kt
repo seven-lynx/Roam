@@ -2269,11 +2269,8 @@ class MainViewModel(
     private val _adminReportsLoading = MutableStateFlow(false)
     val adminReportsLoading: StateFlow<Boolean> = _adminReportsLoading.asStateFlow()
 
-    private val _adminBetaSignups = MutableStateFlow<List<app.roam.android.model.AdminBetaSignup>>(emptyList())
-    val adminBetaSignups: StateFlow<List<app.roam.android.model.AdminBetaSignup>> = _adminBetaSignups.asStateFlow()
-
-    private val _adminBetaLoading = MutableStateFlow(false)
-    val adminBetaLoading: StateFlow<Boolean> = _adminBetaLoading.asStateFlow()
+    private val _adminQueueError = MutableStateFlow<String?>(null)
+    val adminQueueError: StateFlow<String?> = _adminQueueError.asStateFlow()
 
     private val _adminStats = MutableStateFlow<app.roam.android.model.AdminStats?>(null)
     val adminStats: StateFlow<app.roam.android.model.AdminStats?> = _adminStats.asStateFlow()
@@ -2285,6 +2282,11 @@ class MainViewModel(
         viewModelScope.launch {
             _adminQueueLoading.value = true
             runCatching { _adminQueue.value = repo.getAdminQueue() }
+                .onFailure { e ->
+                    _adminQueueError.value = e.message ?: "Failed to load queue"
+                    Sentry.captureException(e)
+                }
+                .onSuccess { _adminQueueError.value = null }
             _adminQueueLoading.value = false
         }
     }
@@ -2292,6 +2294,7 @@ class MainViewModel(
     fun loadAdminStats() {
         viewModelScope.launch {
             runCatching { _adminStats.value = repo.getAdminStats() }
+                .onFailure { e -> Sentry.captureException(e) }
         }
     }
 
@@ -2299,15 +2302,8 @@ class MainViewModel(
         viewModelScope.launch {
             _adminReportsLoading.value = true
             runCatching { _adminReports.value = repo.getAdminReports() }
+                .onFailure { e -> Sentry.captureException(e) }
             _adminReportsLoading.value = false
-        }
-    }
-
-    fun loadAdminBetaSignups() {
-        viewModelScope.launch {
-            _adminBetaLoading.value = true
-            runCatching { _adminBetaSignups.value = repo.getBetaSignups() }
-            _adminBetaLoading.value = false
         }
     }
 
@@ -2346,17 +2342,6 @@ class MainViewModel(
             _adminActionLoading.value = false
             if (result.ok) loadAdminReports()
             else showTransientToast(result.error ?: "Failed to restore")
-        }
-    }
-
-    fun deleteBetaSignup(id: Int) {
-        viewModelScope.launch {
-            val result = repo.deleteBetaSignup(id)
-            if (result.ok) {
-                _adminBetaSignups.value = _adminBetaSignups.value.filter { it.id != id }
-            } else {
-                showTransientToast(result.error ?: "Failed to delete")
-            }
         }
     }
 

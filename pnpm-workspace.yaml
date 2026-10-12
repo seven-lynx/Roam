@@ -2,3 +2,4 @@ packages:
   - .
   - web
   - extension
+  - scripts

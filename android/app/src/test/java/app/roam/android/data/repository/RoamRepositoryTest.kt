@@ -3,7 +3,6 @@ package app.roam.android.data.repository
 import app.roam.android.model.RoamUrl
 import app.roam.android.model.UserSettings
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.Json
 import org.junit.Assert.*
 import org.junit.Test
@@ -20,27 +19,30 @@ class RoamRepositoryTest {
 
     private val json = Json { ignoreUnknownKeys = true }
 
+    private fun validateRateValue(value: Int) {
+        require((value == 1) || (value == -1))
+    }
+
     // ─── Input validation ──────────────────────────────────────────────────────
 
     @Test
     fun `rate value 1 passes require check`() {
-        // require(value == 1 || value == -1) — must not throw
-        require(1 == 1 || 1 == -1)
+        validateRateValue(1)
     }
 
     @Test
     fun `rate value -1 passes require check`() {
-        require(-1 == 1 || -1 == -1)
+        validateRateValue(-1)
     }
 
     @Test(expected = IllegalArgumentException::class)
     fun `rate value 0 fails require check`() {
-        require(0 == 1 || 0 == -1)
+        validateRateValue(0)
     }
 
     @Test(expected = IllegalArgumentException::class)
     fun `rate value 2 fails require check`() {
-        require(2 == 1 || 2 == -1)
+        validateRateValue(2)
     }
 
     // ─── Model defaults ────────────────────────────────────────────────────────

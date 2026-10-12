@@ -47,14 +47,6 @@ data class AdminReportItem(
     val reportedAt: String? = null,
 )
 
-/** Represents a beta signup entry. */
-@Serializable
-data class AdminBetaSignup(
-    val id: Int,
-    val email: String,
-    @SerialName("created_at")
-    val createdAt: String? = null,
-)
 
 /** Aggregate stats for the admin dashboard overview. */
 @Serializable

@@ -1043,6 +1043,9 @@ class RoamRepository {
 
     /** Approves a pending submission — calls admin-moderation edge function. */
     suspend fun approveSubmission(id: String): app.roam.android.model.AdminActionResponse {
+        if (!ensureAuthenticated()) {
+            return app.roam.android.model.AdminActionResponse(ok = false, error = "Not authenticated")
+        }
         val body = buildJsonObject {
             put("action", "approve")
             put("id", id)
@@ -1057,6 +1060,9 @@ class RoamRepository {
 
     /** Rejects a pending submission — calls admin-moderation edge function. */
     suspend fun rejectSubmission(id: String): app.roam.android.model.AdminActionResponse {
+        if (!ensureAuthenticated()) {
+            return app.roam.android.model.AdminActionResponse(ok = false, error = "Not authenticated")
+        }
         val body = buildJsonObject {
             put("action", "reject")
             put("id", id)
@@ -1071,6 +1077,7 @@ class RoamRepository {
 
     /** Fetches aggregated admin stats (pending/approved/rejected counts + reports). */
     suspend fun getAdminStats(): app.roam.android.model.AdminStats {
+        if (!ensureAuthenticated()) return app.roam.android.model.AdminStats()
         val body = buildJsonObject { put("action", "stats") }
         return runCatching {
             val response = supabase.functions.invoke("admin-moderation", body = body)
@@ -1080,6 +1087,7 @@ class RoamRepository {
 
     /** Fetches dead link reports via the admin-moderation edge function. */
     suspend fun getAdminReports(): List<app.roam.android.model.AdminReportItem> {
+        if (!ensureAuthenticated()) return emptyList()
         val body = buildJsonObject { put("action", "reports") }
         return runCatching {
             val response = supabase.functions.invoke("admin-moderation", body = body)
@@ -1089,6 +1097,9 @@ class RoamRepository {
 
     /** Restores a reported (inactive) link by setting inactive=false on the URL. */
     suspend fun restoreReportedLink(urlId: String): app.roam.android.model.AdminActionResponse {
+        if (!ensureAuthenticated()) {
+            return app.roam.android.model.AdminActionResponse(ok = false, error = "Not authenticated")
+        }
         val body = buildJsonObject {
             put("action", "restore")
             put("url_id", urlId)
@@ -1101,31 +1112,5 @@ class RoamRepository {
         }
     }
 
-    /** Fetches beta signups from the public beta_signups table (admin only). */
-    suspend fun getBetaSignups(): List<app.roam.android.model.AdminBetaSignup> {
-        // Beta signups are fetched via a direct postgrest query using the admin
-        // role. Since the JWT carries app_metadata.role, RLS policies allow
-        // admin users to read from beta_signups.
-        return runCatching {
-            supabase.postgrest
-                .from("beta_signups")
-                .select(Columns.list("id", "email", "created_at")) {
-                    order("created_at", io.github.jan.supabase.postgrest.query.Order.DESCENDING)
-                }
-                .decodeList<app.roam.android.model.AdminBetaSignup>()
-        }.getOrDefault(emptyList())
-    }
-
-    /** Deletes a beta signup by ID (admin only). */
-    suspend fun deleteBetaSignup(id: Int): app.roam.android.model.AdminActionResponse {
-        return runCatching {
-            supabase.postgrest.from("beta_signups").delete {
-                filter { eq("id", id) }
-            }
-            app.roam.android.model.AdminActionResponse(ok = true, message = "Deleted")
-        }.getOrElse {
-            app.roam.android.model.AdminActionResponse(ok = false, error = it.message)
-        }
-    }
 
 }

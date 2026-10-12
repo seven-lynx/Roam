@@ -217,25 +217,11 @@ async function handleApprove(
     // Don't fail the request — the moderation state is already updated
   }
 
-  // ── Notify the original submitter ───────────────────────────────────────
-  // Fire-and-forget — don't block the response for notification delivery.
-  // The INSERT into notifications triggers the DB webhook → push-notify → FCM/Web Push.
+  // The submitter is notified by the DB trigger trg_notify_moderation_decision
+  // when moderation_queue.status transitions to 'approved', so no duplicate
+  // notification is inserted here. Only badges are evaluated (not trigger-driven).
   
   if (item.submitted_by && item.submitted_by !== actor.id) {
-    const shortUrl = item.url.length > 60 ? item.url.slice(0, 57) + '...' : item.url
-    admin
-      .from('notifications')
-      .insert({
-        user_id: item.submitted_by,
-        type: 'url_approved',
-        title: '✅ Your submission was approved!',
-        body: `"${item.title || shortUrl}" is now live on Roam.`,
-        data: { url: item.url },
-      })
-      .then(
-        () => { console.log('[admin-moderation] Notification sent to submitter:', item.submitted_by) },
-        (e: unknown) => { console.error('[admin-moderation] Failed to notify submitter:', e) }
-      )
 
     // Evaluate badges for the submitter (they earned XP from the submission + approval)
     admin

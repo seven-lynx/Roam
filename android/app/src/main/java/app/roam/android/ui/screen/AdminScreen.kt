@@ -52,7 +52,7 @@ import app.roam.android.viewmodel.MainViewModel
  * Dedicated admin/moderator panel screen.
  *
  * Roles:
- *  - Admin: full access (stats, moderation queue, reports, beta, email, system)
+ *  - Admin: full access (stats, moderation queue, reports, system)
  *  - Moderator: moderation queue, analytics, reports
  */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -68,8 +68,7 @@ fun AdminScreen(
     val adminQueueLoading by vm.adminQueueLoading.collectAsState()
     val adminReports by vm.adminReports.collectAsState()
     val adminReportsLoading by vm.adminReportsLoading.collectAsState()
-    val adminBetaSignups by vm.adminBetaSignups.collectAsState()
-    val adminBetaLoading by vm.adminBetaLoading.collectAsState()
+    val adminQueueError by vm.adminQueueError.collectAsState()
     val adminStats by vm.adminStats.collectAsState()
     val adminActionLoading by vm.adminActionLoading.collectAsState()
 
@@ -96,12 +95,6 @@ fun AdminScreen(
         }
     }
 
-    // Re-fetch beta signups when the beta tab is selected (admin only)
-    LaunchedEffect(selectedTab) {
-        if (selectedTab == "beta" && adminBetaSignups.isEmpty()) {
-            vm.loadAdminBetaSignups()
-        }
-    }
 
     Scaffold(
         topBar = {
@@ -164,7 +157,6 @@ fun AdminScreen(
                 if (!isAdmin) AdminTab("Analytics", "analytics", selectedTab) { selectedTab = it }
                 AdminTab("Reports", "reports", selectedTab) { selectedTab = it }
                 if (isAdmin) {
-                    AdminTab("Beta", "beta", selectedTab) { selectedTab = it }
                     AdminTab("System", "system", selectedTab) { selectedTab = it }
                 }
             }
@@ -181,6 +173,7 @@ fun AdminScreen(
                     actionLoading = adminActionLoading,
                     isAdmin = isAdmin,
                     statusFilter = queueStatusFilter,
+                    error = adminQueueError,
                     onStatusFilterChange = { queueStatusFilter = it },
                     onApprove = { id -> confirmDialog = "approve" to id },
                     onReject = { id -> confirmDialog = "reject" to id },
@@ -197,12 +190,6 @@ fun AdminScreen(
                     isAdmin = isAdmin,
                     onRestore = { id -> vm.restoreReportedLink(id) },
                     onRefresh = { vm.loadAdminReports() },
-                )
-                "beta" -> BetaTab(
-                    signups = adminBetaSignups,
-                    loading = adminBetaLoading,
-                    onDelete = { id -> vm.deleteBetaSignup(id) },
-                    onRefresh = { vm.loadAdminBetaSignups() },
                 )
                 "system" -> SystemTab(
                     onOpenWebAdmin = { onOpenInBrowser("https://roamtheweb.app/admin") },
@@ -304,6 +291,7 @@ private fun QueueTab(
     actionLoading: Boolean,
     isAdmin: Boolean,
     statusFilter: String,
+    error: String?,
     onStatusFilterChange: (String) -> Unit,
     onApprove: (String) -> Unit,
     onReject: (String) -> Unit,
@@ -325,6 +313,15 @@ private fun QueueTab(
         ) {
             Text("Moderation Queue", style = MaterialTheme.typography.titleSmall)
             TextButton(onClick = onRefresh) { Text("Refresh") }
+        }
+
+        if (error != null) {
+            Text(
+                error,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.error,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 2.dp),
+            )
         }
 
         // Status filter chips
@@ -758,67 +755,6 @@ private fun ReportsTab(
     }
 }
 
-// ── Beta Tab ──────────────────────────────────────────────────────────────────
-
-@Composable
-private fun BetaTab(
-    signups: List<app.roam.android.model.AdminBetaSignup>,
-    loading: Boolean,
-    onDelete: (Int) -> Unit,
-    onRefresh: () -> Unit,
-) {
-    Column(modifier = Modifier.fillMaxWidth()) {
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(
-                "Beta Signups • ${signups.size}",
-                style = MaterialTheme.typography.titleSmall,
-            )
-            TextButton(onClick = onRefresh) { Text("Refresh") }
-        }
-
-        Spacer(Modifier.height(8.dp))
-
-        if (loading) {
-            Box(Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator(Modifier.size(32.dp), strokeWidth = 2.dp)
-            }
-        } else if (signups.isEmpty()) {
-            Box(Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
-                Text("No signups yet", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f))
-            }
-        } else {
-            signups.forEach { signup ->
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { }
-                        .padding(horizontal = 16.dp, vertical = 8.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(signup.email, style = MaterialTheme.typography.bodyMedium)
-                        if (signup.createdAt != null) {
-                            Text(
-                                signup.createdAt,
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f),
-                            )
-                        }
-                    }
-                    TextButton(onClick = { onDelete(signup.id) }) {
-                        Text("Delete", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.labelSmall)
-                    }
-                }
-                HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
-            }
-        }
-    }
-}
 
 // ── System Tab ────────────────────────────────────────────────────────────────
 

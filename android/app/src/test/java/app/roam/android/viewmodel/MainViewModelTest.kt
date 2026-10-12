@@ -142,9 +142,9 @@ class MainViewModelTest {
 
     @Test
     fun `setSkipPaywalled stores the value`() = runTest {
-        vm.setSkipPaywalled(true)
+        vm.setSkipPaywalled(value = true)
         assertTrue(vm.skipPaywalled.value)
-        vm.setSkipPaywalled(false)
+        vm.setSkipPaywalled(value = false)
         assertFalse(vm.skipPaywalled.value)
     }
 
@@ -169,12 +169,12 @@ class MainViewModelTest {
         // Mock session and hot queue empty
         coEvery { repo.hasSession() } returns true
         coEvery { repo.roam(any(), any(), any(), any()) } throws RuntimeException("Network failure")
-        
+
         vm.roam()
-        
+
         // Wait for coroutine to complete
         testDispatcher.scheduler.advanceUntilIdle()
-        
+
         val state = vm.state.value
         assertTrue("Expected Error state, but was ${state.javaClass.simpleName}", state is RoamState.Error)
         assertEquals("Network failure", (state as RoamState.Error).message)
@@ -186,7 +186,7 @@ class MainViewModelTest {
         vm.setCollectionFilter("col-xyz")
         // Ensure prefetch doesn't consume it
         coEvery { repo.roam(collectionId = "col-xyz", excludeDomain = any(), categoryId = any(), subcategoryId = any()) } returns mockUrl
-        
+
         vm.roam()
 
         testDispatcher.scheduler.advanceUntilIdle()
@@ -283,7 +283,7 @@ class MainViewModelTest {
 
         vm.saveForLater()
 
-        assertTrue(vm.savedUrls.value.any { it.url == mockUrl.url })
+        assertTrue(vm.savedUrls.value.any { (url) -> url == mockUrl.url })
     }
 
     @Test
@@ -306,6 +306,6 @@ class MainViewModelTest {
 
         vm.removeSavedUrl(mockUrl.url)
 
-        assertFalse(vm.savedUrls.value.any { it.url == mockUrl.url })
+        assertFalse(vm.savedUrls.value.any { (url) -> url == mockUrl.url })
     }
 }

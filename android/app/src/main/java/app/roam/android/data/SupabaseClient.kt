@@ -5,6 +5,8 @@ import io.github.jan.supabase.annotations.SupabaseInternal
 import io.github.jan.supabase.auth.Auth
 import io.github.jan.supabase.auth.ExternalAuthAction
 import io.github.jan.supabase.auth.FlowType
+import io.github.jan.supabase.auth.MemorySessionManager
+import io.github.jan.supabase.auth.SettingsSessionManager
 import io.github.jan.supabase.createSupabaseClient
 import io.github.jan.supabase.functions.Functions
 import io.github.jan.supabase.postgrest.Postgrest
@@ -28,6 +30,11 @@ val supabase = createSupabaseClient(
         // Open the OAuth URL in a Chrome Custom Tab.
         // Without this, signInWith(Google) generates a URL but never opens the browser.
         defaultExternalAuthAction = ExternalAuthAction.CustomTabs()
+        sessionManager = try {
+            SettingsSessionManager()
+        } catch (_: Throwable) {
+            MemorySessionManager()
+        }
     }
     install(Functions)
     install(Postgrest)
