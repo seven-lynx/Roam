@@ -272,5 +272,5 @@ The `user_actions` table and any XP/badge/challenge state MUST be writable only 
 
 Edge functions must never insert arbitrary `action_type` values on behalf of a client. If you are tempted to add a new edge function that writes to `user_actions` directly, stop and design a trigger instead.
 
-### 1.10 The Android release keystore is gitignored
-`android/roam-release.jks` is `.gitignore`d. The `sync-public.ps1` script excludes `*-firebase-adminsdk-*.json`. **Do not commit, link to, or paste contents of either file in any tracked file.**
+### 1.10 The Android release keystore and Firebase service account keys are gitignored
+`android/roam-release.jks` and `*-firebase-adminsdk-*.json` are `.gitignore`d. **Do not commit, link to, or paste contents of either file in any tracked file.**

@@ -26,7 +26,10 @@ procedures live here — see [RULES.md](RULES.md) §1.4 and
 ## Migration rollbacks
 
 Non-additive migrations (DROP, ALTER TYPE, …) must document a rollback here.
-There are currently no outstanding non-additive migrations requiring a rollback.
+
+### 20261010000000_fix_moderation_audit_trigger.sql
+- Change: Drops the legacy `trg_moderation_audit_log` trigger and its `fn_moderation_audit_log()` function (which forced `admin_id = auth.uid()` and therefore failed when moderation ran under the service role), and makes `moderation_audit_log.admin_id` nullable. The newer `trg_moderation_queue_audit` trigger (added in `20260501000001_moderation_audit_log.sql`) remains the single audit path.
+- Rollback: Re-apply the `CREATE OR REPLACE FUNCTION fn_moderation_audit_log()` and `CREATE TRIGGER trg_moderation_audit_log …` definitions from `20260424000000_schema_improvements.sql`, backfill any NULL `admin_id` rows, then `ALTER TABLE moderation_audit_log ALTER COLUMN admin_id SET NOT NULL`.
 
 <!-- Template:
 ### <migration filename>

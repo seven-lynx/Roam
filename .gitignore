@@ -1,6 +1,7 @@
 # Dependencies
 node_modules/
 .pnpm-store/
+package-lock.json   # npm lockfile — project uses pnpm (pnpm-lock.yaml)
 
 # Environment
 .env
@@ -79,4 +80,3 @@ scripts/*
 !supabase/scripts/
 .vscode/mcp.json
 android/app/google-services.json
-sync-public.ps1
