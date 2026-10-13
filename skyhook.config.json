@@ -54,6 +54,10 @@
       "push": {
         "label": "Push to database",
         "command": ["scripts/node_modules/skyhook/bin/skyhook.js", "upload"]
+      },
+      "index": {
+        "label": "Sync known-URLs index",
+        "command": ["scripts/node_modules/skyhook/bin/skyhook.js", "pull", "--index-only"]
       }
     }
   }
