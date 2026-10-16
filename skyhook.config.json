@@ -31,13 +31,17 @@
     "knownUrlsDb": "scripts/.cache/known-urls.db",
     "jobs": {
       "export": {
-        "label": "Pull untagged",
+        "label": "Pull DB",
         "command": ["scripts/node_modules/skyhook/bin/skyhook.js", "pull"]
       },
       "export-full": {
         "label": "Pull all (force)",
         "command": ["scripts/node_modules/skyhook/bin/skyhook.js", "pull", "--force"],
         "danger": true
+      },
+      "import-staged": {
+        "label": "Import staged → offline DB",
+        "command": ["scripts/node_modules/skyhook/bin/skyhook.js", "import-staged"]
       },
       "tag": {
         "label": "Start tagger",
@@ -52,7 +56,7 @@
         "command": ["scripts/node_modules/skyhook/bin/skyhook.js", "tag", "--mode", "retag-replace"]
       },
       "push": {
-        "label": "Push to database",
+        "label": "Push to DB",
         "command": ["scripts/node_modules/skyhook/bin/skyhook.js", "upload"]
       },
       "index": {
