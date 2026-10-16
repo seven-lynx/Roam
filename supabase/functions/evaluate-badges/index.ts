@@ -228,8 +228,8 @@ Deno.serve(async (req: Request) => {
           qualifies = langs.size >= 3; break;
         }
         case "long-term-storage": {
-          const { data: d } = await sb.from("saved_urls").select("created_at").eq("user_id", user_id).order("created_at", { ascending: true }).limit(1);
-          if (d?.length) { const days = (Date.now() - new Date(d[0].created_at).getTime()) / (86400000); qualifies = days >= 90; }
+          const { data: d } = await sb.from("saved_urls").select("saved_at").eq("user_id", user_id).order("saved_at", { ascending: true }).limit(1);
+          if (d?.length) { const days = (Date.now() - new Date(d[0].saved_at).getTime()) / (86400000); qualifies = days >= 90; }
           break;
         }
         case "save-streak": {
@@ -240,16 +240,16 @@ Deno.serve(async (req: Request) => {
         case "domain-collector":
           qualifies = false; break; // url_id distinct count
         case "save-wave": {
-          const { data: d } = await sb.from("saved_urls").select("id").eq("user_id", user_id).gte("created_at", new Date(Date.now() - 3600000).toISOString());
+          const { data: d } = await sb.from("saved_urls").select("id").eq("user_id", user_id).gte("saved_at", new Date(Date.now() - 3600000).toISOString());
           qualifies = (d ?? []).length >= 5; break;
         }
         case "year-old": {
-          const { data: d } = await sb.from("saved_urls").select("created_at").eq("user_id", user_id).order("created_at", { ascending: true }).limit(1);
-          if (d?.length) { const days = (Date.now() - new Date(d[0].created_at).getTime()) / (86400000); qualifies = days >= 365; }
+          const { data: d } = await sb.from("saved_urls").select("saved_at").eq("user_id", user_id).order("saved_at", { ascending: true }).limit(1);
+          if (d?.length) { const days = (Date.now() - new Date(d[0].saved_at).getTime()) / (86400000); qualifies = days >= 365; }
           break;
         }
         case "early-bird-collector": {
-          const { count: c } = await sb.from("saved_urls").select("*", { count: "exact", head: true }).eq("user_id", user_id).gte("created_at", today + "T05:00:00").lt("created_at", today + "T08:00:00");
+          const { count: c } = await sb.from("saved_urls").select("*", { count: "exact", head: true }).eq("user_id", user_id).gte("saved_at", today + "T05:00:00").lt("saved_at", today + "T08:00:00");
           qualifies = (c ?? 0) >= 1; break;
         }
 

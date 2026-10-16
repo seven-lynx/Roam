@@ -1000,7 +1000,9 @@ class RoamRepository {
                     "platform" to "android",
                     "token" to token,
                 )
-            )
+            ) {
+                onConflict = "user_id,platform,token"
+            }
         }.onFailure { e ->
             android.util.Log.w("RoamRepository", "Push token registration failed (likely duplicate): ${e.message}")
         }

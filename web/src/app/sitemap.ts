@@ -68,17 +68,17 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     // Dynamic: public user profiles
     const { data: profiles } = await supabase
       .from('profiles')
-      .select('username, updated_at')
+      .select('username, created_at')
       .eq('is_public', true)
       .not('username', 'is', null)
-      .order('updated_at', { ascending: false })
+      .order('created_at', { ascending: false })
       .limit(500);
 
     if (profiles) {
       for (const p of profiles) {
         staticPages.push({
           url: `${baseUrl}/u/${p.username}`,
-          lastModified: new Date(p.updated_at || Date.now()),
+          lastModified: new Date(p.created_at || Date.now()),
           changeFrequency: 'weekly' as const,
           priority: 0.5,
         });

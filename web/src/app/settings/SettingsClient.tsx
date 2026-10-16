@@ -290,7 +290,7 @@ export function SettingsClient({
         if (!key) { setPushError('Push not configured'); setPushLoading(false); return; }
         const sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: urlBase64ToUint8Array(key) as unknown as BufferSource });
         const { data: { user } } = await supabase.auth.getUser();
-        if (user) await supabase.from('push_tokens').upsert({ user_id: user.id, platform: 'web', token: JSON.stringify(sub.toJSON()) }, { onConflict: 'user_id,platform' });
+        if (user) await supabase.from('push_tokens').upsert({ user_id: user.id, platform: 'web', token: JSON.stringify(sub.toJSON()) }, { onConflict: 'user_id,platform,token' });
         setPushEnabled(true);
       } catch { setPushError('Failed to enable push notifications'); }
     }
