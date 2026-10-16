@@ -1,0 +1,25 @@
+-- =============================================================================
+-- Drop the orphaned roam() hot-path index  (REVIEW BEFORE APPLYING)
+-- =============================================================================
+-- idx_urls_roam_hotpath was built (20260712000000) for an OLDER roam() that
+-- filtered on (approved, inactive, language, category_id) and ordered by
+-- roam_score_static DESC. The current production roam() (v35, applied in
+-- 20260804000004_fix_roam_v35_alias.sql) uses TABLESAMPLE SYSTEM(5) + inline
+-- random-weighted scoring, which CANNOT use a B-tree index at all.
+--
+-- Supabase's DB health check reports this index at ~370 MB with zero scans
+-- since statistics were reset.
+--
+-- BEFORE applying (via `supabase db push`), confirm it stays unused over a
+-- representative window of real traffic:
+--
+--   SELECT indexrelname,
+--          idx_scan,
+--          pg_size_pretty(pg_relation_size(indexrelid)) AS size
+--   FROM pg_stat_user_indexes
+--   WHERE indexrelname = 'idx_urls_roam_hotpath';
+--
+-- Only apply once idx_scan remains 0 across a full traffic cycle (≥ 1 week).
+-- =============================================================================
+
+DROP INDEX IF EXISTS public.idx_urls_roam_hotpath;
