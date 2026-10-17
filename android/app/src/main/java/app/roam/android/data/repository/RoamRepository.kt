@@ -658,6 +658,10 @@ class RoamRepository {
     /** Fetches the current user's active challenges with progress. */
     suspend fun getChallenges(): List<ChallengeData> {
         val userId = supabase.auth.currentUserOrNull()?.id ?: return emptyList()
+        // Ensure the access token is present/valid before invoking the function.
+        // Without this, functions.invoke() can send a header-less or expired-token
+        // request and get a 401, which surfaces as an empty challenges list.
+        if (!ensureAuthenticated()) return emptyList()
         return runCatching {
             val response = supabase.functions.invoke("challenges")
             val text = response.bodyAsText()
@@ -671,6 +675,7 @@ class RoamRepository {
      * Calls the 'leaderboard' edge function which returns { period, entries, updated_at }.
      */
     suspend fun getLeaderboard(period: String): List<app.roam.android.model.LeaderboardEntry> {
+        if (!ensureAuthenticated()) return emptyList()
         val body = buildJsonObject {
             put("period", period)
         }
