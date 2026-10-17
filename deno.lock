@@ -1,0 +1,20 @@
+{
+  "version": "5",
+  "redirects": {
+    "https://esm.sh/@supabase/supabase-js@2": "https://esm.sh/@supabase/supabase-js@2.118.0"
+  },
+  "remote": {
+    "https://esm.sh/@supabase/supabase-js@2.118.0": "56fce2ec273698af8a739c03a005c4b2160e163e5d2c0ede05de7e9bd47e28b8"
+  },
+  "workspace": {
+    "packageJson": {
+      "dependencies": [
+        "npm:better-sqlite3@^12.11.1",
+        "npm:pg@^8.22.0",
+        "npm:puppeteer@^25.4.0",
+        "npm:sharp@~0.34.5",
+        "npm:supabase@^2.98.0"
+      ]
+    }
+  }
+}
