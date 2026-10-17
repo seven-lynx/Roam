@@ -29,6 +29,14 @@ Deno.serve(async (req: Request) => {
       });
     }
 
+    // Lazily ensure the user has active daily/weekly/monthly challenges before
+    // reading. This makes challenges auto-populate on demand instead of waiting
+    // for the nightly cron-daily-challenges run.
+    const { error: seedError } = await supabase.rpc("ensure_user_challenges");
+    if (seedError) {
+      console.error("ensure_user_challenges failed:", seedError);
+    }
+
     const now = new Date().toISOString();
 
     // Fetch active user challenges joined with challenge data

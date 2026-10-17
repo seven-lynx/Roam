@@ -1289,7 +1289,7 @@ Admin-only endpoint for sending bulk emails to beta signup subscribers.
 
 ### `challenges` — List active challenges
 
-Returns the authenticated user's active (unexpired) challenge instances with current progress, for the daily/weekly/monthly challenge rotation.
+Returns the authenticated user's active (unexpired) challenge instances with current progress, for the daily/weekly/monthly challenge rotation. If the user has no active challenges yet, the endpoint lazily seeds them on first read (via `ensure_user_challenges()`), so challenges auto-populate without waiting for the nightly `cron-daily-challenges` run.
 
 **Endpoint:** `GET /functions/v1/challenges`
 
@@ -1419,7 +1419,7 @@ Cron-triggered health check for the `roam()` discovery RPC. Verifies the pool is
 
 ### `cron-daily-challenges` — Daily challenge rotation (scheduled)
 
-Runs once per day (00:00 UTC) via Supabase cron. Creates global challenge instances and assigns 1–3 daily challenges per user, plus weekly (Monday) and monthly (1st) instances.
+Runs once per day (00:00 UTC) via Supabase cron. Creates global challenge instances and assigns 1–3 daily challenges per user, plus weekly (Monday) and monthly (1st) instances. The schedule is declared in `supabase/config.toml` (`[functions.cron-daily-challenges]`). With the on-demand `ensure_user_challenges()` seeder, this cron is now a nightly rotation/cleanup — it is no longer required for challenges to appear for users.
 
 **Endpoint:** `POST /functions/v1/cron-daily-challenges`
 
