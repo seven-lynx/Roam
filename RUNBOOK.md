@@ -35,6 +35,10 @@ Non-additive migrations (DROP, ALTER TYPE, …) must document a rollback here.
 - Change: Drops the orphaned `idx_urls_roam_hotpath` covering index on `public.urls` (~370 MB). It was built for an older `roam()` that filtered on `(approved, inactive, language, category_id)` and ordered by `roam_score_static DESC`; the current `roam()` (v35) uses `TABLESAMPLE SYSTEM(5)` plus inline random-weighted scoring and cannot use a B-tree index.
 - Rollback: Re-create it from `20260712000000_performance_indexes_and_badge_scheduling.sql` — `CREATE INDEX IF NOT EXISTS idx_urls_roam_hotpath ON public.urls (approved, inactive, language, category_id, roam_score_static DESC) INCLUDE (id, url, title, description, og_image_url, subcategory_id, domain, wilson_score) WHERE approved = TRUE AND inactive = FALSE;`
 
+### 20261016000001_replace_url_tags_surrogate_pkey.sql
+- Change: Replaces the surrogate `id` UUID primary key on `public.url_tags` with the composite primary key `(url_id, tag_id)`. `url_tags.id` is never referenced (no FKs, no code reads it); the natural key is `(url_id, tag_id)`, which already has a UNIQUE constraint. Drops the ~43 MB `url_tags_pkey` index and the `id` column.
+- Rollback: `ALTER TABLE public.url_tags DROP CONSTRAINT url_tags_pkey; ALTER TABLE public.url_tags ADD COLUMN id UUID NOT NULL DEFAULT gen_random_uuid(); ALTER TABLE public.url_tags ADD PRIMARY KEY (id); ALTER TABLE public.url_tags ADD CONSTRAINT url_tags_url_id_tag_id_key UNIQUE (url_id, tag_id);`
+
 <!-- Template:
 ### <migration filename>
 - Change: ...
