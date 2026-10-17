@@ -77,8 +77,8 @@ importers:
         specifier: ^1.61.1
         version: 1.64.0
       skyhook:
-        specifier: github:seven-lynx/skyhook#v0.3.8
-        version: https://codeload.github.com/seven-lynx/skyhook/tar.gz/33994a9c9a612fc3d8a57e286882e6bc490a4584(@opentelemetry/api@1.9.1)(@types/node@20.19.43)(puppeteer@25.4.0)
+        specifier: github:seven-lynx/skyhook#v0.3.9
+        version: https://codeload.github.com/seven-lynx/skyhook/tar.gz/cba20fae624854442c87f97f710f6f71c454a09d(@opentelemetry/api@1.9.1)(@types/node@20.19.43)(puppeteer@25.4.0)
       tar:
         specifier: ^7.5.22
         version: 7.5.22
@@ -5172,9 +5172,9 @@ packages:
   sisteransi@1.0.5:
     resolution: {integrity: sha512-bLGGlR1QxBcynn2d5YmDX4MGjlZvy2MRBDRNHLJ8VI6l6+9FUiyTFNJ0IveOSP0bcXgVDPRcfGqA0pjaqUpfVg==}
 
-  skyhook@https://codeload.github.com/seven-lynx/skyhook/tar.gz/33994a9c9a612fc3d8a57e286882e6bc490a4584:
-    resolution: {tarball: https://codeload.github.com/seven-lynx/skyhook/tar.gz/33994a9c9a612fc3d8a57e286882e6bc490a4584}
-    version: 0.3.8
+  skyhook@https://codeload.github.com/seven-lynx/skyhook/tar.gz/cba20fae624854442c87f97f710f6f71c454a09d:
+    resolution: {tarball: https://codeload.github.com/seven-lynx/skyhook/tar.gz/cba20fae624854442c87f97f710f6f71c454a09d}
+    version: 0.3.9
     engines: {node: '>=20'}
     hasBin: true
 
@@ -11483,7 +11483,7 @@ snapshots:
 
   sisteransi@1.0.5: {}
 
-  skyhook@https://codeload.github.com/seven-lynx/skyhook/tar.gz/33994a9c9a612fc3d8a57e286882e6bc490a4584(@opentelemetry/api@1.9.1)(@types/node@20.19.43)(puppeteer@25.4.0):
+  skyhook@https://codeload.github.com/seven-lynx/skyhook/tar.gz/cba20fae624854442c87f97f710f6f71c454a09d(@opentelemetry/api@1.9.1)(@types/node@20.19.43)(puppeteer@25.4.0):
     dependencies:
       '@inquirer/prompts': 8.7.3(@types/node@20.19.43)
       better-sqlite3: 12.11.1
