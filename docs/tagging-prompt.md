@@ -1,6 +1,6 @@
 # Roam Tagging Prompt
 
-This document contains the complete system prompt used by the tagging worker. It is read at runtime by `scripts/tagging-worker.mjs` and sent as the system message to the LLM.
+This document contains the complete system prompt used by the tagging worker. It is read at runtime by `scripts/tagging-worker.mjs` and sent as the system message to the language model.
 
 ---
 
