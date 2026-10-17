@@ -1,5 +1,7 @@
-// GET /functions/v1/challenges
+// GET or POST /functions/v1/challenges
 // Returns active challenges with progress for the authenticated user.
+// POST is accepted because the Android/extension clients call functions.invoke,
+// which always sends POST.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { corsHeaders } from "../_shared/cors.ts";
 
@@ -7,7 +9,7 @@ Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { status: 200, headers: corsHeaders });
   }
-  if (req.method !== "GET") {
+  if (req.method !== "GET" && req.method !== "POST") {
     return new Response(JSON.stringify({ error: "Method not allowed" }), {
       status: 405,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
