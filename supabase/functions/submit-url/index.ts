@@ -5,7 +5,7 @@
 // Approved URLs move to the moderation queue for admin review.
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-import { getCorsHeaders } from '../_shared/cors.ts'
+import { corsHeaders, getCorsHeaders } from '../_shared/cors.ts'
 import { normalizeUrl } from '../_shared/normalise.ts'
 import { validateRequired } from '../_shared/env.ts'
 import { initSentry } from '../_shared/sentry.ts'
@@ -166,7 +166,7 @@ Deno.serve(async (req) => {
 })
 
 function json(data: unknown, status = 200, extraHeaders?: Record<string, string>) {
-  const h: Record<string, string> = { ...headers, 'Content-Type': 'application/json' }
+  const h: Record<string, string> = { ...corsHeaders, 'Content-Type': 'application/json' }
   if (extraHeaders) Object.assign(h, extraHeaders)
   return new Response(JSON.stringify(data), { status, headers: h })
 }
