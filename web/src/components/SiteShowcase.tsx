@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { extractDomain } from '@/lib/url-utils';
+import { selectMonthlySites, currentMonthKey } from '@/lib/showcase';
 
 interface ShowcaseSite {
   id: string;
@@ -28,8 +29,12 @@ export function SiteShowcase() {
         .eq('approved', true)
         .eq('inactive', false)
         .order('wilson_score', { ascending: false })
-        .limit(10);
-      if (data) setSites(data as ShowcaseSite[]);
+        .limit(60);
+      if (data && data.length > 0) {
+        // Rotate the showcase monthly: a stable subset for the current month,
+        // drawn from a wider pool so it actually changes each month.
+        setSites(selectMonthlySites(data as ShowcaseSite[], 10, currentMonthKey()));
+      }
       setLoading(false);
     })();
   }, []);
@@ -67,6 +72,11 @@ export function SiteShowcase() {
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
     >
+      <div className="flex items-center justify-between px-5 pt-4 text-xs text-zinc-400">
+        <span className="font-semibold uppercase tracking-wider">This month&apos;s picks</span>
+        <span>Refreshed monthly</span>
+      </div>
+
       {/* Slide */}
       <a
         href={site.original_url}

@@ -37,10 +37,28 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       priority: 0.3,
     },
     {
-      url: `${baseUrl}/android-beta`,
+      url: `${baseUrl}/stats`,
+      lastModified: new Date(),
+      changeFrequency: 'daily' as const,
+      priority: 0.6,
+    },
+    {
+      url: `${baseUrl}/changelog`,
+      lastModified: new Date(),
+      changeFrequency: 'weekly' as const,
+      priority: 0.5,
+    },
+    {
+      url: `${baseUrl}/extensions`,
       lastModified: new Date(),
       changeFrequency: 'monthly' as const,
-      priority: 0.5,
+      priority: 0.7,
+    },
+    {
+      url: `${baseUrl}/android`,
+      lastModified: new Date(),
+      changeFrequency: 'monthly' as const,
+      priority: 0.7,
     },
   ];
 

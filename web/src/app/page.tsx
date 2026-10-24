@@ -1,6 +1,8 @@
 import { Suspense } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
+import { getHomeStats, type HomeStats } from "@/lib/home-stats";
+import { formatCount } from "@/lib/format";
 import { SiteShowcase } from "@/components/SiteShowcase";
 import { TopSites } from "@/components/TopSites";
 import { AuthErrorBanner } from "@/components/AuthErrorBanner";
@@ -9,25 +11,32 @@ import { ChallengeWidget } from "@/components/challenges/ChallengeWidget";
 
 export default async function Home() {
   let user: null | { id: string } = null;
-  let ratingCount: number | null = null;
+  let stats: HomeStats | null = null;
   try {
     const supabase = await createClient();
     const { data } = await supabase.auth.getUser();
     user = data.user ?? null;
 
-    const { count } = await supabase
-      .from('ratings')
-      .select('*', { count: 'exact', head: true });
-    ratingCount = count ?? 0;
+    // Aggregated counters come from a cached RPC so we don't full-scan on
+    // every homepage request (see lib/home-stats.ts).
+    stats = await getHomeStats();
   } catch {
     // Supabase unavailable
   }
 
-  function fmtCount(n: number): string {
-    if (n >= 1000000) { const m = (n / 1000000).toFixed(1); return `${m} million`; }
-    if (n >= 1000) { const k = (n / 1000).toFixed(1); return `${k}K`; }
-    return `${n}`;
-  }
+  const counters = stats
+    ? [
+        { label: 'Curated URLs', value: formatCount(stats.activeUrls) },
+        { label: 'Topics', value: formatCount(stats.activeTags) },
+        { label: 'Total page ratings', value: formatCount(stats.totalRatings) },
+        { label: 'Pages discovered', value: formatCount(stats.totalServes) },
+        { label: 'Total users', value: formatCount(stats.totalUsers) },
+      ]
+    : [
+        { label: 'Curated URLs', value: '1.6 million' },
+        { label: 'Topics', value: '72+' },
+        { label: 'Total page ratings', value: '4.2 million' },
+      ];
 
   return (
     <>
@@ -59,12 +68,13 @@ export default async function Home() {
                   </>
                 )}
               </div>
-              <div className="flex items-center gap-6 mt-10 justify-center lg:justify-start">
-                <div className="text-center"><div className="text-2xl font-bold text-zinc-900 dark:text-white">1.6 million</div><div className="text-xs text-zinc-400 mt-0.5">Curated URLs</div></div>
-                <div className="w-px h-10 bg-zinc-200 dark:bg-zinc-800" />
-                <div className="text-center"><div className="text-2xl font-bold text-zinc-900 dark:text-white">72+</div><div className="text-xs text-zinc-400 mt-0.5">Topics</div></div>
-                <div className="w-px h-10 bg-zinc-200 dark:bg-zinc-800" />
-                <div className="text-center"><div className="text-2xl font-bold text-zinc-900 dark:text-white">{ratingCount !== null ? fmtCount(ratingCount) : '4.2 million'}</div><div className="text-xs text-zinc-400 mt-0.5">Total page ratings</div></div>
+              <div className="flex flex-wrap items-center justify-center lg:justify-start gap-x-6 gap-y-4 mt-10">
+                {counters.map((c, i) => (
+                  <div key={c.label} className="flex items-center gap-6">
+                    {i > 0 && <div className="w-px h-10 bg-zinc-200 dark:bg-zinc-800" />}
+                    <div className="text-center"><div className="text-2xl font-bold text-zinc-900 dark:text-white">{c.value}</div><div className="text-xs text-zinc-400 mt-0.5">{c.label}</div></div>
+                  </div>
+                ))}
               </div>
             </div>
             <div className="w-full max-w-md lg:max-w-lg">

@@ -469,8 +469,8 @@ export function ProfileClient({ userId, email, profile, allCategories, allSubcat
                 </div>
                 <div className="flex flex-col gap-2">
                   <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wide">Android app</p>
-                  <Link href="/android-beta" className="text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white transition-colors">
-                    Join the beta →
+                  <Link href="/android" className="text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white transition-colors">
+                    Get the Android app →
                   </Link>
                 </div>
               </div>

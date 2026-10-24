@@ -39,6 +39,10 @@ Non-additive migrations (DROP, ALTER TYPE, …) must document a rollback here.
 - Change: Replaces the surrogate `id` UUID primary key on `public.url_tags` with the composite primary key `(url_id, tag_id)`. `url_tags.id` is never referenced (no FKs, no code reads it); the natural key is `(url_id, tag_id)`, which already has a UNIQUE constraint. Drops the ~43 MB `url_tags_pkey` index and the `id` column.
 - Rollback: `ALTER TABLE public.url_tags DROP CONSTRAINT url_tags_pkey; ALTER TABLE public.url_tags ADD COLUMN id UUID NOT NULL DEFAULT gen_random_uuid(); ALTER TABLE public.url_tags ADD PRIMARY KEY (id); ALTER TABLE public.url_tags ADD CONSTRAINT url_tags_url_id_tag_id_key UNIQUE (url_id, tag_id);`
 
+### 20261024000000_home_stats.sql
+- Change: Adds `public.home_stats()`, a SECURITY DEFINER SQL function returning one row of aggregate counters (`total_users`, `total_ratings`, `active_urls`, `active_tags`, `total_serves`) for the marketing homepage and `/stats` page. Grant is limited to `anon` and `authenticated`; row-level data is never exposed.
+- Rollback: `DROP FUNCTION IF EXISTS public.home_stats();`
+
 <!-- Template:
 ### <migration filename>
 - Change: ...
