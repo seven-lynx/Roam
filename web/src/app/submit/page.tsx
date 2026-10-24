@@ -240,6 +240,20 @@ export default function SubmitPage() {
             </button>
           </form>
         )}
+
+        {/* Submission guidelines */}
+        <section className="mt-12 rounded-xl border border-zinc-200 dark:border-zinc-800 p-6">
+          <h2 className="text-lg font-semibold text-zinc-900 dark:text-white mb-3">
+            Submission guidelines
+          </h2>
+          <ul className="text-sm text-zinc-600 dark:text-zinc-300 space-y-2 list-disc list-inside">
+            <li>Submit real, interesting pages — original writing, deep dives, and genuinely useful resources.</li>
+            <li>No spam, affiliate/landing pages, login walls, or pure product pages.</li>
+            <li>Every submission goes through moderation before it appears in the discovery pool.</li>
+            <li>You can submit up to 10 URLs per hour.</li>
+            <li>Quality, not quantity: the community&rsquo;s 👍👎 votes determine what rises to the top.</li>
+          </ul>
+        </section>
       </main>
     </div>
   );

@@ -4,7 +4,7 @@ import type { User } from '@supabase/supabase-js'
 import { logError } from '@/lib/logger'
 
 const PROTECTED_ROUTES = ['/profile', '/settings', '/submit']
-const AUTH_REDIRECT_ROUTES = ['/signup', '/android-beta']
+const AUTH_REDIRECT_ROUTES = ['/signup']
 
 export async function middleware(request: NextRequest) {
   try {

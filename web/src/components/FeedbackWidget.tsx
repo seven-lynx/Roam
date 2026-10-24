@@ -1,8 +1,10 @@
 'use client';
 
 import { useState } from 'react';
+import { useAuth } from '@/components/AuthProvider';
 
 export default function FeedbackWidget() {
+  const { session } = useAuth();
   const [open, setOpen] = useState(false);
   const [message, setMessage] = useState('');
   const [email, setEmail] = useState('');
@@ -23,11 +25,17 @@ export default function FeedbackWidget() {
     setErrorText('');
 
     try {
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+        apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '',
+      };
+      if (session) headers['Authorization'] = `Bearer ${session.access_token}`;
+
       const res = await fetch(
         `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/feedback`,
         {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers,
           body: JSON.stringify({
             message: message.trim(),
             platform: 'web',

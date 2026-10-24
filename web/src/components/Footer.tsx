@@ -39,6 +39,16 @@ export function Footer() {
                 </Link>
               </li>
               <li>
+                <Link href="/stats" className="text-sm text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white transition-colors">
+                  Stats
+                </Link>
+              </li>
+              <li>
+                <Link href="/changelog" className="text-sm text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white transition-colors">
+                  Changelog
+                </Link>
+              </li>
+              <li>
                 <Link href="/signup" className="text-sm text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white transition-colors">
                   Sign Up
                 </Link>
@@ -50,6 +60,16 @@ export function Footer() {
           <div>
             <h3 className="text-xs font-semibold text-zinc-900 dark:text-white uppercase tracking-wider mb-3">Get the App</h3>
             <ul className="flex flex-col gap-2">
+              <li>
+                <Link href="/extensions" className="text-sm text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white transition-colors">
+                  Browser Extension
+                </Link>
+              </li>
+              <li>
+                <Link href="/android" className="text-sm text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white transition-colors">
+                  Android App
+                </Link>
+              </li>
               <li>
                 <a
                   href="https://chromewebstore.google.com/detail/ojgphkdgkefokhjnojkddhalnlbajfpc?utm_source=roam-web"
@@ -69,11 +89,6 @@ export function Footer() {
                 >
                   Firefox Add-on
                 </a>
-              </li>
-              <li>
-                <Link href="/android-beta" className="text-sm text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white transition-colors">
-                  Android App
-                </Link>
               </li>
             </ul>
           </div>

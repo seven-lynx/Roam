@@ -42,7 +42,10 @@ The Next.js 16 web application for Roam. The web surface is the account-manageme
 ### Other
 - **URL submission** (`/submit`) — submit new URLs for moderation
 - **How It Works** (`/how-it-works`) — product tour
-- **Android Beta** (`/android-beta`) — beta tester sign-up
+- **Android app** (`/android`) — app landing page with Google Play link
+- **Browser extension** (`/extensions`) — extension landing page for Chrome & Firefox
+- **Stats** (`/stats`) — public community counters
+- **Changelog** (`/changelog`) — notable product updates
 - **Privacy / Terms** — public legal pages
 
 ## Route Map
@@ -67,7 +70,10 @@ The Next.js 16 web application for Roam. The web surface is the account-manageme
 | `/settings` | Client Component | Yes | Preferences and account controls |
 | `/admin` | Server shell + Client Component | Yes (admin role) | Moderation queue + analytics |
 | `/how-it-works` | Server Component | No | Product overview and features |
-| `/android-beta` | Client Component | No | Android beta sign-up page |
+| `/stats` | Server Component | No | Public community stats (cached daily) |
+| `/changelog` | Server Component | No | Notable product updates |
+| `/extensions` | Server Component | No | Browser extension landing page |
+| `/android` | Server Component | No | Android app landing page |
 | `/privacy` | Server Component | No | Privacy policy |
 | `/terms` | Server Component | No | Terms of service |
 | `/api/unsubscribe` | Route handler | No | Email notification unsubscribe |
@@ -128,7 +134,10 @@ web/
 │   │   ├── submit/        # URL submission
 │   │   ├── terms/         # Terms of Service
 │   │   ├── u/             # Public user profiles ([username])
-│   │   └── android-beta/  # Beta program sign-up
+│   │   ├── stats/         # Public stats page
+│   │   ├── changelog/     # Product changelog
+│   │   ├── extensions/    # Browser extension landing page
+│   │   └── android/       # Android app landing page
 │   ├── components/        # Reusable React components
 │   │   ├── Header.tsx     # Navigation header (server component)
 │   │   ├── Footer.tsx     # Site footer

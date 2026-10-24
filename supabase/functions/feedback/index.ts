@@ -12,7 +12,7 @@
 // Rate limited: 5 submissions per 10 minutes per IP.
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-import { corsHeaders } from '../_shared/cors.ts'
+import { getCorsHeaders } from '../_shared/cors.ts'
 import { clientIp, rateLimit } from '../_shared/rate-limit.ts'
 
 const ALLOWED_PLATFORMS = new Set([
@@ -25,16 +25,16 @@ const ALLOWED_PLATFORMS = new Set([
 const RATE_LIMIT = 5
 const WINDOW_MS = 10 * 60_000 // 10 minutes
 
-function json(body: unknown, status = 200) {
+function json(body: unknown, req: Request, status = 200) {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    headers: { ...getCorsHeaders(req.headers.get('origin')), 'Content-Type': 'application/json' },
   })
 }
 
 Deno.serve(async (req) => {
-  if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
-  if (req.method !== 'POST') return json({ error: 'Method not allowed' }, 405)
+  if (req.method === 'OPTIONS') return new Response('ok', { headers: getCorsHeaders(req.headers.get('origin')) })
+  if (req.method !== 'POST') return json({ error: 'Method not allowed' }, req, 405)
 
   // Rate limit before parsing body
   const ip = clientIp(req)
@@ -45,7 +45,7 @@ Deno.serve(async (req) => {
       {
         status: 429,
         headers: {
-          ...corsHeaders,
+          ...getCorsHeaders(req.headers.get('origin')),
           'Content-Type': 'application/json',
           'Retry-After': String(limit.retryAfterSec),
         },
@@ -57,28 +57,28 @@ Deno.serve(async (req) => {
   try {
     body = await req.json()
   } catch {
-    return json({ error: 'Invalid JSON body' }, 400)
+    return json({ error: 'Invalid JSON body' }, req, 400)
   }
 
   const { message, platform, email } = body
 
   // Validate message
   if (typeof message !== 'string' || message.trim().length === 0) {
-    return json({ error: 'message is required' }, 400)
+    return json({ error: 'message is required' }, req, 400)
   }
   if (message.trim().length > 2000) {
-    return json({ error: 'message must be 2000 characters or fewer' }, 400)
+    return json({ error: 'message must be 2000 characters or fewer' }, req, 400)
   }
 
   // Validate platform
   if (typeof platform !== 'string' || !ALLOWED_PLATFORMS.has(platform)) {
-    return json({ error: `platform must be one of: ${[...ALLOWED_PLATFORMS].join(', ')}` }, 400)
+    return json({ error: `platform must be one of: ${[...ALLOWED_PLATFORMS].join(', ')}` }, req, 400)
   }
 
   // Validate optional email
   if (email !== undefined && email !== null && email !== '') {
     if (typeof email !== 'string' || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      return json({ error: 'email is not a valid address' }, 400)
+      return json({ error: 'email is not a valid address' }, req, 400)
     }
   }
 
@@ -113,8 +113,8 @@ Deno.serve(async (req) => {
 
   if (error) {
     console.error('[feedback] Insert error:', error.message)
-    return json({ error: 'Failed to save feedback — please try again' }, 500)
+    return json({ error: 'Failed to save feedback — please try again' }, req, 500)
   }
 
-  return json({ ok: true })
+  return json({ ok: true }, req)
 })

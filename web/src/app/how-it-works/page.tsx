@@ -333,9 +333,14 @@ export default function HowItWorks() {
                 Swipe to discover. Tap to save. Read offline. The full Roam
                 experience in your pocket with an in-app browser.
               </p>
-              <span className="text-sm text-zinc-400 font-semibold">
-                Coming soon to Google Play
-              </span>
+              <a
+                href="https://play.google.com/store/apps/details?id=app.roam.android"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-blue-600 hover:underline text-sm font-semibold"
+              >
+                Download on Google Play →
+              </a>
             </div>
             <div className="border border-zinc-200 dark:border-zinc-800 rounded-xl p-5">
               <div className="text-3xl mb-3">🌐</div>

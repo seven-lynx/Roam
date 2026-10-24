@@ -12,7 +12,7 @@ const nextConfig: NextConfig = {
       },
       {
         source: '/beta',
-        destination: '/android-beta',
+        destination: '/android',
         permanent: true,
       },
       {
