@@ -8,6 +8,7 @@ import { TopSites } from "@/components/TopSites";
 import { AuthErrorBanner } from "@/components/AuthErrorBanner";
 import { RandomPageButton } from "@/components/RandomPageButton";
 import { ChallengeWidget } from "@/components/challenges/ChallengeWidget";
+import { BuyMeACoffeeWidget } from "@/components/BuyMeACoffeeWidget";
 
 export default async function Home() {
   let user: null | { id: string } = null;
@@ -40,6 +41,7 @@ export default async function Home() {
 
   return (
     <>
+      <BuyMeACoffeeWidget />
       <Suspense fallback={null}><AuthErrorBanner /></Suspense>
       <section className="relative overflow-hidden bg-gradient-to-b from-amber-50 via-white to-white dark:from-zinc-900 dark:via-zinc-950 dark:to-zinc-950">
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
