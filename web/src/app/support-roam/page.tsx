@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { BuyMeACoffeeWidget } from "@/components/BuyMeACoffeeWidget";
+import { BuyMeACoffeeButton } from "@/components/BuyMeACoffeeButton";
 import {
   DOMAIN_BILLING_PERIOD_YEARS,
   DOMAIN_COST_USD,
@@ -24,7 +24,6 @@ export default function SupportRoamPage() {
 
   return (
     <>
-      <BuyMeACoffeeWidget />
       <div className="flex flex-col items-center px-6 py-24 bg-white dark:bg-zinc-950">
         <div className="max-w-3xl mx-auto w-full flex flex-col gap-12 text-left">
           {/* Hero */}
@@ -123,18 +122,21 @@ export default function SupportRoamPage() {
           </section>
 
           {/* CTA */}
-          <section className="flex flex-col gap-3 border-t border-zinc-200 dark:border-zinc-800 pt-8">
-            <p className="text-sm text-zinc-500 dark:text-zinc-400">
-              Tip via the coffee button in the corner, or dig into the code:
+          <section className="flex flex-col gap-4 border-t border-zinc-200 dark:border-zinc-800 pt-8">
+            <p className="text-base text-zinc-600 dark:text-zinc-300 leading-relaxed">
+              If Roam has brought you something good, a one-time tip helps cover the running costs above.
             </p>
-            <a
-              href={GITHUB_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center justify-center rounded-full bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-900 dark:text-white px-8 py-3 font-semibold text-base transition-colors"
-            >
-              View the code on GitHub
-            </a>
+            <div className="flex flex-col sm:flex-row gap-3">
+              <BuyMeACoffeeButton />
+              <a
+                href={GITHUB_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center justify-center rounded-full bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-900 dark:text-white px-8 py-3 font-semibold text-base transition-colors"
+              >
+                View the code on GitHub
+              </a>
+            </div>
           </section>
         </div>
       </div>

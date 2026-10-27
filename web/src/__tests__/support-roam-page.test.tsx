@@ -13,9 +13,13 @@ describe('SupportRoamPage', () => {
     expect(screen.getByText(/\$27\/month goal/)).toBeInTheDocument();
   });
 
-  it('links to the GitHub project', () => {
+  it('links to Buy Me a Coffee and the GitHub project', () => {
     render(<SupportRoamPage />);
 
+    expect(screen.getByRole('link', { name: /buy me a coffee/i })).toHaveAttribute(
+      'href',
+      'https://buymeacoffee.com/7lynx',
+    );
     expect(screen.getByRole('link', { name: /github/i })).toHaveAttribute(
       'href',
       'https://github.com/seven-lynx/Roam',

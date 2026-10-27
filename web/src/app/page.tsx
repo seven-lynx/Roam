@@ -8,7 +8,7 @@ import { TopSites } from "@/components/TopSites";
 import { AuthErrorBanner } from "@/components/AuthErrorBanner";
 import { RandomPageButton } from "@/components/RandomPageButton";
 import { ChallengeWidget } from "@/components/challenges/ChallengeWidget";
-import { BuyMeACoffeeWidget } from "@/components/BuyMeACoffeeWidget";
+import { BuyMeACoffeeButton } from "@/components/BuyMeACoffeeButton";
 
 export default async function Home() {
   let user: null | { id: string } = null;
@@ -41,7 +41,6 @@ export default async function Home() {
 
   return (
     <>
-      <BuyMeACoffeeWidget />
       <Suspense fallback={null}><AuthErrorBanner /></Suspense>
       <section className="relative overflow-hidden bg-gradient-to-b from-amber-50 via-white to-white dark:from-zinc-900 dark:via-zinc-950 dark:to-zinc-950">
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
@@ -131,6 +130,18 @@ export default async function Home() {
         <div className="grid md:grid-cols-2 gap-6">
           {[{ icon: '🎯', title: 'Your interests', desc: 'Select categories that match what you care about. Discovery is personalized, not algorithmic.' }, { icon: '⭐', title: 'Real ratings', desc: 'Pages are ranked by genuine user votes, not engagement metrics or ad revenue.' }, { icon: '🚫', title: 'No feeds', desc: 'One button = one page. No infinite scrolling, no rabbit holes, no notifications.' }, { icon: '🌐', title: 'Community-curated', desc: 'Real people submit and rate pages. The best content rises; the noise disappears.' }].map((item) => (
             <div key={item.title} className="flex items-start gap-4 p-5 rounded-xl border border-zinc-200 dark:border-zinc-800 card-hover"><span className="text-2xl shrink-0">{item.icon}</span><div><h3 className="font-semibold text-zinc-900 dark:text-white mb-1">{item.title}</h3><p className="text-sm text-zinc-500 dark:text-zinc-400 leading-relaxed">{item.desc}</p></div></div>))}
+        </div>
+      </section>
+      <section className="max-w-6xl mx-auto px-6 pb-20">
+        <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/50 p-8 md:p-10 flex flex-col md:flex-row items-center gap-6 text-center md:text-left">
+          <div className="flex-1">
+            <h2 className="text-2xl font-bold text-zinc-900 dark:text-white mb-2">Support Roam</h2>
+            <p className="text-zinc-500 dark:text-zinc-400 leading-relaxed max-w-xl mx-auto md:mx-0">
+              Roam is free, open source, and ad-free. If it&rsquo;s helped you discover something new, help keep it running.
+            </p>
+            <Link href="/support-roam" className="inline-block mt-2 text-sm font-medium text-amber-600 dark:text-amber-400 hover:underline">See our running costs →</Link>
+          </div>
+          <BuyMeACoffeeButton />
         </div>
       </section>
     </>
