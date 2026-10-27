@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { BuyMeACoffeeWidget } from "@/components/BuyMeACoffeeWidget";
-import { BUY_ME_A_COFFEE_URL } from "@/lib/constants";
 import {
   DOMAIN_BILLING_PERIOD_YEARS,
   DOMAIN_COST_USD,
@@ -124,15 +123,10 @@ export default function SupportRoamPage() {
           </section>
 
           {/* CTA */}
-          <section className="flex flex-col sm:flex-row gap-3 border-t border-zinc-200 dark:border-zinc-800 pt-8">
-            <a
-              href={BUY_ME_A_COFFEE_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center justify-center rounded-full bg-amber-500 hover:bg-amber-400 px-8 py-3 text-white font-semibold text-base transition-colors"
-            >
-              ☕ Buy Me a Coffee
-            </a>
+          <section className="flex flex-col gap-3 border-t border-zinc-200 dark:border-zinc-800 pt-8">
+            <p className="text-sm text-zinc-500 dark:text-zinc-400">
+              Tip via the coffee button in the corner, or dig into the code:
+            </p>
             <a
               href={GITHUB_URL}
               target="_blank"

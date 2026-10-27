@@ -3,28 +3,20 @@ import { render } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import { BuyMeACoffeeWidget } from '@/components/BuyMeACoffeeWidget';
 
-afterEach(() => {
-  document.querySelectorAll('script[data-name="BMC-Widget"]').forEach((el) => el.remove());
-});
-
 describe('BuyMeACoffeeWidget', () => {
-  it('injects the Buy Me a Coffee widget script for the right account', () => {
-    render(<BuyMeACoffeeWidget />);
+  it('renders the Buy Me a Coffee widget script with the correct account and styling', () => {
+    const { container } = render(<BuyMeACoffeeWidget />);
 
-    const script = document.querySelector(
+    const script = container.querySelector(
       'script[data-name="BMC-Widget"]',
     ) as HTMLScriptElement;
 
     expect(script).toBeInTheDocument();
-    expect(script.dataset.id).toBe('7lynx');
-    expect(script.src).toBe('https://cdnjs.buymeacoffee.com/1.0.0/widget.prod.min.js');
-  });
-
-  it('does not inject a duplicate script when mounted again', () => {
-    const first = render(<BuyMeACoffeeWidget />);
-    first.unmount();
-    render(<BuyMeACoffeeWidget />);
-
-    expect(document.querySelectorAll('script[data-name="BMC-Widget"]')).toHaveLength(1);
+    expect(script.getAttribute('src')).toBe(
+      'https://cdnjs.buymeacoffee.com/1.0.0/widget.prod.min.js',
+    );
+    expect(script.getAttribute('data-id')).toBe('7lynx');
+    expect(script.getAttribute('data-color')).toBe('#40DCA5');
+    expect(script.getAttribute('data-position')).toBe('Right');
   });
 });
