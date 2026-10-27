@@ -3,10 +3,6 @@ import { render, screen } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import SupportRoamPage from '@/app/support-roam/page';
 
-afterEach(() => {
-  document.querySelectorAll('script[data-name="BMC-Widget"]').forEach((el) => el.remove());
-});
-
 describe('SupportRoamPage', () => {
   it('spells out the operating costs transparently', () => {
     render(<SupportRoamPage />);
@@ -17,13 +13,9 @@ describe('SupportRoamPage', () => {
     expect(screen.getByText(/\$27\/month goal/)).toBeInTheDocument();
   });
 
-  it('links to Buy Me a Coffee and the GitHub project', () => {
+  it('links to the GitHub project', () => {
     render(<SupportRoamPage />);
 
-    expect(screen.getByRole('link', { name: /buy me a coffee/i })).toHaveAttribute(
-      'href',
-      'https://buymeacoffee.com/7lynx',
-    );
     expect(screen.getByRole('link', { name: /github/i })).toHaveAttribute(
       'href',
       'https://github.com/seven-lynx/Roam',
