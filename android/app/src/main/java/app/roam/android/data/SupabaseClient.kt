@@ -5,7 +5,9 @@ import io.github.jan.supabase.annotations.SupabaseInternal
 import io.github.jan.supabase.auth.Auth
 import io.github.jan.supabase.auth.ExternalAuthAction
 import io.github.jan.supabase.auth.FlowType
+import io.github.jan.supabase.auth.MemoryCodeVerifierCache
 import io.github.jan.supabase.auth.MemorySessionManager
+import io.github.jan.supabase.auth.SettingsCodeVerifierCache
 import io.github.jan.supabase.auth.SettingsSessionManager
 import io.github.jan.supabase.createSupabaseClient
 import io.github.jan.supabase.functions.Functions
@@ -34,6 +36,11 @@ val supabase = createSupabaseClient(
             SettingsSessionManager()
         } catch (_: Throwable) {
             MemorySessionManager()
+        }
+        codeVerifierCache = try {
+            SettingsCodeVerifierCache()
+        } catch (_: Throwable) {
+            MemoryCodeVerifierCache()
         }
     }
     install(Functions)

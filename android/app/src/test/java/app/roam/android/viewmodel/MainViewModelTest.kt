@@ -12,7 +12,7 @@ import io.mockk.mockk
 import java.io.IOException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
@@ -29,7 +29,7 @@ import org.robolectric.annotation.Config
 @Config(sdk = [34])
 class MainViewModelTest {
 
-    private val testDispatcher = UnconfinedTestDispatcher()
+    private val testDispatcher = StandardTestDispatcher()
     private lateinit var repo: RoamRepository
     private lateinit var app: Application
     private lateinit var vm: MainViewModel

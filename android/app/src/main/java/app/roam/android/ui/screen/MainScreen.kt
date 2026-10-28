@@ -65,6 +65,8 @@ import app.roam.android.ui.component.BottomBar
 import app.roam.android.ui.component.CelebrationOverlay
 import app.roam.android.ui.component.BootScanLoading
 import app.roam.android.ui.component.ConfigBottomSheet
+import app.roam.android.ui.component.ControlDeck
+import app.roam.android.ui.component.ProgramLauncher
 import app.roam.android.ui.component.HandheldShell
 import app.roam.android.ui.component.OsStatusBar
 import app.roam.android.ui.component.RoamTab
@@ -96,6 +98,16 @@ fun MainScreen(
     var showUserSearch by remember { mutableStateOf(false) }
     val focusModeEnabled by vm.focusModeEnabled.collectAsState()
     val hasRatedUp by vm.hasRatedUp.collectAsState()
+    val themeVariant by vm.themeVariant.collectAsState()
+    val isOnline by vm.isOnline.collectAsState()
+    val hotQueueSize by vm.hotQueueSize.collectAsState()
+    val warmQueueSize by vm.warmQueueSize.collectAsState()
+    val unreadNotificationCount by vm.unreadNotificationCount.collectAsState()
+    val xpFlash by vm.xpFlash.collectAsState()
+    val showConfigSheet by vm.showConfigSheet.collectAsState()
+    val collections by vm.collections.collectAsState()
+    val currentUrl by vm.currentUrl.collectAsState()
+    val isCyberpunk = themeVariant == RoamThemeVariant.CYBERPUNK
 
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
         val launcher = rememberLauncherForActivityResult(
@@ -126,15 +138,38 @@ fun MainScreen(
     Scaffold(
         modifier = Modifier.fillMaxSize(),
         bottomBar = {
-            BottomBar(
-                currentRoute = currentTab,
-                onThumbsDown = { vm.thumbsDown(context) },
-                onThumbsUp = { vm.thumbsUp(context) },
-                onRoam = { vm.roam() },
-                onNavigate = { currentTab = it },
-                focusModeEnabled = focusModeEnabled,
-                hasRatedUp = hasRatedUp,
-            )
+            if (isCyberpunk) {
+                ControlDeck(
+                    currentRoute = currentTab,
+                    isOnline = isOnline,
+                    hotQueueSize = hotQueueSize,
+                    warmQueueSize = warmQueueSize,
+                    unreadNotificationCount = unreadNotificationCount,
+                    xpFlash = xpFlash,
+                    focusModeEnabled = focusModeEnabled,
+                    hasRatedUp = hasRatedUp,
+                    onRoam = { vm.roam() },
+                    onThumbsUp = { vm.thumbsUp(context) },
+                    onThumbsDown = { vm.thumbsDown(context) },
+                    onNavigate = { currentTab = it },
+                    onOpenMenu = { vm.openConfigSheet() },
+                    onOpenNotifications = {
+                        vm.fetchUnreadNotificationCount()
+                        currentTab = RoamTab.Notifications.route
+                    },
+                    onFeedback = { vm.uiFeedback(it) },
+                )
+            } else {
+                BottomBar(
+                    currentRoute = currentTab,
+                    onThumbsDown = { vm.thumbsDown(context) },
+                    onThumbsUp = { vm.thumbsUp(context) },
+                    onRoam = { vm.roam() },
+                    onNavigate = { currentTab = it },
+                    focusModeEnabled = focusModeEnabled,
+                    hasRatedUp = hasRatedUp,
+                )
+            }
         },
     ) { innerPadding ->
         Box(Modifier.fillMaxSize().padding(innerPadding)) {
@@ -193,6 +228,7 @@ fun MainScreen(
                     onNavigateToHistory = { currentTab = RoamTab.History.route },
                     onNavigateToNotifications = { currentTab = RoamTab.Notifications.route },
                     onNavigateToRoam = { currentTab = RoamTab.Roam.route },
+                    cyberpunk = isCyberpunk,
                 )
             }
 
@@ -374,6 +410,40 @@ fun MainScreen(
                     onOpenConfigSheet = { vm.openConfigSheet() },
                 )
             }
+
+            // ── ROAM-OS program launcher (cyberpunk menu) ──────────────
+            if (isCyberpunk && showConfigSheet) {
+                Box(
+                    Modifier
+                        .fillMaxSize()
+                        .background(Color.Black.copy(alpha = 0.55f))
+                        .padding(horizontal = 20.dp, vertical = 40.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    ProgramLauncher(
+                        collections = collections,
+                        isTranslated = vm.isTranslated,
+                        onToggleTranslation = { vm.toggleTranslation() },
+                        onTranslate = { lang -> vm.translateTo(lang) },
+                        onSaveForLater = { vm.saveForLater() },
+                        onShare = {
+                            val si = Intent(Intent.ACTION_SEND).apply { type = "text/plain"; putExtra(Intent.EXTRA_TEXT, currentUrl ?: "") }
+                            activity.startActivity(Intent.createChooser(si, null))
+                        },
+                        onShareWithFriend = { vm.openShareUrlSheet() },
+                        onAddToCollection = { cid -> vm.addCurrentUrlToCollection(cid) },
+                        onCreateCollectionAndAdd = { name -> vm.createCollectionAndAdd(name) },
+                        onRoamWithinCategory = { vm.roamWithinCategory() },
+                        onRoamCollection = { cid -> vm.roamCollection(cid) },
+                        onManageCollections = { currentTab = RoamTab.Saved.route },
+                        onNavBack = { vm.webNavBack() },
+                        onNavForward = { vm.webNavForward() },
+                        onNavReload = { vm.webNavReload() },
+                        onReportBrokenLink = { vm.reportBrokenLink() },
+                        onClose = { vm.closeConfigSheet() },
+                    )
+                }
+            }
         }
     }
 
@@ -450,6 +520,7 @@ private fun DiscoverTab(
     val themeVariant by vm.themeVariant.collectAsState()
     val crtEffectsEnabled by vm.crtEffectsEnabled.collectAsState()
     val deviceFrameEnabled by vm.deviceFrameEnabled.collectAsState()
+    val soundEffectsEnabled by vm.soundEffectsEnabled.collectAsState()
     val isCyberpunk = themeVariant == RoamThemeVariant.CYBERPUNK
 
     var initialRoamDone by remember { mutableStateOf(false) }
@@ -533,6 +604,7 @@ private fun DiscoverTab(
 
     // VM flag → physical sheet (open/close from tap handle, Tour, etc.)
     LaunchedEffect(showConfigSheet) {
+        if (isCyberpunk) return@LaunchedEffect
         try {
             if (showConfigSheet) scaffoldState.bottomSheetState.expand()
             else scaffoldState.bottomSheetState.partialExpand()
@@ -543,6 +615,7 @@ private fun DiscoverTab(
     // settles into PartiallyExpanded. Force-collapse after a short delay so the
     // config sheet always starts closed on fresh app launches.
     LaunchedEffect(Unit) {
+        if (isCyberpunk) return@LaunchedEffect
         delay(200)
         try {
             scaffoldState.bottomSheetState.partialExpand()
@@ -555,6 +628,7 @@ private fun DiscoverTab(
     // flip showConfigSheet to false on first composition before the sheet
     // settles — that would create a feedback loop locking the sheet open.
     LaunchedEffect(scaffoldState.bottomSheetState) {
+        if (isCyberpunk) return@LaunchedEffect
         snapshotFlow { scaffoldState.bottomSheetState.currentValue }
             .drop(1)
             .collect { value ->
@@ -572,6 +646,7 @@ private fun DiscoverTab(
     // every resume (after a short settle delay for insets / WebView restore).
     val lifecycleOwner = LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner) {
+        if (isCyberpunk) return@DisposableEffect onDispose { }
         val observer = LifecycleEventObserver { _, event ->
             if (event != Lifecycle.Event.ON_RESUME) return@LifecycleEventObserver
             scope.launch {
@@ -602,8 +677,9 @@ private fun DiscoverTab(
         sheetContainerColor = Color.Transparent,
         sheetShadowElevation = 0.dp,
         sheetTonalElevation = 0.dp,
-        sheetSwipeEnabled = sheetGestureMode == "slide",
+        sheetSwipeEnabled = !isCyberpunk && sheetGestureMode == "slide",
         sheetDragHandle = {
+            if (!isCyberpunk) {
             if (sheetGestureMode == "tap") {
                 Box(
                     Modifier
@@ -653,6 +729,7 @@ private fun DiscoverTab(
                     }
                 }
             }
+            }
         },
         sheetContent = {
             Surface(
@@ -698,7 +775,7 @@ private fun DiscoverTab(
                 )
             }
         },
-        sheetPeekHeight = 28.dp,
+        sheetPeekHeight = if (isCyberpunk) 0.dp else 28.dp,
     ) { contentPadding ->
         HandheldShell(
             framed = isCyberpunk && deviceFrameEnabled,
@@ -824,6 +901,7 @@ private fun DiscoverTab(
                                     BootScanLoading(
                                         message = loadingMessage.text,
                                         finishing = scanFinishPending,
+                                        soundEnabled = soundEffectsEnabled,
                                     )
                                 } else {
                                     Column(horizontalAlignment = Alignment.CenterHorizontally) {

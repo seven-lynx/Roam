@@ -2,11 +2,11 @@
 
 All notable changes to the Roam web platform.
 
-## [2026-10-28] — Android cyberpunk theme
+## [2026-10-28] — Android ROAM-OS theme
 
 ### Added
-- Android "Cyberpunk" theme — a retro-futuristic ROAM-OS handheld look matching the web's workstation aesthetic (phosphor-teal and gold palette, Space Grotesk + IBM Plex Mono, CRT scanlines/grain/vignette, OS status bar).
-- Android appearance settings — theme switcher (Roam Classic / Cyberpunk), device-frame toggle, and CRT-effects toggle.
+- Android "ROAM-OS" theme — a retro-futuristic ROAM-OS handheld look matching the web's workstation aesthetic (phosphor-teal and gold palette, Space Grotesk + IBM Plex Mono, CRT scanlines/grain/vignette, OS status bar).
+- Android appearance settings — theme switcher (Roam Classic / ROAM-OS), device-frame toggle, and CRT-effects toggle.
 - Android boot/scan loading screen with themed messages.
 
 ## [2026-10-27] — Retro-futuristic workstation redesign

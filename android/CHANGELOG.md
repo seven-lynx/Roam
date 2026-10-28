@@ -5,12 +5,12 @@ All notable changes to the Roam Android app.
 ## [1.3.0] - 2026-10-28
 
 ### Added
-- Cyberpunk theme — a retro-futuristic "ROAM-OS handheld" look matching the website: phosphor-teal and gold palette, Space Grotesk + IBM Plex Mono typography, CRT scanline/grain/vignette effects, and an OS status bar showing the current category, subcategory, and domain.
-- Appearance settings — theme switcher (Roam Classic / Cyberpunk), device-frame toggle, and CRT-effects toggle.
+- ROAM-OS theme — a retro-futuristic "ROAM-OS handheld" look matching the website: phosphor-teal and gold palette, Space Grotesk + IBM Plex Mono typography, CRT scanline/grain/vignette effects, and an OS status bar showing the current category, subcategory, and domain.
+- Appearance settings — theme switcher (Roam Classic / ROAM-OS), device-frame toggle, and CRT-effects toggle.
 - Boot/scan loading screen with themed messages and a "MOUNT COMPLETE" finish beat before each page is revealed.
 
 ### Changed
-- Bundled Space Grotesk and IBM Plex Mono fonts for the Cyberpunk theme.
+- Bundled Space Grotesk and IBM Plex Mono fonts for the ROAM-OS theme.
 - Roam Classic remains the default; the existing look is unchanged.
 
 ## [1.2.1] - 2026-10-10

@@ -36,11 +36,15 @@ class TokenRefreshWorker(
 
         /** Schedules a periodic refresh; no-op if already scheduled (KEEP policy). */
         fun schedule(context: Context) {
-            WorkManager.getInstance(context).enqueueUniquePeriodicWork(
-                WORK_NAME,
-                ExistingPeriodicWorkPolicy.KEEP,
-                PeriodicWorkRequestBuilder<TokenRefreshWorker>(12, TimeUnit.HOURS).build(),
-            )
+            runCatching {
+                WorkManager.getInstance(context).enqueueUniquePeriodicWork(
+                    WORK_NAME,
+                    ExistingPeriodicWorkPolicy.KEEP,
+                    PeriodicWorkRequestBuilder<TokenRefreshWorker>(12, TimeUnit.HOURS).build(),
+                )
+            }.onFailure { e ->
+                android.util.Log.w("TokenRefreshWorker", "Failed to schedule token refresh worker", e)
+            }
         }
     }
 }

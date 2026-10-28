@@ -14,8 +14,8 @@ const ANDROID_ENTRIES: Entry[] = [
     version: "1.3.0",
     date: "2026-10-28",
     items: [
-      "Cyberpunk theme — a retro-futuristic ROAM-OS handheld look with CRT scanlines, film grain, and a phosphor-teal and gold palette.",
-      "Appearance settings — theme switcher (Roam Classic / Cyberpunk), device-frame toggle, and CRT-effects toggle.",
+      "ROAM-OS theme — a retro-futuristic ROAM-OS handheld look with CRT scanlines, film grain, and a phosphor-teal and gold palette.",
+      "Appearance settings — theme switcher (Roam Classic / ROAM-OS), device-frame toggle, and CRT-effects toggle.",
       "Boot/scan loading screen with themed messages and an OS status bar showing the current category, subcategory, and domain.",
     ],
   },

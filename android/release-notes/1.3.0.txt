@@ -1,7 +1,7 @@
 What's new in 1.3.0:
 
-• Cyberpunk theme — A retro-futuristic "ROAM-OS handheld" look with CRT scanlines, film grain, and a phosphor-teal and gold palette.
-• Theme switcher — Pick between Roam Classic (the original look) and the new Cyberpunk theme in Settings → Appearance.
+• ROAM-OS theme — A retro-futuristic "ROAM-OS handheld" look with CRT scanlines, film grain, and a phosphor-teal and gold palette.
+• Theme switcher — Pick between Roam Classic (the original look) and the new ROAM-OS theme in Settings → Appearance.
 • Device frame — Frame the screen in a handheld chassis, or go frameless for a minimal look.
 • CRT effects toggle — Turn scanlines and grain on or off.
 • New boot/scan loading screen — A retro scan sequence with themed messages that completes before each page loads.

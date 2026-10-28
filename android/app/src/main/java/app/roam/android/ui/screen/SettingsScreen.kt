@@ -50,6 +50,8 @@ import androidx.core.net.toUri
 import app.roam.android.BuildConfig
 import app.roam.android.model.SubcategoryItem
 import app.roam.android.ui.theme.RoamThemeVariant
+import app.roam.android.ui.theme.Oxide3
+import app.roam.android.ui.theme.TealBright
 import app.roam.android.viewmodel.MainViewModel
 
 // Constants to avoid recreating lists on every recomposition
@@ -77,6 +79,7 @@ fun SettingsScreen(
     onNavigateToHistory: () -> Unit = {},
     onNavigateToNotifications: () -> Unit = {},
     onNavigateToRoam: () -> Unit = {},
+    cyberpunk: Boolean = false,
 ) {
     val skipPaywalled by vm.skipPaywalled.collectAsState()
     val webDarkMode by vm.webDarkMode.collectAsState()
@@ -146,14 +149,30 @@ fun SettingsScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("Settings") },
-                navigationIcon = {
-                    IconButton(onClick = onNavigateToRoam) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                    }
-                },
-            )
+            if (cyberpunk) {
+                Row(
+                    Modifier.fillMaxWidth().background(Oxide3).padding(horizontal = 12.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text("SETTINGS", style = MaterialTheme.typography.labelLarge, color = TealBright)
+                    Spacer(Modifier.weight(1f))
+                    Text(
+                        "\u2715",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.clickable { onNavigateToRoam() }.padding(horizontal = 8.dp),
+                    )
+                }
+            } else {
+                TopAppBar(
+                    title = { Text("Settings") },
+                    navigationIcon = {
+                        IconButton(onClick = onNavigateToRoam) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        }
+                    },
+                )
+            }
         },
     ) { innerPadding ->
         Column(
@@ -165,7 +184,7 @@ fun SettingsScreen(
         ) {
             SectionHeader("Appearance")
 
-            // Theme selector (Roam Classic vs Cyberpunk)
+            // Theme selector (Roam Classic vs ROAM-OS)
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -175,14 +194,14 @@ fun SettingsScreen(
                 Column(modifier = Modifier.weight(1f)) {
                     Text("Theme", style = MaterialTheme.typography.bodyLarge)
                     Text(
-                        "Roam Classic or the ROAM-OS cyberpunk look",
+                        "Roam Classic or the ROAM-OS look",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
                     )
                 }
                 Box {
                     OutlinedButton(onClick = { themeDropdownExpanded = true }) {
-                        Text(if (themeVariant == RoamThemeVariant.CYBERPUNK) "Cyberpunk" else "Roam Classic")
+                        Text(if (themeVariant == RoamThemeVariant.CYBERPUNK) "ROAM-OS" else "Roam Classic")
                     }
                     DropdownMenu(
                         expanded = themeDropdownExpanded,
@@ -196,7 +215,7 @@ fun SettingsScreen(
                             },
                         )
                         DropdownMenuItem(
-                            text = { Text("Cyberpunk") },
+                            text = { Text("ROAM-OS") },
                             onClick = {
                                 vm.setThemeVariant(RoamThemeVariant.CYBERPUNK)
                                 themeDropdownExpanded = false

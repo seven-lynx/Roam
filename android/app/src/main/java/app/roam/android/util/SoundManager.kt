@@ -39,6 +39,11 @@ object SoundManager {
                     R.raw.level_up,
                     R.raw.challenge_complete,
                     R.raw.generic_success,
+                    R.raw.click,
+                    R.raw.scan_blip,
+                    R.raw.mount_complete,
+                    R.raw.like,
+                    R.raw.skip,
                 ).forEach { resId -> soundIds[resId] = pool.load(appContext, resId, 1) }
             }
     }

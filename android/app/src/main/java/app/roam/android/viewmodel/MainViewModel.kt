@@ -468,6 +468,14 @@ class MainViewModel(
     private val hotQueue    = ArrayDeque<RoamUrl>()
     private val warmQueue   = ArrayDeque<RoamUrl>()
     private val prefetchMutex = Mutex()
+
+    /** Hot queue size (URLs validated and instantly servable) — exposed for the diegetic deck. */
+    private val _hotQueueSize = MutableStateFlow(0)
+    val hotQueueSize: StateFlow<Int> = _hotQueueSize.asStateFlow()
+
+    /** Warm queue size (URLs fetched but not yet validated). */
+    private val _warmQueueSize = MutableStateFlow(0)
+    val warmQueueSize: StateFlow<Int> = _warmQueueSize.asStateFlow()
     private var prefetchJob: Job? = null
 
     /** Current user's profile */
@@ -673,6 +681,22 @@ class MainViewModel(
     private val _celebration = MutableStateFlow<CelebrationEvent?>(null)
     val celebration: StateFlow<CelebrationEvent?> = _celebration.asStateFlow()
 
+    /** Transient "+N XP" flash for the diegetic deck (null = hidden). */
+    private val _xpFlash = MutableStateFlow<Int?>(null)
+    val xpFlash: StateFlow<Int?> = _xpFlash.asStateFlow()
+    private var xpFlashJob: Job? = null
+
+    /** Shows "+N XP" in the deck for a moment. */
+    fun flashXp(amount: Int) {
+        if (amount <= 0) return
+        _xpFlash.value = amount
+        xpFlashJob?.cancel()
+        xpFlashJob = viewModelScope.launch {
+            delay(1200)
+            _xpFlash.value = null
+        }
+    }
+
     private val celebrationQueue = ArrayDeque<CelebrationEvent>()
 
     /** Called by the overlay when the user dismisses it / it auto-dismisses. */
@@ -694,6 +718,12 @@ class MainViewModel(
     private fun presentCelebration(event: CelebrationEvent) {
         _celebration.value = event
         playCelebrationFeedback(event)
+        val xp = when (event) {
+            is CelebrationEvent.BadgeUnlocked -> event.badge.xpReward
+            is CelebrationEvent.ChallengeComplete -> event.xpReward
+            is CelebrationEvent.LevelUp -> 0
+        }
+        if (xp > 0) flashXp(xp)
     }
 
     private fun playCelebrationFeedback(event: CelebrationEvent) {
@@ -908,6 +938,17 @@ class MainViewModel(
 
         // Preload sound effects so the first celebration has its audio ready.
         SoundManager.init(application)
+
+        // Publish queue sizes periodically so the diegetic deck's "READY n" readout
+        // stays fresh without touching every queue mutation site.
+        viewModelScope.launch {
+            while (true) {
+                val (hot, warm) = prefetchMutex.withLock { hotQueue.size to warmQueue.size }
+                _hotQueueSize.value = hot
+                _warmQueueSize.value = warm
+                delay(750)
+            }
+        }
 
         // Periodically poll for new badge/level/challenge notifications. This catches
         // events awarded server-side (e.g. challenge completion triggered by a DB trigger)
@@ -1383,6 +1424,12 @@ class MainViewModel(
 
     private fun haptic(context: Context) {
         vibrate(context, VibrationEffect.createOneShot(40, VibrationEffect.DEFAULT_AMPLITUDE))
+    }
+
+    /** Plays a UI feedback sound (gated on SFX) plus a light haptic tick (gated on haptics). */
+    fun uiFeedback(soundRes: Int) {
+        if (_soundEffectsEnabled.value) SoundManager.play(getApplication(), soundRes)
+        haptic(getApplication())
     }
 
     /** Distinct haptic patterns per celebration type. */
