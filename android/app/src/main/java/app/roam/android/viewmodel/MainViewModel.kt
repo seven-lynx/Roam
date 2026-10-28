@@ -26,6 +26,7 @@ import app.roam.android.model.serializeHistory
 import app.roam.android.model.AppNotification
 import app.roam.android.model.UserProfile
 import app.roam.android.data.supabase
+import app.roam.android.ui.theme.RoamThemeVariant
 import app.roam.android.util.SoundManager
 import app.roam.android.util.connectivityFlow
 import io.github.jan.supabase.auth.auth
@@ -93,6 +94,9 @@ class MainViewModel(
     private val NOTIFICATIONS_ENABLED_KEY = "notifications_enabled"
     private val URL_HISTORY_KEY = "url_history"
     private val APP_THEME_KEY = "app_theme"  // "system", "dark", "light"
+    private val APP_THEME_VARIANT_KEY = "app_theme_variant"  // "classic", "cyberpunk"
+    private val CRT_EFFECTS_KEY = "crt_effects"
+    private val DEVICE_FRAME_KEY = "device_frame"
     private val WALKTHROUGH_SEEN_KEY = "walkthrough_seen"
     private val LAST_URL_KEY = "last_url"
     private val LAST_URL_TITLE_KEY = "last_url_title"
@@ -241,6 +245,40 @@ class MainViewModel(
     fun setAppTheme(theme: String) {
         _appTheme.value = theme
         prefs.edit().putString(APP_THEME_KEY, theme).apply()
+    }
+
+    /** User preference: visual theme ("classic" vs "cyberpunk") */
+    private val _themeVariant = MutableStateFlow(
+        when (prefs.getString(APP_THEME_VARIANT_KEY, "classic")) {
+            "cyberpunk" -> RoamThemeVariant.CYBERPUNK
+            else -> RoamThemeVariant.CLASSIC
+        }
+    )
+    val themeVariant: StateFlow<RoamThemeVariant> = _themeVariant.asStateFlow()
+
+    fun setThemeVariant(variant: RoamThemeVariant) {
+        _themeVariant.value = variant
+        prefs.edit()
+            .putString(APP_THEME_VARIANT_KEY, if (variant == RoamThemeVariant.CYBERPUNK) "cyberpunk" else "classic")
+            .apply()
+    }
+
+    /** User preference: CRT effects (scanlines/grain/vignette/flicker) */
+    private val _crtEffectsEnabled = MutableStateFlow(prefs.getBoolean(CRT_EFFECTS_KEY, true))
+    val crtEffectsEnabled: StateFlow<Boolean> = _crtEffectsEnabled.asStateFlow()
+
+    fun setCrtEffectsEnabled(enabled: Boolean) {
+        _crtEffectsEnabled.value = enabled
+        prefs.edit().putBoolean(CRT_EFFECTS_KEY, enabled).apply()
+    }
+
+    /** User preference: device frame (chassis/bezel) vs frameless */
+    private val _deviceFrameEnabled = MutableStateFlow(prefs.getBoolean(DEVICE_FRAME_KEY, true))
+    val deviceFrameEnabled: StateFlow<Boolean> = _deviceFrameEnabled.asStateFlow()
+
+    fun setDeviceFrameEnabled(enabled: Boolean) {
+        _deviceFrameEnabled.value = enabled
+        prefs.edit().putBoolean(DEVICE_FRAME_KEY, enabled).apply()
     }
 
     /** User preference: auto-translate pages */

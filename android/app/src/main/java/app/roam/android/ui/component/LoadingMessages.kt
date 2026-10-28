@@ -1378,9 +1378,47 @@ private val messages = listOf(
     "Appearing on the other side, forever changed...",
 )
 
-fun pickRandomMessage(): LoadingMessage {
-    val text = messages[Random.nextInt(messages.size)]
-    val durationSeconds = Random.nextLong(3, 9) // 3-8 seconds inclusive
+private val cyberpunkMessages = listOf(
+    "SPOOLING PHOSPHOR…",
+    "CALIBRATING CRT GEOMETRY…",
+    "ESTABLISHING UPLINK…",
+    "BOOTING ROAM-OS…",
+    "SCANNING THE SIGNAL…",
+    "TRIANGULATING SOURCE…",
+    "COMPILING DISCOVERY…",
+    "MOUNTING THE RESULT…",
+    "DEFRAGGING MEMORY BANKS…",
+    "CHARGING THE PHOSPHOR TUBE…",
+    "SYNCING ORBITAL CLOCK…",
+    "REWINDING THE SCAN…",
+    "DECODING HEX STREAM…",
+    "WARMING THE CATHODE…",
+    "NEGOTIATING HANDSHAKE…",
+    "REROUTING THROUGH THE MAINFRAME…",
+    "INDEXING THE ARCHIVE…",
+    "SAMPLING THE DISTRIBUTION…",
+    "APPLYING COOLDOWN MATRIX…",
+    "WEIGHTING YOUR INTEREST VECTOR…",
+    "RUNNING WILSON SCORE…",
+    "BALANCING EXPLORATION…",
+    "CALCULATING SERENDIPITY…",
+    "RESOLVING SIGNAL…",
+    "BUFFERING THE VOID…",
+    "STREAMING CONSCIOUSNESS…",
+    "HOT-WIRING THE MAINFRAME…",
+    "ALIGNING THE PHASE…",
+    "SQUELCHING INTERFERENCE…",
+    "PATCHING THE ROUTER…",
+    "FLASHING THE FIRMWARE…",
+    "TUNING THE ANTENNA…",
+    "LOCKING ONTO A FREQUENCY…",
+    "BROADCASTING CURIOSITY…",
+)
+
+fun pickRandomMessage(cyberpunk: Boolean = false): LoadingMessage {
+    val pool = if (cyberpunk) cyberpunkMessages else messages
+    val text = pool[Random.nextInt(pool.size)]
+    val durationSeconds = if (cyberpunk) Random.nextLong(2, 5) else Random.nextLong(3, 9)
     val durationMs = durationSeconds * 1000
     return LoadingMessage(text, durationMs)
 }

@@ -63,7 +63,10 @@ import app.roam.android.MainActivity
 import app.roam.android.ui.component.BackgroundPrefetchWebView
 import app.roam.android.ui.component.BottomBar
 import app.roam.android.ui.component.CelebrationOverlay
+import app.roam.android.ui.component.BootScanLoading
 import app.roam.android.ui.component.ConfigBottomSheet
+import app.roam.android.ui.component.HandheldShell
+import app.roam.android.ui.component.OsStatusBar
 import app.roam.android.ui.component.RoamTab
 import app.roam.android.ui.component.Tour
 import app.roam.android.ui.component.RoamWebView
@@ -71,6 +74,7 @@ import app.roam.android.ui.component.ShareUrlBottomSheet
 import app.roam.android.ui.component.SubmitBottomSheet
 import app.roam.android.ui.component.UserSearchSheet
 import app.roam.android.ui.component.pickRandomMessage
+import app.roam.android.ui.theme.RoamThemeVariant
 import app.roam.android.viewmodel.MainViewModel
 import app.roam.android.viewmodel.RoamState
 import kotlinx.coroutines.delay
@@ -443,6 +447,10 @@ private fun DiscoverTab(
     val prefetchWebView by vm.prefetchWebView.collectAsState()
     val nextPrefetchUrl by vm.nextPrefetchUrl.collectAsState()
     val showShareUrlSheet by vm.showShareUrlSheet.collectAsState()
+    val themeVariant by vm.themeVariant.collectAsState()
+    val crtEffectsEnabled by vm.crtEffectsEnabled.collectAsState()
+    val deviceFrameEnabled by vm.deviceFrameEnabled.collectAsState()
+    val isCyberpunk = themeVariant == RoamThemeVariant.CYBERPUNK
 
     var initialRoamDone by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) {
@@ -469,18 +477,36 @@ private fun DiscoverTab(
 
     var webViewLoading by rememberSaveable { mutableStateOf(false) }
     var lastLoadedUrl by remember { mutableStateOf<String?>(null) }
-    var loadingMessage by remember { mutableStateOf(pickRandomMessage()) }
+    var loadingMessage by remember { mutableStateOf(pickRandomMessage(cyberpunk = isCyberpunk)) }
     var webViewRecovering by remember { mutableStateOf(false) }
     val loaded = state as? RoamState.Loaded
     val isRoaming = state is RoamState.Loading ||
             (currentUrl == loaded?.roamUrl?.url && (webViewLoading || (currentUrl != lastLoadedUrl)))
     val showOverlay = rawUrl == null || isRoaming || webViewRecovering
+
+    // Cyberpunk scan finish: hold the scan overlay one short beat after a
+    // successful load so the sequence plays "MOUNT COMPLETE" before the page is
+    // revealed, rather than being cut off the instant the WebView finishes.
+    var scanActive by remember { mutableStateOf(false) }
+    var scanFinishPending by remember { mutableStateOf(false) }
+    val latestState by rememberUpdatedState(state)
     LaunchedEffect(showOverlay) {
         if (showOverlay) {
-            loadingMessage = pickRandomMessage()
+            scanActive = true
+            scanFinishPending = false
+        } else if (scanActive && isCyberpunk && latestState is RoamState.Loaded) {
+            scanActive = false
+            scanFinishPending = true
+            delay(500)
+            scanFinishPending = false
+        }
+    }
+    LaunchedEffect(showOverlay) {
+        if (showOverlay) {
+            loadingMessage = pickRandomMessage(cyberpunk = isCyberpunk)
             while (true) {
                 delay(loadingMessage.displayDurationMs.milliseconds)
-                loadingMessage = pickRandomMessage()
+                loadingMessage = pickRandomMessage(cyberpunk = isCyberpunk)
             }
         }
     }
@@ -674,7 +700,24 @@ private fun DiscoverTab(
         },
         sheetPeekHeight = 28.dp,
     ) { contentPadding ->
-        Column(Modifier.fillMaxSize().padding(top = contentPadding.calculateTopPadding())) {
+        HandheldShell(
+            framed = isCyberpunk && deviceFrameEnabled,
+            crtEnabled = isCyberpunk && crtEffectsEnabled,
+            modifier = Modifier.fillMaxSize().padding(top = contentPadding.calculateTopPadding()),
+        ) {
+            Column(Modifier.fillMaxSize()) {
+                if (isCyberpunk) {
+                    OsStatusBar(
+                        category = displayCategory,
+                        subcategory = displaySubcategory,
+                        domain = displayDomain,
+                        errorText = (state as? RoamState.Error)?.message,
+                        exhausted = state is RoamState.Exhausted,
+                        offline = !isOnline,
+                        loading = isRoaming || (rawUrl == null && state is RoamState.Idle),
+                        onRetry = { vm.roam() },
+                    )
+                } else {
             Surface(
                 modifier = Modifier.fillMaxWidth(),
                 color = MaterialTheme.colorScheme.surfaceVariant,
@@ -711,6 +754,7 @@ private fun DiscoverTab(
                     }
                 }
             }
+                }
 
             Column(Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surfaceContainer)) {
                 if (savedConfirmation) Row(Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.secondaryContainer).padding(horizontal = 16.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) { Text("Saved for later", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSecondaryContainer) }
@@ -733,7 +777,7 @@ private fun DiscoverTab(
                     clearCookiesFlow = vm.clearCookiesFlow,
                 )
 
-                if (showOverlay) {
+                if (showOverlay || scanFinishPending) {
                     Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background), contentAlignment = Alignment.Center) {
                         when {
                             state is RoamState.Error -> {
@@ -776,10 +820,17 @@ private fun DiscoverTab(
                                 }
                             }
                             else -> {
-                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                    CircularProgressIndicator(Modifier.size(40.dp), strokeWidth = 3.dp, color = MaterialTheme.colorScheme.primary)
-                                    Spacer(Modifier.size(16.dp))
-                                    Text(loadingMessage.text, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                if (isCyberpunk) {
+                                    BootScanLoading(
+                                        message = loadingMessage.text,
+                                        finishing = scanFinishPending,
+                                    )
+                                } else {
+                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                        CircularProgressIndicator(Modifier.size(40.dp), strokeWidth = 3.dp, color = MaterialTheme.colorScheme.primary)
+                                        Spacer(Modifier.size(16.dp))
+                                        Text(loadingMessage.text, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    }
                                 }
                             }
                         }
@@ -790,6 +841,7 @@ private fun DiscoverTab(
                     BackgroundPrefetchWebView(url = nextPrefetchUrl!!, jsEnabled = jsEnabled, darkMode = webDarkMode)
                 }
             }
+        }
         }
     }
 

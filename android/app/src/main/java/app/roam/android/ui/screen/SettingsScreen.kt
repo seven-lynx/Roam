@@ -49,6 +49,7 @@ import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
 import app.roam.android.BuildConfig
 import app.roam.android.model.SubcategoryItem
+import app.roam.android.ui.theme.RoamThemeVariant
 import app.roam.android.viewmodel.MainViewModel
 
 // Constants to avoid recreating lists on every recomposition
@@ -94,6 +95,9 @@ fun SettingsScreen(
     val focusModeEnabled by vm.focusModeEnabled.collectAsState()
     val focusCategoryId by vm.focusCategoryId.collectAsState()
     val focusSubcategoryId by vm.focusSubcategoryId.collectAsState()
+    val themeVariant by vm.themeVariant.collectAsState()
+    val crtEffectsEnabled by vm.crtEffectsEnabled.collectAsState()
+    val deviceFrameEnabled by vm.deviceFrameEnabled.collectAsState()
     val context = LocalContext.current
     var showSignOutDialog by remember { mutableStateOf(value = false) }
     var showSubmitUrlDialog by remember { mutableStateOf(false) }
@@ -101,6 +105,7 @@ fun SettingsScreen(
     var languageFilterDropdownExpanded by remember { mutableStateOf(false) }
     var focusCategoryDropdownExpanded by remember { mutableStateOf(false) }
     var focusSubcategoryDropdownExpanded by remember { mutableStateOf(false) }
+    var themeDropdownExpanded by remember { mutableStateOf(false) }
     val translateLanguageLabel = TRANSLATE_LANGUAGES.firstOrNull { it.first == translateLanguage }?.second ?: "English"
     val currentUrl by vm.currentUrl.collectAsState()
     val savedConfirmation by vm.savedConfirmation.collectAsState()
@@ -158,6 +163,65 @@ fun SettingsScreen(
                 .verticalScroll(rememberScrollState())
                 .navigationBarsPadding(),
         ) {
+            SectionHeader("Appearance")
+
+            // Theme selector (Roam Classic vs Cyberpunk)
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("Theme", style = MaterialTheme.typography.bodyLarge)
+                    Text(
+                        "Roam Classic or the ROAM-OS cyberpunk look",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                    )
+                }
+                Box {
+                    OutlinedButton(onClick = { themeDropdownExpanded = true }) {
+                        Text(if (themeVariant == RoamThemeVariant.CYBERPUNK) "Cyberpunk" else "Roam Classic")
+                    }
+                    DropdownMenu(
+                        expanded = themeDropdownExpanded,
+                        onDismissRequest = { themeDropdownExpanded = false },
+                    ) {
+                        DropdownMenuItem(
+                            text = { Text("Roam Classic") },
+                            onClick = {
+                                vm.setThemeVariant(RoamThemeVariant.CLASSIC)
+                                themeDropdownExpanded = false
+                            },
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Cyberpunk") },
+                            onClick = {
+                                vm.setThemeVariant(RoamThemeVariant.CYBERPUNK)
+                                themeDropdownExpanded = false
+                            },
+                        )
+                    }
+                }
+            }
+
+            if (themeVariant == RoamThemeVariant.CYBERPUNK) {
+                SettingsToggleRow(
+                    title = "Device frame",
+                    subtitle = "Show the retro handheld chassis around the screen",
+                    checked = deviceFrameEnabled,
+                    onCheckedChange = { vm.setDeviceFrameEnabled(it) },
+                )
+
+                SettingsToggleRow(
+                    title = "CRT effects",
+                    subtitle = "Scanlines, grain, vignette and flicker",
+                    checked = crtEffectsEnabled,
+                    onCheckedChange = { vm.setCrtEffectsEnabled(it) },
+                )
+            }
+
             SectionHeader("Account")
 
             SettingsActionRow(

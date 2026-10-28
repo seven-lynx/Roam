@@ -14,6 +14,8 @@ import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 
+enum class RoamThemeVariant { CLASSIC, CYBERPUNK }
+
 private fun Context.findActivity(): Activity? {
     var ctx: Context? = this
     while (ctx is ContextWrapper) {
@@ -23,7 +25,7 @@ private fun Context.findActivity(): Activity? {
     return null
 }
 
-private val DarkColors = darkColorScheme(
+private val ClassicDarkColors = darkColorScheme(
     background = Zinc900,
     surface = Zinc800,
     surfaceVariant = Zinc800,
@@ -35,7 +37,7 @@ private val DarkColors = darkColorScheme(
     outline = Zinc700,
 )
 
-private val LightColors = lightColorScheme(
+private val ClassicLightColors = lightColorScheme(
     background = White,
     surface = Zinc50,
     onBackground = Zinc900,
@@ -45,11 +47,50 @@ private val LightColors = lightColorScheme(
     outline = Zinc200,
 )
 
+private val CyberpunkColors = darkColorScheme(
+    primary = Gold,
+    onPrimary = AccentInk,
+    primaryContainer = Brass,
+    onPrimaryContainer = Bone,
+    secondary = TealBright,
+    onSecondary = ScreenDeep,
+    secondaryContainer = Verdigris,
+    onSecondaryContainer = Bone,
+    tertiary = NeonPink,
+    onTertiary = Bone,
+    tertiaryContainer = Oxide3,
+    onTertiaryContainer = Bone,
+    background = ScreenBg,
+    onBackground = Bone,
+    surface = Panel,
+    onSurface = Bone,
+    surfaceVariant = Panel2,
+    onSurfaceVariant = Fog,
+    surfaceContainer = Panel,
+    surfaceContainerHigh = Panel3,
+    surfaceContainerHighest = Oxide3,
+    surfaceContainerLow = Panel2,
+    surfaceContainerLowest = Abyss,
+    inverseSurface = Bone,
+    inverseOnSurface = Abyss,
+    inversePrimary = Brass,
+    outline = LineColor,
+    outlineVariant = Oxide2,
+    error = Danger,
+    onError = Bone,
+    errorContainer = Oxide3,
+    onErrorContainer = Danger,
+)
+
 @Composable
 fun RoamTheme(
+    variant: RoamThemeVariant = RoamThemeVariant.CLASSIC,
     darkTheme: Boolean = isSystemInDarkTheme(),
     content: @Composable () -> Unit,
 ) {
+    // Cyberpunk is night-only; Classic honours the light/dark/system choice.
+    val effectiveDark = variant == RoamThemeVariant.CYBERPUNK || darkTheme
+
     val view = LocalView.current
     if (!view.isInEditMode) {
         SideEffect {
@@ -62,14 +103,20 @@ fun RoamTheme(
             controller.show(WindowInsetsCompat.Type.systemBars())
             controller.systemBarsBehavior =
                 WindowInsetsControllerCompat.BEHAVIOR_DEFAULT
-            controller.isAppearanceLightStatusBars = !darkTheme
-            controller.isAppearanceLightNavigationBars = !darkTheme
+            controller.isAppearanceLightStatusBars = !effectiveDark
+            controller.isAppearanceLightNavigationBars = !effectiveDark
         }
     }
 
+    val colorScheme = when (variant) {
+        RoamThemeVariant.CYBERPUNK -> CyberpunkColors
+        RoamThemeVariant.CLASSIC -> if (effectiveDark) ClassicDarkColors else ClassicLightColors
+    }
+    val typography = if (variant == RoamThemeVariant.CYBERPUNK) CyberpunkTypography else RoamTypography
+
     MaterialTheme(
-        colorScheme = if (darkTheme) DarkColors else LightColors,
-        typography = RoamTypography,
+        colorScheme = colorScheme,
+        typography = typography,
         content = content,
     )
 }
