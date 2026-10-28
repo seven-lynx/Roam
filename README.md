@@ -300,7 +300,9 @@ cd android && ./gradlew connectedAndroidTest   # requires emulator
 
 - [Android](android/CHANGELOG.md)
 - [Android release notes](android/release-notes/)
-- Extension, web, and backend changes are tracked via git history.
+- [Browser extension](extension/CHANGELOG.md)
+- [Web](web/CHANGELOG.md)
+- Backend (Supabase) changes are tracked via git history.
 
 ---
 

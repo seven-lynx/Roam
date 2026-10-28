@@ -12,6 +12,7 @@ package-lock.json   # npm lockfile — project uses pnpm (pnpm-lock.yaml)
 .next/
 out/
 dist/
+dist-firefox/
 build/
 *.tsbuildinfo
 

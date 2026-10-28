@@ -1,0 +1,8 @@
+What's new in 1.2.1:
+
+• Celebrations — Badge unlocks, level-ups, and challenge completions now play full-screen animations with tier-colored confetti and distinct haptic patterns.
+• Sound effects — Badge earned, level up, and challenge complete moments now play sounds.
+• "Feedback & Effects" settings — New toggles for sound effects, haptic feedback, and celebration animations.
+• Smarter celebration playback — Multiple celebrations play in sequence without double-firing.
+• Haptics respect your settings — Tap feedback now follows the "Haptic feedback" toggle.
+• Various crash fixes and stability improvements.

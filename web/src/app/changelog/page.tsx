@@ -36,15 +36,58 @@ const ANDROID_ENTRIES: Entry[] = [
   },
 ];
 
+const EXTENSION_ENTRIES: Entry[] = [
+  {
+    version: "0.5.0",
+    date: "2026-08-05",
+    items: [
+      "Faster discovery (algorithm v31–v35) with fewer false “you've seen everything” states.",
+      "Prefetch focus-mode fix — category filters are now respected.",
+      "Better badge text readability across all platforms.",
+    ],
+  },
+  {
+    version: "0.4.0",
+    date: "2026-07-29",
+    items: [
+      "Discovery algorithm v29+v30 with broader coverage and domain cooldowns.",
+      "OAuth sign-in fixed on Chrome and Firefox.",
+      "Chrome Web Store compliance and reduced Sentry noise.",
+    ],
+  },
+  {
+    version: "0.3.0",
+    date: "2026-06-06",
+    items: [
+      "Compact popup UI with inline notifications, browsing history, and stats.",
+      "Prefetch validation and feature parity with Android.",
+    ],
+  },
+];
+
 const WEB_ENTRIES: Entry[] = [
   {
-    version: "Web",
+    version: "Workstation redesign",
+    date: "2026-10-27",
+    items: [
+      "Retro-futuristic workstation landing page — interactive gadgets, boot sequence, radar sweep, glitch text, and ambient sound.",
+      "New pages: /android, /extensions, /stats, /changelog, and /support-roam.",
+      "Live community counters and a monthly showcase on the homepage.",
+      "“Buy Me a Coffee” support button.",
+    ],
+  },
+  {
+    version: "Challenges",
+    date: "2026-10-09",
+    items: [
+      "Challenges UI with daily challenges and consolidated rewards.",
+    ],
+  },
+  {
+    version: "Platform",
     date: "2026",
     items: [
-      "Tag-based topics: 200+ interest tags power personalization and discovery.",
-      "Challenge system and weekly/monthly/all-time leaderboards.",
-      "Badge gallery with 150+ badges and leveling.",
-      "Public profiles, follows, activity feed, and shareable collections.",
+      "Tag-based topics, challenge system and leaderboards, badge gallery, public profiles, follows, activity feed, and shareable collections.",
       "Browser extension for Chrome and Firefox.",
     ],
   },
@@ -99,21 +142,40 @@ export default function ChangelogPage() {
           </div>
         </section>
 
-        {/* Web & extension */}
+        {/* Browser extension */}
         <section className="text-left">
-          <h2 className="text-2xl font-bold text-ink mb-6">
-            Web &amp; extension
-          </h2>
+          <h2 className="text-2xl font-bold text-ink mb-6">Browser extension</h2>
           <div className="flex flex-col gap-4">
-            {WEB_ENTRIES.map((entry) => (
+            {EXTENSION_ENTRIES.map((entry) => (
               <div
-                key={entry.version}
+                key={`extension-${entry.version}`}
                 className="rounded-xl border border-line p-5"
               >
                 <div className="flex items-center justify-between mb-3">
-                  <h3 className="font-semibold text-ink">
-                    {entry.version}
-                  </h3>
+                  <h3 className="font-semibold text-ink">v{entry.version}</h3>
+                  <span className="text-xs text-muted">{entry.date}</span>
+                </div>
+                <ul className="text-sm text-muted space-y-1.5 list-disc list-inside">
+                  {entry.items.map((item) => (
+                    <li key={item}>{item}</li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {/* Web */}
+        <section className="text-left">
+          <h2 className="text-2xl font-bold text-ink mb-6">Web</h2>
+          <div className="flex flex-col gap-4">
+            {WEB_ENTRIES.map((entry) => (
+              <div
+                key={`web-${entry.version}`}
+                className="rounded-xl border border-line p-5"
+              >
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="font-semibold text-ink">{entry.version}</h3>
                   <span className="text-xs text-muted">{entry.date}</span>
                 </div>
                 <ul className="text-sm text-muted space-y-1.5 list-disc list-inside">
