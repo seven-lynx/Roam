@@ -4,7 +4,7 @@ import Link from "next/link";
 export const metadata: Metadata = {
   title: "Changelog — What's New in Roam",
   description:
-    "Notable updates to Roam across the Android app, browser extension, and web.",
+    "Notable updates to Roam across the Android app, browser extension, web, and backend.",
 };
 
 type Entry = { version: string; date: string; items: string[] };
@@ -93,6 +93,41 @@ const WEB_ENTRIES: Entry[] = [
   },
 ];
 
+const BACKEND_ENTRIES: Entry[] = [
+  {
+    version: "Tag graph & home stats",
+    date: "2026-10-24",
+    items: [
+      "Tag graph schema with seeded tags, subcategory mappings, and backfilled URL tags.",
+      "Home-stats materialized view powering the public community counters.",
+    ],
+  },
+  {
+    version: "Challenges",
+    date: "2026-08-05",
+    items: [
+      "Challenge system with daily challenges, XP rewards, and real-time progress tracking.",
+      "User-actions event table for engagement tracking.",
+    ],
+  },
+  {
+    version: "Discovery v31–v35",
+    date: "2026-08-04",
+    items: [
+      "Inline scoring eliminates per-row sub-queries for dramatically faster discovery.",
+      "Hoisted domain checks and recent-subcategory fixes.",
+    ],
+  },
+  {
+    version: "Platform",
+    date: "2026",
+    items: [
+      "Gamification (~150 badges, levels, streaks), social graph (follows, activity, shares), collections, and moderation.",
+      "27 Deno Edge Functions and 164 schema migrations.",
+    ],
+  },
+];
+
 export default function ChangelogPage() {
   return (
     <div className="flex flex-col items-center px-6 py-24 text-center bg-screen">
@@ -172,6 +207,29 @@ export default function ChangelogPage() {
             {WEB_ENTRIES.map((entry) => (
               <div
                 key={`web-${entry.version}`}
+                className="rounded-xl border border-line p-5"
+              >
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="font-semibold text-ink">{entry.version}</h3>
+                  <span className="text-xs text-muted">{entry.date}</span>
+                </div>
+                <ul className="text-sm text-muted space-y-1.5 list-disc list-inside">
+                  {entry.items.map((item) => (
+                    <li key={item}>{item}</li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {/* Backend */}
+        <section className="text-left">
+          <h2 className="text-2xl font-bold text-ink mb-6">Backend (Supabase)</h2>
+          <div className="flex flex-col gap-4">
+            {BACKEND_ENTRIES.map((entry) => (
+              <div
+                key={`backend-${entry.version}`}
                 className="rounded-xl border border-line p-5"
               >
                 <div className="flex items-center justify-between mb-3">

@@ -72,6 +72,7 @@ legacy TEXT-`tag` shape) before the tag-graph migration runs.
 
 ## Useful references
 
+- [Changelog](./CHANGELOG.md) — notable schema, RLS, and Edge Function changes
 - [API reference](../docs/API.md) — full request/response contracts for all functions
 - [ROADMAP](../docs/ROADMAP.md) — build history and upcoming work
 - [CONTEXT](../docs/CONTEXT.md) — current-state briefing and architectural decisions
