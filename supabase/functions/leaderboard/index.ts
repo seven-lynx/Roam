@@ -95,7 +95,8 @@ Deno.serve(async (req) => {
       entries.map(async (entry) => {
         try {
           const { data } = await adminClient.rpc('get_effective_streak', { p_user_id: entry.user_id })
-          const effective = (data as { streak_days: number } | null)?.streak_days
+          const streakRow = Array.isArray(data) ? data[0] : data
+          const effective = (streakRow as { streak_days: number } | null | undefined)?.streak_days
           if (typeof effective === 'number') {
             entry.streak_days = effective
           }

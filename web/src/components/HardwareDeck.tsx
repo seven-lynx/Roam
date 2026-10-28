@@ -21,9 +21,12 @@ export function HardwareDeck({ onRoam }: { onRoam: () => void }) {
 
   return (
     <div className="deck" role="group" aria-label="Hardware controls">
-      <span className="plate hidden md:inline-flex" aria-hidden="true">
-        <span className="power-led" /> ROAM-OS
-      </span>
+      <div className="deck-brand" aria-hidden="true">
+        <span className="plate">
+          <span className="power-led" /> ROAM-OS
+        </span>
+        <img src="/7lynx-logo.png" alt="" className="lynx-mark" />
+      </div>
 
       <nav className="deck-keys" aria-label="Main">
         {PRIMARY_KEYS.map((k) => {
@@ -37,7 +40,7 @@ export function HardwareDeck({ onRoam }: { onRoam: () => void }) {
               title={k.file}
             >
               <KeyIcon name={k.icon} />
-              <span>{k.label}</span>
+              <span className="keycap-label">{k.label}</span>
               <span className="key-led" aria-hidden="true" />
             </Link>
           );
@@ -51,12 +54,12 @@ export function HardwareDeck({ onRoam }: { onRoam: () => void }) {
           title="MENU.SYS"
         >
           <KeyIcon name="menu" />
-          <span>Menu</span>
+          <span className="keycap-label">Menu</span>
           <span className="key-led" aria-hidden="true" />
         </button>
         <button type="button" className="keycap keycap--roam" onClick={onRoam} title="ROAM.EXE /scan">
           <KeyIcon name="roam" />
-          <span>Roam</span>
+          <span className="keycap-label">Roam</span>
           <span className="key-led" aria-hidden="true" />
         </button>
       </nav>
@@ -71,7 +74,7 @@ export function HardwareDeck({ onRoam }: { onRoam: () => void }) {
         <div className="flex flex-col gap-2 items-center">
           <button type="button" className="keycap !flex-none !px-3" onClick={() => setFeedbackOpen(true)} title="COMMS.EXE">
             <KeyIcon name="comms" className="w-3.5 h-3.5" />
-            <span>Comms</span>
+            <span className="keycap-label">Comms</span>
           </button>
           <button
             type="button"

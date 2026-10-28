@@ -631,6 +631,22 @@ a[rel*="noopener"]:visited {
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.5), 0 1px 0 rgba(0, 0, 0, 0.3);
 }
 
+.deck-brand {
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  flex: 0 0 auto;
+}
+.lynx-mark {
+  width: 34px;
+  height: 34px;
+  object-fit: contain;
+}
+@media (min-width: 768px) {
+  .deck-brand { display: flex; }
+}
+
 /* ── Desk rails (clutter lives here) ────────────────────── */
 .rail {
   display: none;
@@ -671,6 +687,7 @@ a[rel*="noopener"]:visited {
   .deck { padding: 8px 8px 10px; }
   .deck-side, .plate { display: none; }
   .keycap { font-size: 0.5rem; letter-spacing: 0.04em; padding: 6px 2px 7px; }
+  .keycap-label { display: none; }
 }
 
 /* ── Desk gadgets ────────────────────────────────────────── */
