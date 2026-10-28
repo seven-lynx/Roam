@@ -50,25 +50,25 @@ export default function ForgotPasswordPage() {
   }
 
   return (
-    <div className="flex min-h-[calc(100vh-8rem)] flex-col items-center justify-center px-6 py-16 bg-white dark:bg-zinc-950">
+    <div className="flex min-h-full flex-col items-center justify-center px-6 py-16 bg-screen">
       <div className="w-full max-w-sm flex flex-col gap-6">
         <div className="text-center">
           <Image src="/icon-512.png" alt="Roam" width={64} height={64} className="mx-auto" />
-          <h1 className="mt-4 text-2xl font-bold text-zinc-900 dark:text-white">Reset your password</h1>
-          <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-400">
+          <h1 className="mt-4 text-2xl font-bold text-ink">Reset your password</h1>
+          <p className="mt-2 text-sm text-muted">
             Enter your email and we&apos;ll send you a reset link.
           </p>
         </div>
 
         {submitted ? (
           <div className="text-center flex flex-col gap-4">
-            <p className="text-sm text-zinc-700 dark:text-zinc-300">
+            <p className="text-sm text-muted">
               Check your inbox — a reset link has been sent to <strong>{email}</strong>.
               The link expires in 1 hour.
             </p>
             <Link
               href="/join?mode=signin"
-              className="text-sm text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white transition-colors"
+              className="text-sm text-muted hover:text-ink transition-colors"
             >
               ← Back to sign in
             </Link>
@@ -76,10 +76,10 @@ export default function ForgotPasswordPage() {
         ) : (
           <form onSubmit={handleSubmit} className="flex flex-col gap-4" noValidate>
             {error && (
-              <p className="text-sm text-red-600 bg-red-50 dark:bg-red-950/40 rounded-lg px-4 py-2">{error}</p>
+              <p className="text-sm text-danger bg-panel-2 bg-panel-2/40 rounded-lg px-4 py-2">{error}</p>
             )}
             <div className="flex flex-col gap-1.5">
-              <label htmlFor="email" className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
+              <label htmlFor="email" className="text-sm font-medium text-muted">
                 Email
               </label>
               <input
@@ -88,21 +88,21 @@ export default function ForgotPasswordPage() {
                 autoComplete="email"
                 value={email}
                 onChange={e => handleEmailChange(e.target.value)}
-                className={`w-full rounded-lg border px-4 py-2.5 text-sm bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:focus:ring-white ${emailError ? 'border-red-500' : 'border-zinc-300 dark:border-zinc-700'}`}
+                className={`w-full rounded-lg border px-4 py-2.5 text-sm bg-panel text-ink placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-ink focus:ring-line ${emailError ? 'border-danger' : 'border-line'}`}
                 placeholder="you@example.com"
               />
-              {emailError && <p className="text-xs text-red-600">{emailError}</p>}
+              {emailError && <p className="text-xs text-danger">{emailError}</p>}
             </div>
             <button
               type="submit"
               disabled={loading || !email || !!emailError}
-              className="w-full rounded-lg bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 py-2.5 text-sm font-semibold hover:opacity-90 transition-opacity disabled:opacity-40"
+              className="w-full rounded-lg bg-panel bg-panel text-ink text-ink py-2.5 text-sm font-semibold hover:opacity-90 transition-opacity disabled:opacity-40"
             >
               {loading ? 'Sending…' : 'Send reset link'}
             </button>
             <Link
               href="/join?mode=signin"
-              className="text-center text-sm text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white transition-colors"
+              className="text-center text-sm text-muted hover:text-ink transition-colors"
             >
               ← Back to sign in
             </Link>

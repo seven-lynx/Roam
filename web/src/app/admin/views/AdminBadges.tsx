@@ -139,8 +139,8 @@ export function AdminBadges() {
           onClick={() => setGiftView("all")}
           className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
             giftView === "all"
-              ? 'bg-zinc-900 dark:bg-white text-white dark:text-zinc-900'
-              : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400'
+              ? 'bg-panel bg-panel text-ink text-ink'
+              : 'bg-panel-2 text-muted'
           }`}
         >
           All Badges ({badges.length})
@@ -149,8 +149,8 @@ export function AdminBadges() {
           onClick={() => setGiftView("grant")}
           className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
             giftView === "grant"
-              ? 'bg-purple-600 text-white'
-              : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400'
+              ? 'bg-phosphor text-ink'
+              : 'bg-panel-2 text-muted'
           }`}
         >
           🎁 Grant
@@ -159,8 +159,8 @@ export function AdminBadges() {
           onClick={() => setGiftView("revoke")}
           className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
             giftView === "revoke"
-              ? 'bg-red-600 text-white'
-              : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400'
+              ? 'bg-danger text-ink'
+              : 'bg-panel-2 text-muted'
           }`}
         >
           ❌ Revoke
@@ -169,26 +169,26 @@ export function AdminBadges() {
 
       {/* Grant Mode */}
       {giftView === "grant" && (
-        <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 p-6">
-          <h2 className="text-lg font-semibold text-zinc-900 dark:text-white mb-4">Grant a Badge</h2>
+        <div className="rounded-xl border border-line p-6">
+          <h2 className="text-lg font-semibold text-ink mb-4">Grant a Badge</h2>
           
           <div className="flex flex-col sm:flex-row gap-3 mb-4">
             <div className="flex-1">
-              <label className="block text-xs font-medium text-zinc-500 mb-1">Username</label>
+              <label className="block text-xs font-medium text-muted mb-1">Username</label>
               <input
                 type="text"
                 value={giftUsername}
                 onChange={e => setGiftUsername(e.target.value)}
                 placeholder="@username"
-                className="w-full rounded-lg border border-zinc-300 dark:border-zinc-700 px-3 py-2 text-sm bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white"
+                className="w-full rounded-lg border border-line px-3 py-2 text-sm bg-panel text-ink"
               />
             </div>
             <div className="flex-1">
-              <label className="block text-xs font-medium text-zinc-500 mb-1">Badge</label>
+              <label className="block text-xs font-medium text-muted mb-1">Badge</label>
               <select
                 value={giftBadgeSlug}
                 onChange={e => setGiftBadgeSlug(e.target.value)}
-                className="w-full rounded-lg border border-zinc-300 dark:border-zinc-700 px-3 py-2 text-sm bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white"
+                className="w-full rounded-lg border border-line px-3 py-2 text-sm bg-panel text-ink"
               >
                 <option value="">Select a badge...</option>
                 {allBadges.map(b => (
@@ -200,23 +200,23 @@ export function AdminBadges() {
               <button
                 onClick={grantBadge}
                 disabled={giftLoading || !giftUsername || !giftBadgeSlug}
-                className="w-full sm:w-auto px-4 py-2 rounded-lg bg-purple-600 text-white text-sm font-medium hover:bg-purple-700 disabled:opacity-50 transition-colors"
+                className="w-full sm:w-auto px-4 py-2 rounded-lg bg-phosphor text-ink text-sm font-medium hover:bg-info disabled:opacity-50 transition-colors"
               >
                 {giftLoading ? 'Granting...' : '🎁 Grant'}
               </button>
             </div>
           </div>
-          {giftResult && <p className="text-sm text-green-600 dark:text-green-400">{giftResult}</p>}
-          {giftError && <p className="text-sm text-red-600">{giftError}</p>}
+          {giftResult && <p className="text-sm text-ok">{giftResult}</p>}
+          {giftError && <p className="text-sm text-danger">{giftError}</p>}
 
           <div className="mt-6">
-            <h3 className="text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-3">Available Gift Badges</h3>
+            <h3 className="text-sm font-medium text-muted mb-3">Available Gift Badges</h3>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
               {giftBadges.map(b => (
-                <div key={b.id} className="rounded-lg border border-zinc-200 dark:border-zinc-700 p-2 text-center">
+                <div key={b.id} className="rounded-lg border border-line p-2 text-center">
                   <span className="text-xl">{b.icon}</span>
-                  <p className="text-xs font-medium text-zinc-700 dark:text-zinc-300 mt-1">{b.name}</p>
-                  <p className="text-[10px] text-zinc-400">{b.unlocked_count} granted</p>
+                  <p className="text-xs font-medium text-muted mt-1">{b.name}</p>
+                  <p className="text-[10px] text-muted">{b.unlocked_count} granted</p>
                 </div>
               ))}
             </div>
@@ -226,27 +226,27 @@ export function AdminBadges() {
 
       {/* Revoke Mode */}
       {giftView === "revoke" && (
-        <div className="rounded-xl border border-red-200 dark:border-red-800 p-6">
-          <h2 className="text-lg font-semibold text-zinc-900 dark:text-white mb-1">Revoke a Badge</h2>
-          <p className="text-xs text-zinc-400 mb-4">Removes the badge so the user can earn it legitimately. XP is deducted.</p>
+        <div className="rounded-xl border border-danger border-danger p-6">
+          <h2 className="text-lg font-semibold text-ink mb-1">Revoke a Badge</h2>
+          <p className="text-xs text-muted mb-4">Removes the badge so the user can earn it legitimately. XP is deducted.</p>
           
           <div className="flex flex-col sm:flex-row gap-3 mb-4">
             <div className="flex-1">
-              <label className="block text-xs font-medium text-zinc-500 mb-1">Username</label>
+              <label className="block text-xs font-medium text-muted mb-1">Username</label>
               <input
                 type="text"
                 value={giftUsername}
                 onChange={e => setGiftUsername(e.target.value)}
                 placeholder="@username"
-                className="w-full rounded-lg border border-zinc-300 dark:border-zinc-700 px-3 py-2 text-sm bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white"
+                className="w-full rounded-lg border border-line px-3 py-2 text-sm bg-panel text-ink"
               />
             </div>
             <div className="flex-1">
-              <label className="block text-xs font-medium text-zinc-500 mb-1">Badge</label>
+              <label className="block text-xs font-medium text-muted mb-1">Badge</label>
               <select
                 value={giftBadgeSlug}
                 onChange={e => setGiftBadgeSlug(e.target.value)}
-                className="w-full rounded-lg border border-zinc-300 dark:border-zinc-700 px-3 py-2 text-sm bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white"
+                className="w-full rounded-lg border border-line px-3 py-2 text-sm bg-panel text-ink"
               >
                 <option value="">Select a badge...</option>
                 {allBadges.map(b => (
@@ -258,14 +258,14 @@ export function AdminBadges() {
               <button
                 onClick={revokeBadge}
                 disabled={giftLoading || !giftUsername || !giftBadgeSlug}
-                className="w-full sm:w-auto px-4 py-2 rounded-lg bg-red-600 text-white text-sm font-medium hover:bg-red-700 disabled:opacity-50 transition-colors"
+                className="w-full sm:w-auto px-4 py-2 rounded-lg bg-danger text-ink text-sm font-medium hover:bg-danger disabled:opacity-50 transition-colors"
               >
                 {giftLoading ? 'Revoking...' : '❌ Revoke'}
               </button>
             </div>
           </div>
-          {giftResult && <p className="text-sm text-green-600 dark:text-green-400">{giftResult}</p>}
-          {giftError && <p className="text-sm text-red-600">{giftError}</p>}
+          {giftResult && <p className="text-sm text-ok">{giftResult}</p>}
+          {giftError && <p className="text-sm text-danger">{giftError}</p>}
         </div>
       )}
 
@@ -273,45 +273,45 @@ export function AdminBadges() {
       {giftView === "all" && (
         <>
           {loading ? (
-            <div className="text-center text-zinc-500 py-12">Loading...</div>
+            <div className="text-center text-muted py-12">Loading...</div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b border-zinc-200 dark:border-zinc-700">
-                    <th className="text-left py-2 px-2 text-xs font-medium text-zinc-500">Badge</th>
-                    <th className="text-left py-2 px-2 text-xs font-medium text-zinc-500">Category</th>
-                    <th className="text-left py-2 px-2 text-xs font-medium text-zinc-500">Tier</th>
-                    <th className="text-right py-2 px-2 text-xs font-medium text-zinc-500">XP</th>
-                    <th className="text-right py-2 px-2 text-xs font-medium text-zinc-500">Unlocked</th>
-                    <th className="text-right py-2 px-2 text-xs font-medium text-zinc-500">Actions</th>
+                  <tr className="border-b border-line">
+                    <th className="text-left py-2 px-2 text-xs font-medium text-muted">Badge</th>
+                    <th className="text-left py-2 px-2 text-xs font-medium text-muted">Category</th>
+                    <th className="text-left py-2 px-2 text-xs font-medium text-muted">Tier</th>
+                    <th className="text-right py-2 px-2 text-xs font-medium text-muted">XP</th>
+                    <th className="text-right py-2 px-2 text-xs font-medium text-muted">Unlocked</th>
+                    <th className="text-right py-2 px-2 text-xs font-medium text-muted">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {badges.map(b => (
-                    <tr key={b.id} className="border-b border-zinc-100 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-900/50">
+                    <tr key={b.id} className="border-b border-line border-line hover:bg-panel-2/50">
                       <td className="py-2 px-2">
                         <div className="flex items-center gap-2">
                           <span className="text-lg">{b.icon}</span>
                           <div>
-                            <p className="font-medium text-zinc-900 dark:text-white text-xs">{b.name}</p>
-                            <p className="text-[10px] text-zinc-400">{b.slug}</p>
+                            <p className="font-medium text-ink text-xs">{b.name}</p>
+                            <p className="text-[10px] text-muted">{b.slug}</p>
                           </div>
                         </div>
                       </td>
                       <td className="py-2 px-2">
-                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400">
+                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-panel-2 text-muted">
                           {b.category}
                         </span>
                       </td>
-                      <td className="py-2 px-2 text-xs text-zinc-600 dark:text-zinc-400">{b.tier || '—'}</td>
-                      <td className="py-2 px-2 text-right text-xs font-mono text-zinc-600 dark:text-zinc-400">+{b.xp_reward}</td>
-                      <td className="py-2 px-2 text-right text-xs font-mono text-zinc-600 dark:text-zinc-400">{b.unlocked_count ?? 0}</td>
+                      <td className="py-2 px-2 text-xs text-muted">{b.tier || '—'}</td>
+                      <td className="py-2 px-2 text-right text-xs font-mono text-muted">+{b.xp_reward}</td>
+                      <td className="py-2 px-2 text-right text-xs font-mono text-muted">{b.unlocked_count ?? 0}</td>
                       <td className="py-2 px-2 text-right">
                         <div className="flex gap-1 justify-end">
                           <button
                             onClick={() => startEdit(b)}
-                            className="text-[10px] px-2 py-1 rounded bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700"
+                            className="text-[10px] px-2 py-1 rounded bg-panel-2 text-muted hover:bg-panel-3"
                           >
                             Edit
                           </button>
@@ -319,8 +319,8 @@ export function AdminBadges() {
                             onClick={() => toggleHidden(b)}
                             className={`text-[10px] px-2 py-1 rounded ${
                               b.is_hidden
-                                ? 'bg-amber-100 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400'
-                                : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400'
+                                ? 'bg-panel-2 bg-panel-2/20 text-gold text-gold'
+                                : 'bg-panel-2 text-muted'
                             } hover:opacity-80`}
                           >
                             {b.is_hidden ? 'Hidden' : 'Visible'}
@@ -338,46 +338,46 @@ export function AdminBadges() {
 
       {/* Edit Modal */}
       {editingBadge && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setEditingBadge(null)}>
-          <div className="bg-white dark:bg-zinc-900 rounded-xl p-6 max-w-md w-full mx-4" onClick={e => e.stopPropagation()}>
-            <h3 className="text-lg font-semibold text-zinc-900 dark:text-white mb-4">Edit Badge</h3>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-screen/50" onClick={() => setEditingBadge(null)}>
+          <div className="bg-panel rounded-xl p-6 max-w-md w-full mx-4" onClick={e => e.stopPropagation()}>
+            <h3 className="text-lg font-semibold text-ink mb-4">Edit Badge</h3>
             <div className="flex flex-col gap-3">
               <div>
-                <label className="block text-xs font-medium text-zinc-500 mb-1">Name</label>
+                <label className="block text-xs font-medium text-muted mb-1">Name</label>
                 <input
                   type="text"
                   value={editForm.name ?? ''}
                   onChange={e => setEditForm({ ...editForm, name: e.target.value })}
-                  className="w-full rounded-lg border border-zinc-300 dark:border-zinc-700 px-3 py-2 text-sm bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white"
+                  className="w-full rounded-lg border border-line px-3 py-2 text-sm bg-panel bg-panel-2 text-ink"
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-zinc-500 mb-1">Description</label>
+                <label className="block text-xs font-medium text-muted mb-1">Description</label>
                 <textarea
                   value={editForm.description ?? ''}
                   onChange={e => setEditForm({ ...editForm, description: e.target.value })}
                   rows={2}
-                  className="w-full rounded-lg border border-zinc-300 dark:border-zinc-700 px-3 py-2 text-sm bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white"
+                  className="w-full rounded-lg border border-line px-3 py-2 text-sm bg-panel bg-panel-2 text-ink"
                 />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-medium text-zinc-500 mb-1">XP Reward</label>
+                  <label className="block text-xs font-medium text-muted mb-1">XP Reward</label>
                   <input
                     type="number"
                     value={editForm.xp_reward ?? 0}
                     onChange={e => setEditForm({ ...editForm, xp_reward: Number(e.target.value) })}
-                    className="w-full rounded-lg border border-zinc-300 dark:border-zinc-700 px-3 py-2 text-sm bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white"
+                    className="w-full rounded-lg border border-line px-3 py-2 text-sm bg-panel bg-panel-2 text-ink"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-zinc-500 mb-1">Required Count</label>
+                  <label className="block text-xs font-medium text-muted mb-1">Required Count</label>
                   <input
                     type="number"
                     value={editForm.required_count ?? ''}
                     onChange={e => setEditForm({ ...editForm, required_count: e.target.value ? Number(e.target.value) : null })}
                     placeholder="null = one-time"
-                    className="w-full rounded-lg border border-zinc-300 dark:border-zinc-700 px-3 py-2 text-sm bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white"
+                    className="w-full rounded-lg border border-line px-3 py-2 text-sm bg-panel bg-panel-2 text-ink"
                   />
                 </div>
               </div>
@@ -385,13 +385,13 @@ export function AdminBadges() {
             <div className="flex gap-2 justify-end mt-6">
               <button
                 onClick={() => setEditingBadge(null)}
-                className="px-4 py-2 text-sm text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white"
+                className="px-4 py-2 text-sm text-muted hover:text-ink"
               >
                 Cancel
               </button>
               <button
                 onClick={saveBadge}
-                className="px-4 py-2 rounded-lg bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 text-sm font-medium"
+                className="px-4 py-2 rounded-lg bg-panel bg-panel text-ink text-ink text-sm font-medium"
               >
                 Save
               </button>

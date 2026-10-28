@@ -24,14 +24,14 @@ export default function SupportRoamPage() {
 
   return (
     <>
-      <div className="flex flex-col items-center px-6 py-24 bg-white dark:bg-zinc-950">
+      <div className="flex flex-col items-center px-6 py-24 bg-screen">
         <div className="max-w-3xl mx-auto w-full flex flex-col gap-12 text-left">
           {/* Hero */}
           <section className="flex flex-col gap-5">
-            <h1 className="text-4xl md:text-5xl font-bold tracking-tight text-zinc-900 dark:text-white">
+            <h1 className="text-4xl md:text-5xl font-bold tracking-tight text-ink">
               Support Roam
             </h1>
-            <p className="text-lg text-zinc-500 dark:text-zinc-400 leading-relaxed max-w-2xl">
+            <p className="text-lg text-muted leading-relaxed max-w-2xl">
               Roam is free, open source, and has no ads. We don&rsquo;t sell data
               or run a subscription — so we rely on people like you to keep the
               servers running. Here&rsquo;s exactly what it costs, in the open.
@@ -39,38 +39,38 @@ export default function SupportRoamPage() {
           </section>
 
           {/* Costs */}
-          <section className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/50 p-6">
-            <h2 className="text-lg font-bold text-zinc-900 dark:text-white mb-4">
+          <section className="rounded-2xl border border-line bg-panel-2 p-6">
+            <h2 className="text-lg font-bold text-ink mb-4">
               What it costs to run
             </h2>
-            <dl className="divide-y divide-zinc-200 dark:divide-zinc-800 text-sm">
+            <dl className="divide-y divide-line text-sm">
               <div className="flex items-start justify-between gap-4 py-3">
-                <dt className="text-zinc-600 dark:text-zinc-300">
+                <dt className="text-muted">
                   Supabase Pro
-                  <span className="block text-zinc-400 dark:text-zinc-500 text-xs mt-0.5">
+                  <span className="block text-muted text-xs mt-0.5">
                     Hosts the URL catalogue, ratings, and discovery data
                   </span>
                 </dt>
-                <dd className="font-semibold text-zinc-900 dark:text-white whitespace-nowrap">
+                <dd className="font-semibold text-ink whitespace-nowrap">
                   ${SUPABASE_PRO_MONTHLY_USD}/month
                 </dd>
               </div>
               <div className="flex items-start justify-between gap-4 py-3">
-                <dt className="text-zinc-600 dark:text-zinc-300">
+                <dt className="text-muted">
                   Domain (roamtheweb.app)
-                  <span className="block text-zinc-400 dark:text-zinc-500 text-xs mt-0.5">
+                  <span className="block text-muted text-xs mt-0.5">
                     ${DOMAIN_COST_USD} every {DOMAIN_BILLING_PERIOD_YEARS} years
                     (≈ ${domainMonthly.toFixed(2)}/month)
                   </span>
                 </dt>
-                <dd className="font-semibold text-zinc-900 dark:text-white whitespace-nowrap">
+                <dd className="font-semibold text-ink whitespace-nowrap">
                   ${DOMAIN_COST_USD}/{DOMAIN_BILLING_PERIOD_YEARS}yrs
                 </dd>
               </div>
             </dl>
-            <p className="mt-4 text-sm text-zinc-500 dark:text-zinc-400 leading-relaxed">
+            <p className="mt-4 text-sm text-muted leading-relaxed">
               That&rsquo;s roughly $25.58 a month. We round up to a{" "}
-              <strong className="text-zinc-900 dark:text-white">
+              <strong className="text-ink">
                 ${MONTHLY_GOAL_USD}/month goal
               </strong>{" "}
               to cover payment-processing fees and leave a small buffer.
@@ -80,11 +80,11 @@ export default function SupportRoamPage() {
           {/* Monthly progress */}
           <section>
             <div className="flex items-end justify-between mb-2">
-              <h2 className="text-lg font-bold text-zinc-900 dark:text-white">
+              <h2 className="text-lg font-bold text-ink">
                 This month
               </h2>
-              <p className="text-sm text-zinc-500 dark:text-zinc-400">
-                <span className="font-semibold text-zinc-900 dark:text-white">
+              <p className="text-sm text-muted">
+                <span className="font-semibold text-ink">
                   ${received.toFixed(2)}
                 </span>{" "}
                 of ${goal.toFixed(2)} raised
@@ -96,21 +96,21 @@ export default function SupportRoamPage() {
               aria-valuemax={goal}
               aria-valuenow={received}
               aria-label="Monthly support goal progress"
-              className="h-3 rounded-full bg-zinc-200 dark:bg-zinc-800 overflow-hidden"
+              className="h-3 rounded-full bg-panel-3 overflow-hidden"
             >
               <div
-                className="h-full rounded-full bg-amber-500 transition-all"
+                className="h-full rounded-full bg-accent transition-all"
                 style={{ width: `${progress}%` }}
               />
             </div>
-            <p className="mt-2 text-xs text-zinc-400 dark:text-zinc-500">
+            <p className="mt-2 text-xs text-muted">
               Updated manually — we&rsquo;ll bump this when a tip comes in.
             </p>
           </section>
 
           {/* Looking ahead */}
-          <section className="text-sm text-zinc-600 dark:text-zinc-300 leading-relaxed space-y-3">
-            <h2 className="text-base font-bold text-zinc-900 dark:text-white">
+          <section className="text-sm text-muted leading-relaxed space-y-3">
+            <h2 className="text-base font-bold text-ink">
               Looking ahead
             </h2>
             <p>
@@ -122,8 +122,8 @@ export default function SupportRoamPage() {
           </section>
 
           {/* CTA */}
-          <section className="flex flex-col gap-4 border-t border-zinc-200 dark:border-zinc-800 pt-8">
-            <p className="text-base text-zinc-600 dark:text-zinc-300 leading-relaxed">
+          <section className="flex flex-col gap-4 border-t border-line pt-8">
+            <p className="text-base text-muted leading-relaxed">
               If Roam has brought you something good, a one-time tip helps cover the running costs above.
             </p>
             <div className="flex flex-col sm:flex-row gap-3">
@@ -132,7 +132,7 @@ export default function SupportRoamPage() {
                 href={GITHUB_URL}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center justify-center rounded-full bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-900 dark:text-white px-8 py-3 font-semibold text-base transition-colors"
+                className="inline-flex items-center justify-center rounded-full bg-panel-2 hover:bg-panel-3 text-ink px-8 py-3 font-semibold text-base transition-colors"
               >
                 View the code on GitHub
               </a>

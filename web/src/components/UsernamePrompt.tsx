@@ -42,17 +42,17 @@ export function UsernamePrompt() {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-6">
-      <div className="w-full max-w-sm bg-white dark:bg-zinc-900 rounded-2xl shadow-xl p-8 flex flex-col gap-6">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-screen/60 backdrop-blur-sm px-6">
+      <div className="w-full max-w-sm bg-panel rounded-2xl shadow-xl p-8 flex flex-col gap-6">
         <div className="text-center">
-          <h2 className="text-2xl font-bold text-zinc-900 dark:text-white">Choose a username</h2>
-          <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-400">
+          <h2 className="text-2xl font-bold text-ink">Choose a username</h2>
+          <p className="mt-2 text-sm text-muted">
             Pick a username to complete your profile. You can change it later in Settings.
           </p>
         </div>
         <form onSubmit={handleSubmit} className="flex flex-col gap-4" noValidate>
           <div className="flex flex-col gap-1.5">
-            <label htmlFor="username" className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
+            <label htmlFor="username" className="text-sm font-medium text-muted">
               Username
             </label>
             <input
@@ -61,17 +61,17 @@ export function UsernamePrompt() {
               autoComplete="username"
               value={username}
               onChange={e => setUsername(e.target.value)}
-              className={`w-full rounded-lg border px-4 py-2.5 text-sm bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:focus:ring-white ${error ? 'border-red-500' : 'border-zinc-300 dark:border-zinc-700'}`}
+              className={`w-full rounded-lg border px-4 py-2.5 text-sm bg-panel bg-panel-2 text-ink placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-ink focus:ring-line ${error ? 'border-danger' : 'border-line'}`}
               placeholder="yourname"
               autoFocus
             />
-            {error && <p className="text-xs text-red-600">{error}</p>}
-            <p className="text-xs text-zinc-400">Letters, numbers, hyphens, underscores. Min 3 characters.</p>
+            {error && <p className="text-xs text-danger">{error}</p>}
+            <p className="text-xs text-muted">Letters, numbers, hyphens, underscores. Min 3 characters.</p>
           </div>
           <button
             type="submit"
             disabled={loading || username.trim().length < 3}
-            className="w-full rounded-lg bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 py-2.5 text-sm font-semibold hover:opacity-90 transition-opacity disabled:opacity-40"
+            className="w-full rounded-lg bg-panel bg-panel text-ink text-ink py-2.5 text-sm font-semibold hover:opacity-90 transition-opacity disabled:opacity-40"
           >
             {loading ? 'Saving…' : 'Set username'}
           </button>

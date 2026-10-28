@@ -244,11 +244,11 @@ export default function SignupPageContent() {
   // ── Category picker ───────────────────────────────────────────────────────
   if (showCategories) {
     return (
-      <div className="flex min-h-[calc(100vh-8rem)] flex-col items-center justify-center px-6 py-16 bg-white dark:bg-zinc-950">
+      <div className="flex min-h-full flex-col items-center justify-center px-6 py-16 bg-screen">
         <form onSubmit={handleCategories} className="w-full max-w-lg flex flex-col gap-8">
           <div className="text-center">
-            <h1 className="text-3xl font-bold text-zinc-900 dark:text-white">What are you into?</h1>
-            <p className="mt-2 text-zinc-500 dark:text-zinc-400">Pick at least one — you can change this later.</p>
+            <h1 className="text-3xl font-bold text-ink">What are you into?</h1>
+            <p className="mt-2 text-muted">Pick at least one — you can change this later.</p>
           </div>
 
           <InterestPicker
@@ -262,12 +262,12 @@ export default function SignupPageContent() {
             onModeChange={handleModeChange}
           />
 
-          {error && <p className="text-sm text-red-500 text-center">{error}</p>}
+          {error && <p className="text-sm text-danger text-center">{error}</p>}
 
           <button
             type="submit"
             disabled={loading || !hasSelection}
-            className="rounded-full bg-zinc-900 dark:bg-white px-8 py-3 text-white dark:text-zinc-900 font-semibold hover:opacity-90 transition-opacity disabled:opacity-50"
+            className="rounded-full bg-panel bg-panel px-8 py-3 text-ink text-ink font-semibold hover:opacity-90 transition-opacity disabled:opacity-50"
           >
             {loading ? "Saving…" : "Start exploring →"}
           </button>
@@ -283,7 +283,7 @@ export default function SignupPageContent() {
         type="button"
         onClick={() => handleOAuth()}
         disabled={loading}
-        className="flex items-center justify-center gap-3 rounded-lg border border-zinc-300 dark:border-zinc-700 px-6 py-2.5 text-sm text-zinc-800 dark:text-zinc-200 font-medium hover:bg-zinc-50 dark:hover:bg-zinc-900 transition-colors disabled:opacity-50"
+        className="flex items-center justify-center gap-3 rounded-lg border border-line px-6 py-2.5 text-sm text-ink font-medium hover:bg-panel-2 transition-colors disabled:opacity-50"
       >
         <svg className="w-5 h-5 shrink-0" viewBox="0 0 24 24" aria-hidden="true">
           <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
@@ -297,27 +297,27 @@ export default function SignupPageContent() {
   );
 
   return (
-    <div className="flex min-h-[calc(100vh-8rem)] flex-col items-center justify-center px-6 py-16 bg-white dark:bg-zinc-950">
+    <div className="flex min-h-full flex-col items-center justify-center px-6 py-16 bg-screen">
       <div className="w-full max-w-sm flex flex-col gap-6">
         <div className="text-center">
           <Image src="/icon-512.png" alt="Roam" width={64} height={64} className="mx-auto" />
-          <h1 className="mt-4 text-2xl font-bold text-zinc-900 dark:text-white">
+          <h1 className="mt-4 text-2xl font-bold text-ink">
             {mode === "create" ? "Create your account" : "Welcome back"}
           </h1>
-          <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
+          <p className="mt-1 text-sm text-muted">
             {mode === "create" ? "Free, forever." : "Sign in to continue."}
           </p>
         </div>
 
         {/* Tabs */}
-        <div className="flex rounded-lg border border-zinc-200 dark:border-zinc-800 p-1 gap-1">
+        <div className="flex rounded-lg border border-line p-1 gap-1">
           <button
             type="button"
             onClick={() => switchMode("create")}
             className={`flex-1 rounded-md py-1.5 text-sm font-medium transition-colors ${
               mode === "create"
-                ? "bg-zinc-900 dark:bg-white text-white dark:text-zinc-900"
-                : "text-zinc-500 hover:text-zinc-900 dark:hover:text-white"
+                ? "bg-panel bg-panel text-ink text-ink"
+                : "text-muted hover:text-ink"
             }`}
           >
             Create account
@@ -327,8 +327,8 @@ export default function SignupPageContent() {
             onClick={() => switchMode("signin")}
             className={`flex-1 rounded-md py-1.5 text-sm font-medium transition-colors ${
               mode === "signin"
-                ? "bg-zinc-900 dark:bg-white text-white dark:text-zinc-900"
-                : "text-zinc-500 hover:text-zinc-900 dark:hover:text-white"
+                ? "bg-panel bg-panel text-ink text-ink"
+                : "text-muted hover:text-ink"
             }`}
           >
             Sign in
@@ -339,69 +339,69 @@ export default function SignupPageContent() {
         {oauthButtons}
 
         <div className="flex items-center gap-3">
-          <hr className="flex-1 border-zinc-200 dark:border-zinc-800" />
-          <span className="text-xs text-zinc-400">or</span>
-          <hr className="flex-1 border-zinc-200 dark:border-zinc-800" />
+          <hr className="flex-1 border-line" />
+          <span className="text-xs text-muted">or</span>
+          <hr className="flex-1 border-line" />
         </div>
 
         {/* Error */}
         {error && (
-          <p className="text-sm text-red-600 bg-red-50 dark:bg-red-950/40 rounded-lg px-4 py-2">{error}</p>
+          <p className="text-sm text-danger bg-panel-2 bg-panel-2/40 rounded-lg px-4 py-2">{error}</p>
         )}
 
         {mode === "create" ? (
           /* ── Create account form ── */
           <form onSubmit={handleSignUp} className="flex flex-col gap-4" noValidate>
             <div className="flex flex-col gap-1.5">
-              <label htmlFor="email" className="text-sm font-medium text-zinc-700 dark:text-zinc-300">Email</label>
+              <label htmlFor="email" className="text-sm font-medium text-muted">Email</label>
               <input
                 id="email"
                 type="email"
                 autoComplete="email"
                 value={email}
                 onChange={e => handleEmailChange(e.target.value)}
-                className={`w-full rounded-lg border px-4 py-2.5 text-sm bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:focus:ring-white ${emailError ? "border-red-500" : "border-zinc-300 dark:border-zinc-700"}`}
+                className={`w-full rounded-lg border px-4 py-2.5 text-sm bg-panel text-ink placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-ink focus:ring-line ${emailError ? "border-danger" : "border-line"}`}
                 placeholder="you@example.com"
               />
-              {emailError && <p className="text-xs text-red-600">{emailError}</p>}
+              {emailError && <p className="text-xs text-danger">{emailError}</p>}
             </div>
 
             <div className="flex flex-col gap-1.5">
-              <label htmlFor="password" className="text-sm font-medium text-zinc-700 dark:text-zinc-300">Password</label>
+              <label htmlFor="password" className="text-sm font-medium text-muted">Password</label>
               <input
                 id="password"
                 type="password"
                 autoComplete="new-password"
                 value={password}
                 onChange={e => handlePasswordChange(e.target.value)}
-                className={`w-full rounded-lg border px-4 py-2.5 text-sm bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:focus:ring-white ${passwordError ? "border-red-500" : "border-zinc-300 dark:border-zinc-700"}`}
+                className={`w-full rounded-lg border px-4 py-2.5 text-sm bg-panel text-ink placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-ink focus:ring-line ${passwordError ? "border-danger" : "border-line"}`}
                 placeholder="Min 8 characters"
               />
               {password && (
                 <div className="flex items-center gap-2">
-                  <div className="flex-1 h-1 rounded-full bg-zinc-200 dark:bg-zinc-700">
+                  <div className="flex-1 h-1 rounded-full bg-panel-3 bg-panel-2">
                     <div
                       className={`h-1 rounded-full transition-all ${getPasswordStrengthColor(passwordStrength)}`}
                       style={{ width: { weak: "25%", fair: "50%", good: "75%", strong: "100%" }[passwordStrength] }}
                     />
                   </div>
-                  <span className="text-xs text-zinc-500">{getPasswordStrengthLabel(passwordStrength)}</span>
+                  <span className="text-xs text-muted">{getPasswordStrengthLabel(passwordStrength)}</span>
                 </div>
               )}
-              {passwordError && <p className="text-xs text-red-600">{passwordError}</p>}
+              {passwordError && <p className="text-xs text-danger">{passwordError}</p>}
             </div>
 
             <div className="flex flex-col gap-1.5">
-              <label htmlFor="confirm" className="text-sm font-medium text-zinc-700 dark:text-zinc-300">Confirm password</label>
+              <label htmlFor="confirm" className="text-sm font-medium text-muted">Confirm password</label>
               <input
                 id="confirm"
                 type="password"
                 autoComplete="new-password"
                 value={confirmPassword}
                 onChange={e => handleConfirmChange(e.target.value)}
-                className={`w-full rounded-lg border px-4 py-2.5 text-sm bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:focus:ring-white ${confirmError ? "border-red-500" : "border-zinc-300 dark:border-zinc-700"}`}
+                className={`w-full rounded-lg border px-4 py-2.5 text-sm bg-panel text-ink placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-ink focus:ring-line ${confirmError ? "border-danger" : "border-line"}`}
               />
-              {confirmError && <p className="text-xs text-red-600">{confirmError}</p>}
+              {confirmError && <p className="text-xs text-danger">{confirmError}</p>}
             </div>
 
             <label className="flex items-start gap-2.5 cursor-pointer">
@@ -409,20 +409,20 @@ export default function SignupPageContent() {
                 type="checkbox"
                 checked={agreedToTerms}
                 onChange={e => setAgreedToTerms(e.target.checked)}
-                className="mt-0.5 rounded border-zinc-300 dark:border-zinc-600"
+                className="mt-0.5 rounded border-line border-line"
               />
-              <span className="text-xs text-zinc-600 dark:text-zinc-400">
+              <span className="text-xs text-muted">
                 I agree to the{" "}
-                <Link href="/terms" target="_blank" className="underline hover:text-zinc-900 dark:hover:text-white">Terms of Service</Link>
+                <Link href="/terms" target="_blank" className="underline hover:text-ink">Terms of Service</Link>
                 {" "}and{" "}
-                <Link href="/privacy" target="_blank" className="underline hover:text-zinc-900 dark:hover:text-white">Privacy Policy</Link>
+                <Link href="/privacy" target="_blank" className="underline hover:text-ink">Privacy Policy</Link>
               </span>
             </label>
 
             <button
               type="submit"
               disabled={loading || !createFormValid}
-              className="w-full rounded-lg bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 py-2.5 text-sm font-semibold hover:opacity-90 transition-opacity disabled:opacity-40"
+              className="w-full rounded-lg bg-panel bg-panel text-ink text-ink py-2.5 text-sm font-semibold hover:opacity-90 transition-opacity disabled:opacity-40"
             >
               {loading ? "Creating account…" : "Create account"}
             </button>
@@ -431,23 +431,23 @@ export default function SignupPageContent() {
           /* ── Sign in form ── */
           <form onSubmit={handleSignIn} className="flex flex-col gap-4" noValidate>
             <div className="flex flex-col gap-1.5">
-              <label htmlFor="signin-email" className="text-sm font-medium text-zinc-700 dark:text-zinc-300">Email</label>
+              <label htmlFor="signin-email" className="text-sm font-medium text-muted">Email</label>
               <input
                 id="signin-email"
                 type="email"
                 autoComplete="email"
                 value={email}
                 onChange={e => handleEmailChange(e.target.value)}
-                className={`w-full rounded-lg border px-4 py-2.5 text-sm bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:focus:ring-white ${emailError ? "border-red-500" : "border-zinc-300 dark:border-zinc-700"}`}
+                className={`w-full rounded-lg border px-4 py-2.5 text-sm bg-panel text-ink placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-ink focus:ring-line ${emailError ? "border-danger" : "border-line"}`}
                 placeholder="you@example.com"
               />
-              {emailError && <p className="text-xs text-red-600">{emailError}</p>}
+              {emailError && <p className="text-xs text-danger">{emailError}</p>}
             </div>
 
             <div className="flex flex-col gap-1.5">
               <div className="flex justify-between items-center">
-                <label htmlFor="signin-password" className="text-sm font-medium text-zinc-700 dark:text-zinc-300">Password</label>
-                <Link href="/forgot-password" className="text-xs text-zinc-500 hover:text-zinc-900 dark:hover:text-white transition-colors">
+                <label htmlFor="signin-password" className="text-sm font-medium text-muted">Password</label>
+                <Link href="/forgot-password" className="text-xs text-muted hover:text-ink transition-colors">
                   Forgot password?
                 </Link>
               </div>
@@ -457,14 +457,14 @@ export default function SignupPageContent() {
                 autoComplete="current-password"
                 value={password}
                 onChange={e => setPassword(e.target.value)}
-                className="w-full rounded-lg border border-zinc-300 dark:border-zinc-700 px-4 py-2.5 text-sm bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:focus:ring-white"
+                className="w-full rounded-lg border border-line px-4 py-2.5 text-sm bg-panel text-ink placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-ink focus:ring-line"
               />
             </div>
 
             <button
               type="submit"
               disabled={loading || !signinFormValid}
-              className="w-full rounded-lg bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 py-2.5 text-sm font-semibold hover:opacity-90 transition-opacity disabled:opacity-40"
+              className="w-full rounded-lg bg-panel bg-panel text-ink text-ink py-2.5 text-sm font-semibold hover:opacity-90 transition-opacity disabled:opacity-40"
             >
               {loading ? "Signing in…" : "Sign in"}
             </button>

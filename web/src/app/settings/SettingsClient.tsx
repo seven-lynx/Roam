@@ -31,37 +31,37 @@ const TABS: { id: SettingsTab; label: string; icon: string; danger?: boolean }[]
 function DeleteModal({ onClose, onConfirm, loading }: { onClose: () => void; onConfirm: () => void; loading: boolean }) {
   const [step, setStep] = useState<1 | 2>(1);
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-6">
-      <div className="w-full max-w-sm bg-white dark:bg-zinc-900 rounded-2xl shadow-xl p-8 flex flex-col gap-5">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-screen/60 backdrop-blur-sm px-6">
+      <div className="w-full max-w-sm bg-panel rounded-2xl shadow-xl p-8 flex flex-col gap-5">
         {step === 1 ? (
           <>
-            <h2 className="text-xl font-bold text-zinc-900 dark:text-white">Delete your account?</h2>
-            <p className="text-sm text-zinc-600 dark:text-zinc-400">
+            <h2 className="text-xl font-bold text-ink">Delete your account?</h2>
+            <p className="text-sm text-muted">
               This will permanently delete your profile, ratings, and all data. There is no undo.
             </p>
             <div className="flex gap-3">
-              <button onClick={onClose} className="flex-1 rounded-lg border border-zinc-300 dark:border-zinc-700 py-2 text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors">
+              <button onClick={onClose} className="flex-1 rounded-lg border border-line py-2 text-sm font-medium text-muted hover:bg-panel-2 hover:bg-panel-2 transition-colors">
                 Cancel
               </button>
-              <button onClick={() => setStep(2)} className="flex-1 rounded-lg bg-red-600 text-white py-2 text-sm font-medium hover:bg-red-700 transition-colors">
+              <button onClick={() => setStep(2)} className="flex-1 rounded-lg bg-danger text-ink py-2 text-sm font-medium hover:bg-danger transition-colors">
                 Continue
               </button>
             </div>
           </>
         ) : (
           <>
-            <h2 className="text-xl font-bold text-red-600">Final confirmation</h2>
-            <p className="text-sm text-zinc-600 dark:text-zinc-400">
+            <h2 className="text-xl font-bold text-danger">Final confirmation</h2>
+            <p className="text-sm text-muted">
               Are you absolutely sure? This cannot be undone. Your account will be gone permanently.
             </p>
             <div className="flex gap-3">
-              <button onClick={onClose} className="flex-1 rounded-lg border border-zinc-300 dark:border-zinc-700 py-2 text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors">
+              <button onClick={onClose} className="flex-1 rounded-lg border border-line py-2 text-sm font-medium text-muted hover:bg-panel-2 hover:bg-panel-2 transition-colors">
                 Cancel
               </button>
               <button
                 onClick={onConfirm}
                 disabled={loading}
-                className="flex-1 rounded-lg bg-red-600 text-white py-2 text-sm font-medium hover:bg-red-700 disabled:opacity-50 transition-colors"
+                className="flex-1 rounded-lg bg-danger text-ink py-2 text-sm font-medium hover:bg-danger disabled:opacity-50 transition-colors"
               >
                 {loading ? 'Deleting…' : 'Delete permanently'}
               </button>
@@ -82,9 +82,9 @@ function Toggle({ checked, onChange, disabled }: { checked: boolean; onChange: (
       aria-checked={checked}
       onClick={onChange}
       disabled={disabled}
-      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${checked ? 'bg-zinc-900 dark:bg-white' : 'bg-zinc-300 dark:bg-zinc-700'} disabled:opacity-50`}
+      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${checked ? 'bg-panel bg-panel' : 'bg-panel-3 bg-panel-2'} disabled:opacity-50`}
     >
-      <span className={`inline-block h-4 w-4 transform rounded-full bg-white dark:bg-zinc-900 transition-transform ${checked ? 'translate-x-6' : 'translate-x-1'}`} />
+      <span className={`inline-block h-4 w-4 transform rounded-full bg-panel transition-transform ${checked ? 'translate-x-6' : 'translate-x-1'}`} />
     </button>
   );
 }
@@ -92,8 +92,8 @@ function Toggle({ checked, onChange, disabled }: { checked: boolean; onChange: (
 // ── Section card ──────────────────────────────────────────────────────────
 function Section({ title, children, danger }: { title: string; children: React.ReactNode; danger?: boolean }) {
   return (
-    <section className={`rounded-2xl border p-6 ${danger ? 'border-red-200 dark:border-red-900' : 'border-zinc-200 dark:border-zinc-800'}`}>
-      <h2 className={`text-lg font-semibold mb-5 ${danger ? 'text-red-600 dark:text-red-400' : 'text-zinc-900 dark:text-white'}`}>{title}</h2>
+    <section className={`rounded-2xl border p-6 ${danger ? 'border-danger border-danger' : 'border-line'}`}>
+      <h2 className={`text-lg font-semibold mb-5 ${danger ? 'text-danger text-danger' : 'text-ink'}`}>{title}</h2>
       {children}
     </section>
   );
@@ -378,16 +378,16 @@ export function SettingsClient({
   const passwordFormValid = currentPassword && newPassword && confirmPassword && !passwordError && !confirmError && passwordStrength !== 'weak';
 
   return (
-    <div className="min-h-[calc(100vh-8rem)] bg-white dark:bg-zinc-950">
+    <div className="min-h-full bg-screen">
       {showDeleteModal && (
         <DeleteModal onClose={() => setShowDeleteModal(false)} onConfirm={handleDeleteAccount} loading={deleteLoading} />
       )}
 
       <div className="max-w-5xl mx-auto px-6 py-12 flex flex-col gap-8">
-        <h1 className="text-2xl font-bold text-zinc-900 dark:text-white">Settings</h1>
+        <h1 className="text-2xl font-bold text-ink">Settings</h1>
 
         {globalError && (
-          <p className="text-sm text-red-600 bg-red-50 dark:bg-red-950/40 rounded-lg px-4 py-2">{globalError}</p>
+          <p className="text-sm text-danger bg-panel-2 bg-panel-2/40 rounded-lg px-4 py-2">{globalError}</p>
         )}
 
         <div className="flex flex-col md:flex-row gap-8">
@@ -399,10 +399,10 @@ export function SettingsClient({
                 onClick={() => setTab(t.id)}
                 className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium whitespace-nowrap transition-all ${
                   tab === t.id
-                    ? 'bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-white shadow-sm'
+                    ? 'bg-panel-2 text-ink shadow-sm'
                     : t.danger
-                      ? 'text-red-500 dark:text-red-400 hover:text-red-600 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-950/30'
-                      : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-50 dark:hover:bg-zinc-900'
+                      ? 'text-danger text-danger hover:text-danger hover:text-danger hover:bg-panel-2 hover:bg-panel-2/30'
+                      : 'text-muted hover:text-ink hover:bg-panel-2'
                 }`}
               >
                 <span>{t.icon}</span>
@@ -420,12 +420,12 @@ export function SettingsClient({
                   type="button"
                   onClick={handleSaveSettings}
                   disabled={savingSettings}
-                  className="rounded-lg bg-amber-500 hover:bg-amber-400 text-white py-2.5 text-sm font-semibold transition-colors disabled:opacity-40"
+                  className="rounded-lg bg-accent text-ink py-2.5 text-sm font-semibold transition-colors disabled:opacity-40"
                 >
                   {savingSettings ? 'Saving…' : 'Save settings'}
                 </button>
-                {settingsSaveError && <p className="text-sm text-red-600 bg-red-50 dark:bg-red-950/40 rounded-lg px-4 py-2">{settingsSaveError}</p>}
-                {settingsSaveSuccess && <p className="text-sm text-green-600 bg-green-50 dark:bg-green-950/40 rounded-lg px-4 py-2">{settingsSaveSuccess}</p>}
+                {settingsSaveError && <p className="text-sm text-danger bg-panel-2 bg-panel-2/40 rounded-lg px-4 py-2">{settingsSaveError}</p>}
+                {settingsSaveSuccess && <p className="text-sm text-ok bg-panel-2 bg-panel-2/40 rounded-lg px-4 py-2">{settingsSaveSuccess}</p>}
               </div>
             )}
 
@@ -433,13 +433,13 @@ export function SettingsClient({
             {tab === 'account' && (
               <Section title="Account">
                 <div className="flex flex-col gap-3 text-sm">
-                  <div className="flex justify-between items-center py-2 border-b border-zinc-100 dark:border-zinc-800">
-                    <span className="text-zinc-500 dark:text-zinc-400">Email</span>
-                    <span className="font-medium text-zinc-900 dark:text-white">{email}</span>
+                  <div className="flex justify-between items-center py-2 border-b border-line border-line">
+                    <span className="text-muted">Email</span>
+                    <span className="font-medium text-ink">{email}</span>
                   </div>
                   <div className="flex justify-between items-center py-2">
-                    <span className="text-zinc-500 dark:text-zinc-400">Sign-in method</span>
-                    <span className="font-medium text-zinc-900 dark:text-white capitalize">
+                    <span className="text-muted">Sign-in method</span>
+                    <span className="font-medium text-ink capitalize">
                       {provider === 'email' ? 'Email & password' : provider}
                     </span>
                   </div>
@@ -452,26 +452,26 @@ export function SettingsClient({
               <Section title="Notifications">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-zinc-900 dark:text-white">Email notifications</p>
-                    <p className="text-xs text-zinc-500 dark:text-zinc-400">Receive updates about your submissions and activity.</p>
+                    <p className="text-sm font-medium text-ink">Email notifications</p>
+                    <p className="text-xs text-muted">Receive updates about your submissions and activity.</p>
                   </div>
                   <Toggle checked={notifications} onChange={handleNotificationsToggle} />
                 </div>
                 <div className="flex items-center justify-between mt-4">
                   <div>
-                    <p className="text-sm font-medium text-zinc-900 dark:text-white">Push notifications</p>
-                    <p className="text-xs text-zinc-500 dark:text-zinc-400">Receive notifications on your device even when the browser is closed.</p>
+                    <p className="text-sm font-medium text-ink">Push notifications</p>
+                    <p className="text-xs text-muted">Receive notifications on your device even when the browser is closed.</p>
                   </div>
                   <Toggle checked={pushEnabled} onChange={handlePushToggle} disabled={pushLoading} />
                 </div>
-                {pushError && <p className="text-xs text-red-600 mt-2">{pushError}</p>}
+                {pushError && <p className="text-xs text-danger mt-2">{pushError}</p>}
               </Section>
             )}
 
             {/* ── Language Tab ─────────────────────────────── */}
             {tab === 'language' && (
               <Section title="Language">
-                <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-3">
+                <p className="text-xs text-muted mb-3">
                   Choose which languages you want to see content in. English is always included.
                 </p>
                 <div className="flex flex-wrap gap-2">
@@ -486,8 +486,8 @@ export function SettingsClient({
                         onClick={() => handleLanguageToggle(lang.code)}
                         className={`rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
                           selected
-                            ? 'bg-zinc-900 dark:bg-white text-white dark:text-zinc-900'
-                            : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700'
+                            ? 'bg-panel bg-panel text-ink text-ink'
+                            : 'bg-panel-2 text-muted hover:bg-panel-3'
                         } ${isEnglish ? 'opacity-60 cursor-not-allowed' : ''}`}
                       >
                         {lang.label}
@@ -503,8 +503,8 @@ export function SettingsClient({
               <Section title="Discovery">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-zinc-900 dark:text-white">Skip paywalled sites</p>
-                    <p className="text-xs text-zinc-500 dark:text-zinc-400">Hide pages from NYT, WSJ, The Atlantic, and similar paywalled publications.</p>
+                    <p className="text-sm font-medium text-ink">Skip paywalled sites</p>
+                    <p className="text-xs text-muted">Hide pages from NYT, WSJ, The Atlantic, and similar paywalled publications.</p>
                   </div>
                   <Toggle checked={skipPaywalled} onChange={handleSkipPaywalledToggle} />
                 </div>
@@ -517,51 +517,51 @@ export function SettingsClient({
                 {isEmailUser ? (
                   <form onSubmit={handleUpdatePassword} className="flex flex-col gap-4" noValidate>
                     <div className="flex flex-col gap-1.5">
-                      <label htmlFor="current-password" className="text-sm font-medium text-zinc-700 dark:text-zinc-300">Current password</label>
+                      <label htmlFor="current-password" className="text-sm font-medium text-muted">Current password</label>
                       <input id="current-password" type="password" autoComplete="current-password" value={currentPassword}
                         onChange={e => {
                           setCurrentPassword(e.target.value);
                           setCurrentPasswordError(null);
                         }}
-                        className={`w-full rounded-lg border px-4 py-2.5 text-sm bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:focus:ring-white ${currentPasswordError ? 'border-red-500' : 'border-zinc-300 dark:border-zinc-700'}`}
+                        className={`w-full rounded-lg border px-4 py-2.5 text-sm bg-panel text-ink focus:outline-none focus:ring-2 focus:ring-ink focus:ring-line ${currentPasswordError ? 'border-danger' : 'border-line'}`}
                       />
-                      {currentPasswordError && <p className="text-xs text-red-600">{currentPasswordError}</p>}
+                      {currentPasswordError && <p className="text-xs text-danger">{currentPasswordError}</p>}
                     </div>
                     <div className="flex flex-col gap-1.5">
-                      <label htmlFor="new-password" className="text-sm font-medium text-zinc-700 dark:text-zinc-300">New password</label>
+                      <label htmlFor="new-password" className="text-sm font-medium text-muted">New password</label>
                       <input id="new-password" type="password" autoComplete="new-password" value={newPassword}
                         onChange={e => handlePasswordChange(e.target.value)}
-                        className={`w-full rounded-lg border px-4 py-2.5 text-sm bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:focus:ring-white ${passwordError ? 'border-red-500' : 'border-zinc-300 dark:border-zinc-700'}`}
+                        className={`w-full rounded-lg border px-4 py-2.5 text-sm bg-panel text-ink focus:outline-none focus:ring-2 focus:ring-ink focus:ring-line ${passwordError ? 'border-danger' : 'border-line'}`}
                       />
                       {newPassword && (
                         <div className="flex items-center gap-2">
-                          <div className="flex-1 h-1 rounded-full bg-zinc-200 dark:bg-zinc-700">
+                          <div className="flex-1 h-1 rounded-full bg-panel-3 bg-panel-2">
                             <div className={`h-1 rounded-full transition-all ${getPasswordStrengthColor(passwordStrength)}`}
                               style={{ width: { weak: '25%', fair: '50%', good: '75%', strong: '100%' }[passwordStrength] }}
                             />
                           </div>
-                          <span className="text-xs text-zinc-500">{getPasswordStrengthLabel(passwordStrength)}</span>
+                          <span className="text-xs text-muted">{getPasswordStrengthLabel(passwordStrength)}</span>
                         </div>
                       )}
-                      {passwordError && <p className="text-xs text-red-600">{passwordError}</p>}
+                      {passwordError && <p className="text-xs text-danger">{passwordError}</p>}
                     </div>
                     <div className="flex flex-col gap-1.5">
-                      <label htmlFor="confirm-password" className="text-sm font-medium text-zinc-700 dark:text-zinc-300">Confirm password</label>
+                      <label htmlFor="confirm-password" className="text-sm font-medium text-muted">Confirm password</label>
                       <input id="confirm-password" type="password" autoComplete="new-password" value={confirmPassword}
                         onChange={e => handleConfirmChange(e.target.value)}
-                        className={`w-full rounded-lg border px-4 py-2.5 text-sm bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:focus:ring-white ${confirmError ? 'border-red-500' : 'border-zinc-300 dark:border-zinc-700'}`}
+                        className={`w-full rounded-lg border px-4 py-2.5 text-sm bg-panel text-ink focus:outline-none focus:ring-2 focus:ring-ink focus:ring-line ${confirmError ? 'border-danger' : 'border-line'}`}
                       />
-                      {confirmError && <p className="text-xs text-red-600">{confirmError}</p>}
+                      {confirmError && <p className="text-xs text-danger">{confirmError}</p>}
                     </div>
-                    {passwordFormError && <p className="text-sm text-red-600">{passwordFormError}</p>}
-                    {passwordSuccess && <p className="text-sm text-green-600 dark:text-green-400">{passwordSuccess}</p>}
+                    {passwordFormError && <p className="text-sm text-danger">{passwordFormError}</p>}
+                    {passwordSuccess && <p className="text-sm text-ok">{passwordSuccess}</p>}
                     <button type="submit" disabled={passwordLoading || !passwordFormValid}
-                      className="rounded-lg bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 py-2.5 text-sm font-semibold hover:opacity-90 disabled:opacity-40 transition-opacity"
+                      className="rounded-lg bg-panel bg-panel text-ink text-ink py-2.5 text-sm font-semibold hover:opacity-90 disabled:opacity-40 transition-opacity"
                     >{passwordLoading ? 'Updating…' : 'Update password'}</button>
                   </form>
                 ) : (
-                  <p className="text-sm text-zinc-500 dark:text-zinc-400">
-                    You signed in with <strong className="text-zinc-700 dark:text-zinc-300 capitalize">{provider}</strong>.
+                  <p className="text-sm text-muted">
+                    You signed in with <strong className="text-muted capitalize">{provider}</strong>.
                     Password management is handled by your {provider === 'google' ? 'Google' : 'GitHub'} account.
                   </p>
                 )}
@@ -571,11 +571,11 @@ export function SettingsClient({
             {/* ── Data Tab ──────────────────────────────── */}
             {tab === 'data' && (
               <Section title="Data & Privacy">
-                <p className="text-sm text-zinc-500 dark:text-zinc-400 mb-4">
+                <p className="text-sm text-muted mb-4">
                   Download all your data (profile, ratings) as a JSON file.
                 </p>
                 <button type="button" onClick={handleExportData} disabled={exportLoading}
-                  className="w-full rounded-lg border border-zinc-300 dark:border-zinc-700 py-2.5 text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 disabled:opacity-50 transition-colors"
+                  className="w-full rounded-lg border border-line py-2.5 text-sm font-medium text-muted hover:bg-panel-2 hover:bg-panel-2 disabled:opacity-50 transition-colors"
                 >{exportLoading ? 'Preparing download…' : 'Download my data'}</button>
               </Section>
             )}
@@ -585,13 +585,13 @@ export function SettingsClient({
               <Section title="Danger Zone" danger>
                 <div className="flex flex-col gap-4">
                   <div>
-                    <p className="text-sm text-zinc-600 dark:text-zinc-400 mb-3">
+                    <p className="text-sm text-muted mb-3">
                       Permanently delete your account and all associated data. This action cannot be undone.
                       For help, contact{' '}
                       <a href="mailto:legal@roamtheweb.app" className="underline">legal@roamtheweb.app</a>.
                     </p>
                     <button type="button" onClick={() => setShowDeleteModal(true)}
-                      className="w-full rounded-lg bg-red-600 text-white py-2.5 text-sm font-semibold hover:bg-red-700 transition-colors"
+                      className="w-full rounded-lg bg-danger text-ink py-2.5 text-sm font-semibold hover:bg-danger transition-colors"
                     >Delete my account</button>
                   </div>
                 </div>

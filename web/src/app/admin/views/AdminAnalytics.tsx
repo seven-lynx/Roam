@@ -46,18 +46,18 @@ function AccordionSection({ title, description, defaultOpen = false, children }:
 }) {
   const [open, setOpen] = useState(defaultOpen);
   return (
-    <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 overflow-hidden">
+    <div className="rounded-xl border border-line overflow-hidden">
       <button
         onClick={() => setOpen(!open)}
-        className="w-full flex items-center justify-between px-4 py-3 text-left bg-zinc-50 dark:bg-zinc-900 hover:bg-zinc-100 dark:hover:bg-zinc-800/80 transition-colors"
+        className="w-full flex items-center justify-between px-4 py-3 text-left bg-panel-2 bg-panel hover:bg-panel-2/80 transition-colors"
       >
         <div>
-          <h2 className="text-sm font-semibold text-zinc-900 dark:text-white">{title}</h2>
-          {description && <p className="text-xs text-zinc-400 dark:text-zinc-500 mt-0.5">{description}</p>}
+          <h2 className="text-sm font-semibold text-ink">{title}</h2>
+          {description && <p className="text-xs text-muted mt-0.5">{description}</p>}
         </div>
-        <span className="text-zinc-400 text-sm shrink-0 ml-3">{open ? "▴" : "▾"}</span>
+        <span className="text-muted text-sm shrink-0 ml-3">{open ? "▴" : "▾"}</span>
       </button>
-      {open && <div className="px-4 py-4 border-t border-zinc-200 dark:border-zinc-800">{children}</div>}
+      {open && <div className="px-4 py-4 border-t border-line">{children}</div>}
     </div>
   );
 }
@@ -66,35 +66,35 @@ function MobileTable({ headers, rows }: {
   headers: { key: string; label: string }[];
   rows: Record<string, React.ReactNode>[];
 }) {
-  if (rows.length === 0) return <p className="text-zinc-500 dark:text-zinc-400 text-sm py-4">No data available.</p>;
+  if (rows.length === 0) return <p className="text-muted text-sm py-4">No data available.</p>;
   return (
     <>
       {/* Mobile card view */}
       <div className="flex flex-col gap-2 md:hidden">
         {rows.map((row, i) => (
-          <div key={i} className="rounded-lg border border-zinc-200 dark:border-zinc-800 p-3">
+          <div key={i} className="rounded-lg border border-line p-3">
             {headers.map((h) => (
               <div key={h.key} className="flex items-center justify-between py-1 first:pt-0 last:pb-0">
-                <span className="text-xs text-zinc-500 dark:text-zinc-400">{h.label}</span>
-                <span className="text-xs font-medium text-zinc-900 dark:text-white text-right">{row[h.key]}</span>
+                <span className="text-xs text-muted">{h.label}</span>
+                <span className="text-xs font-medium text-ink text-right">{row[h.key]}</span>
               </div>
             ))}
           </div>
         ))}
       </div>
       {/* Desktop table view */}
-      <div className="hidden md:block overflow-x-auto rounded-lg border border-zinc-200 dark:border-zinc-700">
+      <div className="hidden md:block overflow-x-auto rounded-lg border border-line">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900">
+            <tr className="border-b border-line bg-panel-2 bg-panel">
               {headers.map((h) => (
-                <th key={h.key} className="text-left py-3 px-4 font-semibold text-zinc-700 dark:text-zinc-300">{h.label}</th>
+                <th key={h.key} className="text-left py-3 px-4 font-semibold text-muted">{h.label}</th>
               ))}
             </tr>
           </thead>
           <tbody>
             {rows.map((row, i) => (
-              <tr key={i} className="border-b border-zinc-100 dark:border-zinc-800 last:border-0 hover:bg-zinc-50 dark:hover:bg-zinc-900/50">
+              <tr key={i} className="border-b border-line border-line last:border-0 hover:bg-panel-2/50">
                 {headers.map((h) => (
                   <td key={h.key} className="py-3 px-4">{row[h.key]}</td>
                 ))}
@@ -149,9 +149,9 @@ export default function AdminAnalytics() {
 
   useEffect(() => { loadData(); }, [loadData]);
 
-  if (loading) return <div className="text-center text-zinc-500 py-12">Loading analytics...</div>;
+  if (loading) return <div className="text-center text-muted py-12">Loading analytics...</div>;
   if (error) return (
-    <div className="rounded-xl border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/20 p-4 text-sm text-red-700 dark:text-red-400">
+    <div className="rounded-xl border border-danger border-danger bg-panel-2 bg-panel-2/20 p-4 text-sm text-danger text-danger">
       Failed to load analytics: {error}
       <button onClick={() => { setLoaded(false); setError(null); }} className="ml-3 underline hover:no-underline">Retry</button>
     </div>
@@ -175,18 +175,18 @@ export default function AdminAnalytics() {
       {/* Expand/collapse all */}
       <button
         onClick={() => setExpandedAll(!expandedAll)}
-        className="self-end text-xs text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-300 transition-colors"
+        className="self-end text-xs text-muted hover:text-ink transition-colors"
       >
         {expandedAll ? "Collapse all" : "Expand all"}
       </button>
 
       {/* Content Overview */}
-      <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 p-4">
-        <h2 className="text-sm font-semibold text-zinc-900 dark:text-white mb-3">Content Overview</h2>
+      <div className="rounded-xl border border-line p-4">
+        <h2 className="text-sm font-semibold text-ink mb-3">Content Overview</h2>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
           <StatCard label="Total URLs" value={data.sourceBreakdown.reduce((s, r) => s + r.count, 0).toLocaleString()} />
-          <StatCard label="Active Users (DAU)" value={data.activeUsers.dau.toLocaleString()} color="text-blue-600 dark:text-blue-400" />
-          <StatCard label="Queue Pending" value={data.queueStats.pending.toLocaleString()} color="text-amber-600 dark:text-amber-400" />
+          <StatCard label="Active Users (DAU)" value={data.activeUsers.dau.toLocaleString()} color="text-phosphor text-phosphor" />
+          <StatCard label="Queue Pending" value={data.queueStats.pending.toLocaleString()} color="text-gold" />
           <StatCard label="This Week" value={data.velocity.thisWeek.toLocaleString()} description={data.velocity.lastWeek > 0 ? `${data.velocity.thisWeek >= data.velocity.lastWeek ? "↑" : "↓"} vs LW` : undefined} />
         </div>
       </div>
@@ -194,9 +194,9 @@ export default function AdminAnalytics() {
       {/* Site Activity */}
       <AccordionSection title="Site Activity" description="Daily metrics from materialized stats" defaultOpen={false}>
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-4">
-          <StatCard label="DAU" value={data.activeUsers.dau.toLocaleString()} color="text-blue-600 dark:text-blue-400" />
-          <StatCard label="MAU" value={data.activeUsers.mau.toLocaleString()} color="text-indigo-600 dark:text-indigo-400" />
-          <StatCard label="New Users Today" value={data.dailyStatsLast30[0]?.new_users?.toLocaleString() ?? "0"} color="text-emerald-600 dark:text-emerald-400" />
+          <StatCard label="DAU" value={data.activeUsers.dau.toLocaleString()} color="text-phosphor text-phosphor" />
+          <StatCard label="MAU" value={data.activeUsers.mau.toLocaleString()} color="text-phosphor text-phosphor" />
+          <StatCard label="New Users Today" value={data.dailyStatsLast30[0]?.new_users?.toLocaleString() ?? "0"} color="text-ok text-ok" />
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-4">
           <StatCard label="Total Roams" value={data.totalCounts.totalRoams.toLocaleString()} />
@@ -210,9 +210,9 @@ export default function AdminAnalytics() {
                 label: new Date(d.date + "T00:00:00Z").toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" }),
                 value: d.dau,
               }))}
-              color="bg-blue-500"
+              color="bg-phosphor"
             />
-            <p className="text-xs text-zinc-400 mt-2">DAU — last 30 days</p>
+            <p className="text-xs text-muted mt-2">DAU — last 30 days</p>
           </>
         )}
       </AccordionSection>
@@ -221,9 +221,9 @@ export default function AdminAnalytics() {
       <AccordionSection title="Content Health" description="Category distribution and dead link rates" defaultOpen={false}>
         <BarChart 
           data={data.deadByCategory.map(d => ({ label: d.category, value: d.total }))} 
-          color="bg-blue-500"
+          color="bg-phosphor"
         />
-        <p className="text-xs text-zinc-400 mt-2 mb-4">Total URLs by category</p>
+        <p className="text-xs text-muted mt-2 mb-4">Total URLs by category</p>
         <MobileTable
           headers={[
             { key: "category", label: "Category" },
@@ -231,10 +231,10 @@ export default function AdminAnalytics() {
             { key: "dead", label: "Dead" },
           ]}
           rows={data.deadByCategory.map((row) => ({
-            category: <span className="text-zinc-700 dark:text-zinc-300">{row.category}</span>,
-            total: <span className="tabular-nums text-zinc-600 dark:text-zinc-400">{row.total.toLocaleString()}</span>,
+            category: <span className="text-muted">{row.category}</span>,
+            total: <span className="tabular-nums text-muted">{row.total.toLocaleString()}</span>,
             dead: (
-              <span className={`font-semibold tabular-nums ${row.dead_pct >= 3 ? "text-red-600 dark:text-red-400" : row.dead_pct >= 1.5 ? "text-amber-600 dark:text-amber-400" : "text-green-600 dark:text-green-400"}`}>
+              <span className={`font-semibold tabular-nums ${row.dead_pct >= 3 ? "text-danger text-danger" : row.dead_pct >= 1.5 ? "text-gold" : "text-ok"}`}>
                 {row.dead_pct}%
               </span>
             ),
@@ -244,28 +244,28 @@ export default function AdminAnalytics() {
 
       {/* Submissions Over Time */}
       <AccordionSection title="Submissions Over Time" description="Last 30 days" defaultOpen={expandedAll}>
-        <BarChart data={data.submissionsByDate.map(d => ({ label: new Date(d.date + "T00:00:00Z").toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" }), value: d.count }))} color="bg-blue-500" />
+        <BarChart data={data.submissionsByDate.map(d => ({ label: new Date(d.date + "T00:00:00Z").toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" }), value: d.count }))} color="bg-phosphor" />
       </AccordionSection>
 
       {/* Submissions by Category */}
       <AccordionSection title="Submissions by Category" description="Top 10 parent categories" defaultOpen={expandedAll}>
-        <BarChart data={data.submissionsByCategory.map(d => ({ label: d.category, value: d.count }))} color="bg-violet-500" />
+        <BarChart data={data.submissionsByCategory.map(d => ({ label: d.category, value: d.count }))} color="bg-phosphor" />
       </AccordionSection>
 
       {/* Moderation Queue */}
       <AccordionSection title="Moderation Queue" description="All-time submission counts by status" defaultOpen={expandedAll}>
         <div className="grid grid-cols-3 gap-2 sm:gap-4">
-          <div className="rounded-lg bg-zinc-50 dark:bg-zinc-900 p-3 text-center">
-            <div className="text-xl sm:text-2xl font-bold tabular-nums text-green-600 dark:text-green-400">{data.queueStats.approved}</div>
-            <div className="text-[10px] sm:text-xs text-zinc-500 mt-0.5">Approved</div>
+          <div className="rounded-lg bg-panel-2 bg-panel p-3 text-center">
+            <div className="text-xl sm:text-2xl font-bold tabular-nums text-ok">{data.queueStats.approved}</div>
+            <div className="text-[10px] sm:text-xs text-muted mt-0.5">Approved</div>
           </div>
-          <div className="rounded-lg bg-zinc-50 dark:bg-zinc-900 p-3 text-center">
-            <div className="text-xl sm:text-2xl font-bold tabular-nums text-red-600 dark:text-red-400">{data.queueStats.rejected}</div>
-            <div className="text-[10px] sm:text-xs text-zinc-500 mt-0.5">Rejected</div>
+          <div className="rounded-lg bg-panel-2 bg-panel p-3 text-center">
+            <div className="text-xl sm:text-2xl font-bold tabular-nums text-danger text-danger">{data.queueStats.rejected}</div>
+            <div className="text-[10px] sm:text-xs text-muted mt-0.5">Rejected</div>
           </div>
-          <div className="rounded-lg bg-zinc-50 dark:bg-zinc-900 p-3 text-center">
-            <div className="text-xl sm:text-2xl font-bold tabular-nums text-amber-600 dark:text-amber-400">{data.queueStats.pending}</div>
-            <div className="text-[10px] sm:text-xs text-zinc-500 mt-0.5">Pending</div>
+          <div className="rounded-lg bg-panel-2 bg-panel p-3 text-center">
+            <div className="text-xl sm:text-2xl font-bold tabular-nums text-gold">{data.queueStats.pending}</div>
+            <div className="text-[10px] sm:text-xs text-muted mt-0.5">Pending</div>
           </div>
         </div>
       </AccordionSection>
@@ -279,43 +279,43 @@ export default function AdminAnalytics() {
             { key: "votes", label: "👍/👎" },
           ]}
           rows={data.topUrls.map((u) => ({
-            title: <a href={u.url} target="_blank" rel="noopener noreferrer" className="text-blue-600 dark:text-blue-400 hover:underline text-xs">{u.title}</a>,
+            title: <a href={u.url} target="_blank" rel="noopener noreferrer" className="text-phosphor text-phosphor hover:underline text-xs">{u.title}</a>,
             score: <span className="font-semibold tabular-nums">{u.wilson_score}%</span>,
-            votes: <span className="text-xs"><span className="text-green-600 dark:text-green-400">{u.upvotes}</span><span className="text-zinc-400 mx-1">/</span><span className="text-red-600 dark:text-red-400">{u.downvotes}</span></span>,
+            votes: <span className="text-xs"><span className="text-ok">{u.upvotes}</span><span className="text-muted mx-1">/</span><span className="text-danger text-danger">{u.downvotes}</span></span>,
           }))}
         />
       </AccordionSection>
 
       {/* Top Rated Categories */}
       <AccordionSection title="Top Rated Categories" description="Average Wilson score per category" defaultOpen={expandedAll}>
-        <BarChart data={data.topRatedCategories.map(d => ({ label: d.category, value: d.avg_score }))} color="bg-emerald-500" />
+        <BarChart data={data.topRatedCategories.map(d => ({ label: d.category, value: d.avg_score }))} color="bg-ok" />
       </AccordionSection>
 
       {/* Source Breakdown */}
       <AccordionSection title="Source Breakdown" description="Approved URLs by seeder" defaultOpen={expandedAll}>
-        <BarChart data={data.sourceBreakdown.map(d => ({ label: d.source, value: d.count }))} color="bg-sky-500" />
+        <BarChart data={data.sourceBreakdown.map(d => ({ label: d.source, value: d.count }))} color="bg-phosphor" />
       </AccordionSection>
 
       {/* Language Distribution */}
       <AccordionSection title="Language Distribution" description="Top 15 languages" defaultOpen={expandedAll}>
-        <BarChart data={data.languageDistribution.map(d => ({ label: d.language.toUpperCase(), value: d.count }))} color="bg-orange-400" />
+        <BarChart data={data.languageDistribution.map(d => ({ label: d.language.toUpperCase(), value: d.count }))} color="bg-accent" />
       </AccordionSection>
 
       {/* Content Velocity */}
       <AccordionSection title="Content Velocity" description="Approved URLs this week vs last week" defaultOpen={expandedAll}>
         <div className="grid grid-cols-2 gap-2 sm:gap-4">
-          <div className="rounded-lg bg-zinc-50 dark:bg-zinc-900 p-3 text-center">
+          <div className="rounded-lg bg-panel-2 bg-panel p-3 text-center">
             <div className="text-xl sm:text-2xl font-bold tabular-nums">{data.velocity.thisWeek.toLocaleString()}</div>
-            <div className="text-[10px] sm:text-xs text-zinc-500 mt-0.5">This week</div>
+            <div className="text-[10px] sm:text-xs text-muted mt-0.5">This week</div>
           </div>
-          <div className="rounded-lg bg-zinc-50 dark:bg-zinc-900 p-3 text-center">
+          <div className="rounded-lg bg-panel-2 bg-panel p-3 text-center">
             <div className="text-xl sm:text-2xl font-bold tabular-nums">{data.velocity.lastWeek.toLocaleString()}</div>
-            <div className="text-[10px] sm:text-xs text-zinc-500 mt-0.5">Last week</div>
+            <div className="text-[10px] sm:text-xs text-muted mt-0.5">Last week</div>
           </div>
         </div>
         {data.velocity.lastWeek > 0 && (
-          <p className="mt-3 text-xs text-zinc-400">
-            Change: <span className={`font-semibold tabular-nums ${data.velocity.thisWeek >= data.velocity.lastWeek ? "text-green-600" : "text-red-600"}`}>
+          <p className="mt-3 text-xs text-muted">
+            Change: <span className={`font-semibold tabular-nums ${data.velocity.thisWeek >= data.velocity.lastWeek ? "text-ok" : "text-danger"}`}>
               {data.velocity.thisWeek >= data.velocity.lastWeek ? "+" : ""}{Math.round((data.velocity.thisWeek - data.velocity.lastWeek) / data.velocity.lastWeek * 100)}%
             </span>
           </p>
@@ -328,18 +328,18 @@ export default function AdminAnalytics() {
           <div className="flex flex-col gap-4">
             {/* By Day of Week */}
             <div>
-              <h3 className="text-xs font-semibold text-zinc-600 dark:text-zinc-400 mb-2">By Day of Week</h3>
+              <h3 className="text-xs font-semibold text-muted mb-2">By Day of Week</h3>
               <div className="flex flex-col gap-1">
                 {dowTotals.map((d) => (
                   <div key={d.label} className="flex items-center gap-2 text-xs">
-                    <span className="w-8 text-right text-zinc-500 dark:text-zinc-400 shrink-0">{d.label}</span>
-                    <div className="flex-1 bg-zinc-100 dark:bg-zinc-800 rounded h-5 overflow-hidden">
+                    <span className="w-8 text-right text-muted shrink-0">{d.label}</span>
+                    <div className="flex-1 bg-panel-2 rounded h-5 overflow-hidden">
                       <div
-                        className="bg-blue-500 rounded h-5 transition-all"
+                        className="bg-phosphor rounded h-5 transition-all"
                         style={{ width: `${(d.count / maxDow) * 100}%` }}
                       />
                     </div>
-                    <span className="w-8 text-right text-zinc-700 dark:text-zinc-300 tabular-nums shrink-0">{d.count}</span>
+                    <span className="w-8 text-right text-muted tabular-nums shrink-0">{d.count}</span>
                   </div>
                 ))}
               </div>
@@ -347,24 +347,24 @@ export default function AdminAnalytics() {
 
             {/* By Hour */}
             <div>
-              <h3 className="text-xs font-semibold text-zinc-600 dark:text-zinc-400 mb-2">By Hour</h3>
+              <h3 className="text-xs font-semibold text-muted mb-2">By Hour</h3>
               <div className="flex flex-col gap-1">
                 {hourTotals.map((h) => (
                   <div key={h.label} className="flex items-center gap-2 text-xs">
-                    <span className="w-8 text-right text-zinc-500 dark:text-zinc-400 shrink-0">{h.label}</span>
-                    <div className="flex-1 bg-zinc-100 dark:bg-zinc-800 rounded h-5 overflow-hidden">
+                    <span className="w-8 text-right text-muted shrink-0">{h.label}</span>
+                    <div className="flex-1 bg-panel-2 rounded h-5 overflow-hidden">
                       <div
-                        className="bg-blue-500 rounded h-5 transition-all"
+                        className="bg-phosphor rounded h-5 transition-all"
                         style={{ width: `${(h.count / maxHour) * 100}%` }}
                       />
                     </div>
-                    <span className="w-8 text-right text-zinc-700 dark:text-zinc-300 tabular-nums shrink-0">{h.count}</span>
+                    <span className="w-8 text-right text-muted tabular-nums shrink-0">{h.count}</span>
                   </div>
                 ))}
               </div>
             </div>
           </div>
-        ) : <p className="text-zinc-500 text-sm">No data yet</p>}
+        ) : <p className="text-muted text-sm">No data yet</p>}
       </AccordionSection>
 
       {/* Dead URL Rate by Category */}
@@ -377,11 +377,11 @@ export default function AdminAnalytics() {
             { key: "deadPct", label: "Dead %" },
           ]}
           rows={data.deadByCategory.map((row) => ({
-            category: <span className="text-zinc-700 dark:text-zinc-300">{row.category}</span>,
-            total: <span className="tabular-nums text-zinc-600 dark:text-zinc-400">{row.total.toLocaleString()}</span>,
-            inactive: <span className="tabular-nums text-zinc-600 dark:text-zinc-400">{row.inactive_count.toLocaleString()}</span>,
+            category: <span className="text-muted">{row.category}</span>,
+            total: <span className="tabular-nums text-muted">{row.total.toLocaleString()}</span>,
+            inactive: <span className="tabular-nums text-muted">{row.inactive_count.toLocaleString()}</span>,
             deadPct: (
-              <span className={`font-semibold tabular-nums ${row.dead_pct >= 3 ? "text-red-600 dark:text-red-400" : row.dead_pct >= 1.5 ? "text-amber-600 dark:text-amber-400" : "text-green-600 dark:text-green-400"}`}>
+              <span className={`font-semibold tabular-nums ${row.dead_pct >= 3 ? "text-danger text-danger" : row.dead_pct >= 1.5 ? "text-gold" : "text-ok"}`}>
                 {row.dead_pct}%
               </span>
             ),
@@ -399,11 +399,11 @@ export default function AdminAnalytics() {
             { key: "rejPct", label: "Rej. %" },
           ]}
           rows={data.rejectionByDomain.map((d) => ({
-            domain: <span className="font-mono text-xs text-zinc-700 dark:text-zinc-300 truncate max-w-[160px] block">{d.domain}</span>,
-            total: <span className="tabular-nums text-zinc-600 dark:text-zinc-400">{d.total}</span>,
-            rejected: <span className="tabular-nums text-zinc-600 dark:text-zinc-400">{d.rejected}</span>,
+            domain: <span className="font-mono text-xs text-muted truncate max-w-[160px] block">{d.domain}</span>,
+            total: <span className="tabular-nums text-muted">{d.total}</span>,
+            rejected: <span className="tabular-nums text-muted">{d.rejected}</span>,
             rejPct: (
-              <span className={`font-semibold tabular-nums ${d.rejectionPct >= 50 ? "text-red-600 dark:text-red-400" : d.rejectionPct >= 25 ? "text-amber-600 dark:text-amber-400" : "text-green-600 dark:text-green-400"}`}>
+              <span className={`font-semibold tabular-nums ${d.rejectionPct >= 50 ? "text-danger text-danger" : d.rejectionPct >= 25 ? "text-gold" : "text-ok"}`}>
                 {d.rejectionPct}%
               </span>
             ),

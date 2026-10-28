@@ -15,14 +15,14 @@ export function CollectionItemsHeader({
 }) {
   return (
     <div>
-      <h1 className="text-2xl font-bold text-zinc-900 dark:text-white">{name}</h1>
-      <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
+      <h1 className="text-2xl font-bold text-ink">{name}</h1>
+      <p className="mt-1 text-sm text-muted">
         {itemCount} website{itemCount !== 1 ? 's' : ''}{owner && (
           <>
             {' · by '}
             <Link
               href={`/u/${owner.username}`}
-              className="hover:text-zinc-900 dark:hover:text-white transition-colors"
+              className="hover:text-ink transition-colors"
             >
               {owner.display_name || owner.username}
             </Link>
@@ -49,7 +49,7 @@ export function CollectionItemsList({ items }: { items: CollectionItem[] }) {
               href={url.original_url}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex-1 flex gap-3 px-4 py-3 rounded-lg border border-zinc-200 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-900 transition-colors"
+              className="flex-1 flex gap-3 px-4 py-3 rounded-lg border border-line hover:bg-panel-2 transition-colors"
             >
               {url.og_image_url && (
                 // eslint-disable-next-line @next/next/no-img-element -- external OG images cannot use next/image
@@ -57,18 +57,18 @@ export function CollectionItemsList({ items }: { items: CollectionItem[] }) {
                   src={url.og_image_url}
                   alt=""
                   loading="lazy"
-                  className="w-14 h-14 rounded-lg object-cover bg-zinc-100 dark:bg-zinc-800 shrink-0"
+                  className="w-14 h-14 rounded-lg object-cover bg-panel-2 shrink-0"
                   onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
                 />
               )}
               <div className="flex flex-col gap-1 min-w-0 flex-1">
-                <span className="text-sm font-medium text-zinc-900 dark:text-white group-hover:underline truncate">
+                <span className="text-sm font-medium text-ink group-hover:underline truncate">
                   {url.title || url.original_url}
                 </span>
                 {url.description && (
-                  <span className="text-xs text-zinc-500 dark:text-zinc-400 line-clamp-2">{url.description}</span>
+                  <span className="text-xs text-muted line-clamp-2">{url.description}</span>
                 )}
-                <span className="text-xs text-zinc-400 flex items-center gap-1">
+                <span className="text-xs text-muted flex items-center gap-1">
                   {/* eslint-disable-next-line @next/next/no-img-element -- favicons are 14x14 and don't benefit from next/image */}
                   <img
                     src={`https://www.google.com/s2/favicons?domain=${encodeURIComponent(domain)}&sz=32`}
@@ -81,8 +81,8 @@ export function CollectionItemsList({ items }: { items: CollectionItem[] }) {
                   {domain}
                 </span>
               </div>
-              <div className="flex items-center gap-1 shrink-0 text-xs text-zinc-400">
-                <span className="text-green-600 dark:text-green-400">↑</span>
+              <div className="flex items-center gap-1 shrink-0 text-xs text-muted">
+                <span className="text-ok">↑</span>
                 <span>{url.upvotes}</span>
               </div>
             </a>
@@ -103,8 +103,8 @@ export function CollectionItemsList({ items }: { items: CollectionItem[] }) {
 export function CollectionItemsEmpty() {
   return (
     <div className="flex flex-col items-center gap-4 py-16 text-center">
-      <p className="text-sm text-zinc-500 dark:text-zinc-400">This collection is empty yet.</p>
-      <p className="text-xs text-zinc-400">
+      <p className="text-sm text-muted">This collection is empty yet.</p>
+      <p className="text-xs text-muted">
         Browse the web and save URLs to this collection to get started.
       </p>
     </div>

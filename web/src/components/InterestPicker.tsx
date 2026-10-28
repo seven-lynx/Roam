@@ -56,8 +56,8 @@ export function InterestPicker({
                 onClick={() => onPillarToggle(cat.id)}
                 className={`flex flex-col items-center gap-1 rounded-xl border-2 px-4 py-3 text-sm font-medium transition-colors ${
                   active
-                    ? 'border-zinc-900 bg-zinc-900 text-white dark:border-white dark:bg-white dark:text-zinc-900'
-                    : 'border-zinc-200 text-zinc-700 hover:border-zinc-400 dark:border-zinc-700 dark:text-zinc-300 dark:hover:border-zinc-500'
+                    ? 'border-line bg-panel text-ink border-line bg-panel text-ink'
+                    : 'border-line text-muted hover:border-line border-line text-panel-3 hover:border-line'
                 }`}
               >
                 <span>{cat.emoji}</span>
@@ -70,7 +70,7 @@ export function InterestPicker({
           <button
             type="button"
             onClick={() => onModeChange('topics')}
-            className="self-start text-sm text-zinc-500 hover:text-zinc-900 dark:hover:text-white transition-colors underline underline-offset-2"
+            className="self-start text-sm text-muted hover:text-ink transition-colors underline underline-offset-2"
           >
             Choose specific topics instead →
           </button>
@@ -85,7 +85,7 @@ export function InterestPicker({
       <button
         type="button"
         onClick={() => onModeChange('pillars')}
-        className="self-start text-sm text-zinc-500 hover:text-zinc-900 dark:hover:text-white transition-colors underline underline-offset-2"
+        className="self-start text-sm text-muted hover:text-ink transition-colors underline underline-offset-2"
       >
         ← Choose categories instead
       </button>
@@ -96,7 +96,7 @@ export function InterestPicker({
           if (subcats.length === 0) return null;
           return (
             <div key={cat.id}>
-              <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400 mb-2">
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted mb-2">
                 {cat.emoji} {cat.label}
               </p>
               <div className="flex flex-wrap gap-2">
@@ -109,8 +109,8 @@ export function InterestPicker({
                       onClick={() => onTopicToggle(sc.id)}
                       className={`rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
                         active
-                          ? 'border-zinc-900 bg-zinc-900 text-white dark:border-white dark:bg-white dark:text-zinc-900'
-                          : 'border-zinc-300 text-zinc-600 hover:border-zinc-500 dark:border-zinc-600 dark:text-zinc-400 dark:hover:border-zinc-400'
+                          ? 'border-line bg-panel text-ink border-line bg-panel text-ink'
+                          : 'border-line text-muted hover:border-line border-line text-muted hover:border-line'
                       }`}
                     >
                       {sc.name}

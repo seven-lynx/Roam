@@ -14,10 +14,10 @@ export default function ErrorPage({ error, reset }: ErrorPageProps) {
   }, [error]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 flex items-center justify-center px-4 py-8">
-      <div className="max-w-md w-full bg-white dark:bg-slate-800 rounded-lg shadow-lg p-8 text-center">
+    <div className="min-h-full bg-gradient-to-br from-panel-2 to-panel-2 from-panel-2 to-panel-2 flex items-center justify-center px-4 py-8">
+      <div className="max-w-md w-full bg-panel bg-panel-2 rounded-lg shadow-lg p-8 text-center">
         <svg
-          className="mx-auto h-12 w-12 text-red-500 mb-4"
+          className="mx-auto h-12 w-12 text-danger mb-4"
           fill="none"
           viewBox="0 0 24 24"
           stroke="currentColor"
@@ -29,16 +29,16 @@ export default function ErrorPage({ error, reset }: ErrorPageProps) {
             d="M12 9v2m0 4v2m0 0a9 9 0 110-18 9 9 0 010 18z"
           />
         </svg>
-        <h1 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">
+        <h1 className="text-2xl font-bold text-ink mb-2">
           Something went wrong
         </h1>
-        <p className="text-slate-600 dark:text-slate-400 mb-6">
+        <p className="text-muted mb-6">
           We encountered an unexpected error. Please try again or contact support if the problem persists.
         </p>
 
         {process.env.NODE_ENV === 'development' && (
-          <div className="mb-6 p-4 bg-red-50 dark:bg-red-900/20 rounded border border-red-200 dark:border-red-800">
-            <p className="text-sm text-red-800 dark:text-red-300 font-mono break-words">
+          <div className="mb-6 p-4 bg-panel-2 bg-panel-2/20 rounded border border-danger border-danger">
+            <p className="text-sm text-danger text-danger font-mono break-words">
               {error.message}
             </p>
           </div>
@@ -46,14 +46,14 @@ export default function ErrorPage({ error, reset }: ErrorPageProps) {
 
         <button
           onClick={reset}
-          className="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors mb-3"
+          className="w-full px-4 py-2 bg-accent text-ink font-medium rounded-lg transition-colors mb-3"
         >
           Try again
         </button>
 
         <Link
           href="/"
-          className="block text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 text-sm"
+          className="block text-phosphor hover:text-phosphor text-phosphor hover:text-phosphor text-sm"
         >
           Return to home
         </Link>

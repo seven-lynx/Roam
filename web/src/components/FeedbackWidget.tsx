@@ -1,23 +1,36 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '@/components/AuthProvider';
+import { useWorkstation } from '@/components/WorkstationContext';
 
+/**
+ * Feedback dialog. Open state lives in the workstation context so the COMMS
+ * key on the deck can open it; mount this once inside the screen.
+ */
 export default function FeedbackWidget() {
   const { session } = useAuth();
-  const [open, setOpen] = useState(false);
+  const { feedbackOpen: open, setFeedbackOpen: setOpen } = useWorkstation();
   const [message, setMessage] = useState('');
   const [email, setEmail] = useState('');
   const [status, setStatus] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle');
   const [errorText, setErrorText] = useState('');
 
-  function openModal() {
+  // Start every opening with a clean form.
+  useEffect(() => {
+    if (!open) return;
     setMessage('');
     setEmail('');
     setStatus('idle');
     setErrorText('');
-    setOpen(true);
-  }
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [open, setOpen]);
 
   async function submit() {
     if (!message.trim()) return;
@@ -58,24 +71,20 @@ export default function FeedbackWidget() {
 
   return (
     <>
-      <button
-        onClick={openModal}
-        className="hover:text-zinc-600 dark:hover:text-zinc-400 transition-colors cursor-pointer"
-      >
-        Feedback
-      </button>
-
       {open && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Send feedback"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-screen/50 p-4"
           onClick={(e) => { if (e.target === e.currentTarget) setOpen(false); }}
         >
-          <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-xl w-full max-w-md p-6 flex flex-col gap-4">
+          <div className="panel w-full max-w-md p-6 flex flex-col gap-4">
             <div className="flex items-center justify-between">
-              <h2 className="text-lg font-semibold text-zinc-900 dark:text-white">Send feedback</h2>
+              <h2 className="font-mono text-sm uppercase tracking-wider text-ink">Send feedback</h2>
               <button
                 onClick={() => setOpen(false)}
-                className="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 text-xl leading-none"
+                className="text-muted hover:text-ink text-xl leading-none"
                 aria-label="Close"
               >
                 ×
@@ -83,12 +92,12 @@ export default function FeedbackWidget() {
             </div>
 
             {status === 'sent' ? (
-              <p className="text-green-600 dark:text-green-400 text-sm py-4 text-center">
+              <p className="text-ok text-sm py-4 text-center">
                 Thanks! We read every message.
               </p>
             ) : (
               <>
-                <p className="text-sm text-zinc-500 dark:text-zinc-400 -mt-2">
+                <p className="text-sm text-muted -mt-2">
                   Bug, suggestion, or just saying hi — we read everything.
                 </p>
 
@@ -98,26 +107,26 @@ export default function FeedbackWidget() {
                   maxLength={2000}
                   rows={5}
                   placeholder="What's on your mind?"
-                  className="w-full rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white p-3 text-sm resize-y focus:outline-none focus:border-zinc-500 dark:focus:border-zinc-400"
+                  className="field resize-y text-sm"
                 />
-                <p className="text-xs text-zinc-400 text-right -mt-2">{message.length} / 2000</p>
+                <p className="text-xs text-muted text-right -mt-2">{message.length} / 2000</p>
 
                 <input
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="Email (optional — for follow-up)"
-                  className="w-full rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white p-3 text-sm focus:outline-none focus:border-zinc-500 dark:focus:border-zinc-400"
+                  className="field"
                 />
 
                 {status === 'error' && (
-                  <p className="text-red-500 text-sm">{errorText}</p>
+                  <p className="text-danger text-sm">{errorText}</p>
                 )}
 
                 <button
                   onClick={submit}
                   disabled={!message.trim() || status === 'sending'}
-                  className="rounded-full bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 font-semibold py-2.5 text-sm hover:opacity-90 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed"
+                  className="btn btn-primary text-sm py-2.5 w-full disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   {status === 'sending' ? 'Sending…' : 'Send feedback'}
                 </button>

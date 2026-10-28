@@ -17,7 +17,8 @@ export function PageTransition() {
     const bar = document.createElement('div');
     bar.className = 'nprogress-bar';
     bar.style.width = '0%';
-    document.body.appendChild(bar);
+    // Mount inside the screen so the bar runs along the top of the display.
+    (document.querySelector('.screen') ?? document.body).appendChild(bar);
 
     // Simulate progress
     let width = 0;

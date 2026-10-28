@@ -47,17 +47,17 @@ interface NavItem {
 }
 
 const NAV_ITEMS: NavItem[] = [
-  { id: "queue",     label: "Moderation", icon: "🛂",  color: "bg-blue-600"   },
-  { id: "analytics", label: "Analytics",  icon: "📊",  color: "bg-violet-600" },
-  { id: "badges",    label: "Badges",     icon: "🏅",  color: "bg-purple-600" },
-  { id: "reports",   label: "Dead Links", icon: "🚫",  color: "bg-red-600"    },
-  { id: "scrape",    label: "Scrape",     icon: "🕷️",  color: "bg-teal-600"   },
+  { id: "queue",     label: "Moderation", icon: "🛂",  color: "bg-phosphor"   },
+  { id: "analytics", label: "Analytics",  icon: "📊",  color: "bg-phosphor" },
+  { id: "badges",    label: "Badges",     icon: "🏅",  color: "bg-phosphor" },
+  { id: "reports",   label: "Dead Links", icon: "🚫",  color: "bg-danger"    },
+  { id: "scrape",    label: "Scrape",     icon: "🕷️",  color: "bg-phosphor"   },
 ];
 
 const AdminAnalytics = dynamic(() => import("@/app/admin/views/AdminAnalytics"), { loading: () => <LoadingView /> });
 
 function LoadingView() {
-  return <div className="text-center text-zinc-500 py-12">Loading...</div>;
+  return <div className="text-center text-muted py-12">Loading...</div>;
 }
 
 export default function ModeratorPageClient() {
@@ -158,16 +158,16 @@ export default function ModeratorPageClient() {
   const currentNav = NAV_ITEMS.find((n) => n.id === view) ?? NAV_ITEMS[0];
 
   return (
-    <main className="min-h-screen bg-white dark:bg-zinc-950 pb-20">
+    <main className="min-h-full bg-screen pb-20">
       <div className="mx-auto px-4 sm:px-6 py-4 sm:py-8 flex flex-col gap-4 sm:gap-6 max-w-4xl">
         <div>
-          <h1 className="text-xl sm:text-3xl font-bold text-zinc-900 dark:text-white">Moderation Panel</h1>
-          <p className="mt-0.5 text-zinc-500 dark:text-zinc-400 text-xs sm:text-sm">Review submissions and manage content</p>
+          <h1 className="text-xl sm:text-3xl font-bold text-ink">Moderation Panel</h1>
+          <p className="mt-0.5 text-muted text-xs sm:text-sm">Review submissions and manage content</p>
         </div>
 
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-4">
-          <StatCard label="Pending"  value={statusCounts.pending}  color="text-amber-600 dark:text-amber-400" />
-          <StatCard label="Reports"  value={reportedLinks.length}  color="text-red-600 dark:text-red-400"    />
+          <StatCard label="Pending"  value={statusCounts.pending}  color="text-gold" />
+          <StatCard label="Reports"  value={reportedLinks.length}  color="text-danger text-danger"    />
           <StatCard label="All Time" value={queueItems.length} />
         </div>
 
@@ -175,34 +175,34 @@ export default function ModeratorPageClient() {
         <div className="relative">
           <button
             onClick={() => setMenuOpen(!menuOpen)}
-            className="flex items-center gap-2 w-full rounded-xl border border-zinc-200 dark:border-zinc-800 px-4 py-3 text-sm font-medium bg-zinc-50 dark:bg-zinc-900 text-zinc-900 dark:text-white hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+            className="flex items-center gap-2 w-full rounded-xl border border-line px-4 py-3 text-sm font-medium bg-panel-2 bg-panel text-ink hover:bg-panel-2 transition-colors"
           >
             <span>{currentNav.icon}</span>
             <span>{currentNav.label}</span>
             {view === "queue" && statusCounts.pending > 0 && (
-              <span className="ml-2 flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full bg-amber-500 text-white text-[10px] font-bold">
+              <span className="ml-2 flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full bg-accent text-ink text-[10px] font-bold">
                 {statusCounts.pending}
               </span>
             )}
-            <span className="ml-auto text-zinc-400 text-lg leading-none">{menuOpen ? "▴" : "▾"}</span>
+            <span className="ml-auto text-muted text-lg leading-none">{menuOpen ? "▴" : "▾"}</span>
           </button>
 
           {menuOpen && (
-            <div className="absolute top-full left-0 right-0 mt-1 z-30 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-lg overflow-hidden">
+            <div className="absolute top-full left-0 right-0 mt-1 z-30 rounded-xl border border-line bg-panel shadow-lg overflow-hidden">
               {NAV_ITEMS.map((item) => (
                 <button
                   key={item.id}
                   onClick={() => { setView(item.id); setMenuOpen(false); }}
                   className={`flex items-center gap-3 w-full px-4 py-3 text-sm font-medium transition-colors ${
                     view === item.id
-                      ? "bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-white"
-                      : "text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800/50"
+                      ? "bg-panel-2 text-ink"
+                      : "text-muted hover:bg-panel-2 hover:bg-panel-2/50"
                   }`}
                 >
                   <span>{item.icon}</span>
                   <span>{item.label}</span>
                   {item.id === "queue" && statusCounts.pending > 0 && (
-                    <span className="ml-auto flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full bg-amber-500 text-white text-[10px] font-bold">
+                    <span className="ml-auto flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full bg-accent text-ink text-[10px] font-bold">
                       {statusCounts.pending}
                     </span>
                   )}
@@ -267,26 +267,26 @@ function QueueView({
       <input
         type="text" placeholder="Search URL, title..." value={searchQuery}
         onChange={(e) => setSearchQuery(e.target.value)}
-        className="w-full rounded-xl border border-zinc-200 dark:border-zinc-700 px-4 py-2.5 text-sm bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white placeholder:text-zinc-400"
+        className="w-full rounded-xl border border-line px-4 py-2.5 text-sm bg-panel text-ink placeholder:text-muted"
       />
       <button
         onClick={() => setFiltersOpen(!filtersOpen)}
-        className="flex items-center gap-2 text-xs font-medium text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-300 transition-colors self-start"
+        className="flex items-center gap-2 text-xs font-medium text-muted hover:text-ink transition-colors self-start"
       >
         <span>{filtersOpen ? "▴" : "▾"}</span><span>Filters & Sort</span>
         {statusFilter !== "pending" && (
-          <span className="rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 px-2 py-0.5 text-[10px]">{statusFilter}</span>
+          <span className="rounded-full bg-panel-2 bg-panel-2/30 text-phosphor text-phosphor px-2 py-0.5 text-[10px]">{statusFilter}</span>
         )}
       </button>
       {filtersOpen && (
-        <div className="flex flex-col gap-3 rounded-xl border border-zinc-200 dark:border-zinc-800 p-4 bg-zinc-50 dark:bg-zinc-900/50">
+        <div className="flex flex-col gap-3 rounded-xl border border-line p-4 bg-panel-2">
           <div className="flex gap-1.5 flex-wrap">
             {(["all", "pending", "approved", "rejected"] as const).map((status) => (
               <button key={status} onClick={() => setStatusFilter(status)}
                 className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
                   statusFilter === status
-                    ? "bg-blue-600 text-white"
-                    : "bg-white dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 border border-zinc-200 dark:border-zinc-700 hover:bg-zinc-100 dark:hover:bg-zinc-700"
+                    ? "bg-phosphor text-ink"
+                    : "bg-panel bg-panel-2 text-muted border border-line hover:bg-panel-2 hover:bg-panel-2"
                 }`}
               >
                 {status === "all" ? `All (${statusCounts.all})` : `${status.charAt(0).toUpperCase() + status.slice(1)} (${statusCounts[status]})`}
@@ -295,7 +295,7 @@ function QueueView({
           </div>
           <select
             value={sortBy} onChange={(e) => setSortBy(e.target.value as "newest" | "oldest")}
-            className="rounded-lg border border-zinc-200 dark:border-zinc-700 px-3 py-1.5 text-xs bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white"
+            className="rounded-lg border border-line px-3 py-1.5 text-xs bg-panel bg-panel-2 text-ink"
           >
             <option value="newest">Newest first</option>
             <option value="oldest">Oldest first</option>
@@ -303,32 +303,32 @@ function QueueView({
         </div>
       )}
       {loading
-        ? <div className="text-center text-zinc-500 py-12">Loading...</div>
+        ? <div className="text-center text-muted py-12">Loading...</div>
         : filteredItems.length === 0
-          ? <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 p-6 text-center text-zinc-400 text-sm">No submissions found.</div>
+          ? <div className="rounded-xl border border-line p-6 text-center text-muted text-sm">No submissions found.</div>
           : (
             <div className="flex flex-col gap-2">
               {filteredItems.map((item) => (
                 <button
                   key={item.id} onClick={() => onSelectItem(item)}
-                  className="flex flex-col gap-2 rounded-xl border border-zinc-200 dark:border-zinc-800 px-4 py-3 hover:bg-zinc-50 dark:hover:bg-zinc-900/50 transition-colors text-left active:scale-[0.99]"
+                  className="flex flex-col gap-2 rounded-xl border border-line px-4 py-3 hover:bg-panel-2/50 transition-colors text-left active:scale-[0.99]"
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex-1 min-w-0">
                       <a
                         href={item.url} target="_blank" rel="noopener noreferrer"
                         onClick={(e) => e.stopPropagation()}
-                        className="text-sm font-medium text-blue-600 dark:text-blue-400 hover:underline break-all line-clamp-2"
+                        className="text-sm font-medium text-phosphor text-phosphor hover:underline break-all line-clamp-2"
                       >{item.url}</a>
-                      {item.title && <p className="mt-1 text-xs text-zinc-600 dark:text-zinc-400 line-clamp-2">{item.title}</p>}
+                      {item.title && <p className="mt-1 text-xs text-muted line-clamp-2">{item.title}</p>}
                     </div>
                     <span className={`shrink-0 text-[10px] font-semibold px-2 py-1 rounded ${
-                      item.status === "approved" ? "bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400"
-                      : item.status === "rejected" ? "bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400"
-                      : "bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400"
+                      item.status === "approved" ? "bg-panel-2 bg-panel-2/20 text-ok text-ok"
+                      : item.status === "rejected" ? "bg-panel-2 bg-panel-2/20 text-danger text-danger"
+                      : "bg-panel-2 bg-panel-2/20 text-gold text-gold"
                     }`}>{item.status}</span>
                   </div>
-                  <span className="text-[10px] text-zinc-400">
+                  <span className="text-[10px] text-muted">
                     {item.created_at ? new Date(item.created_at).toLocaleString("en-US", { timeZone: "America/New_York", timeZoneName: "short" }) : "—"}
                   </span>
                 </button>
@@ -347,31 +347,31 @@ function ReportsView({ reportedLinks, loading, restoringId, onRestore }: {
 }) {
   return (
     <div className="flex flex-col gap-3">
-      <h2 className="text-lg font-semibold text-zinc-900 dark:text-white">Dead Link Reports</h2>
-      <p className="text-xs text-zinc-400 dark:text-zinc-500 -mt-2">URLs reported as broken, sorted by report count</p>
+      <h2 className="text-lg font-semibold text-ink">Dead Link Reports</h2>
+      <p className="text-xs text-muted -mt-2">URLs reported as broken, sorted by report count</p>
       {loading
-        ? <div className="text-center text-zinc-500 py-12">Loading...</div>
+        ? <div className="text-center text-muted py-12">Loading...</div>
         : reportedLinks.length === 0
-          ? <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 p-6 text-center text-zinc-400 text-sm">No dead link reports yet.</div>
+          ? <div className="rounded-xl border border-line p-6 text-center text-muted text-sm">No dead link reports yet.</div>
           : (
             <div className="flex flex-col gap-2">
               {reportedLinks.map((r) => (
-                <div key={r.url_id} className="rounded-xl border border-zinc-200 dark:border-zinc-800 p-3">
-                  <a href={r.url} target="_blank" rel="noopener noreferrer" className="text-sm font-medium text-blue-600 dark:text-blue-400 hover:underline break-all">{r.url}</a>
-                  {r.title && <p className="mt-1 text-xs text-zinc-600 dark:text-zinc-400">{r.title}</p>}
+                <div key={r.url_id} className="rounded-xl border border-line p-3">
+                  <a href={r.url} target="_blank" rel="noopener noreferrer" className="text-sm font-medium text-phosphor text-phosphor hover:underline break-all">{r.url}</a>
+                  {r.title && <p className="mt-1 text-xs text-muted">{r.title}</p>}
                   <div className="flex items-center justify-between mt-2 text-xs">
-                    <div className="flex items-center gap-3 text-zinc-500 dark:text-zinc-400">
-                      <span><strong className="text-zinc-700 dark:text-zinc-300">{r.report_count}</strong> reports</span>
+                    <div className="flex items-center gap-3 text-muted">
+                      <span><strong className="text-muted">{r.report_count}</strong> reports</span>
                       <span>{r.reported_at ? new Date(r.reported_at).toLocaleDateString("en-US", { timeZone: "America/New_York" }) : "—"}</span>
                     </div>
                     <div className="flex items-center gap-2">
-                      <span className={`text-[10px] font-medium px-2 py-0.5 rounded ${r.inactive ? "bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400" : "bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400"}`}>
+                      <span className={`text-[10px] font-medium px-2 py-0.5 rounded ${r.inactive ? "bg-panel-2 bg-panel-2/20 text-danger text-danger" : "bg-panel-2 bg-panel-2/20 text-ok text-ok"}`}>
                         {r.inactive ? "Inactive" : "Active"}
                       </span>
                       {r.inactive && (
                         <button
                           onClick={() => onRestore(r.url_id)} disabled={restoringId === r.url_id}
-                          className="text-[10px] px-2 py-1 rounded-lg bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700 disabled:opacity-50 transition-colors"
+                          className="text-[10px] px-2 py-1 rounded-lg bg-panel-2 text-muted hover:bg-panel-3 disabled:opacity-50 transition-colors"
                         >
                           {restoringId === r.url_id ? "…" : "Restore"}
                         </button>

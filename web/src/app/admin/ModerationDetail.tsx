@@ -160,7 +160,7 @@ export default function ModerationDetail({
     <>
       {/* Backdrop - full screen on mobile, semi-transparent overlay on desktop */}
       <div
-        className="fixed inset-0 bg-black/50 z-40"
+        className="fixed inset-0 bg-screen/50 z-40"
         onClick={onClose}
       />
 
@@ -169,17 +169,17 @@ export default function ModerationDetail({
         className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4"
         onClick={(e) => e.target === e.currentTarget && onClose()}
       >
-        <div className="bg-white dark:bg-zinc-900 w-full sm:max-w-2xl sm:rounded-xl shadow-xl max-h-full sm:max-h-[90vh] flex flex-col rounded-t-xl sm:rounded-b-xl overflow-hidden">
+        <div className="bg-panel w-full sm:max-w-2xl sm:rounded-xl shadow-xl max-h-full sm:max-h-[90vh] flex flex-col rounded-t-xl sm:rounded-b-xl overflow-hidden">
           {/* Header */}
-          <div className="shrink-0 flex items-center justify-between border-b border-zinc-200 dark:border-zinc-800 px-4 sm:px-6 py-3 sm:py-4 bg-white dark:bg-zinc-900">
+          <div className="shrink-0 flex items-center justify-between border-b border-line px-4 sm:px-6 py-3 sm:py-4 bg-panel">
             <button
               onClick={onClose}
-              className="flex items-center gap-2 text-sm font-medium text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-300 transition-colors"
+              className="flex items-center gap-2 text-sm font-medium text-muted hover:text-ink transition-colors"
             >
               <span className="text-lg leading-none">←</span>
               <span className="hidden sm:inline">Back</span>
             </button>
-            <h2 className="text-sm sm:text-lg font-semibold text-zinc-900 dark:text-white">URL Details</h2>
+            <h2 className="text-sm sm:text-lg font-semibold text-ink">URL Details</h2>
             <div className="w-14" /> {/* spacer for centering */}
           </div>
 
@@ -187,14 +187,14 @@ export default function ModerationDetail({
           <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-4 sm:py-6 space-y-4">
             {/* URL */}
             <div>
-              <label className="block text-xs sm:text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1.5">
+              <label className="block text-xs sm:text-sm font-medium text-muted mb-1.5">
                 URL
               </label>
               <a
                 href={item.url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="block w-full bg-zinc-50 dark:bg-zinc-800 rounded-lg px-3 py-2.5 text-xs sm:text-sm text-blue-600 dark:text-blue-400 hover:underline break-all"
+                className="block w-full bg-panel-2 bg-panel-2 rounded-lg px-3 py-2.5 text-xs sm:text-sm text-phosphor text-phosphor hover:underline break-all"
               >
                 {item.url}
               </a>
@@ -203,10 +203,10 @@ export default function ModerationDetail({
             {/* Title */}
             {item.title && (
               <div>
-                <label className="block text-xs sm:text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1.5">
+                <label className="block text-xs sm:text-sm font-medium text-muted mb-1.5">
                   Title
                 </label>
-                <div className="bg-zinc-50 dark:bg-zinc-800 rounded-lg px-3 py-2.5 text-xs sm:text-sm text-zinc-900 dark:text-white">
+                <div className="bg-panel-2 bg-panel-2 rounded-lg px-3 py-2.5 text-xs sm:text-sm text-ink">
                   {item.title}
                 </div>
               </div>
@@ -215,10 +215,10 @@ export default function ModerationDetail({
             {/* Description */}
             {item.description && (
               <div>
-                <label className="block text-xs sm:text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1.5">
+                <label className="block text-xs sm:text-sm font-medium text-muted mb-1.5">
                   Description
                 </label>
-                <div className="bg-zinc-50 dark:bg-zinc-800 rounded-lg px-3 py-2.5 text-xs sm:text-sm text-zinc-900 dark:text-white">
+                <div className="bg-panel-2 bg-panel-2 rounded-lg px-3 py-2.5 text-xs sm:text-sm text-ink">
                   {item.description}
                 </div>
               </div>
@@ -226,7 +226,7 @@ export default function ModerationDetail({
 
             {/* Classification */}
             <div>
-              <label className="block text-xs sm:text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1.5">
+              <label className="block text-xs sm:text-sm font-medium text-muted mb-1.5">
                 Classification
               </label>
               <div className="flex flex-col sm:flex-row gap-2">
@@ -236,7 +236,7 @@ export default function ModerationDetail({
                     setSelectedCategoryId(e.target.value || null);
                     setSelectedSubcategoryId(null);
                   }}
-                  className="flex-1 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg px-3 py-2.5 text-sm text-zinc-900 dark:text-white"
+                  className="flex-1 bg-panel-2 bg-panel-2 border border-line rounded-lg px-3 py-2.5 text-sm text-ink"
                 >
                   <option value="">— Category —</option>
                   {categories.map((cat) => (
@@ -246,7 +246,7 @@ export default function ModerationDetail({
                 <select
                   value={selectedSubcategoryId ?? ""}
                   onChange={(e) => setSelectedSubcategoryId(e.target.value || null)}
-                  className="flex-1 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg px-3 py-2.5 text-sm text-zinc-900 dark:text-white"
+                  className="flex-1 bg-panel-2 bg-panel-2 border border-line rounded-lg px-3 py-2.5 text-sm text-ink"
                 >
                   <option value="">— Subcategory —</option>
                   {filteredSubcategories.map((sub) => (
@@ -258,16 +258,16 @@ export default function ModerationDetail({
 
             {/* Safe Browsing */}
             <div>
-              <label className="block text-xs sm:text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1.5">
+              <label className="block text-xs sm:text-sm font-medium text-muted mb-1.5">
                 Safe Browsing
               </label>
               <div
                 className={`rounded-lg px-3 py-2.5 text-xs sm:text-sm font-medium ${
                   item.safe_browsing_passed
-                    ? "bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400"
+                    ? "bg-panel-2 bg-panel-2/20 text-ok text-ok"
                     : item.safe_browsing_passed === false
-                      ? "bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400"
-                      : "bg-zinc-50 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300"
+                      ? "bg-panel-2 bg-panel-2/20 text-danger text-danger"
+                      : "bg-panel-2 bg-panel-2 text-muted"
                 }`}
               >
                 {safeBrowsingStatus}
@@ -276,10 +276,10 @@ export default function ModerationDetail({
 
             {/* Submitter */}
             <div>
-              <label className="block text-xs sm:text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1.5">
+              <label className="block text-xs sm:text-sm font-medium text-muted mb-1.5">
                 Submitted by
               </label>
-              <div className="bg-zinc-50 dark:bg-zinc-800 rounded-lg px-3 py-2.5 text-xs sm:text-sm text-zinc-900 dark:text-white">
+              <div className="bg-panel-2 bg-panel-2 rounded-lg px-3 py-2.5 text-xs sm:text-sm text-ink">
                 {emailLoading
                   ? "Loading…"
                   : submitterEmail ?? item.profile?.username ?? item.submitted_by ?? "Unknown"}
@@ -288,26 +288,26 @@ export default function ModerationDetail({
 
             {/* Submission Date */}
             <div>
-              <label className="block text-xs sm:text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1.5">
+              <label className="block text-xs sm:text-sm font-medium text-muted mb-1.5">
                 Submitted
               </label>
-              <div className="bg-zinc-50 dark:bg-zinc-800 rounded-lg px-3 py-2.5 text-xs sm:text-sm text-zinc-900 dark:text-white">
+              <div className="bg-panel-2 bg-panel-2 rounded-lg px-3 py-2.5 text-xs sm:text-sm text-ink">
                 {item.created_at ? new Date(item.created_at).toLocaleString('en-US', { timeZone: 'America/New_York', timeZoneName: 'short' }) : '—'}
               </div>
             </div>
 
             {/* Current Status */}
             <div>
-              <label className="block text-xs sm:text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1.5">
+              <label className="block text-xs sm:text-sm font-medium text-muted mb-1.5">
                 Status
               </label>
               <div
                 className={`rounded-lg px-3 py-2.5 text-xs sm:text-sm font-medium ${
                   item.status === "approved"
-                    ? "bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400"
+                    ? "bg-panel-2 bg-panel-2/20 text-ok text-ok"
                     : item.status === "rejected"
-                      ? "bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400"
-                      : "bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400"
+                      ? "bg-panel-2 bg-panel-2/20 text-danger text-danger"
+                      : "bg-panel-2 bg-panel-2/20 text-gold text-gold"
                 }`}
               >
                 {(item.status ?? 'pending').charAt(0).toUpperCase() + (item.status ?? 'pending').slice(1)}
@@ -316,16 +316,16 @@ export default function ModerationDetail({
           </div>
 
           {/* Footer Actions */}
-          <div className="shrink-0 border-t border-zinc-200 dark:border-zinc-800 px-4 sm:px-6 py-3 sm:py-4 bg-zinc-50 dark:bg-zinc-800/50 flex flex-col gap-2">
+          <div className="shrink-0 border-t border-line px-4 sm:px-6 py-3 sm:py-4 bg-panel-2 bg-panel-2/50 flex flex-col gap-2">
             {actionError && (
-              <p className="text-xs text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 rounded-lg px-3 py-2">
+              <p className="text-xs text-danger text-danger bg-panel-2 bg-panel-2/20 rounded-lg px-3 py-2">
                 {actionError}
               </p>
             )}
             <div className="flex gap-2 justify-end">
               <button
                 onClick={onClose}
-                className="rounded-lg px-4 py-2.5 text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-700 transition-colors"
+                className="rounded-lg px-4 py-2.5 text-sm font-medium text-muted hover:bg-panel-2 hover:bg-panel-2 transition-colors"
               >
                 Close
               </button>
@@ -335,14 +335,14 @@ export default function ModerationDetail({
                   <button
                     onClick={() => handleDecision("rejected")}
                     disabled={status === "loading"}
-                    className="rounded-lg bg-red-500 px-4 py-2.5 text-sm font-medium text-white hover:bg-red-600 disabled:opacity-50 transition-colors"
+                    className="rounded-lg bg-ember px-4 py-2.5 text-sm font-medium text-ink hover:bg-danger disabled:opacity-50 transition-colors"
                   >
                     Reject
                   </button>
                   <button
                     onClick={() => handleDecision("approved")}
                     disabled={status === "loading"}
-                    className="rounded-lg bg-green-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-50 transition-colors"
+                    className="rounded-lg bg-ok px-4 py-2.5 text-sm font-medium text-ink hover:bg-ok disabled:opacity-50 transition-colors"
                   >
                     Approve
                   </button>
@@ -353,7 +353,7 @@ export default function ModerationDetail({
                 <button
                   onClick={handleUndo}
                   disabled={status === "loading"}
-                  className="rounded-lg bg-zinc-400 px-4 py-2.5 text-sm font-medium text-white hover:bg-zinc-500 disabled:opacity-50 transition-colors"
+                  className="rounded-lg bg-panel-3 px-4 py-2.5 text-sm font-medium text-ink hover:bg-panel-3 disabled:opacity-50 transition-colors"
                 >
                   Undo
                 </button>

@@ -45,51 +45,51 @@ export function LevelProgress({ level, xpTotal, streakDays, maxStreak, badgeCoun
   const rankTitle = getRankTitle(level);
 
   return (
-    <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-4 sm:p-6">
+    <div className="rounded-xl border border-line bg-panel bg-panel-2 p-4 sm:p-6">
       {/* Level badge */}
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-3">
-          <div className="flex items-center justify-center w-12 h-12 rounded-full bg-gradient-to-br from-purple-500 to-blue-600 text-white font-bold text-lg shadow-lg">
+          <div className="flex items-center justify-center w-12 h-12 rounded-full bg-gradient-to-br from-phosphor to-phosphor text-ink font-bold text-lg shadow-lg">
             {level}
           </div>
           <div>
-            <p className="font-bold text-lg text-gray-900 dark:text-white">Level {level}</p>
-            <p className="text-sm text-gray-500 dark:text-gray-400">{rankTitle}</p>
+            <p className="font-bold text-lg text-ink text-ink">Level {level}</p>
+            <p className="text-sm text-muted">{rankTitle}</p>
           </div>
         </div>
         <div className="text-right">
-          <p className="text-xs text-gray-500 dark:text-gray-400">XP</p>
-          <p className="font-mono font-bold text-gray-900 dark:text-white">{xpTotal.toLocaleString()}</p>
+          <p className="text-xs text-muted">XP</p>
+          <p className="font-mono font-bold text-ink text-ink">{xpTotal.toLocaleString()}</p>
         </div>
       </div>
 
       {/* XP progress bar */}
       <div className="mb-3">
-        <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400 mb-1">
+        <div className="flex justify-between text-xs text-muted mb-1">
           <span>{xpIntoLevel.toLocaleString()} XP</span>
           <span>{xpNeeded.toLocaleString()} XP to Level {level + 1}</span>
         </div>
-        <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2.5 overflow-hidden">
+        <div className="w-full bg-panel-3 rounded-full h-2.5 overflow-hidden">
           <div
-            className="bg-gradient-to-r from-purple-500 to-blue-600 h-2.5 rounded-full transition-all duration-500 ease-out"
+            className="bg-gradient-to-r from-phosphor to-phosphor h-2.5 rounded-full transition-all duration-500 ease-out"
             style={{ width: `${progressPercent}%` }}
           />
         </div>
       </div>
 
       {/* Stats row */}
-      <div className="flex gap-4 text-center border-t border-gray-100 dark:border-gray-800 pt-3">
+      <div className="flex gap-4 text-center border-t border-line border-line pt-3">
         <div className="flex-1">
-          <p className="text-lg font-bold text-gray-900 dark:text-white">{badgeCount}</p>
-          <p className="text-xs text-gray-500 dark:text-gray-400">Badges</p>
+          <p className="text-lg font-bold text-ink text-ink">{badgeCount}</p>
+          <p className="text-xs text-muted">Badges</p>
         </div>
-        <div className="flex-1 border-l border-gray-100 dark:border-gray-800">
-          <p className="text-lg font-bold text-gray-900 dark:text-white">🔥 {streakDays}</p>
-          <p className="text-xs text-gray-500 dark:text-gray-400">Day Streak</p>
+        <div className="flex-1 border-l border-line border-line">
+          <p className="text-lg font-bold text-ink text-ink">🔥 {streakDays}</p>
+          <p className="text-xs text-muted">Day Streak</p>
         </div>
-        <div className="flex-1 border-l border-gray-100 dark:border-gray-800">
-          <p className="text-lg font-bold text-gray-900 dark:text-white">{maxStreak}</p>
-          <p className="text-xs text-gray-500 dark:text-gray-400">Best Streak</p>
+        <div className="flex-1 border-l border-line border-line">
+          <p className="text-lg font-bold text-ink text-ink">{maxStreak}</p>
+          <p className="text-xs text-muted">Best Streak</p>
         </div>
       </div>
     </div>

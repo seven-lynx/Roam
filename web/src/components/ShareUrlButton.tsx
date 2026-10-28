@@ -25,9 +25,9 @@ export function ShareUrlButton({ urlId, urlTitle, className = '' }: Props) {
       <button
         onClick={handleOpenModal}
         className={`flex items-center gap-1 px-3 py-1.5 rounded-md text-sm font-medium 
-          text-zinc-700 dark:text-zinc-300 
-          bg-zinc-100 dark:bg-zinc-800 
-          hover:bg-zinc-200 dark:hover:bg-zinc-700 
+          text-muted 
+          bg-panel-2 
+          hover:bg-panel-3 
           transition-colors ${className}`}
         title="Share this URL with a friend"
       >

@@ -44,48 +44,48 @@ function activityText(item: ActivityItem): { verb: string; link: React.ReactNode
       return {
         verb: 'liked',
         link: item.subject_url
-          ? <a href={item.subject_url} target="_blank" rel="noopener noreferrer" className="font-medium text-zinc-900 dark:text-white hover:underline">{item.subject_title || item.subject_url}</a>
-          : <span className="font-medium text-zinc-900 dark:text-white">{item.subject_title}</span>,
+          ? <a href={item.subject_url} target="_blank" rel="noopener noreferrer" className="font-medium text-ink hover:underline">{item.subject_title || item.subject_url}</a>
+          : <span className="font-medium text-ink">{item.subject_title}</span>,
       };
     case 'url_submitted':
       return {
         verb: 'submitted',
         link: item.subject_url
-          ? <a href={item.subject_url} target="_blank" rel="noopener noreferrer" className="font-medium text-zinc-900 dark:text-white hover:underline">{item.subject_title || item.subject_url}</a>
-          : <span className="font-medium text-zinc-900 dark:text-white">{item.subject_title}</span>,
+          ? <a href={item.subject_url} target="_blank" rel="noopener noreferrer" className="font-medium text-ink hover:underline">{item.subject_title || item.subject_url}</a>
+          : <span className="font-medium text-ink">{item.subject_title}</span>,
       };
     case 'collection_created':
       return {
         verb: 'created a collection',
         link: item.collection_slug
-          ? <Link href={`/c/${item.collection_slug}`} className="font-medium text-zinc-900 dark:text-white hover:underline">{item.subject_title}</Link>
-          : <span className="font-medium text-zinc-900 dark:text-white">{item.subject_title}</span>,
+          ? <Link href={`/c/${item.collection_slug}`} className="font-medium text-ink hover:underline">{item.subject_title}</Link>
+          : <span className="font-medium text-ink">{item.subject_title}</span>,
       };
     case 'collection_updated':
       return {
         verb: 'made a collection public',
         link: item.collection_slug
-          ? <Link href={`/c/${item.collection_slug}`} className="font-medium text-zinc-900 dark:text-white hover:underline">{item.subject_title}</Link>
-          : <span className="font-medium text-zinc-900 dark:text-white">{item.subject_title}</span>,
+          ? <Link href={`/c/${item.collection_slug}`} className="font-medium text-ink hover:underline">{item.subject_title}</Link>
+          : <span className="font-medium text-ink">{item.subject_title}</span>,
       };
     case 'badge_unlocked':
       return {
         verb: 'earned a badge',
-        link: <span className="font-medium text-zinc-900 dark:text-white">{item.badge_icon} {item.badge_name || item.subject_title}</span>,
+        link: <span className="font-medium text-ink">{item.badge_icon} {item.badge_name || item.subject_title}</span>,
       };
     case 'url_saved':
       return {
         verb: 'saved',
         link: item.subject_url
-          ? <a href={item.subject_url} target="_blank" rel="noopener noreferrer" className="font-medium text-zinc-900 dark:text-white hover:underline">{item.subject_title || item.subject_url}</a>
-          : <span className="font-medium text-zinc-900 dark:text-white">{item.subject_title}</span>,
+          ? <a href={item.subject_url} target="_blank" rel="noopener noreferrer" className="font-medium text-ink hover:underline">{item.subject_title || item.subject_url}</a>
+          : <span className="font-medium text-ink">{item.subject_title}</span>,
       };
     case 'url_added_to_collection':
       return {
         verb: 'added to',
         link: item.collection_slug
-          ? <Link href={`/c/${item.collection_slug}`} className="font-medium text-zinc-900 dark:text-white hover:underline">{item.subject_title}</Link>
-          : <span className="font-medium text-zinc-900 dark:text-white">{item.subject_title}</span>,
+          ? <Link href={`/c/${item.collection_slug}`} className="font-medium text-ink hover:underline">{item.subject_title}</Link>
+          : <span className="font-medium text-ink">{item.subject_title}</span>,
       };
     default:
       return { verb: 'did something', link: null };
@@ -119,15 +119,15 @@ export function ActivityFeedClient({ initialActivities, followingCount }: Props)
     return (
       <div className="text-center py-16">
         <p className="text-4xl mb-4">🧭</p>
-        <p className="text-base font-medium text-zinc-700 dark:text-zinc-300 mb-2">
+        <p className="text-base font-medium text-muted mb-2">
           Follow curators to see their discoveries
         </p>
-        <p className="text-sm text-zinc-500 dark:text-zinc-400 mb-6">
+        <p className="text-sm text-muted mb-6">
           When people you follow like or submit URLs, it shows up here.
         </p>
         <Link
           href="/join"
-          className="inline-block px-4 py-2 rounded-lg text-sm font-medium bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 hover:opacity-90 transition-opacity"
+          className="inline-block px-4 py-2 rounded-lg text-sm font-medium bg-panel bg-panel text-ink text-ink hover:opacity-90 transition-opacity"
         >
           Discover curators
         </Link>
@@ -139,10 +139,10 @@ export function ActivityFeedClient({ initialActivities, followingCount }: Props)
     return (
       <div className="text-center py-16">
         <p className="text-4xl mb-4">📡</p>
-        <p className="text-base font-medium text-zinc-700 dark:text-zinc-300 mb-2">
+        <p className="text-base font-medium text-muted mb-2">
           Nothing yet from people you follow
         </p>
-        <p className="text-sm text-zinc-500 dark:text-zinc-400">
+        <p className="text-sm text-muted">
           Activity appears here when people you follow like or submit URLs.
         </p>
       </div>
@@ -151,7 +151,7 @@ export function ActivityFeedClient({ initialActivities, followingCount }: Props)
 
   return (
     <div>
-      <ul className="flex flex-col divide-y divide-zinc-100 dark:divide-zinc-800">
+      <ul className="flex flex-col divide-y divide-line divide-line">
         {activities.map(item => {
           const { verb, link } = activityText(item);
           return (
@@ -160,14 +160,14 @@ export function ActivityFeedClient({ initialActivities, followingCount }: Props)
                 <Avatar name={item.display_name || item.username} size="sm" />
               </Link>
               <div className="flex-1 min-w-0">
-                <p className="text-sm text-zinc-700 dark:text-zinc-300 leading-relaxed">
-                  <Link href={`/u/${item.username}`} className="font-medium text-zinc-900 dark:text-white hover:underline">
+                <p className="text-sm text-muted leading-relaxed">
+                  <Link href={`/u/${item.username}`} className="font-medium text-ink hover:underline">
                     {item.display_name || item.username}
                   </Link>
                   {' '}{verb}{' '}
                   {link}
                 </p>
-                <p className="text-xs text-zinc-400 mt-0.5">{timeAgo(item.created_at)}</p>
+                <p className="text-xs text-muted mt-0.5">{timeAgo(item.created_at)}</p>
               </div>
             </li>
           );
@@ -179,7 +179,7 @@ export function ActivityFeedClient({ initialActivities, followingCount }: Props)
           <button
             onClick={loadMore}
             disabled={loading}
-            className="px-4 py-2 text-sm font-medium text-zinc-700 dark:text-zinc-300 border border-zinc-300 dark:border-zinc-700 rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-900 transition-colors disabled:opacity-50"
+            className="px-4 py-2 text-sm font-medium text-muted border border-line rounded-lg hover:bg-panel-2 transition-colors disabled:opacity-50"
           >
             {loading ? 'Loading…' : 'Load more'}
           </button>

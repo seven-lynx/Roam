@@ -54,10 +54,10 @@ export function SiteShowcase() {
 
   if (loading) {
     return (
-      <div className="animate-pulse rounded-2xl border border-zinc-200 dark:border-zinc-800 p-6">
-        <div className="aspect-video bg-zinc-200 dark:bg-zinc-800 rounded-xl mb-4" />
-        <div className="h-5 w-3/4 bg-zinc-200 dark:bg-zinc-800 rounded mb-2" />
-        <div className="h-4 w-1/3 bg-zinc-200 dark:bg-zinc-800 rounded" />
+      <div className="animate-pulse panel p-6">
+        <div className="aspect-video bg-panel-3 mb-4" />
+        <div className="h-5 w-3/4 bg-panel-3 mb-2" />
+        <div className="h-4 w-1/3 bg-panel-3" />
       </div>
     );
   }
@@ -68,11 +68,11 @@ export function SiteShowcase() {
 
   return (
     <div
-      className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 overflow-hidden"
+      className="panel overflow-hidden"
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
     >
-      <div className="flex items-center justify-between px-5 pt-4 text-xs text-zinc-400">
+      <div className="flex items-center justify-between px-5 pt-4 text-xs text-muted">
         <span className="font-semibold uppercase tracking-wider">This month&apos;s picks</span>
         <span>Refreshed monthly</span>
       </div>
@@ -85,7 +85,7 @@ export function SiteShowcase() {
         className="block"
       >
         {/* OG Image */}
-        <div className="aspect-video bg-zinc-100 dark:bg-zinc-800 relative overflow-hidden">
+        <div className="aspect-video bg-panel-3 relative overflow-hidden">
           {site.og_image_url ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
@@ -96,24 +96,24 @@ export function SiteShowcase() {
             />
           ) : (
             <div className="w-full h-full flex items-center justify-center">
-              <div className="text-4xl text-zinc-300 dark:text-zinc-600">🌐</div>
+              <div className="text-4xl text-muted">🌐</div>
             </div>
           )}
           {/* Gradient overlay at bottom */}
-          <div className="absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-black/50 to-transparent" />
+          <div className="absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-screen/50 to-transparent" />
         </div>
 
         {/* Info */}
         <div className="p-5">
-          <h3 className="text-lg font-semibold text-zinc-900 dark:text-white truncate">
+          <h3 className="text-lg font-semibold text-ink truncate">
             {site.title || site.original_url}
           </h3>
           <div className="flex items-center justify-between mt-2">
-            <span className="text-sm text-zinc-500 dark:text-zinc-400">
+            <span className="text-sm text-muted">
               {extractDomain(site.original_url)}
             </span>
-            <span className="text-sm text-zinc-500 dark:text-zinc-400 flex items-center gap-1">
-              <span className="text-green-600 dark:text-green-400">↑</span>
+            <span className="text-sm text-muted flex items-center gap-1">
+              <span className="text-ok">↑</span>
               {site.upvotes}
             </span>
           </div>
@@ -131,8 +131,8 @@ export function SiteShowcase() {
                 onClick={() => goTo(i)}
                 className={`w-2 h-2 rounded-full transition-all ${
                   i === current
-                    ? 'bg-amber-500 w-4'
-                    : 'bg-zinc-300 dark:bg-zinc-600 hover:bg-zinc-400 dark:hover:bg-zinc-500'
+                    ? 'bg-gold w-4'
+                    : 'bg-panel-3 hover:bg-muted'
                 }`}
                 aria-label={`Go to slide ${i + 1}`}
               />
@@ -143,7 +143,7 @@ export function SiteShowcase() {
           <div className="flex items-center gap-2">
             <button
               onClick={goPrev}
-              className="w-8 h-8 rounded-full flex items-center justify-center text-zinc-500 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+              className="w-8 h-8 rounded-full flex items-center justify-center text-muted hover:text-ink hover:bg-panel-2 transition-colors"
               aria-label="Previous site"
             >
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
@@ -152,7 +152,7 @@ export function SiteShowcase() {
             </button>
             <button
               onClick={goNext}
-              className="w-8 h-8 rounded-full flex items-center justify-center text-zinc-500 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+              className="w-8 h-8 rounded-full flex items-center justify-center text-muted hover:text-ink hover:bg-panel-2 transition-colors"
               aria-label="Next site"
             >
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">

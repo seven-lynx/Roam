@@ -16,11 +16,11 @@ export default async function PeoplePage() {
   const { data: suggestions } = await supabase.rpc('get_follow_suggestions', { p_limit: 12 });
 
   return (
-    <div className="min-h-[calc(100vh-8rem)] bg-white dark:bg-zinc-950">
+    <div className="min-h-full bg-screen">
       <div className="max-w-2xl mx-auto px-6 py-12">
         <div className="mb-8">
-          <h1 className="text-2xl font-bold text-zinc-900 dark:text-white">Find people</h1>
-          <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
+          <h1 className="text-2xl font-bold text-ink">Find people</h1>
+          <p className="mt-1 text-sm text-muted">
             Search by username or name, and follow curators you find interesting.
           </p>
         </div>

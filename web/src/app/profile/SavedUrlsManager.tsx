@@ -87,24 +87,24 @@ export function SavedUrlsManager({ userId, initialSavedUrls }: Props) {
   return (
     <section>
       <div className="flex items-baseline justify-between mb-3">
-        <h2 className="text-base font-semibold text-zinc-900 dark:text-white">Saved URLs</h2>
-        <p className="text-xs text-zinc-400">Expires after 30 days · max 50</p>
+        <h2 className="text-base font-semibold text-ink">Saved URLs</h2>
+        <p className="text-xs text-muted">Expires after 30 days · max 50</p>
       </div>
 
       {items.length === 0 ? (
         <div className="text-center py-8">
           <p className="text-3xl mb-3">🔖</p>
-          <p className="text-sm text-zinc-600 dark:text-zinc-400 font-medium">
+          <p className="text-sm text-muted font-medium">
               {"You haven't saved any URLs yet"}
           </p>
-          <p className="text-xs text-zinc-400 mt-1">
+          <p className="text-xs text-muted mt-1">
             Install the browser extension to bookmark pages while you browse.
           </p>
           <a
             href="https://chromewebstore.google.com/detail/ojgphkdgkefokhjnojkddhalnlbajfpc?utm_source=roam-web"
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-block mt-3 text-xs text-blue-600 hover:underline font-medium"
+            className="inline-block mt-3 text-xs text-phosphor hover:underline font-medium"
           >
             Get the Chrome extension →
           </a>
@@ -113,32 +113,32 @@ export function SavedUrlsManager({ userId, initialSavedUrls }: Props) {
         <>
           {/* Selection bar */}
           {isSelectionMode && (
-            <div className="flex items-center gap-2 mb-3 p-2 rounded-lg bg-zinc-100 dark:bg-zinc-800">
-              <span className="text-xs font-medium text-zinc-600 dark:text-zinc-300">{selected.size} selected</span>
+            <div className="flex items-center gap-2 mb-3 p-2 rounded-lg bg-panel-2">
+              <span className="text-xs font-medium text-muted">{selected.size} selected</span>
               <div className="flex-1" />
               <button
                 onClick={() => setCollectionsOpen(true)}
                 disabled={batchLoading}
-                className="text-xs px-3 py-1.5 rounded-md bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 font-medium hover:opacity-90 disabled:opacity-50 transition-opacity"
+                className="text-xs px-3 py-1.5 rounded-md bg-panel bg-panel text-ink text-ink font-medium hover:opacity-90 disabled:opacity-50 transition-opacity"
               >
                 Add to collection
               </button>
               <button
                 onClick={batchDelete}
                 disabled={batchLoading}
-                className="text-xs px-3 py-1.5 rounded-md text-red-600 hover:bg-red-50 dark:hover:bg-red-950 transition-colors disabled:opacity-50"
+                className="text-xs px-3 py-1.5 rounded-md text-danger hover:bg-panel-2 hover:bg-panel-2 transition-colors disabled:opacity-50"
               >
                 {batchLoading ? '…' : 'Delete'}
               </button>
               <button
                 onClick={() => setSelected(new Set())}
-                className="text-xs text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 transition-colors"
+                className="text-xs text-muted hover:text-muted hover:text-s => s >= 800 ? 'ink' : 'muted' transition-colors"
               >
                 Cancel
               </button>
             </div>
           )}
-          {batchError && <p className="mb-2 text-xs text-red-600">{batchError}</p>}
+          {batchError && <p className="mb-2 text-xs text-danger">{batchError}</p>}
 
           {/* Collection picker */}
           {collectionsOpen && (
@@ -163,15 +163,15 @@ export function SavedUrlsManager({ userId, initialSavedUrls }: Props) {
                   key={item.id}
                   className={`flex items-center gap-3 rounded-xl border px-4 py-3 transition-colors ${
                     selected.has(item.id)
-                      ? 'border-zinc-900 dark:border-white bg-zinc-50 dark:bg-zinc-900'
-                      : 'border-zinc-200 dark:border-zinc-800'
+                      ? 'border-line border-line bg-panel-2 bg-panel'
+                      : 'border-line'
                   }`}
                 >
                   <input
                     type="checkbox"
                     checked={selected.has(item.id)}
                     onChange={() => toggleSelect(item.id)}
-                    className="shrink-0 w-4 h-4 rounded accent-zinc-900 dark:accent-white cursor-pointer"
+                    className="shrink-0 w-4 h-4 rounded accent-ink accent-ink cursor-pointer"
                   />
                   <a
                     href={item.url}
@@ -179,13 +179,13 @@ export function SavedUrlsManager({ userId, initialSavedUrls }: Props) {
                     rel="noopener noreferrer"
                     className="flex-1 min-w-0"
                   >
-                    <p className="text-sm font-medium text-zinc-900 dark:text-white truncate hover:underline">
+                    <p className="text-sm font-medium text-ink truncate hover:underline">
                       {item.title || item.url}
                     </p>
-                    <p className="text-xs text-zinc-400 truncate">
+                    <p className="text-xs text-muted truncate">
                       {domain}
                       {expiresIn <= 7 && (
-                        <span className="ml-2 text-amber-500">expires in {expiresIn}d</span>
+                        <span className="ml-2 text-gold">expires in {expiresIn}d</span>
                       )}
                     </p>
                   </a>
@@ -201,7 +201,7 @@ export function SavedUrlsManager({ userId, initialSavedUrls }: Props) {
                       onClick={() => void remove(item.id)}
                       aria-label="Remove saved page"
                       title="Remove"
-                      className="text-zinc-400 hover:text-red-500 transition-colors text-sm"
+                      className="text-muted hover:text-danger transition-colors text-sm"
                     >
                       ✕
                     </button>
@@ -213,7 +213,7 @@ export function SavedUrlsManager({ userId, initialSavedUrls }: Props) {
         </>
       )}
 
-      {error && <p className="mt-2 text-xs text-red-600">{error}</p>}
+      {error && <p className="mt-2 text-xs text-danger">{error}</p>}
     </section>
   );
 }
@@ -241,24 +241,24 @@ function CollectionPicker({ onSelect, onClose }: { onSelect: (id: string) => voi
   }, []);
 
   return (
-    <div className="mb-3 p-3 rounded-lg border border-zinc-200 dark:border-zinc-800">
+    <div className="mb-3 p-3 rounded-lg border border-line">
       <div className="flex items-center justify-between mb-2">
-        <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400">Choose a collection</p>
-        <button onClick={onClose} className="text-xs text-zinc-400 hover:text-zinc-600 transition-colors">Cancel</button>
+        <p className="text-xs font-medium text-muted">Choose a collection</p>
+        <button onClick={onClose} className="text-xs text-muted hover:text-muted transition-colors">Cancel</button>
       </div>
       {loading ? (
-        <p className="text-xs text-zinc-400">Loading…</p>
+        <p className="text-xs text-muted">Loading…</p>
       ) : collections.length === 0 ? (
-        <p className="text-xs text-zinc-400">No collections yet. Create one above.</p>
+        <p className="text-xs text-muted">No collections yet. Create one above.</p>
       ) : (
         <ul className="flex flex-col gap-1">
           {collections.map(col => (
             <li key={col.id}>
               <button
                 onClick={() => onSelect(col.id)}
-                className="w-full text-left text-sm px-2 py-1.5 rounded hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+                className="w-full text-left text-sm px-2 py-1.5 rounded hover:bg-panel-2 transition-colors"
               >
-                {col.name} <span className="text-xs text-zinc-400">({col.item_count})</span>
+                {col.name} <span className="text-xs text-muted">({col.item_count})</span>
               </button>
             </li>
           ))}

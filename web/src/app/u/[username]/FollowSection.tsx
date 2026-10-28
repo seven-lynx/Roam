@@ -89,15 +89,15 @@ export function FollowSection({ profileId, followerCount: initialFollowerCount, 
             onClick={() => showList('followers')}
             className="text-center hover:opacity-70 transition-opacity"
           >
-            <p className="font-semibold text-zinc-900 dark:text-white">{followerCount}</p>
-            <p className="text-zinc-400">followers</p>
+            <p className="font-semibold text-ink">{followerCount}</p>
+            <p className="text-muted">followers</p>
           </button>
           <button
             onClick={() => showList('following')}
             className="text-center hover:opacity-70 transition-opacity"
           >
-            <p className="font-semibold text-zinc-900 dark:text-white">{followingCount}</p>
-            <p className="text-zinc-400">following</p>
+            <p className="font-semibold text-ink">{followingCount}</p>
+            <p className="text-muted">following</p>
           </button>
         </div>
       )}
@@ -107,37 +107,37 @@ export function FollowSection({ profileId, followerCount: initialFollowerCount, 
           <div className="flex items-center gap-2 mb-4">
             <button
               onClick={() => setViewMode('stats')}
-              className="text-sm text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-300 transition-colors"
+              className="text-sm text-muted hover:text-ink hover:text-s => s >= 800 ? 'ink' : 'muted' transition-colors"
             >
               ← Back
             </button>
-            <h3 className="text-base font-semibold text-zinc-900 dark:text-white">
+            <h3 className="text-base font-semibold text-ink">
               {viewMode === 'followers' ? 'Followers' : 'Following'}
             </h3>
           </div>
 
           {loading ? (
-            <p className="py-4 text-sm text-zinc-400 text-center">Loading…</p>
+            <p className="py-4 text-sm text-muted text-center">Loading…</p>
           ) : users.length === 0 ? (
-            <p className="py-4 text-sm text-zinc-400 text-center">
+            <p className="py-4 text-sm text-muted text-center">
               {viewMode === 'followers' ? 'No followers yet.' : 'Not following anyone yet.'}
             </p>
           ) : (
-            <ul className="flex flex-col divide-y divide-zinc-100 dark:divide-zinc-800">
+            <ul className="flex flex-col divide-y divide-line divide-line">
               {users.map((user) => (
                 <li key={user.id}>
                   <Link
                     href={`/u/${user.username}`}
-                    className="flex items-center gap-3 px-1 py-3 hover:bg-zinc-50 dark:hover:bg-zinc-900 rounded-lg transition-colors"
+                    className="flex items-center gap-3 px-1 py-3 hover:bg-panel-2 rounded-lg transition-colors"
                   >
-                    <div className="flex items-center justify-center w-10 h-10 rounded-full bg-gradient-to-br from-amber-400 to-amber-500 text-white text-sm font-bold shrink-0">
+                    <div className="flex items-center justify-center w-10 h-10 rounded-full bg-gradient-to-br from-accent to-accent text-ink text-sm font-bold shrink-0">
                       {initials(user.display_name, user.username)}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-zinc-900 dark:text-white truncate">
+                      <p className="text-sm font-medium text-ink truncate">
                         {user.display_name || user.username}
                       </p>
-                      <p className="text-xs text-zinc-400 truncate">@{user.username}</p>
+                      <p className="text-xs text-muted truncate">@{user.username}</p>
                     </div>
                   </Link>
                 </li>
