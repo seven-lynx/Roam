@@ -2,33 +2,48 @@
 import '@/lib/env';
 
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Space_Grotesk, IBM_Plex_Mono, Silkscreen, Caveat } from "next/font/google";
 import "./globals.css";
-import { ThemeProvider } from "next-themes";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { AuthProvider } from "@/components/AuthProvider";
-import { Header } from "@/components/Header";
-import { Footer } from "@/components/Footer";
 import { CookieBanner } from "@/components/CookieBanner";
 import { WebsiteSchema } from "@/components/JsonLd";
 import { Suspense } from "react";
-import { Breadcrumbs } from "@/components/Breadcrumbs";
+import Link from "next/link";
 import { PageTransition } from "@/components/PageTransition";
 import { createClient } from "@/lib/supabase/server";
+import { TerminalOverlay } from "@/components/TerminalOverlay";
+import { FlashlightCursor } from "@/components/FlashlightCursor";
+import { BootSequence } from "@/components/BootSequence";
+import { WorkstationShell } from "@/components/WorkstationShell";
+import { LeftRail, RightRail } from "@/components/DeskRails";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const spaceGrotesk = Space_Grotesk({
+  variable: "--font-space-grotesk",
   subsets: ["latin"],
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+const ibmPlexMono = IBM_Plex_Mono({
+  variable: "--font-ibm-plex-mono",
   subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
+});
+
+const silkscreen = Silkscreen({
+  variable: "--font-silkscreen",
+  subsets: ["latin"],
+  weight: ["400", "700"],
+});
+
+const caveat = Caveat({
+  variable: "--font-caveat",
+  subsets: ["latin"],
+  weight: ["500", "700"],
 });
 
 export const metadata: Metadata = {
-  title: { default: "Roam", template: "%s · Roam" },
-  description: "Discover a random corner of the web. Roam is a StumbleUpon-style web discovery engine — browser extension, Android app, and web.",
+  title: { default: "Roam · Scan the forgotten web", template: "%s · Roam" },
+  description: "Roam is a wanderer's workstation for scanning the forgotten web. One press pulls up a random corner of the internet, rated by real people. Browser extension, Android app, and web.",
   icons: {
     icon: [
       { url: "/icon-16.png", sizes: "16x16", type: "image/png" },
@@ -61,40 +76,55 @@ export default async function RootLayout({
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
-      suppressHydrationWarning
+      className={`dark ${spaceGrotesk.variable} ${ibmPlexMono.variable} ${silkscreen.variable} ${caveat.variable} h-full antialiased`}
     >
-      <head>
-        {/* Anti-FOUC script: prevent theme flash by setting dark class before paint */}
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `(function(){try{var e=localStorage.getItem("theme");if(e==="dark"||(e!=="light"&&window.matchMedia("(prefers-color-scheme:dark)").matches))document.documentElement.classList.add("dark")}catch(e){/* noop */}})()`,
-          }}
-        />
-      </head>
-      <body className="min-h-full flex flex-col">
+      <body className="h-full">
         <WebsiteSchema />
-        <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
-          <AuthProvider initialSession={session}>
-            <ErrorBoundary>
-              {/* Skip to content link for keyboard users (WCAG 2.1 AA) */}
-              <a
-                href="#main-content"
-                className="sr-only focus:not-sr-only focus:absolute focus:top-3 focus:left-3 focus:z-[100] focus:px-4 focus:py-2 focus:bg-white dark:focus:bg-zinc-900 focus:text-zinc-900 dark:focus:text-white focus:rounded-lg focus:shadow-lg focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:focus:ring-white"
-              >
-                Skip to content
-              </a>
-              <Header />
+        <AuthProvider initialSession={session}>
+          <ErrorBoundary>
+            {/* Skip to content link for keyboard users (WCAG 2.1 AA) */}
+            <a
+              href="#main-content"
+              className="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-[100] focus:px-4 focus:py-2 focus:bg-oxide focus:text-bone focus:border focus:border-line"
+            >
+              Skip to content
+            </a>
+            <WorkstationShell
+              rails={
+                <>
+                  <LeftRail />
+                  <RightRail />
+                </>
+              }
+              overlays={
+                <>
+                  <FlashlightCursor />
+                  <TerminalOverlay />
+                  <CookieBanner />
+                  <BootSequence />
+                </>
+              }
+            >
               <Suspense><PageTransition /></Suspense>
-              <Breadcrumbs />
-              <main id="main-content" className="flex-1">
+              <main id="main-content" className="min-h-full">
                 {children}
               </main>
-              <Footer />
-              <CookieBanner />
-            </ErrorBoundary>
-          </AuthProvider>
-        </ThemeProvider>
+              <footer className="border-t border-line px-6 py-6 text-center font-mono text-xs text-muted">
+                <nav aria-label="Footer" className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2">
+                  <Link href="/how-it-works" className="hover:text-ink">How It Works</Link>
+                  <Link href="/support-roam" className="hover:text-gold">Support Roam</Link>
+                  <Link href="/extensions" className="hover:text-ink">Extensions</Link>
+                  <Link href="/android" className="hover:text-ink">Android</Link>
+                  <Link href="/stats" className="hover:text-ink">Stats</Link>
+                  <Link href="/changelog" className="hover:text-ink">Changelog</Link>
+                  <Link href="/privacy" className="hover:text-ink">Privacy</Link>
+                  <Link href="/terms" className="hover:text-ink">Terms</Link>
+                  <a href="https://github.com/seven-lynx/Roam" target="_blank" rel="noopener noreferrer" className="hover:text-ink">GitHub</a>
+                </nav>
+              </footer>
+            </WorkstationShell>
+          </ErrorBoundary>
+        </AuthProvider>
       </body>
     </html>
   );

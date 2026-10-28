@@ -23,14 +23,14 @@ function PersonRow({ person }: { person: PersonResult }) {
         <Avatar name={person.display_name || person.username} size="md" />
       </Link>
       <Link href={`/u/${person.username}`} className="flex-1 min-w-0 group">
-        <p className="text-sm font-medium text-zinc-900 dark:text-white truncate group-hover:underline">
+        <p className="text-sm font-medium text-ink truncate group-hover:underline">
           {person.display_name || person.username}
         </p>
-        <p className="text-xs text-zinc-400 truncate">@{person.username}</p>
+        <p className="text-xs text-muted truncate">@{person.username}</p>
         {person.bio && (
-          <p className="text-xs text-zinc-500 dark:text-zinc-400 truncate mt-0.5">{person.bio}</p>
+          <p className="text-xs text-muted truncate mt-0.5">{person.bio}</p>
         )}
-        <p className="text-[11px] text-zinc-400 mt-0.5 tabular-nums">
+        <p className="text-[11px] text-muted mt-0.5 tabular-nums">
           {person.follower_count} {person.follower_count === 1 ? 'follower' : 'followers'}
         </p>
       </Link>
@@ -79,7 +79,7 @@ export function PeopleClient({ initialSuggestions }: { initialSuggestions: Perso
   return (
     <div>
       <div className="relative mb-6">
-        <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400">
+        <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted">
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
             <circle cx="11" cy="11" r="8" />
             <path d="m21 21-4.3-4.3" />
@@ -91,12 +91,12 @@ export function PeopleClient({ initialSuggestions }: { initialSuggestions: Perso
           onChange={e => setQuery(e.target.value)}
           placeholder="Search by username or name…"
           autoFocus
-          className="w-full rounded-lg border border-zinc-300 dark:border-zinc-700 pl-9 pr-4 py-2.5 text-sm bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:focus:ring-white"
+          className="w-full rounded-lg border border-line pl-9 pr-4 py-2.5 text-sm bg-panel text-ink placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-ink focus:ring-line"
         />
       </div>
 
       {error && (
-        <div className="rounded-xl border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950/30 p-4 text-sm text-red-600 dark:text-red-400 mb-4">
+        <div className="rounded-xl border border-danger border-danger bg-panel-2 bg-panel-2/30 p-4 text-sm text-danger text-danger mb-4">
           {error}
         </div>
       )}
@@ -104,28 +104,28 @@ export function PeopleClient({ initialSuggestions }: { initialSuggestions: Perso
       {searching ? (
         <section>
           {loading ? (
-            <p className="py-8 text-sm text-zinc-400 text-center">Searching…</p>
+            <p className="py-8 text-sm text-muted text-center">Searching…</p>
           ) : results.length === 0 ? (
-            <p className="py-8 text-sm text-zinc-400 text-center">
+            <p className="py-8 text-sm text-muted text-center">
               No one found for “{query.trim()}”.
             </p>
           ) : (
-            <ul className="flex flex-col divide-y divide-zinc-100 dark:divide-zinc-800">
+            <ul className="flex flex-col divide-y divide-line divide-line">
               {results.map(p => <PersonRow key={p.user_id} person={p} />)}
             </ul>
           )}
         </section>
       ) : (
         <section>
-          <h2 className="text-sm font-semibold text-zinc-500 dark:text-zinc-400 mb-1">
+          <h2 className="text-sm font-semibold text-muted mb-1">
             People you may like
           </h2>
           {initialSuggestions.length === 0 ? (
-            <p className="py-8 text-sm text-zinc-400 text-center">
+            <p className="py-8 text-sm text-muted text-center">
               No suggestions yet — try searching for someone by name.
             </p>
           ) : (
-            <ul className="flex flex-col divide-y divide-zinc-100 dark:divide-zinc-800">
+            <ul className="flex flex-col divide-y divide-line divide-line">
               {initialSuggestions.map(p => <PersonRow key={p.user_id} person={p} />)}
             </ul>
           )}

@@ -36,10 +36,10 @@ export function PublicProfileHeader({
       <div className="flex items-center gap-5">
         <Avatar name={profile.display_name || profile.username} size="lg" />
         <div className="flex-1">
-          <h1 className="text-2xl font-bold text-zinc-900 dark:text-white">
+          <h1 className="text-2xl font-bold text-ink">
             {profile.display_name || profile.username}
           </h1>
-          <p className="text-sm text-zinc-500 dark:text-zinc-400">@{profile.username}</p>
+          <p className="text-sm text-muted">@{profile.username}</p>
           <div className="flex items-center gap-1 mt-1">
             <CopyProfileLink username={profile.username} />
           </div>

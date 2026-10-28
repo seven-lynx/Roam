@@ -49,19 +49,19 @@ interface NavItem {
 }
 
 const NAV_ITEMS: NavItem[] = [
-  { id: "queue", label: "Moderation", icon: "\uD83D\uDEC3", color: "bg-blue-600" },
-  { id: "analytics", label: "Analytics", icon: "\uD83D\uDCCA", color: "bg-violet-600" },
-  { id: "badges", label: "Badges", icon: "\uD83C\uDFC5", color: "bg-purple-600" },
-  { id: "reports", label: "Dead Links", icon: "\uD83D\uDEAB", color: "bg-red-600" },
-  { id: "email", label: "Email", icon: "\uD83D\uDCE7", color: "bg-amber-600" },
-  { id: "beta", label: "Beta Signups", icon: "\uD83D\uDD0C", color: "bg-emerald-600" },
+  { id: "queue", label: "Moderation", icon: "\uD83D\uDEC3", color: "bg-phosphor" },
+  { id: "analytics", label: "Analytics", icon: "\uD83D\uDCCA", color: "bg-phosphor" },
+  { id: "badges", label: "Badges", icon: "\uD83C\uDFC5", color: "bg-phosphor" },
+  { id: "reports", label: "Dead Links", icon: "\uD83D\uDEAB", color: "bg-danger" },
+  { id: "email", label: "Email", icon: "\uD83D\uDCE7", color: "bg-accent" },
+  { id: "beta", label: "Beta Signups", icon: "\uD83D\uDD0C", color: "bg-ok" },
 ];
 
 const AdminAnalytics = dynamic(() => import("./views/AdminAnalytics"), { loading: () => <LoadingView /> });
 const AdminEmail = dynamic(() => import("./views/AdminEmail"), { loading: () => <LoadingView /> });
 
 function LoadingView() {
-  return <div className="text-center text-zinc-500 py-12">Loading...</div>;
+  return <div className="text-center text-muted py-12">Loading...</div>;
 }
 
 /**
@@ -239,59 +239,59 @@ export default function AdminPageClient() {
   };
 
   return (
-    <main className="min-h-screen bg-white dark:bg-zinc-950 pb-20">
+    <main className="min-h-full bg-screen pb-20">
       <div className="mx-auto px-4 sm:px-6 py-4 sm:py-8 flex flex-col gap-4 sm:gap-6 max-w-4xl">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-xl sm:text-3xl font-bold text-zinc-900 dark:text-white">Admin Dashboard</h1>
-            <p className="mt-0.5 text-zinc-500 dark:text-zinc-400 text-xs sm:text-sm">Manage submissions and view analytics</p>
+            <h1 className="text-xl sm:text-3xl font-bold text-ink">Admin Dashboard</h1>
+            <p className="mt-0.5 text-muted text-xs sm:text-sm">Manage submissions and view analytics</p>
           </div>
           <Link
             href="/admin/dashboard"
-            className="rounded-lg bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 px-3 py-1.5 sm:px-4 sm:py-2 text-xs sm:text-sm font-medium hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors"
+            className="rounded-lg bg-panel-2 text-muted px-3 py-1.5 sm:px-4 sm:py-2 text-xs sm:text-sm font-medium hover:bg-panel-3 transition-colors"
           >
             System Dashboard
           </Link>
         </div>
 
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4">
-          <StatCard label="Pending" value={statusCounts.pending} color="text-amber-600 dark:text-amber-400" />
-          <StatCard label="Reports" value={reportedLinks.length} color="text-red-600 dark:text-red-400" />
-          <StatCard label="Beta" value={betaSignups.length} color="text-emerald-600 dark:text-emerald-400" />
+          <StatCard label="Pending" value={statusCounts.pending} color="text-gold" />
+          <StatCard label="Reports" value={reportedLinks.length} color="text-danger text-danger" />
+          <StatCard label="Beta" value={betaSignups.length} color="text-ok text-ok" />
           <StatCard label="All Time" value={queueItems.length} />
         </div>
 
         <div className="relative">
           <button
             onClick={() => setMenuOpen(!menuOpen)}
-            className="flex items-center gap-2 w-full rounded-xl border border-zinc-200 dark:border-zinc-800 px-4 py-3 text-sm font-medium bg-zinc-50 dark:bg-zinc-900 text-zinc-900 dark:text-white hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+            className="flex items-center gap-2 w-full rounded-xl border border-line px-4 py-3 text-sm font-medium bg-panel-2 bg-panel text-ink hover:bg-panel-2 transition-colors"
           >
             <span>{currentNav.icon}</span>
             <span>{currentNav.label}</span>
             {view === "queue" && statusCounts.pending > 0 && (
-              <span className="ml-2 flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full bg-amber-500 text-white text-[10px] font-bold">
+              <span className="ml-2 flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full bg-accent text-ink text-[10px] font-bold">
                 {statusCounts.pending}
               </span>
             )}
-            <span className="ml-auto text-zinc-400 text-lg leading-none">{menuOpen ? "▴" : "▾"}</span>
+            <span className="ml-auto text-muted text-lg leading-none">{menuOpen ? "▴" : "▾"}</span>
           </button>
 
           {menuOpen && (
-            <div className="absolute top-full left-0 right-0 mt-1 z-30 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-lg overflow-hidden">
+            <div className="absolute top-full left-0 right-0 mt-1 z-30 rounded-xl border border-line bg-panel shadow-lg overflow-hidden">
               {NAV_ITEMS.map((item) => (
                 <button
                   key={item.id}
                   onClick={() => handleNavSelect(item.id)}
                   className={`flex items-center gap-3 w-full px-4 py-3 text-sm font-medium transition-colors ${
                     view === item.id
-                      ? "bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-white"
-                      : "text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800/50"
+                      ? "bg-panel-2 text-ink"
+                      : "text-muted hover:bg-panel-2 hover:bg-panel-2/50"
                   }`}
                 >
                   <span>{item.icon}</span>
                   <span>{item.label}</span>
                   {item.id === "queue" && statusCounts.pending > 0 && (
-                    <span className="ml-auto flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full bg-amber-500 text-white text-[10px] font-bold">
+                    <span className="ml-auto flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full bg-accent text-ink text-[10px] font-bold">
                       {statusCounts.pending}
                     </span>
                   )}
@@ -356,47 +356,47 @@ function QueueView({
     <div className="flex flex-col gap-4">
       <input type="text" placeholder="Search URL, title..." value={searchQuery}
         onChange={(e) => setSearchQuery(e.target.value)}
-        className="w-full rounded-xl border border-zinc-200 dark:border-zinc-700 px-4 py-2.5 text-sm bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white placeholder:text-zinc-400"
+        className="w-full rounded-xl border border-line px-4 py-2.5 text-sm bg-panel text-ink placeholder:text-muted"
       />
       <button onClick={() => setFiltersOpen(!filtersOpen)}
-        className="flex items-center gap-2 text-xs font-medium text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-300 transition-colors self-start"
+        className="flex items-center gap-2 text-xs font-medium text-muted hover:text-ink transition-colors self-start"
       >
         <span>{filtersOpen ? "▴" : "▾"}</span><span>Filters & Sort</span>
-        {statusFilter !== "all" && <span className="rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 px-2 py-0.5 text-[10px]">{statusFilter}</span>}
+        {statusFilter !== "all" && <span className="rounded-full bg-panel-2 bg-panel-2/30 text-phosphor text-phosphor px-2 py-0.5 text-[10px]">{statusFilter}</span>}
       </button>
       {filtersOpen && (
-        <div className="flex flex-col gap-3 rounded-xl border border-zinc-200 dark:border-zinc-800 p-4 bg-zinc-50 dark:bg-zinc-900/50">
+        <div className="flex flex-col gap-3 rounded-xl border border-line p-4 bg-panel-2">
           <div className="flex gap-1.5 flex-wrap">
             {(["all", "pending", "approved", "rejected"] as const).map((status) => (
               <button key={status} onClick={() => setStatusFilter(status)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${statusFilter === status ? "bg-blue-600 text-white" : "bg-white dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 border border-zinc-200 dark:border-zinc-700 hover:bg-zinc-100 dark:hover:bg-zinc-700"}`}
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${statusFilter === status ? "bg-phosphor text-ink" : "bg-panel bg-panel-2 text-muted border border-line hover:bg-panel-2 hover:bg-panel-2"}`}
               >{status === "all" ? `All (${statusCounts.all})` : `${status.charAt(0).toUpperCase() + status.slice(1)} (${statusCounts[status]})`}</button>
             ))}
           </div>
           <select value={sortBy} onChange={(e) => setSortBy(e.target.value as "newest" | "oldest")}
-            className="rounded-lg border border-zinc-200 dark:border-zinc-700 px-3 py-1.5 text-xs bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white"
+            className="rounded-lg border border-line px-3 py-1.5 text-xs bg-panel bg-panel-2 text-ink"
           ><option value="newest">Newest first</option><option value="oldest">Oldest first</option></select>
         </div>
       )}
-      {loading ? <div className="text-center text-zinc-500 py-12">Loading...</div>
-      : filteredItems.length === 0 ? <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 p-6 text-center text-zinc-400 text-sm">No submissions found.</div>
+      {loading ? <div className="text-center text-muted py-12">Loading...</div>
+      : filteredItems.length === 0 ? <div className="rounded-xl border border-line p-6 text-center text-muted text-sm">No submissions found.</div>
       : <div className="flex flex-col gap-2">
         {filteredItems.map((item) => (
           <button key={item.id} onClick={() => onSelectItem(item)}
-            className="flex flex-col gap-2 rounded-xl border border-zinc-200 dark:border-zinc-800 px-4 py-3 hover:bg-zinc-50 dark:hover:bg-zinc-900/50 transition-colors text-left active:scale-[0.99]"
+            className="flex flex-col gap-2 rounded-xl border border-line px-4 py-3 hover:bg-panel-2/50 transition-colors text-left active:scale-[0.99]"
           >
             <div className="flex items-start justify-between gap-3">
               <div className="flex-1 min-w-0">
                 <a href={item.url} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}
-                  className="text-sm font-medium text-blue-600 dark:text-blue-400 hover:underline break-all line-clamp-2">{item.url}</a>
-                {item.title && <p className="mt-1 text-xs text-zinc-600 dark:text-zinc-400 line-clamp-2">{item.title}</p>}
+                  className="text-sm font-medium text-phosphor text-phosphor hover:underline break-all line-clamp-2">{item.url}</a>
+                {item.title && <p className="mt-1 text-xs text-muted line-clamp-2">{item.title}</p>}
               </div>
               <span className={`shrink-0 text-[10px] font-semibold px-2 py-1 rounded ${
-                item.status === "approved" ? "bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400"
-                : item.status === "rejected" ? "bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400"
-                : "bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400"}`}>{item.status}</span>
+                item.status === "approved" ? "bg-panel-2 bg-panel-2/20 text-ok text-ok"
+                : item.status === "rejected" ? "bg-panel-2 bg-panel-2/20 text-danger text-danger"
+                : "bg-panel-2 bg-panel-2/20 text-gold text-gold"}`}>{item.status}</span>
             </div>
-            <span className="text-[10px] text-zinc-400">{item.created_at ? new Date(item.created_at).toLocaleString('en-US', { timeZone: 'America/New_York', timeZoneName: 'short' }) : '—'}</span>
+            <span className="text-[10px] text-muted">{item.created_at ? new Date(item.created_at).toLocaleString('en-US', { timeZone: 'America/New_York', timeZoneName: 'short' }) : '—'}</span>
           </button>
         ))}
       </div>}
@@ -409,23 +409,23 @@ function ReportsView({ reportedLinks, loading, restoringId, onRestore }: {
 }) {
   return (
     <div className="flex flex-col gap-3">
-      <h2 className="text-lg font-semibold text-zinc-900 dark:text-white">Dead Link Reports</h2>
-      <p className="text-xs text-zinc-400 dark:text-zinc-500 -mt-2">URLs reported as broken, sorted by report count</p>
-      {loading ? <div className="text-center text-zinc-500 py-12">Loading...</div>
-      : reportedLinks.length === 0 ? <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 p-6 text-center text-zinc-400 text-sm">No dead link reports yet.</div>
+      <h2 className="text-lg font-semibold text-ink">Dead Link Reports</h2>
+      <p className="text-xs text-muted -mt-2">URLs reported as broken, sorted by report count</p>
+      {loading ? <div className="text-center text-muted py-12">Loading...</div>
+      : reportedLinks.length === 0 ? <div className="rounded-xl border border-line p-6 text-center text-muted text-sm">No dead link reports yet.</div>
       : <div className="flex flex-col gap-2">
         {reportedLinks.map((r) => (
-          <div key={r.url_id} className="rounded-xl border border-zinc-200 dark:border-zinc-800 p-3">
-            <a href={r.url} target="_blank" rel="noopener noreferrer" className="text-sm font-medium text-blue-600 dark:text-blue-400 hover:underline break-all">{r.url}</a>
-            {r.title && <p className="mt-1 text-xs text-zinc-600 dark:text-zinc-400">{r.title}</p>}
+          <div key={r.url_id} className="rounded-xl border border-line p-3">
+            <a href={r.url} target="_blank" rel="noopener noreferrer" className="text-sm font-medium text-phosphor text-phosphor hover:underline break-all">{r.url}</a>
+            {r.title && <p className="mt-1 text-xs text-muted">{r.title}</p>}
             <div className="flex items-center justify-between mt-2 text-xs">
-              <div className="flex items-center gap-3 text-zinc-500 dark:text-zinc-400">
-                <span><strong className="text-zinc-700 dark:text-zinc-300">{r.report_count}</strong> reports</span>
+              <div className="flex items-center gap-3 text-muted">
+                <span><strong className="text-muted">{r.report_count}</strong> reports</span>
                 <span>{r.reported_at ? new Date(r.reported_at).toLocaleDateString('en-US', { timeZone: 'America/New_York' }) : '—'}</span>
               </div>
               <div className="flex items-center gap-2">
-                <span className={`text-[10px] font-medium px-2 py-0.5 rounded ${r.inactive ? "bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400" : "bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400"}`}>{r.inactive ? "Inactive" : "Active"}</span>
-                {r.inactive && <button onClick={() => onRestore(r.url_id)} disabled={restoringId === r.url_id} className="text-[10px] px-2 py-1 rounded-lg bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700 disabled:opacity-50 transition-colors">{restoringId === r.url_id ? "…" : "Restore"}</button>}
+                <span className={`text-[10px] font-medium px-2 py-0.5 rounded ${r.inactive ? "bg-panel-2 bg-panel-2/20 text-danger text-danger" : "bg-panel-2 bg-panel-2/20 text-ok text-ok"}`}>{r.inactive ? "Inactive" : "Active"}</span>
+                {r.inactive && <button onClick={() => onRestore(r.url_id)} disabled={restoringId === r.url_id} className="text-[10px] px-2 py-1 rounded-lg bg-panel-2 text-muted hover:bg-panel-3 disabled:opacity-50 transition-colors">{restoringId === r.url_id ? "…" : "Restore"}</button>}
               </div>
             </div>
           </div>
@@ -440,21 +440,21 @@ function BetaView({ signups, loading, deletingId, onDelete }: {
 }) {
   return (
     <div className="flex flex-col gap-4">
-      <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 p-4 sm:p-6">
+      <div className="rounded-xl border border-line p-4 sm:p-6">
         <div className="flex items-center justify-between mb-3">
-          <div><h2 className="text-lg font-semibold text-zinc-900 dark:text-white">Beta Signups</h2><p className="text-xs text-zinc-400 dark:text-zinc-500">Emails submitted via /android-beta</p></div>
-          {signups.length > 0 && <div className="rounded-lg bg-emerald-50 dark:bg-emerald-900/20 px-3 py-1.5 text-center shrink-0"><div className="text-xl font-bold tabular-nums text-emerald-700 dark:text-emerald-300">{signups.length}</div><div className="text-[10px] text-emerald-600 dark:text-emerald-400">total</div></div>}
+          <div><h2 className="text-lg font-semibold text-ink">Beta Signups</h2><p className="text-xs text-muted">Emails submitted via /android-beta</p></div>
+          {signups.length > 0 && <div className="rounded-lg bg-panel-2 bg-panel-2/20 px-3 py-1.5 text-center shrink-0"><div className="text-xl font-bold tabular-nums text-ok text-ok">{signups.length}</div><div className="text-[10px] text-ok text-ok">total</div></div>}
         </div>
-        {loading ? <div className="text-center text-zinc-500 py-8">Loading...</div>
-        : signups.length === 0 ? <div className="rounded-lg border border-zinc-100 dark:border-zinc-800 p-6 text-center text-zinc-400 text-sm">No signups yet.</div>
+        {loading ? <div className="text-center text-muted py-8">Loading...</div>
+        : signups.length === 0 ? <div className="rounded-lg border border-line border-line p-6 text-center text-muted text-sm">No signups yet.</div>
         : <div className="flex flex-col gap-1.5">
           {signups.map((s) => (
-            <div key={s.id} className="flex items-center justify-between py-2.5 px-3 rounded-lg bg-zinc-50 dark:bg-zinc-900/50">
+            <div key={s.id} className="flex items-center justify-between py-2.5 px-3 rounded-lg bg-panel-2">
               <div className="flex-1 min-w-0">
-                <span className="font-mono text-xs text-zinc-700 dark:text-zinc-300 break-all">{s.email}</span>
-                <span className="block text-[10px] text-zinc-400 mt-0.5">{s.created_at ? new Date(s.created_at).toLocaleString('en-US', { timeZone: 'America/New_York', timeZoneName: 'short' }) : '—'}</span>
+                <span className="font-mono text-xs text-muted break-all">{s.email}</span>
+                <span className="block text-[10px] text-muted mt-0.5">{s.created_at ? new Date(s.created_at).toLocaleString('en-US', { timeZone: 'America/New_York', timeZoneName: 'short' }) : '—'}</span>
               </div>
-              <button onClick={() => onDelete(s.id)} disabled={deletingId === s.id} className="shrink-0 ml-3 text-xs px-3 py-1.5 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/40 disabled:opacity-50 transition-colors">{deletingId === s.id ? "…" : "Delete"}</button>
+              <button onClick={() => onDelete(s.id)} disabled={deletingId === s.id} className="shrink-0 ml-3 text-xs px-3 py-1.5 rounded-lg bg-panel-2 bg-panel-2/20 text-danger text-danger hover:bg-panel-2 hover:bg-panel-2/40 disabled:opacity-50 transition-colors">{deletingId === s.id ? "…" : "Delete"}</button>
             </div>
           ))}
         </div>}

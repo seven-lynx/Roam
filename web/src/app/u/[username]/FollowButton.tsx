@@ -107,7 +107,7 @@ export function FollowButton({ targetUserId, initialStatus, onFollowChange }: Fo
     return (
       <Link
         href={`/signup?redirect=${encodeURIComponent(currentPath)}`}
-        className="shrink-0 rounded-lg border border-zinc-300 dark:border-zinc-700 px-4 py-2 text-sm font-medium text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-300 transition-colors"
+        className="shrink-0 rounded-lg border border-line px-4 py-2 text-sm font-medium text-muted hover:text-ink hover:text-s => s >= 800 ? 'ink' : 'muted' transition-colors"
       >
         Log in to follow
       </Link>
@@ -116,8 +116,8 @@ export function FollowButton({ targetUserId, initialStatus, onFollowChange }: Fo
 
   const label = status === 'following' ? 'Following' : 'Follow';
   const variant = status === 'none'
-    ? 'bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 hover:opacity-90'
-    : 'border border-zinc-300 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800';
+    ? 'bg-panel bg-panel text-ink text-ink hover:opacity-90'
+    : 'border border-line text-muted hover:bg-panel-2 hover:bg-panel-2';
 
   return (
     <div className="flex flex-col gap-1 shrink-0 items-end">
@@ -129,7 +129,7 @@ export function FollowButton({ targetUserId, initialStatus, onFollowChange }: Fo
         {loading ? '…' : label}
       </button>
       {error && (
-        <p className="text-xs text-red-500 dark:text-red-400">{error}</p>
+        <p className="text-xs text-danger text-danger">{error}</p>
       )}
     </div>
   );

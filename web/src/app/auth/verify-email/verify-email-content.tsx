@@ -29,29 +29,29 @@ export default function VerifyEmailContent() {
   }
 
   return (
-    <div className="flex min-h-[calc(100vh-8rem)] flex-col items-center justify-center px-6 py-16 bg-white dark:bg-zinc-950">
+    <div className="flex min-h-full flex-col items-center justify-center px-6 py-16 bg-screen">
       <div className="w-full max-w-sm flex flex-col items-center gap-6 text-center">
         <Image src="/icon-512.png" alt="Roam" width={64} height={64} />
         <div>
-          <h1 className="text-2xl font-bold text-zinc-900 dark:text-white">Check your inbox</h1>
-          <p className="mt-2 text-zinc-500 dark:text-zinc-400">
+          <h1 className="text-2xl font-bold text-ink">Check your inbox</h1>
+          <p className="mt-2 text-muted">
             We sent a confirmation link to{' '}
-            {email ? <strong className="text-zinc-700 dark:text-zinc-300">{email}</strong> : 'your email address'}.
+            {email ? <strong className="text-muted">{email}</strong> : 'your email address'}.
             {' '}Click the link to activate your account.
           </p>
         </div>
 
         {error && (
-          <p className="text-sm text-red-600">{error}</p>
+          <p className="text-sm text-danger">{error}</p>
         )}
 
         {resent ? (
-          <p className="text-sm text-green-600 dark:text-green-400">Email resent — check your inbox again.</p>
+          <p className="text-sm text-ok">Email resent — check your inbox again.</p>
         ) : (
           <button
             onClick={handleResend}
             disabled={loading || !email}
-            className="text-sm text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white underline underline-offset-2 disabled:opacity-50"
+            className="text-sm text-muted hover:text-ink underline underline-offset-2 disabled:opacity-50"
           >
             {loading ? 'Sending…' : "Didn't get it? Resend"}
           </button>
@@ -59,7 +59,7 @@ export default function VerifyEmailContent() {
 
         <Link
           href="/signup"
-          className="text-sm text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white transition-colors"
+          className="text-sm text-muted hover:text-ink transition-colors"
         >
           ← Use a different address
         </Link>

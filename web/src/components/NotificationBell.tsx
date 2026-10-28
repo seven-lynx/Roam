@@ -190,7 +190,7 @@ export function NotificationBell() {
         onClick={handleBellClick}
         aria-label={`Notifications${unreadCount > 0 ? ` (${unreadCount} unread)` : ''}`}
         aria-expanded={open}
-        className="relative p-2 rounded-full text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-white transition-colors"
+        className="relative p-2 text-muted hover:bg-panel-2 hover:text-ink transition-colors"
       >
         <svg
           xmlns="http://www.w3.org/2000/svg"
@@ -206,21 +206,21 @@ export function NotificationBell() {
           <path d="M13.73 21a2 2 0 0 1-3.46 0" />
         </svg>
         {unreadCount > 0 && (
-          <span className="absolute -top-0.5 -right-0.5 flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] font-bold leading-none">
+          <span className="absolute -top-0.5 -right-0.5 flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-ember text-abyss text-[10px] font-bold leading-none">
             {unreadCount > 99 ? '99+' : unreadCount}
           </span>
         )}
       </button>
 
       {open && (
-        <div className="absolute right-0 mt-2 w-80 bg-white dark:bg-zinc-900 rounded-lg shadow-lg border border-zinc-200 dark:border-zinc-800 z-50 max-h-96 overflow-hidden flex flex-col">
-          <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-200 dark:border-zinc-800">
-            <h3 className="text-sm font-semibold text-zinc-900 dark:text-white">Notifications</h3>
+        <div className="absolute right-0 mt-2 w-80 panel z-50 max-h-96 overflow-hidden flex flex-col">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-line">
+            <h3 className="font-mono text-xs uppercase tracking-wider text-ink">Notifications</h3>
             <div className="flex items-center gap-3">
               {notifications.length > 0 && (
                 <button
                   onClick={clearAll}
-                  className="text-xs text-red-400 hover:text-red-600 transition-colors"
+                  className="text-xs text-danger transition-colors"
                 >
                   Clear all
                 </button>
@@ -228,7 +228,7 @@ export function NotificationBell() {
               {unreadCount > 0 && (
                 <button
                   onClick={markAllRead}
-                  className="text-xs text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300 transition-colors"
+                  className="text-xs text-muted hover:text-ink transition-colors"
                 >
                   Mark all read
                 </button>
@@ -238,7 +238,7 @@ export function NotificationBell() {
 
           <div className="overflow-y-auto flex-1">
             {notifications.length === 0 ? (
-              <div className="px-4 py-8 text-center text-sm text-zinc-500 dark:text-zinc-400">
+              <div className="px-4 py-8 text-center text-sm text-muted">
                 <p className="text-2xl mb-2">🔔</p>
                 <p>No notifications yet.</p>
                 <p className="text-xs mt-1">You&rsquo;ll be notified when your URL submissions are reviewed.</p>
@@ -258,25 +258,25 @@ notifications.map((n) => {
                     <div className="flex gap-3">
                       <span className="text-lg flex-shrink-0 mt-0.5">{getIcon(n.type)}</span>
                       <div className="flex-1 min-w-0">
-                        <p className={`text-sm ${!n.read ? 'font-semibold text-zinc-900 dark:text-white' : 'text-zinc-700 dark:text-zinc-300'}`}>
+                        <p className={`text-sm ${!n.read ? 'font-semibold text-ink' : 'text-muted'}`}>
                           {n.title}
                         </p>
                         {n.body && (
-                          <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5 line-clamp-2">
+                          <p className="text-xs text-muted mt-0.5 line-clamp-2">
                             {n.body}
                           </p>
                         )}
-                        <p className="text-[10px] text-zinc-400 dark:text-zinc-500 mt-1">
+                        <p className="text-[10px] text-muted opacity-70 mt-1">
                           {timeAgo(n.created_at)}
                         </p>
                       </div>
                       {!n.read && (
-                        <span className="flex-shrink-0 w-2 h-2 rounded-full bg-blue-500 mt-1.5" />
+                        <span className="flex-shrink-0 w-2 h-2 rounded-full bg-phosphor mt-1.5" />
                       )}
                     </div>
                   )
-                  const className = `block px-4 py-3 border-b border-zinc-100 dark:border-zinc-800 last:border-b-0 transition-colors hover:bg-zinc-50 dark:hover:bg-zinc-800/50 ${
-                    !n.read ? 'bg-blue-50/50 dark:bg-blue-950/20' : ''
+                  const className = `block px-4 py-3 border-b border-line last:border-b-0 transition-colors hover:bg-panel-2 ${
+                    !n.read ? 'bg-panel-3' : ''
                   }`
 
                   const isExternal = linkUrl && (linkUrl.startsWith('http://') || linkUrl.startsWith('https://'))

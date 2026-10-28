@@ -18,7 +18,7 @@ export function CopyProfileLink({ username }: CopyProfileLinkProps) {
   return (
     <button
       onClick={copy}
-      className="text-xs text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors"
+      className="text-xs text-muted hover:text-ink transition-colors"
       title="Copy profile link"
     >
       {copied ? '✓ Copied' : '🔗 Copy link'}

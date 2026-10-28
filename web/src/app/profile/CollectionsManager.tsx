@@ -180,8 +180,8 @@ export function CollectionsManager({ userId, initialCollections }: Props) {
 
   return (
     <section>
-      <h2 className="text-base font-semibold text-zinc-900 dark:text-white mb-3">Collections</h2>
-      <p className="text-xs text-zinc-400 mb-4">Max 20 collections · 200 items each. Make a collection public to share it.</p>
+      <h2 className="text-base font-semibold text-ink mb-3">Collections</h2>
+      <p className="text-xs text-muted mb-4">Max 20 collections · 200 items each. Make a collection public to share it.</p>
 
       {/* Create new */}
       <div className="flex gap-2 mb-4">
@@ -191,25 +191,25 @@ export function CollectionsManager({ userId, initialCollections }: Props) {
           onKeyDown={e => e.key === 'Enter' && void createCollection()}
           placeholder="New collection name…"
           maxLength={80}
-          className="flex-1 rounded-lg border border-zinc-300 dark:border-zinc-700 px-3 py-2 text-sm bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:focus:ring-white"
+          className="flex-1 rounded-lg border border-line px-3 py-2 text-sm bg-panel text-ink placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-ink focus:ring-line"
         />
         <button
           onClick={() => void createCollection()}
           disabled={creating || !newName.trim()}
-          className="shrink-0 bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 px-4 py-2 rounded-lg text-sm font-medium hover:opacity-90 disabled:opacity-50 transition-opacity"
+          className="shrink-0 bg-panel bg-panel text-ink text-ink px-4 py-2 rounded-lg text-sm font-medium hover:opacity-90 disabled:opacity-50 transition-opacity"
         >
           {creating ? 'Creating…' : 'Create'}
         </button>
       </div>
-      {createError && <p className="text-xs text-red-600 mb-3">{createError}</p>}
+      {createError && <p className="text-xs text-danger mb-3">{createError}</p>}
 
       {/* List */}
       {collections.length === 0 ? (
-        <p className="text-sm text-zinc-500 dark:text-zinc-400">No collections yet.</p>
+        <p className="text-sm text-muted">No collections yet.</p>
       ) : (
         <ul className="flex flex-col gap-2">
           {collections.map(col => (
-            <li key={col.id} className="rounded-xl border border-zinc-200 dark:border-zinc-800 overflow-hidden">
+            <li key={col.id} className="rounded-xl border border-line overflow-hidden">
               {/* Header row */}
               <div className="flex items-center gap-2 px-4 py-3">
                 {renamingId === col.id ? (
@@ -223,7 +223,7 @@ export function CollectionsManager({ userId, initialCollections }: Props) {
                     onBlur={() => void saveRename(col)}
                     maxLength={80}
                     disabled={renaming}
-                    className="flex-1 rounded border border-zinc-300 dark:border-zinc-700 px-2 py-1 text-sm bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:focus:ring-white min-w-0"
+                    className="flex-1 rounded border border-line px-2 py-1 text-sm bg-panel text-ink focus:outline-none focus:ring-2 focus:ring-ink focus:ring-line min-w-0"
                     autoFocus
                   />
                 ) : (
@@ -231,16 +231,16 @@ export function CollectionsManager({ userId, initialCollections }: Props) {
                     onClick={() => toggleExpand(col.id)}
                     className="flex-1 text-left flex items-center gap-2 min-w-0"
                   >
-                    <span className="text-sm font-medium text-zinc-900 dark:text-white truncate">{col.name}</span>
-                    <span className="shrink-0 text-xs text-zinc-400">{col.item_count}</span>
-                    <span className="shrink-0 text-xs text-zinc-400">{expandedId === col.id ? '▲' : '▼'}</span>
+                    <span className="text-sm font-medium text-ink truncate">{col.name}</span>
+                    <span className="shrink-0 text-xs text-muted">{col.item_count}</span>
+                    <span className="shrink-0 text-xs text-muted">{expandedId === col.id ? '▲' : '▼'}</span>
                   </button>
                 )}
 
                 <span className={`shrink-0 text-xs px-2 py-0.5 rounded-full ${
                   col.is_public
-                    ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
-                    : 'bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400'
+                    ? 'bg-panel-2 text-ok bg-panel-2/30 text-ok'
+                    : 'bg-panel-2 text-muted bg-panel-2 text-muted'
                 }`}>
                   {col.is_public ? 'Public' : 'Private'}
                 </span>
@@ -249,7 +249,7 @@ export function CollectionsManager({ userId, initialCollections }: Props) {
                   <button
                     onClick={() => copyShareLink(col)}
                     title="Copy share link"
-                    className="shrink-0 text-xs text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 transition-colors"
+                    className="shrink-0 text-xs text-muted hover:text-muted hover:text-s => s >= 800 ? 'ink' : 'muted' transition-colors"
                   >
                     {copied === col.id ? '✓' : '🔗'}
                   </button>
@@ -259,7 +259,7 @@ export function CollectionsManager({ userId, initialCollections }: Props) {
                   <button
                     onClick={() => startRename(col)}
                     title="Rename collection"
-                    className="shrink-0 text-xs text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 transition-colors"
+                    className="shrink-0 text-xs text-muted hover:text-muted hover:text-s => s >= 800 ? 'ink' : 'muted' transition-colors"
                   >
                     Rename
                   </button>
@@ -268,7 +268,7 @@ export function CollectionsManager({ userId, initialCollections }: Props) {
                 <button
                   onClick={() => void togglePublic(col)}
                   title={col.is_public ? 'Make private' : 'Make public'}
-                  className="shrink-0 text-xs text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 transition-colors"
+                  className="shrink-0 text-xs text-muted hover:text-muted hover:text-s => s >= 800 ? 'ink' : 'muted' transition-colors"
                 >
                   {col.is_public ? 'Make private' : 'Share'}
                 </button>
@@ -276,7 +276,7 @@ export function CollectionsManager({ userId, initialCollections }: Props) {
                 <button
                   onClick={() => void deleteCollection(col.id)}
                   title="Delete collection"
-                  className="shrink-0 text-xs text-red-400 hover:text-red-600 transition-colors"
+                  className="shrink-0 text-xs text-danger hover:text-danger transition-colors"
                 >
                   Delete
                 </button>
@@ -284,11 +284,11 @@ export function CollectionsManager({ userId, initialCollections }: Props) {
 
               {/* Expanded items */}
               {expandedId === col.id && (
-                <div className="border-t border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/50">
+                <div className="border-t border-line bg-panel-2">
                   {loadingItems ? (
-                    <p className="px-4 py-3 text-xs text-zinc-400">Loading…</p>
+                    <p className="px-4 py-3 text-xs text-muted">Loading…</p>
                   ) : expandedItems.length === 0 ? (
-                    <p className="px-4 py-3 text-xs text-zinc-400">No items yet. Add pages from the browser extension.</p>
+                    <p className="px-4 py-3 text-xs text-muted">No items yet. Add pages from the browser extension.</p>
                   ) : (
                     <ul>
                       {expandedItems.map(item => {
@@ -301,7 +301,7 @@ export function CollectionsManager({ userId, initialCollections }: Props) {
                         return (
                           <li
                             key={item.id}
-                            className="flex items-center gap-3 px-4 py-2.5 border-b border-zinc-200 dark:border-zinc-800 last:border-0"
+                            className="flex items-center gap-3 px-4 py-2.5 border-b border-line last:border-0"
                           >
                             <a
                               href={u.original_url}
@@ -309,16 +309,16 @@ export function CollectionsManager({ userId, initialCollections }: Props) {
                               rel="noopener noreferrer"
                               className="flex-1 min-w-0"
                             >
-                              <p className="text-xs font-medium text-zinc-900 dark:text-white truncate hover:underline">
+                              <p className="text-xs font-medium text-ink truncate hover:underline">
                                 {u.title || u.original_url}
                               </p>
-                              <p className="text-xs text-zinc-400 truncate">{domain}</p>
+                              <p className="text-xs text-muted truncate">{domain}</p>
                             </a>
                             <button
                               onClick={() => void removeItem(col.id, item.id)}
                               title="Remove from collection"
                               aria-label="Remove"
-                              className="shrink-0 text-xs text-zinc-400 hover:text-red-500 transition-colors"
+                              className="shrink-0 text-xs text-muted hover:text-danger transition-colors"
                             >
                               ✕
                             </button>
@@ -334,7 +334,7 @@ export function CollectionsManager({ userId, initialCollections }: Props) {
         </ul>
       )}
 
-      {error && <p className="mt-3 text-xs text-red-600">{error}</p>}
+      {error && <p className="mt-3 text-xs text-danger">{error}</p>}
     </section>
   );
 }

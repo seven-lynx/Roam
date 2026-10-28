@@ -61,7 +61,7 @@ export default async function CollectionPage({ params }: Props) {
   }));
 
   return (
-    <div className="min-h-[calc(100vh-8rem)] bg-white dark:bg-zinc-950">
+    <div className="min-h-full bg-screen">
       <div className="max-w-2xl mx-auto px-6 py-12 flex flex-col gap-10">
 
         <CollectionItemsHeader name={typedCollection.name} itemCount={itemCount} owner={owner} />

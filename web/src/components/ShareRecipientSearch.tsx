@@ -126,7 +126,7 @@ export function ShareRecipientSearch({ onSelectRecipient, selectedRecipient }: P
     <div className="relative">
       {/* Selected Recipient Display */}
       {selectedRecipient && (
-        <div className="mb-3 p-3 rounded-md bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 flex items-center justify-between">
+        <div className="mb-3 p-3 rounded-md bg-panel-2 bg-panel-2/20 border border-phosphor border-phosphor flex items-center justify-between">
           <div className="flex items-center gap-2">
             {selectedRecipient.avatar_url && (
               <Image
@@ -138,17 +138,17 @@ export function ShareRecipientSearch({ onSelectRecipient, selectedRecipient }: P
               />
             )}
             <div>
-              <p className="text-sm font-medium text-zinc-900 dark:text-white">
+              <p className="text-sm font-medium text-ink">
                 {selectedRecipient.display_name || selectedRecipient.username}
               </p>
-              <p className="text-xs text-zinc-600 dark:text-zinc-400">
+              <p className="text-xs text-muted">
                 @{selectedRecipient.username}
               </p>
             </div>
           </div>
           <button
             onClick={handleClearSelection}
-            className="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300"
+            className="text-sm text-phosphor text-phosphor hover:text-phosphor hover:text-phosphor"
           >
             Change
           </button>
@@ -165,34 +165,34 @@ export function ShareRecipientSearch({ onSelectRecipient, selectedRecipient }: P
             value={searchText}
             onChange={(e) => setSearchText(e.target.value)}
             onFocus={() => setIsOpen(true)}
-            className="w-full px-3 py-2 rounded-md border border-zinc-300 dark:border-zinc-600
-              bg-white dark:bg-zinc-800
-              text-zinc-900 dark:text-white
-              placeholder-zinc-400 dark:placeholder-zinc-500
-              focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full px-3 py-2 rounded-md border border-line border-line
+              bg-panel bg-panel-2
+              text-ink
+              placeholder-muted placeholder-muted
+              focus:outline-none focus:ring-2 focus:ring-phosphor"
           />
 
           {/* Recipients Dropdown */}
           {isOpen && (
             <div
               ref={dropdownRef}
-              className="absolute top-full left-0 right-0 mt-2 rounded-md border border-zinc-300 dark:border-zinc-600
-                bg-white dark:bg-zinc-800 shadow-lg z-40 max-h-64 overflow-y-auto"
+              className="absolute top-full left-0 right-0 mt-2 rounded-md border border-line border-line
+                bg-panel bg-panel-2 shadow-lg z-40 max-h-64 overflow-y-auto"
             >
               {isLoading && (
-                <div className="px-4 py-3 text-center text-sm text-zinc-500 dark:text-zinc-400">
+                <div className="px-4 py-3 text-center text-sm text-muted">
                   Loading recipients...
                 </div>
               )}
 
               {error && (
-                <div className="px-4 py-3 text-sm text-red-600 dark:text-red-400">
+                <div className="px-4 py-3 text-sm text-danger text-danger">
                   {error}
                 </div>
               )}
 
               {!isLoading && !error && sortedRecipients.length === 0 && (
-                <div className="px-4 py-3 text-center text-sm text-zinc-500 dark:text-zinc-400">
+                <div className="px-4 py-3 text-center text-sm text-muted">
                   {searchText ? 'No recipients found' : 'Follow users to share with them'}
                 </div>
               )}
@@ -201,8 +201,8 @@ export function ShareRecipientSearch({ onSelectRecipient, selectedRecipient }: P
                 <button
                   key={recipient.user_id}
                   onClick={() => handleSelectRecipient(recipient)}
-                  className="w-full px-4 py-3 text-left hover:bg-zinc-100 dark:hover:bg-zinc-700
-                    border-b border-zinc-200 dark:border-zinc-700 last:border-b-0
+                  className="w-full px-4 py-3 text-left hover:bg-panel-2 hover:bg-panel-2
+                    border-b border-line last:border-b-0
                     transition-colors flex items-center gap-3"
                 >
                   {recipient.avatar_url && (
@@ -215,14 +215,14 @@ export function ShareRecipientSearch({ onSelectRecipient, selectedRecipient }: P
                     />
                   )}
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-zinc-900 dark:text-white truncate">
+                    <p className="text-sm font-medium text-ink truncate">
                       {recipient.display_name || recipient.username}
                     </p>
-                    <p className="text-xs text-zinc-600 dark:text-zinc-400">
+                    <p className="text-xs text-muted">
                       @{recipient.username}
                     </p>
                   </div>
-                  <span className="text-xs px-2 py-1 rounded-full bg-zinc-100 dark:bg-zinc-700 text-zinc-700 dark:text-zinc-300 flex-shrink-0">
+                  <span className="text-xs px-2 py-1 rounded-full bg-panel-2 bg-panel-2 text-muted flex-shrink-0">
                     {recipient.relationship === 'follower' ? 'Follower' : 'Following'}
                   </span>
                 </button>

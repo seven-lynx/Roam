@@ -114,36 +114,36 @@ export default function SubmitPage() {
   if (!isReady) return <LoadingPage />;
 
   return (
-    <div className="min-h-screen bg-white dark:bg-zinc-950">
+    <div className="min-h-full bg-screen">
       <main className="max-w-2xl mx-auto px-6 py-12">
-        <Link href="/profile" className="text-zinc-500 hover:text-zinc-900 dark:hover:text-white transition-colors text-sm mb-8 inline-block">
+        <Link href="/profile" className="text-muted hover:text-ink transition-colors text-sm mb-8 inline-block">
           ← Back to profile
         </Link>
 
         <div className="flex flex-col gap-2 mb-8">
-          <h1 className="text-3xl font-bold text-zinc-900 dark:text-white">Submit a URL</h1>
-          <p className="text-zinc-500 dark:text-zinc-400 text-sm">
+          <h1 className="text-3xl font-bold text-ink">Submit a URL</h1>
+          <p className="text-muted text-sm">
             Found something worth sharing? Submissions go to a moderation queue before going live.
             Max 10 per hour.
           </p>
         </div>
 
         {success ? (
-          <div className="rounded-xl border border-green-200 dark:border-green-900 bg-green-50 dark:bg-green-950/30 px-6 py-8 flex flex-col items-center gap-4 text-center">
-            <p className="text-lg font-semibold text-green-800 dark:text-green-300">Submitted for review</p>
-            <p className="text-sm text-green-700 dark:text-green-400">
+          <div className="rounded-xl border border-ok border-ok bg-panel-2 bg-panel-2/30 px-6 py-8 flex flex-col items-center gap-4 text-center">
+            <p className="text-lg font-semibold text-ok text-ok">Submitted for review</p>
+            <p className="text-sm text-ok text-ok">
               Your URL is in the moderation queue. If approved, it will appear in discovery.
             </p>
             <div className="flex gap-3">
               <button
                 onClick={() => setSuccess(false)}
-                className="rounded-lg border border-zinc-300 dark:border-zinc-700 px-4 py-2 text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors"
+                className="rounded-lg border border-line px-4 py-2 text-sm font-medium text-muted hover:bg-panel-2 hover:bg-panel-2 transition-colors"
               >
                 Submit another
               </button>
               <Link
                 href="/profile"
-                className="rounded-lg bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 px-4 py-2 text-sm font-semibold hover:opacity-90 transition-opacity"
+                className="rounded-lg bg-panel bg-panel text-ink text-ink px-4 py-2 text-sm font-semibold hover:opacity-90 transition-opacity"
               >
                 Back to profile
               </Link>
@@ -153,8 +153,8 @@ export default function SubmitPage() {
           <form onSubmit={handleSubmit} className="flex flex-col gap-5">
             {/* URL */}
             <div className="flex flex-col gap-1.5">
-              <label htmlFor="url" className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
-                URL <span className="text-red-500">*</span>
+              <label htmlFor="url" className="text-sm font-medium text-muted">
+                URL <span className="text-danger">*</span>
               </label>
               <input
                 id="url"
@@ -163,14 +163,14 @@ export default function SubmitPage() {
                 onChange={(e) => setUrl(e.target.value)}
                 required
                 placeholder="https://example.com/interesting-article"
-                className="w-full rounded-lg border border-zinc-300 dark:border-zinc-700 px-4 py-2.5 text-sm bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:focus:ring-white"
+                className="w-full rounded-lg border border-line px-4 py-2.5 text-sm bg-panel text-ink placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-ink focus:ring-line"
               />
             </div>
 
             {/* Title */}
             <div className="flex flex-col gap-1.5">
-              <label htmlFor="title" className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
-                Title <span className="text-zinc-400 font-normal">(optional)</span>
+              <label htmlFor="title" className="text-sm font-medium text-muted">
+                Title <span className="text-muted font-normal">(optional)</span>
               </label>
               <input
                 id="title"
@@ -179,14 +179,14 @@ export default function SubmitPage() {
                 onChange={(e) => setTitle(e.target.value)}
                 maxLength={200}
                 placeholder="What's this page about?"
-                className="w-full rounded-lg border border-zinc-300 dark:border-zinc-700 px-4 py-2.5 text-sm bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:focus:ring-white"
+                className="w-full rounded-lg border border-line px-4 py-2.5 text-sm bg-panel text-ink placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-ink focus:ring-line"
               />
             </div>
 
             {/* Description */}
             <div className="flex flex-col gap-1.5">
-              <label htmlFor="description" className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
-                Description <span className="text-zinc-400 font-normal">(optional)</span>
+              <label htmlFor="description" className="text-sm font-medium text-muted">
+                Description <span className="text-muted font-normal">(optional)</span>
               </label>
               <textarea
                 id="description"
@@ -195,20 +195,20 @@ export default function SubmitPage() {
                 rows={3}
                 maxLength={500}
                 placeholder="Briefly describe why this is worth reading…"
-                className="w-full rounded-lg border border-zinc-300 dark:border-zinc-700 px-4 py-2.5 text-sm bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:focus:ring-white resize-none"
+                className="w-full rounded-lg border border-line px-4 py-2.5 text-sm bg-panel text-ink placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-ink focus:ring-line resize-none"
               />
             </div>
 
             {/* Category */}
             <div className="flex flex-col gap-1.5">
-              <label htmlFor="category" className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
-                Category <span className="text-zinc-400 font-normal">(optional — helps the reviewer)</span>
+              <label htmlFor="category" className="text-sm font-medium text-muted">
+                Category <span className="text-muted font-normal">(optional — helps the reviewer)</span>
               </label>
               <select
                 id="category"
                 value={categoryId}
                 onChange={(e) => setCategoryId(e.target.value)}
-                className="w-full rounded-lg border border-zinc-300 dark:border-zinc-700 px-4 py-2.5 text-sm bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:focus:ring-white"
+                className="w-full rounded-lg border border-line px-4 py-2.5 text-sm bg-panel text-ink focus:outline-none focus:ring-2 focus:ring-ink focus:ring-line"
               >
                 <option value="">— Select a category —</option>
                 {categories.map((cat) => (
@@ -220,13 +220,13 @@ export default function SubmitPage() {
             </div>
 
             {duplicateMsg && (
-              <p className="text-sm text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/40 rounded-lg px-4 py-2">
+              <p className="text-sm text-gold bg-panel-2 bg-panel-2/40 rounded-lg px-4 py-2">
                 {duplicateMsg}
               </p>
             )}
 
             {error && (
-              <p className="text-sm text-red-600 bg-red-50 dark:bg-red-950/40 rounded-lg px-4 py-2">
+              <p className="text-sm text-danger bg-panel-2 bg-panel-2/40 rounded-lg px-4 py-2">
                 {error}
               </p>
             )}
@@ -234,7 +234,7 @@ export default function SubmitPage() {
             <button
               type="submit"
               disabled={loading || !url.trim()}
-              className="w-full rounded-lg bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 py-2.5 text-sm font-semibold hover:opacity-90 transition-opacity disabled:opacity-40"
+              className="w-full rounded-lg bg-panel bg-panel text-ink text-ink py-2.5 text-sm font-semibold hover:opacity-90 transition-opacity disabled:opacity-40"
             >
               {loading ? 'Submitting…' : 'Submit for review'}
             </button>
@@ -242,11 +242,11 @@ export default function SubmitPage() {
         )}
 
         {/* Submission guidelines */}
-        <section className="mt-12 rounded-xl border border-zinc-200 dark:border-zinc-800 p-6">
-          <h2 className="text-lg font-semibold text-zinc-900 dark:text-white mb-3">
+        <section className="mt-12 rounded-xl border border-line p-6">
+          <h2 className="text-lg font-semibold text-ink mb-3">
             Submission guidelines
           </h2>
-          <ul className="text-sm text-zinc-600 dark:text-zinc-300 space-y-2 list-disc list-inside">
+          <ul className="text-sm text-muted space-y-2 list-disc list-inside">
             <li>Submit real, interesting pages — original writing, deep dives, and genuinely useful resources.</li>
             <li>No spam, affiliate/landing pages, login walls, or pure product pages.</li>
             <li>Every submission goes through moderation before it appears in the discovery pool.</li>

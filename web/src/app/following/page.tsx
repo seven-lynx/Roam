@@ -28,11 +28,11 @@ export default async function FollowingPage() {
     .eq('follower_id', user.id);
 
   return (
-    <div className="min-h-[calc(100vh-8rem)] bg-white dark:bg-zinc-950">
+    <div className="min-h-full bg-screen">
       <div className="max-w-2xl mx-auto px-6 py-12">
         <div className="mb-8">
-          <h1 className="text-2xl font-bold text-zinc-900 dark:text-white">Following</h1>
-          <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
+          <h1 className="text-2xl font-bold text-ink">Following</h1>
+          <p className="mt-1 text-sm text-muted">
             What people you follow are discovering
           </p>
         </div>

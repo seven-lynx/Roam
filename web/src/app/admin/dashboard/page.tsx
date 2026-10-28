@@ -240,30 +240,30 @@ function timeAgo(date: Date): string {
 
 const STATE_BADGE: Record<string, string> = {
   READY:
-    "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400",
+    "bg-panel-2 text-ok bg-panel-2/30 text-ok",
   ERROR:
-    "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400",
+    "bg-panel-2 text-danger bg-panel-2/30 text-danger",
   BUILDING:
-    "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400",
+    "bg-panel-2 text-phosphor bg-panel-2/30 text-phosphor",
   INITIALIZING:
-    "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400",
+    "bg-panel-2 text-phosphor bg-panel-2/30 text-phosphor",
   QUEUED:
-    "bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-400",
+    "bg-panel-2 text-muted bg-panel-2 text-muted",
   CANCELED:
-    "bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-500",
+    "bg-panel-2 text-muted bg-panel-2 text-muted",
 };
 
 const LEVEL_BADGE: Record<string, string> = {
   fatal:
-    "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400",
+    "bg-panel-2 text-danger bg-panel-2/30 text-danger",
   error:
-    "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400",
+    "bg-panel-2 text-gold bg-panel-2/30 text-gold",
   warning:
-    "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400",
+    "bg-panel-2 text-gold bg-panel-2/30 text-gold",
   info:
-    "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400",
+    "bg-panel-2 text-phosphor bg-panel-2/30 text-phosphor",
   debug:
-    "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400",
+    "bg-panel-2 text-muted bg-panel-2 text-muted",
 };
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
@@ -285,15 +285,15 @@ export default async function AdminDashboardPage() {
   ]);
 
   return (
-    <main className="min-h-screen bg-white dark:bg-zinc-950 px-6 py-16">
+    <main className="min-h-full bg-screen px-6 py-16">
       <div className="max-w-6xl mx-auto flex flex-col gap-8">
         {/* Header */}
         <div className="flex items-start justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-zinc-900 dark:text-white">
+            <h1 className="text-3xl font-bold text-ink">
               System Dashboard
             </h1>
-            <p className="mt-1 text-zinc-500 dark:text-zinc-400 text-sm">
+            <p className="mt-1 text-muted text-sm">
               Stats refreshed: {stats ? new Date(stats.refreshedAt).toLocaleString('en-US', { timeZone: 'America/New_York', timeZoneName: 'short' }) : "never"}
             </p>
           </div>
@@ -301,7 +301,7 @@ export default async function AdminDashboardPage() {
             <RefreshButton />
             <Link
               href="/admin"
-              className="text-sm text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white transition-colors"
+              className="text-sm text-muted hover:text-ink transition-colors"
             >
               ← Back to admin
             </Link>
@@ -310,13 +310,13 @@ export default async function AdminDashboardPage() {
 
         {/* ── Supabase stats ─────────────────────────────────────────────── */}
         <section>
-          <h2 className="text-lg font-semibold text-zinc-900 dark:text-white mb-4">
+          <h2 className="text-lg font-semibold text-ink mb-4">
             Database
           </h2>
           {stats ? (
             <>
               {stats.queryErrors.length > 0 && (
-                <div className="mb-4 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-700 dark:border-amber-700 dark:bg-amber-900/10 dark:text-amber-400">
+                <div className="mb-4 rounded-lg border border-gold bg-panel-2 px-3 py-2 text-xs text-gold border-gold bg-panel-2/10 text-gold">
                   {stats.queryErrors.length} stat{stats.queryErrors.length > 1 ? "s" : ""} failed to load — check server logs for details.
                 </div>
               )}
@@ -350,18 +350,18 @@ export default async function AdminDashboardPage() {
               ).map(({ label, value, highlight, href }) => {
                 const inner = (
                   <>
-                    <span className="text-2xl font-bold text-zinc-900 dark:text-white">
+                    <span className="text-2xl font-bold text-ink">
                       {typeof value === "string" ? value : value.toLocaleString()}
                     </span>
-                    <span className="text-xs text-zinc-500 dark:text-zinc-400">
+                    <span className="text-xs text-muted">
                       {label}
                     </span>
                   </>
                 );
                 const cls = `rounded-xl border px-4 py-4 flex flex-col gap-1 ${
                   highlight
-                    ? "border-amber-400 bg-amber-50 dark:bg-amber-900/10 dark:border-amber-700"
-                    : "border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900"
+                    ? "border-gold bg-panel-2 bg-panel-2/10 border-gold"
+                    : "border-line bg-panel-2 bg-panel"
                 }`;
                 return href ? (
                   <Link key={label} href={href} className={`${cls} hover:opacity-80 transition-opacity`}>
@@ -376,9 +376,9 @@ export default async function AdminDashboardPage() {
             </div>
             </>
           ) : (
-            <p className="text-sm text-zinc-500 dark:text-zinc-400">
+            <p className="text-sm text-muted">
               Set{" "}
-              <code className="font-mono text-xs bg-zinc-100 dark:bg-zinc-800 px-1 rounded">
+              <code className="font-mono text-xs bg-panel-2 px-1 rounded">
                 SUPABASE_SERVICE_ROLE_KEY
               </code>{" "}
               in your server environment to enable database stats.
@@ -389,12 +389,12 @@ export default async function AdminDashboardPage() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* ── Sentry ──────────────────────────────────────────────────── */}
           <section>
-            <h2 className="text-lg font-semibold text-zinc-900 dark:text-white mb-4">
+            <h2 className="text-lg font-semibold text-ink mb-4">
               Sentry · Top Unresolved Issues
             </h2>
             {sentryIssues ? (
               sentryIssues.length === 0 ? (
-                <p className="text-sm text-green-600 dark:text-green-400">
+                <p className="text-sm text-ok">
                   No unresolved issues.
                 </p>
               ) : (
@@ -402,7 +402,7 @@ export default async function AdminDashboardPage() {
                   {sentryIssues.map((issue) => (
                     <div
                       key={issue.id}
-                      className="rounded-lg border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 px-4 py-3 flex flex-col gap-1"
+                      className="rounded-lg border border-line bg-panel-2 bg-panel px-4 py-3 flex flex-col gap-1"
                     >
                       <div className="flex items-center gap-2">
                         <span
@@ -412,16 +412,16 @@ export default async function AdminDashboardPage() {
                         >
                           {issue.level}
                         </span>
-                        <span className="text-xs text-zinc-500 dark:text-zinc-400">
+                        <span className="text-xs text-muted">
                           {Number(issue.count).toLocaleString()} events ·{" "}
                           {timeAgo(new Date(issue.lastSeen))}
                         </span>
                       </div>
-                      <p className="text-sm text-zinc-900 dark:text-white font-medium truncate">
+                      <p className="text-sm text-ink font-medium truncate">
                         {issue.title}
                       </p>
                       {issue.culprit && (
-                        <p className="text-xs text-zinc-500 dark:text-zinc-400 font-mono truncate">
+                        <p className="text-xs text-muted font-mono truncate">
                           {issue.culprit}
                         </p>
                       )}
@@ -430,13 +430,13 @@ export default async function AdminDashboardPage() {
                 </div>
               )
             ) : (
-              <p className="text-sm text-zinc-500 dark:text-zinc-400">
+              <p className="text-sm text-muted">
                 Set{" "}
-                <code className="font-mono text-xs bg-zinc-100 dark:bg-zinc-800 px-1 rounded">
+                <code className="font-mono text-xs bg-panel-2 px-1 rounded">
                   SENTRY_AUTH_TOKEN
                 </code>{" "}
                 and{" "}
-                <code className="font-mono text-xs bg-zinc-100 dark:bg-zinc-800 px-1 rounded">
+                <code className="font-mono text-xs bg-panel-2 px-1 rounded">
                   SENTRY_ORG
                 </code>{" "}
                 to enable.
@@ -446,12 +446,12 @@ export default async function AdminDashboardPage() {
 
           {/* ── Vercel ──────────────────────────────────────────────────── */}
           <section>
-            <h2 className="text-lg font-semibold text-zinc-900 dark:text-white mb-4">
+            <h2 className="text-lg font-semibold text-ink mb-4">
               Vercel · Recent Deployments
             </h2>
             {vercelDeps ? (
               vercelDeps.length === 0 ? (
-                <p className="text-sm text-zinc-500 dark:text-zinc-400">
+                <p className="text-sm text-muted">
                   No deployments found.
                 </p>
               ) : (
@@ -459,7 +459,7 @@ export default async function AdminDashboardPage() {
                   {vercelDeps.map((dep) => (
                     <div
                       key={dep.uid}
-                      className="rounded-lg border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 px-4 py-3 flex flex-col gap-1"
+                      className="rounded-lg border border-line bg-panel-2 bg-panel px-4 py-3 flex flex-col gap-1"
                     >
                       <div className="flex items-center justify-between gap-2">
                         <span
@@ -469,17 +469,17 @@ export default async function AdminDashboardPage() {
                         >
                           {dep.state}
                         </span>
-                        <span className="text-xs text-zinc-400 dark:text-zinc-500">
+                        <span className="text-xs text-muted">
                           {timeAgo(new Date(dep.created))}
                         </span>
                       </div>
                       {dep.meta.githubCommitRef && (
-                        <p className="text-xs text-zinc-500 dark:text-zinc-400 font-mono">
+                        <p className="text-xs text-muted font-mono">
                           {dep.meta.githubCommitRef}
                         </p>
                       )}
                       {dep.meta.githubCommitMessage && (
-                        <p className="text-sm text-zinc-700 dark:text-zinc-300 truncate">
+                        <p className="text-sm text-muted truncate">
                           {dep.meta.githubCommitMessage}
                         </p>
                       )}
@@ -488,9 +488,9 @@ export default async function AdminDashboardPage() {
                 </div>
               )
             ) : (
-              <p className="text-sm text-zinc-500 dark:text-zinc-400">
+              <p className="text-sm text-muted">
                 Set{" "}
-                <code className="font-mono text-xs bg-zinc-100 dark:bg-zinc-800 px-1 rounded">
+                <code className="font-mono text-xs bg-panel-2 px-1 rounded">
                   VERCEL_TOKEN
                 </code>{" "}
                 to enable.

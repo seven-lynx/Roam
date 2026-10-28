@@ -31,12 +31,12 @@ const TIER_NAMES: Record<number, string> = {
 };
 
 const TIER_COLORS: Record<number, string> = {
-  0: 'bg-gray-100 dark:bg-gray-800',
-  1: 'bg-amber-100 dark:bg-amber-900/30 border-amber-300 dark:border-amber-700',
-  2: 'bg-gray-100 dark:bg-gray-800 border-gray-300 dark:border-gray-600',
-  3: 'bg-yellow-100 dark:bg-yellow-900/30 border-yellow-400 dark:border-yellow-600',
-  4: 'bg-cyan-100 dark:bg-cyan-900/30 border-cyan-300 dark:border-cyan-700',
-  5: 'bg-purple-100 dark:bg-purple-900/30 border-purple-400 dark:border-purple-600',
+  0: 'bg-panel-2',
+  1: 'bg-panel-2 bg-panel-2/30 border-gold',
+  2: 'bg-panel-2 border-line border-line',
+  3: 'bg-panel-2 bg-panel-2/30 border-gold border-gold',
+  4: 'bg-panel-2 bg-panel-2/30 border-phosphor border-phosphor',
+  5: 'bg-panel-2 bg-panel-2/30 border-line border-line',
 };
 
 const CATEGORY_LABELS: Record<string, string> = {
@@ -69,7 +69,7 @@ export function BadgeDisplay({ badges, showLocked = true, showSecret = false, co
 
   if (displayBadges.length === 0) {
     return (
-      <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+      <div className="text-center py-8 text-muted">
         <span className="text-4xl block mb-2">🏅</span>
         <p className="text-sm">No badges yet. Start roaming to earn your first badge!</p>
       </div>
@@ -82,7 +82,7 @@ export function BadgeDisplay({ badges, showLocked = true, showSecret = false, co
         <BadgeItem key={badge.id} badge={badge} compact={compact} />
       ))}
       {maxDisplay && displayBadges.length > maxDisplay && (
-        <div className={`flex items-center justify-center ${compact ? 'p-1' : 'p-3'} text-sm text-gray-500 dark:text-gray-400`}>
+        <div className={`flex items-center justify-center ${compact ? 'p-1' : 'p-3'} text-sm text-muted`}>
           +{displayBadges.length - maxDisplay} more
         </div>
       )}
@@ -92,7 +92,7 @@ export function BadgeDisplay({ badges, showLocked = true, showSecret = false, co
 
 function BadgeItem({ badge, compact }: { badge: BadgeData; compact: boolean }) {
   const unlocked = badge.is_unlocked;
-  const tierColor = unlocked ? TIER_COLORS[badge.tier] || TIER_COLORS[0] : 'bg-gray-50 dark:bg-gray-800/50 opacity-60';
+  const tierColor = unlocked ? TIER_COLORS[badge.tier] || TIER_COLORS[0] : 'bg-panel-2 bg-panel-2/50 opacity-60';
 
   const progressPercent = badge.required_count
     ? Math.min(100, Math.round((badge.progress_current / badge.required_count) * 100))
@@ -108,9 +108,9 @@ function BadgeItem({ badge, compact }: { badge: BadgeData; compact: boolean }) {
         ) : null}
         {!unlocked && !badge.is_hidden && badge.required_count && (
           <div className="mt-1">
-            <div className="w-full bg-gray-200 dark:bg-gray-600 rounded-full h-1.5">
+            <div className="w-full bg-panel-3 rounded-full h-1.5">
               <div
-                className="bg-blue-500 h-1.5 rounded-full transition-all"
+                className="bg-phosphor h-1.5 rounded-full transition-all"
                 style={{ width: `${progressPercent}%` }}
               />
             </div>
@@ -155,9 +155,9 @@ function BadgeItem({ badge, compact }: { badge: BadgeData; compact: boolean }) {
         )}
         {!unlocked && !badge.is_hidden && badge.required_count && (
           <div className="mt-1 w-full px-1">
-            <div className="w-full bg-gray-200 dark:bg-gray-600 rounded-full h-1">
+            <div className="w-full bg-panel-3 rounded-full h-1">
               <div
-                className="bg-blue-500 h-1 rounded-full transition-all"
+                className="bg-phosphor h-1 rounded-full transition-all"
                 style={{ width: `${progressPercent}%` }}
               />
             </div>

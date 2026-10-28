@@ -42,7 +42,7 @@ describe('LoadingPage', () => {
   it('renders a full-height centered container', () => {
     const { container } = render(<LoadingPage />);
     const div = container.firstChild as HTMLElement;
-    expect(div).toHaveClass('min-h-screen', 'flex', 'items-center', 'justify-center');
+    expect(div).toHaveClass('min-h-full', 'flex', 'items-center', 'justify-center');
   });
 
   it('contains a Spinner', () => {
@@ -83,19 +83,19 @@ describe('Button', () => {
   it('renders with default primary variant', () => {
     render(<Button>Primary</Button>);
     const btn = screen.getByRole('button');
-    expect(btn).toHaveClass('bg-zinc-900');
+    expect(btn).toHaveClass('btn-primary');
   });
 
   it('renders secondary variant', () => {
     render(<Button variant="secondary">Secondary</Button>);
     const btn = screen.getByRole('button');
-    expect(btn).toHaveClass('bg-zinc-100');
+    expect(btn).toHaveClass('btn-secondary');
   });
 
   it('renders danger variant', () => {
     render(<Button variant="danger">Delete</Button>);
     const btn = screen.getByRole('button');
-    expect(btn).toHaveClass('bg-red-600');
+    expect(btn).toHaveClass('btn-danger');
   });
 
   it('applies additional className', () => {
@@ -153,10 +153,10 @@ describe('Input', () => {
   it('shows error message and red border when error is set', () => {
     render(<Input label="Name" error="Name is required" />);
     expect(screen.getByText('Name is required')).toBeInTheDocument();
-    expect(screen.getByText('Name is required')).toHaveClass('text-red-600');
+    expect(screen.getByText('Name is required')).toHaveClass('text-danger');
 
     const input = screen.getByRole('textbox');
-    expect(input).toHaveClass('border-red-500');
+    expect(input).toHaveClass('field-error');
   });
 
   it('does not show error when error is not set', () => {
@@ -280,19 +280,19 @@ describe('Toast', () => {
   it('renders error variant by default with red styling', () => {
     const { container } = render(<Toast message="Error occurred" onDismiss={jest.fn()} />);
     const toast = container.firstChild as HTMLElement;
-    expect(toast).toHaveClass('bg-red-100');
+    expect(toast).toHaveClass('toast-error');
   });
 
   it('renders success variant with green styling', () => {
     const { container } = render(<Toast message="Success!" variant="success" onDismiss={jest.fn()} />);
     const toast = container.firstChild as HTMLElement;
-    expect(toast).toHaveClass('bg-green-100');
+    expect(toast).toHaveClass('toast-ok');
   });
 
   it('renders info variant with blue styling', () => {
     const { container } = render(<Toast message="FYI" variant="info" onDismiss={jest.fn()} />);
     const toast = container.firstChild as HTMLElement;
-    expect(toast).toHaveClass('bg-blue-100');
+    expect(toast).toHaveClass('toast-info');
   });
 
   it('calls onDismiss when dismiss button clicked', async () => {

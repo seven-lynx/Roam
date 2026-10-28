@@ -18,7 +18,7 @@ export function AuthErrorBanner() {
   const message = ERROR_MESSAGES[error] || decodeURIComponent(error);
 
   return (
-    <div className="w-full max-w-md mx-auto rounded-lg border border-red-200 dark:border-red-900 bg-red-50 dark:bg-red-950/40 px-4 py-3 text-sm text-red-700 dark:text-red-400">
+    <div className="w-full max-w-md mx-auto panel border-l-4 toast-error px-4 py-3 text-sm text-danger">
       <span className="font-medium">Sign in error: </span>
       {message}
     </div>

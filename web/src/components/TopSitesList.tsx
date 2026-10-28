@@ -11,10 +11,10 @@ interface Props {
 
 export function TopSitesList({ sites, userId }: Props) {
   return (
-    <div className="w-full border-t border-zinc-200 dark:border-zinc-800 pt-10">
+    <div className="w-full border-t border-line pt-10">
       <div className="flex items-center justify-between mb-6">
-        <h2 className="text-2xl font-bold text-zinc-900 dark:text-white">Top-rated sites</h2>
-        <span className="text-xs text-zinc-400">Ranked by community votes</span>
+        <h2 className="text-2xl font-bold text-ink">Top-rated sites</h2>
+        <span className="text-xs text-muted">Ranked by community votes</span>
       </div>
 
       <div className="grid gap-3">
@@ -27,7 +27,7 @@ export function TopSitesList({ sites, userId }: Props) {
               href={site.original_url}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-4 rounded-xl border border-zinc-200 dark:border-zinc-800 px-4 py-3 hover:bg-zinc-50 dark:hover:bg-zinc-900 transition-colors group"
+              className="flex items-center gap-4 panel px-4 py-3 hover:bg-panel-2 transition-colors group"
             >
               {/* Favicon */}
               {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -41,14 +41,14 @@ export function TopSitesList({ sites, userId }: Props) {
               />
 
               <div className="flex-1 min-w-0">
-                <span className="text-sm font-medium text-zinc-900 dark:text-white group-hover:underline truncate block">
+                <span className="text-sm font-medium text-ink group-hover:underline truncate block">
                   {site.title || site.original_url}
                 </span>
-                <span className="text-xs text-zinc-400">{domain}</span>
+                <span className="text-xs text-muted">{domain}</span>
               </div>
 
-              <div className="flex items-center gap-1 shrink-0 text-xs text-zinc-400">
-                <span className="text-green-600 dark:text-green-400">↑</span>
+              <div className="flex items-center gap-1 shrink-0 text-xs text-muted">
+                <span className="text-ok">↑</span>
                 <span>{site.upvotes}</span>
               </div>
             </a>
@@ -58,17 +58,11 @@ export function TopSitesList({ sites, userId }: Props) {
 
       <div className="mt-4 text-center">
         {userId ? (
-          <Link
-            href="/signup?mode=discover"
-            className="text-sm text-blue-600 hover:underline font-medium"
-          >
+          <Link href="/signup?mode=discover" className="text-sm text-phosphor hover:underline font-medium">
             Discover the web →
           </Link>
         ) : (
-          <Link
-            href="/signup"
-            className="text-sm text-blue-600 hover:underline font-medium"
-          >
+          <Link href="/signup" className="text-sm text-phosphor hover:underline font-medium">
             Sign up to discover more →
           </Link>
         )}

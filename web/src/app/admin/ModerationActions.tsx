@@ -34,7 +34,7 @@ export default function ModerationActions({ item }: { item: QueueItem }) {
 
   if (status === "done") {
     return (
-      <span className={`text-sm font-medium ${decision === "approved" ? "text-green-600" : "text-red-500"}`}>
+      <span className={`text-sm font-medium ${decision === "approved" ? "text-ok" : "text-danger"}`}>
         {decision === "approved" ? "✓ Approved" : "✗ Rejected"}
       </span>
     );
@@ -45,14 +45,14 @@ export default function ModerationActions({ item }: { item: QueueItem }) {
       <button
         onClick={() => decide("approved")}
         disabled={status === "loading"}
-        className="rounded-lg bg-green-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-50 transition-colors"
+        className="rounded-lg bg-ok px-3 py-1.5 text-sm font-medium text-ink hover:bg-ok disabled:opacity-50 transition-colors"
       >
         Approve
       </button>
       <button
         onClick={() => decide("rejected")}
         disabled={status === "loading"}
-        className="rounded-lg bg-red-500 px-3 py-1.5 text-sm font-medium text-white hover:bg-red-600 disabled:opacity-50 transition-colors"
+        className="rounded-lg bg-ember px-3 py-1.5 text-sm font-medium text-ink hover:bg-danger disabled:opacity-50 transition-colors"
       >
         Reject
       </button>

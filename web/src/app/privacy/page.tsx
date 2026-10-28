@@ -11,10 +11,10 @@ const CONTACT = "legal@roamtheweb.app";
 
 export default function PrivacyPage() {
   return (
-    <main className="min-h-screen bg-white dark:bg-zinc-950 px-6 py-16">
-      <article className="max-w-2xl mx-auto prose prose-zinc dark:prose-invert prose-headings:font-bold prose-a:text-zinc-900 dark:prose-a:text-white">
+    <main className="min-h-full bg-screen px-6 py-16">
+      <article className="max-w-2xl mx-auto prose prose-zinc prose-invert prose-headings:font-bold prose-a:text-s => s >= 800 ? 'ink' : 'muted' prose-a:text-ink">
         <h1>Privacy Policy</h1>
-        <p className="text-zinc-500 text-sm">Effective date: {EFFECTIVE}</p>
+        <p className="text-muted text-sm">Effective date: {EFFECTIVE}</p>
 
         <h2>1. Who we are</h2>
         <p>
@@ -117,7 +117,7 @@ export default function PrivacyPage() {
         </p>
 
         <hr />
-        <Link href="/" className="text-sm text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors no-underline">
+        <Link href="/" className="text-sm text-muted hover:text-ink transition-colors no-underline">
           ← Back to Roam
         </Link>
       </article>

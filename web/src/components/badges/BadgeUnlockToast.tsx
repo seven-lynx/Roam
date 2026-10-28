@@ -77,25 +77,25 @@ function BadgeUnlockToast({ queue, dequeue }: { queue: UnlockEvent[]; dequeue: (
       <div
         className={`
           rounded-xl shadow-2xl border overflow-hidden
-          bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700
+          bg-panel border-line
           transition-all duration-300
           ${exiting ? 'opacity-0 translate-y-4 scale-95' : 'opacity-100 translate-y-0 scale-100 animate-slide-up'}
         `}
       >
-        <div className="bg-gradient-to-r from-yellow-400 via-orange-500 to-pink-500 h-1" />
+        <div className="bg-gradient-to-r from-accent via-accent to-phosphor h-1" />
         <div className="p-4">
           <div className="flex items-start gap-3">
             <span className="text-4xl">{current.badge.icon}</span>
             <div className="flex-1 min-w-0">
-              <p className="font-bold text-gray-900 dark:text-white">Badge Unlocked! 🎉</p>
-              <p className="text-lg font-semibold text-gray-800 dark:text-gray-200 mt-0.5">
+              <p className="font-bold text-ink text-ink">Badge Unlocked! 🎉</p>
+              <p className="text-lg font-semibold text-ink text-panel-3 mt-0.5">
                 {current.badge.name}
               </p>
-              <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
+              <p className="text-sm text-muted mt-0.5">
                 {current.badge.description}
               </p>
               {current.badge.xp_reward > 0 && (
-                <p className="text-xs mt-2 font-medium text-purple-600 dark:text-purple-400">
+                <p className="text-xs mt-2 font-medium text-muted text-muted">
                   +{current.badge.xp_reward} XP
                 </p>
               )}
@@ -109,7 +109,7 @@ function BadgeUnlockToast({ queue, dequeue }: { queue: UnlockEvent[]; dequeue: (
                   dequeue();
                 }, 300);
               }}
-              className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+              className="text-muted hover:text-muted hover:text-s => s >= 800 ? 'ink' : 'muted' transition-colors"
               aria-label="Dismiss"
             >
               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">

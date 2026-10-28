@@ -60,11 +60,11 @@ export function LeaderboardClient() {
   }, [period]);
 
   return (
-    <div className="min-h-[calc(100vh-8rem)] bg-white dark:bg-zinc-950">
+    <div className="min-h-full bg-screen">
       <div className="max-w-2xl mx-auto px-6 py-12">
         <div className="mb-8">
-          <h1 className="text-2xl font-bold text-zinc-900 dark:text-white">Leaderboard</h1>
-          <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1">Top explorers on Roam</p>
+          <h1 className="text-2xl font-bold text-ink">Leaderboard</h1>
+          <p className="text-sm text-muted mt-1">Top explorers on Roam</p>
         </div>
 
         <div className="flex gap-2 mb-6">
@@ -74,8 +74,8 @@ export function LeaderboardClient() {
               onClick={() => setPeriod(p)}
               className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                 period === p
-                  ? 'bg-zinc-900 dark:bg-white text-white dark:text-zinc-900'
-                  : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700'
+                  ? 'bg-panel bg-panel text-ink text-ink'
+                  : 'bg-panel-2 text-muted hover:bg-panel-3'
               }`}
             >
               {periodLabels[p]}
@@ -85,12 +85,12 @@ export function LeaderboardClient() {
 
         {loading && (
           <div className="flex items-center justify-center py-16">
-            <div className="animate-spin rounded-full h-8 w-8 border-2 border-zinc-300 dark:border-zinc-600 border-t-zinc-900 dark:border-t-white" />
+            <div className="animate-spin rounded-full h-8 w-8 border-2 border-line border-line border-t-line border-t-line" />
           </div>
         )}
 
         {error && (
-          <div className="rounded-xl border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950/30 p-4 text-sm text-red-600 dark:text-red-400">
+          <div className="rounded-xl border border-danger border-danger bg-panel-2 bg-panel-2/30 p-4 text-sm text-danger text-danger">
             {error}
           </div>
         )}
@@ -98,7 +98,7 @@ export function LeaderboardClient() {
         {!loading && !error && (
           <div className="flex flex-col gap-2">
             {entries.length === 0 && (
-              <div className="text-center py-16 text-zinc-500 dark:text-zinc-400">
+              <div className="text-center py-16 text-muted">
                 <span className="text-4xl block mb-3">🏆</span>
                 <p className="text-sm">No rankings yet. Be the first to roam!</p>
               </div>
@@ -113,8 +113,8 @@ export function LeaderboardClient() {
                   className={`
                     rounded-xl border transition-colors p-4 flex items-center gap-4
                     ${isTop3
-                      ? 'border-amber-200 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-950/20 hover:bg-amber-50 dark:hover:bg-amber-950/30'
-                      : 'border-zinc-200 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-800/50'
+                      ? 'border-gold border-gold bg-panel-2/50 bg-panel-2/20 hover:bg-panel-2 hover:bg-panel-2/30'
+                      : 'border-line hover:bg-panel-2 hover:bg-panel-2/50'
                     }
                   `}
                 >
@@ -122,15 +122,15 @@ export function LeaderboardClient() {
                     {entry.rank <= 3 ? ['🥇', '🥈', '🥉'][entry.rank - 1] : `#${entry.rank}`}
                   </div>
 
-                  <div className="flex items-center justify-center w-10 h-10 rounded-full bg-gradient-to-br from-purple-400 to-blue-500 text-white font-bold text-sm shrink-0">
+                  <div className="flex items-center justify-center w-10 h-10 rounded-full bg-gradient-to-br from-info to-phosphor text-ink font-bold text-sm shrink-0">
                     {(entry.display_name || entry.username)[0]?.toUpperCase() ?? '?'}
                   </div>
 
                   <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-zinc-900 dark:text-white truncate">
+                    <p className="font-semibold text-ink truncate">
                       {entry.display_name || entry.username}
                     </p>
-                    <div className="flex items-center gap-3 text-xs text-zinc-500 dark:text-zinc-400">
+                    <div className="flex items-center gap-3 text-xs text-muted">
                       <span>Lv.{entry.level}</span>
                       <span>🏅 {entry.badge_count}</span>
                       {entry.streak_days > 0 && <span>🔥 {entry.streak_days}</span>}
@@ -138,10 +138,10 @@ export function LeaderboardClient() {
                   </div>
 
                   <div className="text-right shrink-0">
-                    <p className="font-mono font-bold text-sm text-zinc-900 dark:text-white">
+                    <p className="font-mono font-bold text-sm text-ink">
                       {entry.xp_earned.toLocaleString()} XP
                     </p>
-                    <p className="text-[10px] text-zinc-400">{entry.xp_total.toLocaleString()} total</p>
+                    <p className="text-[10px] text-muted">{entry.xp_total.toLocaleString()} total</p>
                   </div>
                 </Link>
               );

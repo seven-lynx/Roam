@@ -9,11 +9,11 @@ export const metadata: Metadata = {
 export default function VerifyEmailPage() {
   return (
     <Suspense fallback={
-      <div className="flex min-h-[calc(100vh-8rem)] flex-col items-center justify-center px-6 bg-white dark:bg-zinc-950">
+      <div className="flex min-h-full flex-col items-center justify-center px-6 bg-screen">
         <div className="w-full max-w-sm flex flex-col items-center gap-6 text-center">
-          <div className="w-16 h-16 rounded-xl bg-zinc-200 dark:bg-zinc-800 animate-pulse" />
-          <div className="h-7 w-48 bg-zinc-200 dark:bg-zinc-800 rounded animate-pulse" />
-          <div className="h-4 w-64 bg-zinc-200 dark:bg-zinc-800 rounded animate-pulse" />
+          <div className="w-16 h-16 rounded-xl bg-panel-3 animate-pulse" />
+          <div className="h-7 w-48 bg-panel-3 rounded animate-pulse" />
+          <div className="h-4 w-64 bg-panel-3 rounded animate-pulse" />
         </div>
       </div>
     }>

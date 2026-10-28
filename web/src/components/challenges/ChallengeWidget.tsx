@@ -56,10 +56,10 @@ export function ChallengeWidget() {
     return (
       <div className="w-full py-4">
         <div className="animate-pulse space-y-3">
-          <div className="h-6 w-32 rounded bg-gray-200 dark:bg-gray-700" />
+          <div className="h-6 w-32 bg-panel-3" />
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             {[1, 2, 3].map((i) => (
-              <div key={i} className="h-28 rounded-lg bg-gray-200 dark:bg-gray-700" />
+              <div key={i} className="h-28 bg-panel-3" />
             ))}
           </div>
         </div>
@@ -77,13 +77,13 @@ export function ChallengeWidget() {
 
   return (
     <div className="w-full py-4">
-      <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-3">
+      <h2 className="text-lg font-semibold text-ink mb-3">
         Challenges
       </h2>
 
       {dailies.length > 0 && (
         <div className="mb-4">
-          <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">
+          <h3 className="kicker mb-2">
             Daily
           </h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -105,7 +105,7 @@ export function ChallengeWidget() {
 
       {weeklies.length > 0 && (
         <div className="mb-4">
-          <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">
+          <h3 className="kicker mb-2">
             Weekly
           </h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -127,7 +127,7 @@ export function ChallengeWidget() {
 
       {monthlies.length > 0 && (
         <div className="mb-4">
-          <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">
+          <h3 className="kicker mb-2">
             Monthly
           </h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">

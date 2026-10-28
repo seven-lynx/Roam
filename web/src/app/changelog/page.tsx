@@ -52,21 +52,21 @@ const WEB_ENTRIES: Entry[] = [
 
 export default function ChangelogPage() {
   return (
-    <div className="flex flex-col items-center px-6 py-24 text-center bg-white dark:bg-zinc-950">
+    <div className="flex flex-col items-center px-6 py-24 text-center bg-screen">
       <div className="max-w-3xl mx-auto flex flex-col gap-16">
         {/* Hero */}
         <section className="flex flex-col items-center gap-4">
-          <h1 className="text-4xl md:text-5xl font-bold tracking-tight text-zinc-900 dark:text-white">
+          <h1 className="text-4xl md:text-5xl font-bold tracking-tight text-ink">
             Changelog
           </h1>
-          <p className="text-lg text-zinc-500 dark:text-zinc-400 max-w-xl leading-relaxed">
+          <p className="text-lg text-muted max-w-xl leading-relaxed">
             A summary of notable updates across the Roam Android app, browser
             extension, and web. For the full commit history, see{' '}
             <a
               href="https://github.com/seven-lynx/Roam"
               target="_blank"
               rel="noopener noreferrer"
-              className="text-blue-600 hover:underline"
+              className="text-phosphor hover:underline"
             >
               GitHub
             </a>
@@ -76,20 +76,20 @@ export default function ChangelogPage() {
 
         {/* Android */}
         <section className="text-left">
-          <h2 className="text-2xl font-bold text-zinc-900 dark:text-white mb-6">Android app</h2>
+          <h2 className="text-2xl font-bold text-ink mb-6">Android app</h2>
           <div className="flex flex-col gap-4">
             {ANDROID_ENTRIES.map((entry) => (
               <div
                 key={entry.version}
-                className="rounded-xl border border-zinc-200 dark:border-zinc-800 p-5"
+                className="rounded-xl border border-line p-5"
               >
                 <div className="flex items-center justify-between mb-3">
-                  <h3 className="font-semibold text-zinc-900 dark:text-white">
+                  <h3 className="font-semibold text-ink">
                     v{entry.version}
                   </h3>
-                  <span className="text-xs text-zinc-400">{entry.date}</span>
+                  <span className="text-xs text-muted">{entry.date}</span>
                 </div>
-                <ul className="text-sm text-zinc-600 dark:text-zinc-300 space-y-1.5 list-disc list-inside">
+                <ul className="text-sm text-muted space-y-1.5 list-disc list-inside">
                   {entry.items.map((item) => (
                     <li key={item}>{item}</li>
                   ))}
@@ -101,22 +101,22 @@ export default function ChangelogPage() {
 
         {/* Web & extension */}
         <section className="text-left">
-          <h2 className="text-2xl font-bold text-zinc-900 dark:text-white mb-6">
+          <h2 className="text-2xl font-bold text-ink mb-6">
             Web &amp; extension
           </h2>
           <div className="flex flex-col gap-4">
             {WEB_ENTRIES.map((entry) => (
               <div
                 key={entry.version}
-                className="rounded-xl border border-zinc-200 dark:border-zinc-800 p-5"
+                className="rounded-xl border border-line p-5"
               >
                 <div className="flex items-center justify-between mb-3">
-                  <h3 className="font-semibold text-zinc-900 dark:text-white">
+                  <h3 className="font-semibold text-ink">
                     {entry.version}
                   </h3>
-                  <span className="text-xs text-zinc-400">{entry.date}</span>
+                  <span className="text-xs text-muted">{entry.date}</span>
                 </div>
-                <ul className="text-sm text-zinc-600 dark:text-zinc-300 space-y-1.5 list-disc list-inside">
+                <ul className="text-sm text-muted space-y-1.5 list-disc list-inside">
                   {entry.items.map((item) => (
                     <li key={item}>{item}</li>
                   ))}
@@ -128,12 +128,12 @@ export default function ChangelogPage() {
 
         {/* CTA */}
         <section className="flex flex-col items-center gap-4">
-          <p className="text-lg text-zinc-600 dark:text-zinc-300">
+          <p className="text-lg text-muted">
             Want the newest features first?
           </p>
           <Link
             href="/extensions"
-            className="inline-flex items-center justify-center rounded-full bg-zinc-900 dark:bg-white px-8 py-3 text-white dark:text-zinc-900 font-semibold text-base hover:opacity-90 transition-opacity"
+            className="btn btn-primary"
           >
             Get the extension
           </Link>

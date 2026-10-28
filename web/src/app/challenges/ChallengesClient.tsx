@@ -64,35 +64,35 @@ export function ChallengesClient() {
   }, []);
 
   return (
-    <div className="min-h-[calc(100vh-8rem)] bg-white dark:bg-zinc-950">
+    <div className="min-h-full bg-screen">
       <div className="max-w-4xl mx-auto px-6 py-12">
         <div className="mb-8">
-          <h1 className="text-2xl font-bold text-zinc-900 dark:text-white">Challenges</h1>
-          <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1">
+          <h1 className="text-2xl font-bold text-ink">Challenges</h1>
+          <p className="text-sm text-muted mt-1">
             Complete daily, weekly, and monthly goals to earn bonus XP.
           </p>
         </div>
 
         {loading && (
           <div className="flex items-center justify-center py-16">
-            <div className="animate-spin rounded-full h-8 w-8 border-2 border-zinc-300 dark:border-zinc-600 border-t-zinc-900 dark:border-t-white" />
+            <div className="animate-spin rounded-full h-8 w-8 border-2 border-line border-line border-t-line border-t-line" />
           </div>
         )}
 
         {error && (
-          <div className="rounded-xl border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950/30 p-4 text-sm text-red-600 dark:text-red-400">
+          <div className="rounded-xl border border-danger border-danger bg-panel-2 bg-panel-2/30 p-4 text-sm text-danger text-danger">
             {error}
           </div>
         )}
 
         {!loading && !error && !signedIn && (
-          <div className="text-center py-16 text-zinc-500 dark:text-zinc-400">
+          <div className="text-center py-16 text-muted">
             <p className="text-sm">Sign in to see your challenges.</p>
           </div>
         )}
 
         {!loading && !error && signedIn && challenges.length === 0 && (
-          <div className="text-center py-16 text-zinc-500 dark:text-zinc-400">
+          <div className="text-center py-16 text-muted">
             <p className="text-sm">No active challenges. Come back later!</p>
           </div>
         )}
@@ -104,7 +104,7 @@ export function ChallengesClient() {
               if (items.length === 0) return null;
               return (
                 <section key={section.type}>
-                  <h2 className="text-sm font-medium text-zinc-500 dark:text-zinc-400 mb-2">
+                  <h2 className="text-sm font-medium text-muted mb-2">
                     {section.label}
                   </h2>
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">

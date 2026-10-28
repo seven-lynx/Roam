@@ -9,7 +9,7 @@ export function BuyMeACoffeeButton() {
       href={BUY_ME_A_COFFEE_URL}
       target="_blank"
       rel="noopener noreferrer"
-      className="inline-flex items-center justify-center rounded-full bg-amber-500 hover:bg-amber-400 px-8 py-3 text-white font-semibold text-base transition-colors"
+      className="btn btn-primary"
     >
       ☕ Buy Me a Coffee
     </a>

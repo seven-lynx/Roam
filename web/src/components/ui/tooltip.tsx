@@ -46,8 +46,8 @@ export function Tooltip({ children, content, side = 'top' }: TooltipProps) {
         <div
           className={`
             absolute z-50 px-2 py-1.5 text-xs rounded-lg shadow-lg
-            bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700
-            text-gray-900 dark:text-gray-100 whitespace-nowrap
+            bg-panel border border-line
+            text-ink whitespace-nowrap
             pointer-events-none animate-fade-in
             ${sideStyles[side] || sideStyles.top}
           `}
