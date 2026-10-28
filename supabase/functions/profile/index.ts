@@ -8,7 +8,7 @@
 // aggregate numbers — no private relationship data is exposed.
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-import { corsHeaders } from '../_shared/cors.ts'
+import { getCorsHeaders } from '../_shared/cors.ts'
 import { clientIp, rateLimit } from '../_shared/rate-limit.ts'
 
 // 60 requests per minute per IP — enough for normal browsing of profile pages,
@@ -17,6 +17,15 @@ const RATE_LIMIT = 60
 const WINDOW_MS = 60_000
 
 Deno.serve(async (req) => {
+  const corsHeaders = getCorsHeaders(req.headers.get('origin'))
+
+  function json(body: unknown, status = 200) {
+    return new Response(JSON.stringify(body), {
+      status,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    })
+  }
+
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
   if (req.method !== 'GET' && req.method !== 'POST') return json({ error: 'Method not allowed' }, 405)
 
@@ -75,7 +84,8 @@ Deno.serve(async (req) => {
   let effectiveStreak = 0
   try {
     const { data: streakData } = await adminClient.rpc('get_effective_streak', { p_user_id: profile.id })
-    effectiveStreak = (streakData as { streak_days: number } | null)?.streak_days ?? 0
+    const streakRow = Array.isArray(streakData) ? streakData[0] : streakData
+    effectiveStreak = (streakRow as { streak_days: number } | null | undefined)?.streak_days ?? 0
   } catch {
     effectiveStreak = 0
   }
@@ -134,9 +144,3 @@ Deno.serve(async (req) => {
   })
 })
 
-function json(body: unknown, status = 200) {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-  })
-}
