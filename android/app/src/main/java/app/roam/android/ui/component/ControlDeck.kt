@@ -53,6 +53,7 @@ import androidx.compose.ui.graphics.ShaderBrush
 import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -98,13 +99,19 @@ fun ControlDeck(
     deckSize: String = "medium",
     deckShape: String = "round",
     deckLabels: Boolean = false,
+    texture: String = "metal",
     modifier: Modifier = Modifier,
 ) {
+    val context = LocalContext.current
+    val materialBrush = remember(texture) { deckTextureBrush(context, DeckTexture.fromKey(texture)) }
     Column(
         modifier = modifier
             .fillMaxWidth()
             .background(Brush.verticalGradient(listOf(Oxide3, Abyss)))
-            .drawBehind { drawRect(deckNoiseShader, alpha = 0.05f) }
+            .drawBehind {
+                drawRect(materialBrush, alpha = 0.25f)
+                drawRect(deckNoiseShader, alpha = 0.05f)
+            }
             .navigationBarsPadding(),
     ) {
 

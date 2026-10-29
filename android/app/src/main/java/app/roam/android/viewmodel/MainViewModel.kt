@@ -122,6 +122,7 @@ class MainViewModel(
     private val DECK_SHAPE_KEY = "deck_shape"    // "round", "square"
     private val DECK_LABELS_KEY = "deck_labels"
     private val SYSTEM_MESSAGE_SPEED_KEY = "system_message_speed"
+    private val DECK_TEXTURE_KEY = "deck_texture"
     private val MAX_HISTORY_ENTRIES = 100
 
     private val _state = MutableStateFlow<RoamState>(RoamState.Idle)
@@ -865,6 +866,15 @@ class MainViewModel(
     fun setSystemMessageSpeed(value: Int) {
         _systemMessageSpeed.value = value.coerceIn(1, 10)
         prefs.edit().putInt(SYSTEM_MESSAGE_SPEED_KEY, _systemMessageSpeed.value).apply()
+    }
+
+    /** Chassis/deck material texture ("metal", "plastic", "wood", "leather"). */
+    private val _deckTexture = MutableStateFlow(prefs.getString(DECK_TEXTURE_KEY, "metal") ?: "metal")
+    val deckTexture: StateFlow<String> = _deckTexture.asStateFlow()
+
+    fun setDeckTexture(value: String) {
+        _deckTexture.value = value
+        prefs.edit().putString(DECK_TEXTURE_KEY, value).apply()
     }
 
     /** Enqueues a message for the deck readout (consecutive dupes dropped, capped). */

@@ -27,6 +27,7 @@ import androidx.compose.ui.unit.dp
 import app.roam.android.ui.component.DECK_LAYOUTS
 import app.roam.android.ui.component.DECK_SHAPES
 import app.roam.android.ui.component.DECK_SIZES
+import app.roam.android.ui.component.DeckTexture
 import app.roam.android.ui.component.SettingsActionRow
 import app.roam.android.ui.component.SettingsFlavorText
 import app.roam.android.ui.component.SettingsFxSliderRow
@@ -53,12 +54,14 @@ fun AppearanceScreen(
     val deckLabelsEnabled by vm.deckLabelsEnabled.collectAsState()
     val systemMessageSpeed by vm.systemMessageSpeed.collectAsState()
     val hardwareFx by vm.hardwareFx.collectAsState()
+    val deckTexture by vm.deckTexture.collectAsState()
 
     var themeDropdownExpanded by remember { mutableStateOf(false) }
     var deckLayoutDropdownExpanded by remember { mutableStateOf(false) }
     var deckSizeDropdownExpanded by remember { mutableStateOf(false) }
     var deckShapeDropdownExpanded by remember { mutableStateOf(false) }
     var hardwareExpanded by remember { mutableStateOf(false) }
+    var textureDropdownExpanded by remember { mutableStateOf(false) }
 
     val deckLayoutLabel = DECK_LAYOUTS.firstOrNull { it.first == deckLayout }?.second ?: "Trapezoid"
     val deckSizeLabel = DECK_SIZES.firstOrNull { it.first == deckSize }?.second ?: "Medium"
@@ -112,6 +115,24 @@ fun AppearanceScreen(
 
             SettingsToggleRow("Deck labels", "Show text labels on the control buttons", deckLabelsEnabled) { vm.setDeckLabelsEnabled(it) }
             SettingsFxSliderRow("System message speed", systemMessageSpeed) { vm.setSystemMessageSpeed(it) }
+
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("Material", style = MaterialTheme.typography.bodyLarge)
+                    Text("Chassis and deck texture", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
+                }
+                Box {
+                    OutlinedButton(onClick = { textureDropdownExpanded = true }) { Text(DeckTexture.fromKey(deckTexture).label) }
+                    DropdownMenu(expanded = textureDropdownExpanded, onDismissRequest = { textureDropdownExpanded = false }) {
+                        DeckTexture.values().forEach { tex ->
+                            DropdownMenuItem(text = { Text(tex.label) }, onClick = { vm.setDeckTexture(tex.key); textureDropdownExpanded = false })
+                        }
+                    }
+                }
+            }
 
             if (themeVariant == RoamThemeVariant.ROAM_OS) {
                 SettingsToggleRow("Device frame", "Show the retro handheld chassis around the screen", deviceFrameEnabled) { vm.setDeviceFrameEnabled(it) }

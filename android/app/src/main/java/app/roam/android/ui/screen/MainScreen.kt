@@ -136,6 +136,7 @@ fun MainScreen(
     val deckLabelsEnabled by vm.deckLabelsEnabled.collectAsState()
     val bezelFisheyeEnabled by vm.bezelFisheyeEnabled.collectAsState()
     val hardwareFx by vm.hardwareFx.collectAsState()
+    val deckTexture by vm.deckTexture.collectAsState()
     val isRoamOs = themeVariant == RoamThemeVariant.ROAM_OS
 
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -207,6 +208,7 @@ fun MainScreen(
                     deckSize = deckSize,
                     deckShape = deckShape,
                     deckLabels = deckLabelsEnabled,
+                    texture = deckTexture,
                     onFeedback = { vm.uiFeedback(it) },
                 )
             } else {
@@ -231,6 +233,7 @@ fun MainScreen(
                 wear = isRoamOs && wearEnabled,
                 bezelFisheye = isRoamOs && bezelFisheyeEnabled,
                 hardware = hardwareFx,
+                texture = deckTexture,
                 modifier = Modifier.fillMaxSize(),
             ) {
                 Box(Modifier.fillMaxSize()) {

@@ -38,6 +38,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ShaderBrush
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.roam.android.ui.theme.Abyss
@@ -80,9 +81,12 @@ fun HandheldShell(
     wear: Boolean = false,
     bezelFisheye: Boolean = true,
     hardware: HardwareFx = HardwareFx(),
+    texture: String = "metal",
     modifier: Modifier = Modifier,
     content: @Composable () -> Unit,
 ) {
+    val context = LocalContext.current
+    val materialBrush = remember(texture) { deckTextureBrush(context, DeckTexture.fromKey(texture)) }
     if (framed) {
         Box(modifier = modifier.background(Abyss)) {
             Box(
@@ -120,7 +124,7 @@ fun HandheldShell(
                                 ),
                             )
                             drawRect(brush = chassisNoiseShader, alpha = 0.05f)
-                            drawRect(brush = brushedMetalShader, alpha = 0.10f)
+                            drawRect(brush = materialBrush, alpha = 0.30f)
                         },
                 ) {
                     Box(
