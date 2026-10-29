@@ -16,6 +16,7 @@ import app.roam.android.ui.screen.OnboardingScreen
 import app.roam.android.ui.screen.SplashScreen
 import app.roam.android.ui.theme.RoamTheme
 import app.roam.android.ui.theme.RoamThemeVariant
+import app.roam.android.ui.theme.roamOsPalette
 import app.roam.android.viewmodel.AuthState
 import app.roam.android.viewmodel.AuthViewModel
 import app.roam.android.viewmodel.MainViewModel
@@ -49,6 +50,7 @@ class MainActivity : ComponentActivity() {
             val authState by authVm.authState.collectAsState()
             val appTheme by mainVm.appTheme.collectAsState()
             val themeVariant by mainVm.themeVariant.collectAsState()
+            val osColorScheme by mainVm.osColorScheme.collectAsState()
             val webDarkMode by mainVm.webDarkMode.collectAsState()
             // Determine dark theme based on user's app theme preference.
             // "system" follows device setting, "dark" forces dark, "light" forces light.
@@ -61,7 +63,7 @@ class MainActivity : ComponentActivity() {
                     else -> androidx.compose.foundation.isSystemInDarkTheme() // "system"
                 }
             }
-            RoamTheme(variant = themeVariant, darkTheme = isDarkTheme) {
+            RoamTheme(variant = themeVariant, darkTheme = isDarkTheme, osPalette = roamOsPalette(osColorScheme)) {
                 Log.d(TAG, "AuthState = $authState")
                 when (authState) {
                     AuthState.Loading -> SplashScreen(variant = themeVariant)

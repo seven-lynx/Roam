@@ -40,7 +40,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -53,8 +55,11 @@ import androidx.compose.ui.graphics.ShaderBrush
 import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -66,6 +71,7 @@ import app.roam.android.ui.theme.Danger
 import app.roam.android.ui.theme.Fog
 import app.roam.android.ui.theme.GoldBright
 import app.roam.android.ui.theme.LineColor
+import app.roam.android.ui.theme.LocalHardwarePalette
 import app.roam.android.ui.theme.NeonGreen
 import app.roam.android.ui.theme.Ok
 import app.roam.android.ui.theme.Oxide2
@@ -95,11 +101,12 @@ fun ControlDeck(
     onOpenComms: () -> Unit,
     onToggleMute: () -> Unit,
     onFeedback: (Int) -> Unit,
-    deckLayout: String = "trapezoid",
+    deckLayout: String = "line",
     deckSize: String = "medium",
     deckShape: String = "round",
     deckLabels: Boolean = false,
     texture: String = "metal",
+    systemMessageSpeed: Int = 5,
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
@@ -109,8 +116,13 @@ fun ControlDeck(
             .fillMaxWidth()
             .background(Brush.verticalGradient(listOf(Oxide3, Abyss)))
             .drawBehind {
-                drawRect(materialBrush, alpha = 0.25f)
+                drawRect(materialBrush, alpha = 0.40f)
                 drawRect(deckNoiseShader, alpha = 0.05f)
+                drawRect(
+                    brush = Brush.verticalGradient(
+                        listOf(Color.White.copy(alpha = 0.08f), Color.Transparent, Color.Black.copy(alpha = 0.12f)),
+                    ),
+                )
             }
             .navigationBarsPadding(),
     ) {
@@ -120,6 +132,7 @@ fun ControlDeck(
             hotQueueSize = hotQueueSize,
             warmQueueSize = warmQueueSize,
             systemMessage = systemMessage,
+            systemMessageSpeed = systemMessageSpeed,
             xpFlash = xpFlash,
             unreadNotificationCount = unreadNotificationCount,
             muted = muted,
@@ -154,6 +167,7 @@ private fun StatusLine(
     hotQueueSize: Int,
     warmQueueSize: Int,
     systemMessage: String,
+    systemMessageSpeed: Int,
     xpFlash: Int?,
     unreadNotificationCount: Int,
     muted: Boolean,
@@ -171,10 +185,11 @@ private fun StatusLine(
         ),
         label = "deck-led-alpha",
     )
-    val ledColor = if (isOnline) NeonGreen else Danger
+    val palette = LocalHardwarePalette.current
+    val ledColor = if (isOnline) palette.led else Danger
 
     Row(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp),
         verticalAlignment = Alignment.Top,
     ) {
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 2.dp)) {
@@ -208,13 +223,14 @@ private fun StatusLine(
         SystemReadout(
             message = systemMessage,
             color = ledColor,
+            speed = systemMessageSpeed,
             modifier = Modifier.weight(1f),
         )
         if (xpFlash != null) {
             Text(
                 "+$xpFlash XP",
                 style = MaterialTheme.typography.labelMedium,
-                color = GoldBright,
+                color = palette.primaryBright,
                 modifier = Modifier.padding(start = 8.dp, top = 4.dp),
             )
         }
@@ -270,7 +286,25 @@ private fun LedModule(value: Int, label: String, color: Color) {
 }
 
 @Composable
-private fun SystemReadout(message: String, color: Color, modifier: Modifier = Modifier) {
+private fun SystemReadout(message: String, color: Color, speed: Int = 5, modifier: Modifier = Modifier) {
+    val textMeasurer = rememberTextMeasurer()
+    val style = MaterialTheme.typography.labelMedium.copy(
+        fontFamily = SevenSegment,
+        letterSpacing = 1.sp,
+        color = color,
+        shadow = Shadow(color = color.copy(alpha = 0.85f), offset = Offset.Zero, blurRadius = 8f),
+    )
+    val textWidth = remember(message) { textMeasurer.measure(AnnotatedString(message), style).size.width }
+    var containerWidth by remember { mutableIntStateOf(1) }
+    val travel = (containerWidth + textWidth).coerceAtLeast(1)
+    val loopMs = (12 - speed.coerceIn(1, 10)) * 700
+    val transition = rememberInfiniteTransition(label = "readout-marquee")
+    val t by transition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(tween(loopMs, easing = LinearEasing), RepeatMode.Restart),
+        label = "readout-marquee-t",
+    )
     Column(modifier = modifier, horizontalAlignment = Alignment.CenterHorizontally) {
         Box(
             Modifier
@@ -278,27 +312,18 @@ private fun SystemReadout(message: String, color: Color, modifier: Modifier = Mo
                 .clip(RoundedCornerShape(4.dp))
                 .background(Color.Black.copy(alpha = 0.55f))
                 .border(1.dp, LineColor, RoundedCornerShape(4.dp))
-                .padding(horizontal = 8.dp, vertical = 2.dp),
+                .onSizeChanged { containerWidth = it.width },
+            contentAlignment = Alignment.CenterStart,
         ) {
-            AnimatedContent(
-                targetState = message,
-                transitionSpec = {
-                    (slideInHorizontally { it } + fadeIn()) togetherWith (slideOutHorizontally { -it } + fadeOut())
-                },
-                label = "system-readout",
-            ) { msg ->
-                Text(
-                    msg,
-                    style = MaterialTheme.typography.labelMedium.copy(
-                        fontFamily = SevenSegment,
-                        letterSpacing = 1.sp,
-                        color = color,
-                        shadow = Shadow(color = color.copy(alpha = 0.85f), offset = Offset.Zero, blurRadius = 8f),
-                    ),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
+            Text(
+                message,
+                style = style,
+                maxLines = 1,
+                softWrap = false,
+                modifier = Modifier
+                    .padding(horizontal = 8.dp, vertical = 2.dp)
+                    .graphicsLayer { translationX = containerWidth - t * travel },
+            )
         }
         Text("SYS", fontSize = 7.sp, color = Fog.copy(alpha = 0.75f), maxLines = 1)
     }
@@ -328,8 +353,9 @@ private fun DeckKey(
     val radiusPx = with(density) { size.toPx() * 1.6f }
     val shape = if (square) RoundedCornerShape(8.dp) else CircleShape
 
-    val top = if (depressed) Oxide2 else if (hero) GoldBright else Oxide3
-    val bottom = if (depressed) Abyss else if (hero) Brass else Oxide2
+    val palette = LocalHardwarePalette.current
+    val top = if (depressed) Oxide2 else if (hero) palette.primaryBright else Oxide3
+    val bottom = if (depressed) Abyss else if (hero) palette.primary else Oxide2
 
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -347,7 +373,7 @@ private fun DeckKey(
                 .clip(shape)
                 .background(Brush.radialGradient(listOf(top, bottom), center = Offset(0.3f, 0.25f), radius = radiusPx))
                 .drawBehind { drawRect(deckNoiseShader, alpha = 0.06f) }
-                .border(1.dp, if (hero) Brass else LineColor, shape)
+                .border(1.dp, if (hero) palette.primary else LineColor, shape)
                 .clickable(interactionSource = interaction, indication = null) {
                     onFeedback(soundRes)
                     onClick()
@@ -398,12 +424,13 @@ private fun KeyDeck(
     onNavigate: (String) -> Unit,
     onFeedback: (Int) -> Unit,
 ) {
+    val palette = LocalHardwarePalette.current
     val sizes = deckSizes(deckSize)
     val square = deckShape == "square"
     val dislikeTint = MaterialTheme.colorScheme.onSurfaceVariant
     val likeTint = if (hasRatedUp) Ok else MaterialTheme.colorScheme.onSurfaceVariant
-    val roamTint = if (focusModeEnabled) MaterialTheme.colorScheme.tertiary else GoldBright
-    val settingsTint = if (currentRoute == RoamTab.SettingsHub.route) TealBright else Fog
+    val roamTint = if (focusModeEnabled) MaterialTheme.colorScheme.tertiary else palette.primaryBright
+    val settingsTint = if (currentRoute == RoamTab.SettingsHub.route) palette.secondary else Fog
     val settingsActive = currentRoute.startsWith("settings")
 
     val dislikeKey: @Composable (Modifier) -> Unit = { mod ->
@@ -430,7 +457,7 @@ private fun KeyDeck(
 
     when (deckLayout) {
         "line" -> Row(
-            Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp),
+            Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp),
             horizontalArrangement = Arrangement.SpaceEvenly,
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -479,7 +506,7 @@ private fun TrapezoidDeck(
 ) {
     // Shift one pair of side keys inward so the deck reads as a trapezoid:
     // inverted = narrow top / wide bottom; standard = wide top / narrow bottom.
-    val inset = sizes.side * 0.55f
+    val inset = sizes.side * 0.35f
     val topInset = if (inverted) inset else 0.dp
     val bottomInset = if (inverted) 0.dp else inset
     val labelSpace = if (deckLabels) 16.dp else 0.dp

@@ -111,6 +111,7 @@ class MainViewModel(
     private val HARDWARE_NIXIE_KEY = "hardware_nixie"
     private val HARDWARE_ACTIVITY_LED_KEY = "hardware_activity_led"
     private val HARDWARE_VACUUM_TUBE_KEY = "hardware_vacuum_tube"
+    private val HARDWARE_FX_MASTER_KEY = "hardware_fx_master"
     private val WALKTHROUGH_SEEN_KEY = "walkthrough_seen"
     private val LAST_URL_KEY = "last_url"
     private val LAST_URL_TITLE_KEY = "last_url_title"
@@ -124,6 +125,8 @@ class MainViewModel(
     private val DECK_LABELS_KEY = "deck_labels"
     private val SYSTEM_MESSAGE_SPEED_KEY = "system_message_speed"
     private val DECK_TEXTURE_KEY = "deck_texture"
+    private val OS_COLOR_KEY = "os_color_scheme"
+    private val HARDWARE_COLOR_KEY = "hardware_color_scheme"
     private val MAX_HISTORY_ENTRIES = 100
 
     private val _state = MutableStateFlow<RoamState>(RoamState.Idle)
@@ -269,7 +272,7 @@ class MainViewModel(
 
     /** User preference: visual theme ("classic" vs "roam_os") */
     private val _themeVariant = MutableStateFlow(
-        when (prefs.getString(APP_THEME_VARIANT_KEY, "classic")) {
+        when (prefs.getString(APP_THEME_VARIANT_KEY, "roam_os")) {
             "roam_os" -> RoamThemeVariant.ROAM_OS
             else -> RoamThemeVariant.CLASSIC
         }
@@ -285,7 +288,7 @@ class MainViewModel(
     }
 
     /** User preference: deck key layout ("trapezoid", "trapezoid_inverted", "line", "grid"). */
-    private val _deckLayout = MutableStateFlow(prefs.getString(DECK_LAYOUT_KEY, "trapezoid") ?: "trapezoid")
+    private val _deckLayout = MutableStateFlow(prefs.getString(DECK_LAYOUT_KEY, "line") ?: "line")
     val deckLayout: StateFlow<String> = _deckLayout.asStateFlow()
 
     fun setDeckLayout(layout: String) {
@@ -342,7 +345,7 @@ class MainViewModel(
     private val _hardwareFx = MutableStateFlow(
         HardwareFx(
             antenna = prefs.getBoolean(HARDWARE_ANTENNA_KEY, true),
-            nixie = prefs.getBoolean(HARDWARE_NIXIE_KEY, true),
+            nixie = prefs.getBoolean(HARDWARE_NIXIE_KEY, false),
             activityLed = prefs.getBoolean(HARDWARE_ACTIVITY_LED_KEY, false),
             vacuumTube = prefs.getBoolean(HARDWARE_VACUUM_TUBE_KEY, false),
         )
@@ -369,6 +372,15 @@ class MainViewModel(
         prefs.edit().putBoolean(HARDWARE_VACUUM_TUBE_KEY, enabled).apply()
     }
 
+    /** Master switch: show/hide all chassis embellishments at once. */
+    private val _hardwareFxMaster = MutableStateFlow(prefs.getBoolean(HARDWARE_FX_MASTER_KEY, true))
+    val hardwareFxMaster: StateFlow<Boolean> = _hardwareFxMaster.asStateFlow()
+
+    fun setHardwareFxMaster(enabled: Boolean) {
+        _hardwareFxMaster.value = enabled
+        prefs.edit().putBoolean(HARDWARE_FX_MASTER_KEY, enabled).apply()
+    }
+
     /** User preference: CRT effects (scanlines/grain/vignette/flicker) */
     private val _crtEffectsEnabled = MutableStateFlow(prefs.getBoolean(CRT_EFFECTS_KEY, true))
     val crtEffectsEnabled: StateFlow<Boolean> = _crtEffectsEnabled.asStateFlow()
@@ -381,11 +393,11 @@ class MainViewModel(
     /** Per-effect CRT strength (1 = subtle, 10 = very pronounced). */
     private val _crtFx = MutableStateFlow(
         CrtFx(
-            scanlines = prefs.getInt(CRT_SCANLINES_KEY, 1),
-            grain = prefs.getInt(CRT_GRAIN_KEY, 1),
-            vignette = prefs.getInt(CRT_VIGNETTE_KEY, 1),
-            flicker = prefs.getInt(CRT_FLICKER_KEY, 1),
-            fisheye = prefs.getInt(CRT_FISHEYE_KEY, 1),
+            scanlines = prefs.getInt(CRT_SCANLINES_KEY, 5),
+            grain = prefs.getInt(CRT_GRAIN_KEY, 5),
+            vignette = prefs.getInt(CRT_VIGNETTE_KEY, 5),
+            flicker = prefs.getInt(CRT_FLICKER_KEY, 5),
+            fisheye = prefs.getInt(CRT_FISHEYE_KEY, 5),
         )
     )
     val crtFx: StateFlow<CrtFx> = _crtFx.asStateFlow()
@@ -483,7 +495,7 @@ class MainViewModel(
     }
 
     /** User preference: load the next queued URL in a background WebView to warm the cache */
-    private val _prefetchWebView = MutableStateFlow(prefs.getBoolean(PREFETCH_WEBVIEW_KEY, false))
+    private val _prefetchWebView = MutableStateFlow(prefs.getBoolean(PREFETCH_WEBVIEW_KEY, true))
     val prefetchWebView: StateFlow<Boolean> = _prefetchWebView.asStateFlow()
 
     fun setPrefetchWebView(enabled: Boolean) {
@@ -877,6 +889,24 @@ class MainViewModel(
     fun setDeckTexture(value: String) {
         _deckTexture.value = value
         prefs.edit().putString(DECK_TEXTURE_KEY, value).apply()
+    }
+
+    /** OS display + terminal accent palette key (see RoamOsPalette presets). */
+    private val _osColorScheme = MutableStateFlow(prefs.getString(OS_COLOR_KEY, "phosphor") ?: "phosphor")
+    val osColorScheme: StateFlow<String> = _osColorScheme.asStateFlow()
+
+    fun setOsColorScheme(value: String) {
+        _osColorScheme.value = value
+        prefs.edit().putString(OS_COLOR_KEY, value).apply()
+    }
+
+    /** Hardware (chassis/deck) accent palette key (see RoamOsPalette presets). */
+    private val _hardwareColorScheme = MutableStateFlow(prefs.getString(HARDWARE_COLOR_KEY, "phosphor") ?: "phosphor")
+    val hardwareColorScheme: StateFlow<String> = _hardwareColorScheme.asStateFlow()
+
+    fun setHardwareColorScheme(value: String) {
+        _hardwareColorScheme.value = value
+        prefs.edit().putString(HARDWARE_COLOR_KEY, value).apply()
     }
 
     /** Enqueues a message for the deck readout (consecutive dupes dropped, capped). */

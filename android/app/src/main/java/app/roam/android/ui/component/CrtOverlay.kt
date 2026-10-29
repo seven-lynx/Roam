@@ -6,6 +6,7 @@ import android.graphics.RenderEffect
 import android.graphics.RuntimeShader
 import android.graphics.Shader
 import android.os.Build
+import androidx.annotation.RequiresApi
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
@@ -13,6 +14,7 @@ import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -26,14 +28,13 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.dp
 import app.roam.android.ui.theme.TealBright
 import kotlin.random.Random
-
-/** Per-effect CRT strength. 1 = subtle (current look), 10 = very pronounced. */
+/** Per-effect CRT strength. 1 = off, 10 = very pronounced (default halfway at 5). */
 data class CrtFx(
-    val scanlines: Int = 1,
-    val grain: Int = 1,
-    val vignette: Int = 1,
-    val flicker: Int = 1,
-    val fisheye: Int = 1,
+    val scanlines: Int = 5,
+    val grain: Int = 5,
+    val vignette: Int = 5,
+    val flicker: Int = 5,
+    val fisheye: Int = 5,
 )
 
 /**
@@ -59,15 +60,16 @@ fun CrtOverlay(modifier: Modifier = Modifier, fx: CrtFx = CrtFx()) {
     val sVignette = (fx.vignette - 1) / 9f
     val sFlicker = (fx.flicker - 1) / 9f
     val sFisheye = (fx.fisheye - 1) / 9f
+    val phosphor = MaterialTheme.colorScheme.secondary
 
     Canvas(modifier = modifier) {
         // Phosphor glow, gently pulsing (amplitude scales with flicker strength).
-        drawRect(color = TealBright.copy(alpha = 0.02f + (0.02f + 0.06f * sFlicker) * flicker))
+        drawRect(color = phosphor.copy(alpha = 0.02f + (0.02f + 0.10f * sFlicker) * flicker))
 
         // Vignette - darkens the edges toward the corners.
         drawRect(
             brush = Brush.radialGradient(
-                colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.28f + 0.32f * sVignette)),
+                colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.25f + 0.45f * sVignette)),
                 center = Offset(size.width / 2f, size.height / 2f),
                 radius = size.maxDimension * 0.78f,
             ),
@@ -79,7 +81,7 @@ fun CrtOverlay(modifier: Modifier = Modifier, fx: CrtFx = CrtFx()) {
                 colors = listOf(
                     Color.White.copy(alpha = 0.14f * sFisheye),
                     Color.Transparent,
-                    Color.Black.copy(alpha = 0.25f + 0.60f * sFisheye),
+                    Color.Black.copy(alpha = 0.25f + 0.65f * sFisheye),
                 ),
                 center = Offset(size.width / 2f, size.height / 2f),
                 radius = size.maxDimension * 0.60f,
@@ -90,10 +92,10 @@ fun CrtOverlay(modifier: Modifier = Modifier, fx: CrtFx = CrtFx()) {
             drawRect(
                 brush = Brush.horizontalGradient(
                     colors = listOf(
-                        Color.Black.copy(alpha = 0.12f * sFisheye),
+                        Color.Black.copy(alpha = 0.16f * sFisheye),
                         Color.Transparent,
                         Color.Transparent,
-                        Color.Black.copy(alpha = 0.12f * sFisheye),
+                        Color.Black.copy(alpha = 0.16f * sFisheye),
                     ),
                     startX = 0f,
                     endX = size.width,
@@ -106,7 +108,7 @@ fun CrtOverlay(modifier: Modifier = Modifier, fx: CrtFx = CrtFx()) {
         var y = 0f
         while (y < size.height) {
             drawLine(
-                color = Color.Black.copy(alpha = 0.12f + 0.28f * sScan),
+                color = Color.Black.copy(alpha = 0.10f + 0.45f * sScan),
                 start = Offset(0f, y),
                 end = Offset(size.width, y),
                 strokeWidth = 1.dp.toPx(),
@@ -115,7 +117,7 @@ fun CrtOverlay(modifier: Modifier = Modifier, fx: CrtFx = CrtFx()) {
         }
 
         // Grain - tiled low-opacity monochrome noise.
-        drawRect(brush = grainBrush, alpha = 0.03f + 0.06f * sGrain)
+        drawRect(brush = grainBrush, alpha = 0.02f + 0.12f * sGrain)
     }
 }
 
@@ -152,14 +154,19 @@ private const val FISHEYE_SHADER = """
 
 /**
  * Applies a real barrel distortion to the layer's content for the given fisheye
- * strength (1 = off). No-op below Android 12, where the enhanced shading in
+ * strength (1 = off). No-op below Android 13 (TIRAMISU), where the enhanced shading in
  * [CrtOverlay] carries the effect instead.
  */
 fun Modifier.fisheyeDistortion(fisheye: Int): Modifier {
-    if (fisheye <= 1 || Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return this
+    if (fisheye <= 1 || Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return this
+    return applyFisheyeShader(fisheye)
+}
+
+@RequiresApi(Build.VERSION_CODES.TIRAMISU)
+private fun Modifier.applyFisheyeShader(fisheye: Int): Modifier {
     return graphicsLayer {
         val shader = RuntimeShader(FISHEYE_SHADER)
-        shader.setFloatUniform("amount", (fisheye - 1) / 9f * 0.55f)
+        shader.setFloatUniform("amount", (fisheye - 1) / 9f * 0.70f)
         shader.setFloatUniform("size", size.width, size.height)
         renderEffect = RenderEffect.createRuntimeShaderEffect(shader, "content").asComposeRenderEffect()
     }

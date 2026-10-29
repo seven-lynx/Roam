@@ -150,8 +150,8 @@ fun SettingsFxSliderRow(
 fun SettingsActionRow(
     title: String,
     subtitle: String?,
-    onClick: () -> Unit,
     tint: Color = MaterialTheme.colorScheme.onSurface,
+    onClick: () -> Unit,
 ) {
     val clickSound = LocalClickSound.current
     Row(

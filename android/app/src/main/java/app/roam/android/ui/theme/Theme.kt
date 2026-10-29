@@ -47,18 +47,18 @@ private val ClassicLightColors = lightColorScheme(
     outline = Zinc200,
 )
 
-private val RoamOsColors = darkColorScheme(
-    primary = Gold,
+private fun roamOsColors(p: RoamOsPalette) = darkColorScheme(
+    primary = p.primary,
     onPrimary = AccentInk,
-    primaryContainer = Brass,
+    primaryContainer = p.primary.copy(alpha = 0.20f),
     onPrimaryContainer = Bone,
-    secondary = TealBright,
+    secondary = p.secondary,
     onSecondary = ScreenDeep,
-    secondaryContainer = Verdigris,
+    secondaryContainer = p.secondary.copy(alpha = 0.18f),
     onSecondaryContainer = Bone,
-    tertiary = NeonPink,
+    tertiary = p.tertiary,
     onTertiary = Bone,
-    tertiaryContainer = Oxide3,
+    tertiaryContainer = p.tertiary.copy(alpha = 0.18f),
     onTertiaryContainer = Bone,
     background = ScreenBg,
     onBackground = Bone,
@@ -73,7 +73,7 @@ private val RoamOsColors = darkColorScheme(
     surfaceContainerLowest = Abyss,
     inverseSurface = Bone,
     inverseOnSurface = Abyss,
-    inversePrimary = Brass,
+    inversePrimary = p.primary,
     outline = LineColor,
     outlineVariant = Oxide2,
     error = Danger,
@@ -86,6 +86,7 @@ private val RoamOsColors = darkColorScheme(
 fun RoamTheme(
     variant: RoamThemeVariant = RoamThemeVariant.CLASSIC,
     darkTheme: Boolean = isSystemInDarkTheme(),
+    osPalette: RoamOsPalette = PHOSPHOR,
     content: @Composable () -> Unit,
 ) {
     // ROAM-OS is night-only; Classic honours the light/dark/system choice.
@@ -109,7 +110,7 @@ fun RoamTheme(
     }
 
     val colorScheme = when (variant) {
-        RoamThemeVariant.ROAM_OS -> RoamOsColors
+        RoamThemeVariant.ROAM_OS -> roamOsColors(osPalette)
         RoamThemeVariant.CLASSIC -> if (effectiveDark) ClassicDarkColors else ClassicLightColors
     }
     val typography = if (variant == RoamThemeVariant.ROAM_OS) RoamOsTypography else RoamTypography

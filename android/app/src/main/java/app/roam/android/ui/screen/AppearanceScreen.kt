@@ -33,6 +33,7 @@ import app.roam.android.ui.component.SettingsFlavorText
 import app.roam.android.ui.component.SettingsFxSliderRow
 import app.roam.android.ui.component.SettingsToggleRow
 import app.roam.android.ui.component.SettingsTopBar
+import app.roam.android.ui.theme.ROAM_OS_PALETTES
 import app.roam.android.ui.theme.RoamThemeVariant
 import app.roam.android.viewmodel.MainViewModel
 
@@ -55,6 +56,9 @@ fun AppearanceScreen(
     val systemMessageSpeed by vm.systemMessageSpeed.collectAsState()
     val hardwareFx by vm.hardwareFx.collectAsState()
     val deckTexture by vm.deckTexture.collectAsState()
+    val osColorScheme by vm.osColorScheme.collectAsState()
+    val hardwareColorScheme by vm.hardwareColorScheme.collectAsState()
+    val hardwareFxMaster by vm.hardwareFxMaster.collectAsState()
 
     var themeDropdownExpanded by remember { mutableStateOf(false) }
     var deckLayoutDropdownExpanded by remember { mutableStateOf(false) }
@@ -62,8 +66,12 @@ fun AppearanceScreen(
     var deckShapeDropdownExpanded by remember { mutableStateOf(false) }
     var hardwareExpanded by remember { mutableStateOf(false) }
     var textureDropdownExpanded by remember { mutableStateOf(false) }
+    var osColorDropdownExpanded by remember { mutableStateOf(false) }
+    var hardwareColorDropdownExpanded by remember { mutableStateOf(false) }
 
-    val deckLayoutLabel = DECK_LAYOUTS.firstOrNull { it.first == deckLayout }?.second ?: "Trapezoid"
+    val deckLayoutLabel = DECK_LAYOUTS.firstOrNull { it.first == deckLayout }?.second ?: "Straight line"
+    val osColorLabel = ROAM_OS_PALETTES.firstOrNull { it.key == osColorScheme }?.label ?: "Phosphor Teal"
+    val hardwareColorLabel = ROAM_OS_PALETTES.firstOrNull { it.key == hardwareColorScheme }?.label ?: "Phosphor Teal"
     val deckSizeLabel = DECK_SIZES.firstOrNull { it.first == deckSize }?.second ?: "Medium"
     val deckShapeLabel = DECK_SHAPES.firstOrNull { it.first == deckShape }?.second ?: "Round"
 
@@ -114,7 +122,7 @@ fun AppearanceScreen(
             }
 
             SettingsToggleRow("Deck labels", "Show text labels on the control buttons", deckLabelsEnabled) { vm.setDeckLabelsEnabled(it) }
-            SettingsFxSliderRow("System message speed", systemMessageSpeed) { vm.setSystemMessageSpeed(it) }
+            SettingsFxSliderRow("Message scroll speed", systemMessageSpeed) { vm.setSystemMessageSpeed(it) }
 
             Row(
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
@@ -127,7 +135,7 @@ fun AppearanceScreen(
                 Box {
                     OutlinedButton(onClick = { textureDropdownExpanded = true }) { Text(DeckTexture.fromKey(deckTexture).label) }
                     DropdownMenu(expanded = textureDropdownExpanded, onDismissRequest = { textureDropdownExpanded = false }) {
-                        DeckTexture.values().forEach { tex ->
+                        DeckTexture.entries.forEach { tex ->
                             DropdownMenuItem(text = { Text(tex.label) }, onClick = { vm.setDeckTexture(tex.key); textureDropdownExpanded = false })
                         }
                     }
@@ -135,15 +143,54 @@ fun AppearanceScreen(
             }
 
             if (themeVariant == RoamThemeVariant.ROAM_OS) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("OS color", style = MaterialTheme.typography.bodyLarge)
+                        Text("Roam-OS UI and terminal display color", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
+                    }
+                    Box {
+                        OutlinedButton(onClick = { osColorDropdownExpanded = true }) { Text(osColorLabel) }
+                        DropdownMenu(expanded = osColorDropdownExpanded, onDismissRequest = { osColorDropdownExpanded = false }) {
+                            ROAM_OS_PALETTES.forEach { p ->
+                                DropdownMenuItem(text = { Text(p.label) }, onClick = { vm.setOsColorScheme(p.key); osColorDropdownExpanded = false })
+                            }
+                        }
+                    }
+                }
+
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("Hardware color", style = MaterialTheme.typography.bodyLarge)
+                        Text("Chassis and control deck accent color", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
+                    }
+                    Box {
+                        OutlinedButton(onClick = { hardwareColorDropdownExpanded = true }) { Text(hardwareColorLabel) }
+                        DropdownMenu(expanded = hardwareColorDropdownExpanded, onDismissRequest = { hardwareColorDropdownExpanded = false }) {
+                            ROAM_OS_PALETTES.forEach { p ->
+                                DropdownMenuItem(text = { Text(p.label) }, onClick = { vm.setHardwareColorScheme(p.key); hardwareColorDropdownExpanded = false })
+                            }
+                        }
+                    }
+                }
+
                 SettingsToggleRow("Device frame", "Show the retro handheld chassis around the screen", deviceFrameEnabled) { vm.setDeviceFrameEnabled(it) }
                 SettingsToggleRow("Wear & tear", "Scratches, scuffs and oxidation on the chassis", wearEnabled) { vm.setWearEnabled(it) }
                 SettingsToggleRow("Bezel fisheye", "Warp the chassis bezel to match the screen curve", bezelFisheyeEnabled) { vm.setBezelFisheyeEnabled(it) }
-                SettingsActionRow("Hardware embellishments", "Antenna, nixie and other chassis details") { hardwareExpanded = !hardwareExpanded }
-                if (hardwareExpanded) {
-                    SettingsToggleRow("Antenna stub", "Whip antenna on the top edge", hardwareFx.antenna) { vm.setHardwareAntenna(it) }
-                    SettingsToggleRow("Nixie tube", "Glowing neon digit on the chassis", hardwareFx.nixie) { vm.setHardwareNixie(it) }
-                    SettingsToggleRow("Activity LED", "Blinking link-status indicator", hardwareFx.activityLed) { vm.setHardwareActivityLed(it) }
-                    SettingsToggleRow("Vacuum tube", "Glowing valve detail", hardwareFx.vacuumTube) { vm.setHardwareVacuumTube(it) }
+                SettingsToggleRow("Hardware embellishments", "Antenna, nixie and other chassis details", hardwareFxMaster) { vm.setHardwareFxMaster(it) }
+                if (hardwareFxMaster) {
+                    SettingsActionRow("Embellishment details", "Fine-tune each chassis detail") { hardwareExpanded = !hardwareExpanded }
+                    if (hardwareExpanded) {
+                        SettingsToggleRow("Antenna stub", "Whip antenna on the top edge", hardwareFx.antenna) { vm.setHardwareAntenna(it) }
+                        SettingsToggleRow("Nixie tube", "Glowing neon digit on the chassis", hardwareFx.nixie) { vm.setHardwareNixie(it) }
+                        SettingsToggleRow("Activity LED", "Blinking link-status indicator", hardwareFx.activityLed) { vm.setHardwareActivityLed(it) }
+                        SettingsToggleRow("Vacuum tube", "Glowing valve detail", hardwareFx.vacuumTube) { vm.setHardwareVacuumTube(it) }
+                    }
                 }
                 SettingsToggleRow("CRT effects", "Scanlines, grain, vignette, flicker and fisheye", crtEffectsEnabled) { vm.setCrtEffectsEnabled(it) }
                 SettingsFxSliderRow("Scanlines", crtFx.scanlines) { vm.setCrtScanlines(it) }

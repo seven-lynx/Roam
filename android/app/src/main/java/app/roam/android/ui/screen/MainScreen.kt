@@ -68,6 +68,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import app.roam.android.MainActivity
+import app.roam.android.R
 import app.roam.android.ui.component.BackgroundPrefetchWebView
 import app.roam.android.ui.component.BottomBar
 import app.roam.android.ui.component.CelebrationOverlay
@@ -77,6 +78,7 @@ import app.roam.android.ui.component.ConfigBottomSheet
 import app.roam.android.ui.component.ControlDeck
 import app.roam.android.ui.component.ProgramLauncher
 import app.roam.android.ui.component.HandheldShell
+import app.roam.android.ui.component.HardwareFx
 import app.roam.android.ui.component.LocalClickSound
 import app.roam.android.ui.component.OsStatusBar
 import app.roam.android.ui.component.RoamTab
@@ -87,7 +89,9 @@ import app.roam.android.ui.component.ShareUrlBottomSheet
 import app.roam.android.ui.component.SubmitBottomSheet
 import app.roam.android.ui.component.UserSearchSheet
 import app.roam.android.ui.component.pickRandomMessage
+import app.roam.android.ui.theme.LocalHardwarePalette
 import app.roam.android.ui.theme.RoamThemeVariant
+import app.roam.android.ui.theme.roamOsPalette
 import app.roam.android.viewmodel.MainViewModel
 import app.roam.android.viewmodel.RoamState
 import kotlinx.coroutines.delay
@@ -117,6 +121,8 @@ fun MainScreen(
     val unreadNotificationCount by vm.unreadNotificationCount.collectAsState()
     val xpFlash by vm.xpFlash.collectAsState()
     val systemMessage by vm.systemMessage.collectAsState()
+    val systemMessageSpeed by vm.systemMessageSpeed.collectAsState()
+    val hardwareColorScheme by vm.hardwareColorScheme.collectAsState()
     val soundEffectsEnabled by vm.soundEffectsEnabled.collectAsState()
     val showConfigSheet by vm.showConfigSheet.collectAsState()
     val state by vm.state.collectAsState()
@@ -137,6 +143,7 @@ fun MainScreen(
     val deckLabelsEnabled by vm.deckLabelsEnabled.collectAsState()
     val bezelFisheyeEnabled by vm.bezelFisheyeEnabled.collectAsState()
     val hardwareFx by vm.hardwareFx.collectAsState()
+    val hardwareFxMaster by vm.hardwareFxMaster.collectAsState()
     val deckTexture by vm.deckTexture.collectAsState()
     val isRoamOs = themeVariant == RoamThemeVariant.ROAM_OS
 
@@ -166,7 +173,10 @@ fun MainScreen(
     val submitToast by vm.submitToast.collectAsState()
     val celebration by vm.celebration.collectAsState()
 
-    CompositionLocalProvider(LocalClickSound provides { vm.uiFeedback(R.raw.click) }) {
+    CompositionLocalProvider(
+        LocalClickSound provides { vm.uiFeedback(R.raw.click) },
+        LocalHardwarePalette provides roamOsPalette(hardwareColorScheme),
+    ) {
     Scaffold(
         modifier = Modifier.fillMaxSize(),
         bottomBar = {
@@ -177,6 +187,7 @@ fun MainScreen(
                     hotQueueSize = hotQueueSize,
                     warmQueueSize = warmQueueSize,
                     systemMessage = systemMessage,
+                    systemMessageSpeed = systemMessageSpeed,
                     unreadNotificationCount = unreadNotificationCount,
                     xpFlash = xpFlash,
                     focusModeEnabled = focusModeEnabled,
@@ -233,7 +244,7 @@ fun MainScreen(
                 crtFx = crtFx,
                 wear = isRoamOs && wearEnabled,
                 bezelFisheye = isRoamOs && bezelFisheyeEnabled,
-                hardware = hardwareFx,
+                hardware = if (hardwareFxMaster) hardwareFx else HardwareFx(antenna = false, nixie = false, activityLed = false, vacuumTube = false),
                 texture = deckTexture,
                 modifier = Modifier.fillMaxSize(),
             ) {
@@ -647,10 +658,8 @@ private fun DiscoverTab(
     val state by vm.state.collectAsState()
     val currentUrl by vm.currentUrl.collectAsState()
     val rawUrl by vm.rawUrl.collectAsState()
-    val showSubmitSheet by vm.showSubmitSheet.collectAsState()
     val savedConfirmation by vm.savedConfirmation.collectAsState()
     val reportConfirmation by vm.reportConfirmation.collectAsState()
-    val submitToast by vm.submitToast.collectAsState()
     val collections by vm.collections.collectAsState()
     val categories by vm.categories.collectAsState()
     val subcategories by vm.subcategories.collectAsState()
@@ -663,11 +672,7 @@ private fun DiscoverTab(
     val adminModeEnabled by vm.adminModeEnabled.collectAsState()
     val prefetchWebView by vm.prefetchWebView.collectAsState()
     val nextPrefetchUrl by vm.nextPrefetchUrl.collectAsState()
-    val showShareUrlSheet by vm.showShareUrlSheet.collectAsState()
     val themeVariant by vm.themeVariant.collectAsState()
-    val crtEffectsEnabled by vm.crtEffectsEnabled.collectAsState()
-    val crtFx by vm.crtFx.collectAsState()
-    val deviceFrameEnabled by vm.deviceFrameEnabled.collectAsState()
     val soundEffectsEnabled by vm.soundEffectsEnabled.collectAsState()
     val isRoamOs = themeVariant == RoamThemeVariant.ROAM_OS
 

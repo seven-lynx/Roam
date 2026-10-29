@@ -46,6 +46,7 @@ import app.roam.android.ui.theme.Bone
 import app.roam.android.ui.theme.EmberBright
 import app.roam.android.ui.theme.Fog
 import app.roam.android.ui.theme.IbmPlexMono
+import app.roam.android.ui.theme.LocalHardwarePalette
 import app.roam.android.ui.theme.NeonGreen
 import app.roam.android.ui.theme.NeonPink
 import app.roam.android.ui.theme.Oxide
@@ -61,7 +62,7 @@ import kotlin.random.Random
 /** Which cosmetic hardware embellishments are visible on the chassis bezel. */
 data class HardwareFx(
     val antenna: Boolean = true,
-    val nixie: Boolean = true,
+    val nixie: Boolean = false,
     val activityLed: Boolean = false,
     val vacuumTube: Boolean = false,
 )
@@ -86,6 +87,7 @@ fun HandheldShell(
     content: @Composable () -> Unit,
 ) {
     val context = LocalContext.current
+    val palette = LocalHardwarePalette.current
     val materialBrush = remember(texture) { deckTextureBrush(context, DeckTexture.fromKey(texture)) }
     if (framed) {
         Box(modifier = modifier.background(Abyss)) {
@@ -104,7 +106,7 @@ fun HandheldShell(
                             1.dp,
                             Brush.verticalGradient(
                                 listOf(
-                                    TealBright.copy(alpha = 0.35f),
+                                    palette.secondary.copy(alpha = 0.35f),
                                     Color.Transparent,
                                     Color.Black.copy(alpha = 0.55f),
                                 ),
@@ -115,7 +117,7 @@ fun HandheldShell(
                             drawRect(
                                 brush = Brush.linearGradient(
                                     colors = listOf(
-                                        Color.White.copy(alpha = 0.07f),
+                                        Color.White.copy(alpha = 0.10f),
                                         Color.Transparent,
                                         Color.Transparent,
                                     ),
@@ -124,7 +126,7 @@ fun HandheldShell(
                                 ),
                             )
                             drawRect(brush = chassisNoiseShader, alpha = 0.05f)
-                            drawRect(brush = materialBrush, alpha = 0.30f)
+                            drawRect(brush = materialBrush, alpha = 0.42f)
                         },
                 ) {
                     Box(
@@ -157,7 +159,7 @@ fun HandheldShell(
             // Non-warped chassis embellishments (kept outside the fisheye layer).
             PortLabels(Modifier.align(Alignment.BottomStart).padding(start = 20.dp, bottom = 3.dp))
             Diodes(Modifier.align(Alignment.BottomEnd).padding(end = 20.dp, bottom = 3.dp))
-            if (hardware.antenna) AntennaStub(Modifier.align(Alignment.TopCenter).padding(top = 2.dp))
+            if (hardware.antenna) AntennaStub(Modifier.align(Alignment.TopEnd).padding(end = 16.dp, top = 2.dp))
             if (hardware.nixie) NixieTube(Modifier.align(Alignment.BottomCenter).padding(bottom = 1.dp))
             if (hardware.activityLed) ActivityLed(Modifier.align(Alignment.TopStart).padding(start = 22.dp, top = 5.dp))
             if (hardware.vacuumTube) VacuumTube(Modifier.align(Alignment.CenterEnd).padding(end = 2.dp))
@@ -256,9 +258,10 @@ private fun Diodes(modifier: Modifier = Modifier) {
     val a2 by transition.animateFloat(0.3f, 1f, infiniteRepeatable(tween(1400), RepeatMode.Reverse), label = "d2")
     val a3 by transition.animateFloat(0.3f, 1f, infiniteRepeatable(tween(1100), RepeatMode.Reverse), label = "d3")
     Row(modifier, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
-        Box(Modifier.size(4.dp).clip(CircleShape).background(TealBright.copy(alpha = a1)))
-        Box(Modifier.size(4.dp).clip(CircleShape).background(EmberBright.copy(alpha = a2)))
-        Box(Modifier.size(4.dp).clip(CircleShape).background(NeonPink.copy(alpha = a3)))
+        val palette = LocalHardwarePalette.current
+        Box(Modifier.size(4.dp).clip(CircleShape).background(palette.secondary.copy(alpha = a1)))
+        Box(Modifier.size(4.dp).clip(CircleShape).background(palette.emberBright.copy(alpha = a2)))
+        Box(Modifier.size(4.dp).clip(CircleShape).background(palette.tertiary.copy(alpha = a3)))
     }
 }
 
@@ -278,12 +281,13 @@ private fun PortLabels(modifier: Modifier = Modifier) {
 
 @Composable
 private fun WearLayer(modifier: Modifier = Modifier) {
+    val palette = LocalHardwarePalette.current
     val rng = remember { Random(31) }
     Canvas(modifier) {
         // Oxidised patches near the corners.
         drawCircle(Bone.copy(alpha = 0.07f), radius = size.width * 0.16f, center = Offset(size.width * 0.06f, size.height * 0.07f))
         drawCircle(Bone.copy(alpha = 0.05f), radius = size.width * 0.12f, center = Offset(size.width * 0.93f, size.height * 0.92f))
-        drawCircle(EmberBright.copy(alpha = 0.05f), radius = size.width * 0.10f, center = Offset(size.width * 0.90f, size.height * 0.07f))
+        drawCircle(palette.emberBright.copy(alpha = 0.05f), radius = size.width * 0.10f, center = Offset(size.width * 0.90f, size.height * 0.07f))
         // Hairline scratches (seeded, stable across recompositions).
         repeat(7) {
             val x1 = rng.nextFloat() * size.width
@@ -304,14 +308,30 @@ private fun WearLayer(modifier: Modifier = Modifier) {
 
 @Composable
 private fun AntennaStub(modifier: Modifier = Modifier) {
+    val palette = LocalHardwarePalette.current
+    val transition = rememberInfiniteTransition(label = "antenna")
+    val glow by transition.animateFloat(0.55f, 1f, infiniteRepeatable(tween(1100), RepeatMode.Reverse), label = "antenna-glow")
     Column(modifier, horizontalAlignment = Alignment.CenterHorizontally) {
-        Box(Modifier.size(5.dp).clip(CircleShape).background(Bone).border(1.dp, Oxide, CircleShape))
-        Box(Modifier.width(2.dp).height(10.dp).background(Oxide3))
+        Box(
+            Modifier
+                .size(6.dp)
+                .clip(CircleShape)
+                .background(palette.led.copy(alpha = glow))
+                .border(1.dp, palette.led.copy(alpha = 0.8f), CircleShape),
+        )
+        Box(
+            Modifier
+                .width(2.dp)
+                .height(13.dp)
+                .background(Brush.verticalGradient(listOf(palette.led.copy(alpha = 0.9f), Oxide3))),
+        )
+        Box(Modifier.size(8.dp).clip(CircleShape).background(Bone).border(1.dp, Oxide, CircleShape))
     }
 }
 
 @Composable
 private fun NixieTube(modifier: Modifier = Modifier) {
+    val palette = LocalHardwarePalette.current
     val transition = rememberInfiniteTransition(label = "nixie")
     val glow by transition.animateFloat(0.55f, 1f, infiniteRepeatable(tween(1100), RepeatMode.Reverse), label = "nixie-glow")
     Box(
@@ -323,23 +343,25 @@ private fun NixieTube(modifier: Modifier = Modifier) {
             .border(1.dp, Oxide, RoundedCornerShape(5.dp)),
         contentAlignment = Alignment.Center,
     ) {
-        Text("3", color = EmberBright.copy(alpha = glow), fontFamily = SevenSegment, fontSize = 14.sp)
+        Text("3", color = palette.emberBright.copy(alpha = glow), fontFamily = SevenSegment, fontSize = 14.sp)
     }
 }
 
 @Composable
 private fun ActivityLed(modifier: Modifier = Modifier) {
+    val palette = LocalHardwarePalette.current
     val transition = rememberInfiniteTransition(label = "activity")
     val a by transition.animateFloat(0.2f, 1f, infiniteRepeatable(tween(650), RepeatMode.Reverse), label = "activity-a")
-    Box(modifier.size(4.dp).clip(CircleShape).background(NeonGreen.copy(alpha = a)))
+    Box(modifier.size(4.dp).clip(CircleShape).background(palette.led.copy(alpha = a)))
 }
 
 @Composable
 private fun VacuumTube(modifier: Modifier = Modifier) {
+    val palette = LocalHardwarePalette.current
     val transition = rememberInfiniteTransition(label = "tube")
     val glow by transition.animateFloat(0.4f, 1f, infiniteRepeatable(tween(1500), RepeatMode.Reverse), label = "tube-glow")
     Box(modifier.size(12.dp).clip(CircleShape).background(Oxide3).border(1.dp, Oxide, CircleShape), contentAlignment = Alignment.Center) {
-        Box(Modifier.width(3.dp).height(7.dp).background(EmberBright.copy(alpha = glow)))
+        Box(Modifier.width(3.dp).height(7.dp).background(palette.emberBright.copy(alpha = glow)))
     }
 }
 

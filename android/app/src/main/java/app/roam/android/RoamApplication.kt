@@ -88,7 +88,7 @@ class RoamApplication : Application() {
 
     private fun applyThemeIcon() {
         val roamOs = getSharedPreferences("roam_saved", Context.MODE_PRIVATE)
-            .getString("app_theme_variant", "classic") == "roam_os"
+            .getString("app_theme_variant", "roam_os") == "roam_os"
         AppIconManager.apply(this, roamOs)
     }
 

@@ -28,12 +28,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.material3.MaterialTheme
 import app.roam.android.ui.theme.Abyss
 import app.roam.android.ui.theme.Fog
 import app.roam.android.ui.theme.IbmPlexMono
 import app.roam.android.ui.theme.LineColor
 import app.roam.android.ui.theme.SevenSegment
-import app.roam.android.ui.theme.TealBright
 import kotlinx.coroutines.delay
 
 /**
@@ -81,7 +81,7 @@ fun RoamOsBootScreen() {
     ) {
         Text(
             "ROAM-OS",
-            color = TealBright.copy(alpha = glow),
+            color = MaterialTheme.colorScheme.secondary.copy(alpha = glow),
             fontFamily = SevenSegment,
             fontSize = 30.sp,
             letterSpacing = 6.sp,
@@ -92,7 +92,7 @@ fun RoamOsBootScreen() {
                 Modifier
                     .fillMaxWidth(sweep)
                     .height(3.dp)
-                    .background(TealBright)
+                    .background(MaterialTheme.colorScheme.secondary)
             )
         }
         Spacer(Modifier.height(22.dp))
@@ -106,7 +106,7 @@ fun RoamOsBootScreen() {
                     lineHeight = 20.sp,
                 )
             }
-            Text("\u258C", color = TealBright, fontFamily = IbmPlexMono, fontSize = 12.sp)
+            Text("\u258C", color = MaterialTheme.colorScheme.secondary, fontFamily = IbmPlexMono, fontSize = 12.sp)
         }
     }
 }
