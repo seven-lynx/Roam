@@ -1,4 +1,4 @@
-import { LAUNCHER_GROUPS, PRIMARY_KEYS, isActivePath, toDosPath } from '@/lib/os-nav';
+import { LAUNCHER_GROUPS, PRIMARY_KEYS, isActivePath, toUnixPath } from '@/lib/os-nav';
 
 describe('os-nav', () => {
   it('keeps the site\'s real route names (nothing is renamed)', () => {
@@ -29,9 +29,9 @@ describe('os-nav', () => {
     expect(isActivePath('/signup', '/signup?mode=signin')).toBe(true);
   });
 
-  it('renders DOS-style paths for the status bar', () => {
-    expect(toDosPath('/')).toBe('C:\\ROAM');
-    expect(toDosPath('/badges')).toBe('C:\\ROAM\\BADGES');
-    expect(toDosPath('/collections/my%20list')).toBe('C:\\ROAM\\COLLECTIONS\\MY LIST');
+  it('renders Unix-style paths for the status bar', () => {
+    expect(toUnixPath('/')).toBe('~/roam');
+    expect(toUnixPath('/badges')).toBe('~/roam/badges');
+    expect(toUnixPath('/collections/my%20list')).toBe('~/roam/collections/my list');
   });
 });
