@@ -45,6 +45,7 @@ fun AppearanceScreen(
     val crtFx by vm.crtFx.collectAsState()
     val deviceFrameEnabled by vm.deviceFrameEnabled.collectAsState()
     val wearEnabled by vm.wearEnabled.collectAsState()
+    val bezelFisheyeEnabled by vm.bezelFisheyeEnabled.collectAsState()
     val deckLayout by vm.deckLayout.collectAsState()
     val deckSize by vm.deckSize.collectAsState()
     val deckShape by vm.deckShape.collectAsState()
@@ -110,6 +111,7 @@ fun AppearanceScreen(
             if (themeVariant == RoamThemeVariant.ROAM_OS) {
                 SettingsToggleRow("Device frame", "Show the retro handheld chassis around the screen", deviceFrameEnabled) { vm.setDeviceFrameEnabled(it) }
                 SettingsToggleRow("Wear & tear", "Scratches, scuffs and oxidation on the chassis", wearEnabled) { vm.setWearEnabled(it) }
+                SettingsToggleRow("Bezel fisheye", "Warp the chassis bezel to match the screen curve", bezelFisheyeEnabled) { vm.setBezelFisheyeEnabled(it) }
                 SettingsToggleRow("CRT effects", "Scanlines, grain, vignette, flicker and fisheye", crtEffectsEnabled) { vm.setCrtEffectsEnabled(it) }
                 SettingsFxSliderRow("Scanlines", crtFx.scanlines) { vm.setCrtScanlines(it) }
                 SettingsFxSliderRow("Grain", crtFx.grain) { vm.setCrtGrain(it) }

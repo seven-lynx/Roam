@@ -104,6 +104,7 @@ class MainViewModel(
     private val CRT_FISHEYE_KEY = "crt_fisheye"
     private val DEVICE_FRAME_KEY = "device_frame"
     private val WEAR_KEY = "wear_and_tear"
+    private val BEZEL_FISHEYE_KEY = "bezel_fisheye"
     private val WALKTHROUGH_SEEN_KEY = "walkthrough_seen"
     private val LAST_URL_KEY = "last_url"
     private val LAST_URL_TITLE_KEY = "last_url_title"
@@ -317,6 +318,15 @@ class MainViewModel(
     fun setWearEnabled(enabled: Boolean) {
         _wearEnabled.value = enabled
         prefs.edit().putBoolean(WEAR_KEY, enabled).apply()
+    }
+
+    /** User preference: warp the chassis bezel with the screen's fisheye curve. */
+    private val _bezelFisheyeEnabled = MutableStateFlow(prefs.getBoolean(BEZEL_FISHEYE_KEY, true))
+    val bezelFisheyeEnabled: StateFlow<Boolean> = _bezelFisheyeEnabled.asStateFlow()
+
+    fun setBezelFisheyeEnabled(enabled: Boolean) {
+        _bezelFisheyeEnabled.value = enabled
+        prefs.edit().putBoolean(BEZEL_FISHEYE_KEY, enabled).apply()
     }
 
     /** User preference: CRT effects (scanlines/grain/vignette/flicker) */

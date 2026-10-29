@@ -58,6 +58,7 @@ import app.roam.android.ui.theme.Danger
 import app.roam.android.ui.theme.Fog
 import app.roam.android.ui.theme.GoldBright
 import app.roam.android.ui.theme.LineColor
+import app.roam.android.ui.theme.NeonGreen
 import app.roam.android.ui.theme.Ok
 import app.roam.android.ui.theme.Oxide2
 import app.roam.android.ui.theme.Oxide3
@@ -145,7 +146,7 @@ private fun StatusLine(
         ),
         label = "deck-led-alpha",
     )
-    val ledColor = if (isOnline) Ok else Danger
+    val ledColor = if (isOnline) NeonGreen else Danger
     val readout = "READY $hotQueueSize · BUFFER $warmQueueSize · " +
         if (isOnline) "SIG LOCK" else "SIG LOST"
 

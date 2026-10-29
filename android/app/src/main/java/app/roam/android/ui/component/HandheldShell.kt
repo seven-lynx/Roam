@@ -66,11 +66,16 @@ fun HandheldShell(
     crtEnabled: Boolean,
     crtFx: CrtFx = CrtFx(),
     wear: Boolean = false,
+    bezelFisheye: Boolean = true,
     modifier: Modifier = Modifier,
     content: @Composable () -> Unit,
 ) {
     if (framed) {
-        Box(modifier = modifier.background(Abyss)) {
+        Box(
+            modifier = modifier
+                .background(Abyss)
+                .then(if (bezelFisheye) Modifier.fisheyeDistortion(crtFx.fisheye) else Modifier)
+        ) {
             Box(
                 Modifier
                     .fillMaxSize()
@@ -113,7 +118,11 @@ fun HandheldShell(
                         .border(1.dp, Color.Black.copy(alpha = 0.8f), RoundedCornerShape(14.dp)),
                 ) {
                     Box(Modifier.fillMaxSize()) {
-                        Box(Modifier.fillMaxSize().fisheyeDistortion(crtFx.fisheye)) { content() }
+                        Box(
+                            Modifier
+                                .fillMaxSize()
+                                .then(if (bezelFisheye) Modifier else Modifier.fisheyeDistortion(crtFx.fisheye))
+                        ) { content() }
                         if (crtEnabled) CrtOverlay(Modifier.fillMaxSize(), fx = crtFx)
                     }
                 }

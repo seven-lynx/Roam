@@ -130,6 +130,7 @@ fun MainScreen(
     val crtFx by vm.crtFx.collectAsState()
     val wearEnabled by vm.wearEnabled.collectAsState()
     val deckLabelsEnabled by vm.deckLabelsEnabled.collectAsState()
+    val bezelFisheyeEnabled by vm.bezelFisheyeEnabled.collectAsState()
     val isRoamOs = themeVariant == RoamThemeVariant.ROAM_OS
 
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -218,6 +219,7 @@ fun MainScreen(
                 crtEnabled = isRoamOs && crtEffectsEnabled,
                 crtFx = crtFx,
                 wear = isRoamOs && wearEnabled,
+                bezelFisheye = isRoamOs && bezelFisheyeEnabled,
                 modifier = Modifier.fillMaxSize(),
             ) {
                 Box(Modifier.fillMaxSize()) {
