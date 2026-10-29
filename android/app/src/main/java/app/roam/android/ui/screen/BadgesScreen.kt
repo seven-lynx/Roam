@@ -50,6 +50,7 @@ import androidx.compose.ui.unit.sp
 import app.roam.android.model.Badge
 import app.roam.android.model.TierInfo
 import app.roam.android.ui.component.BadgeDetailDialog
+import app.roam.android.ui.component.RoamOsIcons
 import app.roam.android.viewmodel.MainViewModel
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
@@ -150,7 +151,7 @@ fun BadgesScreen(
                     contentAlignment = Alignment.Center,
                 ) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text("\uD83C\uDFC5", fontSize = 48.sp)
+                        Icon(RoamOsIcons.forEmoji("\uD83C\uDFC5"), contentDescription = null, modifier = Modifier.size(48.dp))
                         Text(
                             text = "No badges match your filters",
                             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
@@ -204,10 +205,11 @@ fun BadgeGridItem(badge: Badge, onClick: () -> Unit = {}) {
                 .padding(8.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            Text(
-                text = if (badge.isHidden && !badge.isUnlocked) "\u2753" else badge.icon,
-                fontSize = 24.sp,
-                color = Color(0xFF1A1A1A),
+            Icon(
+                imageVector = if (badge.isHidden && !badge.isUnlocked) RoamOsIcons.HiddenBadge else RoamOsIcons.forBadge(badge),
+                contentDescription = badge.name,
+                tint = Color(0xFF1A1A1A),
+                modifier = Modifier.size(24.dp),
             )
             Text(
                 text = if (badge.isHidden && !badge.isUnlocked) "???"

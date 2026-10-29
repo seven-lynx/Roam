@@ -24,7 +24,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.GpsFixed
 import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.BottomSheetScaffold
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -63,6 +65,7 @@ import app.roam.android.MainActivity
 import app.roam.android.ui.component.BackgroundPrefetchWebView
 import app.roam.android.ui.component.BottomBar
 import app.roam.android.ui.component.CelebrationOverlay
+import app.roam.android.ui.component.CommsMenu
 import app.roam.android.ui.component.BootScanLoading
 import app.roam.android.ui.component.ConfigBottomSheet
 import app.roam.android.ui.component.ControlDeck
@@ -96,6 +99,7 @@ fun MainScreen(
     var currentTab by rememberSaveable { mutableStateOf(RoamTab.Roam.route) }
     var viewedUsername by rememberSaveable { mutableStateOf<String?>(null) }
     var showUserSearch by remember { mutableStateOf(false) }
+    var showCommsMenu by remember { mutableStateOf(false) }
     val focusModeEnabled by vm.focusModeEnabled.collectAsState()
     val hasRatedUp by vm.hasRatedUp.collectAsState()
     val themeVariant by vm.themeVariant.collectAsState()
@@ -105,9 +109,21 @@ fun MainScreen(
     val unreadNotificationCount by vm.unreadNotificationCount.collectAsState()
     val xpFlash by vm.xpFlash.collectAsState()
     val showConfigSheet by vm.showConfigSheet.collectAsState()
+    val state by vm.state.collectAsState()
     val collections by vm.collections.collectAsState()
+    val categories by vm.categories.collectAsState()
+    val subcategories by vm.subcategories.collectAsState()
     val currentUrl by vm.currentUrl.collectAsState()
-    val isCyberpunk = themeVariant == RoamThemeVariant.CYBERPUNK
+    val rawUrl by vm.rawUrl.collectAsState()
+    val showSubmitSheet by vm.showSubmitSheet.collectAsState()
+    val showShareUrlSheet by vm.showShareUrlSheet.collectAsState()
+    val deckLayout by vm.deckLayout.collectAsState()
+    val deckSize by vm.deckSize.collectAsState()
+    val deckShape by vm.deckShape.collectAsState()
+    val deviceFrameEnabled by vm.deviceFrameEnabled.collectAsState()
+    val crtEffectsEnabled by vm.crtEffectsEnabled.collectAsState()
+    val crtFx by vm.crtFx.collectAsState()
+    val isRoamOs = themeVariant == RoamThemeVariant.ROAM_OS
 
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
         val launcher = rememberLauncherForActivityResult(
@@ -138,7 +154,7 @@ fun MainScreen(
     Scaffold(
         modifier = Modifier.fillMaxSize(),
         bottomBar = {
-            if (isCyberpunk) {
+            if (isRoamOs) {
                 ControlDeck(
                     currentRoute = currentTab,
                     isOnline = isOnline,
@@ -148,15 +164,30 @@ fun MainScreen(
                     xpFlash = xpFlash,
                     focusModeEnabled = focusModeEnabled,
                     hasRatedUp = hasRatedUp,
-                    onRoam = { vm.roam() },
-                    onThumbsUp = { vm.thumbsUp(context) },
-                    onThumbsDown = { vm.thumbsDown(context) },
-                    onNavigate = { currentTab = it },
-                    onOpenMenu = { vm.openConfigSheet() },
-                    onOpenNotifications = {
-                        vm.fetchUnreadNotificationCount()
-                        currentTab = RoamTab.Notifications.route
+                    onRoam = {
+                        if (showConfigSheet) vm.closeConfigSheet()
+                        if (state is RoamState.Loaded) vm.roam()
                     },
+                    onThumbsUp = {
+                        if (showConfigSheet) vm.closeConfigSheet()
+                        vm.thumbsUp(context)
+                    },
+                    onThumbsDown = {
+                        if (showConfigSheet) vm.closeConfigSheet()
+                        vm.thumbsDown(context)
+                    },
+                    onNavigate = {
+                        if (showConfigSheet) vm.closeConfigSheet()
+                        currentTab = it
+                    },
+                    onOpenMenu = { if (showConfigSheet) vm.closeConfigSheet() else vm.openConfigSheet() },
+                    onOpenComms = {
+                        if (showConfigSheet) vm.closeConfigSheet()
+                        showCommsMenu = !showCommsMenu
+                    },
+                    deckLayout = deckLayout,
+                    deckSize = deckSize,
+                    deckShape = deckShape,
                     onFeedback = { vm.uiFeedback(it) },
                 )
             } else {
@@ -173,6 +204,13 @@ fun MainScreen(
         },
     ) { innerPadding ->
         Box(Modifier.fillMaxSize().padding(innerPadding)) {
+            HandheldShell(
+                framed = isRoamOs && deviceFrameEnabled,
+                crtEnabled = isRoamOs && crtEffectsEnabled,
+                crtFx = crtFx,
+                modifier = Modifier.fillMaxSize(),
+            ) {
+                Box(Modifier.fillMaxSize()) {
             BackHandler(enabled = currentTab != RoamTab.Roam.route) {
                 currentTab = RoamTab.Roam.route
             }
@@ -228,7 +266,7 @@ fun MainScreen(
                     onNavigateToHistory = { currentTab = RoamTab.History.route },
                     onNavigateToNotifications = { currentTab = RoamTab.Notifications.route },
                     onNavigateToRoam = { currentTab = RoamTab.Roam.route },
-                    cyberpunk = isCyberpunk,
+                    roamOs = isRoamOs,
                 )
             }
 
@@ -411,37 +449,76 @@ fun MainScreen(
                 )
             }
 
-            // ── ROAM-OS program launcher (cyberpunk menu) ──────────────
-            if (isCyberpunk && showConfigSheet) {
-                Box(
-                    Modifier
-                        .fillMaxSize()
-                        .background(Color.Black.copy(alpha = 0.55f))
-                        .padding(horizontal = 20.dp, vertical = 40.dp),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    ProgramLauncher(
-                        collections = collections,
-                        isTranslated = vm.isTranslated,
-                        onToggleTranslation = { vm.toggleTranslation() },
-                        onTranslate = { lang -> vm.translateTo(lang) },
-                        onSaveForLater = { vm.saveForLater() },
-                        onShare = {
-                            val si = Intent(Intent.ACTION_SEND).apply { type = "text/plain"; putExtra(Intent.EXTRA_TEXT, currentUrl ?: "") }
-                            activity.startActivity(Intent.createChooser(si, null))
-                        },
-                        onShareWithFriend = { vm.openShareUrlSheet() },
-                        onAddToCollection = { cid -> vm.addCurrentUrlToCollection(cid) },
-                        onCreateCollectionAndAdd = { name -> vm.createCollectionAndAdd(name) },
-                        onRoamWithinCategory = { vm.roamWithinCategory() },
-                        onRoamCollection = { cid -> vm.roamCollection(cid) },
-                        onManageCollections = { currentTab = RoamTab.Saved.route },
-                        onNavBack = { vm.webNavBack() },
-                        onNavForward = { vm.webNavForward() },
-                        onNavReload = { vm.webNavReload() },
-                        onReportBrokenLink = { vm.reportBrokenLink() },
-                        onClose = { vm.closeConfigSheet() },
-                    )
+    // ── ROAM-OS program launcher (hoisted above all tabs) ──────────────────────
+    if (isRoamOs && showConfigSheet) {
+        val loaded = state as? RoamState.Loaded
+        ProgramLauncher(
+            collections = collections,
+            isTranslated = vm.isTranslated,
+            onToggleTranslation = { vm.toggleTranslation() },
+            onTranslate = { lang -> vm.translateTo(lang) },
+            onSaveForLater = { vm.saveForLater() },
+            onShare = {
+                val si = Intent(Intent.ACTION_SEND).apply { type = "text/plain"; putExtra(Intent.EXTRA_TEXT, currentUrl ?: "") }
+                activity.startActivity(Intent.createChooser(si, null))
+            },
+            onShareWithFriend = { vm.openShareUrlSheet() },
+            onAddToCollection = { cid -> vm.addCurrentUrlToCollection(cid) },
+            onCreateCollectionAndAdd = { name -> vm.createCollectionAndAdd(name) },
+            onRoamWithinCategory = { vm.roamWithinCategory() },
+            onRoamCollection = { cid -> vm.roamCollection(cid) },
+            onManageCollections = { currentTab = RoamTab.Saved.route },
+            onNavBack = { vm.webNavBack() },
+            onNavForward = { vm.webNavForward() },
+            onNavReload = { vm.webNavReload() },
+            onReportBrokenLink = { vm.reportBrokenLink() },
+            title = loaded?.roamUrl?.title,
+            description = loaded?.roamUrl?.description,
+            domain = rawUrl?.toUri()?.host?.removePrefix("www."),
+            category = loaded?.roamUrl?.categoryId?.let { id -> categories.firstOrNull { it.id == id }?.name },
+            subcategory = loaded?.roamUrl?.subcategoryId?.let { id -> subcategories.firstOrNull { it.id == id }?.name },
+            onClose = { vm.closeConfigSheet() },
+            modifier = Modifier.fillMaxSize(),
+        )
+    }
+
+    // ── ROAM-OS comms menu ─────────────────────────────────────────────────────
+    if (isRoamOs && showCommsMenu) {
+        CommsMenu(
+            onCheckNotifications = {
+                showCommsMenu = false
+                vm.fetchUnreadNotificationCount()
+                currentTab = RoamTab.Notifications.route
+            },
+            onSendFeedback = { message, email ->
+                showCommsMenu = false
+                vm.sendFeedback(message, email) { success ->
+                    vm.showTransientToast(if (success) "Feedback sent" else "Couldn't send feedback")
+                }
+            },
+            onSubmitUrl = {
+                showCommsMenu = false
+                vm.openSubmitSheet()
+            },
+            onClose = { showCommsMenu = false },
+            modifier = Modifier.fillMaxSize(),
+        )
+    }
+
+    // ── Submit-URL sheet (hoisted above all tabs) ──────────────────────────────
+    if (showSubmitSheet) {
+        SubmitBottomSheet(
+            url = rawUrl ?: currentUrl,
+            categories = categories,
+            onSubmit = { submittedUrl, categoryId -> vm.submitUrl(submittedUrl, categoryId) },
+            onDismiss = { vm.closeSubmitSheet() },
+        )
+    }
+
+    // ── Share-URL-with-friend sheet (hoisted above all tabs) ───────────────────
+    if (showShareUrlSheet) {
+        ShareUrlBottomSheet(vm = vm, onDismiss = { vm.closeShareUrlSheet() })
+    }
                 }
             }
         }
@@ -482,6 +559,7 @@ fun MainScreen(
             onDismiss = { vm.onCelebrationDismissed() },
         )
     }
+
 }
 
 // ── Discover tab ──────────────────────────────────────────────────────────────
@@ -519,9 +597,10 @@ private fun DiscoverTab(
     val showShareUrlSheet by vm.showShareUrlSheet.collectAsState()
     val themeVariant by vm.themeVariant.collectAsState()
     val crtEffectsEnabled by vm.crtEffectsEnabled.collectAsState()
+    val crtFx by vm.crtFx.collectAsState()
     val deviceFrameEnabled by vm.deviceFrameEnabled.collectAsState()
     val soundEffectsEnabled by vm.soundEffectsEnabled.collectAsState()
-    val isCyberpunk = themeVariant == RoamThemeVariant.CYBERPUNK
+    val isRoamOs = themeVariant == RoamThemeVariant.ROAM_OS
 
     var initialRoamDone by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) {
@@ -548,14 +627,14 @@ private fun DiscoverTab(
 
     var webViewLoading by rememberSaveable { mutableStateOf(false) }
     var lastLoadedUrl by remember { mutableStateOf<String?>(null) }
-    var loadingMessage by remember { mutableStateOf(pickRandomMessage(cyberpunk = isCyberpunk)) }
+    var loadingMessage by remember { mutableStateOf(pickRandomMessage(roamOs = isRoamOs)) }
     var webViewRecovering by remember { mutableStateOf(false) }
     val loaded = state as? RoamState.Loaded
     val isRoaming = state is RoamState.Loading ||
             (currentUrl == loaded?.roamUrl?.url && (webViewLoading || (currentUrl != lastLoadedUrl)))
     val showOverlay = rawUrl == null || isRoaming || webViewRecovering
 
-    // Cyberpunk scan finish: hold the scan overlay one short beat after a
+    // ROAM-OS scan finish: hold the scan overlay one short beat after a
     // successful load so the sequence plays "MOUNT COMPLETE" before the page is
     // revealed, rather than being cut off the instant the WebView finishes.
     var scanActive by remember { mutableStateOf(false) }
@@ -565,7 +644,7 @@ private fun DiscoverTab(
         if (showOverlay) {
             scanActive = true
             scanFinishPending = false
-        } else if (scanActive && isCyberpunk && latestState is RoamState.Loaded) {
+        } else if (scanActive && isRoamOs && latestState is RoamState.Loaded) {
             scanActive = false
             scanFinishPending = true
             delay(500)
@@ -574,15 +653,15 @@ private fun DiscoverTab(
     }
     LaunchedEffect(showOverlay) {
         if (showOverlay) {
-            loadingMessage = pickRandomMessage(cyberpunk = isCyberpunk)
+            loadingMessage = pickRandomMessage(roamOs = isRoamOs)
             while (true) {
                 delay(loadingMessage.displayDurationMs.milliseconds)
-                loadingMessage = pickRandomMessage(cyberpunk = isCyberpunk)
+                loadingMessage = pickRandomMessage(roamOs = isRoamOs)
             }
         }
     }
     val categoryName: String? = loaded?.roamUrl?.categoryId
-        ?.let { catId -> categories.firstOrNull { it.id == catId }?.let { "${it.icon} ${it.name}" } }
+        ?.let { catId -> categories.firstOrNull { it.id == catId }?.name }
     val subcategoryName: String? = loaded?.roamUrl?.subcategoryId
         ?.let { subId -> subcategories.firstOrNull { it.id == subId }?.name }
     val domain: String? = rawUrl?.let { it.toUri().host?.removePrefix("www.") }
@@ -604,7 +683,7 @@ private fun DiscoverTab(
 
     // VM flag → physical sheet (open/close from tap handle, Tour, etc.)
     LaunchedEffect(showConfigSheet) {
-        if (isCyberpunk) return@LaunchedEffect
+        if (isRoamOs) return@LaunchedEffect
         try {
             if (showConfigSheet) scaffoldState.bottomSheetState.expand()
             else scaffoldState.bottomSheetState.partialExpand()
@@ -615,7 +694,7 @@ private fun DiscoverTab(
     // settles into PartiallyExpanded. Force-collapse after a short delay so the
     // config sheet always starts closed on fresh app launches.
     LaunchedEffect(Unit) {
-        if (isCyberpunk) return@LaunchedEffect
+        if (isRoamOs) return@LaunchedEffect
         delay(200)
         try {
             scaffoldState.bottomSheetState.partialExpand()
@@ -628,7 +707,7 @@ private fun DiscoverTab(
     // flip showConfigSheet to false on first composition before the sheet
     // settles — that would create a feedback loop locking the sheet open.
     LaunchedEffect(scaffoldState.bottomSheetState) {
-        if (isCyberpunk) return@LaunchedEffect
+        if (isRoamOs) return@LaunchedEffect
         snapshotFlow { scaffoldState.bottomSheetState.currentValue }
             .drop(1)
             .collect { value ->
@@ -646,7 +725,7 @@ private fun DiscoverTab(
     // every resume (after a short settle delay for insets / WebView restore).
     val lifecycleOwner = LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner) {
-        if (isCyberpunk) return@DisposableEffect onDispose { }
+        if (isRoamOs) return@DisposableEffect onDispose { }
         val observer = LifecycleEventObserver { _, event ->
             if (event != Lifecycle.Event.ON_RESUME) return@LifecycleEventObserver
             scope.launch {
@@ -677,9 +756,9 @@ private fun DiscoverTab(
         sheetContainerColor = Color.Transparent,
         sheetShadowElevation = 0.dp,
         sheetTonalElevation = 0.dp,
-        sheetSwipeEnabled = !isCyberpunk && sheetGestureMode == "slide",
+        sheetSwipeEnabled = !isRoamOs && sheetGestureMode == "slide",
         sheetDragHandle = {
-            if (!isCyberpunk) {
+            if (!isRoamOs) {
             if (sheetGestureMode == "tap") {
                 Box(
                     Modifier
@@ -775,15 +854,10 @@ private fun DiscoverTab(
                 )
             }
         },
-        sheetPeekHeight = if (isCyberpunk) 0.dp else 28.dp,
+        sheetPeekHeight = if (isRoamOs) 0.dp else 28.dp,
     ) { contentPadding ->
-        HandheldShell(
-            framed = isCyberpunk && deviceFrameEnabled,
-            crtEnabled = isCyberpunk && crtEffectsEnabled,
-            modifier = Modifier.fillMaxSize().padding(top = contentPadding.calculateTopPadding()),
-        ) {
-            Column(Modifier.fillMaxSize()) {
-                if (isCyberpunk) {
+        Column(Modifier.fillMaxSize().padding(top = contentPadding.calculateTopPadding())) {
+                if (isRoamOs) {
                     OsStatusBar(
                         category = displayCategory,
                         subcategory = displaySubcategory,
@@ -859,10 +933,11 @@ private fun DiscoverTab(
                         when {
                             state is RoamState.Error -> {
                                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                    Text(
-                                        text = "\u26A0",
-                                        style = MaterialTheme.typography.displaySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    Icon(
+                                        imageVector = Icons.Filled.Warning,
+                                        contentDescription = "Error",
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        modifier = Modifier.size(48.dp),
                                     )
                                     Spacer(Modifier.size(12.dp))
                                     Text(
@@ -878,9 +953,10 @@ private fun DiscoverTab(
                             }
                             state is RoamState.Exhausted -> {
                                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                    Text(
-                                        text = "\uD83C\uDFAF",
-                                        style = MaterialTheme.typography.displaySmall,
+                                    Icon(
+                                        imageVector = Icons.Filled.GpsFixed,
+                                        contentDescription = "Done",
+                                        modifier = Modifier.size(48.dp),
                                     )
                                     Spacer(Modifier.size(12.dp))
                                     Text(
@@ -897,7 +973,7 @@ private fun DiscoverTab(
                                 }
                             }
                             else -> {
-                                if (isCyberpunk) {
+                                if (isRoamOs) {
                                     BootScanLoading(
                                         message = loadingMessage.text,
                                         finishing = scanFinishPending,
@@ -920,15 +996,5 @@ private fun DiscoverTab(
                 }
             }
         }
-        }
-    }
-
-    if (showSubmitSheet) {
-        SubmitBottomSheet(url = rawUrl ?: currentUrl, categories = categories, onSubmit = { submittedUrl, categoryId -> vm.submitUrl(submittedUrl, categoryId) }, onDismiss = { vm.closeSubmitSheet() })
-    }
-
-    // Share URL with friend sheet
-    if (showShareUrlSheet) {
-        ShareUrlBottomSheet(vm = vm, onDismiss = { vm.closeShareUrlSheet() })
     }
 }

@@ -25,7 +25,7 @@ val RoamTypography = Typography(
 
 // ROAM-OS workstation typography: Space Grotesk for prose/titles, IBM Plex
 // Mono for readouts and labels (letter-spaced like the web's screen bar).
-val CyberpunkTypography = Typography(
+val RoamOsTypography = Typography(
     bodyMedium = TextStyle(
         fontFamily = SpaceGrotesk,
         fontWeight = FontWeight.Normal,

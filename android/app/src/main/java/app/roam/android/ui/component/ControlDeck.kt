@@ -1,5 +1,8 @@
 package app.roam.android.ui.component
 
+import android.graphics.Bitmap
+import android.graphics.BitmapShader
+import android.graphics.Shader
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
@@ -17,18 +20,13 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.navigationBarsPadding
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Explore
-import androidx.compose.material.icons.filled.Menu
-import androidx.compose.material.icons.filled.Notifications
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.ThumbDown
-import androidx.compose.material.icons.filled.ThumbUp
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -38,18 +36,22 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ShaderBrush
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import app.roam.android.R
 import app.roam.android.ui.theme.Abyss
-import app.roam.android.ui.theme.Bone
 import app.roam.android.ui.theme.Brass
 import app.roam.android.ui.theme.Danger
 import app.roam.android.ui.theme.Fog
@@ -59,6 +61,7 @@ import app.roam.android.ui.theme.Ok
 import app.roam.android.ui.theme.Oxide2
 import app.roam.android.ui.theme.Oxide3
 import app.roam.android.ui.theme.TealBright
+import kotlin.random.Random
 
 @Composable
 fun ControlDeck(
@@ -75,76 +78,46 @@ fun ControlDeck(
     onThumbsDown: () -> Unit,
     onNavigate: (String) -> Unit,
     onOpenMenu: () -> Unit,
-    onOpenNotifications: () -> Unit,
+    onOpenComms: () -> Unit,
     onFeedback: (Int) -> Unit,
+    deckLayout: String = "diagonal",
+    deckSize: String = "medium",
+    deckShape: String = "round",
     modifier: Modifier = Modifier,
 ) {
     Column(
         modifier = modifier
             .fillMaxWidth()
             .background(Brush.verticalGradient(listOf(Oxide3, Abyss)))
+            .drawBehind { drawRect(deckNoiseShader, alpha = 0.05f) }
             .navigationBarsPadding(),
     ) {
+
         StatusLine(
             isOnline = isOnline,
             hotQueueSize = hotQueueSize,
             warmQueueSize = warmQueueSize,
             xpFlash = xpFlash,
             unreadNotificationCount = unreadNotificationCount,
-            onOpenNotifications = onOpenNotifications,
+            onOpenComms = onOpenComms,
             onFeedback = onFeedback,
         )
 
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(start = 16.dp, end = 16.dp, top = 2.dp, bottom = 10.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween,
-        ) {
-            Column(
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-            ) {
-                DeckKey(
-                    onClick = onThumbsDown, soundRes = R.raw.skip, onFeedback = onFeedback,
-                    size = 42.dp, icon = Icons.Filled.ThumbDown,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant, description = "Skip",
-                )
-                DeckKey(
-                    onClick = { onNavigate(RoamTab.You.route) }, soundRes = R.raw.click,
-                    onFeedback = onFeedback, size = 32.dp, icon = Icons.Filled.Person,
-                    tint = if (currentRoute == RoamTab.You.route) TealBright else Fog,
-                    description = "You",
-                )
-            }
-
-            DeckKey(
-                onClick = {
-                    if (currentRoute == RoamTab.Roam.route) onRoam() else onNavigate(RoamTab.Roam.route)
-                },
-                soundRes = R.raw.click, onFeedback = onFeedback, size = 64.dp,
-                icon = Icons.Filled.Explore, hero = true,
-                tint = if (focusModeEnabled) MaterialTheme.colorScheme.tertiary else GoldBright,
-                description = "Roam",
-            )
-
-            Column(
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-            ) {
-                DeckKey(
-                    onClick = onThumbsUp, soundRes = R.raw.like, onFeedback = onFeedback,
-                    size = 42.dp, icon = Icons.Filled.ThumbUp,
-                    tint = if (hasRatedUp) Ok else MaterialTheme.colorScheme.onSurfaceVariant,
-                    description = "Like",
-                )
-                DeckKey(
-                    onClick = onOpenMenu, soundRes = R.raw.click, onFeedback = onFeedback,
-                    size = 32.dp, icon = Icons.Filled.Menu, tint = Fog, description = "Menu",
-                )
-            }
-        }
+        // Palm Pilot–style key deck: Roam in the centre, diagonal symmetrical side keys.
+        KeyDeck(
+            deckLayout = deckLayout,
+            deckSize = deckSize,
+            deckShape = deckShape,
+            currentRoute = currentRoute,
+            focusModeEnabled = focusModeEnabled,
+            hasRatedUp = hasRatedUp,
+            onRoam = onRoam,
+            onThumbsUp = onThumbsUp,
+            onThumbsDown = onThumbsDown,
+            onOpenMenu = onOpenMenu,
+            onNavigate = onNavigate,
+            onFeedback = onFeedback,
+        )
     }
 }
 
@@ -155,7 +128,7 @@ private fun StatusLine(
     warmQueueSize: Int,
     xpFlash: Int?,
     unreadNotificationCount: Int,
-    onOpenNotifications: () -> Unit,
+    onOpenComms: () -> Unit,
     onFeedback: (Int) -> Unit,
 ) {
     val transition = rememberInfiniteTransition(label = "deck-led")
@@ -179,14 +152,23 @@ private fun StatusLine(
         Box(Modifier.size(8.dp).clip(CircleShape).background(ledColor.copy(alpha = ledAlpha)))
         Text(" ROAM-OS", style = MaterialTheme.typography.labelMedium, color = Fog)
         Text(" · ", style = MaterialTheme.typography.labelMedium, color = Fog.copy(alpha = 0.4f))
-        Text(
-            readout,
-            style = MaterialTheme.typography.labelMedium,
-            color = if (isOnline) MaterialTheme.colorScheme.onSurfaceVariant else Danger,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.weight(1f),
-        )
+        Box(
+            Modifier
+                .weight(1f)
+                .clip(RoundedCornerShape(4.dp))
+                .background(Color.Black.copy(alpha = 0.55f))
+                .border(1.dp, LineColor, RoundedCornerShape(4.dp))
+                .padding(horizontal = 8.dp, vertical = 2.dp),
+        ) {
+            Text(
+                readout,
+                style = MaterialTheme.typography.labelMedium.copy(letterSpacing = 1.5.sp),
+                fontFamily = FontFamily.Monospace,
+                color = if (isOnline) Ok else Danger,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
         if (xpFlash != null) {
             Text(
                 "+$xpFlash XP",
@@ -195,29 +177,26 @@ private fun StatusLine(
                 modifier = Modifier.padding(start = 8.dp),
             )
         }
-        Box(
-            Modifier
-                .padding(start = 10.dp)
-                .clickable { onFeedback(R.raw.click); onOpenNotifications() },
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.padding(start = 10.dp),
         ) {
-            Icon(Icons.Filled.Notifications, "Notifications", tint = Fog, modifier = Modifier.size(20.dp))
-            if (unreadNotificationCount > 0) {
-                Box(
-                    Modifier
-                        .align(Alignment.TopEnd)
-                        .offset(x = 6.dp, y = (-6).dp)
-                        .size(14.dp)
-                        .clip(CircleShape)
-                        .background(Danger),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Text(
-                        if (unreadNotificationCount > 9) "9+" else unreadNotificationCount.toString(),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = Bone,
-                    )
-                }
-            }
+            Box(
+                Modifier
+                    .size(7.dp)
+                    .clip(CircleShape)
+                    .background(if (unreadNotificationCount > 0) Danger else LineColor.copy(alpha = 0.4f)),
+            )
+            DeckKey(
+                onClick = onOpenComms,
+                soundRes = R.raw.click,
+                onFeedback = onFeedback,
+                size = 28.dp,
+                icon = RoamOsIcons.Comms,
+                tint = Fog,
+                description = "Comms",
+                modifier = Modifier.padding(start = 6.dp),
+            )
         }
     }
 }
@@ -232,28 +211,33 @@ private fun DeckKey(
     tint: Color,
     description: String,
     hero: Boolean = false,
+    square: Boolean = false,
+    modifier: Modifier = Modifier,
 ) {
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
     val scale by animateFloatAsState(if (pressed) 0.9f else 1f, label = "deck-key-scale")
     val density = LocalDensity.current
     val dropPx = with(density) { 2.dp.toPx() }
+    val radiusPx = with(density) { size.toPx() * 1.6f }
+    val shape = if (square) RoundedCornerShape(8.dp) else CircleShape
 
     val top = if (pressed) Oxide2 else if (hero) GoldBright else Oxide3
     val bottom = if (pressed) Abyss else if (hero) Brass else Oxide2
 
     Box(
-        modifier = Modifier
+        modifier = modifier
             .size(size)
             .graphicsLayer {
                 scaleX = scale
                 scaleY = scale
                 translationY = if (pressed) dropPx else 0f
             }
-            .shadow(if (pressed) 1.dp else 5.dp, CircleShape)
-            .clip(CircleShape)
-            .background(Brush.verticalGradient(listOf(top, bottom)))
-            .border(1.dp, if (hero) Brass else LineColor, CircleShape)
+            .shadow(if (pressed) 1.dp else 5.dp, shape)
+            .clip(shape)
+            .background(Brush.radialGradient(listOf(top, bottom), center = Offset(0.3f, 0.25f), radius = radiusPx))
+            .drawBehind { drawRect(deckNoiseShader, alpha = 0.06f) }
+            .border(1.dp, if (hero) Brass else LineColor, shape)
             .clickable(interactionSource = interaction, indication = null) {
                 onFeedback(soundRes)
                 onClick()
@@ -264,9 +248,126 @@ private fun DeckKey(
             icon,
             contentDescription = description,
             tint = if (pressed) tint.copy(alpha = 0.75f) else tint,
-            modifier = Modifier.size(if (hero) size * 0.42f else size * 0.5f),
+            modifier = Modifier.size(if (hero) size * 0.5f else size * 0.55f),
         )
     }
+}
+
+private data class DeckSizes(val roam: Dp, val side: Dp)
+
+private fun deckSizes(sizeKey: String): DeckSizes = when (sizeKey) {
+    "large" -> DeckSizes(56.dp, 46.dp)
+    "small" -> DeckSizes(42.dp, 34.dp)
+    else -> DeckSizes(48.dp, 40.dp)
+}
+
+@Composable
+private fun KeyDeck(
+    deckLayout: String,
+    deckSize: String,
+    deckShape: String,
+    currentRoute: String,
+    focusModeEnabled: Boolean,
+    hasRatedUp: Boolean,
+    onRoam: () -> Unit,
+    onThumbsUp: () -> Unit,
+    onThumbsDown: () -> Unit,
+    onOpenMenu: () -> Unit,
+    onNavigate: (String) -> Unit,
+    onFeedback: (Int) -> Unit,
+) {
+    val sizes = deckSizes(deckSize)
+    val square = deckShape == "square"
+    val dislikeTint = MaterialTheme.colorScheme.onSurfaceVariant
+    val likeTint = if (hasRatedUp) Ok else MaterialTheme.colorScheme.onSurfaceVariant
+    val roamTint = if (focusModeEnabled) MaterialTheme.colorScheme.tertiary else GoldBright
+    val youTint = if (currentRoute == RoamTab.You.route) TealBright else Fog
+
+    val dislikeKey: @Composable (Modifier) -> Unit = { mod ->
+        DeckKey(onThumbsDown, R.raw.skip, onFeedback, sizes.side, RoamOsIcons.Dislike, dislikeTint, "Dislike", square = square, modifier = mod)
+    }
+    val likeKey: @Composable (Modifier) -> Unit = { mod ->
+        DeckKey(onThumbsUp, R.raw.like, onFeedback, sizes.side, RoamOsIcons.Like, likeTint, "Like", square = square, modifier = mod)
+    }
+    val roamKey: @Composable (Modifier) -> Unit = { mod ->
+        DeckKey(
+            { if (currentRoute == RoamTab.Roam.route) onRoam() else onNavigate(RoamTab.Roam.route) },
+            R.raw.click, onFeedback, sizes.roam, RoamOsIcons.Roam, roamTint, "Roam", hero = true, modifier = mod,
+        )
+    }
+    val menuKey: @Composable (Modifier) -> Unit = { mod ->
+        DeckKey(onOpenMenu, R.raw.click, onFeedback, sizes.side, RoamOsIcons.Menu, Fog, "Menu", square = square, modifier = mod)
+    }
+    val youKey: @Composable (Modifier) -> Unit = { mod ->
+        DeckKey(
+            { if (currentRoute == RoamTab.Roam.route) onNavigate(RoamTab.You.route) else onNavigate(RoamTab.Roam.route) },
+            R.raw.click, onFeedback, sizes.side, RoamOsIcons.You, youTint, "You", square = square, modifier = mod,
+        )
+    }
+
+    when (deckLayout) {
+        "line" -> Row(
+            Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp),
+            horizontalArrangement = Arrangement.SpaceEvenly,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            dislikeKey(Modifier); menuKey(Modifier); roamKey(Modifier); youKey(Modifier); likeKey(Modifier)
+        }
+        "grid" -> Row(
+            Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
+            horizontalArrangement = Arrangement.SpaceEvenly,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                dislikeKey(Modifier)
+                menuKey(Modifier)
+            }
+            roamKey(Modifier)
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                likeKey(Modifier)
+                youKey(Modifier)
+            }
+        }
+        else -> Box(
+            Modifier.fillMaxWidth().padding(vertical = 8.dp),
+            contentAlignment = Alignment.Center,
+        ) {
+            Box(
+                Modifier
+                    .width(sizes.roam + sizes.side * 2 + 24.dp)
+                    .height(sizes.roam + sizes.side * 2 + 24.dp),
+            ) {
+                dislikeKey(Modifier.align(Alignment.TopStart))
+                likeKey(Modifier.align(Alignment.TopEnd))
+                roamKey(Modifier.align(Alignment.Center))
+                menuKey(Modifier.align(Alignment.BottomStart))
+                youKey(Modifier.align(Alignment.BottomEnd))
+            }
+        }
+    }
+}
+
+private val deckNoiseShader by lazy {
+    ShaderBrush(BitmapShader(createDeckNoiseBitmap(), Shader.TileMode.REPEAT, Shader.TileMode.REPEAT))
+}
+
+private fun createDeckNoiseBitmap(): Bitmap {
+    val size = 128
+    val bmp = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
+    val pixels = IntArray(size * size)
+    val rng = Random(7)
+    for (i in pixels.indices) {
+        val v = rng.nextInt(256)
+        pixels[i] = (0xFF shl 24) or (v shl 16) or (v shl 8) or v
+    }
+    bmp.setPixels(pixels, 0, size, 0, 0, size, size)
+    return bmp
 }
 
 

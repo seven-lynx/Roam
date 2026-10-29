@@ -4,6 +4,8 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material3.*
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.*
@@ -144,10 +146,11 @@ private fun ChallengeCard(challenge: ChallengeData) {
                     )
                 }
                 if (isCompleted) {
-                    Text(
-                        text = "✓",
-                        fontSize = 20.sp,
-                        color = Color(0xFF22C55E)
+                    Icon(
+                        imageVector = Icons.Filled.CheckCircle,
+                        contentDescription = "Completed",
+                        tint = Color(0xFF22C55E),
+                        modifier = Modifier.size(20.dp),
                     )
                 }
             }

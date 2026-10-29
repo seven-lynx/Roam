@@ -1378,7 +1378,7 @@ private val messages = listOf(
     "Appearing on the other side, forever changed...",
 )
 
-private val cyberpunkMessages = listOf(
+private val roamOsMessages = listOf(
     "SPOOLING PHOSPHOR…",
     "CALIBRATING CRT GEOMETRY…",
     "ESTABLISHING UPLINK…",
@@ -1415,10 +1415,10 @@ private val cyberpunkMessages = listOf(
     "BROADCASTING CURIOSITY…",
 )
 
-fun pickRandomMessage(cyberpunk: Boolean = false): LoadingMessage {
-    val pool = if (cyberpunk) cyberpunkMessages else messages
+fun pickRandomMessage(roamOs: Boolean = false): LoadingMessage {
+    val pool = if (roamOs) roamOsMessages else messages
     val text = pool[Random.nextInt(pool.size)]
-    val durationSeconds = if (cyberpunk) Random.nextLong(2, 5) else Random.nextLong(3, 9)
+    val durationSeconds = if (roamOs) Random.nextLong(2, 5) else Random.nextLong(3, 9)
     val durationMs = durationSeconds * 1000
     return LoadingMessage(text, durationMs)
 }

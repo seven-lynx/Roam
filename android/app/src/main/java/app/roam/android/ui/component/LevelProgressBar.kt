@@ -138,7 +138,7 @@ fun LevelProgressBar(
                 horizontalArrangement = Arrangement.SpaceEvenly,
             ) {
                 StatItem(value = badgeCount.toString(), label = "Badges")
-                StatItem(value = "\uD83D\uDD25 $streakDays", label = "Day Streak")
+                StatItem(value = streakDays.toString(), label = "Day Streak")
                 StatItem(value = maxStreak.toString(), label = "Best Streak")
             }
         }

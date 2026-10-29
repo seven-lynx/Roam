@@ -26,6 +26,7 @@ import app.roam.android.model.serializeHistory
 import app.roam.android.model.AppNotification
 import app.roam.android.model.UserProfile
 import app.roam.android.data.supabase
+import app.roam.android.ui.component.CrtFx
 import app.roam.android.ui.theme.RoamThemeVariant
 import app.roam.android.util.SoundManager
 import app.roam.android.util.connectivityFlow
@@ -94,8 +95,13 @@ class MainViewModel(
     private val NOTIFICATIONS_ENABLED_KEY = "notifications_enabled"
     private val URL_HISTORY_KEY = "url_history"
     private val APP_THEME_KEY = "app_theme"  // "system", "dark", "light"
-    private val APP_THEME_VARIANT_KEY = "app_theme_variant"  // "classic", "cyberpunk"
+    private val APP_THEME_VARIANT_KEY = "app_theme_variant"  // "classic", "roam_os"
     private val CRT_EFFECTS_KEY = "crt_effects"
+    private val CRT_SCANLINES_KEY = "crt_scanlines"
+    private val CRT_GRAIN_KEY = "crt_grain"
+    private val CRT_VIGNETTE_KEY = "crt_vignette"
+    private val CRT_FLICKER_KEY = "crt_flicker"
+    private val CRT_FISHEYE_KEY = "crt_fisheye"
     private val DEVICE_FRAME_KEY = "device_frame"
     private val WALKTHROUGH_SEEN_KEY = "walkthrough_seen"
     private val LAST_URL_KEY = "last_url"
@@ -104,6 +110,9 @@ class MainViewModel(
     private val HAPTIC_FEEDBACK_KEY = "haptic_feedback"
     private val CELEBRATION_ANIMATIONS_KEY = "celebration_animations"
     private val CELEBRATION_WATERMARK_KEY = "celebration_watermark"
+    private val DECK_LAYOUT_KEY = "deck_layout"  // "diagonal", "line", "grid"
+    private val DECK_SIZE_KEY = "deck_size"      // "small", "medium", "large"
+    private val DECK_SHAPE_KEY = "deck_shape"    // "round", "square"
     private val MAX_HISTORY_ENTRIES = 100
 
     private val _state = MutableStateFlow<RoamState>(RoamState.Idle)
@@ -247,10 +256,10 @@ class MainViewModel(
         prefs.edit().putString(APP_THEME_KEY, theme).apply()
     }
 
-    /** User preference: visual theme ("classic" vs "cyberpunk") */
+    /** User preference: visual theme ("classic" vs "roam_os") */
     private val _themeVariant = MutableStateFlow(
         when (prefs.getString(APP_THEME_VARIANT_KEY, "classic")) {
-            "cyberpunk" -> RoamThemeVariant.CYBERPUNK
+            "roam_os" -> RoamThemeVariant.ROAM_OS
             else -> RoamThemeVariant.CLASSIC
         }
     )
@@ -259,8 +268,35 @@ class MainViewModel(
     fun setThemeVariant(variant: RoamThemeVariant) {
         _themeVariant.value = variant
         prefs.edit()
-            .putString(APP_THEME_VARIANT_KEY, if (variant == RoamThemeVariant.CYBERPUNK) "cyberpunk" else "classic")
+            .putString(APP_THEME_VARIANT_KEY, if (variant == RoamThemeVariant.ROAM_OS) "roam_os" else "classic")
             .apply()
+    }
+
+    /** User preference: deck key layout ("diagonal", "line", "grid"). */
+    private val _deckLayout = MutableStateFlow(prefs.getString(DECK_LAYOUT_KEY, "diagonal") ?: "diagonal")
+    val deckLayout: StateFlow<String> = _deckLayout.asStateFlow()
+
+    fun setDeckLayout(layout: String) {
+        _deckLayout.value = layout
+        prefs.edit().putString(DECK_LAYOUT_KEY, layout).apply()
+    }
+
+    /** User preference: deck key size ("small", "medium", "large"). */
+    private val _deckSize = MutableStateFlow(prefs.getString(DECK_SIZE_KEY, "medium") ?: "medium")
+    val deckSize: StateFlow<String> = _deckSize.asStateFlow()
+
+    fun setDeckSize(size: String) {
+        _deckSize.value = size
+        prefs.edit().putString(DECK_SIZE_KEY, size).apply()
+    }
+
+    /** User preference: deck key shape ("round", "square"). */
+    private val _deckShape = MutableStateFlow(prefs.getString(DECK_SHAPE_KEY, "round") ?: "round")
+    val deckShape: StateFlow<String> = _deckShape.asStateFlow()
+
+    fun setDeckShape(shape: String) {
+        _deckShape.value = shape
+        prefs.edit().putString(DECK_SHAPE_KEY, shape).apply()
     }
 
     /** User preference: CRT effects (scanlines/grain/vignette/flicker) */
@@ -270,6 +306,43 @@ class MainViewModel(
     fun setCrtEffectsEnabled(enabled: Boolean) {
         _crtEffectsEnabled.value = enabled
         prefs.edit().putBoolean(CRT_EFFECTS_KEY, enabled).apply()
+    }
+
+    /** Per-effect CRT strength (1 = subtle, 10 = very pronounced). */
+    private val _crtFx = MutableStateFlow(
+        CrtFx(
+            scanlines = prefs.getInt(CRT_SCANLINES_KEY, 1),
+            grain = prefs.getInt(CRT_GRAIN_KEY, 1),
+            vignette = prefs.getInt(CRT_VIGNETTE_KEY, 1),
+            flicker = prefs.getInt(CRT_FLICKER_KEY, 1),
+            fisheye = prefs.getInt(CRT_FISHEYE_KEY, 1),
+        )
+    )
+    val crtFx: StateFlow<CrtFx> = _crtFx.asStateFlow()
+
+    fun setCrtScanlines(value: Int) {
+        _crtFx.value = _crtFx.value.copy(scanlines = value)
+        prefs.edit().putInt(CRT_SCANLINES_KEY, value).apply()
+    }
+
+    fun setCrtGrain(value: Int) {
+        _crtFx.value = _crtFx.value.copy(grain = value)
+        prefs.edit().putInt(CRT_GRAIN_KEY, value).apply()
+    }
+
+    fun setCrtVignette(value: Int) {
+        _crtFx.value = _crtFx.value.copy(vignette = value)
+        prefs.edit().putInt(CRT_VIGNETTE_KEY, value).apply()
+    }
+
+    fun setCrtFlicker(value: Int) {
+        _crtFx.value = _crtFx.value.copy(flicker = value)
+        prefs.edit().putInt(CRT_FLICKER_KEY, value).apply()
+    }
+
+    fun setCrtFisheye(value: Int) {
+        _crtFx.value = _crtFx.value.copy(fisheye = value)
+        prefs.edit().putInt(CRT_FISHEYE_KEY, value).apply()
     }
 
     /** User preference: device frame (chassis/bezel) vs frameless */
@@ -800,7 +873,7 @@ class MainViewModel(
     }
 
     private fun celebrationToastText(event: CelebrationEvent): String = when (event) {
-        is CelebrationEvent.BadgeUnlocked -> "${event.badge.icon} Badge unlocked: ${event.badge.name}" +
+        is CelebrationEvent.BadgeUnlocked -> "Badge unlocked: ${event.badge.name}" +
             if (event.badge.xpReward > 0) " (+${event.badge.xpReward} XP)" else ""
         is CelebrationEvent.LevelUp -> "Level up! You're now Level ${event.newLevel}"
         is CelebrationEvent.ChallengeComplete -> "Challenge complete: ${event.title}" +

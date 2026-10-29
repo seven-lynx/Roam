@@ -366,7 +366,7 @@ private fun QueueTab(
         } else if (filteredItems.isEmpty()) {
             Box(Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
                 Text(
-                    if (statusFilter == "pending") "All caught up! \uD83C\uDF89"
+                    if (statusFilter == "pending") "All caught up!"
                     else "No ${statusFilter} submissions.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),

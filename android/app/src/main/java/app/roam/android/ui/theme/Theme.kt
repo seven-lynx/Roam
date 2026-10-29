@@ -14,7 +14,7 @@ import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 
-enum class RoamThemeVariant { CLASSIC, CYBERPUNK }
+enum class RoamThemeVariant { CLASSIC, ROAM_OS }
 
 private fun Context.findActivity(): Activity? {
     var ctx: Context? = this
@@ -47,7 +47,7 @@ private val ClassicLightColors = lightColorScheme(
     outline = Zinc200,
 )
 
-private val CyberpunkColors = darkColorScheme(
+private val RoamOsColors = darkColorScheme(
     primary = Gold,
     onPrimary = AccentInk,
     primaryContainer = Brass,
@@ -88,8 +88,8 @@ fun RoamTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     content: @Composable () -> Unit,
 ) {
-    // Cyberpunk is night-only; Classic honours the light/dark/system choice.
-    val effectiveDark = variant == RoamThemeVariant.CYBERPUNK || darkTheme
+    // ROAM-OS is night-only; Classic honours the light/dark/system choice.
+    val effectiveDark = variant == RoamThemeVariant.ROAM_OS || darkTheme
 
     val view = LocalView.current
     if (!view.isInEditMode) {
@@ -109,10 +109,10 @@ fun RoamTheme(
     }
 
     val colorScheme = when (variant) {
-        RoamThemeVariant.CYBERPUNK -> CyberpunkColors
+        RoamThemeVariant.ROAM_OS -> RoamOsColors
         RoamThemeVariant.CLASSIC -> if (effectiveDark) ClassicDarkColors else ClassicLightColors
     }
-    val typography = if (variant == RoamThemeVariant.CYBERPUNK) CyberpunkTypography else RoamTypography
+    val typography = if (variant == RoamThemeVariant.ROAM_OS) RoamOsTypography else RoamTypography
 
     MaterialTheme(
         colorScheme = colorScheme,

@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
@@ -14,6 +15,7 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -45,9 +47,10 @@ fun BadgeDetailDialog(
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
                 // Icon — large
-                Text(
-                    text = if (badge.isHidden && !badge.isUnlocked) "❓" else badge.icon,
-                    fontSize = 48.sp,
+                Icon(
+                    imageVector = if (badge.isHidden && !badge.isUnlocked) RoamOsIcons.HiddenBadge else RoamOsIcons.forBadge(badge),
+                    contentDescription = badge.name,
+                    modifier = Modifier.size(48.dp),
                 )
 
                 Spacer(Modifier.height(8.dp))

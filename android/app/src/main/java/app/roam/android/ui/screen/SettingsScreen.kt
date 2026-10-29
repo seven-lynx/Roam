@@ -3,6 +3,7 @@ package app.roam.android.ui.screen
 import android.content.Intent
 import android.net.Uri
 import androidx.browser.customtabs.CustomTabsIntent
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -30,6 +31,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -37,7 +39,6 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -49,12 +50,31 @@ import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
 import app.roam.android.BuildConfig
 import app.roam.android.model.SubcategoryItem
-import app.roam.android.ui.theme.RoamThemeVariant
+import app.roam.android.ui.component.CategoryIconLabel
 import app.roam.android.ui.theme.Oxide3
+import app.roam.android.ui.theme.RoamThemeVariant
 import app.roam.android.ui.theme.TealBright
 import app.roam.android.viewmodel.MainViewModel
+import kotlin.math.roundToInt
 
 // Constants to avoid recreating lists on every recomposition
+private val DECK_LAYOUTS = listOf(
+    "diagonal" to "Diagonal",
+    "line" to "Straight line",
+    "grid" to "Grid",
+)
+
+private val DECK_SIZES = listOf(
+    "small" to "Small",
+    "medium" to "Medium",
+    "large" to "Large",
+)
+
+private val DECK_SHAPES = listOf(
+    "round" to "Round",
+    "square" to "Square",
+)
+
 private val TRANSLATE_LANGUAGES = listOf(
     "en" to "English", "fr" to "Français", "de" to "Deutsch",
     "it" to "Italiano", "es" to "Español", "pt" to "Português",
@@ -79,7 +99,7 @@ fun SettingsScreen(
     onNavigateToHistory: () -> Unit = {},
     onNavigateToNotifications: () -> Unit = {},
     onNavigateToRoam: () -> Unit = {},
-    cyberpunk: Boolean = false,
+    roamOs: Boolean = false,
 ) {
     val skipPaywalled by vm.skipPaywalled.collectAsState()
     val webDarkMode by vm.webDarkMode.collectAsState()
@@ -100,7 +120,11 @@ fun SettingsScreen(
     val focusSubcategoryId by vm.focusSubcategoryId.collectAsState()
     val themeVariant by vm.themeVariant.collectAsState()
     val crtEffectsEnabled by vm.crtEffectsEnabled.collectAsState()
+    val crtFx by vm.crtFx.collectAsState()
     val deviceFrameEnabled by vm.deviceFrameEnabled.collectAsState()
+    val deckLayout by vm.deckLayout.collectAsState()
+    val deckSize by vm.deckSize.collectAsState()
+    val deckShape by vm.deckShape.collectAsState()
     val context = LocalContext.current
     var showSignOutDialog by remember { mutableStateOf(value = false) }
     var showSubmitUrlDialog by remember { mutableStateOf(false) }
@@ -109,7 +133,13 @@ fun SettingsScreen(
     var focusCategoryDropdownExpanded by remember { mutableStateOf(false) }
     var focusSubcategoryDropdownExpanded by remember { mutableStateOf(false) }
     var themeDropdownExpanded by remember { mutableStateOf(false) }
+    var deckLayoutDropdownExpanded by remember { mutableStateOf(false) }
+    var deckSizeDropdownExpanded by remember { mutableStateOf(false) }
+    var deckShapeDropdownExpanded by remember { mutableStateOf(false) }
     val translateLanguageLabel = TRANSLATE_LANGUAGES.firstOrNull { it.first == translateLanguage }?.second ?: "English"
+    val deckLayoutLabel = DECK_LAYOUTS.firstOrNull { it.first == deckLayout }?.second ?: "Diagonal"
+    val deckSizeLabel = DECK_SIZES.firstOrNull { it.first == deckSize }?.second ?: "Medium"
+    val deckShapeLabel = DECK_SHAPES.firstOrNull { it.first == deckShape }?.second ?: "Round"
     val currentUrl by vm.currentUrl.collectAsState()
     val savedConfirmation by vm.savedConfirmation.collectAsState()
 
@@ -149,7 +179,7 @@ fun SettingsScreen(
 
     Scaffold(
         topBar = {
-            if (cyberpunk) {
+            if (roamOs) {
                 Row(
                     Modifier.fillMaxWidth().background(Oxide3).padding(horizontal = 12.dp, vertical = 10.dp),
                     verticalAlignment = Alignment.CenterVertically,
@@ -201,7 +231,7 @@ fun SettingsScreen(
                 }
                 Box {
                     OutlinedButton(onClick = { themeDropdownExpanded = true }) {
-                        Text(if (themeVariant == RoamThemeVariant.CYBERPUNK) "ROAM-OS" else "Roam Classic")
+                        Text(if (themeVariant == RoamThemeVariant.ROAM_OS) "ROAM-OS" else "Roam Classic")
                     }
                     DropdownMenu(
                         expanded = themeDropdownExpanded,
@@ -217,7 +247,7 @@ fun SettingsScreen(
                         DropdownMenuItem(
                             text = { Text("ROAM-OS") },
                             onClick = {
-                                vm.setThemeVariant(RoamThemeVariant.CYBERPUNK)
+                                vm.setThemeVariant(RoamThemeVariant.ROAM_OS)
                                 themeDropdownExpanded = false
                             },
                         )
@@ -225,7 +255,7 @@ fun SettingsScreen(
                 }
             }
 
-            if (themeVariant == RoamThemeVariant.CYBERPUNK) {
+            if (themeVariant == RoamThemeVariant.ROAM_OS) {
                 SettingsToggleRow(
                     title = "Device frame",
                     subtitle = "Show the retro handheld chassis around the screen",
@@ -235,10 +265,121 @@ fun SettingsScreen(
 
                 SettingsToggleRow(
                     title = "CRT effects",
-                    subtitle = "Scanlines, grain, vignette and flicker",
+                    subtitle = "Scanlines, grain, vignette, flicker and fisheye",
                     checked = crtEffectsEnabled,
                     onCheckedChange = { vm.setCrtEffectsEnabled(it) },
                 )
+
+                SettingsFxSliderRow("Scanlines", crtFx.scanlines) { vm.setCrtScanlines(it) }
+                SettingsFxSliderRow("Grain", crtFx.grain) { vm.setCrtGrain(it) }
+                SettingsFxSliderRow("Vignette", crtFx.vignette) { vm.setCrtVignette(it) }
+                SettingsFxSliderRow("Flicker", crtFx.flicker) { vm.setCrtFlicker(it) }
+                SettingsFxSliderRow("Fisheye", crtFx.fisheye) { vm.setCrtFisheye(it) }
+
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("Deck layout", style = MaterialTheme.typography.bodyLarge)
+                        Text(
+                            "Arrange the ROAM-OS control deck keys",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                        )
+                    }
+                    Box {
+                        OutlinedButton(onClick = { deckLayoutDropdownExpanded = true }) {
+                            Text(deckLayoutLabel)
+                        }
+                        DropdownMenu(
+                            expanded = deckLayoutDropdownExpanded,
+                            onDismissRequest = { deckLayoutDropdownExpanded = false },
+                        ) {
+                            DECK_LAYOUTS.forEach { (value, label) ->
+                                DropdownMenuItem(
+                                    text = { Text(label) },
+                                    onClick = {
+                                        vm.setDeckLayout(value)
+                                        deckLayoutDropdownExpanded = false
+                                    },
+                                )
+                            }
+                        }
+                    }
+                }
+
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("Button size", style = MaterialTheme.typography.bodyLarge)
+                        Text(
+                            "Control deck key size",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                        )
+                    }
+                    Box {
+                        OutlinedButton(onClick = { deckSizeDropdownExpanded = true }) {
+                            Text(deckSizeLabel)
+                        }
+                        DropdownMenu(
+                            expanded = deckSizeDropdownExpanded,
+                            onDismissRequest = { deckSizeDropdownExpanded = false },
+                        ) {
+                            DECK_SIZES.forEach { (value, label) ->
+                                DropdownMenuItem(
+                                    text = { Text(label) },
+                                    onClick = {
+                                        vm.setDeckSize(value)
+                                        deckSizeDropdownExpanded = false
+                                    },
+                                )
+                            }
+                        }
+                    }
+                }
+
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("Button shape", style = MaterialTheme.typography.bodyLarge)
+                        Text(
+                            "Round or square keys (Roam stays round)",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                        )
+                    }
+                    Box {
+                        OutlinedButton(onClick = { deckShapeDropdownExpanded = true }) {
+                            Text(deckShapeLabel)
+                        }
+                        DropdownMenu(
+                            expanded = deckShapeDropdownExpanded,
+                            onDismissRequest = { deckShapeDropdownExpanded = false },
+                        ) {
+                            DECK_SHAPES.forEach { (value, label) ->
+                                DropdownMenuItem(
+                                    text = { Text(label) },
+                                    onClick = {
+                                        vm.setDeckShape(value)
+                                        deckShapeDropdownExpanded = false
+                                    },
+                                )
+                            }
+                        }
+                    }
+                }
             }
 
             SectionHeader("Account")
@@ -551,7 +692,11 @@ fun SettingsScreen(
                     )
                     Box {
                         OutlinedButton(onClick = { focusCategoryDropdownExpanded = true }) {
-                            Text(focusCategory?.let { "${it.icon} ${it.name}" } ?: "Pick one…")
+                            if (focusCategory != null) {
+                                CategoryIconLabel(focusCategory.icon, focusCategory.name)
+                            } else {
+                                Text("Pick one…")
+                            }
                         }
                         DropdownMenu(
                             expanded = focusCategoryDropdownExpanded,
@@ -559,7 +704,7 @@ fun SettingsScreen(
                         ) {
                             categories.forEach { cat ->
                                 DropdownMenuItem(
-                                    text = { Text("${cat.icon} ${cat.name}") },
+                                    text = { CategoryIconLabel(cat.icon, cat.name) },
                                     onClick = {
                                         vm.setFocusCategory(cat.id)
                                         focusCategoryDropdownExpanded = false
@@ -760,10 +905,11 @@ private fun SubmitUrlDialog(
                             onClick = { categoryDropdownExpanded = true },
                             modifier = Modifier.fillMaxWidth(),
                         ) {
-                            Text(
-                                selectedCategory?.let { "${it.icon} ${it.name}" } ?: "Pick a category…",
-                                modifier = Modifier.weight(1f),
-                            )
+                            if (selectedCategory != null) {
+                                CategoryIconLabel(selectedCategory.icon, selectedCategory.name, modifier = Modifier.weight(1f))
+                            } else {
+                                Text("Pick a category…", modifier = Modifier.weight(1f))
+                            }
                         }
                         DropdownMenu(
                             expanded = categoryDropdownExpanded,
@@ -771,7 +917,7 @@ private fun SubmitUrlDialog(
                         ) {
                             categories.forEach { cat ->
                                 DropdownMenuItem(
-                                    text = { Text("${cat.icon} ${cat.name}") },
+                                    text = { CategoryIconLabel(cat.icon, cat.name) },
                                     onClick = {
                                         selectedCategoryId = cat.id
                                         selectedSubcategoryId = null  // reset subcategory on category change
@@ -880,6 +1026,34 @@ private fun SettingsToggleRow(
             }
         }
         Switch(checked = checked, onCheckedChange = onCheckedChange)
+    }
+}
+
+@Composable
+private fun SettingsFxSliderRow(
+    title: String,
+    value: Int,
+    onChange: (Int) -> Unit,
+) {
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 6.dp),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(title, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
+            Text(
+                value.toString(),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+            )
+        }
+        Slider(
+            value = value.toFloat(),
+            onValueChange = { onChange(it.roundToInt()) },
+            valueRange = 1f..10f,
+            steps = 8,
+        )
     }
 }
 

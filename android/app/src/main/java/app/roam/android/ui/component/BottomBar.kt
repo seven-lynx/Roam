@@ -82,11 +82,11 @@ fun BottomBar(
             icon = {
                 Icon(
                     if (recentSkipClick) Icons.Filled.ThumbDown else Icons.Outlined.ThumbDown,
-                    contentDescription = "Skip",
+                    contentDescription = "Dislike",
                     tint = if (recentSkipClick) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             },
-            label = { Text("Skip", style = MaterialTheme.typography.labelSmall) },
+            label = { Text("Dislike", style = MaterialTheme.typography.labelSmall) },
         )
 
         // Roam

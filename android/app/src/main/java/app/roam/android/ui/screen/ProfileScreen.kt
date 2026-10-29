@@ -52,7 +52,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.roam.android.model.Badge
 import app.roam.android.ui.component.BadgeDetailDialog
+import app.roam.android.ui.component.CategoryIconLabel
 import app.roam.android.ui.component.LevelProgressBar
+import app.roam.android.ui.component.RoamOsIcons
 import app.roam.android.viewmodel.MainViewModel
 import kotlinx.coroutines.delay
 
@@ -327,7 +329,7 @@ fun ProfileScreen(
                         FilterChip(
                             selected = selected,
                             onClick = { vm.toggleCategory(category.id, !selected) },
-                            label = { Text("${category.icon} ${category.name}") },
+                            label = { CategoryIconLabel(category.icon, category.name) },
                         )
                     }
                 }
@@ -349,13 +351,14 @@ fun ProfileScreen(
                 categories.forEach { category ->
                     val subcats = subcatsByCategory[category.id] ?: emptyList()
                     if (subcats.isEmpty()) return@forEach
-                    Text(
-                        text = "${category.icon}  ${category.name}",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                    CategoryIconLabel(
+                        emoji = category.icon,
+                        name = category.name,
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(top = 8.dp, bottom = 4.dp),
+                        textStyle = MaterialTheme.typography.labelMedium,
+                        textColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
                     )
                     FlowRow(
                         modifier = Modifier.fillMaxWidth(),
@@ -411,9 +414,10 @@ private fun BadgeMini(badge: Badge, onClick: () -> Unit = {}) {
         modifier = Modifier.padding(4.dp).clickable { onClick() },
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Text(
-            text = if (badge.isHidden && !badge.isUnlocked) "\u2753" else badge.icon,
-            fontSize = 20.sp,
+        Icon(
+            imageVector = if (badge.isHidden && !badge.isUnlocked) RoamOsIcons.HiddenBadge else RoamOsIcons.forBadge(badge),
+            contentDescription = badge.name,
+            modifier = Modifier.size(20.dp),
         )
         if (badge.requiredCount != null && !badge.isUnlocked) {
             Text(

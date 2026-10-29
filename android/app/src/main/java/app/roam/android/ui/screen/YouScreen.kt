@@ -240,7 +240,7 @@ fun YouScreen(
                 Spacer(Modifier.height(8.dp))
                 SectionHeader(if (adminModeEnabled) "Admin" else "Moderator")
                 ActionRow(
-                    if (adminModeEnabled) "\uD83D\uDD12 Admin Panel" else "\uD83D\uDEE1\uFE0F Moderator Panel",
+                    if (adminModeEnabled) "Admin Panel" else "Moderator Panel",
                     "Manage submissions, reports, and more",
                     onClick = onNavigateToAdmin,
                 )

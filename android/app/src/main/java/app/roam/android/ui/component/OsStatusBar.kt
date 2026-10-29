@@ -31,9 +31,9 @@ fun OsStatusBar(
     onRetry: () -> Unit = {},
 ) {
     val text = when {
-        errorText != null -> "⚠ $errorText"
+        errorText != null -> "$errorText"
         exhausted -> "SIGNAL EXHAUSTED — ADJUST CATEGORIES"
-        offline -> "⚠ OFFLINE"
+        offline -> "OFFLINE"
         loading -> "ROAMING…"
         else -> {
             val parts = listOfNotNull(category, domain, subcategory)

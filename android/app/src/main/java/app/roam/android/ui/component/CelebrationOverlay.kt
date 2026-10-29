@@ -21,6 +21,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -111,7 +114,11 @@ private fun CelebrationCard(event: CelebrationEvent, accent: List<Color>) {
         ) {
             when (event) {
                 is CelebrationEvent.BadgeUnlocked -> {
-                    Text(text = event.badge.icon.ifBlank { "\uD83C\uDFC5" }, fontSize = 84.sp)
+                    Icon(
+                        imageVector = RoamOsIcons.forBadge(event.badge),
+                        contentDescription = event.badge.name,
+                        modifier = Modifier.size(84.dp),
+                    )
                     Spacer(Modifier.height(12.dp))
                     Text(
                         text = "Badge Unlocked!",
@@ -170,7 +177,11 @@ private fun CelebrationCard(event: CelebrationEvent, accent: List<Color>) {
                 }
 
                 is CelebrationEvent.ChallengeComplete -> {
-                    Text(text = "\u2714\uFE0F", fontSize = 84.sp)
+                    Icon(
+                        imageVector = Icons.Filled.CheckCircle,
+                        contentDescription = "Complete",
+                        modifier = Modifier.size(84.dp),
+                    )
                     Spacer(Modifier.height(12.dp))
                     Text(
                         text = "Challenge Complete!",

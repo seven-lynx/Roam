@@ -26,6 +26,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import app.roam.android.ui.component.CategoryIconLabel
 import app.roam.android.viewmodel.MainViewModel
 
 /**
@@ -88,7 +89,7 @@ fun CategoryOnboardingScreen(
                         FilterChip(
                             selected = selected,
                             onClick = { vm.toggleCategory(category.id, !selected) },
-                            label = { Text("${category.icon}  ${category.name}") },
+                            label = { CategoryIconLabel(category.icon, category.name) },
                         )
                     }
                 }
@@ -116,13 +117,14 @@ fun CategoryOnboardingScreen(
             items(categories) { category ->
                 val subcats = subcatsByCategory[category.id] ?: emptyList()
                 if (subcats.isEmpty()) return@items
-                Text(
-                    text = "${category.icon}  ${category.name}",
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.primary,
+                CategoryIconLabel(
+                    emoji = category.icon,
+                    name = category.name,
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(vertical = 8.dp),
+                    textStyle = MaterialTheme.typography.labelLarge,
+                    textColor = MaterialTheme.colorScheme.primary,
                 )
                 FlowRow(
                     modifier = Modifier.fillMaxWidth(),

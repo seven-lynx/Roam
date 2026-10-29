@@ -22,13 +22,22 @@ import androidx.compose.ui.unit.dp
 import app.roam.android.ui.theme.TealBright
 import kotlin.random.Random
 
+/** Per-effect CRT strength. 1 = subtle (current look), 10 = very pronounced. */
+data class CrtFx(
+    val scanlines: Int = 1,
+    val grain: Int = 1,
+    val vignette: Int = 1,
+    val flicker: Int = 1,
+    val fisheye: Int = 1,
+)
+
 /**
- * CRT effects drawn over the screen: a faint pulsing phosphor glow, vignette,
- * scanlines and tiled film grain. Rendered with a Canvas so it is
- * pointer-transparent and never intercepts WebView/gesture input.
+ * CRT effects drawn over the screen: a pulsing phosphor glow, vignette, fisheye
+ * (curved-glass) shading, scanlines and tiled film grain. Rendered with a Canvas
+ * so it is pointer-transparent and never intercepts WebView/gesture input.
  */
 @Composable
-fun CrtOverlay(modifier: Modifier = Modifier) {
+fun CrtOverlay(modifier: Modifier = Modifier, fx: CrtFx = CrtFx()) {
     val grainBrush = remember {
         ShaderBrush(BitmapShader(createNoiseBitmap(), Shader.TileMode.REPEAT, Shader.TileMode.REPEAT))
     }
@@ -40,16 +49,35 @@ fun CrtOverlay(modifier: Modifier = Modifier) {
         label = "crt-flicker-alpha",
     )
 
-    Canvas(modifier = modifier) {
-        // Faint phosphor glow, gently pulsing.
-        drawRect(color = TealBright.copy(alpha = 0.02f + 0.02f * flicker))
+    val sScan = (fx.scanlines - 1) / 9f
+    val sGrain = (fx.grain - 1) / 9f
+    val sVignette = (fx.vignette - 1) / 9f
+    val sFlicker = (fx.flicker - 1) / 9f
+    val sFisheye = (fx.fisheye - 1) / 9f
 
-        // Vignette — darkens the edges toward the corners.
+    Canvas(modifier = modifier) {
+        // Phosphor glow, gently pulsing (amplitude scales with flicker strength).
+        drawRect(color = TealBright.copy(alpha = 0.02f + (0.02f + 0.06f * sFlicker) * flicker))
+
+        // Vignette - darkens the edges toward the corners.
         drawRect(
             brush = Brush.radialGradient(
-                colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.32f)),
+                colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.28f + 0.32f * sVignette)),
                 center = Offset(size.width / 2f, size.height / 2f),
                 radius = size.maxDimension * 0.78f,
+            ),
+        )
+
+        // Fisheye / curved-glass: a soft center bulge with darker corners.
+        drawRect(
+            brush = Brush.radialGradient(
+                colors = listOf(
+                    Color.White.copy(alpha = 0.03f * sFisheye),
+                    Color.Transparent,
+                    Color.Black.copy(alpha = 0.08f + 0.42f * sFisheye),
+                ),
+                center = Offset(size.width / 2f, size.height / 2f),
+                radius = size.maxDimension * 0.58f,
             ),
         )
 
@@ -58,7 +86,7 @@ fun CrtOverlay(modifier: Modifier = Modifier) {
         var y = 0f
         while (y < size.height) {
             drawLine(
-                color = Color.Black.copy(alpha = 0.15f),
+                color = Color.Black.copy(alpha = 0.12f + 0.28f * sScan),
                 start = Offset(0f, y),
                 end = Offset(size.width, y),
                 strokeWidth = 1.dp.toPx(),
@@ -66,8 +94,8 @@ fun CrtOverlay(modifier: Modifier = Modifier) {
             y += spacing
         }
 
-        // Grain — tiled low-opacity monochrome noise.
-        drawRect(brush = grainBrush, alpha = 0.035f)
+        // Grain - tiled low-opacity monochrome noise.
+        drawRect(brush = grainBrush, alpha = 0.03f + 0.06f * sGrain)
     }
 }
 

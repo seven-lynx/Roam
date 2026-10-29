@@ -12,7 +12,7 @@ val Zinc50  = Color(0xFFFAFAFA)
 val White   = Color(0xFFFFFFFF)
 val Black   = Color(0xFF000000)
 
-// ── ROAM-OS (Cyberpunk) palette — mirrors web/src/app/globals.css ───────
+// ── ROAM-OS palette — mirrors web/src/app/globals.css ───────
 val Abyss       = Color(0xFF0A1214)
 val Ash         = Color(0xFF0D171A)
 val Oxide       = Color(0xFF12222A)
@@ -35,7 +35,7 @@ val Info        = Color(0xFF5B8BB0)
 val Warn        = Color(0xFFE08A4A)
 val Ok          = Color(0xFF59B3AE)
 
-// Night surfaces (the cyberpunk "screen" layers)
+// Night surfaces (the ROAM-OS "screen" layers)
 val ScreenBg    = Color(0xFF07100F)
 val ScreenDeep  = Color(0xFF040A0A)
 val Panel       = Color(0xFF0F1F24)

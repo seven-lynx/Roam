@@ -313,14 +313,14 @@ class MainViewModelTest {
     // ─── Theme variant / CRT effects / device frame ─────────────────────────────
 
     @Test
-    fun `setThemeVariant switches to Cyberpunk`() {
-        vm.setThemeVariant(RoamThemeVariant.CYBERPUNK)
-        assertEquals(RoamThemeVariant.CYBERPUNK, vm.themeVariant.value)
+    fun `setThemeVariant switches to ROAM-OS`() {
+        vm.setThemeVariant(RoamThemeVariant.ROAM_OS)
+        assertEquals(RoamThemeVariant.ROAM_OS, vm.themeVariant.value)
     }
 
     @Test
     fun `setThemeVariant switches back to Classic`() {
-        vm.setThemeVariant(RoamThemeVariant.CYBERPUNK)
+        vm.setThemeVariant(RoamThemeVariant.ROAM_OS)
         vm.setThemeVariant(RoamThemeVariant.CLASSIC)
         assertEquals(RoamThemeVariant.CLASSIC, vm.themeVariant.value)
     }
@@ -343,12 +343,12 @@ class MainViewModelTest {
 
     @Test
     fun `theme settings persist across ViewModel recreation`() {
-        vm.setThemeVariant(RoamThemeVariant.CYBERPUNK)
+        vm.setThemeVariant(RoamThemeVariant.ROAM_OS)
         vm.setCrtEffectsEnabled(false)
         vm.setDeviceFrameEnabled(false)
 
         val freshVm = MainViewModel(app, repo)
-        assertEquals(RoamThemeVariant.CYBERPUNK, freshVm.themeVariant.value)
+        assertEquals(RoamThemeVariant.ROAM_OS, freshVm.themeVariant.value)
         assertFalse(freshVm.crtEffectsEnabled.value)
         assertFalse(freshVm.deviceFrameEnabled.value)
     }

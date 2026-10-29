@@ -116,7 +116,7 @@ private val TOUR_ENTRIES = listOf(
             phase = TourPhase.DISCOVERY.label,
             title = "Meet the Bottom Bar",
             description = "Four buttons. That's it. We're not trying to be a Swiss Army knife here.\n\n" +
-                "Skip (\uD83D\uDC4E) = not for you. Roam (\uD83E\uDDED) = surprise me. " +
+                "Dislike (\uD83D\uDC4E) = not for you. Roam (\uD83E\uDDED) = surprise me. " +
                 "You (\uD83D\uDC64) = your stuff. Like (\uD83D\uDC4D) = more of this please.\n\n" +
                 "It's basically Tinder for web pages, except the pages don't ghost you.",
             icon = Icons.Filled.Explore,
@@ -588,7 +588,7 @@ private fun MockupStrip(type: MockupType) {
 @Composable
 private fun BottomBarMockup(highlightedIndex: Int?) {
     val items = listOf(
-        BottomBarMockItem("Skip", Icons.Outlined.ThumbDown),
+        BottomBarMockItem("Dislike", Icons.Outlined.ThumbDown),
         BottomBarMockItem("Roam", Icons.Outlined.Explore),
         BottomBarMockItem("You", Icons.Filled.Person),
         BottomBarMockItem("Like", Icons.Outlined.ThumbUp),

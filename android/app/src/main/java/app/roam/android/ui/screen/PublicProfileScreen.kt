@@ -54,6 +54,7 @@ import androidx.compose.ui.unit.sp
 import app.roam.android.model.Badge
 import app.roam.android.ui.component.BadgeDetailDialog
 import app.roam.android.ui.component.LevelProgressBar
+import app.roam.android.ui.component.RoamOsIcons
 import app.roam.android.viewmodel.MainViewModel
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
@@ -205,7 +206,11 @@ fun PublicProfileScreen(
                         FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                             profile.badges.filter { it.isUnlocked }.forEach { badge ->
                                 Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(4.dp).clickable { selectedBadge = badge }) {
-                                    Text(badge.icon, fontSize = 24.sp)
+                                    Icon(
+                                        imageVector = RoamOsIcons.forBadge(badge),
+                                        contentDescription = badge.name,
+                                        modifier = Modifier.size(24.dp),
+                                    )
                                     Text(badge.name, fontSize = 9.sp, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f))
                                 }
                             }
