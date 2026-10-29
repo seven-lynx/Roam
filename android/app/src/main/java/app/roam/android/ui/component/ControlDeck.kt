@@ -43,10 +43,10 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ShaderBrush
+import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -61,6 +61,7 @@ import app.roam.android.ui.theme.LineColor
 import app.roam.android.ui.theme.Ok
 import app.roam.android.ui.theme.Oxide2
 import app.roam.android.ui.theme.Oxide3
+import app.roam.android.ui.theme.SevenSegment
 import app.roam.android.ui.theme.TealBright
 import kotlin.random.Random
 
@@ -165,9 +166,12 @@ private fun StatusLine(
         ) {
             Text(
                 readout,
-                style = MaterialTheme.typography.labelMedium.copy(letterSpacing = 1.5.sp),
-                fontFamily = FontFamily.Monospace,
-                color = if (isOnline) Ok else Danger,
+                style = MaterialTheme.typography.labelMedium.copy(
+                    fontFamily = SevenSegment,
+                    letterSpacing = 1.5.sp,
+                    color = ledColor,
+                    shadow = Shadow(color = ledColor.copy(alpha = 0.85f), offset = Offset.Zero, blurRadius = 9f),
+                ),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
