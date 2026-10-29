@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Android 12+ system splash: dark first frame so the cold-start
+         transition into the themed boot screen is seamless. -->
+    <style name="Theme.Roam" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowSplashScreenBackground">#0A1214</item>
+    </style>
+</resources>

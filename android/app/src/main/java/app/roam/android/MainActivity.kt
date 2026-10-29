@@ -64,7 +64,7 @@ class MainActivity : ComponentActivity() {
             RoamTheme(variant = themeVariant, darkTheme = isDarkTheme) {
                 Log.d(TAG, "AuthState = $authState")
                 when (authState) {
-                    AuthState.Loading -> SplashScreen()
+                    AuthState.Loading -> SplashScreen(variant = themeVariant)
                     AuthState.Unauthenticated -> OnboardingScreen()
                     AuthState.NeedsOnboarding -> CategoryOnboardingScreen(
                         vm = mainVm,

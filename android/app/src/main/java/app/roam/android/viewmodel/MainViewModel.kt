@@ -30,6 +30,7 @@ import app.roam.android.ui.component.CrtFx
 import app.roam.android.ui.component.HardwareFx
 import app.roam.android.ui.theme.RoamThemeVariant
 import app.roam.android.util.SoundManager
+import app.roam.android.util.AppIconManager
 import app.roam.android.util.connectivityFlow
 import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.auth.status.SessionStatus
@@ -280,6 +281,7 @@ class MainViewModel(
         prefs.edit()
             .putString(APP_THEME_VARIANT_KEY, if (variant == RoamThemeVariant.ROAM_OS) "roam_os" else "classic")
             .apply()
+        AppIconManager.apply(getApplication(), variant == RoamThemeVariant.ROAM_OS)
     }
 
     /** User preference: deck key layout ("trapezoid", "trapezoid_inverted", "line", "grid"). */

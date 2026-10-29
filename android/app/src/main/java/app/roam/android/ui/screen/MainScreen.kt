@@ -80,6 +80,7 @@ import app.roam.android.ui.component.HandheldShell
 import app.roam.android.ui.component.LocalClickSound
 import app.roam.android.ui.component.OsStatusBar
 import app.roam.android.ui.component.RoamTab
+import app.roam.android.ui.component.RoamOsBootScreen
 import app.roam.android.ui.component.Tour
 import app.roam.android.ui.component.RoamWebView
 import app.roam.android.ui.component.ShareUrlBottomSheet
@@ -697,6 +698,7 @@ private fun DiscoverTab(
     var lastLoadedUrl by remember { mutableStateOf<String?>(null) }
     var loadingMessage by remember { mutableStateOf(pickRandomMessage(roamOs = isRoamOs)) }
     var webViewRecovering by remember { mutableStateOf(false) }
+    var resumeStandby by remember { mutableStateOf(false) }
     val loaded = state as? RoamState.Loaded
     val isRoaming = state is RoamState.Loading ||
             (currentUrl == loaded?.roamUrl?.url && (webViewLoading || (currentUrl != lastLoadedUrl)))
@@ -815,6 +817,22 @@ private fun DiscoverTab(
         }
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+
+    // ROAM-OS resume: show the boot/standby animation on return from background
+    // until the WebView reports the page is visible again (or a safety timeout).
+    DisposableEffect(lifecycleOwner) {
+        val resumeObserver = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME && isRoamOs) resumeStandby = true
+        }
+        lifecycleOwner.lifecycle.addObserver(resumeObserver)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(resumeObserver) }
+    }
+    LaunchedEffect(resumeStandby) {
+        if (resumeStandby) {
+            delay(1600)
+            resumeStandby = false
+        }
     }
 
 
@@ -988,15 +1006,15 @@ private fun DiscoverTab(
                     jsEnabled = jsEnabled,
                     onUrlChanged = { vm.onWebViewUrlChanged(it) },
                     onLoadError = { vm.roam() },
-                    onLoadingChanged = { loading -> webViewLoading = loading; if (!loading) lastLoadedUrl = currentUrl },
-                    onPageVisible = { webViewLoading = false; lastLoadedUrl = currentUrl },
+                    onLoadingChanged = { loading -> webViewLoading = loading; if (!loading) { lastLoadedUrl = currentUrl; resumeStandby = false } },
+                    onPageVisible = { webViewLoading = false; lastLoadedUrl = currentUrl; resumeStandby = false },
                     onRecovering = { recovering -> webViewRecovering = recovering },
                     onPageFinishedForPrefetch = { vm.onPageFinishedForPrefetch() },
                     navCommandsFlow = vm.webNavFlow,
                     clearCookiesFlow = vm.clearCookiesFlow,
                 )
 
-                if (showOverlay || scanFinishPending) {
+                if (showOverlay || scanFinishPending || resumeStandby) {
                     Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background), contentAlignment = Alignment.Center) {
                         when {
                             state is RoamState.Error -> {
@@ -1042,11 +1060,15 @@ private fun DiscoverTab(
                             }
                             else -> {
                                 if (isRoamOs) {
-                                    BootScanLoading(
-                                        message = loadingMessage.text,
-                                        finishing = scanFinishPending,
-                                        soundEnabled = soundEffectsEnabled,
-                                    )
+                                    if (isRoaming) {
+                                        BootScanLoading(
+                                            message = loadingMessage.text,
+                                            finishing = scanFinishPending,
+                                            soundEnabled = soundEffectsEnabled,
+                                        )
+                                    } else {
+                                        RoamOsBootScreen()
+                                    }
                                 } else {
                                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                         CircularProgressIndicator(Modifier.size(40.dp), strokeWidth = 3.dp, color = MaterialTheme.colorScheme.primary)
