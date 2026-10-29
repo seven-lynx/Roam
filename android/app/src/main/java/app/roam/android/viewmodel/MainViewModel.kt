@@ -27,6 +27,7 @@ import app.roam.android.model.AppNotification
 import app.roam.android.model.UserProfile
 import app.roam.android.data.supabase
 import app.roam.android.ui.component.CrtFx
+import app.roam.android.ui.component.HardwareFx
 import app.roam.android.ui.theme.RoamThemeVariant
 import app.roam.android.util.SoundManager
 import app.roam.android.util.connectivityFlow
@@ -105,6 +106,10 @@ class MainViewModel(
     private val DEVICE_FRAME_KEY = "device_frame"
     private val WEAR_KEY = "wear_and_tear"
     private val BEZEL_FISHEYE_KEY = "bezel_fisheye"
+    private val HARDWARE_ANTENNA_KEY = "hardware_antenna"
+    private val HARDWARE_NIXIE_KEY = "hardware_nixie"
+    private val HARDWARE_ACTIVITY_LED_KEY = "hardware_activity_led"
+    private val HARDWARE_VACUUM_TUBE_KEY = "hardware_vacuum_tube"
     private val WALKTHROUGH_SEEN_KEY = "walkthrough_seen"
     private val LAST_URL_KEY = "last_url"
     private val LAST_URL_TITLE_KEY = "last_url_title"
@@ -328,6 +333,37 @@ class MainViewModel(
     fun setBezelFisheyeEnabled(enabled: Boolean) {
         _bezelFisheyeEnabled.value = enabled
         prefs.edit().putBoolean(BEZEL_FISHEYE_KEY, enabled).apply()
+    }
+
+    /** Cosmetic hardware embellishments shown on the chassis bezel. */
+    private val _hardwareFx = MutableStateFlow(
+        HardwareFx(
+            antenna = prefs.getBoolean(HARDWARE_ANTENNA_KEY, true),
+            nixie = prefs.getBoolean(HARDWARE_NIXIE_KEY, true),
+            activityLed = prefs.getBoolean(HARDWARE_ACTIVITY_LED_KEY, false),
+            vacuumTube = prefs.getBoolean(HARDWARE_VACUUM_TUBE_KEY, false),
+        )
+    )
+    val hardwareFx: StateFlow<HardwareFx> = _hardwareFx.asStateFlow()
+
+    fun setHardwareAntenna(enabled: Boolean) {
+        _hardwareFx.value = _hardwareFx.value.copy(antenna = enabled)
+        prefs.edit().putBoolean(HARDWARE_ANTENNA_KEY, enabled).apply()
+    }
+
+    fun setHardwareNixie(enabled: Boolean) {
+        _hardwareFx.value = _hardwareFx.value.copy(nixie = enabled)
+        prefs.edit().putBoolean(HARDWARE_NIXIE_KEY, enabled).apply()
+    }
+
+    fun setHardwareActivityLed(enabled: Boolean) {
+        _hardwareFx.value = _hardwareFx.value.copy(activityLed = enabled)
+        prefs.edit().putBoolean(HARDWARE_ACTIVITY_LED_KEY, enabled).apply()
+    }
+
+    fun setHardwareVacuumTube(enabled: Boolean) {
+        _hardwareFx.value = _hardwareFx.value.copy(vacuumTube = enabled)
+        prefs.edit().putBoolean(HARDWARE_VACUUM_TUBE_KEY, enabled).apply()
     }
 
     /** User preference: CRT effects (scanlines/grain/vignette/flicker) */

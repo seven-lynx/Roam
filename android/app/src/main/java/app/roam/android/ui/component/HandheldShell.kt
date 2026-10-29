@@ -13,12 +13,14 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
@@ -43,15 +45,25 @@ import app.roam.android.ui.theme.Bone
 import app.roam.android.ui.theme.EmberBright
 import app.roam.android.ui.theme.Fog
 import app.roam.android.ui.theme.IbmPlexMono
+import app.roam.android.ui.theme.NeonGreen
 import app.roam.android.ui.theme.NeonPink
 import app.roam.android.ui.theme.Oxide
 import app.roam.android.ui.theme.Oxide2
 import app.roam.android.ui.theme.Oxide3
 import app.roam.android.ui.theme.ScreenDeep
+import app.roam.android.ui.theme.SevenSegment
 import app.roam.android.ui.theme.TealBright
 import kotlin.math.cos
 import kotlin.math.sin
 import kotlin.random.Random
+
+/** Which cosmetic hardware embellishments are visible on the chassis bezel. */
+data class HardwareFx(
+    val antenna: Boolean = true,
+    val nixie: Boolean = true,
+    val activityLed: Boolean = false,
+    val vacuumTube: Boolean = false,
+)
 
 /**
  * The retrofuturistic handheld chassis. The screen is recessed inside a heavy,
@@ -67,76 +79,84 @@ fun HandheldShell(
     crtFx: CrtFx = CrtFx(),
     wear: Boolean = false,
     bezelFisheye: Boolean = true,
+    hardware: HardwareFx = HardwareFx(),
     modifier: Modifier = Modifier,
     content: @Composable () -> Unit,
 ) {
     if (framed) {
-        Box(
-            modifier = modifier
-                .background(Abyss)
-                .then(if (bezelFisheye) Modifier.fisheyeDistortion(crtFx.fisheye) else Modifier)
-        ) {
+        Box(modifier = modifier.background(Abyss)) {
             Box(
                 Modifier
                     .fillMaxSize()
-                    .padding(8.dp)
-                    .clip(RoundedCornerShape(22.dp))
-                    .background(Brush.verticalGradient(listOf(Oxide3, Oxide2, Oxide, Abyss)))
-                    .border(
-                        1.dp,
-                        Brush.verticalGradient(
-                            listOf(
-                                TealBright.copy(alpha = 0.35f),
-                                Color.Transparent,
-                                Color.Black.copy(alpha = 0.55f),
-                            ),
-                        ),
-                        RoundedCornerShape(22.dp),
-                    )
-                    .drawBehind {
-                        drawRect(
-                            brush = Brush.linearGradient(
-                                colors = listOf(
-                                    Color.White.copy(alpha = 0.07f),
-                                    Color.Transparent,
-                                    Color.Transparent,
-                                ),
-                                start = Offset.Zero,
-                                end = Offset(size.width * 0.45f, size.height * 0.35f),
-                            ),
-                        )
-                        drawRect(brush = chassisNoiseShader, alpha = 0.05f)
-                        drawRect(brush = brushedMetalShader, alpha = 0.10f)
-                    },
+                    .then(if (bezelFisheye) Modifier.fisheyeDistortion(crtFx.fisheye) else Modifier)
             ) {
                 Box(
                     Modifier
                         .fillMaxSize()
-                        .padding(7.dp)
-                        .clip(RoundedCornerShape(14.dp))
-                        .background(ScreenDeep)
-                        .border(1.dp, Color.Black.copy(alpha = 0.8f), RoundedCornerShape(14.dp)),
+                        .padding(8.dp)
+                        .clip(RoundedCornerShape(22.dp))
+                        .background(Brush.verticalGradient(listOf(Oxide3, Oxide2, Oxide, Abyss)))
+                        .border(
+                            1.dp,
+                            Brush.verticalGradient(
+                                listOf(
+                                    TealBright.copy(alpha = 0.35f),
+                                    Color.Transparent,
+                                    Color.Black.copy(alpha = 0.55f),
+                                ),
+                            ),
+                            RoundedCornerShape(22.dp),
+                        )
+                        .drawBehind {
+                            drawRect(
+                                brush = Brush.linearGradient(
+                                    colors = listOf(
+                                        Color.White.copy(alpha = 0.07f),
+                                        Color.Transparent,
+                                        Color.Transparent,
+                                    ),
+                                    start = Offset.Zero,
+                                    end = Offset(size.width * 0.45f, size.height * 0.35f),
+                                ),
+                            )
+                            drawRect(brush = chassisNoiseShader, alpha = 0.05f)
+                            drawRect(brush = brushedMetalShader, alpha = 0.10f)
+                        },
                 ) {
-                    Box(Modifier.fillMaxSize()) {
-                        Box(
-                            Modifier
-                                .fillMaxSize()
-                                .then(if (bezelFisheye) Modifier else Modifier.fisheyeDistortion(crtFx.fisheye))
-                        ) { content() }
-                        if (crtEnabled) CrtOverlay(Modifier.fillMaxSize(), fx = crtFx)
+                    Box(
+                        Modifier
+                            .fillMaxSize()
+                            .padding(7.dp)
+                            .clip(RoundedCornerShape(14.dp))
+                            .background(ScreenDeep)
+                            .border(1.dp, Color.Black.copy(alpha = 0.8f), RoundedCornerShape(14.dp)),
+                    ) {
+                        Box(Modifier.fillMaxSize()) {
+                            Box(
+                                Modifier
+                                    .fillMaxSize()
+                                    .then(if (bezelFisheye) Modifier else Modifier.fisheyeDistortion(crtFx.fisheye))
+                            ) { content() }
+                            if (crtEnabled) CrtOverlay(Modifier.fillMaxSize(), fx = crtFx)
+                        }
                     }
+                    SpeakerGrille(Modifier.align(Alignment.TopCenter).padding(top = 3.dp))
+                    VentSlots(Modifier.align(Alignment.BottomCenter))
+                    PowerLed(Modifier.align(Alignment.TopEnd).padding(3.dp))
+                    if (wear) WearLayer(Modifier.fillMaxSize().padding(8.dp))
                 }
-                SpeakerGrille(Modifier.align(Alignment.TopCenter).padding(top = 3.dp))
-                VentSlots(Modifier.align(Alignment.BottomCenter))
-                PowerLed(Modifier.align(Alignment.TopEnd).padding(3.dp))
-                Diodes(Modifier.align(Alignment.BottomEnd).padding(3.dp))
-                PortLabels(Modifier.align(Alignment.BottomStart).padding(start = 4.dp, bottom = 3.dp))
-                if (wear) WearLayer(Modifier.fillMaxSize().padding(8.dp))
+                Screw(Modifier.align(Alignment.TopStart).padding(2.dp))
+                Screw(Modifier.align(Alignment.TopEnd).padding(2.dp))
+                Screw(Modifier.align(Alignment.BottomStart).padding(2.dp))
+                Screw(Modifier.align(Alignment.BottomEnd).padding(2.dp))
             }
-            Screw(Modifier.align(Alignment.TopStart).padding(2.dp))
-            Screw(Modifier.align(Alignment.TopEnd).padding(2.dp))
-            Screw(Modifier.align(Alignment.BottomStart).padding(2.dp))
-            Screw(Modifier.align(Alignment.BottomEnd).padding(2.dp))
+            // Non-warped chassis embellishments (kept outside the fisheye layer).
+            PortLabels(Modifier.align(Alignment.BottomStart).padding(start = 20.dp, bottom = 3.dp))
+            Diodes(Modifier.align(Alignment.BottomEnd).padding(end = 20.dp, bottom = 3.dp))
+            if (hardware.antenna) AntennaStub(Modifier.align(Alignment.TopCenter).padding(top = 2.dp))
+            if (hardware.nixie) NixieTube(Modifier.align(Alignment.BottomCenter).padding(bottom = 1.dp))
+            if (hardware.activityLed) ActivityLed(Modifier.align(Alignment.TopStart).padding(start = 22.dp, top = 5.dp))
+            if (hardware.vacuumTube) VacuumTube(Modifier.align(Alignment.CenterEnd).padding(end = 2.dp))
         }
     } else {
         Box(modifier = modifier) {
@@ -275,6 +295,47 @@ private fun WearLayer(modifier: Modifier = Modifier) {
                 strokeWidth = 0.8.dp.toPx(),
             )
         }
+    }
+}
+
+@Composable
+private fun AntennaStub(modifier: Modifier = Modifier) {
+    Column(modifier, horizontalAlignment = Alignment.CenterHorizontally) {
+        Box(Modifier.size(5.dp).clip(CircleShape).background(Bone).border(1.dp, Oxide, CircleShape))
+        Box(Modifier.width(2.dp).height(10.dp).background(Oxide3))
+    }
+}
+
+@Composable
+private fun NixieTube(modifier: Modifier = Modifier) {
+    val transition = rememberInfiniteTransition(label = "nixie")
+    val glow by transition.animateFloat(0.55f, 1f, infiniteRepeatable(tween(1100), RepeatMode.Reverse), label = "nixie-glow")
+    Box(
+        modifier
+            .width(14.dp)
+            .height(24.dp)
+            .clip(RoundedCornerShape(5.dp))
+            .background(Brush.verticalGradient(listOf(Oxide3, Oxide2)))
+            .border(1.dp, Oxide, RoundedCornerShape(5.dp)),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text("3", color = EmberBright.copy(alpha = glow), fontFamily = SevenSegment, fontSize = 14.sp)
+    }
+}
+
+@Composable
+private fun ActivityLed(modifier: Modifier = Modifier) {
+    val transition = rememberInfiniteTransition(label = "activity")
+    val a by transition.animateFloat(0.2f, 1f, infiniteRepeatable(tween(650), RepeatMode.Reverse), label = "activity-a")
+    Box(modifier.size(4.dp).clip(CircleShape).background(NeonGreen.copy(alpha = a)))
+}
+
+@Composable
+private fun VacuumTube(modifier: Modifier = Modifier) {
+    val transition = rememberInfiniteTransition(label = "tube")
+    val glow by transition.animateFloat(0.4f, 1f, infiniteRepeatable(tween(1500), RepeatMode.Reverse), label = "tube-glow")
+    Box(modifier.size(12.dp).clip(CircleShape).background(Oxide3).border(1.dp, Oxide, CircleShape), contentAlignment = Alignment.Center) {
+        Box(Modifier.width(3.dp).height(7.dp).background(EmberBright.copy(alpha = glow)))
     }
 }
 

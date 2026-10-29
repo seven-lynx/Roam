@@ -27,6 +27,7 @@ import androidx.compose.ui.unit.dp
 import app.roam.android.ui.component.DECK_LAYOUTS
 import app.roam.android.ui.component.DECK_SHAPES
 import app.roam.android.ui.component.DECK_SIZES
+import app.roam.android.ui.component.SettingsActionRow
 import app.roam.android.ui.component.SettingsFlavorText
 import app.roam.android.ui.component.SettingsFxSliderRow
 import app.roam.android.ui.component.SettingsToggleRow
@@ -51,11 +52,13 @@ fun AppearanceScreen(
     val deckShape by vm.deckShape.collectAsState()
     val deckLabelsEnabled by vm.deckLabelsEnabled.collectAsState()
     val systemMessageSpeed by vm.systemMessageSpeed.collectAsState()
+    val hardwareFx by vm.hardwareFx.collectAsState()
 
     var themeDropdownExpanded by remember { mutableStateOf(false) }
     var deckLayoutDropdownExpanded by remember { mutableStateOf(false) }
     var deckSizeDropdownExpanded by remember { mutableStateOf(false) }
     var deckShapeDropdownExpanded by remember { mutableStateOf(false) }
+    var hardwareExpanded by remember { mutableStateOf(false) }
 
     val deckLayoutLabel = DECK_LAYOUTS.firstOrNull { it.first == deckLayout }?.second ?: "Trapezoid"
     val deckSizeLabel = DECK_SIZES.firstOrNull { it.first == deckSize }?.second ?: "Medium"
@@ -114,6 +117,13 @@ fun AppearanceScreen(
                 SettingsToggleRow("Device frame", "Show the retro handheld chassis around the screen", deviceFrameEnabled) { vm.setDeviceFrameEnabled(it) }
                 SettingsToggleRow("Wear & tear", "Scratches, scuffs and oxidation on the chassis", wearEnabled) { vm.setWearEnabled(it) }
                 SettingsToggleRow("Bezel fisheye", "Warp the chassis bezel to match the screen curve", bezelFisheyeEnabled) { vm.setBezelFisheyeEnabled(it) }
+                SettingsActionRow("Hardware embellishments", "Antenna, nixie and other chassis details") { hardwareExpanded = !hardwareExpanded }
+                if (hardwareExpanded) {
+                    SettingsToggleRow("Antenna stub", "Whip antenna on the top edge", hardwareFx.antenna) { vm.setHardwareAntenna(it) }
+                    SettingsToggleRow("Nixie tube", "Glowing neon digit on the chassis", hardwareFx.nixie) { vm.setHardwareNixie(it) }
+                    SettingsToggleRow("Activity LED", "Blinking link-status indicator", hardwareFx.activityLed) { vm.setHardwareActivityLed(it) }
+                    SettingsToggleRow("Vacuum tube", "Glowing valve detail", hardwareFx.vacuumTube) { vm.setHardwareVacuumTube(it) }
+                }
                 SettingsToggleRow("CRT effects", "Scanlines, grain, vignette, flicker and fisheye", crtEffectsEnabled) { vm.setCrtEffectsEnabled(it) }
                 SettingsFxSliderRow("Scanlines", crtFx.scanlines) { vm.setCrtScanlines(it) }
                 SettingsFxSliderRow("Grain", crtFx.grain) { vm.setCrtGrain(it) }
