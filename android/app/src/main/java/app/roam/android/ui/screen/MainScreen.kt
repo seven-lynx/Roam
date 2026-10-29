@@ -129,6 +129,7 @@ fun MainScreen(
     val crtEffectsEnabled by vm.crtEffectsEnabled.collectAsState()
     val crtFx by vm.crtFx.collectAsState()
     val wearEnabled by vm.wearEnabled.collectAsState()
+    val deckLabelsEnabled by vm.deckLabelsEnabled.collectAsState()
     val isRoamOs = themeVariant == RoamThemeVariant.ROAM_OS
 
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -194,6 +195,7 @@ fun MainScreen(
                     deckLayout = deckLayout,
                     deckSize = deckSize,
                     deckShape = deckShape,
+                    deckLabels = deckLabelsEnabled,
                     onFeedback = { vm.uiFeedback(it) },
                 )
             } else {
@@ -205,6 +207,7 @@ fun MainScreen(
                     onNavigate = { currentTab = it },
                     focusModeEnabled = focusModeEnabled,
                     hasRatedUp = hasRatedUp,
+                    labelsEnabled = deckLabelsEnabled,
                 )
             }
         },

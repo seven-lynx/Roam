@@ -53,6 +53,7 @@ fun BottomBar(
     onNavigate: (String) -> Unit = {},
     focusModeEnabled: Boolean = false,
     hasRatedUp: Boolean = false,
+    labelsEnabled: Boolean = true,
 ) {
     // Track recent clicks for temporary highlight feedback
     var recentLikeClick by remember { mutableStateOf(value = false) }
@@ -89,7 +90,7 @@ fun BottomBar(
                     tint = if (recentSkipClick) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             },
-            label = { Text("Dislike", style = MaterialTheme.typography.labelSmall) },
+            label = { if (labelsEnabled) Text("Dislike", style = MaterialTheme.typography.labelSmall) },
         )
 
         // Roam
@@ -111,7 +112,7 @@ fun BottomBar(
                 )
             },
             label = {
-                Text(
+                if (labelsEnabled) Text(
                     if (focusModeEnabled) "Focus" else "Roam",
                     style = MaterialTheme.typography.labelSmall,
                     color = if (focusModeEnabled) MaterialTheme.colorScheme.tertiary
@@ -134,7 +135,7 @@ fun BottomBar(
                     contentDescription = "Settings",
                 )
             },
-            label = { Text("Settings", style = MaterialTheme.typography.labelSmall) },
+            label = { if (labelsEnabled) Text("Settings", style = MaterialTheme.typography.labelSmall) },
         )
 
         // Thumbs Up
@@ -151,7 +152,7 @@ fun BottomBar(
                     tint = if (hasRatedUp || recentLikeClick) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             },
-            label = { Text("Like", style = MaterialTheme.typography.labelSmall) },
+            label = { if (labelsEnabled) Text("Like", style = MaterialTheme.typography.labelSmall) },
         )
     }
 }

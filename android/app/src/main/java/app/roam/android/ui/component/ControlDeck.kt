@@ -84,6 +84,7 @@ fun ControlDeck(
     deckLayout: String = "trapezoid",
     deckSize: String = "medium",
     deckShape: String = "round",
+    deckLabels: Boolean = true,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -109,6 +110,7 @@ fun ControlDeck(
             deckLayout = deckLayout,
             deckSize = deckSize,
             deckShape = deckShape,
+            deckLabels = deckLabels,
             currentRoute = currentRoute,
             focusModeEnabled = focusModeEnabled,
             hasRatedUp = hasRatedUp,
@@ -213,6 +215,7 @@ private fun DeckKey(
     description: String,
     hero: Boolean = false,
     square: Boolean = false,
+    showLabel: Boolean = true,
     modifier: Modifier = Modifier,
 ) {
     val interaction = remember { MutableInteractionSource() }
@@ -226,31 +229,45 @@ private fun DeckKey(
     val top = if (pressed) Oxide2 else if (hero) GoldBright else Oxide3
     val bottom = if (pressed) Abyss else if (hero) Brass else Oxide2
 
-    Box(
-        modifier = modifier
-            .size(size)
-            .graphicsLayer {
-                scaleX = scale
-                scaleY = scale
-                translationY = if (pressed) dropPx else 0f
-            }
-            .shadow(if (pressed) 1.dp else 5.dp, shape)
-            .clip(shape)
-            .background(Brush.radialGradient(listOf(top, bottom), center = Offset(0.3f, 0.25f), radius = radiusPx))
-            .drawBehind { drawRect(deckNoiseShader, alpha = 0.06f) }
-            .border(1.dp, if (hero) Brass else LineColor, shape)
-            .clickable(interactionSource = interaction, indication = null) {
-                onFeedback(soundRes)
-                onClick()
-            },
-        contentAlignment = Alignment.Center,
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = modifier,
     ) {
-        Icon(
-            icon,
-            contentDescription = description,
-            tint = if (pressed) tint.copy(alpha = 0.75f) else tint,
-            modifier = Modifier.size(if (hero) size * 0.5f else size * 0.55f),
-        )
+        Box(
+            modifier = Modifier
+                .size(size)
+                .graphicsLayer {
+                    scaleX = scale
+                    scaleY = scale
+                    translationY = if (pressed) dropPx else 0f
+                }
+                .shadow(if (pressed) 1.dp else 5.dp, shape)
+                .clip(shape)
+                .background(Brush.radialGradient(listOf(top, bottom), center = Offset(0.3f, 0.25f), radius = radiusPx))
+                .drawBehind { drawRect(deckNoiseShader, alpha = 0.06f) }
+                .border(1.dp, if (hero) Brass else LineColor, shape)
+                .clickable(interactionSource = interaction, indication = null) {
+                    onFeedback(soundRes)
+                    onClick()
+                },
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                icon,
+                contentDescription = description,
+                tint = if (pressed) tint.copy(alpha = 0.75f) else tint,
+                modifier = Modifier.size(if (hero) size * 0.5f else size * 0.55f),
+            )
+        }
+        if (showLabel) {
+            Text(
+                text = description,
+                color = tint.copy(alpha = 0.85f),
+                fontSize = 9.sp,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
     }
 }
 
@@ -267,6 +284,7 @@ private fun KeyDeck(
     deckLayout: String,
     deckSize: String,
     deckShape: String,
+    deckLabels: Boolean,
     currentRoute: String,
     focusModeEnabled: Boolean,
     hasRatedUp: Boolean,
@@ -285,24 +303,24 @@ private fun KeyDeck(
     val settingsTint = if (currentRoute == RoamTab.SettingsHub.route) TealBright else Fog
 
     val dislikeKey: @Composable (Modifier) -> Unit = { mod ->
-        DeckKey(onThumbsDown, R.raw.skip, onFeedback, sizes.side, RoamOsIcons.Dislike, dislikeTint, "Dislike", square = square, modifier = mod)
+        DeckKey(onThumbsDown, R.raw.skip, onFeedback, sizes.side, RoamOsIcons.Dislike, dislikeTint, "Dislike", square = square, showLabel = deckLabels, modifier = mod)
     }
     val likeKey: @Composable (Modifier) -> Unit = { mod ->
-        DeckKey(onThumbsUp, R.raw.like, onFeedback, sizes.side, RoamOsIcons.Like, likeTint, "Like", square = square, modifier = mod)
+        DeckKey(onThumbsUp, R.raw.like, onFeedback, sizes.side, RoamOsIcons.Like, likeTint, "Like", square = square, showLabel = deckLabels, modifier = mod)
     }
     val roamKey: @Composable (Modifier) -> Unit = { mod ->
         DeckKey(
             { if (currentRoute == RoamTab.Roam.route) onRoam() else onNavigate(RoamTab.Roam.route) },
-            R.raw.click_heavy, onFeedback, sizes.roam, RoamOsIcons.Roam, roamTint, "Roam", hero = true, modifier = mod,
+            R.raw.click_heavy, onFeedback, sizes.roam, RoamOsIcons.Roam, roamTint, "Roam", hero = true, showLabel = deckLabels, modifier = mod,
         )
     }
     val menuKey: @Composable (Modifier) -> Unit = { mod ->
-        DeckKey(onOpenMenu, R.raw.click, onFeedback, sizes.side, RoamOsIcons.Menu, Fog, "Menu", square = square, modifier = mod)
+        DeckKey(onOpenMenu, R.raw.click, onFeedback, sizes.side, RoamOsIcons.Menu, Fog, "Menu", square = square, showLabel = deckLabels, modifier = mod)
     }
     val settingsKey: @Composable (Modifier) -> Unit = { mod ->
         DeckKey(
             { if (currentRoute == RoamTab.Roam.route) onNavigate(RoamTab.SettingsHub.route) else onNavigate(RoamTab.Roam.route) },
-            R.raw.click, onFeedback, sizes.side, RoamOsIcons.Settings, settingsTint, "Settings", square = square, modifier = mod,
+            R.raw.click, onFeedback, sizes.side, RoamOsIcons.Settings, settingsTint, "Settings", square = square, showLabel = deckLabels, modifier = mod,
         )
     }
 
@@ -336,10 +354,10 @@ private fun KeyDeck(
             }
         }
         "trapezoid_inverted" -> TrapezoidDeck(
-            sizes, inverted = true, dislikeKey, likeKey, roamKey, menuKey, settingsKey,
+            sizes, inverted = true, deckLabels = deckLabels, dislikeKey, likeKey, roamKey, menuKey, settingsKey,
         )
         else -> TrapezoidDeck(  // "trapezoid" + legacy "diagonal"
-            sizes, inverted = false, dislikeKey, likeKey, roamKey, menuKey, settingsKey,
+            sizes, inverted = false, deckLabels = deckLabels, dislikeKey, likeKey, roamKey, menuKey, settingsKey,
         )
     }
 }
@@ -348,6 +366,7 @@ private fun KeyDeck(
 private fun TrapezoidDeck(
     sizes: DeckSizes,
     inverted: Boolean,
+    deckLabels: Boolean,
     dislikeKey: @Composable (Modifier) -> Unit,
     likeKey: @Composable (Modifier) -> Unit,
     roamKey: @Composable (Modifier) -> Unit,
@@ -359,6 +378,7 @@ private fun TrapezoidDeck(
     val inset = sizes.side * 0.55f
     val topInset = if (inverted) inset else 0.dp
     val bottomInset = if (inverted) 0.dp else inset
+    val labelSpace = if (deckLabels) 16.dp else 0.dp
     Box(
         Modifier.fillMaxWidth().padding(vertical = 8.dp),
         contentAlignment = Alignment.Center,
@@ -366,7 +386,7 @@ private fun TrapezoidDeck(
         Box(
             Modifier
                 .width(sizes.roam + sizes.side * 2 + 24.dp)
-                .height(sizes.roam + sizes.side * 2 + 24.dp),
+                .height(sizes.roam + sizes.side * 2 + 24.dp + labelSpace),
         ) {
             dislikeKey(Modifier.align(Alignment.TopStart).offset(x = topInset))
             likeKey(Modifier.align(Alignment.TopEnd).offset(x = -topInset))

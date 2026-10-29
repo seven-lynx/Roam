@@ -114,6 +114,7 @@ class MainViewModel(
     private val DECK_LAYOUT_KEY = "deck_layout"  // "trapezoid", "trapezoid_inverted", "line", "grid"
     private val DECK_SIZE_KEY = "deck_size"      // "small", "medium", "large"
     private val DECK_SHAPE_KEY = "deck_shape"    // "round", "square"
+    private val DECK_LABELS_KEY = "deck_labels"
     private val MAX_HISTORY_ENTRIES = 100
 
     private val _state = MutableStateFlow<RoamState>(RoamState.Idle)
@@ -298,6 +299,15 @@ class MainViewModel(
     fun setDeckShape(shape: String) {
         _deckShape.value = shape
         prefs.edit().putString(DECK_SHAPE_KEY, shape).apply()
+    }
+
+    /** User preference: show text labels under the control deck keys. */
+    private val _deckLabelsEnabled = MutableStateFlow(prefs.getBoolean(DECK_LABELS_KEY, true))
+    val deckLabelsEnabled: StateFlow<Boolean> = _deckLabelsEnabled.asStateFlow()
+
+    fun setDeckLabelsEnabled(enabled: Boolean) {
+        _deckLabelsEnabled.value = enabled
+        prefs.edit().putBoolean(DECK_LABELS_KEY, enabled).apply()
     }
 
     /** User preference: show cosmetic wear & tear on the ROAM-OS chassis. */
