@@ -113,6 +113,7 @@ fun MainScreen(
     val warmQueueSize by vm.warmQueueSize.collectAsState()
     val unreadNotificationCount by vm.unreadNotificationCount.collectAsState()
     val xpFlash by vm.xpFlash.collectAsState()
+    val systemMessage by vm.systemMessage.collectAsState()
     val showConfigSheet by vm.showConfigSheet.collectAsState()
     val state by vm.state.collectAsState()
     val collections by vm.collections.collectAsState()
@@ -168,6 +169,7 @@ fun MainScreen(
                     isOnline = isOnline,
                     hotQueueSize = hotQueueSize,
                     warmQueueSize = warmQueueSize,
+                    systemMessage = systemMessage,
                     unreadNotificationCount = unreadNotificationCount,
                     xpFlash = xpFlash,
                     focusModeEnabled = focusModeEnabled,

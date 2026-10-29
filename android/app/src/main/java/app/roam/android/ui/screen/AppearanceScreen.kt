@@ -50,6 +50,7 @@ fun AppearanceScreen(
     val deckSize by vm.deckSize.collectAsState()
     val deckShape by vm.deckShape.collectAsState()
     val deckLabelsEnabled by vm.deckLabelsEnabled.collectAsState()
+    val systemMessageSpeed by vm.systemMessageSpeed.collectAsState()
 
     var themeDropdownExpanded by remember { mutableStateOf(false) }
     var deckLayoutDropdownExpanded by remember { mutableStateOf(false) }
@@ -107,6 +108,7 @@ fun AppearanceScreen(
             }
 
             SettingsToggleRow("Deck labels", "Show text labels on the control buttons", deckLabelsEnabled) { vm.setDeckLabelsEnabled(it) }
+            SettingsFxSliderRow("System message speed", systemMessageSpeed) { vm.setSystemMessageSpeed(it) }
 
             if (themeVariant == RoamThemeVariant.ROAM_OS) {
                 SettingsToggleRow("Device frame", "Show the retro handheld chassis around the screen", deviceFrameEnabled) { vm.setDeviceFrameEnabled(it) }

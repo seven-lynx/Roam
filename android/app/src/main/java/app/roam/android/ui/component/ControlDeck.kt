@@ -10,6 +10,12 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -19,6 +25,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.width
@@ -72,6 +79,7 @@ fun ControlDeck(
     isOnline: Boolean,
     hotQueueSize: Int,
     warmQueueSize: Int,
+    systemMessage: String,
     unreadNotificationCount: Int,
     xpFlash: Int?,
     focusModeEnabled: Boolean,
@@ -101,6 +109,7 @@ fun ControlDeck(
             isOnline = isOnline,
             hotQueueSize = hotQueueSize,
             warmQueueSize = warmQueueSize,
+            systemMessage = systemMessage,
             xpFlash = xpFlash,
             unreadNotificationCount = unreadNotificationCount,
             onOpenComms = onOpenComms,
@@ -131,6 +140,7 @@ private fun StatusLine(
     isOnline: Boolean,
     hotQueueSize: Int,
     warmQueueSize: Int,
+    systemMessage: String,
     xpFlash: Int?,
     unreadNotificationCount: Int,
     onOpenComms: () -> Unit,
@@ -147,47 +157,36 @@ private fun StatusLine(
         label = "deck-led-alpha",
     )
     val ledColor = if (isOnline) NeonGreen else Danger
-    val readout = "READY $hotQueueSize · BUFFER $warmQueueSize · " +
-        if (isOnline) "SIG LOCK" else "SIG LOST"
 
     Row(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.Top,
     ) {
-        Box(Modifier.size(8.dp).clip(CircleShape).background(ledColor.copy(alpha = ledAlpha)))
-        Text(" ROAM-OS", style = MaterialTheme.typography.labelMedium, color = Fog)
-        Text(" · ", style = MaterialTheme.typography.labelMedium, color = Fog.copy(alpha = 0.4f))
-        Box(
-            Modifier
-                .weight(1f)
-                .clip(RoundedCornerShape(4.dp))
-                .background(Color.Black.copy(alpha = 0.55f))
-                .border(1.dp, LineColor, RoundedCornerShape(4.dp))
-                .padding(horizontal = 8.dp, vertical = 2.dp),
-        ) {
-            Text(
-                readout,
-                style = MaterialTheme.typography.labelMedium.copy(
-                    fontFamily = SevenSegment,
-                    letterSpacing = 1.5.sp,
-                    color = ledColor,
-                    shadow = Shadow(color = ledColor.copy(alpha = 0.85f), offset = Offset.Zero, blurRadius = 9f),
-                ),
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 2.dp)) {
+            Box(Modifier.size(8.dp).clip(CircleShape).background(ledColor.copy(alpha = ledAlpha)))
+            Text(" ROAM-OS", style = MaterialTheme.typography.labelMedium, color = Fog)
         }
+        Spacer(Modifier.width(8.dp))
+        LedModule(hotQueueSize, "READY", ledColor)
+        Spacer(Modifier.width(6.dp))
+        LedModule(warmQueueSize, "BUFFER", ledColor)
+        Spacer(Modifier.width(8.dp))
+        SystemReadout(
+            message = systemMessage,
+            color = ledColor,
+            modifier = Modifier.weight(1f),
+        )
         if (xpFlash != null) {
             Text(
                 "+$xpFlash XP",
                 style = MaterialTheme.typography.labelMedium,
                 color = GoldBright,
-                modifier = Modifier.padding(start = 8.dp),
+                modifier = Modifier.padding(start = 8.dp, top = 4.dp),
             )
         }
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.padding(start = 10.dp),
+            modifier = Modifier.padding(start = 10.dp, top = 2.dp),
         ) {
             Box(
                 Modifier
@@ -206,6 +205,68 @@ private fun StatusLine(
                 modifier = Modifier.padding(start = 6.dp),
             )
         }
+    }
+}
+
+@Composable
+private fun LedModule(value: Int, label: String, color: Color) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Box(
+            Modifier
+                .width(40.dp)
+                .clip(RoundedCornerShape(4.dp))
+                .background(Color.Black.copy(alpha = 0.55f))
+                .border(1.dp, LineColor, RoundedCornerShape(4.dp))
+                .padding(horizontal = 4.dp, vertical = 2.dp),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(
+                value.toString().padStart(2, '0'),
+                style = MaterialTheme.typography.labelMedium.copy(
+                    fontFamily = SevenSegment,
+                    letterSpacing = 1.sp,
+                    color = color,
+                    shadow = Shadow(color = color.copy(alpha = 0.85f), offset = Offset.Zero, blurRadius = 8f),
+                ),
+                maxLines = 1,
+            )
+        }
+        Text(label, fontSize = 7.sp, color = Fog.copy(alpha = 0.75f), maxLines = 1)
+    }
+}
+
+@Composable
+private fun SystemReadout(message: String, color: Color, modifier: Modifier = Modifier) {
+    Column(modifier = modifier, horizontalAlignment = Alignment.CenterHorizontally) {
+        Box(
+            Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(4.dp))
+                .background(Color.Black.copy(alpha = 0.55f))
+                .border(1.dp, LineColor, RoundedCornerShape(4.dp))
+                .padding(horizontal = 8.dp, vertical = 2.dp),
+        ) {
+            AnimatedContent(
+                targetState = message,
+                transitionSpec = {
+                    (slideInHorizontally { it } + fadeIn()) togetherWith (slideOutHorizontally { -it } + fadeOut())
+                },
+                label = "system-readout",
+            ) { msg ->
+                Text(
+                    msg,
+                    style = MaterialTheme.typography.labelMedium.copy(
+                        fontFamily = SevenSegment,
+                        letterSpacing = 1.sp,
+                        color = color,
+                        shadow = Shadow(color = color.copy(alpha = 0.85f), offset = Offset.Zero, blurRadius = 8f),
+                    ),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+        }
+        Text("SYS", fontSize = 7.sp, color = Fog.copy(alpha = 0.75f), maxLines = 1)
     }
 }
 

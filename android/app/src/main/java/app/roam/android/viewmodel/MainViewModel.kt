@@ -116,6 +116,7 @@ class MainViewModel(
     private val DECK_SIZE_KEY = "deck_size"      // "small", "medium", "large"
     private val DECK_SHAPE_KEY = "deck_shape"    // "round", "square"
     private val DECK_LABELS_KEY = "deck_labels"
+    private val SYSTEM_MESSAGE_SPEED_KEY = "system_message_speed"
     private val MAX_HISTORY_ENTRIES = 100
 
     private val _state = MutableStateFlow<RoamState>(RoamState.Idle)
@@ -792,12 +793,69 @@ class MainViewModel(
     /** Shows "+N XP" in the deck for a moment. */
     fun flashXp(amount: Int) {
         if (amount <= 0) return
+        pushSystemMessage("+$amount XP GAINED")
         _xpFlash.value = amount
         xpFlashJob?.cancel()
         xpFlashJob = viewModelScope.launch {
             delay(1200)
             _xpFlash.value = null
         }
+    }
+
+    private val FLAVOR_MESSAGES = listOf(
+        "ROAM-OS // STANDBY",
+        "SIGNAL LOCK — AWAITING INPUT",
+        "idle // waiting for roam",
+        "uptime nominal",
+        "phosphor array calibrated",
+        "queue nominal // no packets",
+        "sweep idle // tap ROAM",
+        "net uplink stable",
+        "cache warm // ready",
+        "no new transmissions",
+    )
+
+    // ── System-message readout (deck pager/marquee) ──────────────────────
+    private val _systemMessage = MutableStateFlow("ROAM-OS // STANDBY")
+    val systemMessage: StateFlow<String> = _systemMessage.asStateFlow()
+
+    /** Deck readout scroll/advance speed (1 = slow, 10 = fast). */
+    private val _systemMessageSpeed = MutableStateFlow(prefs.getInt(SYSTEM_MESSAGE_SPEED_KEY, 5))
+    val systemMessageSpeed: StateFlow<Int> = _systemMessageSpeed.asStateFlow()
+
+    private val systemMessageQueue = ArrayDeque<String>()
+    private var systemMessageJob: Job? = null
+
+    fun setSystemMessageSpeed(value: Int) {
+        _systemMessageSpeed.value = value.coerceIn(1, 10)
+        prefs.edit().putInt(SYSTEM_MESSAGE_SPEED_KEY, _systemMessageSpeed.value).apply()
+    }
+
+    /** Enqueues a message for the deck readout (consecutive dupes dropped, capped). */
+    fun pushSystemMessage(message: String) {
+        if (message.isBlank()) return
+        if (systemMessageQueue.lastOrNull() == message) return
+        systemMessageQueue.addLast(message)
+        while (systemMessageQueue.size > 12) systemMessageQueue.removeFirst()
+        ensureSystemMessageCycle()
+    }
+
+    private fun ensureSystemMessageCycle() {
+        if (systemMessageJob?.isActive == true) return
+        systemMessageJob = viewModelScope.launch { cycleSystemMessages() }
+    }
+
+    private suspend fun cycleSystemMessages() {
+        while (true) {
+            val next = if (systemMessageQueue.isNotEmpty()) systemMessageQueue.removeFirst() else FLAVOR_MESSAGES.random()
+            _systemMessage.value = next
+            delay(systemMessageDwellMs())
+        }
+    }
+
+    private fun systemMessageDwellMs(): Long {
+        val speed = _systemMessageSpeed.value.coerceIn(1, 10)
+        return 600L + (10 - speed) * 600L
     }
 
     private val celebrationQueue = ArrayDeque<CelebrationEvent>()
@@ -961,6 +1019,7 @@ class MainViewModel(
     private val pendingRatings = ArrayDeque<PendingRating>()
 
     init {
+        ensureSystemMessageCycle()
         viewModelScope.launch {
             runCatching { repo.getCategories() }
                 .onSuccess { if (it.isNotEmpty()) _categories.value = it }
@@ -1072,6 +1131,7 @@ class MainViewModel(
         val now = System.currentTimeMillis()
         if (now - lastRoamMillis < 1000L) return
         lastRoamMillis = now
+        pushSystemMessage("SCANNING…")
 
         // Default to excluding the current domain so the bottom-bar Roam button
         // behaves the same as Thumbs Down / Report Broken Link — otherwise the
@@ -1383,6 +1443,7 @@ class MainViewModel(
             return
         }
         _hasRatedUp.value = true
+        pushSystemMessage("RATED UP // SIGNAL SAVED")
         viewModelScope.launch {
             haptic(context)
             val result = runCatching { repo.rate(loaded.roamUrl.id, 1) }
@@ -1409,6 +1470,7 @@ class MainViewModel(
         val loaded = _state.value as? RoamState.Loaded
         val excludeDomain = extractDomain(_rawUrl.value)
         _hasRatedUp.value = false
+        pushSystemMessage("RATED DOWN // NEXT")
         viewModelScope.launch {
             haptic(context)
             if (loaded != null) {
@@ -1823,7 +1885,9 @@ class MainViewModel(
         viewModelScope.launch {
             if (!repo.hasSession()) return@launch
             runCatching {
-                _unreadNotificationCount.value = repo.getUnreadNotificationCount()
+                val count = repo.getUnreadNotificationCount()
+                _unreadNotificationCount.value = count
+                if (count > 0) pushSystemMessage("$count NEW NOTIFICATIONS")
             }
         }
     }
