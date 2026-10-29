@@ -88,7 +88,7 @@ android/
 │   │   │       │   │   ├── MainScreen.kt         # NavHost + DiscoverTab
 │   │   │       │   │   ├── SavedScreen.kt        # Saved URLs + Collections tabs
 │   │   │       │   │   ├── ProfileScreen.kt      # Avatar, bio, category chips, stats
-│   │   │       │   │   ├── SettingsScreen.kt     # Toggles, language, sign-out
+│   │   │       │   │   ├── SettingsHubScreen.kt   # Settings hub + admin/mod entry
 │   │   │       │   │   ├── CategoryOnboardingScreen.kt  # Post-signup interest picker
 │   │   │       │   │   ├── OnboardingScreen.kt   # Google or email/password sign-in
 │   │   │       │   │   └── SplashScreen.kt
@@ -138,7 +138,7 @@ MainActivity
                           ├── Discover → DiscoverTab(mainVm)
                           ├── Saved   → SavedScreen(mainVm)
                           ├── Profile → ProfileScreen(mainVm)
-                          └── Settings → SettingsScreen(mainVm)
+                          └── Settings → SettingsHubScreen(mainVm)
 ```
 
 ### RoamState

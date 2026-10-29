@@ -44,7 +44,7 @@ object RoamOsIcons {
     val Dislike: ImageVector get() = Icons.Filled.ThumbDown
     val Like: ImageVector get() = Icons.Filled.ThumbUp
     val Roam: ImageVector get() = Icons.Filled.Radar
-    val You: ImageVector get() = Icons.Filled.Settings // gear glyph; still opens the You hub
+    val Settings: ImageVector get() = Icons.Filled.Settings // gear glyph; opens the Settings Hub
     val Menu: ImageVector get() = Icons.Filled.Menu
     val Comms: ImageVector get() = Icons.Filled.SatelliteAlt
 

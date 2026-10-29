@@ -10,6 +10,8 @@ All notable changes to the Roam Android app.
 - Boot/scan loading screen with themed messages and a "MOUNT COMPLETE" finish beat before each page is revealed.
 
 ### Changed
+- "You" hub renamed to "Settings Hub" and merged with the Settings screen — the hub now lists Account, Social, and Preferences sections, with Appearance, Browser, Discovery, and Notifications & Effects opening their own screens.
+- Settings sub-screens use diegetic ROAM-OS headers, flavor text, and slide transitions.
 - Bundled Space Grotesk and IBM Plex Mono fonts for the ROAM-OS theme.
 - Roam Classic remains the default; the existing look is unchanged.
 

@@ -11,7 +11,9 @@ import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -217,7 +219,10 @@ fun MainScreen(
             ) {
                 Box(Modifier.fillMaxSize()) {
             BackHandler(enabled = currentTab != RoamTab.Roam.route) {
-                currentTab = RoamTab.Roam.route
+                currentTab = when (currentTab) {
+                    RoamTab.Appearance.route, RoamTab.Browser.route, RoamTab.Discovery.route, RoamTab.Effects.route -> RoamTab.SettingsHub.route
+                    else -> RoamTab.Roam.route
+                }
             }
 
             // DiscoverTab always alive
@@ -229,15 +234,16 @@ fun MainScreen(
                 onNavigateToInterests = onNavigateToInterests,
             )
 
-            // ── You tab (hub) ──────────────────────────────────────
+            // ── Settings Hub ──────────────────────────────────────
             AnimatedVisibility(
-                visible = currentTab == RoamTab.You.route,
+                visible = currentTab == RoamTab.SettingsHub.route,
                 enter = slideInVertically(initialOffsetY = { it }) + fadeIn(tween(260)),
                 exit = slideOutVertically(targetOffsetY = { it }) + fadeOut(tween(220)),
             ) {
-                YouScreen(
+                SettingsHubScreen(
                     vm = vm,
                     onSignOut = doSignOut,
+                    roamOs = isRoamOs,
                     onNavigateToProfile = { currentTab = RoamTab.Profile.route },
                     onNavigateToSaved = { currentTab = RoamTab.Saved.route },
                     onNavigateToHistory = { currentTab = RoamTab.History.route },
@@ -246,7 +252,6 @@ fun MainScreen(
                     onNavigateToChallenges = { currentTab = RoamTab.Challenges.route },
                     onNavigateToLeaderboard = { currentTab = RoamTab.Leaderboard.route },
                     onNavigateToActivityFeed = { currentTab = RoamTab.ActivityFeed.route },
-                    onNavigateToSettings = { currentTab = RoamTab.Settings.route },
                     onNavigateToPublicProfile = { username ->
                         viewedUsername = username
                         currentTab = RoamTab.PublicProfile.route
@@ -254,24 +259,62 @@ fun MainScreen(
                     onNavigateToRoam = { currentTab = RoamTab.Roam.route },
                     onOpenUserSearch = { showUserSearch = true },
                     onNavigateToAdmin = { currentTab = RoamTab.Admin.route },
+                    onNavigateToAppearance = { currentTab = RoamTab.Appearance.route },
+                    onNavigateToBrowser = { currentTab = RoamTab.Browser.route },
+                    onNavigateToDiscovery = { currentTab = RoamTab.Discovery.route },
+                    onNavigateToEffects = { currentTab = RoamTab.Effects.route },
                 )
             }
 
-            // ── Settings ───────────────────────────────────────────
+            // ── Appearance ───────────────────────────────────────────
             AnimatedVisibility(
-                visible = currentTab == RoamTab.Settings.route,
-                enter = fadeIn(spring()),
-                exit = fadeOut(spring()),
+                visible = currentTab == RoamTab.Appearance.route,
+                enter = slideInHorizontally(initialOffsetX = { it }) + fadeIn(tween(240)),
+                exit = slideOutHorizontally(targetOffsetX = { it }) + fadeOut(tween(200)),
             ) {
-                SettingsScreen(
+                AppearanceScreen(
                     vm = vm,
-                    onSignOut = doSignOut,
-                    onNavigateToSaved = { currentTab = RoamTab.Saved.route },
-                    onNavigateToProfile = { currentTab = RoamTab.Profile.route },
-                    onNavigateToHistory = { currentTab = RoamTab.History.route },
-                    onNavigateToNotifications = { currentTab = RoamTab.Notifications.route },
-                    onNavigateToRoam = { currentTab = RoamTab.Roam.route },
                     roamOs = isRoamOs,
+                    onNavigateBack = { currentTab = RoamTab.SettingsHub.route },
+                )
+            }
+
+            // ── Browser ────────────────────────────────────────────
+            AnimatedVisibility(
+                visible = currentTab == RoamTab.Browser.route,
+                enter = slideInHorizontally(initialOffsetX = { it }) + fadeIn(tween(240)),
+                exit = slideOutHorizontally(targetOffsetX = { it }) + fadeOut(tween(200)),
+            ) {
+                BrowserScreen(
+                    vm = vm,
+                    roamOs = isRoamOs,
+                    onNavigateBack = { currentTab = RoamTab.SettingsHub.route },
+                )
+            }
+
+            // ── Discovery ──────────────────────────────────────────
+            AnimatedVisibility(
+                visible = currentTab == RoamTab.Discovery.route,
+                enter = slideInHorizontally(initialOffsetX = { it }) + fadeIn(tween(240)),
+                exit = slideOutHorizontally(targetOffsetX = { it }) + fadeOut(tween(200)),
+            ) {
+                DiscoveryScreen(
+                    vm = vm,
+                    roamOs = isRoamOs,
+                    onNavigateBack = { currentTab = RoamTab.SettingsHub.route },
+                )
+            }
+
+            // ── Notifications & Effects ────────────────────────────
+            AnimatedVisibility(
+                visible = currentTab == RoamTab.Effects.route,
+                enter = slideInHorizontally(initialOffsetX = { it }) + fadeIn(tween(240)),
+                exit = slideOutHorizontally(targetOffsetX = { it }) + fadeOut(tween(200)),
+            ) {
+                EffectsScreen(
+                    vm = vm,
+                    roamOs = isRoamOs,
+                    onNavigateBack = { currentTab = RoamTab.SettingsHub.route },
                 )
             }
 
@@ -283,7 +326,7 @@ fun MainScreen(
             ) {
                 SavedScreen(
                     vm = vm,
-                    onNavigateBack = { currentTab = RoamTab.You.route },
+                    onNavigateBack = { currentTab = RoamTab.SettingsHub.route },
                     onNavigateToUrl = { url ->
                         vm.navigateToWeb(url)
                         currentTab = RoamTab.Roam.route
@@ -299,7 +342,7 @@ fun MainScreen(
             ) {
                 ProfileScreen(
                     vm = vm,
-                    onNavigateBack = { currentTab = RoamTab.You.route },
+                    onNavigateBack = { currentTab = RoamTab.SettingsHub.route },
                     onSignOut = doSignOut,
                     onNavigateToBadges = { currentTab = RoamTab.Badges.route },
                 )
@@ -313,7 +356,7 @@ fun MainScreen(
             ) {
                 HistoryScreen(
                     vm = vm,
-                    onNavigateBack = { currentTab = RoamTab.You.route },
+                    onNavigateBack = { currentTab = RoamTab.SettingsHub.route },
                     onNavigateToUrl = { url ->
                         vm.navigateTo(url)
                         currentTab = RoamTab.Roam.route
@@ -329,7 +372,7 @@ fun MainScreen(
             ) {
                 NotificationsScreen(
                     vm = vm,
-                    onNavigateBack = { currentTab = RoamTab.You.route },
+                    onNavigateBack = { currentTab = RoamTab.SettingsHub.route },
                     onNavigateToUrl = { url ->
                         vm.navigateTo(url)
                         currentTab = RoamTab.Roam.route
@@ -345,7 +388,7 @@ fun MainScreen(
             ) {
                 ActivityFeedScreen(
                     vm = vm,
-                    onNavigateBack = { currentTab = RoamTab.You.route },
+                    onNavigateBack = { currentTab = RoamTab.SettingsHub.route },
                     onNavigateToProfile = { username ->
                         viewedUsername = username
                         currentTab = RoamTab.PublicProfile.route
@@ -363,7 +406,7 @@ fun MainScreen(
                 enter = fadeIn(spring()),
                 exit = fadeOut(spring()),
             ) {
-                BadgesScreen(vm = vm, onNavigateBack = { currentTab = RoamTab.You.route })
+                BadgesScreen(vm = vm, onNavigateBack = { currentTab = RoamTab.SettingsHub.route })
             }
 
             // ── Challenges ─────────────────────────────────────────
@@ -372,7 +415,7 @@ fun MainScreen(
                 enter = fadeIn(spring()),
                 exit = fadeOut(spring()),
             ) {
-                ChallengesScreen(vm = vm, onNavigateBack = { currentTab = RoamTab.You.route })
+                ChallengesScreen(vm = vm, onNavigateBack = { currentTab = RoamTab.SettingsHub.route })
             }
 
             // ── Leaderboard ────────────────────────────────────────
@@ -383,7 +426,7 @@ fun MainScreen(
             ) {
                 LeaderboardScreen(
                     vm = vm,
-                    onNavigateBack = { currentTab = RoamTab.You.route },
+                    onNavigateBack = { currentTab = RoamTab.SettingsHub.route },
                     onNavigateToProfile = { username ->
                         viewedUsername = username
                         currentTab = RoamTab.PublicProfile.route
@@ -400,7 +443,7 @@ fun MainScreen(
                 PublicProfileScreen(
                     vm = vm,
                     username = viewedUsername!!,
-                    onNavigateBack = { currentTab = RoamTab.You.route },
+                    onNavigateBack = { currentTab = RoamTab.SettingsHub.route },
                     onNavigateToUrl = { url ->
                         vm.navigateTo(url)
                         currentTab = RoamTab.Roam.route
@@ -449,7 +492,7 @@ fun MainScreen(
             if (!vm.hasSeenWalkthrough()) {
                 Tour(
                     onDismiss = { vm.markWalkthroughSeen() },
-                    onNavigateToYouTab = { currentTab = RoamTab.You.route },
+                    onNavigateToSettingsHub = { currentTab = RoamTab.SettingsHub.route },
                     onOpenConfigSheet = { vm.openConfigSheet() },
                 )
             }

@@ -282,7 +282,7 @@ private fun KeyDeck(
     val dislikeTint = MaterialTheme.colorScheme.onSurfaceVariant
     val likeTint = if (hasRatedUp) Ok else MaterialTheme.colorScheme.onSurfaceVariant
     val roamTint = if (focusModeEnabled) MaterialTheme.colorScheme.tertiary else GoldBright
-    val youTint = if (currentRoute == RoamTab.You.route) TealBright else Fog
+    val settingsTint = if (currentRoute == RoamTab.SettingsHub.route) TealBright else Fog
 
     val dislikeKey: @Composable (Modifier) -> Unit = { mod ->
         DeckKey(onThumbsDown, R.raw.skip, onFeedback, sizes.side, RoamOsIcons.Dislike, dislikeTint, "Dislike", square = square, modifier = mod)
@@ -299,10 +299,10 @@ private fun KeyDeck(
     val menuKey: @Composable (Modifier) -> Unit = { mod ->
         DeckKey(onOpenMenu, R.raw.click, onFeedback, sizes.side, RoamOsIcons.Menu, Fog, "Menu", square = square, modifier = mod)
     }
-    val youKey: @Composable (Modifier) -> Unit = { mod ->
+    val settingsKey: @Composable (Modifier) -> Unit = { mod ->
         DeckKey(
-            { if (currentRoute == RoamTab.Roam.route) onNavigate(RoamTab.You.route) else onNavigate(RoamTab.Roam.route) },
-            R.raw.click, onFeedback, sizes.side, RoamOsIcons.You, youTint, "You", square = square, modifier = mod,
+            { if (currentRoute == RoamTab.Roam.route) onNavigate(RoamTab.SettingsHub.route) else onNavigate(RoamTab.Roam.route) },
+            R.raw.click, onFeedback, sizes.side, RoamOsIcons.Settings, settingsTint, "Settings", square = square, modifier = mod,
         )
     }
 
@@ -312,7 +312,7 @@ private fun KeyDeck(
             horizontalArrangement = Arrangement.SpaceEvenly,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            dislikeKey(Modifier); menuKey(Modifier); roamKey(Modifier); youKey(Modifier); likeKey(Modifier)
+            dislikeKey(Modifier); menuKey(Modifier); roamKey(Modifier); settingsKey(Modifier); likeKey(Modifier)
         }
         "grid" -> Row(
             Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
@@ -332,14 +332,14 @@ private fun KeyDeck(
                 verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
                 likeKey(Modifier)
-                youKey(Modifier)
+                settingsKey(Modifier)
             }
         }
         "trapezoid_inverted" -> TrapezoidDeck(
-            sizes, inverted = true, dislikeKey, likeKey, roamKey, menuKey, youKey,
+            sizes, inverted = true, dislikeKey, likeKey, roamKey, menuKey, settingsKey,
         )
         else -> TrapezoidDeck(  // "trapezoid" + legacy "diagonal"
-            sizes, inverted = false, dislikeKey, likeKey, roamKey, menuKey, youKey,
+            sizes, inverted = false, dislikeKey, likeKey, roamKey, menuKey, settingsKey,
         )
     }
 }
@@ -352,7 +352,7 @@ private fun TrapezoidDeck(
     likeKey: @Composable (Modifier) -> Unit,
     roamKey: @Composable (Modifier) -> Unit,
     menuKey: @Composable (Modifier) -> Unit,
-    youKey: @Composable (Modifier) -> Unit,
+    settingsKey: @Composable (Modifier) -> Unit,
 ) {
     // Shift one pair of side keys inward so the deck reads as a trapezoid:
     // inverted = narrow top / wide bottom; standard = wide top / narrow bottom.
@@ -372,7 +372,7 @@ private fun TrapezoidDeck(
             likeKey(Modifier.align(Alignment.TopEnd).offset(x = -topInset))
             roamKey(Modifier.align(Alignment.Center))
             menuKey(Modifier.align(Alignment.BottomStart).offset(x = bottomInset))
-            youKey(Modifier.align(Alignment.BottomEnd).offset(x = -bottomInset))
+            settingsKey(Modifier.align(Alignment.BottomEnd).offset(x = -bottomInset))
         }
     }
 }

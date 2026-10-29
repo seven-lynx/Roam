@@ -25,9 +25,12 @@ import kotlin.time.Duration.Companion.milliseconds
 
 enum class RoamTab(val route: String) {
     Roam("discover"),
-    Settings("settings"),
-    // Other tabs accessible via YouScreen, not bottom bar
-    You("you"),
+    SettingsHub("settings"),
+    // Sub-screens reached from the Settings Hub, not the bottom bar
+    Appearance("settings_appearance"),
+    Browser("settings_browser"),
+    Discovery("settings_discovery"),
+    Effects("settings_effects"),
     Saved("saved"),
     Profile("profile"),
     History("history"),
@@ -117,21 +120,21 @@ fun BottomBar(
             },
         )
 
-        // You (was Settings)
+        // Settings Hub
         NavigationBarItem(
-            selected = currentRoute == RoamTab.You.route,
+            selected = currentRoute == RoamTab.SettingsHub.route,
             onClick = {
-                if (currentRoute != RoamTab.You.route) {
-                    onNavigate(RoamTab.You.route)
+                if (currentRoute != RoamTab.SettingsHub.route) {
+                    onNavigate(RoamTab.SettingsHub.route)
                 }
             },
             icon = {
                 Icon(
-                    if (currentRoute == RoamTab.You.route) Icons.Filled.Settings else Icons.Outlined.Settings,
-                    contentDescription = "You",
+                    if (currentRoute == RoamTab.SettingsHub.route) Icons.Filled.Settings else Icons.Outlined.Settings,
+                    contentDescription = "Settings",
                 )
             },
-            label = { Text("You", style = MaterialTheme.typography.labelSmall) },
+            label = { Text("Settings", style = MaterialTheme.typography.labelSmall) },
         )
 
         // Thumbs Up

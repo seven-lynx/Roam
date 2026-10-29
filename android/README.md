@@ -29,10 +29,13 @@ MainActivity
        ├─ BadgesScreen
        ├─ LeaderboardScreen
        ├─ NotificationsScreen
-       ├─ SettingsScreen
+       ├─ SettingsHubScreen  ← hub; Admin/Mod panel entry when role unlocked
+       ├─ AppearanceScreen
+       ├─ BrowserScreen
+       ├─ DiscoveryScreen
+       ├─ EffectsScreen
        ├─ ProfileScreen
        ├─ PublicProfileScreen
-       ├─ YouScreen         ← hub; Admin/Mod panel entry when role unlocked
        ├─ AdminScreen       ← moderation queue, reports, beta (admin/mod)
        └─ SavedScreen
 
@@ -84,7 +87,10 @@ app/src/main/java/app/roam/android/
 │   │   └── UserSearchSheet.kt       # User search for sharing
 │   ├── screen/
 │   │   ├── MainScreen.kt            # Nav host + DiscoverTab
-│   │   ├── SettingsScreen.kt
+│   │   ├── SettingsHubScreen.kt       # Settings hub + admin/mod entry
+│   │   ├── AppearanceScreen.kt
+│   │   ├── BrowserScreen.kt
+│   │   ├── DiscoveryScreen.kt
 │   │   ├── ProfileScreen.kt
 │   │   ├── SavedScreen.kt
 │   │   ├── HistoryScreen.kt
@@ -97,7 +103,7 @@ app/src/main/java/app/roam/android/
 │   │   ├── LeaderboardScreen.kt
 │   │   ├── NotificationsScreen.kt
 │   │   ├── PublicProfileScreen.kt
-│   │   └── YouScreen.kt             # Account hub + admin/mod entry
+│   │   └── EffectsScreen.kt         # Push, sounds, haptics, celebrations
 │   └── theme/
 │       ├── Theme.kt                 # RoamTheme + system bar lock
 │       ├── Color.kt
