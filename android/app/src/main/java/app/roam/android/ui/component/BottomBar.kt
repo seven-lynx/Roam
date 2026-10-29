@@ -53,7 +53,7 @@ fun BottomBar(
     onNavigate: (String) -> Unit = {},
     focusModeEnabled: Boolean = false,
     hasRatedUp: Boolean = false,
-    labelsEnabled: Boolean = true,
+    labelsEnabled: Boolean = false,
 ) {
     // Track recent clicks for temporary highlight feedback
     var recentLikeClick by remember { mutableStateOf(value = false) }

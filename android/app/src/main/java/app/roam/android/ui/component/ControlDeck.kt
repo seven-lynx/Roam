@@ -84,7 +84,7 @@ fun ControlDeck(
     deckLayout: String = "trapezoid",
     deckSize: String = "medium",
     deckShape: String = "round",
-    deckLabels: Boolean = true,
+    deckLabels: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -215,7 +215,7 @@ private fun DeckKey(
     description: String,
     hero: Boolean = false,
     square: Boolean = false,
-    showLabel: Boolean = true,
+    showLabel: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
     val interaction = remember { MutableInteractionSource() }

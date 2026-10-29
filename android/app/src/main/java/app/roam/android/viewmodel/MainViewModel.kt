@@ -302,7 +302,7 @@ class MainViewModel(
     }
 
     /** User preference: show text labels under the control deck keys. */
-    private val _deckLabelsEnabled = MutableStateFlow(prefs.getBoolean(DECK_LABELS_KEY, true))
+    private val _deckLabelsEnabled = MutableStateFlow(prefs.getBoolean(DECK_LABELS_KEY, false))
     val deckLabelsEnabled: StateFlow<Boolean> = _deckLabelsEnabled.asStateFlow()
 
     fun setDeckLabelsEnabled(enabled: Boolean) {
