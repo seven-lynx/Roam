@@ -8,8 +8,11 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
@@ -123,6 +126,7 @@ fun MainScreen(
     val deviceFrameEnabled by vm.deviceFrameEnabled.collectAsState()
     val crtEffectsEnabled by vm.crtEffectsEnabled.collectAsState()
     val crtFx by vm.crtFx.collectAsState()
+    val wearEnabled by vm.wearEnabled.collectAsState()
     val isRoamOs = themeVariant == RoamThemeVariant.ROAM_OS
 
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -208,6 +212,7 @@ fun MainScreen(
                 framed = isRoamOs && deviceFrameEnabled,
                 crtEnabled = isRoamOs && crtEffectsEnabled,
                 crtFx = crtFx,
+                wear = isRoamOs && wearEnabled,
                 modifier = Modifier.fillMaxSize(),
             ) {
                 Box(Modifier.fillMaxSize()) {
@@ -227,8 +232,8 @@ fun MainScreen(
             // ── You tab (hub) ──────────────────────────────────────
             AnimatedVisibility(
                 visible = currentTab == RoamTab.You.route,
-                enter = fadeIn(spring()),
-                exit = fadeOut(spring()),
+                enter = slideInVertically(initialOffsetY = { it }) + fadeIn(tween(260)),
+                exit = slideOutVertically(targetOffsetY = { it }) + fadeOut(tween(220)),
             ) {
                 YouScreen(
                     vm = vm,

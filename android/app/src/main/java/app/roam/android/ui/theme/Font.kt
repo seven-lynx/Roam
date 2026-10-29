@@ -34,3 +34,9 @@ val IbmPlexMono = FontFamily(
     Font(R.font.ibm_plex_mono_regular, FontWeight.Normal),
     Font(R.font.ibm_plex_mono_medium, FontWeight.Medium),
 )
+
+// DSEG7 Classic — a seven-segment "LED/LCD" face for the OS status readout.
+// Bundled under SIL Open Font License 1.1 (see assets/licenses/DSEG-OFL-1.1.txt).
+val SevenSegment = FontFamily(
+    Font(R.font.dseg7_classic, FontWeight.Normal),
+)

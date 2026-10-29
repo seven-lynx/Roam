@@ -2,7 +2,10 @@ package app.roam.android.ui.component
 
 import android.graphics.Bitmap
 import android.graphics.BitmapShader
+import android.graphics.RenderEffect
+import android.graphics.RuntimeShader
 import android.graphics.Shader
+import android.os.Build
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
@@ -18,6 +21,8 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ShaderBrush
+import androidx.compose.ui.graphics.asComposeRenderEffect
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.dp
 import app.roam.android.ui.theme.TealBright
 import kotlin.random.Random
@@ -68,18 +73,33 @@ fun CrtOverlay(modifier: Modifier = Modifier, fx: CrtFx = CrtFx()) {
             ),
         )
 
-        // Fisheye / curved-glass: a soft center bulge with darker corners.
+        // Fisheye / curved-glass: a bright centre bulge with dark curved edges.
         drawRect(
             brush = Brush.radialGradient(
                 colors = listOf(
-                    Color.White.copy(alpha = 0.03f * sFisheye),
+                    Color.White.copy(alpha = 0.14f * sFisheye),
                     Color.Transparent,
-                    Color.Black.copy(alpha = 0.08f + 0.42f * sFisheye),
+                    Color.Black.copy(alpha = 0.25f + 0.60f * sFisheye),
                 ),
                 center = Offset(size.width / 2f, size.height / 2f),
-                radius = size.maxDimension * 0.58f,
+                radius = size.maxDimension * 0.60f,
             ),
         )
+        // Horizontal tube curvature — darken the left/right extremes.
+        if (sFisheye > 0f) {
+            drawRect(
+                brush = Brush.horizontalGradient(
+                    colors = listOf(
+                        Color.Black.copy(alpha = 0.12f * sFisheye),
+                        Color.Transparent,
+                        Color.Transparent,
+                        Color.Black.copy(alpha = 0.12f * sFisheye),
+                    ),
+                    startX = 0f,
+                    endX = size.width,
+                ),
+            )
+        }
 
         // Scanlines.
         val spacing = 3.dp.toPx()
@@ -110,4 +130,37 @@ private fun createNoiseBitmap(): Bitmap {
     }
     bmp.setPixels(pixels, 0, size, 0, 0, size, size)
     return bmp
+}
+
+/** AGSL barrel-distortion shader — curves the screen plane like a CRT tube. */
+private const val FISHEYE_SHADER = """
+    uniform shader content;
+    uniform float amount;
+    uniform float2 size;
+    half4 main(float2 coord) {
+        float2 uv = coord / size;
+        float2 center = float2(0.5, 0.5);
+        float2 d = uv - center;
+        float r2 = dot(d, d);
+        float2 warped = center + d * (1.0 + amount * r2);
+        if (warped.x < 0.0 || warped.x > 1.0 || warped.y < 0.0 || warped.y > 1.0) {
+            return half4(0.0, 0.0, 0.0, 1.0);
+        }
+        return content.eval(warped * size);
+    }
+"""
+
+/**
+ * Applies a real barrel distortion to the layer's content for the given fisheye
+ * strength (1 = off). No-op below Android 12, where the enhanced shading in
+ * [CrtOverlay] carries the effect instead.
+ */
+fun Modifier.fisheyeDistortion(fisheye: Int): Modifier {
+    if (fisheye <= 1 || Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return this
+    return graphicsLayer {
+        val shader = RuntimeShader(FISHEYE_SHADER)
+        shader.setFloatUniform("amount", (fisheye - 1) / 9f * 0.55f)
+        shader.setFloatUniform("size", size.width, size.height)
+        renderEffect = RenderEffect.createRuntimeShaderEffect(shader, "content").asComposeRenderEffect()
+    }
 }

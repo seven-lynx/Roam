@@ -59,7 +59,8 @@ import kotlin.math.roundToInt
 
 // Constants to avoid recreating lists on every recomposition
 private val DECK_LAYOUTS = listOf(
-    "diagonal" to "Diagonal",
+    "trapezoid" to "Trapezoid",
+    "trapezoid_inverted" to "Inverted trapezoid",
     "line" to "Straight line",
     "grid" to "Grid",
 )
@@ -122,6 +123,7 @@ fun SettingsScreen(
     val crtEffectsEnabled by vm.crtEffectsEnabled.collectAsState()
     val crtFx by vm.crtFx.collectAsState()
     val deviceFrameEnabled by vm.deviceFrameEnabled.collectAsState()
+    val wearEnabled by vm.wearEnabled.collectAsState()
     val deckLayout by vm.deckLayout.collectAsState()
     val deckSize by vm.deckSize.collectAsState()
     val deckShape by vm.deckShape.collectAsState()
@@ -137,7 +139,7 @@ fun SettingsScreen(
     var deckSizeDropdownExpanded by remember { mutableStateOf(false) }
     var deckShapeDropdownExpanded by remember { mutableStateOf(false) }
     val translateLanguageLabel = TRANSLATE_LANGUAGES.firstOrNull { it.first == translateLanguage }?.second ?: "English"
-    val deckLayoutLabel = DECK_LAYOUTS.firstOrNull { it.first == deckLayout }?.second ?: "Diagonal"
+    val deckLayoutLabel = DECK_LAYOUTS.firstOrNull { it.first == deckLayout }?.second ?: "Trapezoid"
     val deckSizeLabel = DECK_SIZES.firstOrNull { it.first == deckSize }?.second ?: "Medium"
     val deckShapeLabel = DECK_SHAPES.firstOrNull { it.first == deckShape }?.second ?: "Round"
     val currentUrl by vm.currentUrl.collectAsState()
@@ -261,6 +263,13 @@ fun SettingsScreen(
                     subtitle = "Show the retro handheld chassis around the screen",
                     checked = deviceFrameEnabled,
                     onCheckedChange = { vm.setDeviceFrameEnabled(it) },
+                )
+
+                SettingsToggleRow(
+                    title = "Wear & tear",
+                    subtitle = "Scratches, scuffs and oxidation on the chassis",
+                    checked = wearEnabled,
+                    onCheckedChange = { vm.setWearEnabled(it) },
                 )
 
                 SettingsToggleRow(

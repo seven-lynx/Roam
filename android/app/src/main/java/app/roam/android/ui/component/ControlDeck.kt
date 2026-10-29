@@ -23,6 +23,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
@@ -80,7 +81,7 @@ fun ControlDeck(
     onOpenMenu: () -> Unit,
     onOpenComms: () -> Unit,
     onFeedback: (Int) -> Unit,
-    deckLayout: String = "diagonal",
+    deckLayout: String = "trapezoid",
     deckSize: String = "medium",
     deckShape: String = "round",
     modifier: Modifier = Modifier,
@@ -103,7 +104,7 @@ fun ControlDeck(
             onFeedback = onFeedback,
         )
 
-        // Palm Pilot–style key deck: Roam in the centre, diagonal symmetrical side keys.
+        // Palm Pilot–style key deck: Roam in the centre, trapezoid symmetrical side keys.
         KeyDeck(
             deckLayout = deckLayout,
             deckSize = deckSize,
@@ -292,7 +293,7 @@ private fun KeyDeck(
     val roamKey: @Composable (Modifier) -> Unit = { mod ->
         DeckKey(
             { if (currentRoute == RoamTab.Roam.route) onRoam() else onNavigate(RoamTab.Roam.route) },
-            R.raw.click, onFeedback, sizes.roam, RoamOsIcons.Roam, roamTint, "Roam", hero = true, modifier = mod,
+            R.raw.click_heavy, onFeedback, sizes.roam, RoamOsIcons.Roam, roamTint, "Roam", hero = true, modifier = mod,
         )
     }
     val menuKey: @Composable (Modifier) -> Unit = { mod ->
@@ -334,21 +335,44 @@ private fun KeyDeck(
                 youKey(Modifier)
             }
         }
-        else -> Box(
-            Modifier.fillMaxWidth().padding(vertical = 8.dp),
-            contentAlignment = Alignment.Center,
+        "trapezoid_inverted" -> TrapezoidDeck(
+            sizes, inverted = true, dislikeKey, likeKey, roamKey, menuKey, youKey,
+        )
+        else -> TrapezoidDeck(  // "trapezoid" + legacy "diagonal"
+            sizes, inverted = false, dislikeKey, likeKey, roamKey, menuKey, youKey,
+        )
+    }
+}
+
+@Composable
+private fun TrapezoidDeck(
+    sizes: DeckSizes,
+    inverted: Boolean,
+    dislikeKey: @Composable (Modifier) -> Unit,
+    likeKey: @Composable (Modifier) -> Unit,
+    roamKey: @Composable (Modifier) -> Unit,
+    menuKey: @Composable (Modifier) -> Unit,
+    youKey: @Composable (Modifier) -> Unit,
+) {
+    // Shift one pair of side keys inward so the deck reads as a trapezoid:
+    // inverted = narrow top / wide bottom; standard = wide top / narrow bottom.
+    val inset = sizes.side * 0.55f
+    val topInset = if (inverted) inset else 0.dp
+    val bottomInset = if (inverted) 0.dp else inset
+    Box(
+        Modifier.fillMaxWidth().padding(vertical = 8.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Box(
+            Modifier
+                .width(sizes.roam + sizes.side * 2 + 24.dp)
+                .height(sizes.roam + sizes.side * 2 + 24.dp),
         ) {
-            Box(
-                Modifier
-                    .width(sizes.roam + sizes.side * 2 + 24.dp)
-                    .height(sizes.roam + sizes.side * 2 + 24.dp),
-            ) {
-                dislikeKey(Modifier.align(Alignment.TopStart))
-                likeKey(Modifier.align(Alignment.TopEnd))
-                roamKey(Modifier.align(Alignment.Center))
-                menuKey(Modifier.align(Alignment.BottomStart))
-                youKey(Modifier.align(Alignment.BottomEnd))
-            }
+            dislikeKey(Modifier.align(Alignment.TopStart).offset(x = topInset))
+            likeKey(Modifier.align(Alignment.TopEnd).offset(x = -topInset))
+            roamKey(Modifier.align(Alignment.Center))
+            menuKey(Modifier.align(Alignment.BottomStart).offset(x = bottomInset))
+            youKey(Modifier.align(Alignment.BottomEnd).offset(x = -bottomInset))
         }
     }
 }

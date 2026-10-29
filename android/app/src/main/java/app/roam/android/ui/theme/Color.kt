@@ -34,6 +34,8 @@ val Danger      = Color(0xFFFF5C7A)
 val Info        = Color(0xFF5B8BB0)
 val Warn        = Color(0xFFE08A4A)
 val Ok          = Color(0xFF59B3AE)
+// Phosphor-green for the segmented-LED status readout.
+val NeonGreen   = Color(0xFF39FF14)
 
 // Night surfaces (the ROAM-OS "screen" layers)
 val ScreenBg    = Color(0xFF07100F)

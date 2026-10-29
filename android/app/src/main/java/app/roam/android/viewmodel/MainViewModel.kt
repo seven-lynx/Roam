@@ -103,6 +103,7 @@ class MainViewModel(
     private val CRT_FLICKER_KEY = "crt_flicker"
     private val CRT_FISHEYE_KEY = "crt_fisheye"
     private val DEVICE_FRAME_KEY = "device_frame"
+    private val WEAR_KEY = "wear_and_tear"
     private val WALKTHROUGH_SEEN_KEY = "walkthrough_seen"
     private val LAST_URL_KEY = "last_url"
     private val LAST_URL_TITLE_KEY = "last_url_title"
@@ -110,7 +111,7 @@ class MainViewModel(
     private val HAPTIC_FEEDBACK_KEY = "haptic_feedback"
     private val CELEBRATION_ANIMATIONS_KEY = "celebration_animations"
     private val CELEBRATION_WATERMARK_KEY = "celebration_watermark"
-    private val DECK_LAYOUT_KEY = "deck_layout"  // "diagonal", "line", "grid"
+    private val DECK_LAYOUT_KEY = "deck_layout"  // "trapezoid", "trapezoid_inverted", "line", "grid"
     private val DECK_SIZE_KEY = "deck_size"      // "small", "medium", "large"
     private val DECK_SHAPE_KEY = "deck_shape"    // "round", "square"
     private val MAX_HISTORY_ENTRIES = 100
@@ -272,8 +273,8 @@ class MainViewModel(
             .apply()
     }
 
-    /** User preference: deck key layout ("diagonal", "line", "grid"). */
-    private val _deckLayout = MutableStateFlow(prefs.getString(DECK_LAYOUT_KEY, "diagonal") ?: "diagonal")
+    /** User preference: deck key layout ("trapezoid", "trapezoid_inverted", "line", "grid"). */
+    private val _deckLayout = MutableStateFlow(prefs.getString(DECK_LAYOUT_KEY, "trapezoid") ?: "trapezoid")
     val deckLayout: StateFlow<String> = _deckLayout.asStateFlow()
 
     fun setDeckLayout(layout: String) {
@@ -297,6 +298,15 @@ class MainViewModel(
     fun setDeckShape(shape: String) {
         _deckShape.value = shape
         prefs.edit().putString(DECK_SHAPE_KEY, shape).apply()
+    }
+
+    /** User preference: show cosmetic wear & tear on the ROAM-OS chassis. */
+    private val _wearEnabled = MutableStateFlow(prefs.getBoolean(WEAR_KEY, false))
+    val wearEnabled: StateFlow<Boolean> = _wearEnabled.asStateFlow()
+
+    fun setWearEnabled(enabled: Boolean) {
+        _wearEnabled.value = enabled
+        prefs.edit().putBoolean(WEAR_KEY, enabled).apply()
     }
 
     /** User preference: CRT effects (scanlines/grain/vignette/flicker) */
@@ -1071,6 +1081,7 @@ class MainViewModel(
                 _rawUrl.value = prefetched.url
                 _currentUrl.value = prefetched.url
                 _state.value = RoamState.Loaded(prefetched)
+                playSfx(R.raw.load_complete)
                 recordUrlVisit(prefetched.url, prefetched.title ?: prefetched.url)
                 // If background WebView preloading is enabled, expose the next hot-queue entry
                 // so the UI can start warming it in an invisible WebView right now.
@@ -1082,6 +1093,7 @@ class MainViewModel(
             }
 
             _state.value = RoamState.Loading
+            playSfx(R.raw.load_start)
             
             // Wait for the session to be fully ready before making the network call.
             // ensureAuthenticated() inside repo.roam() also handles the Initializing
@@ -1145,6 +1157,7 @@ class MainViewModel(
                     _rawUrl.value = roamUrl.url
                     _currentUrl.value = roamUrl.url
                     _state.value = RoamState.Loaded(roamUrl)
+                    playSfx(R.raw.load_complete)
                     persistLastUrl(roamUrl.url, roamUrl.title)
                     recordUrlVisit(roamUrl.url, roamUrl.title ?: roamUrl.url)
                     startPrefillQueue(excludeDomain = extractDomain(roamUrl.url))
@@ -1406,6 +1419,7 @@ class MainViewModel(
             _showSubmitSheet.value = false
             result.fold(
                 onSuccess = { outcome ->
+                    if (outcome is app.roam.android.data.repository.SubmitResult.Queued) playSfx(R.raw.save_url)
                     _submitToast.value = when (outcome) {
                         is app.roam.android.data.repository.SubmitResult.Queued -> outcome.message
                         is app.roam.android.data.repository.SubmitResult.Duplicate -> outcome.message
@@ -1499,10 +1513,20 @@ class MainViewModel(
         vibrate(context, VibrationEffect.createOneShot(40, VibrationEffect.DEFAULT_AMPLITUDE))
     }
 
-    /** Plays a UI feedback sound (gated on SFX) plus a light haptic tick (gated on haptics). */
+    /** Heavier, lower-frequency tick for the Roam key — like a big mechanical switch. */
+    private fun heavyHaptic(context: Context) {
+        vibrate(context, VibrationEffect.createWaveform(longArrayOf(0, 70, 40, 60), -1))
+    }
+
+    /** Plays a UI feedback sound (gated on SFX) plus a haptic tick (gated on haptics). */
     fun uiFeedback(soundRes: Int) {
         if (_soundEffectsEnabled.value) SoundManager.play(getApplication(), soundRes)
-        haptic(getApplication())
+        if (soundRes == R.raw.click_heavy) heavyHaptic(getApplication()) else haptic(getApplication())
+    }
+
+    /** Plays a themed sound effect gated on the in-app sound toggle (no haptic). */
+    private fun playSfx(soundRes: Int) {
+        if (_soundEffectsEnabled.value) SoundManager.play(getApplication(), soundRes)
     }
 
     /** Distinct haptic patterns per celebration type. */
@@ -1549,6 +1573,7 @@ class MainViewModel(
             runCatching { repo.saveUrl(url, title, urlId) }
         }
         _savedConfirmation.value = true
+        playSfx(R.raw.save_url)
         loadChallenges()
         checkForNewCelebrations()
         viewModelScope.launch {
