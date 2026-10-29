@@ -110,13 +110,14 @@ fun CommsMenu(
 
 @Composable
 private fun CommsRow(icon: ImageVector, title: String, subtitle: String, onClick: () -> Unit) {
+    val clickSound = LocalClickSound.current
     Row(
         Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(6.dp))
             .background(Panel2)
             .border(1.dp, LineColor, RoundedCornerShape(6.dp))
-            .clickable { onClick() }
+            .clickable { clickSound(); onClick() }
             .padding(12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {

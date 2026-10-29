@@ -84,12 +84,15 @@ fun ControlDeck(
     xpFlash: Int?,
     focusModeEnabled: Boolean,
     hasRatedUp: Boolean,
+    muted: Boolean,
+    menuOpen: Boolean,
     onRoam: () -> Unit,
     onThumbsUp: () -> Unit,
     onThumbsDown: () -> Unit,
     onNavigate: (String) -> Unit,
     onOpenMenu: () -> Unit,
     onOpenComms: () -> Unit,
+    onToggleMute: () -> Unit,
     onFeedback: (Int) -> Unit,
     deckLayout: String = "trapezoid",
     deckSize: String = "medium",
@@ -112,6 +115,8 @@ fun ControlDeck(
             systemMessage = systemMessage,
             xpFlash = xpFlash,
             unreadNotificationCount = unreadNotificationCount,
+            muted = muted,
+            onToggleMute = onToggleMute,
             onOpenComms = onOpenComms,
             onFeedback = onFeedback,
         )
@@ -125,6 +130,7 @@ fun ControlDeck(
             currentRoute = currentRoute,
             focusModeEnabled = focusModeEnabled,
             hasRatedUp = hasRatedUp,
+            menuOpen = menuOpen,
             onRoam = onRoam,
             onThumbsUp = onThumbsUp,
             onThumbsDown = onThumbsDown,
@@ -143,6 +149,8 @@ private fun StatusLine(
     systemMessage: String,
     xpFlash: Int?,
     unreadNotificationCount: Int,
+    muted: Boolean,
+    onToggleMute: () -> Unit,
     onOpenComms: () -> Unit,
     onFeedback: (Int) -> Unit,
 ) {
@@ -162,6 +170,25 @@ private fun StatusLine(
         modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
         verticalAlignment = Alignment.Top,
     ) {
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 2.dp)) {
+            Box(
+                Modifier
+                    .size(6.dp)
+                    .clip(CircleShape)
+                    .background(if (muted) Danger else LineColor.copy(alpha = 0.4f)),
+            )
+            DeckKey(
+                onClick = onToggleMute,
+                soundRes = R.raw.click,
+                onFeedback = onFeedback,
+                size = 28.dp,
+                icon = if (muted) RoamOsIcons.Muted else RoamOsIcons.Unmuted,
+                tint = if (muted) Danger else Fog,
+                description = "Mute",
+                modifier = Modifier.padding(start = 5.dp),
+            )
+        }
+        Spacer(Modifier.width(8.dp))
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 2.dp)) {
             Box(Modifier.size(8.dp).clip(CircleShape).background(ledColor.copy(alpha = ledAlpha)))
             Text(" ROAM-OS", style = MaterialTheme.typography.labelMedium, color = Fog)
@@ -282,18 +309,20 @@ private fun DeckKey(
     hero: Boolean = false,
     square: Boolean = false,
     showLabel: Boolean = false,
+    active: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
-    val scale by animateFloatAsState(if (pressed) 0.9f else 1f, label = "deck-key-scale")
+    val depressed = pressed || active
+    val scale by animateFloatAsState(if (depressed) 0.9f else 1f, label = "deck-key-scale")
     val density = LocalDensity.current
     val dropPx = with(density) { 2.dp.toPx() }
     val radiusPx = with(density) { size.toPx() * 1.6f }
     val shape = if (square) RoundedCornerShape(8.dp) else CircleShape
 
-    val top = if (pressed) Oxide2 else if (hero) GoldBright else Oxide3
-    val bottom = if (pressed) Abyss else if (hero) Brass else Oxide2
+    val top = if (depressed) Oxide2 else if (hero) GoldBright else Oxide3
+    val bottom = if (depressed) Abyss else if (hero) Brass else Oxide2
 
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -305,9 +334,9 @@ private fun DeckKey(
                 .graphicsLayer {
                     scaleX = scale
                     scaleY = scale
-                    translationY = if (pressed) dropPx else 0f
+                    translationY = if (depressed) dropPx else 0f
                 }
-                .shadow(if (pressed) 1.dp else 5.dp, shape)
+                .shadow(if (depressed) 1.dp else 5.dp, shape)
                 .clip(shape)
                 .background(Brush.radialGradient(listOf(top, bottom), center = Offset(0.3f, 0.25f), radius = radiusPx))
                 .drawBehind { drawRect(deckNoiseShader, alpha = 0.06f) }
@@ -321,7 +350,7 @@ private fun DeckKey(
             Icon(
                 icon,
                 contentDescription = description,
-                tint = if (pressed) tint.copy(alpha = 0.75f) else tint,
+                tint = if (depressed) tint.copy(alpha = 0.75f) else tint,
                 modifier = Modifier.size(if (hero) size * 0.5f else size * 0.55f),
             )
         }
@@ -354,6 +383,7 @@ private fun KeyDeck(
     currentRoute: String,
     focusModeEnabled: Boolean,
     hasRatedUp: Boolean,
+    menuOpen: Boolean,
     onRoam: () -> Unit,
     onThumbsUp: () -> Unit,
     onThumbsDown: () -> Unit,
@@ -367,6 +397,7 @@ private fun KeyDeck(
     val likeTint = if (hasRatedUp) Ok else MaterialTheme.colorScheme.onSurfaceVariant
     val roamTint = if (focusModeEnabled) MaterialTheme.colorScheme.tertiary else GoldBright
     val settingsTint = if (currentRoute == RoamTab.SettingsHub.route) TealBright else Fog
+    val settingsActive = currentRoute.startsWith("settings")
 
     val dislikeKey: @Composable (Modifier) -> Unit = { mod ->
         DeckKey(onThumbsDown, R.raw.skip, onFeedback, sizes.side, RoamOsIcons.Dislike, dislikeTint, "Dislike", square = square, showLabel = deckLabels, modifier = mod)
@@ -381,12 +412,12 @@ private fun KeyDeck(
         )
     }
     val menuKey: @Composable (Modifier) -> Unit = { mod ->
-        DeckKey(onOpenMenu, R.raw.click, onFeedback, sizes.side, RoamOsIcons.Menu, Fog, "Menu", square = square, showLabel = deckLabels, modifier = mod)
+        DeckKey(onOpenMenu, R.raw.click, onFeedback, sizes.side, RoamOsIcons.Menu, Fog, "Menu", square = square, active = menuOpen, showLabel = deckLabels, modifier = mod)
     }
     val settingsKey: @Composable (Modifier) -> Unit = { mod ->
         DeckKey(
             { if (currentRoute == RoamTab.Roam.route) onNavigate(RoamTab.SettingsHub.route) else onNavigate(RoamTab.Roam.route) },
-            R.raw.click, onFeedback, sizes.side, RoamOsIcons.Settings, settingsTint, "Settings", square = square, showLabel = deckLabels, modifier = mod,
+            R.raw.click, onFeedback, sizes.side, RoamOsIcons.Settings, settingsTint, "Settings", square = square, active = settingsActive, showLabel = deckLabels, modifier = mod,
         )
     }
 

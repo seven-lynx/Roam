@@ -45,6 +45,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberBottomSheetScaffoldState
 import androidx.compose.material3.rememberStandardBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -76,6 +77,7 @@ import app.roam.android.ui.component.ConfigBottomSheet
 import app.roam.android.ui.component.ControlDeck
 import app.roam.android.ui.component.ProgramLauncher
 import app.roam.android.ui.component.HandheldShell
+import app.roam.android.ui.component.LocalClickSound
 import app.roam.android.ui.component.OsStatusBar
 import app.roam.android.ui.component.RoamTab
 import app.roam.android.ui.component.Tour
@@ -114,6 +116,7 @@ fun MainScreen(
     val unreadNotificationCount by vm.unreadNotificationCount.collectAsState()
     val xpFlash by vm.xpFlash.collectAsState()
     val systemMessage by vm.systemMessage.collectAsState()
+    val soundEffectsEnabled by vm.soundEffectsEnabled.collectAsState()
     val showConfigSheet by vm.showConfigSheet.collectAsState()
     val state by vm.state.collectAsState()
     val collections by vm.collections.collectAsState()
@@ -160,6 +163,7 @@ fun MainScreen(
     val submitToast by vm.submitToast.collectAsState()
     val celebration by vm.celebration.collectAsState()
 
+    CompositionLocalProvider(LocalClickSound provides { vm.uiFeedback(R.raw.click) }) {
     Scaffold(
         modifier = Modifier.fillMaxSize(),
         bottomBar = {
@@ -174,6 +178,8 @@ fun MainScreen(
                     xpFlash = xpFlash,
                     focusModeEnabled = focusModeEnabled,
                     hasRatedUp = hasRatedUp,
+                    muted = !soundEffectsEnabled,
+                    menuOpen = showConfigSheet,
                     onRoam = {
                         if (showConfigSheet) vm.closeConfigSheet()
                         if (state is RoamState.Loaded) vm.roam()
@@ -195,6 +201,7 @@ fun MainScreen(
                         if (showConfigSheet) vm.closeConfigSheet()
                         showCommsMenu = !showCommsMenu
                     },
+                    onToggleMute = { vm.setSoundEffectsEnabled(!soundEffectsEnabled) },
                     deckLayout = deckLayout,
                     deckSize = deckSize,
                     deckShape = deckShape,
@@ -615,6 +622,7 @@ fun MainScreen(
         )
     }
 
+    }
 }
 
 // ── Discover tab ──────────────────────────────────────────────────────────────

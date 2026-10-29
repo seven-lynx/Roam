@@ -17,6 +17,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -25,6 +26,9 @@ import androidx.compose.ui.unit.dp
 import app.roam.android.ui.theme.Oxide3
 import app.roam.android.ui.theme.TealBright
 import kotlin.math.roundToInt
+
+/** Global click-sound hook for ROAM-OS menus/sub-menus. */
+val LocalClickSound = compositionLocalOf<() -> Unit> { {} }
 
 val DECK_LAYOUTS = listOf(
     "trapezoid" to "Trapezoid",
@@ -89,6 +93,7 @@ fun SettingsToggleRow(
     checked: Boolean,
     onCheckedChange: (Boolean) -> Unit,
 ) {
+    val clickSound = LocalClickSound.current
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -107,7 +112,7 @@ fun SettingsToggleRow(
                 )
             }
         }
-        Switch(checked = checked, onCheckedChange = onCheckedChange)
+        Switch(checked = checked, onCheckedChange = { clickSound(); onCheckedChange(it) })
     }
 }
 
@@ -117,6 +122,7 @@ fun SettingsFxSliderRow(
     value: Int,
     onChange: (Int) -> Unit,
 ) {
+    val clickSound = LocalClickSound.current
     Column(
         Modifier
             .fillMaxWidth()
@@ -133,6 +139,7 @@ fun SettingsFxSliderRow(
         Slider(
             value = value.toFloat(),
             onValueChange = { onChange(it.roundToInt()) },
+            onValueChangeFinished = { clickSound() },
             valueRange = 1f..10f,
             steps = 8,
         )
@@ -146,10 +153,11 @@ fun SettingsActionRow(
     onClick: () -> Unit,
     tint: Color = MaterialTheme.colorScheme.onSurface,
 ) {
+    val clickSound = LocalClickSound.current
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick)
+            .clickable { clickSound(); onClick() }
             .padding(horizontal = 16.dp, vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {

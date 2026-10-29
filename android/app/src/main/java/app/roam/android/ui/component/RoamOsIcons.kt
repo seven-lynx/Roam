@@ -31,6 +31,8 @@ import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.ThumbDown
 import androidx.compose.material.icons.filled.ThumbUp
 import androidx.compose.material.icons.filled.TravelExplore
+import androidx.compose.material.icons.filled.VolumeOff
+import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.ui.graphics.vector.ImageVector
 import app.roam.android.model.Badge
 
@@ -47,6 +49,8 @@ object RoamOsIcons {
     val Settings: ImageVector get() = Icons.Filled.Settings // gear glyph; opens the Settings Hub
     val Menu: ImageVector get() = Icons.Filled.Menu
     val Comms: ImageVector get() = Icons.Filled.SatelliteAlt
+    val Muted: ImageVector get() = Icons.Filled.VolumeOff
+    val Unmuted: ImageVector get() = Icons.Filled.VolumeUp
 
     /** Category emoji → icon (the eight core categories). */
     fun forCategoryIcon(emoji: String): ImageVector = when (emoji) {
