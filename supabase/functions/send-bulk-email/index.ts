@@ -2,13 +2,14 @@
 // Sends a bulk email to all users with email_notifications enabled.
 // Admin only — requires Authorization header with service role key.
 //
-// Body: { subject: string, bodyMarkdown: string }
+// Body: { subject, bodyMarkdown } for Markdown, or { subject, bodyHtml } for HTML.
+//       Optional testEmail sends to a single address instead of the full list.
 //
 // The Edge Function:
 //   1. Queries user_settings WHERE email_notifications = true
 //   2. Resolves user_id → email via auth.admin.listUsers()
-//   3. Renders Markdown to HTML + plain-text fallback
-//   4. Appends unsubscribe link to footer
+//   3. Renders Markdown or HTML + plain-text fallback
+//   4. Injects the per-recipient unsubscribe link
 //   5. Sends via Resend API in batches of 50
 //   6. Logs to email_log table
 
@@ -87,6 +88,18 @@ function stripHtml(html: string): string {
     .trim()
 }
 
+// Merge token replaced with the per-recipient unsubscribe link in HTML sends.
+const UNSUBSCRIBE_TOKEN = '{{UNSUBSCRIBE_URL}}'
+
+function htmlFooter(unsubscribeLink: string, webDomain: string): string {
+  return (
+    '<p style="margin:24px 0 0;padding-top:16px;border-top:1px solid #223741;' +
+    'font-family:monospace;font-size:12px;color:#8fa3a0;">' +
+    `You received this because you enabled notifications in your <a href="https://${webDomain}/settings" style="color:#8fa3a0;">Roam settings</a>. ` +
+    `<a href="${unsubscribeLink}" style="color:#8fa3a0;">Unsubscribe</a></p>`
+  )
+}
+
 // ═══════════════════════════════════════════════════════════════════════════
 // Create a signed unsubscribe token
 // ═══════════════════════════════════════════════════════════════════════════
@@ -144,19 +157,21 @@ Deno.serve(async (req: Request) => {
   }
 
   // Parse body
-  let body: { subject?: unknown; bodyMarkdown?: unknown }
+  let body: { subject?: unknown; bodyMarkdown?: unknown; bodyHtml?: unknown; testEmail?: unknown }
   try {
     body = await req.json()
   } catch {
     return json({ error: 'Invalid JSON body' }, 400)
   }
 
-  const { subject, bodyMarkdown } = body
+  const { subject, bodyMarkdown, bodyHtml, testEmail } = body
   if (typeof subject !== 'string' || !subject.trim()) {
     return json({ error: 'subject is required' }, 400)
   }
-  if (typeof bodyMarkdown !== 'string' || !bodyMarkdown.trim()) {
-    return json({ error: 'bodyMarkdown is required' }, 400)
+  const hasMarkdown = typeof bodyMarkdown === 'string' && bodyMarkdown.trim().length > 0
+  const hasHtml = typeof bodyHtml === 'string' && bodyHtml.trim().length > 0
+  if (!hasMarkdown && !hasHtml) {
+    return json({ error: 'bodyMarkdown or bodyHtml is required' }, 400)
   }
 
   const adminClient = createClient(supabaseUrl, serviceRoleKey)
@@ -208,13 +223,19 @@ Deno.serve(async (req: Request) => {
   }
 
   // Build recipient list with emails and unsubscribe tokens
-  const recipients: Array<{ userId: string; email: string; unsubscribeToken: string }> = []
+  const recipients: Array<{ userId: string; email: string; unsubscribeToken: string | null }> = []
 
   for (const uid of userIds) {
     const email = emailMap.get(uid)
     if (!email) continue
     const unsubscribeToken = await createUnsubscribeToken(uid, serviceRoleKey)
     recipients.push({ userId: uid, email, unsubscribeToken })
+  }
+
+  // Test mode: send to a single address instead of the full list.
+  if (typeof testEmail === 'string' && testEmail.trim()) {
+    recipients.length = 0
+    recipients.push({ userId: '__test__', email: testEmail.trim(), unsubscribeToken: null })
   }
 
   if (recipients.length === 0) {
@@ -224,8 +245,7 @@ Deno.serve(async (req: Request) => {
   // ── Step 3: Render email ─────────────────────────────────────────────────
   const mailFromDomain = 'mail.roamtheweb.app'
   const webDomain = 'roamtheweb.app'
-  const htmlBody = markdownToHtml(bodyMarkdown)
-  const textBody = stripHtml(htmlBody)
+  const htmlBody = hasHtml ? bodyHtml as string : markdownToHtml(bodyMarkdown as string)
 
   // ── Step 4: Send via Resend in batches of 50 ──────────────────────────────
   const BATCH_SIZE = 50
@@ -236,8 +256,22 @@ Deno.serve(async (req: Request) => {
     const batch = recipients.slice(i, i + BATCH_SIZE)
 
     const promises = batch.map(async (recip) => {
-      const unsubscribeLink = `https://${webDomain}/api/unsubscribe?token=${encodeURIComponent(recip.unsubscribeToken)}`
-      const footer = `\n\n---\n\nYou received this email because you enabled notifications in your [Roam settings](https://${webDomain}/settings).\n\n[Unsubscribe](https://${webDomain}/api/unsubscribe?token=${encodeURIComponent(recip.unsubscribeToken)})`
+      const unsubscribeLink = recip.unsubscribeToken
+        ? `https://${webDomain}/api/unsubscribe?token=${encodeURIComponent(recip.unsubscribeToken)}`
+        : `https://${webDomain}/settings`
+
+      let finalHtml: string
+      if (hasHtml) {
+        if (htmlBody.includes(UNSUBSCRIBE_TOKEN)) {
+          finalHtml = htmlBody.split(UNSUBSCRIBE_TOKEN).join(unsubscribeLink)
+        } else {
+          finalHtml = htmlBody + htmlFooter(unsubscribeLink, webDomain)
+        }
+      } else {
+        const footer = `\n\n---\n\nYou received this email because you enabled notifications in your [Roam settings](https://${webDomain}/settings).\n\n[Unsubscribe](${unsubscribeLink})`
+        finalHtml = markdownToHtml(bodyMarkdown as string) + markdownToHtml(footer)
+      }
+      const finalText = stripHtml(finalHtml)
 
       try {
         const response = await fetch('https://api.resend.com/emails', {
@@ -250,8 +284,8 @@ Deno.serve(async (req: Request) => {
             from: `Roam <hello@${mailFromDomain}>`,
             to: recip.email,
             subject: subject,
-            html: htmlBody + markdownToHtml(footer),
-            text: textBody + stripHtml(markdownToHtml(footer)),
+            html: finalHtml,
+            text: finalText,
           }),
         })
 
@@ -285,7 +319,7 @@ Deno.serve(async (req: Request) => {
     .from('email_log')
     .insert({
       subject,
-      body_md: bodyMarkdown,
+      body_md: hasHtml ? (bodyHtml as string) : (bodyMarkdown as string),
       recipient_count: recipients.length,
       success_count: successCount,
       fail_count: failCount,

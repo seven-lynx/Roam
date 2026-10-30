@@ -101,7 +101,7 @@ export function ScanSequence() {
     >
       <div className="screen-bar">
         <span className="led" aria-hidden="true" />
-        <span className="font-pixel tracking-[0.2em] text-ink">ROAM.EXE</span>
+        <span className="font-pixel tracking-[0.2em] text-ink">roam</span>
         <span className="flex-1" />
         <button type="button" onClick={close} className="text-muted hover:text-ink" aria-label="Close scan">✕</button>
       </div>

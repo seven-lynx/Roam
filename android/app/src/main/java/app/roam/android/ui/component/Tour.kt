@@ -84,7 +84,7 @@ data class TourStep(
 enum class MockupType {
     NONE,
     BOTTOM_BAR_ROAM,
-    BOTTOM_BAR_YOU,
+    BOTTOM_BAR_SETTINGS,
     BOTTOM_BAR_ALL,
     INFO_STRIP,
     SHEET_HANDLE,
@@ -97,7 +97,7 @@ private enum class TourPhase(val label: String) {
     MENU("The Config Menu"),
     BROWSER("Browser Superpowers"),
     CONTROLS("Discovery Controls"),
-    HUB("Your Hub"),
+    HUB("Settings Hub"),
 }
 
 // ── All 19 tour steps ────────────────────────────────────────────────────────────────────
@@ -106,7 +106,7 @@ private class TourEntry(
     val step: TourStep,
     val mockup: MockupType = MockupType.NONE,
     val autoOpenSheet: Boolean = false,
-    val autoSwitchToYou: Boolean = false,
+    val autoSwitchToSettingsHub: Boolean = false,
 )
 
 private val TOUR_ENTRIES = listOf(
@@ -116,8 +116,8 @@ private val TOUR_ENTRIES = listOf(
             phase = TourPhase.DISCOVERY.label,
             title = "Meet the Bottom Bar",
             description = "Four buttons. That's it. We're not trying to be a Swiss Army knife here.\n\n" +
-                "Skip (\uD83D\uDC4E) = not for you. Roam (\uD83E\uDDED) = surprise me. " +
-                "You (\uD83D\uDC64) = your stuff. Like (\uD83D\uDC4D) = more of this please.\n\n" +
+                "Dislike (\uD83D\uDC4E) = not for you. Roam (\uD83E\uDDED) = surprise me. " +
+                "Settings (\u2699\uFE0F) = your stuff. Like (\uD83D\uDC4D) = more of this please.\n\n" +
                 "It's basically Tinder for web pages, except the pages don't ghost you.",
             icon = Icons.Filled.Explore,
         ),
@@ -274,18 +274,18 @@ private val TOUR_ENTRIES = listOf(
         ),
     ),
 
-    // ── Phase 5: Your Hub (14-18) ─────────────────────────────────────────────────────────
+    // ── Phase 5: Settings Hub (14-18) ─────────────────────────────────────────────────────────
     TourEntry(
         step = TourStep(
             phase = TourPhase.HUB.label,
-            title = "This Is YOU",
-            description = "Tap the You tab. Go on, we'll switch you over.\n\n" +
+            title = "Settings Hub",
+            description = "Tap the Settings tab. Go on, we'll switch you over.\n\n" +
                 "This is your command center. Profile, stats, badges, followers \u2014 " +
                 "it's like the cockpit of a plane, except the plane is your internet addiction.",
             icon = Icons.Filled.Person,
         ),
-        mockup = MockupType.BOTTOM_BAR_YOU,
-        autoSwitchToYou = true,
+        mockup = MockupType.BOTTOM_BAR_SETTINGS,
+        autoSwitchToSettingsHub = true,
     ),
     TourEntry(
         step = TourStep(
@@ -341,7 +341,7 @@ private val TOUR_ENTRIES = listOf(
 fun Tour(
     modifier: Modifier = Modifier,
     onDismiss: () -> Unit,
-    onNavigateToYouTab: () -> Unit = {},
+    onNavigateToSettingsHub: () -> Unit = {},
     onOpenConfigSheet: () -> Unit = {},
 ) {
     var isDismissed by remember { mutableStateOf(value = false) }
@@ -379,7 +379,7 @@ fun Tour(
     LaunchedEffect(currentStep) {
         when {
             entry.autoOpenSheet -> onOpenConfigSheet()
-            entry.autoSwitchToYou -> onNavigateToYouTab()
+            entry.autoSwitchToSettingsHub -> onNavigateToSettingsHub()
         }
     }
 
@@ -578,7 +578,7 @@ private fun MockupStrip(type: MockupType) {
     when (type) {
         MockupType.BOTTOM_BAR_ALL -> BottomBarMockup(highlightedIndex = null)
         MockupType.BOTTOM_BAR_ROAM -> BottomBarMockup(highlightedIndex = 1)
-        MockupType.BOTTOM_BAR_YOU -> BottomBarMockup(highlightedIndex = 2)
+        MockupType.BOTTOM_BAR_SETTINGS -> BottomBarMockup(highlightedIndex = 2)
         MockupType.INFO_STRIP -> InfoStripMockup()
         MockupType.SHEET_HANDLE -> SheetHandleMockup()
         MockupType.NONE -> { /* never called */ }
@@ -588,9 +588,9 @@ private fun MockupStrip(type: MockupType) {
 @Composable
 private fun BottomBarMockup(highlightedIndex: Int?) {
     val items = listOf(
-        BottomBarMockItem("Skip", Icons.Outlined.ThumbDown),
+        BottomBarMockItem("Dislike", Icons.Outlined.ThumbDown),
         BottomBarMockItem("Roam", Icons.Outlined.Explore),
-        BottomBarMockItem("You", Icons.Filled.Person),
+        BottomBarMockItem("Settings", Icons.Filled.Settings),
         BottomBarMockItem("Like", Icons.Outlined.ThumbUp),
     )
 

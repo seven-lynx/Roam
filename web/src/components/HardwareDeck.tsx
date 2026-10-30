@@ -51,13 +51,13 @@ export function HardwareDeck({ onRoam }: { onRoam: () => void }) {
           aria-expanded={launcherOpen}
           aria-haspopup="dialog"
           onClick={() => setLauncherOpen(!launcherOpen)}
-          title="MENU.SYS"
+          title="menu"
         >
           <KeyIcon name="menu" />
           <span className="keycap-label">Menu</span>
           <span className="key-led" aria-hidden="true" />
         </button>
-        <button type="button" className="keycap keycap--roam" onClick={onRoam} title="ROAM.EXE /scan">
+        <button type="button" className="keycap keycap--roam" onClick={onRoam} title="roam scan">
           <KeyIcon name="roam" />
           <span className="keycap-label">Roam</span>
           <span className="key-led" aria-hidden="true" />
@@ -72,7 +72,7 @@ export function HardwareDeck({ onRoam }: { onRoam: () => void }) {
           <button type="button" className="right" aria-label="Scroll right" onClick={() => scrollBy(0, SCROLL_STEP)}>▶</button>
         </div>
         <div className="flex flex-col gap-2 items-center">
-          <button type="button" className="keycap !flex-none !px-3" onClick={() => setFeedbackOpen(true)} title="COMMS.EXE">
+          <button type="button" className="keycap !flex-none !px-3" onClick={() => setFeedbackOpen(true)} title="roam comms">
             <KeyIcon name="comms" className="w-3.5 h-3.5" />
             <span className="keycap-label">Comms</span>
           </button>

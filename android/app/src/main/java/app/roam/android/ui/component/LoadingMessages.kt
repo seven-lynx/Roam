@@ -59,7 +59,7 @@ private val messages = listOf(
     "Inverting the polarity of the neutron flow…",
     "Consulting the Oracle of Mountain View…",
     "Waiting for a sign from the algorithm gods…",
-    "Defragmenting the vibes…",
+    "fsck-ing the vibes…",
     "Jiggling the cables…",
     "Blowing on the cartridge…",
     "Shaking the magic 8-ball…",
@@ -457,7 +457,7 @@ private val messages = listOf(
     "Dividing by zero to find infinity...",
     "Optimizing your luck.js...",
     "Clearing the cache of mediocrity...",
-    "Running SELECT * FROM good_websites WHERE fun = true...",
+    "grep -rl fun ~/web...",
     "Compiling pure vibes...",
     "Debugging the internet...",
     "Refactoring serendipity...",
@@ -465,7 +465,7 @@ private val messages = listOf(
     "Merging branches of awesome...",
     "Testing in prod (don't tell the CTO)...",
     "Calling the good taste API...",
-    "Executing ORDER BY interestingness DESC...",
+    "sort -rn ~/roam/interestingness...",
     "Throwing this exception to the void...",
     "Initializing the vibe generator...",
     "No segmentation faults here, just fun...",
@@ -480,7 +480,7 @@ private val messages = listOf(
     "Deserialization in progress...",
     "Forking a better internet...",
     "Patching the boring web...",
-    "Compiling happiness.exe...",
+    "Compiling happiness.bin...",
     "Benchmarking coolness...",
     "Running a deep neural net of 'hell yes'...",
     "Allocating RAM for imagination...",
@@ -545,7 +545,7 @@ private val messages = listOf(
     "Nobody puts the internet in a corner",
     "Here's looking at you, web",
     "Why so serious? Here's something cool",
-    "Yippee ki-yay, internet explorer",
+    "Yippee ki-yay, midnight commander",
     "We're not in Kansas anymore...",
     "The red pill or the blue pill?",
     "There is no algorithm",
@@ -897,7 +897,7 @@ private val messages = listOf(
     "Serializing the best of the web...",
     "Fetching from cache (or the void)...",
     "Allocating memory to amazement...",
-    "Defragmenting your feed...",
+    "Compacting the inodes...",
     "Compressing expectations and expanding horizons...",
     "Threading the needle of relevance...",
     "Pipelineing your next rabbit hole...",
@@ -908,7 +908,7 @@ private val messages = listOf(
     "Swapping in some serendipity...",
     "Syncing your taste with reality...",
     "Iterating on the human condition...",
-    "Executing query: SELECT * FROM web WHERE interesting=true...",
+    "grep -R interesting ~/web...",
     "Memoizing your interests...",
     "Permuting possibilities...",
     "Hashing out what you should see...",
@@ -1378,9 +1378,47 @@ private val messages = listOf(
     "Appearing on the other side, forever changed...",
 )
 
-fun pickRandomMessage(): LoadingMessage {
-    val text = messages[Random.nextInt(messages.size)]
-    val durationSeconds = Random.nextLong(3, 9) // 3-8 seconds inclusive
+private val roamOsMessages = listOf(
+    "SPOOLING PHOSPHOR…",
+    "CALIBRATING CRT GEOMETRY…",
+    "ESTABLISHING UPLINK…",
+    "BOOTING ROAM-OS…",
+    "SCANNING THE SIGNAL…",
+    "TRIANGULATING SOURCE…",
+    "COMPILING DISCOVERY…",
+    "MOUNTING THE RESULT…",
+    "COMPACTING MEMORY BANKS…",
+    "CHARGING THE PHOSPHOR TUBE…",
+    "SYNCING ORBITAL CLOCK…",
+    "REWINDING THE SCAN…",
+    "DECODING HEX STREAM…",
+    "WARMING THE CATHODE…",
+    "NEGOTIATING HANDSHAKE…",
+    "REROUTING THROUGH THE MAINFRAME…",
+    "INDEXING THE ARCHIVE…",
+    "SAMPLING THE DISTRIBUTION…",
+    "APPLYING COOLDOWN MATRIX…",
+    "WEIGHTING YOUR INTEREST VECTOR…",
+    "RUNNING WILSON SCORE…",
+    "BALANCING EXPLORATION…",
+    "CALCULATING SERENDIPITY…",
+    "RESOLVING SIGNAL…",
+    "BUFFERING THE VOID…",
+    "STREAMING CONSCIOUSNESS…",
+    "HOT-WIRING THE MAINFRAME…",
+    "ALIGNING THE PHASE…",
+    "SQUELCHING INTERFERENCE…",
+    "PATCHING THE ROUTER…",
+    "FLASHING THE FIRMWARE…",
+    "TUNING THE ANTENNA…",
+    "LOCKING ONTO A FREQUENCY…",
+    "BROADCASTING CURIOSITY…",
+)
+
+fun pickRandomMessage(roamOs: Boolean = false): LoadingMessage {
+    val pool = if (roamOs) roamOsMessages else messages
+    val text = pool[Random.nextInt(pool.size)]
+    val durationSeconds = if (roamOs) Random.nextLong(2, 5) else Random.nextLong(3, 9)
     val durationMs = durationSeconds * 1000
     return LoadingMessage(text, durationMs)
 }

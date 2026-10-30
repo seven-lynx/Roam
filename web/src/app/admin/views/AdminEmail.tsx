@@ -2,9 +2,13 @@
 
 import type { EmailLogEntry } from "../actions";
 
+type EmailFormat = "markdown" | "html";
+
 interface AdminEmailProps {
   subject: string;
   body: string;
+  format: EmailFormat;
+  testEmail: string;
   sending: boolean;
   result: string | null;
   error: string | null;
@@ -13,12 +17,14 @@ interface AdminEmailProps {
   logsLoading: boolean;
   onSubjectChange: (v: string) => void;
   onBodyChange: (v: string) => void;
+  onFormatChange: (v: EmailFormat) => void;
+  onTestEmailChange: (v: string) => void;
   onSend: () => Promise<void>;
 }
 
 export default function AdminEmail({
-  subject, body, sending, result, error, notificationCount,
-  logs, logsLoading, onSubjectChange, onBodyChange, onSend,
+  subject, body, format, testEmail, sending, result, error, notificationCount,
+  logs, logsLoading, onSubjectChange, onBodyChange, onFormatChange, onTestEmailChange, onSend,
 }: AdminEmailProps) {
   return (
     <div className="flex flex-col gap-4">
@@ -28,6 +34,18 @@ export default function AdminEmail({
         <p className="text-xs text-muted mb-4">
           Sends to every user with email notifications enabled. Emails include an unsubscribe link.
         </p>
+        <div className="mb-4 inline-flex rounded-lg border border-line p-1" role="group" aria-label="Email format">
+          {(["markdown", "html"] as EmailFormat[]).map((f) => (
+            <button
+              key={f}
+              type="button"
+              onClick={() => onFormatChange(f)}
+              className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${format === f ? "bg-accent text-ink" : "text-muted hover:text-ink"}`}
+            >
+              {f === "markdown" ? "Markdown" : "HTML"}
+            </button>
+          ))}
+        </div>
         {notificationCount !== null && (
           <div className="mb-4 rounded-lg bg-panel-2 bg-panel-2/20 px-3 py-2.5 text-xs sm:text-sm text-gold">
             <strong>{notificationCount}</strong> user{notificationCount !== 1 ? "s" : ""} with notifications enabled
@@ -42,11 +60,18 @@ export default function AdminEmail({
             className="rounded-lg border border-line px-3 py-2.5 text-sm bg-panel text-ink placeholder:text-muted placeholder:text-muted"
           />
           <textarea
-            placeholder={"Write your email in Markdown...\n\n# Heading\n\nThis is **bold** and *italic*."}
+            placeholder={format === "html" ? "Paste full HTML here. Use {{UNSUBSCRIBE_URL}} where the unsubscribe link goes." : "Write your email in Markdown...\n\n# Heading\n\nThis is **bold** and *italic*."}
             value={body}
             onChange={(e) => { onBodyChange(e.target.value); }}
             rows={10}
             className="rounded-lg border border-line px-3 py-2.5 text-sm bg-panel text-ink placeholder:text-muted placeholder:text-muted font-mono resize-y"
+          />
+          <input
+            type="email"
+            placeholder="Test email (optional, sends only to this address)"
+            value={testEmail}
+            onChange={(e) => { onTestEmailChange(e.target.value); }}
+            className="rounded-lg border border-line px-3 py-2.5 text-sm bg-panel text-ink placeholder:text-muted"
           />
           <div className="flex flex-col sm:flex-row sm:items-center gap-3">
             <button onClick={onSend} disabled={sending || !subject.trim() || !body.trim()}
@@ -63,9 +88,18 @@ export default function AdminEmail({
         <div className="rounded-xl border border-line p-4 sm:p-6">
           <h2 className="text-base sm:text-lg font-semibold text-ink mb-1">Preview</h2>
           <p className="text-xs text-muted mb-3">Rough preview — email clients may render differently.</p>
-          <div className="rounded-lg border border-line border-line bg-panel-2 bg-panel p-3 text-sm text-muted font-mono whitespace-pre-wrap break-words max-h-64 overflow-y-auto">
-            {body}
-          </div>
+          {format === "html" ? (
+            <iframe
+              title="Email preview"
+              srcDoc={body}
+              sandbox=""
+              className="w-full h-96 rounded-lg border border-line bg-white"
+            />
+          ) : (
+            <div className="rounded-lg border border-line border-line bg-panel-2 bg-panel p-3 text-sm text-muted font-mono whitespace-pre-wrap break-words max-h-64 overflow-y-auto">
+              {body}
+            </div>
+          )}
         </div>
       )}
 

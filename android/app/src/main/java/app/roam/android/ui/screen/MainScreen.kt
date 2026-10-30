@@ -8,8 +8,13 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
@@ -22,22 +27,29 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.GpsFixed
 import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.BottomSheetScaffold
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.ScaffoldDefaults
 import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberBottomSheetScaffoldState
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material3.rememberStandardBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -60,17 +72,32 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import app.roam.android.MainActivity
+import app.roam.android.R
 import app.roam.android.ui.component.BackgroundPrefetchWebView
 import app.roam.android.ui.component.BottomBar
 import app.roam.android.ui.component.CelebrationOverlay
+import app.roam.android.ui.component.CommsMenu
+import app.roam.android.ui.component.BootScanLoading
 import app.roam.android.ui.component.ConfigBottomSheet
+import app.roam.android.ui.component.ControlDeck
+import app.roam.android.ui.component.ProgramLauncher
+import app.roam.android.ui.component.HandheldShell
+import app.roam.android.ui.component.HardwareFx
+import app.roam.android.ui.component.LocalClickSound
+import app.roam.android.ui.component.OsStatusBar
 import app.roam.android.ui.component.RoamTab
+import app.roam.android.ui.component.RoamOsBootScreen
 import app.roam.android.ui.component.Tour
+import app.roam.android.ui.component.TranslateLoading
 import app.roam.android.ui.component.RoamWebView
 import app.roam.android.ui.component.ShareUrlBottomSheet
 import app.roam.android.ui.component.SubmitBottomSheet
 import app.roam.android.ui.component.UserSearchSheet
 import app.roam.android.ui.component.pickRandomMessage
+import app.roam.android.ui.theme.LocalHardwarePalette
+import app.roam.android.ui.theme.RoamThemeVariant
+import app.roam.android.ui.theme.backlightColor
+import app.roam.android.ui.theme.roamOsPalette
 import app.roam.android.viewmodel.MainViewModel
 import app.roam.android.viewmodel.RoamState
 import kotlinx.coroutines.delay
@@ -79,6 +106,7 @@ import kotlinx.coroutines.launch
 import kotlin.time.Duration.Companion.milliseconds
 
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainScreen(
     vm: MainViewModel,
@@ -90,8 +118,46 @@ fun MainScreen(
     var currentTab by rememberSaveable { mutableStateOf(RoamTab.Roam.route) }
     var viewedUsername by rememberSaveable { mutableStateOf<String?>(null) }
     var showUserSearch by remember { mutableStateOf(false) }
+    var showCommsMenu by remember { mutableStateOf(false) }
     val focusModeEnabled by vm.focusModeEnabled.collectAsState()
     val hasRatedUp by vm.hasRatedUp.collectAsState()
+    val themeVariant by vm.themeVariant.collectAsState()
+    val isOnline by vm.isOnline.collectAsState()
+    val hotQueueSize by vm.hotQueueSize.collectAsState()
+    val warmQueueSize by vm.warmQueueSize.collectAsState()
+    val unreadNotificationCount by vm.unreadNotificationCount.collectAsState()
+    val xpFlash by vm.xpFlash.collectAsState()
+    val systemMessage by vm.systemMessage.collectAsState()
+    val systemMessageSpeed by vm.systemMessageSpeed.collectAsState()
+    val systemMessageDisplay by vm.systemMessageDisplay.collectAsState()
+    val upvoteCount by vm.upvoteCount.collectAsState()
+    val hardwareColorScheme by vm.hardwareColorScheme.collectAsState()
+    val backlightEnabled by vm.backlightEnabled.collectAsState()
+    val backlightColorKey by vm.backlightColor.collectAsState()
+    val soundEffectsEnabled by vm.soundEffectsEnabled.collectAsState()
+    val showConfigSheet by vm.showConfigSheet.collectAsState()
+    val state by vm.state.collectAsState()
+    val collections by vm.collections.collectAsState()
+    val categories by vm.categories.collectAsState()
+    val subcategories by vm.subcategories.collectAsState()
+    val currentUrl by vm.currentUrl.collectAsState()
+    val rawUrl by vm.rawUrl.collectAsState()
+    val showSubmitSheet by vm.showSubmitSheet.collectAsState()
+    val showShareUrlSheet by vm.showShareUrlSheet.collectAsState()
+    val deckLayout by vm.deckLayout.collectAsState()
+    val deckSize by vm.deckSize.collectAsState()
+    val deckShape by vm.deckShape.collectAsState()
+    val deviceFrameEnabled by vm.deviceFrameEnabled.collectAsState()
+    val surroundMatchDeck by vm.surroundMatchDeck.collectAsState()
+    val crtEffectsEnabled by vm.crtEffectsEnabled.collectAsState()
+    val crtFx by vm.crtFx.collectAsState()
+    val wearEnabled by vm.wearEnabled.collectAsState()
+    val deckLabelsEnabled by vm.deckLabelsEnabled.collectAsState()
+    val bezelFisheyeEnabled by vm.bezelFisheyeEnabled.collectAsState()
+    val hardwareFx by vm.hardwareFx.collectAsState()
+    val hardwareFxMaster by vm.hardwareFxMaster.collectAsState()
+    val deckTexture by vm.deckTexture.collectAsState()
+    val isRoamOs = themeVariant == RoamThemeVariant.ROAM_OS
 
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
         val launcher = rememberLauncherForActivityResult(
@@ -119,23 +185,93 @@ fun MainScreen(
     val submitToast by vm.submitToast.collectAsState()
     val celebration by vm.celebration.collectAsState()
 
+    CompositionLocalProvider(
+        LocalClickSound provides { vm.uiFeedback(R.raw.click) },
+        LocalHardwarePalette provides roamOsPalette(hardwareColorScheme),
+    ) {
     Scaffold(
         modifier = Modifier.fillMaxSize(),
+        contentWindowInsets = if (isRoamOs) WindowInsets(0, 0, 0, 0) else ScaffoldDefaults.contentWindowInsets,
         bottomBar = {
-            BottomBar(
-                currentRoute = currentTab,
-                onThumbsDown = { vm.thumbsDown(context) },
-                onThumbsUp = { vm.thumbsUp(context) },
-                onRoam = { vm.roam() },
-                onNavigate = { currentTab = it },
-                focusModeEnabled = focusModeEnabled,
-                hasRatedUp = hasRatedUp,
-            )
+            if (isRoamOs) {
+                ControlDeck(
+                    currentRoute = currentTab,
+                    isOnline = isOnline,
+                    hotQueueSize = hotQueueSize,
+                    warmQueueSize = warmQueueSize,
+                    systemMessage = systemMessage,
+                    systemMessageSpeed = systemMessageSpeed,
+                    systemMessageDisplay = systemMessageDisplay,
+                    backlightEnabled = backlightEnabled,
+                    backlightColor = backlightColor(backlightColorKey),
+                    unreadNotificationCount = unreadNotificationCount,
+                    xpFlash = xpFlash,
+                    focusModeEnabled = focusModeEnabled,
+                    hasRatedUp = hasRatedUp,
+                    muted = !soundEffectsEnabled,
+                    menuOpen = showConfigSheet,
+                    onRoam = {
+                        if (showConfigSheet) vm.closeConfigSheet()
+                        if (state is RoamState.Loaded) vm.roam()
+                    },
+                    onThumbsUp = {
+                        if (showConfigSheet) vm.closeConfigSheet()
+                        vm.thumbsUp(context)
+                    },
+                    onThumbsDown = {
+                        if (showConfigSheet) vm.closeConfigSheet()
+                        vm.thumbsDown(context)
+                    },
+                    onNavigate = {
+                        if (showConfigSheet) vm.closeConfigSheet()
+                        currentTab = it
+                    },
+                    onOpenMenu = { if (showConfigSheet) vm.closeConfigSheet() else vm.openConfigSheet() },
+                    onOpenComms = {
+                        if (showConfigSheet) vm.closeConfigSheet()
+                        showCommsMenu = !showCommsMenu
+                    },
+                    onToggleMute = { vm.setSoundEffectsEnabled(!soundEffectsEnabled) },
+                    deckLayout = deckLayout,
+                    deckSize = deckSize,
+                    deckShape = deckShape,
+                    deckLabels = deckLabelsEnabled,
+                    texture = deckTexture,
+                    onFeedback = { vm.uiFeedback(it) },
+                )
+            } else {
+                BottomBar(
+                    currentRoute = currentTab,
+                    onThumbsDown = { vm.thumbsDown(context) },
+                    onThumbsUp = { vm.thumbsUp(context) },
+                    onRoam = { vm.roam() },
+                    onNavigate = { currentTab = it },
+                    focusModeEnabled = focusModeEnabled,
+                    hasRatedUp = hasRatedUp,
+                    labelsEnabled = deckLabelsEnabled,
+                )
+            }
         },
     ) { innerPadding ->
         Box(Modifier.fillMaxSize().padding(innerPadding)) {
+            HandheldShell(
+                framed = isRoamOs && deviceFrameEnabled,
+                surroundMatchDeck = surroundMatchDeck,
+                nixieValue = upvoteCount,
+                crtEnabled = isRoamOs && crtEffectsEnabled,
+                crtFx = crtFx,
+                wear = isRoamOs && wearEnabled,
+                bezelFisheye = isRoamOs && bezelFisheyeEnabled,
+                hardware = if (hardwareFxMaster) hardwareFx else HardwareFx(antenna = false, nixie = false, activityLed = false, vacuumTube = false),
+                texture = deckTexture,
+                modifier = Modifier.fillMaxSize(),
+            ) {
+                Box(Modifier.fillMaxSize()) {
             BackHandler(enabled = currentTab != RoamTab.Roam.route) {
-                currentTab = RoamTab.Roam.route
+                currentTab = when (currentTab) {
+                    RoamTab.Appearance.route, RoamTab.Browser.route, RoamTab.Discovery.route, RoamTab.Effects.route -> RoamTab.SettingsHub.route
+                    else -> RoamTab.Roam.route
+                }
             }
 
             // DiscoverTab always alive
@@ -147,15 +283,16 @@ fun MainScreen(
                 onNavigateToInterests = onNavigateToInterests,
             )
 
-            // ── You tab (hub) ──────────────────────────────────────
+            // ── Settings Hub ──────────────────────────────────────
             AnimatedVisibility(
-                visible = currentTab == RoamTab.You.route,
-                enter = fadeIn(spring()),
-                exit = fadeOut(spring()),
+                visible = currentTab == RoamTab.SettingsHub.route,
+                enter = slideInVertically(initialOffsetY = { it }) + fadeIn(tween(260)),
+                exit = slideOutVertically(targetOffsetY = { it }) + fadeOut(tween(220)),
             ) {
-                YouScreen(
+                SettingsHubScreen(
                     vm = vm,
                     onSignOut = doSignOut,
+                    roamOs = isRoamOs,
                     onNavigateToProfile = { currentTab = RoamTab.Profile.route },
                     onNavigateToSaved = { currentTab = RoamTab.Saved.route },
                     onNavigateToHistory = { currentTab = RoamTab.History.route },
@@ -164,7 +301,6 @@ fun MainScreen(
                     onNavigateToChallenges = { currentTab = RoamTab.Challenges.route },
                     onNavigateToLeaderboard = { currentTab = RoamTab.Leaderboard.route },
                     onNavigateToActivityFeed = { currentTab = RoamTab.ActivityFeed.route },
-                    onNavigateToSettings = { currentTab = RoamTab.Settings.route },
                     onNavigateToPublicProfile = { username ->
                         viewedUsername = username
                         currentTab = RoamTab.PublicProfile.route
@@ -172,23 +308,62 @@ fun MainScreen(
                     onNavigateToRoam = { currentTab = RoamTab.Roam.route },
                     onOpenUserSearch = { showUserSearch = true },
                     onNavigateToAdmin = { currentTab = RoamTab.Admin.route },
+                    onNavigateToAppearance = { currentTab = RoamTab.Appearance.route },
+                    onNavigateToBrowser = { currentTab = RoamTab.Browser.route },
+                    onNavigateToDiscovery = { currentTab = RoamTab.Discovery.route },
+                    onNavigateToEffects = { currentTab = RoamTab.Effects.route },
                 )
             }
 
-            // ── Settings ───────────────────────────────────────────
+            // ── Appearance ───────────────────────────────────────────
             AnimatedVisibility(
-                visible = currentTab == RoamTab.Settings.route,
-                enter = fadeIn(spring()),
-                exit = fadeOut(spring()),
+                visible = currentTab == RoamTab.Appearance.route,
+                enter = slideInHorizontally(initialOffsetX = { it }) + fadeIn(tween(240)),
+                exit = slideOutHorizontally(targetOffsetX = { it }) + fadeOut(tween(200)),
             ) {
-                SettingsScreen(
+                AppearanceScreen(
                     vm = vm,
-                    onSignOut = doSignOut,
-                    onNavigateToSaved = { currentTab = RoamTab.Saved.route },
-                    onNavigateToProfile = { currentTab = RoamTab.Profile.route },
-                    onNavigateToHistory = { currentTab = RoamTab.History.route },
-                    onNavigateToNotifications = { currentTab = RoamTab.Notifications.route },
-                    onNavigateToRoam = { currentTab = RoamTab.Roam.route },
+                    roamOs = isRoamOs,
+                    onNavigateBack = { currentTab = RoamTab.SettingsHub.route },
+                )
+            }
+
+            // ── Browser ────────────────────────────────────────────
+            AnimatedVisibility(
+                visible = currentTab == RoamTab.Browser.route,
+                enter = slideInHorizontally(initialOffsetX = { it }) + fadeIn(tween(240)),
+                exit = slideOutHorizontally(targetOffsetX = { it }) + fadeOut(tween(200)),
+            ) {
+                BrowserScreen(
+                    vm = vm,
+                    roamOs = isRoamOs,
+                    onNavigateBack = { currentTab = RoamTab.SettingsHub.route },
+                )
+            }
+
+            // ── Discovery ──────────────────────────────────────────
+            AnimatedVisibility(
+                visible = currentTab == RoamTab.Discovery.route,
+                enter = slideInHorizontally(initialOffsetX = { it }) + fadeIn(tween(240)),
+                exit = slideOutHorizontally(targetOffsetX = { it }) + fadeOut(tween(200)),
+            ) {
+                DiscoveryScreen(
+                    vm = vm,
+                    roamOs = isRoamOs,
+                    onNavigateBack = { currentTab = RoamTab.SettingsHub.route },
+                )
+            }
+
+            // ── Notifications & Effects ────────────────────────────
+            AnimatedVisibility(
+                visible = currentTab == RoamTab.Effects.route,
+                enter = slideInHorizontally(initialOffsetX = { it }) + fadeIn(tween(240)),
+                exit = slideOutHorizontally(targetOffsetX = { it }) + fadeOut(tween(200)),
+            ) {
+                EffectsScreen(
+                    vm = vm,
+                    roamOs = isRoamOs,
+                    onNavigateBack = { currentTab = RoamTab.SettingsHub.route },
                 )
             }
 
@@ -200,7 +375,7 @@ fun MainScreen(
             ) {
                 SavedScreen(
                     vm = vm,
-                    onNavigateBack = { currentTab = RoamTab.You.route },
+                    onNavigateBack = { currentTab = RoamTab.SettingsHub.route },
                     onNavigateToUrl = { url ->
                         vm.navigateToWeb(url)
                         currentTab = RoamTab.Roam.route
@@ -216,7 +391,7 @@ fun MainScreen(
             ) {
                 ProfileScreen(
                     vm = vm,
-                    onNavigateBack = { currentTab = RoamTab.You.route },
+                    onNavigateBack = { currentTab = RoamTab.SettingsHub.route },
                     onSignOut = doSignOut,
                     onNavigateToBadges = { currentTab = RoamTab.Badges.route },
                 )
@@ -230,7 +405,7 @@ fun MainScreen(
             ) {
                 HistoryScreen(
                     vm = vm,
-                    onNavigateBack = { currentTab = RoamTab.You.route },
+                    onNavigateBack = { currentTab = RoamTab.SettingsHub.route },
                     onNavigateToUrl = { url ->
                         vm.navigateTo(url)
                         currentTab = RoamTab.Roam.route
@@ -246,7 +421,7 @@ fun MainScreen(
             ) {
                 NotificationsScreen(
                     vm = vm,
-                    onNavigateBack = { currentTab = RoamTab.You.route },
+                    onNavigateBack = { currentTab = RoamTab.SettingsHub.route },
                     onNavigateToUrl = { url ->
                         vm.navigateTo(url)
                         currentTab = RoamTab.Roam.route
@@ -262,7 +437,7 @@ fun MainScreen(
             ) {
                 ActivityFeedScreen(
                     vm = vm,
-                    onNavigateBack = { currentTab = RoamTab.You.route },
+                    onNavigateBack = { currentTab = RoamTab.SettingsHub.route },
                     onNavigateToProfile = { username ->
                         viewedUsername = username
                         currentTab = RoamTab.PublicProfile.route
@@ -280,7 +455,7 @@ fun MainScreen(
                 enter = fadeIn(spring()),
                 exit = fadeOut(spring()),
             ) {
-                BadgesScreen(vm = vm, onNavigateBack = { currentTab = RoamTab.You.route })
+                BadgesScreen(vm = vm, onNavigateBack = { currentTab = RoamTab.SettingsHub.route })
             }
 
             // ── Challenges ─────────────────────────────────────────
@@ -289,7 +464,7 @@ fun MainScreen(
                 enter = fadeIn(spring()),
                 exit = fadeOut(spring()),
             ) {
-                ChallengesScreen(vm = vm, onNavigateBack = { currentTab = RoamTab.You.route })
+                ChallengesScreen(vm = vm, onNavigateBack = { currentTab = RoamTab.SettingsHub.route })
             }
 
             // ── Leaderboard ────────────────────────────────────────
@@ -300,7 +475,7 @@ fun MainScreen(
             ) {
                 LeaderboardScreen(
                     vm = vm,
-                    onNavigateBack = { currentTab = RoamTab.You.route },
+                    onNavigateBack = { currentTab = RoamTab.SettingsHub.route },
                     onNavigateToProfile = { username ->
                         viewedUsername = username
                         currentTab = RoamTab.PublicProfile.route
@@ -317,7 +492,7 @@ fun MainScreen(
                 PublicProfileScreen(
                     vm = vm,
                     username = viewedUsername!!,
-                    onNavigateBack = { currentTab = RoamTab.You.route },
+                    onNavigateBack = { currentTab = RoamTab.SettingsHub.route },
                     onNavigateToUrl = { url ->
                         vm.navigateTo(url)
                         currentTab = RoamTab.Roam.route
@@ -340,6 +515,7 @@ fun MainScreen(
                 AdminScreen(
                     vm = vm,
                     isAdmin = adminModeEnabled,
+                    roamOs = isRoamOs,
                     onNavigateToRoam = { currentTab = RoamTab.Roam.route },
                     onNavigateToWeb = { url ->
                         vm.navigateToWeb(url)
@@ -366,9 +542,85 @@ fun MainScreen(
             if (!vm.hasSeenWalkthrough()) {
                 Tour(
                     onDismiss = { vm.markWalkthroughSeen() },
-                    onNavigateToYouTab = { currentTab = RoamTab.You.route },
+                    onNavigateToSettingsHub = { currentTab = RoamTab.SettingsHub.route },
                     onOpenConfigSheet = { vm.openConfigSheet() },
                 )
+            }
+
+    // ── ROAM-OS program launcher (hoisted above all tabs) ──────────────────────
+    if (isRoamOs && showConfigSheet) {
+        val loaded = state as? RoamState.Loaded
+        val programSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+        ModalBottomSheet(onDismissRequest = { vm.closeConfigSheet() }, sheetState = programSheetState) {
+            ProgramLauncher(
+            collections = collections,
+            isTranslated = vm.isTranslated,
+            onToggleTranslation = { vm.toggleTranslation() },
+            onTranslate = { lang -> vm.translateTo(lang) },
+            onSaveForLater = { vm.saveForLater() },
+            onShare = {
+                val si = Intent(Intent.ACTION_SEND).apply { type = "text/plain"; putExtra(Intent.EXTRA_TEXT, currentUrl ?: "") }
+                activity.startActivity(Intent.createChooser(si, null))
+            },
+            onShareWithFriend = { vm.openShareUrlSheet() },
+            onAddToCollection = { cid -> vm.addCurrentUrlToCollection(cid) },
+            onCreateCollectionAndAdd = { name -> vm.createCollectionAndAdd(name) },
+            onRoamWithinCategory = { vm.roamWithinCategory() },
+            onRoamCollection = { cid -> vm.roamCollection(cid) },
+            onManageCollections = { currentTab = RoamTab.Saved.route },
+            onNavBack = { vm.webNavBack() },
+            onNavForward = { vm.webNavForward() },
+            onNavReload = { vm.webNavReload() },
+            onReportBrokenLink = { vm.reportBrokenLink() },
+            title = loaded?.roamUrl?.title,
+            description = loaded?.roamUrl?.description,
+            domain = rawUrl?.toUri()?.host?.removePrefix("www."),
+            category = loaded?.roamUrl?.categoryId?.let { id -> categories.firstOrNull { it.id == id }?.name },
+            subcategory = loaded?.roamUrl?.subcategoryId?.let { id -> subcategories.firstOrNull { it.id == id }?.name },
+            onClose = { vm.closeConfigSheet() },
+            modifier = Modifier.fillMaxWidth(),
+            )
+        }
+    }
+
+    // ── ROAM-OS comms menu ─────────────────────────────────────────────────────
+    if (isRoamOs && showCommsMenu) {
+        CommsMenu(
+            onCheckNotifications = {
+                showCommsMenu = false
+                vm.fetchUnreadNotificationCount()
+                currentTab = RoamTab.Notifications.route
+            },
+            onSendFeedback = { message, email ->
+                showCommsMenu = false
+                vm.sendFeedback(message, email) { success ->
+                    vm.showTransientToast(if (success) "Feedback sent" else "Couldn't send feedback")
+                }
+            },
+            onSubmitUrl = {
+                showCommsMenu = false
+                vm.openSubmitSheet()
+            },
+            onClose = { showCommsMenu = false },
+            modifier = Modifier.fillMaxSize(),
+        )
+    }
+
+    // ── Submit-URL sheet (hoisted above all tabs) ──────────────────────────────
+    if (showSubmitSheet) {
+        SubmitBottomSheet(
+            url = rawUrl ?: currentUrl,
+            categories = categories,
+            onSubmit = { submittedUrl, categoryId -> vm.submitUrl(submittedUrl, categoryId) },
+            onDismiss = { vm.closeSubmitSheet() },
+        )
+    }
+
+    // ── Share-URL-with-friend sheet (hoisted above all tabs) ───────────────────
+    if (showShareUrlSheet) {
+        ShareUrlBottomSheet(vm = vm, onDismiss = { vm.closeShareUrlSheet() })
+    }
+                }
             }
         }
     }
@@ -408,6 +660,8 @@ fun MainScreen(
             onDismiss = { vm.onCelebrationDismissed() },
         )
     }
+
+    }
 }
 
 // ── Discover tab ──────────────────────────────────────────────────────────────
@@ -426,10 +680,8 @@ private fun DiscoverTab(
     val state by vm.state.collectAsState()
     val currentUrl by vm.currentUrl.collectAsState()
     val rawUrl by vm.rawUrl.collectAsState()
-    val showSubmitSheet by vm.showSubmitSheet.collectAsState()
     val savedConfirmation by vm.savedConfirmation.collectAsState()
     val reportConfirmation by vm.reportConfirmation.collectAsState()
-    val submitToast by vm.submitToast.collectAsState()
     val collections by vm.collections.collectAsState()
     val categories by vm.categories.collectAsState()
     val subcategories by vm.subcategories.collectAsState()
@@ -442,7 +694,11 @@ private fun DiscoverTab(
     val adminModeEnabled by vm.adminModeEnabled.collectAsState()
     val prefetchWebView by vm.prefetchWebView.collectAsState()
     val nextPrefetchUrl by vm.nextPrefetchUrl.collectAsState()
-    val showShareUrlSheet by vm.showShareUrlSheet.collectAsState()
+    val themeVariant by vm.themeVariant.collectAsState()
+    val soundEffectsEnabled by vm.soundEffectsEnabled.collectAsState()
+    val isTranslating by vm.isTranslating.collectAsState()
+    val translateLanguage by vm.translateLanguage.collectAsState()
+    val isRoamOs = themeVariant == RoamThemeVariant.ROAM_OS
 
     var initialRoamDone by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) {
@@ -469,23 +725,42 @@ private fun DiscoverTab(
 
     var webViewLoading by rememberSaveable { mutableStateOf(false) }
     var lastLoadedUrl by remember { mutableStateOf<String?>(null) }
-    var loadingMessage by remember { mutableStateOf(pickRandomMessage()) }
+    var loadingMessage by remember { mutableStateOf(pickRandomMessage(roamOs = isRoamOs)) }
     var webViewRecovering by remember { mutableStateOf(false) }
+    var resumeStandby by remember { mutableStateOf(false) }
     val loaded = state as? RoamState.Loaded
     val isRoaming = state is RoamState.Loading ||
             (currentUrl == loaded?.roamUrl?.url && (webViewLoading || (currentUrl != lastLoadedUrl)))
     val showOverlay = rawUrl == null || isRoaming || webViewRecovering
+
+    // ROAM-OS scan finish: hold the scan overlay one short beat after a
+    // successful load so the sequence plays "MOUNT COMPLETE" before the page is
+    // revealed, rather than being cut off the instant the WebView finishes.
+    var scanActive by remember { mutableStateOf(false) }
+    var scanFinishPending by remember { mutableStateOf(false) }
+    val latestState by rememberUpdatedState(state)
     LaunchedEffect(showOverlay) {
         if (showOverlay) {
-            loadingMessage = pickRandomMessage()
+            scanActive = true
+            scanFinishPending = false
+        } else if (scanActive && isRoamOs && latestState is RoamState.Loaded) {
+            scanActive = false
+            scanFinishPending = true
+            delay(500)
+            scanFinishPending = false
+        }
+    }
+    LaunchedEffect(showOverlay) {
+        if (showOverlay) {
+            loadingMessage = pickRandomMessage(roamOs = isRoamOs)
             while (true) {
                 delay(loadingMessage.displayDurationMs.milliseconds)
-                loadingMessage = pickRandomMessage()
+                loadingMessage = pickRandomMessage(roamOs = isRoamOs)
             }
         }
     }
     val categoryName: String? = loaded?.roamUrl?.categoryId
-        ?.let { catId -> categories.firstOrNull { it.id == catId }?.let { "${it.icon} ${it.name}" } }
+        ?.let { catId -> categories.firstOrNull { it.id == catId }?.name }
     val subcategoryName: String? = loaded?.roamUrl?.subcategoryId
         ?.let { subId -> subcategories.firstOrNull { it.id == subId }?.name }
     val domain: String? = rawUrl?.let { it.toUri().host?.removePrefix("www.") }
@@ -507,6 +782,7 @@ private fun DiscoverTab(
 
     // VM flag → physical sheet (open/close from tap handle, Tour, etc.)
     LaunchedEffect(showConfigSheet) {
+        if (isRoamOs) return@LaunchedEffect
         try {
             if (showConfigSheet) scaffoldState.bottomSheetState.expand()
             else scaffoldState.bottomSheetState.partialExpand()
@@ -517,6 +793,7 @@ private fun DiscoverTab(
     // settles into PartiallyExpanded. Force-collapse after a short delay so the
     // config sheet always starts closed on fresh app launches.
     LaunchedEffect(Unit) {
+        if (isRoamOs) return@LaunchedEffect
         delay(200)
         try {
             scaffoldState.bottomSheetState.partialExpand()
@@ -529,6 +806,7 @@ private fun DiscoverTab(
     // flip showConfigSheet to false on first composition before the sheet
     // settles — that would create a feedback loop locking the sheet open.
     LaunchedEffect(scaffoldState.bottomSheetState) {
+        if (isRoamOs) return@LaunchedEffect
         snapshotFlow { scaffoldState.bottomSheetState.currentValue }
             .drop(1)
             .collect { value ->
@@ -546,6 +824,7 @@ private fun DiscoverTab(
     // every resume (after a short settle delay for insets / WebView restore).
     val lifecycleOwner = LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner) {
+        if (isRoamOs) return@DisposableEffect onDispose { }
         val observer = LifecycleEventObserver { _, event ->
             if (event != Lifecycle.Event.ON_RESUME) return@LifecycleEventObserver
             scope.launch {
@@ -569,6 +848,22 @@ private fun DiscoverTab(
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
+    // ROAM-OS resume: show the boot/standby animation on return from background
+    // until the WebView reports the page is visible again (or a safety timeout).
+    DisposableEffect(lifecycleOwner) {
+        val resumeObserver = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME && isRoamOs) resumeStandby = true
+        }
+        lifecycleOwner.lifecycle.addObserver(resumeObserver)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(resumeObserver) }
+    }
+    LaunchedEffect(resumeStandby) {
+        if (resumeStandby) {
+            delay(1600)
+            resumeStandby = false
+        }
+    }
+
 
     BottomSheetScaffold(
         modifier = Modifier,
@@ -576,8 +871,9 @@ private fun DiscoverTab(
         sheetContainerColor = Color.Transparent,
         sheetShadowElevation = 0.dp,
         sheetTonalElevation = 0.dp,
-        sheetSwipeEnabled = sheetGestureMode == "slide",
+        sheetSwipeEnabled = !isRoamOs && sheetGestureMode == "slide",
         sheetDragHandle = {
+            if (!isRoamOs) {
             if (sheetGestureMode == "tap") {
                 Box(
                     Modifier
@@ -627,6 +923,7 @@ private fun DiscoverTab(
                     }
                 }
             }
+            }
         },
         sheetContent = {
             Surface(
@@ -672,9 +969,21 @@ private fun DiscoverTab(
                 )
             }
         },
-        sheetPeekHeight = 28.dp,
+        sheetPeekHeight = if (isRoamOs) 0.dp else 28.dp,
     ) { contentPadding ->
         Column(Modifier.fillMaxSize().padding(top = contentPadding.calculateTopPadding())) {
+                if (isRoamOs) {
+                    OsStatusBar(
+                        category = displayCategory,
+                        subcategory = displaySubcategory,
+                        domain = displayDomain,
+                        errorText = (state as? RoamState.Error)?.message,
+                        exhausted = state is RoamState.Exhausted,
+                        offline = !isOnline,
+                        loading = isRoaming || (rawUrl == null && state is RoamState.Idle),
+                        onRetry = { vm.roam() },
+                    )
+                } else {
             Surface(
                 modifier = Modifier.fillMaxWidth(),
                 color = MaterialTheme.colorScheme.surfaceVariant,
@@ -711,6 +1020,7 @@ private fun DiscoverTab(
                     }
                 }
             }
+                }
 
             Column(Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surfaceContainer)) {
                 if (savedConfirmation) Row(Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.secondaryContainer).padding(horizontal = 16.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) { Text("Saved for later", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSecondaryContainer) }
@@ -725,23 +1035,24 @@ private fun DiscoverTab(
                     jsEnabled = jsEnabled,
                     onUrlChanged = { vm.onWebViewUrlChanged(it) },
                     onLoadError = { vm.roam() },
-                    onLoadingChanged = { loading -> webViewLoading = loading; if (!loading) lastLoadedUrl = currentUrl },
-                    onPageVisible = { webViewLoading = false; lastLoadedUrl = currentUrl },
+                    onLoadingChanged = { loading -> webViewLoading = loading; if (!loading) { lastLoadedUrl = currentUrl; resumeStandby = false; vm.clearTranslating() } },
+                    onPageVisible = { webViewLoading = false; lastLoadedUrl = currentUrl; resumeStandby = false; vm.clearTranslating() },
                     onRecovering = { recovering -> webViewRecovering = recovering },
                     onPageFinishedForPrefetch = { vm.onPageFinishedForPrefetch() },
                     navCommandsFlow = vm.webNavFlow,
                     clearCookiesFlow = vm.clearCookiesFlow,
                 )
 
-                if (showOverlay) {
+                if (showOverlay || scanFinishPending || resumeStandby) {
                     Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background), contentAlignment = Alignment.Center) {
                         when {
                             state is RoamState.Error -> {
                                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                    Text(
-                                        text = "\u26A0",
-                                        style = MaterialTheme.typography.displaySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    Icon(
+                                        imageVector = Icons.Filled.Warning,
+                                        contentDescription = "Error",
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        modifier = Modifier.size(48.dp),
                                     )
                                     Spacer(Modifier.size(12.dp))
                                     Text(
@@ -757,9 +1068,10 @@ private fun DiscoverTab(
                             }
                             state is RoamState.Exhausted -> {
                                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                    Text(
-                                        text = "\uD83C\uDFAF",
-                                        style = MaterialTheme.typography.displaySmall,
+                                    Icon(
+                                        imageVector = Icons.Filled.GpsFixed,
+                                        contentDescription = "Done",
+                                        modifier = Modifier.size(48.dp),
                                     )
                                     Spacer(Modifier.size(12.dp))
                                     Text(
@@ -776,10 +1088,24 @@ private fun DiscoverTab(
                                 }
                             }
                             else -> {
-                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                    CircularProgressIndicator(Modifier.size(40.dp), strokeWidth = 3.dp, color = MaterialTheme.colorScheme.primary)
-                                    Spacer(Modifier.size(16.dp))
-                                    Text(loadingMessage.text, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                if (isRoamOs) {
+                                    if (isTranslating) {
+                                        TranslateLoading(language = translateLanguage, soundEnabled = soundEffectsEnabled)
+                                    } else if (isRoaming) {
+                                        BootScanLoading(
+                                            message = loadingMessage.text,
+                                            finishing = scanFinishPending,
+                                            soundEnabled = soundEffectsEnabled,
+                                        )
+                                    } else {
+                                        RoamOsBootScreen()
+                                    }
+                                } else {
+                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                        CircularProgressIndicator(Modifier.size(40.dp), strokeWidth = 3.dp, color = MaterialTheme.colorScheme.primary)
+                                        Spacer(Modifier.size(16.dp))
+                                        Text(loadingMessage.text, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    }
                                 }
                             }
                         }
@@ -791,14 +1117,5 @@ private fun DiscoverTab(
                 }
             }
         }
-    }
-
-    if (showSubmitSheet) {
-        SubmitBottomSheet(url = rawUrl ?: currentUrl, categories = categories, onSubmit = { submittedUrl, categoryId -> vm.submitUrl(submittedUrl, categoryId) }, onDismiss = { vm.closeSubmitSheet() })
-    }
-
-    // Share URL with friend sheet
-    if (showShareUrlSheet) {
-        ShareUrlBottomSheet(vm = vm, onDismiss = { vm.closeShareUrlSheet() })
     }
 }

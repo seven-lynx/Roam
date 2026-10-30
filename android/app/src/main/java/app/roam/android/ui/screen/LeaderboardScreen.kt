@@ -19,6 +19,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.EmojiEvents
+import androidx.compose.material.icons.filled.LocalFireDepartment
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -108,7 +110,7 @@ fun LeaderboardScreen(
             } else if (leaderboard.isEmpty()) {
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text("\uD83C\uDFC6", style = MaterialTheme.typography.displaySmall)
+                        Icon(Icons.Filled.EmojiEvents, contentDescription = null, modifier = Modifier.size(48.dp))
                         Text("No rankings yet", color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f))
                         Text("Be the first to roam!", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f))
                     }

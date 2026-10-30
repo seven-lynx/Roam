@@ -22,6 +22,13 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.OpenInBrowser
+import androidx.compose.material.icons.filled.Cancel
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.EmojiEvents
+import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
@@ -42,6 +49,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import app.roam.android.model.AppNotification
@@ -71,14 +79,14 @@ private fun formatTimeAgo(createdAt: String): String {
     }
 }
 
-private fun getNotificationIcon(type: String): String = when (type) {
-    "url_approved" -> "\u2705"
-    "url_rejected" -> "\u274C"
-    "new_follower" -> "\uD83D\uDC64"
-    "badge_unlocked" -> "\uD83C\uDFC5"
-    "level_up" -> "\u2B06\uFE0F"
-    "url_shared" -> "\uD83D\uDCCE"
-    else -> "\uD83D\uDD14"
+private fun getNotificationIcon(type: String): ImageVector = when (type) {
+    "url_approved" -> Icons.Filled.CheckCircle
+    "url_rejected" -> Icons.Filled.Cancel
+    "new_follower" -> Icons.Filled.Person
+    "badge_unlocked" -> Icons.Filled.EmojiEvents
+    "level_up" -> Icons.AutoMirrored.Filled.TrendingUp
+    "url_shared" -> Icons.Filled.Share
+    else -> Icons.Filled.Notifications
 }
 
 /**
@@ -149,9 +157,10 @@ fun NotificationsScreen(
                     .padding(horizontal = 32.dp, vertical = 48.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
-                Text(
-                    "\uD83D\uDD14",
-                    style = MaterialTheme.typography.headlineLarge,
+                Icon(
+                    imageVector = Icons.Filled.Notifications,
+                    contentDescription = null,
+                    modifier = Modifier.size(48.dp),
                 )
                 Spacer(Modifier.height(16.dp))
                 Text(
@@ -210,9 +219,9 @@ private fun NotificationRow(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.Top,
         ) {
-            Text(
-                getNotificationIcon(notification.type),
-                style = MaterialTheme.typography.titleMedium,
+            Icon(
+                imageVector = getNotificationIcon(notification.type),
+                contentDescription = null,
                 modifier = Modifier.padding(top = 2.dp),
             )
             Spacer(Modifier.width(12.dp))

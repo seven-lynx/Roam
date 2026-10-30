@@ -29,10 +29,13 @@ MainActivity
        ├─ BadgesScreen
        ├─ LeaderboardScreen
        ├─ NotificationsScreen
-       ├─ SettingsScreen
+       ├─ SettingsHubScreen  ← hub; Admin/Mod panel entry when role unlocked
+       ├─ AppearanceScreen
+       ├─ BrowserScreen
+       ├─ DiscoveryScreen
+       ├─ EffectsScreen
        ├─ ProfileScreen
        ├─ PublicProfileScreen
-       ├─ YouScreen         ← hub; Admin/Mod panel entry when role unlocked
        ├─ AdminScreen       ← moderation queue, reports, beta (admin/mod)
        └─ SavedScreen
 
@@ -78,13 +81,26 @@ app/src/main/java/app/roam/android/
 │   │   ├── ConfigBottomSheet.kt     # Per-page actions (save, share, report…)
 │   │   ├── SubmitBottomSheet.kt
 │   │   ├── LoadingMessages.kt
+│   │   ├── ControlDeck.kt           # ROAM-OS diegetic control deck (keys, LEDs, system pager)
+│   │   ├── HandheldShell.kt         # ROAM-OS device chassis, bezel, screen recess
+│   │   ├── RoamOsWindow.kt          # ROAM-OS display window + content layer
+│   │   ├── RoamOsBoot.kt            # ROAM-OS boot sequence
+│   │   ├── OsStatusBar.kt           # ROAM-OS category/domain status bar
+│   │   ├── CrtOverlay.kt            # CRT scanlines/grain/vignette
+│   │   ├── CommsMenu.kt             # ROAM-OS comms/notifications menu
+│   │   ├── ProgramLauncher.kt       # ROAM-OS program launcher sheet
+│   │   ├── Textures.kt              # chassis/deck material textures
+│   │   ├── RoamOsIcons.kt           # ROAM-OS deck icon set
 │   │   ├── BadgeDetailDialog.kt     # Badge details popup
 │   │   ├── LevelProgressBar.kt      # XP and level display
 │   │   ├── ShareUrlBottomSheet.kt   # URL sharing UI
 │   │   └── UserSearchSheet.kt       # User search for sharing
 │   ├── screen/
 │   │   ├── MainScreen.kt            # Nav host + DiscoverTab
-│   │   ├── SettingsScreen.kt
+│   │   ├── SettingsHubScreen.kt       # Settings hub + admin/mod entry
+│   │   ├── AppearanceScreen.kt
+│   │   ├── BrowserScreen.kt
+│   │   ├── DiscoveryScreen.kt
 │   │   ├── ProfileScreen.kt
 │   │   ├── SavedScreen.kt
 │   │   ├── HistoryScreen.kt
@@ -97,11 +113,13 @@ app/src/main/java/app/roam/android/
 │   │   ├── LeaderboardScreen.kt
 │   │   ├── NotificationsScreen.kt
 │   │   ├── PublicProfileScreen.kt
-│   │   └── YouScreen.kt             # Account hub + admin/mod entry
+│   │   └── EffectsScreen.kt         # Push, sounds, haptics, celebrations
 │   └── theme/
 │       ├── Theme.kt                 # RoamTheme + system bar lock
 │       ├── Color.kt
-│       └── Type.kt
+│       ├── Type.kt
+│       ├── Font.kt                  # Space Grotesk / IBM Plex Mono / DSEG7 / Orbitron
+│       └── RoamOsPalette.kt         # ROAM-OS color scheme presets
 
 ├── viewmodel/
 │   ├── MainViewModel.kt             # All discovery + settings state
@@ -110,6 +128,7 @@ app/src/main/java/app/roam/android/
 │   ├── ConnectivityFlow.kt          # Flow<Boolean> — online/offline
 │   ├── Env.kt
 │   ├── Logger.kt
+│   ├── AppIconManager.kt          # Theme-locked launcher icon switcher
 │   └── SwipeDirection.kt
 └── worker/
     └── TokenRefreshWorker.kt        # Periodic Supabase session refresh
@@ -155,6 +174,12 @@ cd android
 ```
 
 ## Key Features
+
+### ROAM-OS handheld theme
+- ROAM-OS is the default theme — the app renders as a retro-futuristic handheld device: a hardware chassis with a screen recess and bezel, a diegetic control deck (Roam / thumbs-up / thumbs-down / navigation keys), a scrolling system-message readout, "READY"/"BUFFER" queue LEDs, and a mute/comms key pair.
+- CRT effects (scanlines, grain, vignette), an OS status bar showing the current category/subcategory/domain, and boot/scan loading screens with themed messages.
+- Hardware customization in **Appearance**: chassis/deck material texture (metal, plastic, wood, leather), deck layout/size/shape, control-button labels, deck-key backlight and colour, OS and hardware colour schemes, device-frame and fisheye toggles, and the system readout style (e-ink vs 7-segment).
+- The system readout surfaces real status messages ("UPLINK DOWN // OFFLINE", "UPLINK RESTORED // ONLINE", scan/rating/XP/notification events) and falls back to flavor text only while idle.
 
 ### Button-Based Navigation (Material Design 3)
 - **Thumbs Up** to like a page
@@ -249,6 +274,18 @@ Ratings that fail due to no connectivity are pushed onto `pendingRatings`. `conn
 | Sound effects | On | SharedPreferences |
 | Haptic feedback | On | SharedPreferences |
 | Celebration animations | On | SharedPreferences |
+| Theme (Roam Classic / ROAM-OS) | ROAM-OS | SharedPreferences |
+| Device frame (ROAM-OS) | On | SharedPreferences |
+| CRT effects (ROAM-OS) | On | SharedPreferences |
+| Deck material texture | Plastic | SharedPreferences |
+| Deck layout / size / shape | Line / Medium / Round | SharedPreferences |
+| Deck button labels | Off | SharedPreferences |
+| Deck-key backlight | Off | SharedPreferences |
+| Deck-key backlight colour | Ice Blue | SharedPreferences |
+| OS colour scheme | Phosphor Teal | SharedPreferences |
+| Hardware colour scheme | Phosphor Teal | SharedPreferences |
+| System readout (E-ink / 7-segment) | E-ink | SharedPreferences |
+| Message scroll speed | 5 | SharedPreferences |
 
 ## Permissions
 

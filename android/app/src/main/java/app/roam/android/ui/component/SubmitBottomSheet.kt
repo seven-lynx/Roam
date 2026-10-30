@@ -80,7 +80,7 @@ fun SubmitBottomSheet(
                     FilterChip(
                         selected = selectedId == cat.id,
                         onClick = { selectedId = if (selectedId == cat.id) null else cat.id },
-                        label = { Text("${cat.icon} ${cat.name}") },
+                        label = { CategoryIconLabel(cat.icon, cat.name) },
                     )
                 }
             }
@@ -152,7 +152,7 @@ fun SubmitBottomSheet(
                     FilterChip(
                         selected = selectedId == cat.id,
                         onClick = { selectedId = if (selectedId == cat.id) null else cat.id },
-                        label = { Text("${cat.icon} ${cat.name}") },
+                        label = { CategoryIconLabel(cat.icon, cat.name) },
                     )
                 }
             }

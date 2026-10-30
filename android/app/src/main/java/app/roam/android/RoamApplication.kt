@@ -8,6 +8,7 @@ import android.os.Build
 import app.roam.android.BuildConfig
 import app.roam.android.data.supabase
 import app.roam.android.util.Env
+import app.roam.android.util.AppIconManager
 import app.roam.android.worker.TokenRefreshWorker
 import io.sentry.android.core.SentryAndroid
 
@@ -15,6 +16,8 @@ class RoamApplication : Application() {
 
     override fun onCreate() {
         super.onCreate()
+        // Apply the launcher icon matching the saved theme before the activity launches.
+        applyThemeIcon()
         // Validate environment variables first, before any other initialization
         Env.validateAtStartup()
 
@@ -81,6 +84,12 @@ class RoamApplication : Application() {
         TokenRefreshWorker.schedule(this)
 
         createNotificationChannel()
+    }
+
+    private fun applyThemeIcon() {
+        val roamOs = getSharedPreferences("roam_saved", Context.MODE_PRIVATE)
+            .getString("app_theme_variant", "roam_os") == "roam_os"
+        AppIconManager.apply(this, roamOs)
     }
 
     private fun createNotificationChannel() {

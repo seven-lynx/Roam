@@ -5,13 +5,14 @@ import androidx.test.core.app.ApplicationProvider
 import app.roam.android.data.repository.RoamRepository
 import app.roam.android.model.RoamUrl
 import app.roam.android.model.UserSettings
+import app.roam.android.ui.theme.RoamThemeVariant
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
 import java.io.IOException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
@@ -28,7 +29,7 @@ import org.robolectric.annotation.Config
 @Config(sdk = [34])
 class MainViewModelTest {
 
-    private val testDispatcher = UnconfinedTestDispatcher()
+    private val testDispatcher = StandardTestDispatcher()
     private lateinit var repo: RoamRepository
     private lateinit var app: Application
     private lateinit var vm: MainViewModel
@@ -307,5 +308,48 @@ class MainViewModelTest {
         vm.removeSavedUrl(mockUrl.url)
 
         assertFalse(vm.savedUrls.value.any { (url) -> url == mockUrl.url })
+    }
+
+    // ─── Theme variant / CRT effects / device frame ─────────────────────────────
+
+    @Test
+    fun `setThemeVariant switches to ROAM-OS`() {
+        vm.setThemeVariant(RoamThemeVariant.ROAM_OS)
+        assertEquals(RoamThemeVariant.ROAM_OS, vm.themeVariant.value)
+    }
+
+    @Test
+    fun `setThemeVariant switches back to Classic`() {
+        vm.setThemeVariant(RoamThemeVariant.ROAM_OS)
+        vm.setThemeVariant(RoamThemeVariant.CLASSIC)
+        assertEquals(RoamThemeVariant.CLASSIC, vm.themeVariant.value)
+    }
+
+    @Test
+    fun `setCrtEffectsEnabled toggles the flag`() {
+        vm.setCrtEffectsEnabled(false)
+        assertFalse(vm.crtEffectsEnabled.value)
+        vm.setCrtEffectsEnabled(true)
+        assertTrue(vm.crtEffectsEnabled.value)
+    }
+
+    @Test
+    fun `setDeviceFrameEnabled toggles the flag`() {
+        vm.setDeviceFrameEnabled(false)
+        assertFalse(vm.deviceFrameEnabled.value)
+        vm.setDeviceFrameEnabled(true)
+        assertTrue(vm.deviceFrameEnabled.value)
+    }
+
+    @Test
+    fun `theme settings persist across ViewModel recreation`() {
+        vm.setThemeVariant(RoamThemeVariant.ROAM_OS)
+        vm.setCrtEffectsEnabled(false)
+        vm.setDeviceFrameEnabled(false)
+
+        val freshVm = MainViewModel(app, repo)
+        assertEquals(RoamThemeVariant.ROAM_OS, freshVm.themeVariant.value)
+        assertFalse(freshVm.crtEffectsEnabled.value)
+        assertFalse(freshVm.deviceFrameEnabled.value)
     }
 }

@@ -7,7 +7,7 @@ import { createClient } from '@/lib/supabase/client';
 import { useAuth } from '@/components/AuthProvider';
 import { avatarPalette } from '@/components/UI';
 import { NotificationBell } from '@/components/NotificationBell';
-import { toDosPath } from '@/lib/os-nav';
+import { toUnixPath } from '@/lib/os-nav';
 
 function SignalBars() {
   return (
@@ -63,7 +63,7 @@ export function StatusBar() {
       <Link href="/" className="font-pixel tracking-[0.22em] text-ink" aria-label="Roam home">ROAM-OS</Link>
       <span className="hidden sm:inline text-muted/70" aria-hidden="true">│</span>
       <span className="hidden sm:inline truncate normal-case tracking-normal" aria-label="Current location">
-        {toDosPath(pathname)}
+        {toUnixPath(pathname)}
       </span>
 
       <span className="flex-1" />

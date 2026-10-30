@@ -26,7 +26,11 @@ import app.roam.android.model.serializeHistory
 import app.roam.android.model.AppNotification
 import app.roam.android.model.UserProfile
 import app.roam.android.data.supabase
+import app.roam.android.ui.component.CrtFx
+import app.roam.android.ui.component.HardwareFx
+import app.roam.android.ui.theme.RoamThemeVariant
 import app.roam.android.util.SoundManager
+import app.roam.android.util.AppIconManager
 import app.roam.android.util.connectivityFlow
 import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.auth.status.SessionStatus
@@ -93,6 +97,24 @@ class MainViewModel(
     private val NOTIFICATIONS_ENABLED_KEY = "notifications_enabled"
     private val URL_HISTORY_KEY = "url_history"
     private val APP_THEME_KEY = "app_theme"  // "system", "dark", "light"
+    private val APP_THEME_VARIANT_KEY = "app_theme_variant"  // "classic", "roam_os"
+    private val CRT_EFFECTS_KEY = "crt_effects"
+    private val CRT_SCANLINES_KEY = "crt_scanlines"
+    private val CRT_GRAIN_KEY = "crt_grain"
+    private val CRT_VIGNETTE_KEY = "crt_vignette"
+    private val CRT_FLICKER_KEY = "crt_flicker"
+    private val CRT_FISHEYE_KEY = "crt_fisheye"
+    private val DEVICE_FRAME_KEY = "device_frame"
+    private val SURROUND_MATCH_DECK_KEY = "surround_match_deck"
+    private val WEAR_KEY = "wear_and_tear"
+    private val BEZEL_FISHEYE_KEY = "bezel_fisheye"
+    private val HARDWARE_ANTENNA_KEY = "hardware_antenna"
+    private val HARDWARE_NIXIE_KEY = "hardware_nixie"
+    private val HARDWARE_ACTIVITY_LED_KEY = "hardware_activity_led"
+    private val HARDWARE_VACUUM_TUBE_KEY = "hardware_vacuum_tube"
+    private val HARDWARE_FX_MASTER_KEY = "hardware_fx_master"
+    private val BACKLIGHT_KEY = "backlit_keys"
+    private val BACKLIGHT_COLOR_KEY = "backlight_color"
     private val WALKTHROUGH_SEEN_KEY = "walkthrough_seen"
     private val LAST_URL_KEY = "last_url"
     private val LAST_URL_TITLE_KEY = "last_url_title"
@@ -100,6 +122,15 @@ class MainViewModel(
     private val HAPTIC_FEEDBACK_KEY = "haptic_feedback"
     private val CELEBRATION_ANIMATIONS_KEY = "celebration_animations"
     private val CELEBRATION_WATERMARK_KEY = "celebration_watermark"
+    private val DECK_LAYOUT_KEY = "deck_layout"  // "trapezoid", "trapezoid_inverted", "line", "grid"
+    private val DECK_SIZE_KEY = "deck_size"      // "small", "medium", "large"
+    private val DECK_SHAPE_KEY = "deck_shape"    // "round", "square"
+    private val DECK_LABELS_KEY = "deck_labels"
+    private val SYSTEM_MESSAGE_SPEED_KEY = "system_message_speed"
+    private val SYSTEM_MESSAGE_DISPLAY_KEY = "system_message_display"
+    private val DECK_TEXTURE_KEY = "deck_texture"
+    private val OS_COLOR_KEY = "os_color_scheme"
+    private val HARDWARE_COLOR_KEY = "hardware_color_scheme"
     private val MAX_HISTORY_ENTRIES = 100
 
     private val _state = MutableStateFlow<RoamState>(RoamState.Idle)
@@ -126,6 +157,10 @@ class MainViewModel(
     /** True when the user has thumbs-upped the current page */
     private val _hasRatedUp = MutableStateFlow(false)
     val hasRatedUp: StateFlow<Boolean> = _hasRatedUp.asStateFlow()
+
+    /** Session rating tally for the nixie tube (0–99, rolls over like a real counter). */
+    private val _upvoteCount = MutableStateFlow(0)
+    val upvoteCount: StateFlow<Int> = _upvoteCount.asStateFlow()
 
     /** User's collections (lazy-loaded when config sheet opens) */
     private val _collections = MutableStateFlow<List<Collection>>(emptyList())
@@ -243,6 +278,181 @@ class MainViewModel(
         prefs.edit().putString(APP_THEME_KEY, theme).apply()
     }
 
+    /** User preference: visual theme ("classic" vs "roam_os") */
+    private val _themeVariant = MutableStateFlow(
+        when (prefs.getString(APP_THEME_VARIANT_KEY, "roam_os")) {
+            "roam_os" -> RoamThemeVariant.ROAM_OS
+            else -> RoamThemeVariant.CLASSIC
+        }
+    )
+    val themeVariant: StateFlow<RoamThemeVariant> = _themeVariant.asStateFlow()
+
+    fun setThemeVariant(variant: RoamThemeVariant) {
+        _themeVariant.value = variant
+        prefs.edit()
+            .putString(APP_THEME_VARIANT_KEY, if (variant == RoamThemeVariant.ROAM_OS) "roam_os" else "classic")
+            .apply()
+        AppIconManager.apply(getApplication(), variant == RoamThemeVariant.ROAM_OS)
+    }
+
+    /** User preference: deck key layout ("trapezoid", "trapezoid_inverted", "line", "grid"). */
+    private val _deckLayout = MutableStateFlow(prefs.getString(DECK_LAYOUT_KEY, "line") ?: "line")
+    val deckLayout: StateFlow<String> = _deckLayout.asStateFlow()
+
+    fun setDeckLayout(layout: String) {
+        _deckLayout.value = layout
+        prefs.edit().putString(DECK_LAYOUT_KEY, layout).apply()
+    }
+
+    /** User preference: deck key size ("small", "medium", "large"). */
+    private val _deckSize = MutableStateFlow(prefs.getString(DECK_SIZE_KEY, "medium") ?: "medium")
+    val deckSize: StateFlow<String> = _deckSize.asStateFlow()
+
+    fun setDeckSize(size: String) {
+        _deckSize.value = size
+        prefs.edit().putString(DECK_SIZE_KEY, size).apply()
+    }
+
+    /** User preference: deck key shape ("round", "square"). */
+    private val _deckShape = MutableStateFlow(prefs.getString(DECK_SHAPE_KEY, "round") ?: "round")
+    val deckShape: StateFlow<String> = _deckShape.asStateFlow()
+
+    fun setDeckShape(shape: String) {
+        _deckShape.value = shape
+        prefs.edit().putString(DECK_SHAPE_KEY, shape).apply()
+    }
+
+    /** User preference: show text labels under the control deck keys. */
+    private val _deckLabelsEnabled = MutableStateFlow(prefs.getBoolean(DECK_LABELS_KEY, false))
+    val deckLabelsEnabled: StateFlow<Boolean> = _deckLabelsEnabled.asStateFlow()
+
+    fun setDeckLabelsEnabled(enabled: Boolean) {
+        _deckLabelsEnabled.value = enabled
+        prefs.edit().putBoolean(DECK_LABELS_KEY, enabled).apply()
+    }
+
+    /** User preference: show cosmetic wear & tear on the ROAM-OS chassis. */
+    private val _wearEnabled = MutableStateFlow(prefs.getBoolean(WEAR_KEY, false))
+    val wearEnabled: StateFlow<Boolean> = _wearEnabled.asStateFlow()
+
+    fun setWearEnabled(enabled: Boolean) {
+        _wearEnabled.value = enabled
+        prefs.edit().putBoolean(WEAR_KEY, enabled).apply()
+    }
+
+    /** User preference: warp the chassis bezel with the screen's fisheye curve. */
+    private val _bezelFisheyeEnabled = MutableStateFlow(prefs.getBoolean(BEZEL_FISHEYE_KEY, true))
+    val bezelFisheyeEnabled: StateFlow<Boolean> = _bezelFisheyeEnabled.asStateFlow()
+
+    fun setBezelFisheyeEnabled(enabled: Boolean) {
+        _bezelFisheyeEnabled.value = enabled
+        prefs.edit().putBoolean(BEZEL_FISHEYE_KEY, enabled).apply()
+    }
+
+    /** Cosmetic hardware embellishments shown on the chassis bezel. */
+    private val _hardwareFx = MutableStateFlow(
+        HardwareFx(
+            antenna = prefs.getBoolean(HARDWARE_ANTENNA_KEY, true),
+            nixie = prefs.getBoolean(HARDWARE_NIXIE_KEY, false),
+            activityLed = prefs.getBoolean(HARDWARE_ACTIVITY_LED_KEY, false),
+            vacuumTube = prefs.getBoolean(HARDWARE_VACUUM_TUBE_KEY, false),
+        )
+    )
+    val hardwareFx: StateFlow<HardwareFx> = _hardwareFx.asStateFlow()
+
+    fun setHardwareAntenna(enabled: Boolean) {
+        _hardwareFx.value = _hardwareFx.value.copy(antenna = enabled)
+        prefs.edit().putBoolean(HARDWARE_ANTENNA_KEY, enabled).apply()
+    }
+
+    fun setHardwareNixie(enabled: Boolean) {
+        _hardwareFx.value = _hardwareFx.value.copy(nixie = enabled)
+        prefs.edit().putBoolean(HARDWARE_NIXIE_KEY, enabled).apply()
+    }
+
+    fun setHardwareActivityLed(enabled: Boolean) {
+        _hardwareFx.value = _hardwareFx.value.copy(activityLed = enabled)
+        prefs.edit().putBoolean(HARDWARE_ACTIVITY_LED_KEY, enabled).apply()
+    }
+
+    fun setHardwareVacuumTube(enabled: Boolean) {
+        _hardwareFx.value = _hardwareFx.value.copy(vacuumTube = enabled)
+        prefs.edit().putBoolean(HARDWARE_VACUUM_TUBE_KEY, enabled).apply()
+    }
+
+    /** Master switch: show/hide all chassis embellishments at once. */
+    private val _hardwareFxMaster = MutableStateFlow(prefs.getBoolean(HARDWARE_FX_MASTER_KEY, true))
+    val hardwareFxMaster: StateFlow<Boolean> = _hardwareFxMaster.asStateFlow()
+
+    fun setHardwareFxMaster(enabled: Boolean) {
+        _hardwareFxMaster.value = enabled
+        prefs.edit().putBoolean(HARDWARE_FX_MASTER_KEY, enabled).apply()
+    }
+
+    /** User preference: CRT effects (scanlines/grain/vignette/flicker) */
+    private val _crtEffectsEnabled = MutableStateFlow(prefs.getBoolean(CRT_EFFECTS_KEY, true))
+    val crtEffectsEnabled: StateFlow<Boolean> = _crtEffectsEnabled.asStateFlow()
+
+    fun setCrtEffectsEnabled(enabled: Boolean) {
+        _crtEffectsEnabled.value = enabled
+        prefs.edit().putBoolean(CRT_EFFECTS_KEY, enabled).apply()
+    }
+
+    /** Per-effect CRT strength (1 = subtle, 10 = very pronounced). */
+    private val _crtFx = MutableStateFlow(
+        CrtFx(
+            scanlines = prefs.getInt(CRT_SCANLINES_KEY, 5),
+            grain = prefs.getInt(CRT_GRAIN_KEY, 5),
+            vignette = prefs.getInt(CRT_VIGNETTE_KEY, 5),
+            flicker = prefs.getInt(CRT_FLICKER_KEY, 5),
+            fisheye = prefs.getInt(CRT_FISHEYE_KEY, 5),
+        )
+    )
+    val crtFx: StateFlow<CrtFx> = _crtFx.asStateFlow()
+
+    fun setCrtScanlines(value: Int) {
+        _crtFx.value = _crtFx.value.copy(scanlines = value)
+        prefs.edit().putInt(CRT_SCANLINES_KEY, value).apply()
+    }
+
+    fun setCrtGrain(value: Int) {
+        _crtFx.value = _crtFx.value.copy(grain = value)
+        prefs.edit().putInt(CRT_GRAIN_KEY, value).apply()
+    }
+
+    fun setCrtVignette(value: Int) {
+        _crtFx.value = _crtFx.value.copy(vignette = value)
+        prefs.edit().putInt(CRT_VIGNETTE_KEY, value).apply()
+    }
+
+    fun setCrtFlicker(value: Int) {
+        _crtFx.value = _crtFx.value.copy(flicker = value)
+        prefs.edit().putInt(CRT_FLICKER_KEY, value).apply()
+    }
+
+    fun setCrtFisheye(value: Int) {
+        _crtFx.value = _crtFx.value.copy(fisheye = value)
+        prefs.edit().putInt(CRT_FISHEYE_KEY, value).apply()
+    }
+
+    /** User preference: device frame (chassis/bezel) vs frameless */
+    private val _deviceFrameEnabled = MutableStateFlow(prefs.getBoolean(DEVICE_FRAME_KEY, true))
+    val deviceFrameEnabled: StateFlow<Boolean> = _deviceFrameEnabled.asStateFlow()
+
+    fun setDeviceFrameEnabled(enabled: Boolean) {
+        _deviceFrameEnabled.value = enabled
+        prefs.edit().putBoolean(DEVICE_FRAME_KEY, enabled).apply()
+    }
+
+    /** Tint the black surround outside the bezel to match the deck's hardware colour. */
+    private val _surroundMatchDeck = MutableStateFlow(prefs.getBoolean(SURROUND_MATCH_DECK_KEY, false))
+    val surroundMatchDeck: StateFlow<Boolean> = _surroundMatchDeck.asStateFlow()
+
+    fun setSurroundMatchDeck(enabled: Boolean) {
+        _surroundMatchDeck.value = enabled
+        prefs.edit().putBoolean(SURROUND_MATCH_DECK_KEY, enabled).apply()
+    }
+
     /** User preference: auto-translate pages */
     private val _autoTranslate = MutableStateFlow(prefs.getBoolean(AUTO_TRANSLATE_KEY, false))
     val autoTranslate: StateFlow<Boolean> = _autoTranslate.asStateFlow()
@@ -254,6 +464,7 @@ class MainViewModel(
         if (enabled) {
             val raw = _rawUrl.value ?: return
             _currentUrl.value = translateUrl(raw)
+            _isTranslating.value = true
         } else {
             // If disabling, revert to the raw URL
             _currentUrl.value = _rawUrl.value
@@ -280,7 +491,9 @@ class MainViewModel(
     /** Toggles between the raw (discovery) URL and the Google Translate wrapper. */
     fun toggleTranslation() {
         val raw = _rawUrl.value ?: return
-        _currentUrl.value = if (isTranslated) raw else translateUrl(raw)
+        val toTranslated = !isTranslated
+        _currentUrl.value = if (toTranslated) translateUrl(raw) else raw
+        if (toTranslated) _isTranslating.value = true
     }
 
     /** Translates the current page to [targetLang]. Uses the persisted preference. */
@@ -290,6 +503,7 @@ class MainViewModel(
         _translateLanguage.value = targetLang
         prefs.edit().putString(TRANSLATE_LANG_KEY, targetLang).apply()
         _currentUrl.value = translateUrl(raw)
+        _isTranslating.value = true
     }
 
     /** User preference: enable JavaScript in the WebView (default on) */
@@ -302,7 +516,7 @@ class MainViewModel(
     }
 
     /** User preference: load the next queued URL in a background WebView to warm the cache */
-    private val _prefetchWebView = MutableStateFlow(prefs.getBoolean(PREFETCH_WEBVIEW_KEY, false))
+    private val _prefetchWebView = MutableStateFlow(prefs.getBoolean(PREFETCH_WEBVIEW_KEY, true))
     val prefetchWebView: StateFlow<Boolean> = _prefetchWebView.asStateFlow()
 
     fun setPrefetchWebView(enabled: Boolean) {
@@ -331,6 +545,7 @@ class MainViewModel(
         if (isTranslated) {
             val raw = _rawUrl.value ?: return
             _currentUrl.value = translateUrl(raw)
+            _isTranslating.value = true
         }
     }
 
@@ -346,6 +561,12 @@ class MainViewModel(
     /** Wraps [url] through Google Translate. */
     fun translateUrl(url: String): String =
         "https://translate.google.com/translate?sl=auto&tl=${_translateLanguage.value}&u=${Uri.encode(url)}"
+
+    /** True while a Google Translate page is loading (drives the translating animation). */
+    private val _isTranslating = MutableStateFlow(false)
+    val isTranslating: StateFlow<Boolean> = _isTranslating.asStateFlow()
+
+    fun clearTranslating() { _isTranslating.value = false }
 
     /** User preference: list of language codes to include (e.g. ["en", "fr"]) */
     private val _preferredLanguages = MutableStateFlow(listOf("en"))
@@ -430,6 +651,14 @@ class MainViewModel(
     private val hotQueue    = ArrayDeque<RoamUrl>()
     private val warmQueue   = ArrayDeque<RoamUrl>()
     private val prefetchMutex = Mutex()
+
+    /** Hot queue size (URLs validated and instantly servable) — exposed for the diegetic deck. */
+    private val _hotQueueSize = MutableStateFlow(0)
+    val hotQueueSize: StateFlow<Int> = _hotQueueSize.asStateFlow()
+
+    /** Warm queue size (URLs fetched but not yet validated). */
+    private val _warmQueueSize = MutableStateFlow(0)
+    val warmQueueSize: StateFlow<Int> = _warmQueueSize.asStateFlow()
     private var prefetchJob: Job? = null
 
     /** Current user's profile */
@@ -635,6 +864,137 @@ class MainViewModel(
     private val _celebration = MutableStateFlow<CelebrationEvent?>(null)
     val celebration: StateFlow<CelebrationEvent?> = _celebration.asStateFlow()
 
+    /** Transient "+N XP" flash for the diegetic deck (null = hidden). */
+    private val _xpFlash = MutableStateFlow<Int?>(null)
+    val xpFlash: StateFlow<Int?> = _xpFlash.asStateFlow()
+    private var xpFlashJob: Job? = null
+
+    /** Shows "+N XP" in the deck for a moment. */
+    fun flashXp(amount: Int) {
+        if (amount <= 0) return
+        pushSystemMessage("+$amount XP GAINED")
+        _xpFlash.value = amount
+        xpFlashJob?.cancel()
+        xpFlashJob = viewModelScope.launch {
+            delay(1200)
+            _xpFlash.value = null
+        }
+    }
+
+    private val FLAVOR_MESSAGES = listOf(
+        "ROAM-OS // STANDBY",
+        "SIGNAL LOCK — AWAITING INPUT",
+        "idle // waiting for roam",
+        "uptime nominal",
+        "phosphor array calibrated",
+        "queue nominal // no packets",
+        "sweep idle // tap ROAM",
+        "net uplink stable",
+        "cache warm // ready",
+        "no new transmissions",
+    )
+
+    // ── System-message readout (deck pager/marquee) ──────────────────────
+    private val _systemMessage = MutableStateFlow(streamFor(emptyList()))
+    val systemMessage: StateFlow<String> = _systemMessage.asStateFlow()
+
+    /** Deck readout scroll/advance speed (1 = slow, 10 = fast). */
+    private val _systemMessageSpeed = MutableStateFlow(prefs.getInt(SYSTEM_MESSAGE_SPEED_KEY, 5))
+    val systemMessageSpeed: StateFlow<Int> = _systemMessageSpeed.asStateFlow()
+
+    private val systemMessageQueue = ArrayDeque<String>()
+    private var streamJob: Job? = null
+
+    fun setSystemMessageSpeed(value: Int) {
+        _systemMessageSpeed.value = value.coerceIn(1, 10)
+        prefs.edit().putInt(SYSTEM_MESSAGE_SPEED_KEY, _systemMessageSpeed.value).apply()
+    }
+
+    /** System-message readout style ("eink" = paper/ink strip, "led" = 7-segment glow). */
+    private val _systemMessageDisplay = MutableStateFlow(prefs.getString(SYSTEM_MESSAGE_DISPLAY_KEY, "eink") ?: "eink")
+    val systemMessageDisplay: StateFlow<String> = _systemMessageDisplay.asStateFlow()
+
+    fun setSystemMessageDisplay(value: String) {
+        _systemMessageDisplay.value = value
+        prefs.edit().putString(SYSTEM_MESSAGE_DISPLAY_KEY, value).apply()
+    }
+
+    /** Chassis/deck material texture ("metal", "plastic", "wood", "leather"). */
+    private val _deckTexture = MutableStateFlow(prefs.getString(DECK_TEXTURE_KEY, "plastic") ?: "plastic")
+    val deckTexture: StateFlow<String> = _deckTexture.asStateFlow()
+
+    fun setDeckTexture(value: String) {
+        _deckTexture.value = value
+        prefs.edit().putString(DECK_TEXTURE_KEY, value).apply()
+    }
+
+    /** OS display + terminal accent palette key (see RoamOsPalette presets). */
+    private val _osColorScheme = MutableStateFlow(prefs.getString(OS_COLOR_KEY, "phosphor") ?: "phosphor")
+    val osColorScheme: StateFlow<String> = _osColorScheme.asStateFlow()
+
+    fun setOsColorScheme(value: String) {
+        _osColorScheme.value = value
+        prefs.edit().putString(OS_COLOR_KEY, value).apply()
+    }
+
+    /** Hardware (chassis/deck) accent palette key (see RoamOsPalette presets). */
+    private val _hardwareColorScheme = MutableStateFlow(prefs.getString(HARDWARE_COLOR_KEY, "phosphor") ?: "phosphor")
+    val hardwareColorScheme: StateFlow<String> = _hardwareColorScheme.asStateFlow()
+
+    fun setHardwareColorScheme(value: String) {
+        _hardwareColorScheme.value = value
+        prefs.edit().putString(HARDWARE_COLOR_KEY, value).apply()
+    }
+
+    /** Deck-key backlight toggle. */
+    private val _backlightEnabled = MutableStateFlow(prefs.getBoolean(BACKLIGHT_KEY, false))
+    val backlightEnabled: StateFlow<Boolean> = _backlightEnabled.asStateFlow()
+
+    fun setBacklightEnabled(enabled: Boolean) {
+        _backlightEnabled.value = enabled
+        prefs.edit().putBoolean(BACKLIGHT_KEY, enabled).apply()
+    }
+
+    /** Deck-key backlight colour key (see BACKLIGHT_COLORS). */
+    private val _backlightColor = MutableStateFlow(prefs.getString(BACKLIGHT_COLOR_KEY, "ice_blue") ?: "ice_blue")
+    val backlightColor: StateFlow<String> = _backlightColor.asStateFlow()
+
+    fun setBacklightColor(value: String) {
+        _backlightColor.value = value
+        prefs.edit().putString(BACKLIGHT_COLOR_KEY, value).apply()
+    }
+
+    /** Enqueues a message for the deck readout (FIFO, dupes dropped, capped). */
+    fun pushSystemMessage(message: String) {
+        if (message.isBlank()) return
+        if (systemMessageQueue.lastOrNull() == message) return
+        systemMessageQueue.addLast(message)
+        while (systemMessageQueue.size > 12) systemMessageQueue.removeFirst()
+        _systemMessage.value = streamFor(systemMessageQueue.toList())
+        ensureStreamLoop()
+    }
+
+    /** Advances the readout: one message per window, flavor rotates when idle. */
+    private fun ensureStreamLoop() {
+        streamJob?.cancel()
+        streamJob = viewModelScope.launch {
+            while (true) {
+                delay(4_000)
+                if (systemMessageQueue.isNotEmpty()) {
+                    systemMessageQueue.removeFirst()
+                }
+                _systemMessage.value = streamFor(systemMessageQueue.toList())
+            }
+        }
+    }
+
+    /** Builds the stream: dots separate each message and fill idle time. */
+    private fun streamFor(messages: List<String>): String {
+        val dots = " · · · · "
+        val body = if (messages.isEmpty()) FLAVOR_MESSAGES.random() else messages.joinToString(dots)
+        return dots + body + dots
+    }
+
     private val celebrationQueue = ArrayDeque<CelebrationEvent>()
 
     /** Called by the overlay when the user dismisses it / it auto-dismisses. */
@@ -656,6 +1016,12 @@ class MainViewModel(
     private fun presentCelebration(event: CelebrationEvent) {
         _celebration.value = event
         playCelebrationFeedback(event)
+        val xp = when (event) {
+            is CelebrationEvent.BadgeUnlocked -> event.badge.xpReward
+            is CelebrationEvent.ChallengeComplete -> event.xpReward
+            is CelebrationEvent.LevelUp -> 0
+        }
+        if (xp > 0) flashXp(xp)
     }
 
     private fun playCelebrationFeedback(event: CelebrationEvent) {
@@ -732,7 +1098,7 @@ class MainViewModel(
     }
 
     private fun celebrationToastText(event: CelebrationEvent): String = when (event) {
-        is CelebrationEvent.BadgeUnlocked -> "${event.badge.icon} Badge unlocked: ${event.badge.name}" +
+        is CelebrationEvent.BadgeUnlocked -> "Badge unlocked: ${event.badge.name}" +
             if (event.badge.xpReward > 0) " (+${event.badge.xpReward} XP)" else ""
         is CelebrationEvent.LevelUp -> "Level up! You're now Level ${event.newLevel}"
         is CelebrationEvent.ChallengeComplete -> "Challenge complete: ${event.title}" +
@@ -790,6 +1156,7 @@ class MainViewModel(
     private val pendingRatings = ArrayDeque<PendingRating>()
 
     init {
+        ensureStreamLoop()
         viewModelScope.launch {
             runCatching { repo.getCategories() }
                 .onSuccess { if (it.isNotEmpty()) _categories.value = it }
@@ -857,8 +1224,14 @@ class MainViewModel(
 
         // Observe connectivity; flush queued ratings when back online (14.9)
         viewModelScope.launch {
+            var prevOnline = true
             connectivityFlow(application).collect { online ->
+                val changed = online != prevOnline
+                prevOnline = online
                 _isOnline.value = online
+                if (changed) {
+                    pushSystemMessage(if (online) "UPLINK RESTORED // ONLINE" else "UPLINK DOWN // OFFLINE")
+                }
                 if (online) {
                     flushPendingRatings()
                     // If a roam failed while offline, auto-retry now that we're back online
@@ -870,6 +1243,17 @@ class MainViewModel(
 
         // Preload sound effects so the first celebration has its audio ready.
         SoundManager.init(application)
+
+        // Publish queue sizes periodically so the diegetic deck's "READY n" readout
+        // stays fresh without touching every queue mutation site.
+        viewModelScope.launch {
+            while (true) {
+                val (hot, warm) = prefetchMutex.withLock { hotQueue.size to warmQueue.size }
+                _hotQueueSize.value = hot
+                _warmQueueSize.value = warm
+                delay(750)
+            }
+        }
 
         // Periodically poll for new badge/level/challenge notifications. This catches
         // events awarded server-side (e.g. challenge completion triggered by a DB trigger)
@@ -890,6 +1274,7 @@ class MainViewModel(
         val now = System.currentTimeMillis()
         if (now - lastRoamMillis < 1000L) return
         lastRoamMillis = now
+        pushSystemMessage("SCANNING…")
 
         // Default to excluding the current domain so the bottom-bar Roam button
         // behaves the same as Thumbs Down / Report Broken Link — otherwise the
@@ -919,6 +1304,7 @@ class MainViewModel(
                 _rawUrl.value = prefetched.url
                 _currentUrl.value = prefetched.url
                 _state.value = RoamState.Loaded(prefetched)
+                playSfx(R.raw.load_complete)
                 recordUrlVisit(prefetched.url, prefetched.title ?: prefetched.url)
                 // If background WebView preloading is enabled, expose the next hot-queue entry
                 // so the UI can start warming it in an invisible WebView right now.
@@ -930,6 +1316,7 @@ class MainViewModel(
             }
 
             _state.value = RoamState.Loading
+            playSfx(R.raw.load_start)
             
             // Wait for the session to be fully ready before making the network call.
             // ensureAuthenticated() inside repo.roam() also handles the Initializing
@@ -993,6 +1380,7 @@ class MainViewModel(
                     _rawUrl.value = roamUrl.url
                     _currentUrl.value = roamUrl.url
                     _state.value = RoamState.Loaded(roamUrl)
+                    playSfx(R.raw.load_complete)
                     persistLastUrl(roamUrl.url, roamUrl.title)
                     recordUrlVisit(roamUrl.url, roamUrl.title ?: roamUrl.url)
                     startPrefillQueue(excludeDomain = extractDomain(roamUrl.url))
@@ -1198,6 +1586,8 @@ class MainViewModel(
             return
         }
         _hasRatedUp.value = true
+        _upvoteCount.value = (_upvoteCount.value + 1) % 100
+        pushSystemMessage("RATED UP // SIGNAL SAVED")
         viewModelScope.launch {
             haptic(context)
             val result = runCatching { repo.rate(loaded.roamUrl.id, 1) }
@@ -1224,6 +1614,8 @@ class MainViewModel(
         val loaded = _state.value as? RoamState.Loaded
         val excludeDomain = extractDomain(_rawUrl.value)
         _hasRatedUp.value = false
+        _upvoteCount.value = (_upvoteCount.value + 99) % 100
+        pushSystemMessage("RATED DOWN // NEXT")
         viewModelScope.launch {
             haptic(context)
             if (loaded != null) {
@@ -1254,6 +1646,7 @@ class MainViewModel(
             _showSubmitSheet.value = false
             result.fold(
                 onSuccess = { outcome ->
+                    if (outcome is app.roam.android.data.repository.SubmitResult.Queued) playSfx(R.raw.save_url)
                     _submitToast.value = when (outcome) {
                         is app.roam.android.data.repository.SubmitResult.Queued -> outcome.message
                         is app.roam.android.data.repository.SubmitResult.Duplicate -> outcome.message
@@ -1347,6 +1740,22 @@ class MainViewModel(
         vibrate(context, VibrationEffect.createOneShot(40, VibrationEffect.DEFAULT_AMPLITUDE))
     }
 
+    /** Heavier, lower-frequency tick for the Roam key — like a big mechanical switch. */
+    private fun heavyHaptic(context: Context) {
+        vibrate(context, VibrationEffect.createWaveform(longArrayOf(0, 70, 40, 60), -1))
+    }
+
+    /** Plays a UI feedback sound (gated on SFX) plus a haptic tick (gated on haptics). */
+    fun uiFeedback(soundRes: Int) {
+        if (_soundEffectsEnabled.value) SoundManager.play(getApplication(), soundRes)
+        if (soundRes == R.raw.click_heavy) heavyHaptic(getApplication()) else haptic(getApplication())
+    }
+
+    /** Plays a themed sound effect gated on the in-app sound toggle (no haptic). */
+    private fun playSfx(soundRes: Int) {
+        if (_soundEffectsEnabled.value) SoundManager.play(getApplication(), soundRes)
+    }
+
     /** Distinct haptic patterns per celebration type. */
     private fun celebrationHaptic(context: Context, event: CelebrationEvent) {
         val pattern = when (event) {
@@ -1391,6 +1800,7 @@ class MainViewModel(
             runCatching { repo.saveUrl(url, title, urlId) }
         }
         _savedConfirmation.value = true
+        playSfx(R.raw.save_url)
         loadChallenges()
         checkForNewCelebrations()
         viewModelScope.launch {
@@ -1620,7 +2030,9 @@ class MainViewModel(
         viewModelScope.launch {
             if (!repo.hasSession()) return@launch
             runCatching {
-                _unreadNotificationCount.value = repo.getUnreadNotificationCount()
+                val count = repo.getUnreadNotificationCount()
+                _unreadNotificationCount.value = count
+                if (count > 0) pushSystemMessage("$count NEW NOTIFICATIONS")
             }
         }
     }

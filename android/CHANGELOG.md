@@ -2,6 +2,37 @@
 
 All notable changes to the Roam Android app.
 
+## [1.4.0] - 2026-10-29
+
+### Added
+- Diegetic control deck — ROAM-OS renders the phone as a handheld device: a hardware chassis with a screen recess and bezel, plus a physical control deck (Roam / thumbs-up / thumbs-down / navigation keys) with tactile press, latched keys, click sounds, and a mute/comms key pair.
+- Deck system readout — a scrolling system-message pager alongside "READY" and "BUFFER" queue LED modules, an XP flash, and an online/offline indicator.
+- E-ink system readout (default) — the system-message strip renders in the Roam-OS mono font on a flat paper panel for legibility; the original 7-segment glow style remains as a "System readout" option.
+- Coherent deck status — "UPLINK DOWN // OFFLINE" and "UPLINK RESTORED // ONLINE" messages on connectivity changes, with flavor text only shown while idle.
+- Hardware customization — selectable chassis/deck material texture (metal, plastic, wood, leather), deck layout/size/shape, control-button labels, and a bezel fisheye toggle.
+- ROAM-OS color schemes — separate OS (display/terminal) and hardware (chassis/deck) accent palettes.
+- Theme-locked launcher icon and boot/standby animations for ROAM-OS.
+- Settings Hub with per-category settings screens (Appearance, Browser, Discovery, Notifications & Effects).
+
+### Changed
+- ROAM-OS is now the default theme (previously Roam Classic).
+- Linux-flavored flavor text throughout ROAM-OS (replacing Windows/DOS references).
+- Seven-segment LED font moved from the deck readout to the READY/BUFFER queue modules.
+- Control deck button labels default to off.
+
+## [1.3.0] - 2026-10-28
+
+### Added
+- ROAM-OS theme — a retro-futuristic "ROAM-OS handheld" look matching the website: phosphor-teal and gold palette, Space Grotesk + IBM Plex Mono typography, CRT scanline/grain/vignette effects, and an OS status bar showing the current category, subcategory, and domain.
+- Appearance settings — theme switcher (Roam Classic / ROAM-OS), device-frame toggle, and CRT-effects toggle.
+- Boot/scan loading screen with themed messages and a "MOUNT COMPLETE" finish beat before each page is revealed.
+
+### Changed
+- "You" hub renamed to "Settings Hub" and merged with the Settings screen — the hub now lists Account, Social, and Preferences sections, with Appearance, Browser, Discovery, and Notifications & Effects opening their own screens.
+- Settings sub-screens use diegetic ROAM-OS headers, flavor text, and slide transitions.
+- Bundled Space Grotesk and IBM Plex Mono fonts for the ROAM-OS theme.
+- Roam Classic remains the default; the existing look is unchanged.
+
 ## [1.2.1] - 2026-10-10
 
 ### Added

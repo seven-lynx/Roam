@@ -22,8 +22,8 @@ android {
         applicationId = "app.roam.android"
         minSdk = 26
         targetSdk = 36
-        versionCode = 32
-        versionName = "1.2.1"
+        versionCode = 33
+        versionName = "1.3.0"
 
 
 
@@ -77,6 +77,20 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
+    }
+
+    testOptions {
+        unitTests {
+            isIncludeAndroidResources = true
+            all { test ->
+                test.maxHeapSize = "2048m"
+                test.jvmArgs(
+                    "--add-opens=java.base/java.lang=ALL-UNNAMED",
+                    "--add-opens=java.base/java.util=ALL-UNNAMED",
+                    "--add-opens=java.base/java.io=ALL-UNNAMED"
+                )
+            }
+        }
     }
 
 

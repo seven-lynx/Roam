@@ -25,9 +25,12 @@ import kotlin.time.Duration.Companion.milliseconds
 
 enum class RoamTab(val route: String) {
     Roam("discover"),
-    Settings("settings"),
-    // Other tabs accessible via YouScreen, not bottom bar
-    You("you"),
+    SettingsHub("settings"),
+    // Sub-screens reached from the Settings Hub, not the bottom bar
+    Appearance("settings_appearance"),
+    Browser("settings_browser"),
+    Discovery("settings_discovery"),
+    Effects("settings_effects"),
     Saved("saved"),
     Profile("profile"),
     History("history"),
@@ -50,6 +53,7 @@ fun BottomBar(
     onNavigate: (String) -> Unit = {},
     focusModeEnabled: Boolean = false,
     hasRatedUp: Boolean = false,
+    labelsEnabled: Boolean = false,
 ) {
     // Track recent clicks for temporary highlight feedback
     var recentLikeClick by remember { mutableStateOf(value = false) }
@@ -82,11 +86,11 @@ fun BottomBar(
             icon = {
                 Icon(
                     if (recentSkipClick) Icons.Filled.ThumbDown else Icons.Outlined.ThumbDown,
-                    contentDescription = "Skip",
+                    contentDescription = "Dislike",
                     tint = if (recentSkipClick) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             },
-            label = { Text("Skip", style = MaterialTheme.typography.labelSmall) },
+            label = { if (labelsEnabled) Text("Dislike", style = MaterialTheme.typography.labelSmall) },
         )
 
         // Roam
@@ -108,7 +112,7 @@ fun BottomBar(
                 )
             },
             label = {
-                Text(
+                if (labelsEnabled) Text(
                     if (focusModeEnabled) "Focus" else "Roam",
                     style = MaterialTheme.typography.labelSmall,
                     color = if (focusModeEnabled) MaterialTheme.colorScheme.tertiary
@@ -117,21 +121,21 @@ fun BottomBar(
             },
         )
 
-        // You (was Settings)
+        // Settings Hub
         NavigationBarItem(
-            selected = currentRoute == RoamTab.You.route,
+            selected = currentRoute == RoamTab.SettingsHub.route,
             onClick = {
-                if (currentRoute != RoamTab.You.route) {
-                    onNavigate(RoamTab.You.route)
+                if (currentRoute != RoamTab.SettingsHub.route) {
+                    onNavigate(RoamTab.SettingsHub.route)
                 }
             },
             icon = {
                 Icon(
-                    if (currentRoute == RoamTab.You.route) Icons.Filled.Settings else Icons.Outlined.Settings,
-                    contentDescription = "You",
+                    if (currentRoute == RoamTab.SettingsHub.route) Icons.Filled.Settings else Icons.Outlined.Settings,
+                    contentDescription = "Settings",
                 )
             },
-            label = { Text("You", style = MaterialTheme.typography.labelSmall) },
+            label = { if (labelsEnabled) Text("Settings", style = MaterialTheme.typography.labelSmall) },
         )
 
         // Thumbs Up
@@ -148,7 +152,7 @@ fun BottomBar(
                     tint = if (hasRatedUp || recentLikeClick) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             },
-            label = { Text("Like", style = MaterialTheme.typography.labelSmall) },
+            label = { if (labelsEnabled) Text("Like", style = MaterialTheme.typography.labelSmall) },
         )
     }
 }

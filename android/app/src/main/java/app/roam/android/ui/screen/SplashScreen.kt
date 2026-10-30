@@ -7,11 +7,17 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import app.roam.android.ui.component.RoamOsBootScreen
+import app.roam.android.ui.theme.RoamThemeVariant
 
 /** Shown briefly while the Supabase session is loaded from storage. */
 @Composable
-fun SplashScreen() {
-    Box(modifier = Modifier.fillMaxSize().systemBarsPadding(), contentAlignment = Alignment.Center) {
-        CircularProgressIndicator()
+fun SplashScreen(variant: RoamThemeVariant) {
+    if (variant == RoamThemeVariant.ROAM_OS) {
+        RoamOsBootScreen()
+    } else {
+        Box(modifier = Modifier.fillMaxSize().systemBarsPadding(), contentAlignment = Alignment.Center) {
+            CircularProgressIndicator()
+        }
     }
 }
