@@ -117,6 +117,7 @@ fun SettingsHubScreen(
             currentUrl = currentUrl,
             categories = categories,
             subcategories = subcategories,
+            roamOs = roamOs,
             onSubmit = { url, categoryId, subcategoryId ->
                 vm.submitUrl(url, categoryId, subcategoryId)
                 showSubmitUrlDialog = false
@@ -235,7 +236,7 @@ fun SettingsHubScreen(
             Spacer(Modifier.height(8.dp))
 
             // Account
-            SettingsSectionHeader("Account")
+            SettingsSectionHeader(if (roamOs) "IDENTITY" else "Account")
             SettingsActionRow("Edit Profile", "Name, bio, interests, privacy", onClick = onNavigateToProfile)
             SettingsActionRow("Collections", "${collections.size} collections", onClick = onNavigateToSaved)
             SettingsActionRow("Saved URLs", "${savedUrls.size} saved", onClick = onNavigateToSaved)
@@ -247,7 +248,7 @@ fun SettingsHubScreen(
             Spacer(Modifier.height(8.dp))
 
             // Social
-            SettingsSectionHeader("Social")
+            SettingsSectionHeader(if (roamOs) "NETWORK" else "Social")
             SettingsActionRow("Search users", "Find people to follow", onClick = onOpenUserSearch)
             SettingsActionRow("Leaderboard", "Top explorers", onClick = onNavigateToLeaderboard)
             SettingsActionRow("Badges", "View all badges", onClick = onNavigateToBadges)
@@ -262,18 +263,18 @@ fun SettingsHubScreen(
             Spacer(Modifier.height(8.dp))
 
             // Preferences
-            SettingsSectionHeader("Preferences")
-            SettingsActionRow("Appearance", "Theme, frame, CRT, wear and deck", onClick = onNavigateToAppearance)
-            SettingsActionRow("Browser", "Languages, dark mode, translation", onClick = onNavigateToBrowser)
-            SettingsActionRow("Discovery", "Categories, focus mode, paywalls", onClick = onNavigateToDiscovery)
-            SettingsActionRow("Notifications & Effects", "Push, sounds, haptics, celebrations", onClick = onNavigateToEffects)
+            SettingsSectionHeader(if (roamOs) "CONFIG" else "Preferences")
+            SettingsActionRow(if (roamOs) "Display // Optics" else "Appearance", "Theme, frame, CRT, wear and deck", onClick = onNavigateToAppearance)
+            SettingsActionRow(if (roamOs) "Net // Browser" else "Browser", "Languages, dark mode, translation", onClick = onNavigateToBrowser)
+            SettingsActionRow(if (roamOs) "Scan // Discovery" else "Discovery", "Categories, focus mode, paywalls", onClick = onNavigateToDiscovery)
+            SettingsActionRow(if (roamOs) "Sensory // Feedback" else "Notifications & Effects", "Push, sounds, haptics, celebrations", onClick = onNavigateToEffects)
 
             HorizontalDivider()
             Spacer(Modifier.height(8.dp))
 
             // Feedback
-            SettingsSectionHeader("Feedback")
-            SettingsActionRow("Submit a URL", "Suggest a page to add to Roam", onClick = { showSubmitUrlDialog = true })
+            SettingsSectionHeader(if (roamOs) "UPLINK" else "Feedback")
+            SettingsActionRow(if (roamOs) "Upload URL" else "Submit a URL", if (roamOs) "Push a new page to the network" else "Suggest a page to add to Roam", onClick = { showSubmitUrlDialog = true })
             SettingsActionRow("Send feedback", "Tell us what you think", onClick = {
                 val intent = Intent(Intent.ACTION_SENDTO).apply {
                     data = "mailto:developer@roamtheweb.app".toUri()
@@ -290,7 +291,7 @@ fun SettingsHubScreen(
             Spacer(Modifier.height(8.dp))
 
             // About
-            SettingsSectionHeader("About")
+            SettingsSectionHeader(if (roamOs) "SYSINFO" else "About")
             SettingsActionRow("Privacy policy", null, onClick = {
                 CustomTabsIntent.Builder().build().launchUrl(context, Uri.parse("https://roamtheweb.app/privacy"))
             })
@@ -312,9 +313,9 @@ fun SettingsHubScreen(
             if (adminModeEnabled || moderatorModeEnabled) {
                 HorizontalDivider()
                 Spacer(Modifier.height(8.dp))
-                SettingsSectionHeader(if (adminModeEnabled) "Admin" else "Moderator")
+                SettingsSectionHeader(if (adminModeEnabled) (if (roamOs) "ROOT" else "Admin") else "Moderator")
                 SettingsActionRow(
-                    if (adminModeEnabled) "Admin Panel" else "Moderator Panel",
+                    if (adminModeEnabled) (if (roamOs) "Root Panel" else "Admin Panel") else "Moderator Panel",
                     "Manage submissions, reports, and more",
                     onClick = onNavigateToAdmin,
                 )
@@ -386,6 +387,7 @@ private fun SubmitUrlDialog(
     subcategories: List<SubcategoryItem>,
     onSubmit: (url: String, categoryId: String, subcategoryId: String?) -> Unit,
     onDismiss: () -> Unit,
+    roamOs: Boolean = false,
 ) {
     var url by remember { mutableStateOf(currentUrl ?: "") }
     var selectedCategoryId by remember { mutableStateOf<String?>(null) }
@@ -400,7 +402,7 @@ private fun SubmitUrlDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Submit a URL") },
+        title = { Text(if (roamOs) "Upload URL" else "Submit a URL") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 OutlinedTextField(

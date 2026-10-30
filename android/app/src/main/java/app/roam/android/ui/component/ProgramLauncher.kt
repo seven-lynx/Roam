@@ -86,7 +86,7 @@ fun ProgramLauncher(
     var translateDialogOpen by remember { mutableStateOf(false) }
     var shareDialogOpen by remember { mutableStateOf(false) }
 
-    RoamOsWindow(title = "PROGRAMS", onClose = onClose, modifier = modifier) {
+    RoamOsWindow(title = "/USR/BIN", onClose = onClose, modifier = modifier) {
         Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(12.dp)) {
             UrlInfoCard(title = title, domain = domain, category = category, subcategory = subcategory, description = description)
             Spacer(Modifier.height(12.dp))

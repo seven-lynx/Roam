@@ -60,6 +60,7 @@ import app.roam.android.viewmodel.MainViewModel
 fun AdminScreen(
     vm: MainViewModel,
     isAdmin: Boolean = true,
+    roamOs: Boolean = false,
     onNavigateToRoam: () -> Unit = {},
     onNavigateToWeb: (String) -> Unit = {},
     onOpenInBrowser: (String) -> Unit = {},
@@ -101,11 +102,11 @@ fun AdminScreen(
             TopAppBar(
                 title = {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(if (isAdmin) "Admin Panel" else "Moderator Panel")
+                        Text(if (isAdmin) (if (roamOs) "Root Panel" else "Admin Panel") else "Moderator Panel")
                         Spacer(Modifier.width(8.dp))
                         val roleColor = if (isAdmin) Color(0xFFDC2626) else Color(0xFF2563EB)
                         Text(
-                            text = if (isAdmin) "Admin" else "Mod",
+                            text = if (isAdmin) (if (roamOs) "Root" else "Admin") else "Mod",
                             style = MaterialTheme.typography.labelSmall,
                             color = roleColor,
                             modifier = Modifier

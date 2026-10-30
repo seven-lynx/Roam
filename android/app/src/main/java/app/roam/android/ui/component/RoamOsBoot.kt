@@ -45,9 +45,12 @@ import kotlinx.coroutines.delay
 fun RoamOsBootScreen() {
     val lines = listOf(
         "> establishing uplink …",
+        "> [ OK ] started roam-daemon",
         "> mounting /home …",
+        "> loading kernel modules …",
         "> phosphor array: ok",
         "> signal lock: acquired",
+        "> tty1: login as wanderer",
     )
     var lineIndex by remember { mutableIntStateOf(0) }
     LaunchedEffect(Unit) {

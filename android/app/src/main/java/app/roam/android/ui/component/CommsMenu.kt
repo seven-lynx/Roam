@@ -56,16 +56,16 @@ fun CommsMenu(
 
     RoamOsWindow(title = "COMMS", onClose = onClose, modifier = modifier) {
         Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(12.dp)) {
-            CommsRow(Icons.Filled.Notifications, "Notifications", "Review your latest alerts") {
+            CommsRow(Icons.Filled.Notifications, "Notifications", "Review your latest transmissions") {
                 onClose()
                 onCheckNotifications()
             }
             Spacer(Modifier.height(8.dp))
-            CommsRow(Icons.Filled.Feedback, "Send feedback", "Tell us what you think") {
+            CommsRow(Icons.Filled.Feedback, "Send feedback", "Beam your thoughts upstream") {
                 feedbackDialogOpen = true
             }
             Spacer(Modifier.height(8.dp))
-            CommsRow(Icons.Filled.Link, "Submit a URL", "Share a new site with Roam") {
+            CommsRow(Icons.Filled.Link, "Upload URL", "Push a new site to the network") {
                 onClose()
                 onSubmitUrl()
             }

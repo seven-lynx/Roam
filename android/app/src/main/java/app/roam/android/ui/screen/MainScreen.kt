@@ -506,6 +506,7 @@ fun MainScreen(
                 AdminScreen(
                     vm = vm,
                     isAdmin = adminModeEnabled,
+                    roamOs = isRoamOs,
                     onNavigateToRoam = { currentTab = RoamTab.Roam.route },
                     onNavigateToWeb = { url ->
                         vm.navigateToWeb(url)
