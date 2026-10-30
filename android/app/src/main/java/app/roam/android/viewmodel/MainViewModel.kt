@@ -697,7 +697,7 @@ class MainViewModel(
     /** URLs culled this session after repeated HEAD failures. */
     private val culledUrlIds = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
 
-    private val DEAD_LINK_FAILURE_THRESHOLD = 3
+    private val DEAD_LINK_FAILURE_THRESHOLD = 5
 
     /** Current user's profile */
     private val _profile = MutableStateFlow<UserProfile?>(null)
@@ -1650,27 +1650,29 @@ class MainViewModel(
 
                         if (batch.isNotEmpty()) {
                             val validationResults = batch.map { url ->
-                                async { url to isUrlReachable(url.url) }
+                                async { url to checkUrlReachability(url.url) }
                             }.awaitAll()
 
                             prefetchMutex.withLock {
                                 var successCount = 0
-                                validationResults.forEach { (url, isReachable) ->
+                                validationResults.forEach { (url, reachability) ->
                                     val domain = extractDomain(url.url)
                                     val domainInHot = domain != null && hotQueue.any { extractDomain(it.url) == domain }
-                                    if (isReachable && !domainInHot && hotQueue.size < HOT_TARGET) {
+                                    // HEAD_BLOCKED (405/403/501) is treated as servable —
+                                    // the page is almost certainly alive, just HEAD-averse.
+                                    if (reachability != Reachability.UNREACHABLE && !domainInHot && hotQueue.size < HOT_TARGET) {
                                         hotQueue.addLast(url)
                                         successCount++
                                         deadLinkFailures.remove(url.id)
-                                    } else if (!isReachable) {
-                                        // Track HEAD failures so dead pages can be
+                                    } else if (reachability == Reachability.UNREACHABLE) {
+                                        // Track genuine failures so dead pages can be
                                         // culled from the backend later.
                                         val fails = (deadLinkFailures[url.id] ?: 0) + 1
                                         if (fails >= DEAD_LINK_FAILURE_THRESHOLD) {
                                             deadLinkFailures.remove(url.id)
                                             culledUrlIds.add(url.id)
                                             android.util.Log.i("MainViewModel", "Culling dead link after $fails HEAD failures: ${url.url}")
-                                            viewModelScope.launch { runCatching { repo.reportUrl(url.id) } }
+                                            viewModelScope.launch { runCatching { repo.reportUrlAuto(url.id) } }
                                         } else {
                                             deadLinkFailures[url.id] = fails
                                         }
@@ -1690,8 +1692,17 @@ class MainViewModel(
         }
     }
 
-    /** HEAD-checks [url] with a short timeout. Returns false on any error or 4xx/5xx. */
-    private suspend fun isUrlReachable(url: String): Boolean = withContext(Dispatchers.IO) {
+    /** Tri-state result of a HEAD probe. */
+    private enum class Reachability { REACHABLE, HEAD_BLOCKED, UNREACHABLE }
+
+    /**
+     * HEAD-checks [url] with a short timeout.
+     * - REACHABLE:    < 400
+     * - HEAD_BLOCKED: 405/403/501 — HEAD unsupported; assume the page is alive
+     *                 (avoids false negatives — the client will just serve it).
+     * - UNREACHABLE:  anything else (timeout, DNS, 404, other 5xx)
+     */
+    private suspend fun checkUrlReachability(url: String): Reachability = withContext(Dispatchers.IO) {
         runCatching {
             val conn = URL(url).openConnection() as HttpURLConnection
             conn.requestMethod = "HEAD"
@@ -1701,8 +1712,12 @@ class MainViewModel(
             conn.setRequestProperty("User-Agent", "Mozilla/5.0")
             val code = conn.responseCode
             conn.disconnect()
-            code < 400
-        }.getOrDefault(false)
+            when {
+                code < 400 -> Reachability.REACHABLE
+                code == 405 || code == 403 || code == 501 -> Reachability.HEAD_BLOCKED
+                else -> Reachability.UNREACHABLE
+            }
+        }.getOrDefault(Reachability.UNREACHABLE)
     }
 
     fun thumbsUp(context: Context) {
@@ -2911,6 +2926,16 @@ class MainViewModel(
             _adminActionLoading.value = false
             if (result.ok) loadAdminReports()
             else showTransientToast(result.error ?: "Failed to restore")
+        }
+    }
+
+    fun deleteReportedLink(urlId: String) {
+        viewModelScope.launch {
+            _adminActionLoading.value = true
+            val result = repo.deleteReportedLink(urlId)
+            _adminActionLoading.value = false
+            if (result.ok) loadAdminReports()
+            else showTransientToast(result.error ?: "Failed to delete")
         }
     }
 

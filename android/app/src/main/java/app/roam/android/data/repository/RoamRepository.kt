@@ -526,6 +526,15 @@ class RoamRepository {
         supabase.functions.invoke("report-url", body = body)
     }
 
+    /** Reports a URL as auto-detected dead (prefetch HEAD cull). No challenge credit. */
+    suspend fun reportUrlAuto(urlId: String) {
+        val body = buildJsonObject {
+            put("url_id", urlId)
+            put("auto", true)
+        }
+        supabase.functions.invoke("report-url", body = body)
+    }
+
     /**
      * Sends user feedback via a Supabase edge function.
      */
@@ -1130,6 +1139,23 @@ class RoamRepository {
         }
         val body = buildJsonObject {
             put("action", "restore")
+            put("url_id", urlId)
+        }
+        return runCatching {
+            val response = supabase.functions.invoke("admin-moderation", body = body)
+            json.decodeFromString<app.roam.android.model.AdminActionResponse>(response.bodyAsText())
+        }.getOrElse {
+            app.roam.android.model.AdminActionResponse(ok = false, error = it.message)
+        }
+    }
+
+    /** Permanently deletes a reported (inactive) link from the pool. Admin-only. */
+    suspend fun deleteReportedLink(urlId: String): app.roam.android.model.AdminActionResponse {
+        if (!ensureAuthenticated()) {
+            return app.roam.android.model.AdminActionResponse(ok = false, error = "Not authenticated")
+        }
+        val body = buildJsonObject {
+            put("action", "delete")
             put("url_id", urlId)
         }
         return runCatching {

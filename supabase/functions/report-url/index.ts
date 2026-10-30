@@ -32,9 +32,19 @@ Deno.serve(async (req) => {
 
   const urlId = body.url_id as string | undefined
   if (!urlId) return json({ error: 'url_id required' }, 400)
+  const isAuto = body.auto === true
+
+  // Service-role client for the privileged writes (urls.inactive + url_reports).
+  // url_reports is RLS-enabled with no public policies, and users can't update
+  // urls directly, so these must bypass RLS.
+  const admin = createClient(
+    Deno.env.get('SUPABASE_URL')!,
+    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+    { auth: { autoRefreshToken: false, persistSession: false } },
+  )
 
   // Verify the URL exists
-  const { data: urlData } = await supabase
+  const { data: urlData } = await admin
     .from('urls')
     .select('id')
     .eq('id', urlId)
@@ -43,19 +53,19 @@ Deno.serve(async (req) => {
   if (!urlData) return json({ error: 'URL not found' }, 404)
 
   // Mark URL as inactive
-  const { error: updateErr } = await supabase
+  const { error: updateErr } = await admin
     .from('urls')
-    .update({ is_active: false })
+    .update({ inactive: true })
     .eq('id', urlId)
 
   if (updateErr) return json({ error: updateErr.message }, 500)
 
   // Log the report
-  const { error: reportErr } = await supabase
-    .from('reported_urls')
+  const { error: reportErr } = await admin
+    .from('url_reports')
     .insert({
       url_id: urlId,
-      reported_by: user.id,
+      user_id: user.id,
     })
 
   if (reportErr) {
@@ -63,12 +73,15 @@ Deno.serve(async (req) => {
     return json({ error: 'Failed to record report' }, 500)
   }
 
-  // Track report action in user_actions (triggers challenge progress)
-  await supabase.from("user_actions").insert({
-    user_id: user.id,
-    action_type: "report",
-    metadata: { url_id: urlId }
-  })
+  // Track report action in user_actions (triggers challenge progress).
+  // Skip for automated (prefetch cull) reports so they don't grant credit.
+  if (!isAuto) {
+    await supabase.from("user_actions").insert({
+      user_id: user.id,
+      action_type: "report",
+      metadata: { url_id: urlId }
+    })
+  }
 
   return json({ success: true })
 })

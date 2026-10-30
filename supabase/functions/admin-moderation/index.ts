@@ -89,6 +89,7 @@ Deno.serve(async (req) => {
       case 'stats': return await handleStats(adminClient)
       case 'reports': return await handleReports(adminClient)
       case 'restore': return await handleRestore(adminClient, body)
+      case 'delete': return await handleDelete(adminClient, body, isAdmin)
       default: return json({ error: `Unknown action: ${action}` }, 400)
     }
   } catch (err) {
@@ -352,6 +353,29 @@ async function handleRestore(
   if (error) return json({ error: error.message }, 500)
 
   return json({ ok: true, message: 'Link restored' })
+}
+
+// deno-lint-ignore no-explicit-any
+async function handleDelete(
+  admin: any,
+  body: Record<string, unknown>,
+  isAdmin: boolean,
+) {
+  if (!isAdmin) return json({ error: 'Forbidden — admin role required' }, 403)
+
+  const urlId = typeof body.url_id === 'string' ? body.url_id : null
+  if (!urlId) return json({ error: 'url_id is required' }, 400)
+
+  // Permanent delete. Dependent rows cascade: url_reports, seen_urls, ratings,
+  // collection items, shared_urls and tag relations are all ON DELETE CASCADE.
+  const { error } = await admin
+    .from('urls')
+    .delete()
+    .eq('id', urlId)
+
+  if (error) return json({ error: error.message }, 500)
+
+  return json({ ok: true, message: 'Link permanently deleted' })
 }
 
 function json(body: unknown, status = 200, responseHeaders?: Record<string, string>) {

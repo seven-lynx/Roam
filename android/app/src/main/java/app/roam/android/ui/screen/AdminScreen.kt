@@ -190,6 +190,7 @@ fun AdminScreen(
                     actionLoading = adminActionLoading,
                     isAdmin = isAdmin,
                     onRestore = { id -> vm.restoreReportedLink(id) },
+                    onDelete = { id -> confirmDialog = "delete" to id },
                     onRefresh = { vm.loadAdminReports() },
                 )
                 "system" -> SystemTab(
@@ -210,24 +211,43 @@ fun AdminScreen(
         val (action, itemId) = confirmDialog!!
         AlertDialog(
             onDismissRequest = { confirmDialog = null },
-            title = { Text(if (action == "approve") "Approve submission?" else "Reject submission?") },
+            title = {
+                Text(
+                    when (action) {
+                        "approve" -> "Approve submission?"
+                        "reject" -> "Reject submission?"
+                        else -> "Delete link permanently?"
+                    }
+                )
+            },
             text = {
                 Text(
-                    if (action == "approve")
-                        "This URL will be added to the Roam pool."
-                    else
-                        "This URL will be removed from the queue."
+                    when (action) {
+                        "approve" -> "This URL will be added to the Roam pool."
+                        "reject" -> "This URL will be removed from the queue."
+                        else -> "This permanently deletes the URL and its reports. This cannot be undone."
+                    }
                 )
             },
             confirmButton = {
                 TextButton(
                     onClick = {
-                        if (action == "approve") vm.approveSubmission(itemId)
-                        else vm.rejectSubmission(itemId)
+                        when (action) {
+                            "approve" -> vm.approveSubmission(itemId)
+                            "reject" -> vm.rejectSubmission(itemId)
+                            else -> vm.deleteReportedLink(itemId)
+                        }
                         confirmDialog = null
                     },
                 ) {
-                    Text(if (action == "approve") "Approve" else "Reject", color = MaterialTheme.colorScheme.error)
+                    Text(
+                        when (action) {
+                            "approve" -> "Approve"
+                            "reject" -> "Reject"
+                            else -> "Delete"
+                        },
+                        color = MaterialTheme.colorScheme.error,
+                    )
                 }
             },
             dismissButton = {
@@ -674,6 +694,7 @@ private fun ReportsTab(
     actionLoading: Boolean,
     isAdmin: Boolean,
     onRestore: (String) -> Unit,
+    onDelete: (String) -> Unit,
     onRefresh: () -> Unit,
 ) {
     Column(modifier = Modifier.fillMaxWidth()) {
@@ -746,6 +767,14 @@ private fun ReportsTab(
                                     enabled = !actionLoading,
                                 ) {
                                     Text("Restore", style = MaterialTheme.typography.labelSmall)
+                                }
+                                if (isAdmin) {
+                                    TextButton(
+                                        onClick = { onDelete(report.urlId) },
+                                        enabled = !actionLoading,
+                                    ) {
+                                        Text("Delete", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.error)
+                                    }
                                 }
                             }
                         }
