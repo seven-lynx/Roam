@@ -69,16 +69,18 @@ fun CrtOverlay(modifier: Modifier = Modifier, fx: CrtFx = CrtFx()) {
     val phosphor = MaterialTheme.colorScheme.secondary
 
     Canvas(modifier = modifier) {
-        // Flicker: full-screen luminance wobble (strong, scales with the slider).
-        val flickerAmp = 0.03f + 0.35f * sFlicker
+        // Flicker: full-screen luminance wobble (recalibrated — the default now
+        // matches the old intensity 3 so it no longer overwhelms the screen).
+        val flickerAmp = 0.03f + 0.18f * sFlicker
         drawRect(color = phosphor.copy(alpha = flickerAmp * flicker))
-        drawRect(color = Color.Black.copy(alpha = 0.05f + 0.20f * sFlicker * (1f - flicker)))
+        drawRect(color = Color.Black.copy(alpha = 0.05f + 0.10f * sFlicker * (1f - flicker)))
         drawRect(color = Color.White.copy(alpha = 0.015f * shimmer * (0.4f + sFlicker)))
 
-        // Vignette - darkens the edges toward the corners.
+        // Vignette - darkens the edges toward the corners (recalibrated: the
+        // default now matches the old intensity 1, and level 1 is off).
         drawRect(
             brush = Brush.radialGradient(
-                colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.35f + 0.55f * sVignette)),
+                colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.80f * sVignette)),
                 center = Offset(size.width / 2f, size.height / 2f),
                 radius = size.maxDimension * 0.55f,
             ),

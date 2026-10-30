@@ -27,6 +27,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.GpsFixed
@@ -39,6 +40,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.ScaffoldDefaults
 import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -128,6 +130,7 @@ fun MainScreen(
     val systemMessage by vm.systemMessage.collectAsState()
     val systemMessageSpeed by vm.systemMessageSpeed.collectAsState()
     val systemMessageDisplay by vm.systemMessageDisplay.collectAsState()
+    val upvoteCount by vm.upvoteCount.collectAsState()
     val hardwareColorScheme by vm.hardwareColorScheme.collectAsState()
     val backlightEnabled by vm.backlightEnabled.collectAsState()
     val backlightColorKey by vm.backlightColor.collectAsState()
@@ -145,6 +148,7 @@ fun MainScreen(
     val deckSize by vm.deckSize.collectAsState()
     val deckShape by vm.deckShape.collectAsState()
     val deviceFrameEnabled by vm.deviceFrameEnabled.collectAsState()
+    val surroundMatchDeck by vm.surroundMatchDeck.collectAsState()
     val crtEffectsEnabled by vm.crtEffectsEnabled.collectAsState()
     val crtFx by vm.crtFx.collectAsState()
     val wearEnabled by vm.wearEnabled.collectAsState()
@@ -187,6 +191,7 @@ fun MainScreen(
     ) {
     Scaffold(
         modifier = Modifier.fillMaxSize(),
+        contentWindowInsets = if (isRoamOs) WindowInsets(0, 0, 0, 0) else ScaffoldDefaults.contentWindowInsets,
         bottomBar = {
             if (isRoamOs) {
                 ControlDeck(
@@ -251,6 +256,8 @@ fun MainScreen(
         Box(Modifier.fillMaxSize().padding(innerPadding)) {
             HandheldShell(
                 framed = isRoamOs && deviceFrameEnabled,
+                surroundMatchDeck = surroundMatchDeck,
+                nixieValue = upvoteCount,
                 crtEnabled = isRoamOs && crtEffectsEnabled,
                 crtFx = crtFx,
                 wear = isRoamOs && wearEnabled,

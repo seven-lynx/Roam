@@ -28,7 +28,6 @@ import app.roam.android.ui.component.DECK_LAYOUTS
 import app.roam.android.ui.component.DECK_SHAPES
 import app.roam.android.ui.component.DECK_SIZES
 import app.roam.android.ui.component.DeckTexture
-import app.roam.android.ui.component.SettingsActionRow
 import app.roam.android.ui.component.SettingsFlavorText
 import app.roam.android.ui.component.SettingsFxSliderRow
 import app.roam.android.ui.component.SettingsToggleRow
@@ -48,6 +47,7 @@ fun AppearanceScreen(
     val crtEffectsEnabled by vm.crtEffectsEnabled.collectAsState()
     val crtFx by vm.crtFx.collectAsState()
     val deviceFrameEnabled by vm.deviceFrameEnabled.collectAsState()
+    val surroundMatchDeck by vm.surroundMatchDeck.collectAsState()
     val wearEnabled by vm.wearEnabled.collectAsState()
     val bezelFisheyeEnabled by vm.bezelFisheyeEnabled.collectAsState()
     val deckLayout by vm.deckLayout.collectAsState()
@@ -226,6 +226,7 @@ fun AppearanceScreen(
                 }
 
                 SettingsToggleRow("Device frame", "Show the retro handheld chassis around the screen", deviceFrameEnabled) { vm.setDeviceFrameEnabled(it) }
+                SettingsToggleRow("Match deck surround", "Blend the black surround into the control deck colour", surroundMatchDeck) { vm.setSurroundMatchDeck(it) }
                 SettingsToggleRow("Wear & tear", "Scratches, scuffs and oxidation on the chassis", wearEnabled) { vm.setWearEnabled(it) }
                 SettingsToggleRow("Bezel fisheye", "Warp the chassis bezel to match the screen curve", bezelFisheyeEnabled) { vm.setBezelFisheyeEnabled(it) }
                 SettingsToggleRow("Hardware embellishments", "Antenna, nixie and other chassis details", hardwareFxMaster) { vm.setHardwareFxMaster(it) }

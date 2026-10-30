@@ -29,6 +29,9 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
@@ -121,6 +124,9 @@ fun ControlDeck(
     val materialBrush = remember(texture) { deckTextureBrush(context, DeckTexture.fromKey(texture)) }
     val palette = LocalHardwarePalette.current
     val deckTop = lerp(Oxide3, palette.primary, 0.30f)
+    val navBarBottom = with(LocalDensity.current) {
+        WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding().toPx()
+    }
     Column(
         modifier = modifier
             .fillMaxWidth()
@@ -137,7 +143,7 @@ fun ControlDeck(
                 val r = 3.5.dp.toPx()
                 val inset = 6.dp.toPx()
                 val xs = listOf(inset + r, size.width - inset - r)
-                val ys = listOf(inset + r, size.height - inset - r)
+                val ys = listOf(inset + r, size.height - navBarBottom - inset - r)
                 for (x in xs) for (y in ys) {
                     drawCircle(Bone, radius = r, center = Offset(x, y))
                     drawCircle(Oxide, radius = r, center = Offset(x, y), style = Stroke(width = 1.dp.toPx()))
@@ -310,9 +316,9 @@ private fun LedModule(value: Int, label: String, color: Color) {
     }
 }
 
-private val EInkPaper = Color(0xFFC3C7BD)
-private val EInkInk = Color(0xFF151815)
-private val EInkFrame = Color(0xFF868B80)
+private val EInkPaper = Color(0xFFD9CEB8)
+private val EInkInk = Color(0xFF1C1A15)
+private val EInkFrame = Color(0xFF8C8271)
 
 @Composable
 private fun SystemReadout(message: String, color: Color, speed: Int = 5, display: String = "eink", modifier: Modifier = Modifier) {
@@ -328,16 +334,19 @@ private fun SystemReadout(message: String, color: Color, speed: Int = 5, display
             shadow = Shadow(color = color.copy(alpha = 0.85f), offset = Offset.Zero, blurRadius = 8f),
         )
     }
-    val textWidth = remember(message, eink) { textMeasurer.measure(AnnotatedString(message), style).size.width }
-    var containerWidth by remember { mutableIntStateOf(1) }
-    val travel = (containerWidth + textWidth).coerceAtLeast(1)
-    val loopMs = (12 - speed.coerceIn(1, 10)) * 700
-    val transition = key(speed) { rememberInfiniteTransition(label = "readout-marquee") }
+    // Seamless infinite stream: two copies side by side scroll left; the second is
+    // exactly where the first began when it has fully exited, so there is no blank.
+    val separatorPx = with(LocalDensity.current) { 16.dp.toPx() }
+    val copyWidth = remember(message, eink) { textMeasurer.measure(AnnotatedString(message), style).size.width }
+    val stepPx = (copyWidth + separatorPx).coerceAtLeast(1f)
+    val pxPerSec = 8f + speed.coerceIn(1, 10) * 5f
+    val loopMs = (stepPx / pxPerSec * 1000f).toInt().coerceAtLeast(1)
+    val transition = key(message, speed, eink) { rememberInfiniteTransition(label = "readout-stream") }
     val t by transition.animateFloat(
         initialValue = 0f,
         targetValue = 1f,
         animationSpec = infiniteRepeatable(tween(loopMs, easing = LinearEasing), RepeatMode.Restart),
-        label = "readout-marquee-t",
+        label = "readout-stream-t",
     )
     Column(modifier = modifier, horizontalAlignment = Alignment.CenterHorizontally) {
         Box(
@@ -345,19 +354,19 @@ private fun SystemReadout(message: String, color: Color, speed: Int = 5, display
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(4.dp))
                 .background(if (eink) EInkPaper else Color.Black.copy(alpha = 0.55f))
-                .border(1.dp, if (eink) EInkFrame else LineColor, RoundedCornerShape(4.dp))
-                .onSizeChanged { containerWidth = it.width },
-            contentAlignment = Alignment.CenterStart,
+                .border(1.dp, if (eink) EInkFrame else LineColor, RoundedCornerShape(4.dp)),
         ) {
-            Text(
-                message,
-                style = style,
-                maxLines = 1,
-                softWrap = false,
-                modifier = Modifier
-                    .padding(horizontal = 8.dp, vertical = 2.dp)
-                    .graphicsLayer { translationX = containerWidth - t * travel },
-            )
+            Box(
+                Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 2.dp),
+                contentAlignment = Alignment.CenterStart,
+            ) {
+                Row(Modifier.graphicsLayer { translationX = -t * stepPx }) {
+                    Text(message, style = style, maxLines = 1, softWrap = false)
+                    Spacer(Modifier.width(16.dp))
+                    Text(message, style = style, maxLines = 1, softWrap = false)
+                    Spacer(Modifier.width(16.dp))
+                }
+            }
         }
         Text("SYS", fontSize = 7.sp, color = Fog.copy(alpha = 0.75f), maxLines = 1)
     }

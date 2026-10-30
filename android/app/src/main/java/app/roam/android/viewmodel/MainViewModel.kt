@@ -105,6 +105,7 @@ class MainViewModel(
     private val CRT_FLICKER_KEY = "crt_flicker"
     private val CRT_FISHEYE_KEY = "crt_fisheye"
     private val DEVICE_FRAME_KEY = "device_frame"
+    private val SURROUND_MATCH_DECK_KEY = "surround_match_deck"
     private val WEAR_KEY = "wear_and_tear"
     private val BEZEL_FISHEYE_KEY = "bezel_fisheye"
     private val HARDWARE_ANTENNA_KEY = "hardware_antenna"
@@ -156,6 +157,10 @@ class MainViewModel(
     /** True when the user has thumbs-upped the current page */
     private val _hasRatedUp = MutableStateFlow(false)
     val hasRatedUp: StateFlow<Boolean> = _hasRatedUp.asStateFlow()
+
+    /** Session rating tally for the nixie tube (0–99, rolls over like a real counter). */
+    private val _upvoteCount = MutableStateFlow(0)
+    val upvoteCount: StateFlow<Int> = _upvoteCount.asStateFlow()
 
     /** User's collections (lazy-loaded when config sheet opens) */
     private val _collections = MutableStateFlow<List<Collection>>(emptyList())
@@ -437,6 +442,15 @@ class MainViewModel(
     fun setDeviceFrameEnabled(enabled: Boolean) {
         _deviceFrameEnabled.value = enabled
         prefs.edit().putBoolean(DEVICE_FRAME_KEY, enabled).apply()
+    }
+
+    /** Tint the black surround outside the bezel to match the deck's hardware colour. */
+    private val _surroundMatchDeck = MutableStateFlow(prefs.getBoolean(SURROUND_MATCH_DECK_KEY, false))
+    val surroundMatchDeck: StateFlow<Boolean> = _surroundMatchDeck.asStateFlow()
+
+    fun setSurroundMatchDeck(enabled: Boolean) {
+        _surroundMatchDeck.value = enabled
+        prefs.edit().putBoolean(SURROUND_MATCH_DECK_KEY, enabled).apply()
     }
 
     /** User preference: auto-translate pages */
@@ -881,7 +895,7 @@ class MainViewModel(
     )
 
     // ── System-message readout (deck pager/marquee) ──────────────────────
-    private val _systemMessage = MutableStateFlow("ROAM-OS // STANDBY")
+    private val _systemMessage = MutableStateFlow(streamFor(emptyList()))
     val systemMessage: StateFlow<String> = _systemMessage.asStateFlow()
 
     /** Deck readout scroll/advance speed (1 = slow, 10 = fast). */
@@ -889,7 +903,7 @@ class MainViewModel(
     val systemMessageSpeed: StateFlow<Int> = _systemMessageSpeed.asStateFlow()
 
     private val systemMessageQueue = ArrayDeque<String>()
-    private var systemMessageJob: Job? = null
+    private var flavorJob: Job? = null
 
     fun setSystemMessageSpeed(value: Int) {
         _systemMessageSpeed.value = value.coerceIn(1, 10)
@@ -950,31 +964,33 @@ class MainViewModel(
         prefs.edit().putString(BACKLIGHT_COLOR_KEY, value).apply()
     }
 
-    /** Enqueues a message for the deck readout (consecutive dupes dropped, capped). */
+    /** Enqueues a message for the deck readout (FIFO, dupes dropped, capped). */
     fun pushSystemMessage(message: String) {
         if (message.isBlank()) return
         if (systemMessageQueue.lastOrNull() == message) return
         systemMessageQueue.addLast(message)
         while (systemMessageQueue.size > 12) systemMessageQueue.removeFirst()
-        ensureSystemMessageCycle()
+        _systemMessage.value = streamFor(systemMessageQueue.toList())
     }
 
-    private fun ensureSystemMessageCycle() {
-        if (systemMessageJob?.isActive == true) return
-        systemMessageJob = viewModelScope.launch { cycleSystemMessages() }
-    }
-
-    private suspend fun cycleSystemMessages() {
-        while (true) {
-            val next = if (systemMessageQueue.isNotEmpty()) systemMessageQueue.removeFirst() else FLAVOR_MESSAGES.random()
-            _systemMessage.value = next
-            delay(systemMessageDwellMs())
+    /** Rotates the idle flavor line while there are no queued messages. */
+    private fun ensureFlavorRotation() {
+        if (flavorJob?.isActive == true) return
+        flavorJob = viewModelScope.launch {
+            while (true) {
+                delay(5_000)
+                if (systemMessageQueue.isEmpty()) {
+                    _systemMessage.value = streamFor(emptyList())
+                }
+            }
         }
     }
 
-    private fun systemMessageDwellMs(): Long {
-        val speed = _systemMessageSpeed.value.coerceIn(1, 10)
-        return 600L + (10 - speed) * 600L
+    /** Builds the stream: dots separate each message and fill idle time. */
+    private fun streamFor(messages: List<String>): String {
+        val dots = " · · · · "
+        val body = if (messages.isEmpty()) FLAVOR_MESSAGES.random() else messages.joinToString(dots)
+        return dots + body + dots
     }
 
     private val celebrationQueue = ArrayDeque<CelebrationEvent>()
@@ -1138,7 +1154,7 @@ class MainViewModel(
     private val pendingRatings = ArrayDeque<PendingRating>()
 
     init {
-        ensureSystemMessageCycle()
+        ensureFlavorRotation()
         viewModelScope.launch {
             runCatching { repo.getCategories() }
                 .onSuccess { if (it.isNotEmpty()) _categories.value = it }
@@ -1568,6 +1584,7 @@ class MainViewModel(
             return
         }
         _hasRatedUp.value = true
+        _upvoteCount.value = (_upvoteCount.value + 1) % 100
         pushSystemMessage("RATED UP // SIGNAL SAVED")
         viewModelScope.launch {
             haptic(context)
@@ -1595,6 +1612,7 @@ class MainViewModel(
         val loaded = _state.value as? RoamState.Loaded
         val excludeDomain = extractDomain(_rawUrl.value)
         _hasRatedUp.value = false
+        _upvoteCount.value = (_upvoteCount.value + 99) % 100
         pushSystemMessage("RATED DOWN // NEXT")
         viewModelScope.launch {
             haptic(context)

@@ -2,6 +2,7 @@ package app.roam.android.ui.component
 
 import android.graphics.Bitmap
 import android.graphics.BitmapShader
+import android.graphics.Color as AndroidColor
 import android.graphics.Shader
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
@@ -38,6 +39,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ShaderBrush
 import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
@@ -84,6 +86,8 @@ fun HandheldShell(
     bezelFisheye: Boolean = true,
     hardware: HardwareFx = HardwareFx(),
     texture: String = "plastic",
+    surroundMatchDeck: Boolean = false,
+    nixieValue: Int = 0,
     modifier: Modifier = Modifier,
     content: @Composable () -> Unit,
 ) {
@@ -91,7 +95,15 @@ fun HandheldShell(
     val palette = LocalHardwarePalette.current
     val materialBrush = remember(texture) { deckTextureBrush(context, DeckTexture.fromKey(texture)) }
     if (framed) {
-        Box(modifier = modifier.background(Abyss)) {
+        Box(
+            modifier = if (surroundMatchDeck) {
+                // Blend the black surround into the deck's hardware colour so the
+                // whole device reads as one continuous piece.
+                modifier.background(Brush.verticalGradient(listOf(lerp(Oxide3, palette.primary, 0.30f), Abyss)))
+            } else {
+                modifier.background(Abyss)
+            },
+        ) {
             Box(
                 Modifier
                     .fillMaxSize()
@@ -166,7 +178,12 @@ fun HandheldShell(
             PortLabels(Modifier.align(Alignment.BottomStart).padding(start = 20.dp, bottom = 3.dp))
             Diodes(Modifier.align(Alignment.BottomEnd).padding(end = 20.dp, bottom = 3.dp))
             if (hardware.antenna) AntennaStub(Modifier.align(Alignment.TopEnd).padding(end = 16.dp, top = 2.dp))
-            if (hardware.nixie) NixieTube(Modifier.align(Alignment.BottomCenter).padding(bottom = 1.dp))
+            if (hardware.nixie) {
+                Row(Modifier.align(Alignment.BottomCenter).padding(bottom = 1.dp), horizontalArrangement = Arrangement.spacedBy(3.dp)) {
+                    NixieTube(digit = (nixieValue / 10) % 10)
+                    NixieTube(digit = nixieValue % 10)
+                }
+            }
             if (hardware.activityLed) ActivityLed(Modifier.align(Alignment.TopStart).padding(start = 22.dp, top = 5.dp))
             if (hardware.vacuumTube) VacuumTube(Modifier.align(Alignment.CenterEnd).padding(end = 2.dp))
         }
@@ -335,9 +352,20 @@ private fun AntennaStub(modifier: Modifier = Modifier) {
     }
 }
 
+/** Neon complement of a colour (opposite hue, full saturation + brightness). */
+private fun complementaryNeon(color: Color): Color {
+    val hsv = FloatArray(3)
+    AndroidColor.colorToHSV(color.toArgb(), hsv)
+    hsv[0] = (hsv[0] + 180f) % 360f
+    hsv[1] = 1f
+    hsv[2] = 1f
+    return Color(AndroidColor.HSVToColor(hsv))
+}
+
 @Composable
-private fun NixieTube(modifier: Modifier = Modifier) {
+private fun NixieTube(digit: Int, modifier: Modifier = Modifier) {
     val palette = LocalHardwarePalette.current
+    val tubeColor = complementaryNeon(palette.primary)
     val transition = rememberInfiniteTransition(label = "nixie")
     val glow by transition.animateFloat(0.55f, 1f, infiniteRepeatable(tween(1100), RepeatMode.Reverse), label = "nixie-glow")
     Box(
@@ -349,7 +377,7 @@ private fun NixieTube(modifier: Modifier = Modifier) {
             .border(1.dp, Oxide, RoundedCornerShape(5.dp)),
         contentAlignment = Alignment.Center,
     ) {
-        Text("3", color = palette.emberBright.copy(alpha = glow), fontFamily = SevenSegment, fontSize = 14.sp)
+        Text("${digit % 10}", color = tubeColor.copy(alpha = glow), fontFamily = SevenSegment, fontSize = 14.sp)
     }
 }
 
