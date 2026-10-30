@@ -1,6 +1,6 @@
 # Android App — Developer Reference
 
-Accurate as of Stage 14 (May 2026). If a file listed here doesn't exist or a file exists that isn't listed, update this document.
+Accurate as of the ROAM-OS control-deck pass (October 2026). If a file listed here doesn't exist or a file exists that isn't listed, update this document.
 
 ---
 
@@ -83,7 +83,17 @@ android/
 │   │   │       │   │   ├── BottomBar.kt          # 4-tab NavigationBar
 │   │   │       │   │   ├── ConfigBottomSheet.kt  # Long-press context menu
 │   │   │       │   │   ├── RoamWebView.kt        # AndroidView WebView wrapper
-│   │   │       │   │   └── SubmitBottomSheet.kt  # Submit-a-URL sheet
+│   │   │       │   │   ├── SubmitBottomSheet.kt  # Submit-a-URL sheet
+│   │   │       │   │   ├── ControlDeck.kt        # ROAM-OS diegetic control deck (keys, LEDs, system pager)
+│   │   │       │   │   ├── HandheldShell.kt      # ROAM-OS chassis/bezel/screen recess
+│   │   │       │   │   ├── RoamOsWindow.kt       # ROAM-OS display window + content layer
+│   │   │       │   │   ├── RoamOsBoot.kt         # ROAM-OS boot sequence
+│   │   │       │   │   ├── OsStatusBar.kt        # ROAM-OS category/domain status bar
+│   │   │       │   │   ├── CrtOverlay.kt         # CRT scanlines/grain/vignette
+│   │   │       │   │   ├── CommsMenu.kt          # ROAM-OS comms menu
+│   │   │       │   │   ├── ProgramLauncher.kt    # ROAM-OS program launcher
+│   │   │       │   │   ├── Textures.kt           # chassis/deck material textures
+│   │   │       │   │   └── RoamOsIcons.kt        # ROAM-OS deck icon set
 │   │   │       │   ├── screen/
 │   │   │       │   │   ├── MainScreen.kt         # NavHost + DiscoverTab
 │   │   │       │   │   ├── SavedScreen.kt        # Saved URLs + Collections tabs
@@ -93,10 +103,16 @@ android/
 │   │   │       │   │   ├── OnboardingScreen.kt   # Google or email/password sign-in
 │   │   │       │   │   └── SplashScreen.kt
 │   │   │       │   └── theme/
+│   │   │       │       ├── Theme.kt
+│   │   │       │       ├── Color.kt
+│   │   │       │       ├── Type.kt
+│   │   │       │       ├── Font.kt
+│   │   │       │       └── RoamOsPalette.kt
 │   │   │       ├── util/
 │   │   │       │   ├── ConnectivityFlow.kt       # Flow<Boolean> via NetworkCallback
 │   │   │       │   ├── Env.kt                    # Startup validation of BuildConfig fields
 │   │   │       │   ├── Logger.kt
+│   │   │       │   ├── AppIconManager.kt         # theme-locked launcher icon switcher
 │   │   │       │   └── SwipeDirection.kt         # resolveSwipeAction(dx, dy) → "roam"|"like"|"skip"|null
 │   │   │       ├── viewmodel/
 │   │   │       │   ├── AuthViewModel.kt          # Loading/Unauthenticated/NeedsOnboarding/Authenticated

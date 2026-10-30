@@ -2,6 +2,17 @@
 
 All notable changes to the Roam web platform.
 
+## [2026-10-29] — Android ROAM-OS control deck & hardware customization
+
+### Added
+- Android diegetic control deck — a handheld hardware chassis with a physical key deck (Roam/thumbs/nav), latched keys, click sounds, and a mute/comms key pair.
+- Android system readout — a scrolling message pager with READY/BUFFER queue LEDs and an e-ink display (default) plus the 7-segment LED as an option.
+- Android hardware customization — chassis/deck material textures (metal/plastic/wood/leather), deck layout/size/shape, button labels, and a bezel fisheye toggle.
+- Android OS + hardware color schemes, a theme-locked launcher icon, and boot/standby animations.
+
+### Changed
+- Android ROAM-OS is now the default theme, with Linux-flavored flavor text.
+
 ## [2026-10-28] — Android ROAM-OS theme
 
 ### Added

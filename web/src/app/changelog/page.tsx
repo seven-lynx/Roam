@@ -11,6 +11,17 @@ type Entry = { version: string; date: string; items: string[] };
 
 const ANDROID_ENTRIES: Entry[] = [
   {
+    version: "1.4.0",
+    date: "2026-10-29",
+    items: [
+      "Diegetic control deck — a handheld hardware chassis with a physical Roam/thumbs/nav key deck, latched keys, click sounds, and a mute/comms key pair.",
+      "System readout — a scrolling message pager with READY/BUFFER queue LEDs, plus an e-ink style (default) and the original 7-segment LED as an option.",
+      "Hardware customization — chassis/deck material textures (metal, plastic, wood, leather), deck layout/size/shape, button labels, and a bezel fisheye toggle.",
+      "Separate OS (display/terminal) and hardware (chassis/deck) color schemes, a theme-locked launcher icon, and boot/standby animations.",
+      "ROAM-OS is now the default theme, with Linux-flavored flavor text.",
+    ],
+  },
+  {
     version: "1.3.0",
     date: "2026-10-28",
     items: [
