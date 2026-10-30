@@ -1,0 +1,8 @@
+What's new in 1.4.0:
+
+• ROAM-OS handheld control deck — A physical-feeling deck with Roam, thumbs-up, thumbs-down, and navigation keys, tactile presses, click sounds, and a mute/comms key pair.
+• System readout — A scrolling message pager with "READY" and "BUFFER" LEDs, an XP flash, and online/offline status. E-ink style by default, with the 7-segment glow look still available in Settings.
+• Hardware customization — Pick your chassis/deck material (metal, plastic, wood, leather), deck layout, size, shape, and button labels.
+• Separate OS and hardware color schemes — Customize the display and chassis palettes independently.
+• Settings Hub — Appearance, Browser, Discovery, and Notifications & Effects now open their own screens.
+• ROAM-OS is now the default theme.
