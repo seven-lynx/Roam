@@ -381,6 +381,14 @@ deno_version = 2
 # set, the scheduler must send `Authorization: Bearer <CRON_SECRET>` (see .env.example).
 schedule = "0 0 * * *"
 
+[functions.sentry-webhook]
+# Public webhook receiver for Sentry (server-to-server). Deployed with
+# verify_jwt=false and protected by a shared secret instead:
+# SENTRY_WEBHOOK_SECRET, sent as either the `x-sentry-webhook-secret` header
+# or the `?secret=` query parameter.
+
+verify_jwt = false
+
 [analytics]
 enabled = true
 port = 54327

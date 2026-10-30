@@ -1463,6 +1463,26 @@ Runs on a schedule (every 6 hours) via Supabase cron. Resets `streak_days` to 0 
 
 ---
 
+### `sentry-webhook` — Sentry → GitHub issue bridge (webhook)
+
+Receives Sentry webhooks and files a GitHub issue in `seven-lynx/Roam` for each new or regressed error. Deterministic plumbing — no model calls. Not a client-facing endpoint.
+
+**Endpoint:** `POST /functions/v1/sentry-webhook`
+
+**Authentication:** Shared secret (`SENTRY_WEBHOOK_SECRET`) sent as the `x-sentry-webhook-secret` header or `secret` query parameter. Deployed with `verify_jwt = false`.
+
+**Response (200):**
+```json
+{ "ok": true, "created": true, "number": 123 }
+```
+
+**Error Responses:**
+- **401** — Missing/invalid shared secret
+- **400** — Invalid JSON
+- **502** — GitHub API failure (Sentry retries on non-2xx)
+
+---
+
 ## RPC Functions (Database)
 
 Called via `supabase.rpc()`, not HTTP. These are PostgreSQL functions that run server-side.

@@ -70,6 +70,39 @@ the old tagging system (columns `id`, `url_id`, `tag` TEXT, `tagged_by`,
 `20260919000000_drop_legacy_url_tags.sql` drops it (guarded to only drop the
 legacy TEXT-`tag` shape) before the tag-graph migration runs.
 
+## Sentry → GitHub issue webhook
+
+`functions/sentry-webhook/` receives Sentry webhooks and files a GitHub issue in
+`seven-lynx/Roam` for every new or regressed error. It is deterministic plumbing
+(no model calls). It is deployed with `verify_jwt = false` (see `config.toml`)
+and is protected by a shared secret instead of a JWT.
+
+**Secrets (set via `supabase secrets set`):**
+
+| Secret | Purpose |
+| --- | --- |
+| `SENTRY_WEBHOOK_SECRET` | Shared secret; Sentry sends it as the `x-sentry-webhook-secret` header or `?secret=` query param |
+| `GITHUB_PAT` | GitHub token with `Issues: write` on `seven-lynx/Roam` |
+| `SENTRY_AUTH_TOKEN` | Optional — enrich filed issues with the latest event's stack trace |
+| `GITHUB_REPO` | Optional — target repo, defaults to `seven-lynx/Roam` |
+
+**Deploy:**
+
+```powershell
+supabase functions deploy sentry-webhook
+```
+
+**Sentry-side setup (one-time):**
+
+1. In Sentry, create a custom integration (Settings → Developer Settings →
+   Custom Integrations) with the webhook URL
+   `https://<project-ref>.supabase.co/functions/v1/sentry-webhook?secret=<SENTRY_WEBHOOK_SECRET>`,
+   and enable the **Issue** webhook subscription (and/or the **Alert Action**
+   toggle if you prefer alert-rule-driven filing).
+2. The function files an issue on `created` / `unresolved`+`regressed`. It is
+   idempotent per Sentry issue: repeated deliveries do not create duplicates
+   (dedup key is `sentry-issue:<id>` in the issue body).
+
 ## Useful references
 
 - [Changelog](./CHANGELOG.md) — notable schema, RLS, and Edge Function changes
