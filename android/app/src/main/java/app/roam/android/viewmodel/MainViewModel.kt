@@ -119,6 +119,12 @@ class MainViewModel(
     private val LAST_URL_KEY = "last_url"
     private val LAST_URL_TITLE_KEY = "last_url_title"
     private val SOUND_EFFECTS_KEY = "sound_effects"
+    private val SOUND_VOLUME_KEY = "sound_volume"          // 0..100
+    private val SOUND_DECK_KEY = "sound_deck"
+    private val SOUND_RATING_KEY = "sound_rating"
+    private val SOUND_LOADING_KEY = "sound_loading"
+    private val SOUND_CELEBRATION_KEY = "sound_celebration"
+    private val SOUND_ACTION_KEY = "sound_action"
     private val HAPTIC_FEEDBACK_KEY = "haptic_feedback"
     private val CELEBRATION_ANIMATIONS_KEY = "celebration_animations"
     private val CELEBRATION_WATERMARK_KEY = "celebration_watermark"
@@ -154,9 +160,27 @@ class MainViewModel(
     private val _submitToast = MutableStateFlow<String?>(null)
     val submitToast: StateFlow<String?> = _submitToast.asStateFlow()
 
-    /** True when the user has thumbs-upped the current page */
-    private val _hasRatedUp = MutableStateFlow(false)
-    val hasRatedUp: StateFlow<Boolean> = _hasRatedUp.asStateFlow()
+    /** The current user's rating for the page on screen: 1 = up, -1 = down, 0 = none. */
+    private val _userRating = MutableStateFlow(0)
+    val userRating: StateFlow<Int> = _userRating.asStateFlow()
+
+    /** Latches false at the start of every navigation/roam/translate and flips true
+     *  only once the WebView reports the target page visible. Drives the loading
+     *  overlay so it never flashes mid-transition. */
+    private val _webViewReady = MutableStateFlow(true)
+    val webViewReady: StateFlow<Boolean> = _webViewReady.asStateFlow()
+
+    private fun beginPageLoad() { _webViewReady.value = false }
+
+    /** Called by the WebView when the target page is actually visible. */
+    fun onPageRevealed() {
+        _webViewReady.value = true
+        _isTranslating.value = false
+    }
+
+    /** True when the ROAM-OS translate-language picker is open over the webview. */
+    private val _showTranslatePicker = MutableStateFlow(false)
+    val showTranslatePicker: StateFlow<Boolean> = _showTranslatePicker.asStateFlow()
 
     /** Session rating tally for the nixie tube (0–99, rolls over like a real counter). */
     private val _upvoteCount = MutableStateFlow(0)
@@ -465,6 +489,7 @@ class MainViewModel(
             val raw = _rawUrl.value ?: return
             _currentUrl.value = translateUrl(raw)
             _isTranslating.value = true
+            beginPageLoad()
         } else {
             // If disabling, revert to the raw URL
             _currentUrl.value = _rawUrl.value
@@ -493,7 +518,7 @@ class MainViewModel(
         val raw = _rawUrl.value ?: return
         val toTranslated = !isTranslated
         _currentUrl.value = if (toTranslated) translateUrl(raw) else raw
-        if (toTranslated) _isTranslating.value = true
+        if (toTranslated) { _isTranslating.value = true; beginPageLoad() }
     }
 
     /** Translates the current page to [targetLang]. Uses the persisted preference. */
@@ -504,6 +529,7 @@ class MainViewModel(
         prefs.edit().putString(TRANSLATE_LANG_KEY, targetLang).apply()
         _currentUrl.value = translateUrl(raw)
         _isTranslating.value = true
+        beginPageLoad()
     }
 
     /** User preference: enable JavaScript in the WebView (default on) */
@@ -546,6 +572,7 @@ class MainViewModel(
             val raw = _rawUrl.value ?: return
             _currentUrl.value = translateUrl(raw)
             _isTranslating.value = true
+            beginPageLoad()
         }
     }
 
@@ -830,6 +857,66 @@ class MainViewModel(
         _soundEffectsEnabled.value = enabled
         prefs.edit().putBoolean(SOUND_EFFECTS_KEY, enabled).apply()
     }
+
+    /** Master sound volume (0–100). */
+    private val _soundVolume = MutableStateFlow(prefs.getInt(SOUND_VOLUME_KEY, 100))
+    val soundVolume: StateFlow<Int> = _soundVolume.asStateFlow()
+
+    fun setSoundVolume(vol: Int) {
+        _soundVolume.value = vol.coerceIn(0, 100)
+        prefs.edit().putInt(SOUND_VOLUME_KEY, _soundVolume.value).apply()
+        SoundManager.setVolume(_soundVolume.value / 100f)
+    }
+
+    /** Per-category sound switches. */
+    private val _soundDeckEnabled = MutableStateFlow(prefs.getBoolean(SOUND_DECK_KEY, true))
+    val soundDeckEnabled: StateFlow<Boolean> = _soundDeckEnabled.asStateFlow()
+    private val _soundRatingEnabled = MutableStateFlow(prefs.getBoolean(SOUND_RATING_KEY, true))
+    val soundRatingEnabled: StateFlow<Boolean> = _soundRatingEnabled.asStateFlow()
+    private val _soundLoadingEnabled = MutableStateFlow(prefs.getBoolean(SOUND_LOADING_KEY, true))
+    val soundLoadingEnabled: StateFlow<Boolean> = _soundLoadingEnabled.asStateFlow()
+    private val _soundCelebrationEnabled = MutableStateFlow(prefs.getBoolean(SOUND_CELEBRATION_KEY, true))
+    val soundCelebrationEnabled: StateFlow<Boolean> = _soundCelebrationEnabled.asStateFlow()
+    private val _soundActionEnabled = MutableStateFlow(prefs.getBoolean(SOUND_ACTION_KEY, true))
+    val soundActionEnabled: StateFlow<Boolean> = _soundActionEnabled.asStateFlow()
+
+    fun setSoundDeckEnabled(enabled: Boolean) {
+        _soundDeckEnabled.value = enabled
+        prefs.edit().putBoolean(SOUND_DECK_KEY, enabled).apply()
+        SoundManager.setCategoryEnabled(SoundManager.Category.DECK, enabled)
+    }
+    fun setSoundRatingEnabled(enabled: Boolean) {
+        _soundRatingEnabled.value = enabled
+        prefs.edit().putBoolean(SOUND_RATING_KEY, enabled).apply()
+        SoundManager.setCategoryEnabled(SoundManager.Category.RATING, enabled)
+    }
+    fun setSoundLoadingEnabled(enabled: Boolean) {
+        _soundLoadingEnabled.value = enabled
+        prefs.edit().putBoolean(SOUND_LOADING_KEY, enabled).apply()
+        SoundManager.setCategoryEnabled(SoundManager.Category.LOADING, enabled)
+    }
+    fun setSoundCelebrationEnabled(enabled: Boolean) {
+        _soundCelebrationEnabled.value = enabled
+        prefs.edit().putBoolean(SOUND_CELEBRATION_KEY, enabled).apply()
+        SoundManager.setCategoryEnabled(SoundManager.Category.CELEBRATION, enabled)
+    }
+    fun setSoundActionEnabled(enabled: Boolean) {
+        _soundActionEnabled.value = enabled
+        prefs.edit().putBoolean(SOUND_ACTION_KEY, enabled).apply()
+        SoundManager.setCategoryEnabled(SoundManager.Category.ACTION, enabled)
+    }
+
+    /** Pushes persisted sound settings into SoundManager once at startup. */
+    private fun syncSoundManager() {
+        SoundManager.setVolume(_soundVolume.value / 100f)
+        SoundManager.setCategoryEnabled(SoundManager.Category.DECK, _soundDeckEnabled.value)
+        SoundManager.setCategoryEnabled(SoundManager.Category.RATING, _soundRatingEnabled.value)
+        SoundManager.setCategoryEnabled(SoundManager.Category.LOADING, _soundLoadingEnabled.value)
+        SoundManager.setCategoryEnabled(SoundManager.Category.CELEBRATION, _soundCelebrationEnabled.value)
+        SoundManager.setCategoryEnabled(SoundManager.Category.ACTION, _soundActionEnabled.value)
+    }
+
+    init { syncSoundManager() }
 
     /** Whether haptic (vibration) feedback is enabled. */
     private val _hapticFeedbackEnabled = MutableStateFlow(prefs.getBoolean(HAPTIC_FEEDBACK_KEY, true))
@@ -1271,7 +1358,8 @@ class MainViewModel(
 
     fun roam(excludeDomain: String? = null) {
         haptic(getApplication())
-        _hasRatedUp.value = false
+        _userRating.value = 0
+        beginPageLoad()
 
         // ── Client-side debounce: ignore rapid-fire taps within 1 second ──────
         val now = System.currentTimeMillis()
@@ -1307,6 +1395,7 @@ class MainViewModel(
                 _rawUrl.value = prefetched.url
                 _currentUrl.value = prefetched.url
                 _state.value = RoamState.Loaded(prefetched)
+                _userRating.value = prefetched.userRating ?: 0
                 playSfx(R.raw.load_complete)
                 recordUrlVisit(prefetched.url, prefetched.title ?: prefetched.url)
                 // If background WebView preloading is enabled, expose the next hot-queue entry
@@ -1383,6 +1472,7 @@ class MainViewModel(
                     _rawUrl.value = roamUrl.url
                     _currentUrl.value = roamUrl.url
                     _state.value = RoamState.Loaded(roamUrl)
+                    _userRating.value = roamUrl.userRating ?: 0
                     playSfx(R.raw.load_complete)
                     persistLastUrl(roamUrl.url, roamUrl.title)
                     recordUrlVisit(roamUrl.url, roamUrl.title ?: roamUrl.url)
@@ -1588,7 +1678,8 @@ class MainViewModel(
             _showSubmitSheet.value = true
             return
         }
-        _hasRatedUp.value = true
+        if (_userRating.value == 1) return  // already up-voted — no-op
+        _userRating.value = 1
         _upvoteCount.value = (_upvoteCount.value + 1) % 100
         pushSystemMessage("RATED UP // SIGNAL SAVED")
         viewModelScope.launch {
@@ -1616,7 +1707,8 @@ class MainViewModel(
     fun thumbsDown(context: Context) {
         val loaded = _state.value as? RoamState.Loaded
         val excludeDomain = extractDomain(_rawUrl.value)
-        _hasRatedUp.value = false
+        if (_userRating.value == -1) return  // already down-voted — no-op
+        _userRating.value = -1
         _upvoteCount.value = (_upvoteCount.value + 99) % 100
         pushSystemMessage("RATED DOWN // NEXT")
         viewModelScope.launch {
@@ -1640,6 +1732,18 @@ class MainViewModel(
             loadChallenges()
             checkForNewCelebrations()
             roam(excludeDomain = excludeDomain)
+        }
+    }
+
+    /** Re-reads the current user's rating for the page on screen. Called on resume /
+     *  unlock so the deck's pressed keys survive backgrounding. */
+    fun refreshUserRating() {
+        val loaded = (_state.value as? RoamState.Loaded) ?: return
+        val urlId = loaded.roamUrl.id
+        if (urlId.isBlank()) return
+        viewModelScope.launch {
+            val rating = runCatching { repo.getUserRating(urlId) }.getOrNull() ?: 0
+            _userRating.value = rating
         }
     }
 
@@ -1718,6 +1822,9 @@ class MainViewModel(
 
     fun toggleCommsMenu() { _showCommsMenu.value = !_showCommsMenu.value }
     fun closeCommsMenu() { _showCommsMenu.value = false }
+
+    fun openTranslatePicker() { _showTranslatePicker.value = true }
+    fun closeTranslatePicker() { _showTranslatePicker.value = false }
 
     /** Called by the WebView when the user navigates to a page not in the discovery pool */
     fun onWebViewUrlChanged(url: String) {
@@ -1884,7 +1991,8 @@ class MainViewModel(
      * Useful for opening internal web pages (e.g. profile/collections management).
      */
     fun navigateTo(url: String) {
-        _hasRatedUp.value = false
+        _userRating.value = 0
+        beginPageLoad()
         _rawUrl.value = url
         _currentUrl.value = url
         _state.value = RoamState.Loaded(RoamUrl(id = "", url = url))
@@ -2097,7 +2205,7 @@ class MainViewModel(
         _rawUrl.value = null
         _currentUrl.value = null
         _nextPrefetchUrl.value = null
-        _hasRatedUp.value = false
+        _userRating.value = 0
         _adminModeEnabled.value = false
         _moderatorModeEnabled.value = false
         _isModerator.value = false
@@ -2106,7 +2214,8 @@ class MainViewModel(
     }
 
     fun roamWithinCategory() {
-        _hasRatedUp.value = false
+        _userRating.value = 0
+        beginPageLoad()
         val loaded = _state.value as? RoamState.Loaded
         val categoryId = loaded?.roamUrl?.categoryId
         _activeCollectionId.value = null

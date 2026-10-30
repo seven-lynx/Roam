@@ -35,6 +35,10 @@ import app.roam.android.ui.theme.Fog
 import app.roam.android.ui.theme.IbmPlexMono
 import app.roam.android.ui.theme.LineColor
 import app.roam.android.ui.theme.Orbitron
+import androidx.compose.ui.platform.LocalContext
+import app.roam.android.R
+import app.roam.android.util.SoundManager
+import kotlin.random.Random
 import kotlinx.coroutines.delay
 
 /**
@@ -43,7 +47,15 @@ import kotlinx.coroutines.delay
  * the URL-loading scan sequence (BootScanLoading).
  */
 @Composable
-fun RoamOsBootScreen() {
+fun RoamOsBootScreen(soundEnabled: Boolean = true) {
+    val context = LocalContext.current
+    LaunchedEffect(Unit) {
+        if (soundEnabled) SoundManager.play(context, R.raw.load_start)
+        while (true) {
+            delay(Random.nextLong(700, 2200))
+            if (soundEnabled) SoundManager.play(context, if (Random.nextBoolean()) R.raw.relay_tick else R.raw.modem_blip)
+        }
+    }
     val lines = listOf(
         "> establishing uplink …",
         "> [ OK ] started roam-daemon",

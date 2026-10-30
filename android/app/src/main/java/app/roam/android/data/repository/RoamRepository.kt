@@ -247,6 +247,26 @@ class RoamRepository {
         supabase.functions.invoke("rate", body = body)
     }
 
+    @Serializable
+    private data class RatingRow(val value: Int)
+
+    /** Returns the current user's rating (1 = up, -1 = down) for [urlId], or null if unrated. */
+    suspend fun getUserRating(urlId: String): Int? {
+        val userId = supabase.auth.currentUserOrNull()?.id ?: return null
+        return runCatching {
+            supabase.postgrest
+                .from("ratings")
+                .select(Columns.list("value")) {
+                    filter {
+                        eq("user_id", userId)
+                        eq("url_id", urlId)
+                    }
+                }
+                .decodeList<RatingRow>()
+                .firstOrNull()?.value
+        }.getOrNull()
+    }
+
     /**
      * Calls POST /functions/v1/submit-url.
      * [url] is required; [subcategoryId] is the user-selected category chip.

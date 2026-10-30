@@ -27,6 +27,7 @@ import androidx.compose.ui.unit.sp
 import app.roam.android.R
 import app.roam.android.ui.theme.Orbitron
 import app.roam.android.util.SoundManager
+import kotlin.random.Random
 import kotlinx.coroutines.delay
 
 /**
@@ -44,9 +45,16 @@ fun TranslateLoading(language: String, soundEnabled: Boolean = true, modifier: M
         label = "translate-sweep",
     )
     LaunchedEffect(Unit) {
+        if (soundEnabled) SoundManager.play(context, R.raw.server_hum)
         while (true) {
             if (soundEnabled) SoundManager.play(context, R.raw.scan_blip)
-            delay(420)
+            delay(700)
+        }
+    }
+    LaunchedEffect(Unit) {
+        while (true) {
+            delay(Random.nextLong(500, 2000))
+            if (soundEnabled) SoundManager.play(context, if (Random.nextBoolean()) R.raw.relay_tick else R.raw.modem_blip)
         }
     }
 

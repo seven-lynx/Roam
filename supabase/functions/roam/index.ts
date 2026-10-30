@@ -208,7 +208,28 @@ Deno.serve(async (req) => {
       )
     }
 
-    return json(count === 1 ? results[0] : results, 200, { 'Cache-Control': 'private, max-age=5' })
+    // Attach the current user's rating (1/-1, or 0 = unrated) to the single-URL
+    // response so the Android deck can render the thumbs keys already "pressed in"
+    // when the user revisits a URL they previously rated.
+    let responseBody: unknown = results
+    if (count === 1 && results.length === 1) {
+      const first = results[0] as Record<string, unknown> & { id: string }
+      let userRating = 0
+      try {
+        const { data: ratingRow } = await supabase
+          .from('ratings')
+          .select('value')
+          .eq('user_id', user.id)
+          .eq('url_id', first.id)
+          .maybeSingle()
+        if (ratingRow && typeof ratingRow.value === 'number') userRating = ratingRow.value
+      } catch (e) {
+        console.error('user rating lookup failed', e)
+      }
+      responseBody = { ...first, user_rating: userRating }
+    }
+
+    return json(responseBody, 200, { 'Cache-Control': 'private, max-age=5' })
   } catch (e) {
     console.error('roam handler uncaught error', e)
     await report(e, 'error', { handler: 'roam' })

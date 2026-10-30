@@ -89,6 +89,7 @@ import app.roam.android.ui.component.RoamTab
 import app.roam.android.ui.component.RoamOsBootScreen
 import app.roam.android.ui.component.Tour
 import app.roam.android.ui.component.TranslateLoading
+import app.roam.android.ui.component.TranslatePicker
 import app.roam.android.ui.component.RoamWebView
 import app.roam.android.ui.component.ShareUrlBottomSheet
 import app.roam.android.ui.component.SubmitBottomSheet
@@ -119,7 +120,7 @@ fun MainScreen(
     var viewedUsername by rememberSaveable { mutableStateOf<String?>(null) }
     var showUserSearch by remember { mutableStateOf(false) }
     val focusModeEnabled by vm.focusModeEnabled.collectAsState()
-    val hasRatedUp by vm.hasRatedUp.collectAsState()
+    val userRating by vm.userRating.collectAsState()
     val themeVariant by vm.themeVariant.collectAsState()
     val isOnline by vm.isOnline.collectAsState()
     val hotQueueSize by vm.hotQueueSize.collectAsState()
@@ -206,7 +207,7 @@ fun MainScreen(
                     unreadNotificationCount = unreadNotificationCount,
                     xpFlash = xpFlash,
                     focusModeEnabled = focusModeEnabled,
-                    hasRatedUp = hasRatedUp,
+                    userRating = userRating,
                     muted = !soundEffectsEnabled,
                     menuOpen = showConfigSheet,
                     onRoam = {
@@ -247,7 +248,7 @@ fun MainScreen(
                     onRoam = { vm.roam() },
                     onNavigate = { currentTab = it },
                     focusModeEnabled = focusModeEnabled,
-                    hasRatedUp = hasRatedUp,
+                    userRating = userRating,
                     labelsEnabled = deckLabelsEnabled,
                 )
             }
@@ -312,6 +313,7 @@ fun MainScreen(
                     onNavigateToBrowser = { currentTab = RoamTab.Browser.route },
                     onNavigateToDiscovery = { currentTab = RoamTab.Discovery.route },
                     onNavigateToEffects = { currentTab = RoamTab.Effects.route },
+                    onNavigateToSound = { currentTab = RoamTab.Sound.route },
                 )
             }
 
@@ -361,6 +363,18 @@ fun MainScreen(
                 exit = slideOutHorizontally(targetOffsetX = { it }) + fadeOut(tween(200)),
             ) {
                 EffectsScreen(
+                    vm = vm,
+                    roamOs = isRoamOs,
+                    onNavigateBack = { currentTab = RoamTab.SettingsHub.route },
+                )
+            }
+
+            AnimatedVisibility(
+                visible = currentTab == RoamTab.Sound.route,
+                enter = slideInHorizontally(initialOffsetX = { it }) + fadeIn(tween(240)),
+                exit = slideOutHorizontally(targetOffsetX = { it }) + fadeOut(tween(200)),
+            ) {
+                SoundScreen(
                     vm = vm,
                     roamOs = isRoamOs,
                     onNavigateBack = { currentTab = RoamTab.SettingsHub.route },
@@ -631,8 +645,11 @@ private fun DiscoverTab(
     val soundEffectsEnabled by vm.soundEffectsEnabled.collectAsState()
     val isTranslating by vm.isTranslating.collectAsState()
     val translateLanguage by vm.translateLanguage.collectAsState()
+    val webViewReady by vm.webViewReady.collectAsState()
+    val showTranslatePicker by vm.showTranslatePicker.collectAsState()
     val isRoamOs = themeVariant == RoamThemeVariant.ROAM_OS
     val screenLabel = if (isRoamOs) when {
+        showTranslatePicker -> "TRANSLATE // TARGET"
         showConfigSheet -> "PROGRAMS // LAUNCHER"
         showCommsMenu -> "COMMS // UPLINK"
         showShareUrlSheet -> "SHARE // LINK"
@@ -671,7 +688,7 @@ private fun DiscoverTab(
     val loaded = state as? RoamState.Loaded
     val isRoaming = state is RoamState.Loading ||
             (currentUrl == loaded?.roamUrl?.url && (webViewLoading || (currentUrl != lastLoadedUrl)))
-    val showOverlay = rawUrl == null || isRoaming || webViewRecovering
+    val showOverlay = rawUrl == null || !webViewReady || webViewRecovering
 
     // ROAM-OS scan finish: hold the scan overlay one short beat after a
     // successful load so the sequence plays "MOUNT COMPLETE" before the page is
@@ -796,6 +813,15 @@ private fun DiscoverTab(
         }
         lifecycleOwner.lifecycle.addObserver(resumeObserver)
         onDispose { lifecycleOwner.lifecycle.removeObserver(resumeObserver) }
+    }
+    // Re-check the current URL's rating on resume/unlock so the deck's pressed
+    // thumbs keys survive backgrounding.
+    DisposableEffect(lifecycleOwner) {
+        val ratingObserver = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) vm.refreshUserRating()
+        }
+        lifecycleOwner.lifecycle.addObserver(ratingObserver)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(ratingObserver) }
     }
     LaunchedEffect(resumeStandby) {
         if (resumeStandby) {
@@ -977,7 +1003,7 @@ private fun DiscoverTab(
                     onUrlChanged = { vm.onWebViewUrlChanged(it) },
                     onLoadError = { vm.roam() },
                     onLoadingChanged = { loading -> webViewLoading = loading; if (!loading) { lastLoadedUrl = currentUrl; resumeStandby = false; vm.clearTranslating() } },
-                    onPageVisible = { webViewLoading = false; lastLoadedUrl = currentUrl; resumeStandby = false; vm.clearTranslating() },
+                    onPageVisible = { webViewLoading = false; lastLoadedUrl = currentUrl; resumeStandby = false; vm.onPageRevealed() },
                     onRecovering = { recovering -> webViewRecovering = recovering },
                     onPageFinishedForPrefetch = { vm.onPageFinishedForPrefetch() },
                     navCommandsFlow = vm.webNavFlow,
@@ -1039,7 +1065,7 @@ private fun DiscoverTab(
                                             soundEnabled = soundEffectsEnabled,
                                         )
                                     } else {
-                                        RoamOsBootScreen()
+                                        RoamOsBootScreen(soundEnabled = soundEffectsEnabled)
                                     }
                                 } else {
                                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -1062,6 +1088,7 @@ private fun DiscoverTab(
                         isTranslated = vm.isTranslated,
                         onToggleTranslation = { vm.toggleTranslation() },
                         onTranslate = { lang -> vm.translateTo(lang) },
+                        onOpenTranslatePicker = { vm.openTranslatePicker() },
                         onSaveForLater = { vm.saveForLater() },
                         onShare = {
                             val si = Intent(Intent.ACTION_SEND).apply { type = "text/plain"; putExtra(Intent.EXTRA_TEXT, currentUrl ?: "") }
@@ -1121,6 +1148,19 @@ private fun DiscoverTab(
 
                 if (showShareUrlSheet) {
                     ShareUrlBottomSheet(vm = vm, onDismiss = { vm.closeShareUrlSheet() }, modifier = Modifier.fillMaxSize())
+                }
+
+                if (isRoamOs && showTranslatePicker) {
+                    TranslatePicker(
+                        currentLanguage = translateLanguage,
+                        onTranslate = { lang ->
+                            vm.closeTranslatePicker()
+                            vm.closeConfigSheet()
+                            vm.translateTo(lang)
+                        },
+                        onClose = { vm.closeTranslatePicker() },
+                        modifier = Modifier.fillMaxSize(),
+                    )
                 }
 
                 if (prefetchWebView && nextPrefetchUrl != null) {

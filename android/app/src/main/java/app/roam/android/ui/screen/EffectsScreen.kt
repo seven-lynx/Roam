@@ -23,7 +23,6 @@ fun EffectsScreen(
     onNavigateBack: () -> Unit,
 ) {
     val notificationsEnabled by vm.notificationsEnabled.collectAsState()
-    val soundEffectsEnabled by vm.soundEffectsEnabled.collectAsState()
     val hapticFeedbackEnabled by vm.hapticFeedbackEnabled.collectAsState()
     val celebrationAnimationsEnabled by vm.celebrationAnimationsEnabled.collectAsState()
 
@@ -44,7 +43,6 @@ fun EffectsScreen(
             }
 
             SettingsToggleRow("Push notifications", "Receive alerts for your activity", notificationsEnabled) { vm.setNotificationsEnabled(it) }
-            SettingsToggleRow("Sound effects", "Play sounds for badges, levels and challenges", soundEffectsEnabled) { vm.setSoundEffectsEnabled(it) }
             SettingsToggleRow("Haptic feedback", "Vibrate on taps and celebrations", hapticFeedbackEnabled) { vm.setHapticFeedbackEnabled(it) }
             SettingsToggleRow("Celebration animations", "Show full-screen animations for achievements", celebrationAnimationsEnabled) { vm.setCelebrationAnimationsEnabled(it) }
         }

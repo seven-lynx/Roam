@@ -98,7 +98,7 @@ fun ControlDeck(
     unreadNotificationCount: Int,
     xpFlash: Int?,
     focusModeEnabled: Boolean,
-    hasRatedUp: Boolean,
+    userRating: Int,
     muted: Boolean,
     menuOpen: Boolean,
     onRoam: () -> Unit,
@@ -178,7 +178,7 @@ fun ControlDeck(
             backlightColor = backlightColor,
             currentRoute = currentRoute,
             focusModeEnabled = focusModeEnabled,
-            hasRatedUp = hasRatedUp,
+            userRating = userRating,
             menuOpen = menuOpen,
             onRoam = onRoam,
             onThumbsUp = onThumbsUp,
@@ -481,7 +481,7 @@ private fun KeyDeck(
     backlightColor: Color,
     currentRoute: String,
     focusModeEnabled: Boolean,
-    hasRatedUp: Boolean,
+    userRating: Int,
     menuOpen: Boolean,
     onRoam: () -> Unit,
     onThumbsUp: () -> Unit,
@@ -494,16 +494,16 @@ private fun KeyDeck(
     val sizes = deckSizes(deckSize)
     val square = deckShape == "square"
     val dislikeTint = MaterialTheme.colorScheme.onSurfaceVariant
-    val likeTint = if (hasRatedUp) Ok else MaterialTheme.colorScheme.onSurfaceVariant
+    val likeTint = MaterialTheme.colorScheme.onSurfaceVariant
     val roamTint = if (focusModeEnabled) MaterialTheme.colorScheme.tertiary else palette.primaryBright
     val settingsTint = if (currentRoute == RoamTab.SettingsHub.route) palette.secondary else Fog
     val settingsActive = currentRoute.startsWith("settings")
 
     val dislikeKey: @Composable (Modifier) -> Unit = { mod ->
-        DeckKey(onThumbsDown, R.raw.skip, onFeedback, sizes.side, RoamOsIcons.Dislike, dislikeTint, "Dislike", square = square, showLabel = deckLabels, backlight = backlightEnabled, backlightColor = backlightColor, modifier = mod)
+        DeckKey(onThumbsDown, R.raw.skip, onFeedback, sizes.side, RoamOsIcons.Dislike, dislikeTint, "Dislike", square = square, active = userRating == -1, showLabel = deckLabels, backlight = backlightEnabled, backlightColor = backlightColor, modifier = mod)
     }
     val likeKey: @Composable (Modifier) -> Unit = { mod ->
-        DeckKey(onThumbsUp, R.raw.like, onFeedback, sizes.side, RoamOsIcons.Like, likeTint, "Like", square = square, showLabel = deckLabels, backlight = backlightEnabled, backlightColor = backlightColor, modifier = mod)
+        DeckKey(onThumbsUp, R.raw.like, onFeedback, sizes.side, RoamOsIcons.Like, likeTint, "Like", square = square, active = userRating == 1, showLabel = deckLabels, backlight = backlightEnabled, backlightColor = backlightColor, modifier = mod)
     }
     val roamKey: @Composable (Modifier) -> Unit = { mod ->
         DeckKey(

@@ -78,6 +78,7 @@ fun SettingsHubScreen(
     onNavigateToBrowser: () -> Unit = {},
     onNavigateToDiscovery: () -> Unit = {},
     onNavigateToEffects: () -> Unit = {},
+    onNavigateToSound: () -> Unit = {},
 ) {
     val profile by vm.profile.collectAsState()
     val badges by vm.badges.collectAsState()
@@ -268,6 +269,7 @@ fun SettingsHubScreen(
             SettingsActionRow(if (roamOs) "Net // Browser" else "Browser", "Languages, dark mode, translation", onClick = onNavigateToBrowser)
             SettingsActionRow(if (roamOs) "Scan // Discovery" else "Discovery", "Categories, focus mode, paywalls", onClick = onNavigateToDiscovery)
             SettingsActionRow(if (roamOs) "Sensory // Feedback" else "Notifications & Effects", "Push, sounds, haptics, celebrations", onClick = onNavigateToEffects)
+            SettingsActionRow(if (roamOs) "Audio // Channels" else "Sound", "Volume, channel switches, sound", onClick = onNavigateToSound)
 
             HorizontalDivider()
             Spacer(Modifier.height(8.dp))

@@ -14,4 +14,5 @@ data class RoamUrl(
     @SerialName("category_id") val categoryId: String? = null,
     @SerialName("subcategory_id") val subcategoryId: String? = null,
     @SerialName("wilson_score") val wilsonScore: Double? = null,
+    @SerialName("user_rating") val userRating: Int? = null,
 )

@@ -31,6 +31,7 @@ enum class RoamTab(val route: String) {
     Browser("settings_browser"),
     Discovery("settings_discovery"),
     Effects("settings_effects"),
+    Sound("settings_sound"),
     Saved("saved"),
     Profile("profile"),
     History("history"),
@@ -52,7 +53,7 @@ fun BottomBar(
     onRoam: () -> Unit = {},
     onNavigate: (String) -> Unit = {},
     focusModeEnabled: Boolean = false,
-    hasRatedUp: Boolean = false,
+    userRating: Int = 0,
     labelsEnabled: Boolean = false,
 ) {
     // Track recent clicks for temporary highlight feedback
@@ -85,7 +86,7 @@ fun BottomBar(
             },
             icon = {
                 Icon(
-                    if (recentSkipClick) Icons.Filled.ThumbDown else Icons.Outlined.ThumbDown,
+                    if (recentSkipClick || userRating == -1) Icons.Filled.ThumbDown else Icons.Outlined.ThumbDown,
                     contentDescription = "Dislike",
                     tint = if (recentSkipClick) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -147,9 +148,9 @@ fun BottomBar(
             },
             icon = {
                 Icon(
-                    if (hasRatedUp || recentLikeClick) Icons.Filled.ThumbUp else Icons.Outlined.ThumbUp,
+                    if (userRating == 1 || recentLikeClick) Icons.Filled.ThumbUp else Icons.Outlined.ThumbUp,
                     contentDescription = "Like",
-                    tint = if (hasRatedUp || recentLikeClick) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                    tint = if (recentLikeClick) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             },
             label = { if (labelsEnabled) Text("Like", style = MaterialTheme.typography.labelSmall) },

@@ -5,6 +5,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -59,6 +60,7 @@ fun ProgramLauncher(
     isTranslated: Boolean,
     onToggleTranslation: () -> Unit,
     onTranslate: (String) -> Unit,
+    onOpenTranslatePicker: () -> Unit,
     onSaveForLater: () -> Unit,
     onShare: () -> Unit,
     onShareWithFriend: () -> Unit,
@@ -83,10 +85,10 @@ fun ProgramLauncher(
     var collectionPickerMode by remember { mutableStateOf("add") }
     var newCollectionDialogOpen by remember { mutableStateOf(false) }
     var newCollectionName by remember { mutableStateOf("") }
-    var translateDialogOpen by remember { mutableStateOf(false) }
     var shareDialogOpen by remember { mutableStateOf(false) }
 
-    RoamOsWindow(title = "PROGRAMS", onClose = onClose, modifier = modifier) {
+    Box(modifier) {
+        RoamOsWindow(title = "PROGRAMS", onClose = onClose, modifier = Modifier.fillMaxSize()) {
         Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(12.dp)) {
             Text("// select a program to run", style = MaterialTheme.typography.labelSmall, color = Fog)
             Spacer(Modifier.height(8.dp))
@@ -101,7 +103,7 @@ fun ProgramLauncher(
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 ProgramTile(Icons.Filled.Save, "save", { onSaveForLater(); onClose() }, Modifier.weight(1f))
                 ProgramTile(Icons.Filled.Translate, if (isTranslated) "original" else "translate", {
-                    if (isTranslated) { onToggleTranslation(); onClose() } else translateDialogOpen = true
+                    if (isTranslated) { onToggleTranslation(); onClose() } else onOpenTranslatePicker()
                 }, Modifier.weight(1f))
             }
             Spacer(Modifier.height(8.dp))
@@ -127,106 +129,82 @@ fun ProgramLauncher(
     }
 
     if (collectionPickerOpen) {
-        AlertDialog(
-            onDismissRequest = { collectionPickerOpen = false },
-            title = { Text(if (collectionPickerMode == "roam") "Roam a collection" else "Choose a collection") },
-            text = {
-                Column {
-                    collections.forEach { col ->
-                        TextButton(
-                            onClick = {
+        RoamOsWindow(title = if (collectionPickerMode == "roam") "COLLECT // ROAM" else "COLLECT // ADD", onClose = { collectionPickerOpen = false }, modifier = Modifier.fillMaxSize()) {
+            Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(12.dp)) {
+                Text("// select a collection", style = MaterialTheme.typography.labelSmall, color = Fog)
+                Spacer(Modifier.height(8.dp))
+                collections.forEach { col ->
+                    Row(
+                        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(6.dp)).background(Panel2)
+                            .clickable {
                                 collectionPickerOpen = false
                                 if (collectionPickerMode == "roam") { onRoamCollection(col.id); onClose() }
                                 else { onAddToCollection(col.id); onClose() }
-                            },
-                            modifier = Modifier.fillMaxWidth(),
-                        ) { Text(col.name, modifier = Modifier.fillMaxWidth()) }
-                    }
-                    if (collectionPickerMode == "add") {
-                        TextButton(
-                            onClick = { collectionPickerOpen = false; newCollectionDialogOpen = true },
-                            modifier = Modifier.fillMaxWidth(),
-                        ) { Text("+ New collection", modifier = Modifier.fillMaxWidth()) }
-                    }
+                            }
+                            .padding(horizontal = 12.dp, vertical = 12.dp),
+                    ) { Text(col.name, color = Bone, style = MaterialTheme.typography.bodyMedium) }
+                    Spacer(Modifier.height(6.dp))
                 }
-            },
-            confirmButton = {},
-            dismissButton = { TextButton(onClick = { collectionPickerOpen = false }) { Text("Cancel") } },
-        )
-    }
-
-    if (translateDialogOpen) {
-        AlertDialog(
-            onDismissRequest = { translateDialogOpen = false },
-            title = { Text("Translate to\u2026") },
-            text = {
-                Column {
-                    listOf(
-                        "en" to "English", "fr" to "Fran\u00e7ais", "de" to "Deutsch", "it" to "Italiano",
-                        "es" to "Espa\u00f1ol", "pt" to "Portugu\u00eas", "nl" to "Nederlands", "pl" to "Polski",
-                        "ja" to "\u65e5\u672c\u8a9e", "zh" to "\u4e2d\u6587", "ru" to "\u0420\u0443\u0441\u0441\u043a\u0438\u0439", "ko" to "\ud55c\uad6d\uc5b4",
-                    ).forEach { (code, label) ->
-                        TextButton(
-                            onClick = { translateDialogOpen = false; onTranslate(code); onClose() },
-                            modifier = Modifier.fillMaxWidth(),
-                        ) { Text(label, modifier = Modifier.fillMaxWidth()) }
-                    }
+                if (collectionPickerMode == "add") {
+                    Row(
+                        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(6.dp)).background(Panel2)
+                            .clickable { collectionPickerOpen = false; newCollectionDialogOpen = true }
+                            .padding(horizontal = 12.dp, vertical = 12.dp),
+                    ) { Text("+ new collection", color = TealBright, style = MaterialTheme.typography.bodyMedium) }
                 }
-            },
-            confirmButton = {},
-            dismissButton = { TextButton(onClick = { translateDialogOpen = false }) { Text("Cancel") } },
-        )
+            }
+        }
     }
 
     if (shareDialogOpen) {
-        AlertDialog(
-            onDismissRequest = { shareDialogOpen = false },
-            title = { Text("Share this page") },
-            text = {
-                Column {
-                    TextButton(
-                        onClick = { shareDialogOpen = false; onShare(); onClose() },
-                        modifier = Modifier.fillMaxWidth(),
-                    ) { Text("Share via\u2026", modifier = Modifier.fillMaxWidth()) }
-                    TextButton(
-                        onClick = { shareDialogOpen = false; onShareWithFriend(); onClose() },
-                        modifier = Modifier.fillMaxWidth(),
-                    ) { Text("Send to a Roam user", modifier = Modifier.fillMaxWidth()) }
-                }
-            },
-            confirmButton = {},
-            dismissButton = { TextButton(onClick = { shareDialogOpen = false }) { Text("Cancel") } },
-        )
+        RoamOsWindow(title = "SHARE", onClose = { shareDialogOpen = false }, modifier = Modifier.fillMaxSize()) {
+            Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(12.dp)) {
+                Text("// route this page", style = MaterialTheme.typography.labelSmall, color = Fog)
+                Spacer(Modifier.height(8.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(6.dp)).background(Panel2)
+                        .clickable { shareDialogOpen = false; onShare(); onClose() }
+                        .padding(horizontal = 12.dp, vertical = 12.dp),
+                ) { Text("share via...", color = Bone, style = MaterialTheme.typography.bodyMedium) }
+                Spacer(Modifier.height(6.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(6.dp)).background(Panel2)
+                        .clickable { shareDialogOpen = false; onShareWithFriend(); onClose() }
+                        .padding(horizontal = 12.dp, vertical = 12.dp),
+                ) { Text("send to a wanderer", color = Bone, style = MaterialTheme.typography.bodyMedium) }
+            }
+        }
     }
 
     if (newCollectionDialogOpen) {
-        AlertDialog(
-            onDismissRequest = { newCollectionDialogOpen = false },
-            title = { Text("New collection") },
-            text = {
+        RoamOsWindow(title = "COLLECT // NEW", onClose = { newCollectionDialogOpen = false; newCollectionName = "" }, modifier = Modifier.fillMaxSize()) {
+            Column(Modifier.fillMaxWidth().padding(12.dp)) {
+                Text("// name the collection", style = MaterialTheme.typography.labelSmall, color = Fog)
+                Spacer(Modifier.height(8.dp))
                 OutlinedTextField(
                     value = newCollectionName,
                     onValueChange = { newCollectionName = it },
-                    label = { Text("Name") },
+                    label = { Text("name") },
                     singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
                 )
-            },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        if (newCollectionName.isNotBlank()) {
-                            onCreateCollectionAndAdd(newCollectionName.trim())
-                            newCollectionName = ""
-                            newCollectionDialogOpen = false
-                            onClose()
-                        }
-                    },
-                ) { Text("Create & add") }
-            },
-            dismissButton = {
-                TextButton(onClick = { newCollectionDialogOpen = false; newCollectionName = "" }) { Text("Cancel") }
-            },
-        )
+                Spacer(Modifier.height(10.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    TextButton(onClick = { newCollectionDialogOpen = false; newCollectionName = "" }) { Text("cancel", color = Fog) }
+                    TextButton(
+                        onClick = {
+                            if (newCollectionName.isNotBlank()) {
+                                onCreateCollectionAndAdd(newCollectionName.trim())
+                                newCollectionName = ""
+                                newCollectionDialogOpen = false
+                                onClose()
+                            }
+                        },
+                    ) { Text("create & add", color = TealBright) }
+                }
+            }
+        }
+    }
     }
 }
 

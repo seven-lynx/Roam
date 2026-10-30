@@ -9,6 +9,7 @@ import app.roam.android.BuildConfig
 import app.roam.android.data.supabase
 import app.roam.android.util.Env
 import app.roam.android.util.AppIconManager
+import app.roam.android.util.SoundManager
 import app.roam.android.worker.TokenRefreshWorker
 import io.sentry.android.core.SentryAndroid
 
@@ -84,6 +85,22 @@ class RoamApplication : Application() {
         TokenRefreshWorker.schedule(this)
 
         createNotificationChannel()
+
+        // Track app foreground so sound effects never play over other apps.
+        registerActivityLifecycleCallbacks(object : android.app.Application.ActivityLifecycleCallbacks {
+            private var started = 0
+            override fun onActivityStarted(activity: android.app.Activity) {
+                if (++started == 1) SoundManager.setForeground(true)
+            }
+            override fun onActivityStopped(activity: android.app.Activity) {
+                if (--started == 0) SoundManager.setForeground(false)
+            }
+            override fun onActivityCreated(activity: android.app.Activity, savedInstanceState: android.os.Bundle?) {}
+            override fun onActivityResumed(activity: android.app.Activity) {}
+            override fun onActivityPaused(activity: android.app.Activity) {}
+            override fun onActivitySaveInstanceState(activity: android.app.Activity, outState: android.os.Bundle) {}
+            override fun onActivityDestroyed(activity: android.app.Activity) {}
+        })
     }
 
     private fun applyThemeIcon() {
