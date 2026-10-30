@@ -347,9 +347,9 @@ private fun SystemReadout(message: String, color: Color, speed: Int = 5, display
     val tiles = remember(containerWidth, tileWidth) {
         if (tileWidth <= 0f) 2 else (containerWidth / tileWidth).toInt() + 2
     }
-    val pxPerSec = 8f + speed.coerceIn(1, 10) * 5f
+    val pxPerSec = 20f + speed.coerceIn(1, 10) * 8f
     val loopMs = (tileWidth / pxPerSec * 1000f).toInt().coerceAtLeast(1)
-    val transition = key(message, speed, eink) { rememberInfiniteTransition(label = "readout-stream") }
+    val transition = key(speed, eink) { rememberInfiniteTransition(label = "readout-stream") }
     val t by transition.animateFloat(
         initialValue = 0f,
         targetValue = 1f,
