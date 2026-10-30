@@ -102,6 +102,8 @@ export default function AdminPageClient() {
 
   const [emailSubject, setEmailSubject] = useState("");
   const [emailBody, setEmailBody] = useState("");
+  const [emailFormat, setEmailFormat] = useState<"markdown" | "html">("markdown");
+  const [emailTestEmail, setEmailTestEmail] = useState("");
   const [emailSending, setEmailSending] = useState(false);
   const [emailResult, setEmailResult] = useState<string | null>(null);
   const [emailError, setEmailError] = useState<string | null>(null);
@@ -184,17 +186,18 @@ export default function AdminPageClient() {
     setEmailResult(null);
     setEmailError(null);
     try {
-      const { data, error } = await sendBulkEmail(emailSubject, emailBody);
+      const { data, error } = await sendBulkEmail(emailSubject, emailBody, emailFormat, emailTestEmail);
       if (error) throw new Error(error);
       setEmailResult(`Sent to ${data?.sent ?? 0} recipients (${data?.failed ?? 0} failed)`);
       setEmailSubject("");
       setEmailBody("");
+      setEmailTestEmail("");
       loadEmail();
     } catch (err) {
       setEmailError(err instanceof Error ? err.message : "Failed to send email");
     }
     setEmailSending(false);
-  }, [emailSubject, emailBody, loadEmail]);
+  }, [emailSubject, emailBody, emailFormat, emailTestEmail, loadEmail]);
 
   useEffect(() => { loadQueue(); }, [loadQueue]);
   useEffect(() => {
@@ -325,10 +328,11 @@ export default function AdminPageClient() {
           )}
           {view === "email" && (
             <AdminEmail
-              subject={emailSubject} body={emailBody} sending={emailSending}
+              subject={emailSubject} body={emailBody} format={emailFormat} testEmail={emailTestEmail} sending={emailSending}
               result={emailResult} error={emailError} notificationCount={notificationCount}
               logs={emailLogs} logsLoading={emailLogsLoading}
-              onSubjectChange={setEmailSubject} onBodyChange={setEmailBody} onSend={handleSendEmail}
+              onSubjectChange={setEmailSubject} onBodyChange={setEmailBody}
+              onFormatChange={setEmailFormat} onTestEmailChange={setEmailTestEmail} onSend={handleSendEmail}
             />
           )}
         </div>

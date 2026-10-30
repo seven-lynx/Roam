@@ -410,7 +410,9 @@ export async function getEmailLogs(): Promise<{ data: EmailLogEntry[] | null; er
 
 export async function sendBulkEmail(
   subject: string,
-  bodyMarkdown: string,
+  body: string,
+  format: "markdown" | "html" = "markdown",
+  testEmail?: string,
 ): Promise<{ data: SendBulkEmailResult | null; error: string | null }> {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -425,15 +427,19 @@ export async function sendBulkEmail(
           "Authorization": `Bearer ${serviceKey}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ subject, bodyMarkdown }),
+        body: JSON.stringify({
+          subject,
+          ...(format === "html" ? { bodyHtml: body } : { bodyMarkdown: body }),
+          ...(testEmail && testEmail.trim() ? { testEmail: testEmail.trim() } : {}),
+        }),
       },
     );
 
-    const body = await response.json();
+    const result = await response.json();
     if (!response.ok) {
-      return { data: null, error: body?.error ?? `HTTP ${response.status}` };
+      return { data: null, error: result?.error ?? `HTTP ${response.status}` };
     }
-    return { data: body as SendBulkEmailResult, error: null };
+    return { data: result as SendBulkEmailResult, error: null };
   } catch (err) {
     return { data: null, error: err instanceof Error ? err.message : "Failed to send email" };
   }
