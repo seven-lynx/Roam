@@ -77,7 +77,7 @@ fun SoundScreen(
             SettingsToggleRow("key clicks", "Key presses and the Roam button", soundDeckEnabled) { vm.setSoundDeckEnabled(it) }
             SettingsToggleRow("vote tones", "Thumbs up / down feedback", soundRatingEnabled) { vm.setSoundRatingEnabled(it) }
             SettingsToggleRow("boot & scan", "Boot, scan and ambient server noises", soundLoadingEnabled) { vm.setSoundLoadingEnabled(it) }
-            SettingsToggleRow("Celebrations", "Badge, level and challenge chimes", soundCelebrationEnabled) { vm.setSoundCelebrationEnabled(it) }
+            SettingsToggleRow("fanfares", "Badge, level and challenge chimes", soundCelebrationEnabled) { vm.setSoundCelebrationEnabled(it) }
             SettingsToggleRow("confirmations", "Save, submit and share confirmations", soundActionEnabled) { vm.setSoundActionEnabled(it) }
         }
     }

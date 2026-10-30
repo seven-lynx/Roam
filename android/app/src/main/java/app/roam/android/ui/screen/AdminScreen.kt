@@ -355,7 +355,7 @@ private fun QueueTab(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text("Moderation Queue", style = MaterialTheme.typography.titleSmall)
+            Text("review queue", style = MaterialTheme.typography.titleSmall)
             TextButton(onClick = onRefresh) { Text("Refresh") }
         }
 
@@ -376,10 +376,10 @@ private fun QueueTab(
             horizontalArrangement = Arrangement.spacedBy(6.dp),
         ) {
             val filters = listOf(
-                "pending" to "Pending",
-                "approved" to "Approved",
-                "rejected" to "Rejected",
-                "all" to "All",
+                "pending" to "queued",
+                "approved" to "approved",
+                "rejected" to "rejected",
+                "all" to "all",
             )
             filters.forEach { (key, label) ->
                 val count = when (key) {
@@ -594,7 +594,7 @@ private fun AnalyticsTab(
     val pending = items.count { it.status == "pending" }
 
     Column(modifier = Modifier.fillMaxWidth()) {
-        SectionHeader("Submission Overview")
+        SectionHeader("submissions")
 
         // Stats row
         Row(
@@ -603,15 +603,15 @@ private fun AnalyticsTab(
                 .padding(horizontal = 16.dp),
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            StatChip("Total", "$totalItems", MaterialTheme.colorScheme.primary)
-            StatChip("Pending", "$pending", Color(0xFFF59E0B))
-            StatChip("Rate", "${approvalRate}%", Color(0xFF10B981))
+            StatChip("total", "$totalItems", MaterialTheme.colorScheme.primary)
+            StatChip("queued", "$pending", Color(0xFFF59E0B))
+            StatChip("approval", "${approvalRate}%", Color(0xFF10B981))
         }
 
         Spacer(Modifier.height(16.dp))
 
         // 7-day trend
-        SectionHeader("Last 7 Days")
+        SectionHeader("trailing 7d")
         Card(
             modifier = Modifier
                 .fillMaxWidth()
@@ -660,7 +660,7 @@ private fun AnalyticsTab(
         Spacer(Modifier.height(16.dp))
 
         // Per-category breakdown
-        SectionHeader("By Category")
+        SectionHeader("by category")
         if (byCategory.isEmpty()) {
             Text(
                 "No categorized submissions yet.",
