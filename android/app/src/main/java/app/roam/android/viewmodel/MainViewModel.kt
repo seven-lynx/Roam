@@ -688,9 +688,24 @@ class MainViewModel(
     val warmQueueSize: StateFlow<Int> = _warmQueueSize.asStateFlow()
     private var prefetchJob: Job? = null
 
+    /** Current exclude-domain for the running prefill (updated without restarting). */
+    @Volatile private var prefetchExcludeDomain: String? = null
+
+    /** Dead-link failure counts (urlId → consecutive HEAD failures), for later culling. */
+    private val deadLinkFailures = java.util.concurrent.ConcurrentHashMap<String, Int>()
+
+    /** URLs culled this session after repeated HEAD failures. */
+    private val culledUrlIds = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
+
+    private val DEAD_LINK_FAILURE_THRESHOLD = 3
+
     /** Current user's profile */
     private val _profile = MutableStateFlow<UserProfile?>(null)
     val profile: StateFlow<UserProfile?> = _profile.asStateFlow()
+
+    /** True while the profile + social stats are being fetched. */
+    private val _profileLoading = MutableStateFlow(false)
+    val profileLoading: StateFlow<Boolean> = _profileLoading.asStateFlow()
 
     /** Whether the user's profile is public */
     private val _profileIsPublic = MutableStateFlow(true)
@@ -1542,7 +1557,11 @@ class MainViewModel(
      * to maximize throughput and responsiveness.
      */
     private fun startPrefillQueue(excludeDomain: String? = null) {
-        prefetchJob?.cancel()
+        prefetchExcludeDomain = excludeDomain
+        // Idempotent: if a prefill loop is already running, just update the
+        // exclude-domain and let the workers pick it up. Restarting on every
+        // roam was resetting the pipeline and stalling the buffer.
+        if (prefetchJob?.isActive == true) return
         prefetchJob = viewModelScope.launch(Dispatchers.IO) {
             // Wait for session to be fully authenticated before starting prefetch.
             // checking currentUserOrNull isn't enough; we need an active session token
@@ -1579,7 +1598,7 @@ class MainViewModel(
                             repo.roamBatch(
                                 count = batchSize,
                                 collectionId = _activeCollectionId.value,
-                                excludeDomain = excludeDomain,
+                                excludeDomain = prefetchExcludeDomain,
                                 categoryId = if (_focusModeEnabled.value) _focusCategoryId.value else null,
                                 subcategoryId = if (_focusModeEnabled.value) _focusSubcategoryId.value else null,
                                 prefetch = true,
@@ -1593,6 +1612,7 @@ class MainViewModel(
                             warmFails = 0
                             prefetchMutex.withLock {
                                 candidates.forEach { candidate ->
+                                    if (candidate.id in culledUrlIds) return@forEach
                                     val domain = extractDomain(candidate.url)
                                     val domainAlreadyQueued = domain != null && (
                                         warmQueue.any { extractDomain(it.url) == domain } ||
@@ -1641,6 +1661,19 @@ class MainViewModel(
                                     if (isReachable && !domainInHot && hotQueue.size < HOT_TARGET) {
                                         hotQueue.addLast(url)
                                         successCount++
+                                        deadLinkFailures.remove(url.id)
+                                    } else if (!isReachable) {
+                                        // Track HEAD failures so dead pages can be
+                                        // culled from the backend later.
+                                        val fails = (deadLinkFailures[url.id] ?: 0) + 1
+                                        if (fails >= DEAD_LINK_FAILURE_THRESHOLD) {
+                                            deadLinkFailures.remove(url.id)
+                                            culledUrlIds.add(url.id)
+                                            android.util.Log.i("MainViewModel", "Culling dead link after $fails HEAD failures: ${url.url}")
+                                            viewModelScope.launch { runCatching { repo.reportUrl(url.id) } }
+                                        } else {
+                                            deadLinkFailures[url.id] = fails
+                                        }
                                     }
                                 }
                                 hotFails = if (successCount > 0) 0 else hotFails + 1
@@ -1673,6 +1706,7 @@ class MainViewModel(
     }
 
     fun thumbsUp(context: Context) {
+        if (!repo.hasSession()) return  // signed out — ignore
         val loaded = _state.value as? RoamState.Loaded ?: run {
             // Unknown page — show submit sheet
             _showSubmitSheet.value = true
@@ -1705,6 +1739,7 @@ class MainViewModel(
     }
 
     fun thumbsDown(context: Context) {
+        if (!repo.hasSession()) return  // signed out — ignore
         val loaded = _state.value as? RoamState.Loaded
         val excludeDomain = extractDomain(_rawUrl.value)
         if (_userRating.value == -1) return  // already down-voted — no-op
@@ -1748,6 +1783,7 @@ class MainViewModel(
     }
 
     fun submitUrl(url: String, categoryId: String, subcategoryId: String? = null) {
+        if (!repo.hasSession()) return  // signed out — ignore
         viewModelScope.launch {
             val result = runCatching { repo.submitUrl(url, categoryId, subcategoryId) }
             _showSubmitSheet.value = false
@@ -2214,6 +2250,7 @@ class MainViewModel(
     }
 
     fun roamWithinCategory() {
+        if (!repo.hasSession()) return  // signed out — ignore
         _userRating.value = 0
         beginPageLoad()
         val loaded = _state.value as? RoamState.Loaded
@@ -2275,17 +2312,28 @@ class MainViewModel(
     /** Loads profile, user categories, and stats in parallel. */
     fun loadProfile() {
         _profileInterestsError.value = null
+        _profileLoading.value = true
         loadBadges()
         viewModelScope.launch {
             runCatching {
-                _profile.value = repo.getProfile()
-                // After loading profile, fetch social stats
-                val userId = _profile.value?.id
-                if (userId != null) {
-                    _followerCount.value = repo.getFollowerCount(userId)
-                    _followingCount.value = repo.getFollowingCount(userId)
+                coroutineScope {
+                    val profileDeferred = async { repo.getProfile() }
+                    val statsDeferred = async { repo.getProfileStats() }
+                    val profile = profileDeferred.await()
+                    _profile.value = profile
+                    val (roamed, submitted) = statsDeferred.await()
+                    _profileStats.value = ProfileStats(roamed = roamed, submitted = submitted)
+                    // Social counts depend on the profile id — fetch in parallel.
+                    val userId = profile?.id
+                    if (userId != null) {
+                        val fc = async { repo.getFollowerCount(userId) }
+                        val fg = async { repo.getFollowingCount(userId) }
+                        _followerCount.value = fc.await()
+                        _followingCount.value = fg.await()
+                    }
                 }
             }
+            _profileLoading.value = false
         }
         viewModelScope.launch {
             // Wait for the session to be fully authenticated before querying
@@ -2310,12 +2358,6 @@ class MainViewModel(
             }
             loaded.onFailure {
                 _profileInterestsError.value = "Couldn't load your saved interests. Pull to refresh."
-            }
-        }
-        viewModelScope.launch {
-            runCatching {
-                val (roamed, submitted) = repo.getProfileStats()
-                _profileStats.value = ProfileStats(roamed = roamed, submitted = submitted)
             }
         }
     }

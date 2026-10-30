@@ -53,8 +53,8 @@ fun TranslateLoading(language: String, soundEnabled: Boolean = true, modifier: M
     }
     LaunchedEffect(Unit) {
         while (true) {
-            delay(Random.nextLong(500, 2000))
-            if (soundEnabled) SoundManager.play(context, if (Random.nextBoolean()) R.raw.relay_tick else R.raw.modem_blip)
+            delay(Random.nextLong(3000, 8000))
+            if (soundEnabled && Random.nextFloat() < 0.5f) SoundManager.play(context, if (Random.nextBoolean()) R.raw.relay_tick else R.raw.modem_blip)
         }
     }
 

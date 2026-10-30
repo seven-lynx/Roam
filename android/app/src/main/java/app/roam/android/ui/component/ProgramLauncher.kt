@@ -9,11 +9,13 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -53,6 +55,7 @@ import app.roam.android.ui.theme.LineColor
 import app.roam.android.ui.theme.Oxide3
 import app.roam.android.ui.theme.Panel2
 import app.roam.android.ui.theme.TealBright
+import kotlin.math.roundToInt
 
 @Composable
 fun ProgramLauncher(
@@ -78,6 +81,7 @@ fun ProgramLauncher(
     domain: String?,
     category: String?,
     subcategory: String?,
+    wilsonScore: Double = 0.0,
     onClose: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -90,15 +94,15 @@ fun ProgramLauncher(
     Box(modifier) {
         RoamOsWindow(title = "PROGRAMS", onClose = onClose, modifier = Modifier.fillMaxSize()) {
         Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(12.dp)) {
-            Text("// select a program to run", style = MaterialTheme.typography.labelSmall, color = Fog)
-            Spacer(Modifier.height(8.dp))
-            UrlInfoCard(title = title, domain = domain, category = category, subcategory = subcategory, description = description)
+            UrlInfoCard(title = title, domain = domain, category = category, subcategory = subcategory, description = description, wilsonScore = wilsonScore)
             Spacer(Modifier.height(12.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 ProgramNavKey(Icons.AutoMirrored.Filled.ArrowBack, "back", { onNavBack(); onClose() }, Modifier.weight(1f))
                 ProgramNavKey(Icons.Filled.Refresh, "reload", { onNavReload(); onClose() }, Modifier.weight(1f))
                 ProgramNavKey(Icons.AutoMirrored.Filled.ArrowForward, "fwd", { onNavForward(); onClose() }, Modifier.weight(1f))
             }
+            Spacer(Modifier.height(10.dp))
+            Text("// select a program to launch", style = MaterialTheme.typography.labelSmall, color = Fog)
             Spacer(Modifier.height(12.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 ProgramTile(Icons.Filled.Save, "save", { onSaveForLater(); onClose() }, Modifier.weight(1f))
@@ -215,6 +219,7 @@ private fun UrlInfoCard(
     category: String?,
     subcategory: String?,
     description: String?,
+    wilsonScore: Double = 0.0,
 ) {
     var expanded by remember { mutableStateOf(false) }
     Column(
@@ -226,6 +231,8 @@ private fun UrlInfoCard(
             .clickable { expanded = !expanded }
             .padding(12.dp),
     ) {
+        Text("// SIGNAL", style = MaterialTheme.typography.labelSmall, color = Fog)
+        Spacer(Modifier.height(6.dp))
         Row(verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
                 Text(
@@ -257,6 +264,8 @@ private fun UrlInfoCard(
             }
             Text(if (expanded) "\u25B4" else "\u25BE", style = MaterialTheme.typography.labelMedium, color = Fog)
         }
+        Spacer(Modifier.height(8.dp))
+        WilsonScoreMeter(wilsonScore)
         AnimatedVisibility(visible = expanded) {
             Column {
                 Spacer(Modifier.height(8.dp))
@@ -267,6 +276,33 @@ private fun UrlInfoCard(
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun WilsonScoreMeter(score: Double) {
+    val clamped = score.coerceIn(0.0, 1.0)
+    val filledSegments = (clamped * 10).roundToInt().coerceIn(0, 10)
+    val pct = (clamped * 100).roundToInt()
+    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+        Text("CONF", style = MaterialTheme.typography.labelSmall, color = Fog)
+        Spacer(Modifier.width(8.dp))
+        Row(
+            modifier = Modifier.weight(1f).height(10.dp),
+            horizontalArrangement = Arrangement.spacedBy(3.dp),
+        ) {
+            repeat(10) { i ->
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxHeight()
+                        .clip(RoundedCornerShape(2.dp))
+                        .background(if (i < filledSegments) TealBright else Oxide3.copy(alpha = 0.35f)),
+                )
+            }
+        }
+        Spacer(Modifier.width(8.dp))
+        Text("$pct%", style = MaterialTheme.typography.labelSmall, color = Bone)
     }
 }
 

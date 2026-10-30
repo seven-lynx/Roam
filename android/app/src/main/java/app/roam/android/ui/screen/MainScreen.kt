@@ -1058,7 +1058,7 @@ private fun DiscoverTab(
                                 if (isRoamOs) {
                                     if (isTranslating) {
                                         TranslateLoading(language = translateLanguage, soundEnabled = soundEffectsEnabled)
-                                    } else if (isRoaming) {
+                                    } else if (isRoaming || scanFinishPending) {
                                         BootScanLoading(
                                             message = loadingMessage.text,
                                             finishing = scanFinishPending,
@@ -1109,6 +1109,7 @@ private fun DiscoverTab(
                         domain = rawUrl?.toUri()?.host?.removePrefix("www."),
                         category = loaded?.roamUrl?.categoryId?.let { id -> categories.firstOrNull { it.id == id }?.name },
                         subcategory = loaded?.roamUrl?.subcategoryId?.let { id -> subcategories.firstOrNull { it.id == id }?.name },
+                        wilsonScore = loaded?.roamUrl?.wilsonScore ?: 0.0,
                         onClose = { vm.closeConfigSheet() },
                         modifier = Modifier.fillMaxSize(),
                     )

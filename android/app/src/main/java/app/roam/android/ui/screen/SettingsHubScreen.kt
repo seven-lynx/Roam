@@ -52,6 +52,7 @@ import app.roam.android.model.FollowUser
 import app.roam.android.model.SubcategoryItem
 import app.roam.android.ui.component.CategoryIconLabel
 import app.roam.android.ui.component.LevelProgressBar
+import app.roam.android.ui.component.RoamOsLoadingBlock
 import app.roam.android.ui.component.SettingsActionRow
 import app.roam.android.ui.component.SettingsSectionHeader
 import app.roam.android.ui.component.SettingsTopBar
@@ -81,6 +82,7 @@ fun SettingsHubScreen(
     onNavigateToSound: () -> Unit = {},
 ) {
     val profile by vm.profile.collectAsState()
+    val profileLoading by vm.profileLoading.collectAsState()
     val badges by vm.badges.collectAsState()
     val badgesLoading by vm.badgesLoading.collectAsState()
     val followerCount by vm.followerCount.collectAsState()
@@ -148,6 +150,10 @@ fun SettingsHubScreen(
         ) {
             Spacer(Modifier.height(16.dp))
 
+            if (profileLoading && profile == null) {
+                RoamOsLoadingBlock(label = "SIGNAL //")
+                Spacer(Modifier.height(16.dp))
+            } else {
             // Avatar
             val avatarName = (profile?.displayName?.takeIf { it.isNotBlank() }
                 ?: profile?.username?.takeIf { it.isNotBlank() }
@@ -204,6 +210,7 @@ fun SettingsHubScreen(
                     else { expandedList = "following"; userId?.let { vm.loadFollowing(it) } }
                 })
                 StatCell("Badges", unlockedBadgeCount?.let { "$it/$totalBadges" } ?: "...", onClick = onNavigateToBadges)
+            }
             }
 
             // Expandable followers list

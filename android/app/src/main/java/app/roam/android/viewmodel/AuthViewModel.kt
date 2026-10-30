@@ -102,6 +102,10 @@ class AuthViewModel(
     /** Sign out of the current session. Clears server-side tokens and local state.
      *  Suspends until the operation completes so callers can verify the result. */
     suspend fun signOut() {
+        // Optimistically flip to unauthenticated so the UI immediately leaves the
+        // loading screen and shows onboarding with a sign-in path, instead of
+        // waiting for the (possibly slow) network sign-out call to complete.
+        _authState.value = AuthState.Unauthenticated
         try {
             supabase.auth.signOut()
             Log.d(TAG, "Signed out successfully")

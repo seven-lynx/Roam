@@ -82,12 +82,13 @@ fun BootScanLoading(
             if (soundEnabled) SoundManager.play(context, R.raw.scan_blip)
         }
     }
-    // Randomly-timed relay ticks / modem blips to break up the scan rhythm.
+    // Sparse random ticks/blips — just enough to break up the scan rhythm
+    // without becoming repetitive.
     LaunchedEffect(finishing) {
         if (finishing) return@LaunchedEffect
         while (true) {
-            delay(Random.nextLong(600, 2400))
-            if (soundEnabled) SoundManager.play(context, if (Random.nextBoolean()) R.raw.relay_tick else R.raw.modem_blip)
+            delay(Random.nextLong(3000, 8000))
+            if (soundEnabled && Random.nextFloat() < 0.5f) SoundManager.play(context, if (Random.nextBoolean()) R.raw.relay_tick else R.raw.modem_blip)
         }
     }
 

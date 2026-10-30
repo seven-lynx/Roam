@@ -52,8 +52,8 @@ fun RoamOsBootScreen(soundEnabled: Boolean = true) {
     LaunchedEffect(Unit) {
         if (soundEnabled) SoundManager.play(context, R.raw.load_start)
         while (true) {
-            delay(Random.nextLong(700, 2200))
-            if (soundEnabled) SoundManager.play(context, if (Random.nextBoolean()) R.raw.relay_tick else R.raw.modem_blip)
+            delay(Random.nextLong(3000, 8000))
+            if (soundEnabled && Random.nextFloat() < 0.5f) SoundManager.play(context, if (Random.nextBoolean()) R.raw.relay_tick else R.raw.modem_blip)
         }
     }
     val lines = listOf(
