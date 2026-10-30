@@ -13,6 +13,9 @@ captures/
 *.aab
 *.ap_
 
+# Local release staging (manually-copied AAB + ProGuard mapping — build outputs)
+app/release/
+
 # Sentry Config File
 sentry.properties
 
