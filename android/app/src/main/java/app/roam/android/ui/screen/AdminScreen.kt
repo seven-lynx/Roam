@@ -20,7 +20,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material3.AlertDialog
+import app.roam.android.ui.component.RoamOsDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -46,6 +46,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import app.roam.android.ui.theme.Danger
+import app.roam.android.ui.theme.Fog
+import app.roam.android.ui.theme.TealBright
 import app.roam.android.viewmodel.MainViewModel
 
 /**
@@ -130,6 +133,12 @@ fun AdminScreen(
                 .verticalScroll(rememberScrollState())
                 .navigationBarsPadding(),
         ) {
+            Text(
+                "// moderation console · role: ${if (isAdmin) "root" else "mod"}",
+                style = MaterialTheme.typography.labelSmall,
+                color = Fog,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+            )
             // ── Stats Cards ──────────────────────────────────────────────
             SectionHeader("Overview")
             Row(
@@ -209,27 +218,35 @@ fun AdminScreen(
     // ── Confirmation dialog ────────────────────────────────────────────────
     if (confirmDialog != null) {
         val (action, itemId) = confirmDialog!!
-        AlertDialog(
-            onDismissRequest = { confirmDialog = null },
-            title = {
-                Text(
-                    when (action) {
-                        "approve" -> "Approve submission?"
-                        "reject" -> "Reject submission?"
-                        else -> "Delete link permanently?"
-                    }
-                )
+        val isApprove = action == "approve"
+        RoamOsDialog(
+            title = when (action) {
+                "approve" -> "APPROVE"
+                "reject" -> "REJECT"
+                else -> "DELETE"
             },
-            text = {
-                Text(
-                    when (action) {
-                        "approve" -> "This URL will be added to the Roam pool."
-                        "reject" -> "This URL will be removed from the queue."
-                        else -> "This permanently deletes the URL and its reports. This cannot be undone."
-                    }
-                )
-            },
-            confirmButton = {
+            onDismiss = { confirmDialog = null },
+            header = "// confirm action",
+            footer = "op: $action · id: ${itemId.take(8)}",
+        ) {
+            Text(
+                when (action) {
+                    "approve" -> "This URL will be added to the Roam pool."
+                    "reject" -> "This URL will be removed from the queue."
+                    else -> "This permanently deletes the URL and its reports. This cannot be undone."
+                },
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+            Spacer(Modifier.height(16.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                TextButton(onClick = { confirmDialog = null }) {
+                    Text("cancel", style = MaterialTheme.typography.labelMedium, color = Fog)
+                }
                 TextButton(
                     onClick = {
                         when (action) {
@@ -241,19 +258,13 @@ fun AdminScreen(
                     },
                 ) {
                     Text(
-                        when (action) {
-                            "approve" -> "Approve"
-                            "reject" -> "Reject"
-                            else -> "Delete"
-                        },
-                        color = MaterialTheme.colorScheme.error,
+                        action,
+                        style = MaterialTheme.typography.labelMedium,
+                        color = if (isApprove) TealBright else Danger,
                     )
                 }
-            },
-            dismissButton = {
-                TextButton(onClick = { confirmDialog = null }) { Text("Cancel") }
-            },
-        )
+            }
+        }
     }
 }
 

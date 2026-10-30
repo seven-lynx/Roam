@@ -10,8 +10,10 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
@@ -23,7 +25,7 @@ import androidx.compose.material.icons.filled.Collections
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Share
-import androidx.compose.material3.AlertDialog
+import app.roam.android.ui.component.RoamOsDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Checkbox
@@ -61,6 +63,9 @@ import androidx.core.net.toUri
 import app.roam.android.model.Collection
 import app.roam.android.model.CollectionItem
 import app.roam.android.model.SavedUrl
+import app.roam.android.ui.theme.Danger
+import app.roam.android.ui.theme.Fog
+import app.roam.android.ui.theme.TealBright
 import app.roam.android.viewmodel.MainViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -314,56 +319,61 @@ private fun SavedTab(
 
     // Collection picker
     if (collectionPickerOpen) {
-        AlertDialog(
-            onDismissRequest = { /* ignored */ },
-            title = { Text("Add to collection") },
-            text = {
-                Column {
-                    collections.forEach { col ->
-                        TextButton(
-                            onClick = {
-                                collectionPickerOpen = false
-                                vm.addSavedUrlsToCollection(col.id, selectedUrls.toList())
-                                selectedUrls = emptySet()
-                            },
-                            modifier = Modifier.fillMaxWidth(),
-                        ) {
-                            Text(col.name, modifier = Modifier.fillMaxWidth())
-                        }
-                    }
+        RoamOsDialog(
+            title = "COLLECT",
+            onDismiss = { collectionPickerOpen = false },
+            header = "// select a collection",
+            footer = "dir: /collections · mode: add",
+        ) {
+            Column {
+                collections.forEach { col ->
                     TextButton(
                         onClick = {
                             collectionPickerOpen = false
-                            newCollectionDialogOpen = true
+                            vm.addSavedUrlsToCollection(col.id, selectedUrls.toList())
+                            selectedUrls = emptySet()
                         },
                         modifier = Modifier.fillMaxWidth(),
                     ) {
-                        Text("New collection…", modifier = Modifier.fillMaxWidth())
+                        Text(col.name, modifier = Modifier.fillMaxWidth(), style = MaterialTheme.typography.bodyMedium)
                     }
                 }
-            },
-            confirmButton = {},
-            dismissButton = {
-                TextButton(onClick = { collectionPickerOpen = false }) { Text("Cancel") }
-            },
-        )
+                TextButton(
+                    onClick = {
+                        collectionPickerOpen = false
+                        newCollectionDialogOpen = true
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text("+ new collection", modifier = Modifier.fillMaxWidth(), style = MaterialTheme.typography.bodyMedium, color = TealBright)
+                }
+            }
+        }
     }
 
     // New collection dialog
     if (newCollectionDialogOpen) {
-        AlertDialog(
-            onDismissRequest = { newCollectionDialogOpen = false; newCollectionName = "" },
-            title = { Text("New collection") },
-            text = {
-                OutlinedTextField(
-                    value = newCollectionName,
-                    onValueChange = { newCollectionName = it },
-                    label = { Text("Name") },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
-                )
-            },
-            confirmButton = {
+        RoamOsDialog(
+            title = "COLLECT // NEW",
+            onDismiss = { newCollectionDialogOpen = false; newCollectionName = "" },
+            header = "// name the collection",
+            footer = "alloc: new dir · label: pending",
+        ) {
+            OutlinedTextField(
+                value = newCollectionName,
+                onValueChange = { newCollectionName = it },
+                label = { Text("Name") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+            )
+            Spacer(Modifier.height(12.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End,
+            ) {
+                TextButton(
+                    onClick = { newCollectionDialogOpen = false; newCollectionName = "" },
+                ) { Text("cancel", style = MaterialTheme.typography.labelMedium, color = Fog) }
                 TextButton(
                     onClick = {
                         if (newCollectionName.isNotBlank()) {
@@ -374,14 +384,9 @@ private fun SavedTab(
                         }
                     },
                     enabled = newCollectionName.isNotBlank(),
-                ) { Text("Create") }
-            },
-            dismissButton = {
-                TextButton(
-                    onClick = { newCollectionDialogOpen = false; newCollectionName = "" },
-                ) { Text("Cancel") }
-            },
-        )
+                ) { Text("create", style = MaterialTheme.typography.labelMedium, color = TealBright) }
+            }
+        }
     }
 }
 
@@ -508,19 +513,25 @@ private fun CollectionsTab(
 
         // Rename dialog
         renameTarget?.let { target ->
-            AlertDialog(
-                onDismissRequest = { renameTarget = null },
-                title = { Text("Rename collection") },
-                text = {
-                    OutlinedTextField(
-                        value = renameText,
-                        onValueChange = { renameText = it },
-                        label = { Text("Name") },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                },
-                confirmButton = {
+            RoamOsDialog(
+                title = "RENAME",
+                onDismiss = { renameTarget = null },
+                header = "// rename this collection",
+                footer = "op: rename · id: ${target.id.take(8)}",
+            ) {
+                OutlinedTextField(
+                    value = renameText,
+                    onValueChange = { renameText = it },
+                    label = { Text("Name") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Spacer(Modifier.height(12.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End,
+                ) {
+                    TextButton(onClick = { renameTarget = null }) { Text("cancel", style = MaterialTheme.typography.labelMedium, color = Fog) }
                     TextButton(
                         onClick = {
                             if (renameText.isNotBlank()) {
@@ -529,32 +540,38 @@ private fun CollectionsTab(
                             }
                         },
                         enabled = renameText.isNotBlank(),
-                    ) { Text("Rename") }
-                },
-                dismissButton = {
-                    TextButton(onClick = { renameTarget = null }) { Text("Cancel") }
-                },
-            )
+                    ) { Text("rename", style = MaterialTheme.typography.labelMedium, color = TealBright) }
+                }
+            }
         }
 
         // Delete confirmation dialog
         deleteTarget?.let { target ->
-            AlertDialog(
-                onDismissRequest = { deleteTarget = null },
-                title = { Text("Delete collection?") },
-                text = { Text("\"${target.name}\" and all its items will be permanently deleted.") },
-                confirmButton = {
+            RoamOsDialog(
+                title = "DELETE",
+                onDismiss = { deleteTarget = null },
+                header = "// confirm delete",
+                footer = "op: delete · id: ${target.id.take(8)}",
+            ) {
+                Text(
+                    "\"${target.name}\" and all its items will be permanently deleted.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+                Spacer(Modifier.height(12.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End,
+                ) {
+                    TextButton(onClick = { deleteTarget = null }) { Text("cancel", style = MaterialTheme.typography.labelMedium, color = Fog) }
                     TextButton(
                         onClick = {
                             onDeleteCollection(target.id)
                             deleteTarget = null
                         },
-                    ) { Text("Delete", color = MaterialTheme.colorScheme.error) }
-                },
-                dismissButton = {
-                    TextButton(onClick = { deleteTarget = null }) { Text("Cancel") }
-                },
-            )
+                    ) { Text("delete", style = MaterialTheme.typography.labelMedium, color = Danger) }
+                }
+            }
         }
     }
 }

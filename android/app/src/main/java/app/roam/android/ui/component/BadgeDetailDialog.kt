@@ -36,16 +36,15 @@ fun BadgeDetailDialog(
     badge: Badge,
     onDismiss: () -> Unit,
 ) {
-    Dialog(onDismissRequest = onDismiss) {
-        Surface(
-            shape = RoundedCornerShape(20.dp),
-            color = MaterialTheme.colorScheme.surface,
-            tonalElevation = 6.dp,
+    RoamOsDialog(
+        title = "BADGE",
+        onDismiss = onDismiss,
+        header = "// badge registry",
+        footer = if (badge.tier > 0) "tier: ${badge.tier} · xp: +${badge.xpReward}" else "xp: +${badge.xpReward}",
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            Column(
-                modifier = Modifier.padding(24.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-            ) {
                 // Icon — large
                 Icon(
                     imageVector = if (badge.isHidden && !badge.isUnlocked) RoamOsIcons.HiddenBadge else RoamOsIcons.forBadge(badge),
@@ -166,9 +165,8 @@ fun BadgeDetailDialog(
                         containerColor = MaterialTheme.colorScheme.primary,
                     ),
                 ) {
-                    Text("Close")
+                    Text("close", style = MaterialTheme.typography.labelMedium)
                 }
-            }
         }
     }
 }

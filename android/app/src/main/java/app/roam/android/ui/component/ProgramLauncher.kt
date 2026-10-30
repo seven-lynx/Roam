@@ -93,89 +93,132 @@ fun ProgramLauncher(
 
     Box(modifier) {
         RoamOsWindow(title = "PROGRAMS", onClose = onClose, modifier = Modifier.fillMaxSize()) {
-        Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(12.dp)) {
-            UrlInfoCard(title = title, domain = domain, category = category, subcategory = subcategory, description = description, wilsonScore = wilsonScore)
-            Spacer(Modifier.height(12.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                ProgramNavKey(Icons.AutoMirrored.Filled.ArrowBack, "back", { onNavBack(); onClose() }, Modifier.weight(1f))
-                ProgramNavKey(Icons.Filled.Refresh, "reload", { onNavReload(); onClose() }, Modifier.weight(1f))
-                ProgramNavKey(Icons.AutoMirrored.Filled.ArrowForward, "fwd", { onNavForward(); onClose() }, Modifier.weight(1f))
+            Column(Modifier.fillMaxSize()) {
+                Column(
+                    Modifier
+                        .weight(1f)
+                        .fillMaxWidth()
+                        .verticalScroll(rememberScrollState())
+                        .padding(12.dp),
+                ) {
+                    UrlInfoCard(title = title, domain = domain, category = category, subcategory = subcategory, description = description, wilsonScore = wilsonScore)
+                    Spacer(Modifier.height(12.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        ProgramNavKey(Icons.AutoMirrored.Filled.ArrowBack, "back", { onNavBack(); onClose() }, Modifier.weight(1f))
+                        ProgramNavKey(Icons.Filled.Refresh, "reload", { onNavReload(); onClose() }, Modifier.weight(1f))
+                        ProgramNavKey(Icons.AutoMirrored.Filled.ArrowForward, "fwd", { onNavForward(); onClose() }, Modifier.weight(1f))
+                    }
+                    Spacer(Modifier.height(10.dp))
+                    Text("// select a program to launch", style = MaterialTheme.typography.labelSmall, color = Fog)
+                    Spacer(Modifier.height(12.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        ProgramTile(Icons.Filled.Save, "save", { onSaveForLater(); onClose() }, Modifier.weight(1f))
+                        ProgramTile(Icons.Filled.Translate, if (isTranslated) "original" else "translate", {
+                            if (isTranslated) { onToggleTranslation(); onClose() } else onOpenTranslatePicker()
+                        }, Modifier.weight(1f))
+                    }
+                    Spacer(Modifier.height(8.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        ProgramTile(Icons.Filled.Share, "share", { shareDialogOpen = true }, Modifier.weight(1f))
+                        ProgramTile(Icons.Filled.CreateNewFolder, "collect", { collectionPickerMode = "add"; collectionPickerOpen = true }, Modifier.weight(1f))
+                    }
+                    Spacer(Modifier.height(8.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        ProgramTile(Icons.Filled.TravelExplore, "roam-cat", { onRoamWithinCategory(); onClose() }, Modifier.weight(1f))
+                        ProgramTile(Icons.Filled.CollectionsBookmark, "roam-col", {
+                            if (collections.isNotEmpty()) { collectionPickerMode = "roam"; collectionPickerOpen = true }
+                        }, Modifier.weight(1f))
+                    }
+                    Spacer(Modifier.height(8.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        ProgramTile(Icons.Filled.Folder, "collections", { onManageCollections(); onClose() }, Modifier.weight(1f))
+                        ProgramTile(Icons.Filled.Flag, "report", { onReportBrokenLink(); onClose() }, Modifier.weight(1f))
+                    }
+                }
+                Box(Modifier.fillMaxWidth().height(1.dp).background(LineColor))
+                Text(
+                    "pkgs: 8 · uid: wanderer · daemon: idle",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = Fog,
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                )
             }
-            Spacer(Modifier.height(10.dp))
-            Text("// select a program to launch", style = MaterialTheme.typography.labelSmall, color = Fog)
-            Spacer(Modifier.height(12.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                ProgramTile(Icons.Filled.Save, "save", { onSaveForLater(); onClose() }, Modifier.weight(1f))
-                ProgramTile(Icons.Filled.Translate, if (isTranslated) "original" else "translate", {
-                    if (isTranslated) { onToggleTranslation(); onClose() } else onOpenTranslatePicker()
-                }, Modifier.weight(1f))
-            }
-            Spacer(Modifier.height(8.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                ProgramTile(Icons.Filled.Share, "share", { shareDialogOpen = true }, Modifier.weight(1f))
-                ProgramTile(Icons.Filled.CreateNewFolder, "collect", { collectionPickerMode = "add"; collectionPickerOpen = true }, Modifier.weight(1f))
-            }
-            Spacer(Modifier.height(8.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                ProgramTile(Icons.Filled.TravelExplore, "roam-cat", { onRoamWithinCategory(); onClose() }, Modifier.weight(1f))
-                ProgramTile(Icons.Filled.CollectionsBookmark, "roam-col", {
-                    if (collections.isNotEmpty()) { collectionPickerMode = "roam"; collectionPickerOpen = true }
-                }, Modifier.weight(1f))
-            }
-            Spacer(Modifier.height(8.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                ProgramTile(Icons.Filled.Folder, "collections", { onManageCollections(); onClose() }, Modifier.weight(1f))
-                ProgramTile(Icons.Filled.Flag, "report", { onReportBrokenLink(); onClose() }, Modifier.weight(1f))
-            }
-            Spacer(Modifier.height(12.dp))
-            Text("pkgs: 8 · uid: wanderer · daemon: idle", style = MaterialTheme.typography.labelSmall, color = Fog)
         }
-    }
 
     if (collectionPickerOpen) {
         RoamOsWindow(title = if (collectionPickerMode == "roam") "COLLECT // ROAM" else "COLLECT // ADD", onClose = { collectionPickerOpen = false }, modifier = Modifier.fillMaxSize()) {
-            Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(12.dp)) {
-                Text("// select a collection", style = MaterialTheme.typography.labelSmall, color = Fog)
-                Spacer(Modifier.height(8.dp))
-                collections.forEach { col ->
-                    Row(
-                        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(6.dp)).background(Panel2)
-                            .clickable {
-                                collectionPickerOpen = false
-                                if (collectionPickerMode == "roam") { onRoamCollection(col.id); onClose() }
-                                else { onAddToCollection(col.id); onClose() }
-                            }
-                            .padding(horizontal = 12.dp, vertical = 12.dp),
-                    ) { Text(col.name, color = Bone, style = MaterialTheme.typography.bodyMedium) }
-                    Spacer(Modifier.height(6.dp))
+            Column(Modifier.fillMaxSize()) {
+                Column(
+                    Modifier
+                        .weight(1f)
+                        .fillMaxWidth()
+                        .verticalScroll(rememberScrollState())
+                        .padding(12.dp),
+                ) {
+                    Text("// select a collection", style = MaterialTheme.typography.labelSmall, color = Fog)
+                    Spacer(Modifier.height(8.dp))
+                    collections.forEach { col ->
+                        Row(
+                            modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(6.dp)).background(Panel2)
+                                .clickable {
+                                    collectionPickerOpen = false
+                                    if (collectionPickerMode == "roam") { onRoamCollection(col.id); onClose() }
+                                    else { onAddToCollection(col.id); onClose() }
+                                }
+                                .padding(horizontal = 12.dp, vertical = 12.dp),
+                        ) { Text(col.name, color = Bone, style = MaterialTheme.typography.bodyMedium) }
+                        Spacer(Modifier.height(6.dp))
+                    }
+                    if (collectionPickerMode == "add") {
+                        Row(
+                            modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(6.dp)).background(Panel2)
+                                .clickable { collectionPickerOpen = false; newCollectionDialogOpen = true }
+                                .padding(horizontal = 12.dp, vertical = 12.dp),
+                        ) { Text("+ new collection", color = TealBright, style = MaterialTheme.typography.bodyMedium) }
+                    }
                 }
-                if (collectionPickerMode == "add") {
-                    Row(
-                        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(6.dp)).background(Panel2)
-                            .clickable { collectionPickerOpen = false; newCollectionDialogOpen = true }
-                            .padding(horizontal = 12.dp, vertical = 12.dp),
-                    ) { Text("+ new collection", color = TealBright, style = MaterialTheme.typography.bodyMedium) }
-                }
+                Box(Modifier.fillMaxWidth().height(1.dp).background(LineColor))
+                Text(
+                    "dir: /collections · mode: $collectionPickerMode",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = Fog,
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                )
             }
         }
     }
 
     if (shareDialogOpen) {
         RoamOsWindow(title = "SHARE", onClose = { shareDialogOpen = false }, modifier = Modifier.fillMaxSize()) {
-            Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(12.dp)) {
-                Text("// route this page", style = MaterialTheme.typography.labelSmall, color = Fog)
-                Spacer(Modifier.height(8.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(6.dp)).background(Panel2)
-                        .clickable { shareDialogOpen = false; onShare(); onClose() }
-                        .padding(horizontal = 12.dp, vertical = 12.dp),
-                ) { Text("share via...", color = Bone, style = MaterialTheme.typography.bodyMedium) }
-                Spacer(Modifier.height(6.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(6.dp)).background(Panel2)
-                        .clickable { shareDialogOpen = false; onShareWithFriend(); onClose() }
-                        .padding(horizontal = 12.dp, vertical = 12.dp),
-                ) { Text("send to a wanderer", color = Bone, style = MaterialTheme.typography.bodyMedium) }
+            Column(Modifier.fillMaxSize()) {
+                Column(
+                    Modifier
+                        .weight(1f)
+                        .fillMaxWidth()
+                        .verticalScroll(rememberScrollState())
+                        .padding(12.dp),
+                ) {
+                    Text("// route this page", style = MaterialTheme.typography.labelSmall, color = Fog)
+                    Spacer(Modifier.height(8.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(6.dp)).background(Panel2)
+                            .clickable { shareDialogOpen = false; onShare(); onClose() }
+                            .padding(horizontal = 12.dp, vertical = 12.dp),
+                    ) { Text("share via...", color = Bone, style = MaterialTheme.typography.bodyMedium) }
+                    Spacer(Modifier.height(6.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(6.dp)).background(Panel2)
+                            .clickable { shareDialogOpen = false; onShareWithFriend(); onClose() }
+                            .padding(horizontal = 12.dp, vertical = 12.dp),
+                    ) { Text("send to a wanderer", color = Bone, style = MaterialTheme.typography.bodyMedium) }
+                }
+                Box(Modifier.fillMaxWidth().height(1.dp).background(LineColor))
+                Text(
+                    "uplink: ready · payload: 1 page",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = Fog,
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                )
             }
         }
     }
@@ -206,6 +249,8 @@ fun ProgramLauncher(
                         },
                     ) { Text("create & add", color = TealBright) }
                 }
+                Spacer(Modifier.height(10.dp))
+                Text("alloc: new dir · label: pending", style = MaterialTheme.typography.labelSmall, color = Fog)
             }
         }
     }

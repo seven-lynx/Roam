@@ -543,6 +543,7 @@ fun MainScreen(
             if (showUserSearch) {
                 UserSearchSheet(
                     vm = vm,
+                    modifier = Modifier.fillMaxSize(),
                     onDismiss = { showUserSearch = false },
                     onSelectUser = { username ->
                         showUserSearch = false

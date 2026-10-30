@@ -19,7 +19,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.AlertDialog
+import app.roam.android.ui.component.RoamOsDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
@@ -56,6 +56,8 @@ import app.roam.android.ui.component.RoamOsLoadingBlock
 import app.roam.android.ui.component.SettingsActionRow
 import app.roam.android.ui.component.SettingsSectionHeader
 import app.roam.android.ui.component.SettingsTopBar
+import app.roam.android.ui.theme.Fog
+import app.roam.android.ui.theme.TealBright
 import app.roam.android.viewmodel.MainViewModel
 
 @Composable
@@ -409,81 +411,90 @@ private fun SubmitUrlDialog(
     val selectedSubcat = filteredSubcats.firstOrNull { it.id == selectedSubcategoryId }
     val canSubmit = url.isNotBlank() && selectedCategoryId != null
 
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(if (roamOs) "Upload URL" else "Submit a URL") },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                OutlinedTextField(
-                    value = url,
-                    onValueChange = { url = it },
-                    label = { Text("URL") },
-                    placeholder = { Text("https://example.com/article") },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
-                )
+    RoamOsDialog(
+        title = if (roamOs) "UPLOAD URL" else "SUBMIT URL",
+        onDismiss = onDismiss,
+        header = "// push a new page to the network",
+        footer = "queue: mod · category: ${selectedCategory?.name ?: "none"}",
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            OutlinedTextField(
+                value = url,
+                onValueChange = { url = it },
+                label = { Text("URL") },
+                placeholder = { Text("https://example.com/article") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+            )
 
-                // Category picker
-                Column {
-                    Text("Category", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
-                    Spacer(Modifier.height(4.dp))
-                    Box {
-                        OutlinedButton(onClick = { categoryDropdownExpanded = true }, modifier = Modifier.fillMaxWidth()) {
-                            if (selectedCategory != null) {
-                                CategoryIconLabel(selectedCategory.icon, selectedCategory.name, modifier = Modifier.weight(1f))
-                            } else {
-                                Text("Pick a category...", modifier = Modifier.weight(1f))
-                            }
+            // Category picker
+            Column {
+                Text("Category", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
+                Spacer(Modifier.height(4.dp))
+                Box {
+                    OutlinedButton(onClick = { categoryDropdownExpanded = true }, modifier = Modifier.fillMaxWidth()) {
+                        if (selectedCategory != null) {
+                            CategoryIconLabel(selectedCategory.icon, selectedCategory.name, modifier = Modifier.weight(1f))
+                        } else {
+                            Text("Pick a category...", modifier = Modifier.weight(1f))
                         }
-                        DropdownMenu(expanded = categoryDropdownExpanded, onDismissRequest = { categoryDropdownExpanded = false }) {
-                            categories.forEach { cat ->
-                                DropdownMenuItem(
-                                    text = { CategoryIconLabel(cat.icon, cat.name) },
-                                    onClick = {
-                                        selectedCategoryId = cat.id
-                                        selectedSubcategoryId = null
-                                        categoryDropdownExpanded = false
-                                    },
-                                )
-                            }
+                    }
+                    DropdownMenu(expanded = categoryDropdownExpanded, onDismissRequest = { categoryDropdownExpanded = false }) {
+                        categories.forEach { cat ->
+                            DropdownMenuItem(
+                                text = { CategoryIconLabel(cat.icon, cat.name) },
+                                onClick = {
+                                    selectedCategoryId = cat.id
+                                    selectedSubcategoryId = null
+                                    categoryDropdownExpanded = false
+                                },
+                            )
                         }
                     }
                 }
+            }
 
-                // Subcategory picker — only shown once a category is selected
-                if (selectedCategoryId != null && filteredSubcats.isNotEmpty()) {
-                    Column {
-                        Text("Topic (optional)", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
-                        Spacer(Modifier.height(4.dp))
-                        Box {
-                            OutlinedButton(onClick = { subcategoryDropdownExpanded = true }, modifier = Modifier.fillMaxWidth()) {
-                                Text(selectedSubcat?.name ?: "Any topic", modifier = Modifier.weight(1f))
-                            }
-                            DropdownMenu(expanded = subcategoryDropdownExpanded, onDismissRequest = { subcategoryDropdownExpanded = false }) {
+            // Subcategory picker — only shown once a category is selected
+            if (selectedCategoryId != null && filteredSubcats.isNotEmpty()) {
+                Column {
+                    Text("Topic (optional)", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
+                    Spacer(Modifier.height(4.dp))
+                    Box {
+                        OutlinedButton(onClick = { subcategoryDropdownExpanded = true }, modifier = Modifier.fillMaxWidth()) {
+                            Text(selectedSubcat?.name ?: "Any topic", modifier = Modifier.weight(1f))
+                        }
+                        DropdownMenu(expanded = subcategoryDropdownExpanded, onDismissRequest = { subcategoryDropdownExpanded = false }) {
+                            DropdownMenuItem(
+                                text = { Text("Any topic") },
+                                onClick = { selectedSubcategoryId = null; subcategoryDropdownExpanded = false },
+                            )
+                            filteredSubcats.forEach { sub ->
                                 DropdownMenuItem(
-                                    text = { Text("Any topic") },
-                                    onClick = { selectedSubcategoryId = null; subcategoryDropdownExpanded = false },
+                                    text = { Text(sub.name) },
+                                    onClick = { selectedSubcategoryId = sub.id; subcategoryDropdownExpanded = false },
                                 )
-                                filteredSubcats.forEach { sub ->
-                                    DropdownMenuItem(
-                                        text = { Text(sub.name) },
-                                        onClick = { selectedSubcategoryId = sub.id; subcategoryDropdownExpanded = false },
-                                    )
-                                }
                             }
                         }
                     }
                 }
             }
-        },
-        confirmButton = {
-            TextButton(
-                onClick = { onSubmit(url.trim(), selectedCategoryId!!, selectedSubcategoryId) },
-                enabled = canSubmit,
-            ) { Text("Submit") }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Cancel") }
-        },
-    )
+
+            Spacer(Modifier.height(4.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                TextButton(onClick = onDismiss) {
+                    Text("cancel", style = MaterialTheme.typography.labelMedium, color = Fog)
+                }
+                TextButton(
+                    onClick = { onSubmit(url.trim(), selectedCategoryId!!, selectedSubcategoryId) },
+                    enabled = canSubmit,
+                ) {
+                    Text("submit", style = MaterialTheme.typography.labelMedium, color = TealBright)
+                }
+            }
+        }
+    }
 }
