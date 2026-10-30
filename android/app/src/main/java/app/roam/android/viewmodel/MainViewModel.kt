@@ -903,7 +903,7 @@ class MainViewModel(
     val systemMessageSpeed: StateFlow<Int> = _systemMessageSpeed.asStateFlow()
 
     private val systemMessageQueue = ArrayDeque<String>()
-    private var flavorJob: Job? = null
+    private var streamJob: Job? = null
 
     fun setSystemMessageSpeed(value: Int) {
         _systemMessageSpeed.value = value.coerceIn(1, 10)
@@ -971,17 +971,19 @@ class MainViewModel(
         systemMessageQueue.addLast(message)
         while (systemMessageQueue.size > 12) systemMessageQueue.removeFirst()
         _systemMessage.value = streamFor(systemMessageQueue.toList())
+        ensureStreamLoop()
     }
 
-    /** Rotates the idle flavor line while there are no queued messages. */
-    private fun ensureFlavorRotation() {
-        if (flavorJob?.isActive == true) return
-        flavorJob = viewModelScope.launch {
+    /** Advances the readout: one message per window, flavor rotates when idle. */
+    private fun ensureStreamLoop() {
+        streamJob?.cancel()
+        streamJob = viewModelScope.launch {
             while (true) {
-                delay(5_000)
-                if (systemMessageQueue.isEmpty()) {
-                    _systemMessage.value = streamFor(emptyList())
+                delay(4_000)
+                if (systemMessageQueue.isNotEmpty()) {
+                    systemMessageQueue.removeFirst()
                 }
+                _systemMessage.value = streamFor(systemMessageQueue.toList())
             }
         }
     }
@@ -1154,7 +1156,7 @@ class MainViewModel(
     private val pendingRatings = ArrayDeque<PendingRating>()
 
     init {
-        ensureFlavorRotation()
+        ensureStreamLoop()
         viewModelScope.launch {
             runCatching { repo.getCategories() }
                 .onSuccess { if (it.isNotEmpty()) _categories.value = it }

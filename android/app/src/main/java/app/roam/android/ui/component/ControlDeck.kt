@@ -316,16 +316,19 @@ private fun LedModule(value: Int, label: String, color: Color) {
     }
 }
 
-private val EInkPaper = Color(0xFFD9CEB8)
-private val EInkInk = Color(0xFF1C1A15)
-private val EInkFrame = Color(0xFF8C8271)
+private val EInkPaper = Color(0xFF141B1D)
+private val EInkInk = Bone
+private val EInkFrame = Color(0xFF2A3336)
 
 @Composable
 private fun SystemReadout(message: String, color: Color, speed: Int = 5, display: String = "eink", modifier: Modifier = Modifier) {
     val eink = display == "eink"
     val textMeasurer = rememberTextMeasurer()
     val style = if (eink) {
-        MaterialTheme.typography.labelMedium.copy(color = EInkInk)
+        MaterialTheme.typography.labelMedium.copy(
+            color = EInkInk,
+            shadow = Shadow(color = EInkInk.copy(alpha = 0.4f), offset = Offset.Zero, blurRadius = 5f),
+        )
     } else {
         MaterialTheme.typography.labelMedium.copy(
             fontFamily = SevenSegment,
@@ -334,13 +337,18 @@ private fun SystemReadout(message: String, color: Color, speed: Int = 5, display
             shadow = Shadow(color = color.copy(alpha = 0.85f), offset = Offset.Zero, blurRadius = 8f),
         )
     }
-    // Seamless infinite stream: two copies side by side scroll left; the second is
-    // exactly where the first began when it has fully exited, so there is no blank.
-    val separatorPx = with(LocalDensity.current) { 16.dp.toPx() }
+    // Seamless infinite stream: repeat the tile enough times to always cover the
+    // container, then scroll by one tile width for a gap-free wrap.
+    val density = LocalDensity.current
+    val separatorPx = with(density) { 16.dp.toPx() }
     val copyWidth = remember(message, eink) { textMeasurer.measure(AnnotatedString(message), style).size.width }
-    val stepPx = (copyWidth + separatorPx).coerceAtLeast(1f)
+    val tileWidth = (copyWidth + separatorPx).coerceAtLeast(1f)
+    var containerWidth by remember { mutableIntStateOf(0) }
+    val tiles = remember(containerWidth, tileWidth) {
+        if (tileWidth <= 0f) 2 else (containerWidth / tileWidth).toInt() + 2
+    }
     val pxPerSec = 8f + speed.coerceIn(1, 10) * 5f
-    val loopMs = (stepPx / pxPerSec * 1000f).toInt().coerceAtLeast(1)
+    val loopMs = (tileWidth / pxPerSec * 1000f).toInt().coerceAtLeast(1)
     val transition = key(message, speed, eink) { rememberInfiniteTransition(label = "readout-stream") }
     val t by transition.animateFloat(
         initialValue = 0f,
@@ -354,17 +362,18 @@ private fun SystemReadout(message: String, color: Color, speed: Int = 5, display
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(4.dp))
                 .background(if (eink) EInkPaper else Color.Black.copy(alpha = 0.55f))
-                .border(1.dp, if (eink) EInkFrame else LineColor, RoundedCornerShape(4.dp)),
+                .border(1.dp, if (eink) EInkFrame else LineColor, RoundedCornerShape(4.dp))
+                .onSizeChanged { containerWidth = it.width },
         ) {
             Box(
                 Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 2.dp),
                 contentAlignment = Alignment.CenterStart,
             ) {
-                Row(Modifier.graphicsLayer { translationX = -t * stepPx }) {
-                    Text(message, style = style, maxLines = 1, softWrap = false)
-                    Spacer(Modifier.width(16.dp))
-                    Text(message, style = style, maxLines = 1, softWrap = false)
-                    Spacer(Modifier.width(16.dp))
+                Row(Modifier.graphicsLayer { translationX = -t * tileWidth }) {
+                    repeat(tiles) {
+                        Text(message, style = style, maxLines = 1, softWrap = false)
+                        Spacer(Modifier.width(16.dp))
+                    }
                 }
             }
         }
