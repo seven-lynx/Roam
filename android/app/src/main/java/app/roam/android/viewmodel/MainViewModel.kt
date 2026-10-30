@@ -756,6 +756,9 @@ class MainViewModel(
     private val _showShareUrlSheet = MutableStateFlow(false)
     val showShareUrlSheet: StateFlow<Boolean> = _showShareUrlSheet.asStateFlow()
 
+    private val _showCommsMenu = MutableStateFlow(false)
+    val showCommsMenu: StateFlow<Boolean> = _showCommsMenu.asStateFlow()
+
     private val _shareRecipients = MutableStateFlow<List<app.roam.android.model.FollowUser>>(emptyList())
     val shareRecipients: StateFlow<List<app.roam.android.model.FollowUser>> = _shareRecipients.asStateFlow()
 
@@ -1713,6 +1716,9 @@ class MainViewModel(
     fun openConfigSheet() { _showConfigSheet.value = true; loadCollections() }
     fun closeConfigSheet() { _showConfigSheet.value = false }
 
+    fun toggleCommsMenu() { _showCommsMenu.value = !_showCommsMenu.value }
+    fun closeCommsMenu() { _showCommsMenu.value = false }
+
     /** Called by the WebView when the user navigates to a page not in the discovery pool */
     fun onWebViewUrlChanged(url: String) {
         // During an active roam (Loading state), ignore stale onPageFinished callbacks
@@ -2591,7 +2597,7 @@ class MainViewModel(
     fun shareUrlWithUser(recipientId: String) {
         val loaded = _state.value as? RoamState.Loaded ?: return
         viewModelScope.launch {
-            runCatching { repo.shareUrl(recipientId, loaded.roamUrl.id) }
+            runCatching { repo.shareUrl(recipientId, loaded.roamUrl.id, loaded.roamUrl.url) }
                 .onSuccess {
                     showTransientToast("Sent!")
                     closeShareUrlSheet()

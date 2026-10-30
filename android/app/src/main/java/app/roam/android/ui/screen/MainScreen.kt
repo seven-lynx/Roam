@@ -118,7 +118,6 @@ fun MainScreen(
     var currentTab by rememberSaveable { mutableStateOf(RoamTab.Roam.route) }
     var viewedUsername by rememberSaveable { mutableStateOf<String?>(null) }
     var showUserSearch by remember { mutableStateOf(false) }
-    var showCommsMenu by remember { mutableStateOf(false) }
     val focusModeEnabled by vm.focusModeEnabled.collectAsState()
     val hasRatedUp by vm.hasRatedUp.collectAsState()
     val themeVariant by vm.themeVariant.collectAsState()
@@ -226,10 +225,11 @@ fun MainScreen(
                         if (showConfigSheet) vm.closeConfigSheet()
                         currentTab = it
                     },
-                    onOpenMenu = { if (showConfigSheet) vm.closeConfigSheet() else vm.openConfigSheet() },
+                    onOpenMenu = { if (showConfigSheet) vm.closeConfigSheet() else { currentTab = RoamTab.Roam.route; vm.openConfigSheet() } },
                     onOpenComms = {
                         if (showConfigSheet) vm.closeConfigSheet()
-                        showCommsMenu = !showCommsMenu
+                        currentTab = RoamTab.Roam.route
+                        vm.toggleCommsMenu()
                     },
                     onToggleMute = { vm.setSoundEffectsEnabled(!soundEffectsEnabled) },
                     deckLayout = deckLayout,
@@ -547,79 +547,9 @@ fun MainScreen(
                 )
             }
 
-    // ── ROAM-OS program launcher (hoisted above all tabs) ──────────────────────
-    if (isRoamOs && showConfigSheet) {
-        val loaded = state as? RoamState.Loaded
-        val programSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-        ModalBottomSheet(onDismissRequest = { vm.closeConfigSheet() }, sheetState = programSheetState) {
-            ProgramLauncher(
-            collections = collections,
-            isTranslated = vm.isTranslated,
-            onToggleTranslation = { vm.toggleTranslation() },
-            onTranslate = { lang -> vm.translateTo(lang) },
-            onSaveForLater = { vm.saveForLater() },
-            onShare = {
-                val si = Intent(Intent.ACTION_SEND).apply { type = "text/plain"; putExtra(Intent.EXTRA_TEXT, currentUrl ?: "") }
-                activity.startActivity(Intent.createChooser(si, null))
-            },
-            onShareWithFriend = { vm.openShareUrlSheet() },
-            onAddToCollection = { cid -> vm.addCurrentUrlToCollection(cid) },
-            onCreateCollectionAndAdd = { name -> vm.createCollectionAndAdd(name) },
-            onRoamWithinCategory = { vm.roamWithinCategory() },
-            onRoamCollection = { cid -> vm.roamCollection(cid) },
-            onManageCollections = { currentTab = RoamTab.Saved.route },
-            onNavBack = { vm.webNavBack() },
-            onNavForward = { vm.webNavForward() },
-            onNavReload = { vm.webNavReload() },
-            onReportBrokenLink = { vm.reportBrokenLink() },
-            title = loaded?.roamUrl?.title,
-            description = loaded?.roamUrl?.description,
-            domain = rawUrl?.toUri()?.host?.removePrefix("www."),
-            category = loaded?.roamUrl?.categoryId?.let { id -> categories.firstOrNull { it.id == id }?.name },
-            subcategory = loaded?.roamUrl?.subcategoryId?.let { id -> subcategories.firstOrNull { it.id == id }?.name },
-            onClose = { vm.closeConfigSheet() },
-            modifier = Modifier.fillMaxWidth(),
-            )
-        }
-    }
+    // ── ROAM-OS in-screen overlays (config/comms/submit/share) now live inside
+    // DiscoverTab's screen slot so they never cover the control deck. ──────────
 
-    // ── ROAM-OS comms menu ─────────────────────────────────────────────────────
-    if (isRoamOs && showCommsMenu) {
-        CommsMenu(
-            onCheckNotifications = {
-                showCommsMenu = false
-                vm.fetchUnreadNotificationCount()
-                currentTab = RoamTab.Notifications.route
-            },
-            onSendFeedback = { message, email ->
-                showCommsMenu = false
-                vm.sendFeedback(message, email) { success ->
-                    vm.showTransientToast(if (success) "Feedback sent" else "Couldn't send feedback")
-                }
-            },
-            onSubmitUrl = {
-                showCommsMenu = false
-                vm.openSubmitSheet()
-            },
-            onClose = { showCommsMenu = false },
-            modifier = Modifier.fillMaxSize(),
-        )
-    }
-
-    // ── Submit-URL sheet (hoisted above all tabs) ──────────────────────────────
-    if (showSubmitSheet) {
-        SubmitBottomSheet(
-            url = rawUrl ?: currentUrl,
-            categories = categories,
-            onSubmit = { submittedUrl, categoryId -> vm.submitUrl(submittedUrl, categoryId) },
-            onDismiss = { vm.closeSubmitSheet() },
-        )
-    }
-
-    // ── Share-URL-with-friend sheet (hoisted above all tabs) ───────────────────
-    if (showShareUrlSheet) {
-        ShareUrlBottomSheet(vm = vm, onDismiss = { vm.closeShareUrlSheet() })
-    }
                 }
             }
         }
@@ -691,6 +621,9 @@ private fun DiscoverTab(
     val jsEnabled by vm.jsEnabled.collectAsState()
     val sheetGestureMode by vm.sheetGestureMode.collectAsState()
     val showConfigSheet by vm.showConfigSheet.collectAsState()
+    val showCommsMenu by vm.showCommsMenu.collectAsState()
+    val showSubmitSheet by vm.showSubmitSheet.collectAsState()
+    val showShareUrlSheet by vm.showShareUrlSheet.collectAsState()
     val adminModeEnabled by vm.adminModeEnabled.collectAsState()
     val prefetchWebView by vm.prefetchWebView.collectAsState()
     val nextPrefetchUrl by vm.nextPrefetchUrl.collectAsState()
@@ -699,6 +632,13 @@ private fun DiscoverTab(
     val isTranslating by vm.isTranslating.collectAsState()
     val translateLanguage by vm.translateLanguage.collectAsState()
     val isRoamOs = themeVariant == RoamThemeVariant.ROAM_OS
+    val screenLabel = if (isRoamOs) when {
+        showConfigSheet -> "PROGRAMS // LAUNCHER"
+        showCommsMenu -> "COMMS // UPLINK"
+        showShareUrlSheet -> "SHARE // LINK"
+        showSubmitSheet -> "SUBMIT // URL"
+        else -> null
+    } else null
 
     var initialRoamDone by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) {
@@ -981,6 +921,7 @@ private fun DiscoverTab(
                         exhausted = state is RoamState.Exhausted,
                         offline = !isOnline,
                         loading = isRoaming || (rawUrl == null && state is RoamState.Idle),
+                        screenLabel = screenLabel,
                         onRetry = { vm.roam() },
                     )
                 } else {
@@ -1110,6 +1051,76 @@ private fun DiscoverTab(
                             }
                         }
                     }
+                }
+
+                // ── ROAM-OS in-screen overlays (render inside the screen slot,
+                // below the status bar, never covering the control deck) ─────────
+                if (isRoamOs && showConfigSheet) {
+                    val loaded = state as? RoamState.Loaded
+                    ProgramLauncher(
+                        collections = collections,
+                        isTranslated = vm.isTranslated,
+                        onToggleTranslation = { vm.toggleTranslation() },
+                        onTranslate = { lang -> vm.translateTo(lang) },
+                        onSaveForLater = { vm.saveForLater() },
+                        onShare = {
+                            val si = Intent(Intent.ACTION_SEND).apply { type = "text/plain"; putExtra(Intent.EXTRA_TEXT, currentUrl ?: "") }
+                            activity.startActivity(Intent.createChooser(si, null))
+                        },
+                        onShareWithFriend = { vm.openShareUrlSheet() },
+                        onAddToCollection = { cid -> vm.addCurrentUrlToCollection(cid) },
+                        onCreateCollectionAndAdd = { name -> vm.createCollectionAndAdd(name) },
+                        onRoamWithinCategory = { vm.roamWithinCategory() },
+                        onRoamCollection = { cid -> vm.roamCollection(cid) },
+                        onManageCollections = { onNavigate(RoamTab.Saved.route) },
+                        onNavBack = { vm.webNavBack() },
+                        onNavForward = { vm.webNavForward() },
+                        onNavReload = { vm.webNavReload() },
+                        onReportBrokenLink = { vm.reportBrokenLink() },
+                        title = loaded?.roamUrl?.title,
+                        description = loaded?.roamUrl?.description,
+                        domain = rawUrl?.toUri()?.host?.removePrefix("www."),
+                        category = loaded?.roamUrl?.categoryId?.let { id -> categories.firstOrNull { it.id == id }?.name },
+                        subcategory = loaded?.roamUrl?.subcategoryId?.let { id -> subcategories.firstOrNull { it.id == id }?.name },
+                        onClose = { vm.closeConfigSheet() },
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                }
+
+                if (isRoamOs && showCommsMenu) {
+                    CommsMenu(
+                        onCheckNotifications = {
+                            vm.closeCommsMenu()
+                            vm.fetchUnreadNotificationCount()
+                            onNavigate(RoamTab.Notifications.route)
+                        },
+                        onSendFeedback = { message, email ->
+                            vm.closeCommsMenu()
+                            vm.sendFeedback(message, email) { success ->
+                                vm.showTransientToast(if (success) "Feedback sent" else "Couldn't send feedback")
+                            }
+                        },
+                        onSubmitUrl = {
+                            vm.closeCommsMenu()
+                            vm.openSubmitSheet()
+                        },
+                        onClose = { vm.closeCommsMenu() },
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                }
+
+                if (showSubmitSheet) {
+                    SubmitBottomSheet(
+                        url = rawUrl ?: currentUrl,
+                        categories = categories,
+                        onSubmit = { submittedUrl, categoryId -> vm.submitUrl(submittedUrl, categoryId) },
+                        onDismiss = { vm.closeSubmitSheet() },
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                }
+
+                if (showShareUrlSheet) {
+                    ShareUrlBottomSheet(vm = vm, onDismiss = { vm.closeShareUrlSheet() }, modifier = Modifier.fillMaxSize())
                 }
 
                 if (prefetchWebView && nextPrefetchUrl != null) {

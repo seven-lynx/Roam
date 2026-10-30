@@ -86,39 +86,43 @@ fun ProgramLauncher(
     var translateDialogOpen by remember { mutableStateOf(false) }
     var shareDialogOpen by remember { mutableStateOf(false) }
 
-    RoamOsWindow(title = "/USR/BIN", onClose = onClose, modifier = modifier) {
+    RoamOsWindow(title = "PROGRAMS", onClose = onClose, modifier = modifier) {
         Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(12.dp)) {
+            Text("// select a program to run", style = MaterialTheme.typography.labelSmall, color = Fog)
+            Spacer(Modifier.height(8.dp))
             UrlInfoCard(title = title, domain = domain, category = category, subcategory = subcategory, description = description)
             Spacer(Modifier.height(12.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                ProgramNavKey(Icons.AutoMirrored.Filled.ArrowBack, "BACK", { onNavBack(); onClose() }, Modifier.weight(1f))
-                ProgramNavKey(Icons.Filled.Refresh, "RELOAD", { onNavReload(); onClose() }, Modifier.weight(1f))
-                ProgramNavKey(Icons.AutoMirrored.Filled.ArrowForward, "FWD", { onNavForward(); onClose() }, Modifier.weight(1f))
+                ProgramNavKey(Icons.AutoMirrored.Filled.ArrowBack, "back", { onNavBack(); onClose() }, Modifier.weight(1f))
+                ProgramNavKey(Icons.Filled.Refresh, "reload", { onNavReload(); onClose() }, Modifier.weight(1f))
+                ProgramNavKey(Icons.AutoMirrored.Filled.ArrowForward, "fwd", { onNavForward(); onClose() }, Modifier.weight(1f))
             }
             Spacer(Modifier.height(12.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                ProgramTile(Icons.Filled.Save, "Save", { onSaveForLater(); onClose() }, Modifier.weight(1f))
-                ProgramTile(Icons.Filled.Translate, if (isTranslated) "Original" else "Translate", {
+                ProgramTile(Icons.Filled.Save, "save", { onSaveForLater(); onClose() }, Modifier.weight(1f))
+                ProgramTile(Icons.Filled.Translate, if (isTranslated) "original" else "translate", {
                     if (isTranslated) { onToggleTranslation(); onClose() } else translateDialogOpen = true
                 }, Modifier.weight(1f))
             }
             Spacer(Modifier.height(8.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                ProgramTile(Icons.Filled.Share, "Share", { shareDialogOpen = true }, Modifier.weight(1f))
-                ProgramTile(Icons.Filled.CreateNewFolder, "Collect", { collectionPickerMode = "add"; collectionPickerOpen = true }, Modifier.weight(1f))
+                ProgramTile(Icons.Filled.Share, "share", { shareDialogOpen = true }, Modifier.weight(1f))
+                ProgramTile(Icons.Filled.CreateNewFolder, "collect", { collectionPickerMode = "add"; collectionPickerOpen = true }, Modifier.weight(1f))
             }
             Spacer(Modifier.height(8.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                ProgramTile(Icons.Filled.TravelExplore, "Roam cat", { onRoamWithinCategory(); onClose() }, Modifier.weight(1f))
-                ProgramTile(Icons.Filled.CollectionsBookmark, "Roam col", {
+                ProgramTile(Icons.Filled.TravelExplore, "roam-cat", { onRoamWithinCategory(); onClose() }, Modifier.weight(1f))
+                ProgramTile(Icons.Filled.CollectionsBookmark, "roam-col", {
                     if (collections.isNotEmpty()) { collectionPickerMode = "roam"; collectionPickerOpen = true }
                 }, Modifier.weight(1f))
             }
             Spacer(Modifier.height(8.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                ProgramTile(Icons.Filled.Folder, "Collections", { onManageCollections(); onClose() }, Modifier.weight(1f))
-                ProgramTile(Icons.Filled.Flag, "Report", { onReportBrokenLink(); onClose() }, Modifier.weight(1f))
+                ProgramTile(Icons.Filled.Folder, "collections", { onManageCollections(); onClose() }, Modifier.weight(1f))
+                ProgramTile(Icons.Filled.Flag, "report", { onReportBrokenLink(); onClose() }, Modifier.weight(1f))
             }
+            Spacer(Modifier.height(12.dp))
+            Text("pkgs: 8 · uid: wanderer · daemon: idle", style = MaterialTheme.typography.labelSmall, color = Fog)
         }
     }
 

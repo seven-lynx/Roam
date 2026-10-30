@@ -1,25 +1,22 @@
 package app.roam.android.ui.component
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -31,50 +28,44 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import app.roam.android.ui.theme.Bone
+import app.roam.android.ui.theme.Fog
+import app.roam.android.ui.theme.Panel2
+import app.roam.android.ui.theme.TealBright
 import app.roam.android.viewmodel.MainViewModel
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Box
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ShareUrlBottomSheet(
     vm: MainViewModel,
     onDismiss: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     val shareRecipients by vm.shareRecipients.collectAsState()
     val shareRecipientsLoading by vm.shareRecipientsLoading.collectAsState()
 
-    val sheetState = rememberModalBottomSheetState()
-
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = sheetState,
-    ) {
+    RoamOsWindow(title = "SHARE", onClose = onDismiss, modifier = modifier) {
         Column(
             modifier = Modifier
-                .fillMaxWidth()
+                .fillMaxSize()
                 .verticalScroll(rememberScrollState())
-                .navigationBarsPadding()
-                .padding(horizontal = 16.dp)
-                .padding(bottom = 32.dp),
+                .padding(12.dp),
         ) {
-            Text("Share with someone", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-            Spacer(Modifier.height(4.dp))
-            Text("Send this page to a follower", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f))
-
-            Spacer(Modifier.height(12.dp))
-            HorizontalDivider()
-            Spacer(Modifier.height(8.dp))
+            Text(
+                "// send this page to a wanderer",
+                style = MaterialTheme.typography.labelSmall,
+                color = Fog,
+            )
+            Spacer(Modifier.height(10.dp))
 
             if (shareRecipientsLoading) {
-                Box(Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
-                    Text("Loading…", color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f))
+                Box(Modifier.fillMaxWidth().padding(24.dp), contentAlignment = Alignment.Center) {
+                    Text("resolving uplink…", style = MaterialTheme.typography.bodySmall, color = Fog)
                 }
             } else if (shareRecipients.isEmpty()) {
-                Box(Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
+                Box(Modifier.fillMaxWidth().padding(24.dp), contentAlignment = Alignment.Center) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text("No users found", style = MaterialTheme.typography.bodyMedium)
-                        Text("Try following some people first", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f))
+                        Text("no recipients found", style = MaterialTheme.typography.bodyMedium, color = Bone)
+                        Text("// follow someone to share links", style = MaterialTheme.typography.bodySmall, color = Fog)
                     }
                 }
             } else {
@@ -84,20 +75,23 @@ fun ShareUrlBottomSheet(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(Panel2)
                             .clickable { vm.shareUrlWithUser(recipient.id) }
-                            .padding(vertical = 10.dp),
+                            .padding(horizontal = 10.dp, vertical = 10.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Box(
-                            modifier = Modifier.size(36.dp).clip(CircleShape).background(Color(0xFF7C3AED)),
+                            modifier = Modifier.size(34.dp).clip(CircleShape).background(TealBright),
                             contentAlignment = Alignment.Center,
                         ) {
-                            Text(initials, color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                            Text(initials, color = Color(0xFF0A1214), fontSize = 13.sp, fontWeight = FontWeight.Bold)
                         }
-                        Column(modifier = Modifier.weight(1f).padding(horizontal = 12.dp)) {
+                        Column(modifier = Modifier.weight(1f).padding(horizontal = 10.dp)) {
                             Text(
                                 recipient.displayName.ifBlank { recipient.username },
                                 style = MaterialTheme.typography.bodyMedium,
+                                color = Bone,
                                 fontWeight = FontWeight.Medium,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
@@ -105,13 +99,14 @@ fun ShareUrlBottomSheet(
                             Text(
                                 "@${recipient.username}",
                                 style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f),
+                                color = Fog,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
                             )
                         }
-                        Text("Send →", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+                        Text("SEND →", style = MaterialTheme.typography.labelMedium, color = TealBright)
                     }
+                    Spacer(Modifier.height(6.dp))
                 }
             }
         }

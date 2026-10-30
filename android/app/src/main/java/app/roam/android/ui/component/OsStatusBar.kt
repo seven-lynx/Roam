@@ -28,10 +28,12 @@ fun OsStatusBar(
     exhausted: Boolean = false,
     offline: Boolean = false,
     loading: Boolean = false,
+    screenLabel: String? = null,
     onRetry: () -> Unit = {},
 ) {
     val text = when {
         errorText != null -> "$errorText"
+        screenLabel != null -> screenLabel
         exhausted -> "SIGNAL EXHAUSTED — ADJUST CATEGORIES"
         offline -> "OFFLINE"
         loading -> "ROAMING…"
@@ -54,6 +56,7 @@ fun OsStatusBar(
             style = MaterialTheme.typography.labelMedium,
             color = when {
                 errorText != null -> MaterialTheme.colorScheme.error
+                screenLabel != null -> MaterialTheme.colorScheme.secondary
                 loading -> MaterialTheme.colorScheme.secondary
                 else -> MaterialTheme.colorScheme.onSurfaceVariant
             },

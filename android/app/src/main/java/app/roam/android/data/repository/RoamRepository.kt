@@ -899,11 +899,12 @@ class RoamRepository {
     // ── Share URL with user ─────────────────────────────────────────────────
 
     /** Sends a URL to another user. Triggers a push notification. */
-    suspend fun shareUrl(recipientId: String, urlId: String) {
+    suspend fun shareUrl(recipientId: String, urlId: String, url: String) {
         val body = buildJsonObject {
             put("action", "share")
             put("recipient_id", recipientId)
             put("url_id", urlId)
+            put("url", url)
         }
         supabase.functions.invoke("share-url", body = body)
     }

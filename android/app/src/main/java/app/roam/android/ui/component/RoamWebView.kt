@@ -47,6 +47,7 @@ import androidx.webkit.WebSettingsCompat
 import androidx.webkit.WebViewFeature
 import app.roam.android.viewmodel.WebNavCommand
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.delay
 
 /**
  * Walk Context wrappers (e.g. ContextThemeWrapper from Compose) to find the host Activity.
@@ -223,6 +224,9 @@ fun RoamWebView(
     // The last URL we commanded the WebView to load. Used to detect silent URL
     // drift after process death (when restoreState brings back a stale page).
     var lastCommittedUrl by remember { mutableStateOf<String?>(null) }
+    // True while the WebView is trying to recover from a killed renderer after
+    // backgrounding. A watchdog below force-reloads if recovery stalls.
+    var recovering by remember { mutableStateOf(false) }
     LaunchedEffect(url) {
         urlRef.value = url
         // Reset the error state whenever we get a new URL to try.
@@ -281,6 +285,7 @@ fun RoamWebView(
                     // Kotlin-side savedScrollY fallback.
                     if (wv.url.isNullOrEmpty()) {
                         showSnapshot = true
+                        recovering = true
                         onRecovering(true)
                         if (!savedState.isEmpty) {
                             wv.restoreState(savedState)
@@ -353,6 +358,24 @@ fun RoamWebView(
         }
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+
+    // Watchdog: if renderer recovery stalls (no onPageFinished within the timeout),
+    // quietly reload the current URL behind the loading splash so the user never
+    // gets stuck on an infinite boot screen. The existing scroll-restore logic
+    // puts them back at the same position.
+    LaunchedEffect(recovering) {
+        if (!recovering) return@LaunchedEffect
+        delay(8000)
+        recovering = false
+        onRecovering(false)
+        webViewRef.value?.let { wv ->
+            if (wv.url.isNullOrEmpty()) {
+                urlRef.value?.let { wv.loadUrl(it) }
+            } else {
+                wv.reload()
+            }
+        }
     }
 
 
@@ -471,6 +494,7 @@ fun RoamWebView(
                             showSnapshot = false
                             snapshotBitmap = null
                             onPageVisible()
+                            recovering = false
                             onRecovering(false)
                             onPageFinishedForPrefetch()
                             // Re-assert system bars after each page load so a site's

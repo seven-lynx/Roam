@@ -1,5 +1,6 @@
 package app.roam.android.ui.component
 
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
@@ -54,18 +55,17 @@ fun RoamOsBootScreen() {
     )
     var lineIndex by remember { mutableIntStateOf(0) }
     LaunchedEffect(Unit) {
-        while (true) {
-            delay(420)
-            lineIndex = (lineIndex + 1) % lines.size
+        while (lineIndex < lines.size) {
+            delay(300)
+            lineIndex = lineIndex + 1
         }
     }
+    val progress = remember { Animatable(0f) }
+    LaunchedEffect(Unit) {
+        progress.snapTo(0f)
+        progress.animateTo(1f, tween(2400, easing = LinearEasing))
+    }
     val transition = rememberInfiniteTransition(label = "roamos-boot")
-    val sweep by transition.animateFloat(
-        initialValue = 0f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(tween(1200, easing = LinearEasing), RepeatMode.Restart),
-        label = "boot-sweep",
-    )
     val glow by transition.animateFloat(
         initialValue = 0.55f,
         targetValue = 1f,
@@ -93,7 +93,7 @@ fun RoamOsBootScreen() {
         Box(Modifier.width(170.dp).height(3.dp).background(LineColor)) {
             Box(
                 Modifier
-                    .fillMaxWidth(sweep)
+                    .fillMaxWidth(progress.value)
                     .height(3.dp)
                     .background(MaterialTheme.colorScheme.secondary)
             )
