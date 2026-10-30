@@ -37,6 +37,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ShaderBrush
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
@@ -82,7 +83,7 @@ fun HandheldShell(
     wear: Boolean = false,
     bezelFisheye: Boolean = true,
     hardware: HardwareFx = HardwareFx(),
-    texture: String = "metal",
+    texture: String = "plastic",
     modifier: Modifier = Modifier,
     content: @Composable () -> Unit,
 ) {
@@ -101,7 +102,12 @@ fun HandheldShell(
                         .fillMaxSize()
                         .padding(8.dp)
                         .clip(RoundedCornerShape(22.dp))
-                        .background(Brush.verticalGradient(listOf(Oxide3, Oxide2, Oxide, Abyss)))
+                        .background(Brush.verticalGradient(listOf(
+                            lerp(Oxide3, palette.primary, 0.30f),
+                            lerp(Oxide2, palette.primary, 0.24f),
+                            lerp(Oxide, palette.primary, 0.18f),
+                            Abyss,
+                        )))
                         .border(
                             1.dp,
                             Brush.verticalGradient(

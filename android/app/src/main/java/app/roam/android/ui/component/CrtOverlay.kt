@@ -54,6 +54,12 @@ fun CrtOverlay(modifier: Modifier = Modifier, fx: CrtFx = CrtFx()) {
         animationSpec = infiniteRepeatable(tween(6000, easing = LinearEasing), RepeatMode.Reverse),
         label = "crt-flicker-alpha",
     )
+    val shimmer by transition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(tween(180), RepeatMode.Reverse),
+        label = "crt-shimmer",
+    )
 
     val sScan = (fx.scanlines - 1) / 9f
     val sGrain = (fx.grain - 1) / 9f
@@ -63,15 +69,18 @@ fun CrtOverlay(modifier: Modifier = Modifier, fx: CrtFx = CrtFx()) {
     val phosphor = MaterialTheme.colorScheme.secondary
 
     Canvas(modifier = modifier) {
-        // Phosphor glow, gently pulsing (amplitude scales with flicker strength).
-        drawRect(color = phosphor.copy(alpha = 0.02f + (0.02f + 0.10f * sFlicker) * flicker))
+        // Flicker: full-screen luminance wobble (strong, scales with the slider).
+        val flickerAmp = 0.03f + 0.35f * sFlicker
+        drawRect(color = phosphor.copy(alpha = flickerAmp * flicker))
+        drawRect(color = Color.Black.copy(alpha = 0.05f + 0.20f * sFlicker * (1f - flicker)))
+        drawRect(color = Color.White.copy(alpha = 0.015f * shimmer * (0.4f + sFlicker)))
 
         // Vignette - darkens the edges toward the corners.
         drawRect(
             brush = Brush.radialGradient(
-                colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.25f + 0.45f * sVignette)),
+                colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.35f + 0.55f * sVignette)),
                 center = Offset(size.width / 2f, size.height / 2f),
-                radius = size.maxDimension * 0.78f,
+                radius = size.maxDimension * 0.55f,
             ),
         )
 

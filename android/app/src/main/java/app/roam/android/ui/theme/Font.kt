@@ -40,3 +40,26 @@ val IbmPlexMono = FontFamily(
 val SevenSegment = FontFamily(
     Font(R.font.dseg7_classic, FontWeight.Normal),
 )
+
+// Orbitron — a geometric retro-sci-fi display face for the boot/scan readouts
+// and the ROAM-OS wordmark. Bundled under SIL Open Font License 1.1
+// (see assets/licenses/Orbitron-OFL.txt).
+@OptIn(ExperimentalTextApi::class)
+val Orbitron = FontFamily(
+    Font(R.font.orbitron, FontWeight.Normal),
+    Font(
+        R.font.orbitron,
+        FontWeight.Medium,
+        variationSettings = FontVariation.Settings(FontVariation.weight(500)),
+    ),
+    Font(
+        R.font.orbitron,
+        FontWeight.SemiBold,
+        variationSettings = FontVariation.Settings(FontVariation.weight(600)),
+    ),
+    Font(
+        R.font.orbitron,
+        FontWeight.Bold,
+        variationSettings = FontVariation.Settings(FontVariation.weight(700)),
+    ),
+)

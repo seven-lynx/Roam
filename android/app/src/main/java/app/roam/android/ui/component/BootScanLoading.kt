@@ -29,7 +29,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import app.roam.android.R
+import app.roam.android.ui.theme.Orbitron
 import app.roam.android.util.SoundManager
 import kotlinx.coroutines.delay
 import kotlin.random.Random
@@ -105,7 +107,7 @@ fun BootScanLoading(
                 STAGES.forEachIndexed { i, name ->
                     Text(
                         text = name,
-                        style = MaterialTheme.typography.labelMedium,
+                        style = MaterialTheme.typography.labelMedium.copy(fontFamily = Orbitron, letterSpacing = 2.sp),
                         color = if (i == stage) MaterialTheme.colorScheme.primary
                                 else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
                     )
@@ -128,7 +130,7 @@ fun BootScanLoading(
             if (finishing) {
                 Text(
                     "MOUNT COMPLETE",
-                    style = MaterialTheme.typography.titleLarge,
+                    style = MaterialTheme.typography.titleLarge.copy(fontFamily = Orbitron, letterSpacing = 2.sp),
                     color = MaterialTheme.colorScheme.secondary,
                 )
                 Spacer(Modifier.height(8.dp))

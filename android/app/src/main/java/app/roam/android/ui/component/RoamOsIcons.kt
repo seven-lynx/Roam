@@ -1,6 +1,11 @@
 package app.roam.android.ui.component
 
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.HelpOutline
+import androidx.compose.material.icons.automirrored.filled.Label
+import androidx.compose.material.icons.automirrored.filled.MenuBook
+import androidx.compose.material.icons.automirrored.filled.VolumeOff
+import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.filled.AddTask
 import androidx.compose.material.icons.filled.Bedtime
 import androidx.compose.material.icons.filled.BlurOn
@@ -12,12 +17,9 @@ import androidx.compose.material.icons.filled.EmojiEvents
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.GpsFixed
 import androidx.compose.material.icons.filled.Group
-import androidx.compose.material.icons.automirrored.filled.HelpOutline
-import androidx.compose.material.icons.automirrored.filled.Label
 import androidx.compose.material.icons.filled.LocalFireDepartment
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Menu
-import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.filled.MilitaryTech
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Psychology
@@ -31,8 +33,6 @@ import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.ThumbDown
 import androidx.compose.material.icons.filled.ThumbUp
 import androidx.compose.material.icons.filled.TravelExplore
-import androidx.compose.material.icons.filled.VolumeOff
-import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.ui.graphics.vector.ImageVector
 import app.roam.android.model.Badge
 
@@ -49,8 +49,8 @@ object RoamOsIcons {
     val Settings: ImageVector get() = Icons.Filled.Settings // gear glyph; opens the Settings Hub
     val Menu: ImageVector get() = Icons.Filled.Menu
     val Comms: ImageVector get() = Icons.Filled.SatelliteAlt
-    val Muted: ImageVector get() = Icons.Filled.VolumeOff
-    val Unmuted: ImageVector get() = Icons.Filled.VolumeUp
+    val Muted: ImageVector get() = Icons.AutoMirrored.Filled.VolumeOff
+    val Unmuted: ImageVector get() = Icons.AutoMirrored.Filled.VolumeUp
 
     /** Category emoji → icon (the eight core categories). */
     fun forCategoryIcon(emoji: String): ImageVector = when (emoji) {

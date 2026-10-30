@@ -112,6 +112,8 @@ class MainViewModel(
     private val HARDWARE_ACTIVITY_LED_KEY = "hardware_activity_led"
     private val HARDWARE_VACUUM_TUBE_KEY = "hardware_vacuum_tube"
     private val HARDWARE_FX_MASTER_KEY = "hardware_fx_master"
+    private val BACKLIGHT_KEY = "backlit_keys"
+    private val BACKLIGHT_COLOR_KEY = "backlight_color"
     private val WALKTHROUGH_SEEN_KEY = "walkthrough_seen"
     private val LAST_URL_KEY = "last_url"
     private val LAST_URL_TITLE_KEY = "last_url_title"
@@ -447,6 +449,7 @@ class MainViewModel(
         if (enabled) {
             val raw = _rawUrl.value ?: return
             _currentUrl.value = translateUrl(raw)
+            _isTranslating.value = true
         } else {
             // If disabling, revert to the raw URL
             _currentUrl.value = _rawUrl.value
@@ -473,7 +476,9 @@ class MainViewModel(
     /** Toggles between the raw (discovery) URL and the Google Translate wrapper. */
     fun toggleTranslation() {
         val raw = _rawUrl.value ?: return
-        _currentUrl.value = if (isTranslated) raw else translateUrl(raw)
+        val toTranslated = !isTranslated
+        _currentUrl.value = if (toTranslated) translateUrl(raw) else raw
+        if (toTranslated) _isTranslating.value = true
     }
 
     /** Translates the current page to [targetLang]. Uses the persisted preference. */
@@ -483,6 +488,7 @@ class MainViewModel(
         _translateLanguage.value = targetLang
         prefs.edit().putString(TRANSLATE_LANG_KEY, targetLang).apply()
         _currentUrl.value = translateUrl(raw)
+        _isTranslating.value = true
     }
 
     /** User preference: enable JavaScript in the WebView (default on) */
@@ -524,6 +530,7 @@ class MainViewModel(
         if (isTranslated) {
             val raw = _rawUrl.value ?: return
             _currentUrl.value = translateUrl(raw)
+            _isTranslating.value = true
         }
     }
 
@@ -539,6 +546,12 @@ class MainViewModel(
     /** Wraps [url] through Google Translate. */
     fun translateUrl(url: String): String =
         "https://translate.google.com/translate?sl=auto&tl=${_translateLanguage.value}&u=${Uri.encode(url)}"
+
+    /** True while a Google Translate page is loading (drives the translating animation). */
+    private val _isTranslating = MutableStateFlow(false)
+    val isTranslating: StateFlow<Boolean> = _isTranslating.asStateFlow()
+
+    fun clearTranslating() { _isTranslating.value = false }
 
     /** User preference: list of language codes to include (e.g. ["en", "fr"]) */
     private val _preferredLanguages = MutableStateFlow(listOf("en"))
@@ -883,7 +896,7 @@ class MainViewModel(
     }
 
     /** Chassis/deck material texture ("metal", "plastic", "wood", "leather"). */
-    private val _deckTexture = MutableStateFlow(prefs.getString(DECK_TEXTURE_KEY, "metal") ?: "metal")
+    private val _deckTexture = MutableStateFlow(prefs.getString(DECK_TEXTURE_KEY, "plastic") ?: "plastic")
     val deckTexture: StateFlow<String> = _deckTexture.asStateFlow()
 
     fun setDeckTexture(value: String) {
@@ -907,6 +920,24 @@ class MainViewModel(
     fun setHardwareColorScheme(value: String) {
         _hardwareColorScheme.value = value
         prefs.edit().putString(HARDWARE_COLOR_KEY, value).apply()
+    }
+
+    /** Deck-key backlight toggle. */
+    private val _backlightEnabled = MutableStateFlow(prefs.getBoolean(BACKLIGHT_KEY, false))
+    val backlightEnabled: StateFlow<Boolean> = _backlightEnabled.asStateFlow()
+
+    fun setBacklightEnabled(enabled: Boolean) {
+        _backlightEnabled.value = enabled
+        prefs.edit().putBoolean(BACKLIGHT_KEY, enabled).apply()
+    }
+
+    /** Deck-key backlight colour key (see BACKLIGHT_COLORS). */
+    private val _backlightColor = MutableStateFlow(prefs.getString(BACKLIGHT_COLOR_KEY, "ice_blue") ?: "ice_blue")
+    val backlightColor: StateFlow<String> = _backlightColor.asStateFlow()
+
+    fun setBacklightColor(value: String) {
+        _backlightColor.value = value
+        prefs.edit().putString(BACKLIGHT_COLOR_KEY, value).apply()
     }
 
     /** Enqueues a message for the deck readout (consecutive dupes dropped, capped). */

@@ -87,7 +87,7 @@ fun ProgramLauncher(
     var shareDialogOpen by remember { mutableStateOf(false) }
 
     RoamOsWindow(title = "PROGRAMS", onClose = onClose, modifier = modifier) {
-        Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(12.dp)) {
+        Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(12.dp)) {
             UrlInfoCard(title = title, domain = domain, category = category, subcategory = subcategory, description = description)
             Spacer(Modifier.height(12.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {

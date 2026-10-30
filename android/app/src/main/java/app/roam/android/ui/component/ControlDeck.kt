@@ -40,6 +40,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -53,7 +54,9 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ShaderBrush
 import androidx.compose.ui.graphics.Shadow
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
@@ -66,6 +69,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.roam.android.R
 import app.roam.android.ui.theme.Abyss
+import app.roam.android.ui.theme.Bone
 import app.roam.android.ui.theme.Brass
 import app.roam.android.ui.theme.Danger
 import app.roam.android.ui.theme.Fog
@@ -74,6 +78,7 @@ import app.roam.android.ui.theme.LineColor
 import app.roam.android.ui.theme.LocalHardwarePalette
 import app.roam.android.ui.theme.NeonGreen
 import app.roam.android.ui.theme.Ok
+import app.roam.android.ui.theme.Oxide
 import app.roam.android.ui.theme.Oxide2
 import app.roam.android.ui.theme.Oxide3
 import app.roam.android.ui.theme.SevenSegment
@@ -105,16 +110,20 @@ fun ControlDeck(
     deckSize: String = "medium",
     deckShape: String = "round",
     deckLabels: Boolean = false,
-    texture: String = "metal",
+    texture: String = "plastic",
     systemMessageSpeed: Int = 5,
+    backlightEnabled: Boolean = false,
+    backlightColor: Color = Color(0xFF8FD8FF),
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
     val materialBrush = remember(texture) { deckTextureBrush(context, DeckTexture.fromKey(texture)) }
+    val palette = LocalHardwarePalette.current
+    val deckTop = lerp(Oxide3, palette.primary, 0.30f)
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .background(Brush.verticalGradient(listOf(Oxide3, Abyss)))
+            .background(Brush.verticalGradient(listOf(deckTop, Abyss)))
             .drawBehind {
                 drawRect(materialBrush, alpha = 0.40f)
                 drawRect(deckNoiseShader, alpha = 0.05f)
@@ -123,6 +132,16 @@ fun ControlDeck(
                         listOf(Color.White.copy(alpha = 0.08f), Color.Transparent, Color.Black.copy(alpha = 0.12f)),
                     ),
                 )
+                // Corner screws, inset to clear the mute (top-left) and comms (top-right) keys.
+                val r = 3.5.dp.toPx()
+                val inset = 6.dp.toPx()
+                val xs = listOf(inset + r, size.width - inset - r)
+                val ys = listOf(inset + r, size.height - inset - r)
+                for (x in xs) for (y in ys) {
+                    drawCircle(Bone, radius = r, center = Offset(x, y))
+                    drawCircle(Oxide, radius = r, center = Offset(x, y), style = Stroke(width = 1.dp.toPx()))
+                    drawLine(Oxide, Offset(x - r * 0.55f, y), Offset(x + r * 0.55f, y), strokeWidth = 1.dp.toPx())
+                }
             }
             .navigationBarsPadding(),
     ) {
@@ -147,6 +166,8 @@ fun ControlDeck(
             deckSize = deckSize,
             deckShape = deckShape,
             deckLabels = deckLabels,
+            backlightEnabled = backlightEnabled,
+            backlightColor = backlightColor,
             currentRoute = currentRoute,
             focusModeEnabled = focusModeEnabled,
             hasRatedUp = hasRatedUp,
@@ -298,7 +319,7 @@ private fun SystemReadout(message: String, color: Color, speed: Int = 5, modifie
     var containerWidth by remember { mutableIntStateOf(1) }
     val travel = (containerWidth + textWidth).coerceAtLeast(1)
     val loopMs = (12 - speed.coerceIn(1, 10)) * 700
-    val transition = rememberInfiniteTransition(label = "readout-marquee")
+    val transition = key(speed) { rememberInfiniteTransition(label = "readout-marquee") }
     val t by transition.animateFloat(
         initialValue = 0f,
         targetValue = 1f,
@@ -342,6 +363,8 @@ private fun DeckKey(
     square: Boolean = false,
     showLabel: Boolean = false,
     active: Boolean = false,
+    backlight: Boolean = false,
+    backlightColor: Color = Color.White,
     modifier: Modifier = Modifier,
 ) {
     val interaction = remember { MutableInteractionSource() }
@@ -354,8 +377,10 @@ private fun DeckKey(
     val shape = if (square) RoundedCornerShape(8.dp) else CircleShape
 
     val palette = LocalHardwarePalette.current
-    val top = if (depressed) Oxide2 else if (hero) palette.primaryBright else Oxide3
-    val bottom = if (depressed) Abyss else if (hero) palette.primary else Oxide2
+    val keyTop = lerp(Oxide3, palette.keyTint, 0.45f)
+    val keyBottom = lerp(Oxide2, palette.keyTint, 0.35f)
+    val top = if (depressed) lerp(Oxide2, palette.keyTint, 0.3f) else if (hero) palette.primaryBright else keyTop
+    val bottom = if (depressed) Abyss else if (hero) palette.primary else keyBottom
 
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -369,11 +394,19 @@ private fun DeckKey(
                     scaleY = scale
                     translationY = if (depressed) dropPx else 0f
                 }
-                .shadow(if (depressed) 1.dp else 5.dp, shape)
+                .shadow(
+                    elevation = if (backlight) 16.dp else if (depressed) 1.dp else 5.dp,
+                    shape = shape,
+                    ambientColor = if (backlight) backlightColor.copy(alpha = 0.6f) else Color.Black,
+                    spotColor = if (backlight) backlightColor else Color.Black,
+                )
                 .clip(shape)
                 .background(Brush.radialGradient(listOf(top, bottom), center = Offset(0.3f, 0.25f), radius = radiusPx))
-                .drawBehind { drawRect(deckNoiseShader, alpha = 0.06f) }
-                .border(1.dp, if (hero) palette.primary else LineColor, shape)
+                .drawBehind {
+                    drawRect(deckNoiseShader, alpha = 0.06f)
+                    if (backlight) drawRect(backlightColor.copy(alpha = 0.12f))
+                }
+                .border(1.dp, if (hero) palette.primary else if (backlight) backlightColor.copy(alpha = 0.7f) else LineColor, shape)
                 .clickable(interactionSource = interaction, indication = null) {
                     onFeedback(soundRes)
                     onClick()
@@ -402,9 +435,9 @@ private fun DeckKey(
 private data class DeckSizes(val roam: Dp, val side: Dp)
 
 private fun deckSizes(sizeKey: String): DeckSizes = when (sizeKey) {
-    "large" -> DeckSizes(56.dp, 46.dp)
-    "small" -> DeckSizes(42.dp, 34.dp)
-    else -> DeckSizes(48.dp, 40.dp)
+    "large" -> DeckSizes(64.dp, 52.dp)
+    "small" -> DeckSizes(48.dp, 40.dp)
+    else -> DeckSizes(56.dp, 46.dp)
 }
 
 @Composable
@@ -413,6 +446,8 @@ private fun KeyDeck(
     deckSize: String,
     deckShape: String,
     deckLabels: Boolean,
+    backlightEnabled: Boolean,
+    backlightColor: Color,
     currentRoute: String,
     focusModeEnabled: Boolean,
     hasRatedUp: Boolean,
@@ -434,24 +469,24 @@ private fun KeyDeck(
     val settingsActive = currentRoute.startsWith("settings")
 
     val dislikeKey: @Composable (Modifier) -> Unit = { mod ->
-        DeckKey(onThumbsDown, R.raw.skip, onFeedback, sizes.side, RoamOsIcons.Dislike, dislikeTint, "Dislike", square = square, showLabel = deckLabels, modifier = mod)
+        DeckKey(onThumbsDown, R.raw.skip, onFeedback, sizes.side, RoamOsIcons.Dislike, dislikeTint, "Dislike", square = square, showLabel = deckLabels, backlight = backlightEnabled, backlightColor = backlightColor, modifier = mod)
     }
     val likeKey: @Composable (Modifier) -> Unit = { mod ->
-        DeckKey(onThumbsUp, R.raw.like, onFeedback, sizes.side, RoamOsIcons.Like, likeTint, "Like", square = square, showLabel = deckLabels, modifier = mod)
+        DeckKey(onThumbsUp, R.raw.like, onFeedback, sizes.side, RoamOsIcons.Like, likeTint, "Like", square = square, showLabel = deckLabels, backlight = backlightEnabled, backlightColor = backlightColor, modifier = mod)
     }
     val roamKey: @Composable (Modifier) -> Unit = { mod ->
         DeckKey(
             { if (currentRoute == RoamTab.Roam.route) onRoam() else onNavigate(RoamTab.Roam.route) },
-            R.raw.click_heavy, onFeedback, sizes.roam, RoamOsIcons.Roam, roamTint, "Roam", hero = true, showLabel = deckLabels, modifier = mod,
+            R.raw.click_heavy, onFeedback, sizes.roam, RoamOsIcons.Roam, roamTint, "Roam", hero = true, showLabel = deckLabels, backlight = backlightEnabled, backlightColor = backlightColor, modifier = mod,
         )
     }
     val menuKey: @Composable (Modifier) -> Unit = { mod ->
-        DeckKey(onOpenMenu, R.raw.click, onFeedback, sizes.side, RoamOsIcons.Menu, Fog, "Menu", square = square, active = menuOpen, showLabel = deckLabels, modifier = mod)
+        DeckKey(onOpenMenu, R.raw.click, onFeedback, sizes.side, RoamOsIcons.Menu, Fog, "Menu", square = square, active = menuOpen, showLabel = deckLabels, backlight = backlightEnabled, backlightColor = backlightColor, modifier = mod)
     }
     val settingsKey: @Composable (Modifier) -> Unit = { mod ->
         DeckKey(
             { if (currentRoute == RoamTab.Roam.route) onNavigate(RoamTab.SettingsHub.route) else onNavigate(RoamTab.Roam.route) },
-            R.raw.click, onFeedback, sizes.side, RoamOsIcons.Settings, settingsTint, "Settings", square = square, active = settingsActive, showLabel = deckLabels, modifier = mod,
+            R.raw.click, onFeedback, sizes.side, RoamOsIcons.Settings, settingsTint, "Settings", square = square, active = settingsActive, showLabel = deckLabels, backlight = backlightEnabled, backlightColor = backlightColor, modifier = mod,
         )
     }
 
@@ -464,13 +499,13 @@ private fun KeyDeck(
             dislikeKey(Modifier); menuKey(Modifier); roamKey(Modifier); settingsKey(Modifier); likeKey(Modifier)
         }
         "grid" -> Row(
-            Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
+            Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp),
             horizontalArrangement = Arrangement.SpaceEvenly,
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(10.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
                 dislikeKey(Modifier)
                 menuKey(Modifier)
@@ -478,7 +513,7 @@ private fun KeyDeck(
             roamKey(Modifier)
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(10.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
                 likeKey(Modifier)
                 settingsKey(Modifier)
@@ -516,8 +551,8 @@ private fun TrapezoidDeck(
     ) {
         Box(
             Modifier
-                .width(sizes.roam + sizes.side * 2 + 24.dp)
-                .height(sizes.roam + sizes.side * 2 + 24.dp + labelSpace),
+                .width(sizes.roam + sizes.side * 2 + 36.dp)
+                .height(sizes.roam + sizes.side * 2 + 36.dp + labelSpace),
         ) {
             dislikeKey(Modifier.align(Alignment.TopStart).offset(x = topInset))
             likeKey(Modifier.align(Alignment.TopEnd).offset(x = -topInset))

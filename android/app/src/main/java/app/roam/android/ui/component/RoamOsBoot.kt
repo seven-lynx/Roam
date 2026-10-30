@@ -33,7 +33,7 @@ import app.roam.android.ui.theme.Abyss
 import app.roam.android.ui.theme.Fog
 import app.roam.android.ui.theme.IbmPlexMono
 import app.roam.android.ui.theme.LineColor
-import app.roam.android.ui.theme.SevenSegment
+import app.roam.android.ui.theme.Orbitron
 import kotlinx.coroutines.delay
 
 /**
@@ -82,9 +82,9 @@ fun RoamOsBootScreen() {
         Text(
             "ROAM-OS",
             color = MaterialTheme.colorScheme.secondary.copy(alpha = glow),
-            fontFamily = SevenSegment,
+            fontFamily = Orbitron,
             fontSize = 30.sp,
-            letterSpacing = 6.sp,
+            letterSpacing = 4.sp,
         )
         Spacer(Modifier.height(18.dp))
         Box(Modifier.width(170.dp).height(3.dp).background(LineColor)) {

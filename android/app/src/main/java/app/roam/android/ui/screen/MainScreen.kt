@@ -37,12 +37,14 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberBottomSheetScaffoldState
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material3.rememberStandardBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -84,6 +86,7 @@ import app.roam.android.ui.component.OsStatusBar
 import app.roam.android.ui.component.RoamTab
 import app.roam.android.ui.component.RoamOsBootScreen
 import app.roam.android.ui.component.Tour
+import app.roam.android.ui.component.TranslateLoading
 import app.roam.android.ui.component.RoamWebView
 import app.roam.android.ui.component.ShareUrlBottomSheet
 import app.roam.android.ui.component.SubmitBottomSheet
@@ -91,6 +94,7 @@ import app.roam.android.ui.component.UserSearchSheet
 import app.roam.android.ui.component.pickRandomMessage
 import app.roam.android.ui.theme.LocalHardwarePalette
 import app.roam.android.ui.theme.RoamThemeVariant
+import app.roam.android.ui.theme.backlightColor
 import app.roam.android.ui.theme.roamOsPalette
 import app.roam.android.viewmodel.MainViewModel
 import app.roam.android.viewmodel.RoamState
@@ -100,6 +104,7 @@ import kotlinx.coroutines.launch
 import kotlin.time.Duration.Companion.milliseconds
 
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainScreen(
     vm: MainViewModel,
@@ -123,6 +128,8 @@ fun MainScreen(
     val systemMessage by vm.systemMessage.collectAsState()
     val systemMessageSpeed by vm.systemMessageSpeed.collectAsState()
     val hardwareColorScheme by vm.hardwareColorScheme.collectAsState()
+    val backlightEnabled by vm.backlightEnabled.collectAsState()
+    val backlightColorKey by vm.backlightColor.collectAsState()
     val soundEffectsEnabled by vm.soundEffectsEnabled.collectAsState()
     val showConfigSheet by vm.showConfigSheet.collectAsState()
     val state by vm.state.collectAsState()
@@ -188,6 +195,8 @@ fun MainScreen(
                     warmQueueSize = warmQueueSize,
                     systemMessage = systemMessage,
                     systemMessageSpeed = systemMessageSpeed,
+                    backlightEnabled = backlightEnabled,
+                    backlightColor = backlightColor(backlightColorKey),
                     unreadNotificationCount = unreadNotificationCount,
                     xpFlash = xpFlash,
                     focusModeEnabled = focusModeEnabled,
@@ -531,7 +540,9 @@ fun MainScreen(
     // ── ROAM-OS program launcher (hoisted above all tabs) ──────────────────────
     if (isRoamOs && showConfigSheet) {
         val loaded = state as? RoamState.Loaded
-        ProgramLauncher(
+        val programSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+        ModalBottomSheet(onDismissRequest = { vm.closeConfigSheet() }, sheetState = programSheetState) {
+            ProgramLauncher(
             collections = collections,
             isTranslated = vm.isTranslated,
             onToggleTranslation = { vm.toggleTranslation() },
@@ -557,8 +568,9 @@ fun MainScreen(
             category = loaded?.roamUrl?.categoryId?.let { id -> categories.firstOrNull { it.id == id }?.name },
             subcategory = loaded?.roamUrl?.subcategoryId?.let { id -> subcategories.firstOrNull { it.id == id }?.name },
             onClose = { vm.closeConfigSheet() },
-            modifier = Modifier.fillMaxSize(),
-        )
+            modifier = Modifier.fillMaxWidth(),
+            )
+        }
     }
 
     // ── ROAM-OS comms menu ─────────────────────────────────────────────────────
@@ -674,6 +686,8 @@ private fun DiscoverTab(
     val nextPrefetchUrl by vm.nextPrefetchUrl.collectAsState()
     val themeVariant by vm.themeVariant.collectAsState()
     val soundEffectsEnabled by vm.soundEffectsEnabled.collectAsState()
+    val isTranslating by vm.isTranslating.collectAsState()
+    val translateLanguage by vm.translateLanguage.collectAsState()
     val isRoamOs = themeVariant == RoamThemeVariant.ROAM_OS
 
     var initialRoamDone by remember { mutableStateOf(false) }
@@ -1011,8 +1025,8 @@ private fun DiscoverTab(
                     jsEnabled = jsEnabled,
                     onUrlChanged = { vm.onWebViewUrlChanged(it) },
                     onLoadError = { vm.roam() },
-                    onLoadingChanged = { loading -> webViewLoading = loading; if (!loading) { lastLoadedUrl = currentUrl; resumeStandby = false } },
-                    onPageVisible = { webViewLoading = false; lastLoadedUrl = currentUrl; resumeStandby = false },
+                    onLoadingChanged = { loading -> webViewLoading = loading; if (!loading) { lastLoadedUrl = currentUrl; resumeStandby = false; vm.clearTranslating() } },
+                    onPageVisible = { webViewLoading = false; lastLoadedUrl = currentUrl; resumeStandby = false; vm.clearTranslating() },
                     onRecovering = { recovering -> webViewRecovering = recovering },
                     onPageFinishedForPrefetch = { vm.onPageFinishedForPrefetch() },
                     navCommandsFlow = vm.webNavFlow,
@@ -1065,7 +1079,9 @@ private fun DiscoverTab(
                             }
                             else -> {
                                 if (isRoamOs) {
-                                    if (isRoaming) {
+                                    if (isTranslating) {
+                                        TranslateLoading(language = translateLanguage, soundEnabled = soundEffectsEnabled)
+                                    } else if (isRoaming) {
                                         BootScanLoading(
                                             message = loadingMessage.text,
                                             finishing = scanFinishPending,
