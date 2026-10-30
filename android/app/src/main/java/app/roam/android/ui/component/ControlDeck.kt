@@ -112,6 +112,7 @@ fun ControlDeck(
     deckLabels: Boolean = false,
     texture: String = "plastic",
     systemMessageSpeed: Int = 5,
+    systemMessageDisplay: String = "eink",
     backlightEnabled: Boolean = false,
     backlightColor: Color = Color(0xFF8FD8FF),
     modifier: Modifier = Modifier,
@@ -152,6 +153,7 @@ fun ControlDeck(
             warmQueueSize = warmQueueSize,
             systemMessage = systemMessage,
             systemMessageSpeed = systemMessageSpeed,
+            systemMessageDisplay = systemMessageDisplay,
             xpFlash = xpFlash,
             unreadNotificationCount = unreadNotificationCount,
             muted = muted,
@@ -189,6 +191,7 @@ private fun StatusLine(
     warmQueueSize: Int,
     systemMessage: String,
     systemMessageSpeed: Int,
+    systemMessageDisplay: String = "eink",
     xpFlash: Int?,
     unreadNotificationCount: Int,
     muted: Boolean,
@@ -245,6 +248,7 @@ private fun StatusLine(
             message = systemMessage,
             color = ledColor,
             speed = systemMessageSpeed,
+            display = systemMessageDisplay,
             modifier = Modifier.weight(1f),
         )
         if (xpFlash != null) {
@@ -306,16 +310,25 @@ private fun LedModule(value: Int, label: String, color: Color) {
     }
 }
 
+private val EInkPaper = Color(0xFFC3C7BD)
+private val EInkInk = Color(0xFF151815)
+private val EInkFrame = Color(0xFF868B80)
+
 @Composable
-private fun SystemReadout(message: String, color: Color, speed: Int = 5, modifier: Modifier = Modifier) {
+private fun SystemReadout(message: String, color: Color, speed: Int = 5, display: String = "eink", modifier: Modifier = Modifier) {
+    val eink = display == "eink"
     val textMeasurer = rememberTextMeasurer()
-    val style = MaterialTheme.typography.labelMedium.copy(
-        fontFamily = SevenSegment,
-        letterSpacing = 1.sp,
-        color = color,
-        shadow = Shadow(color = color.copy(alpha = 0.85f), offset = Offset.Zero, blurRadius = 8f),
-    )
-    val textWidth = remember(message) { textMeasurer.measure(AnnotatedString(message), style).size.width }
+    val style = if (eink) {
+        MaterialTheme.typography.labelMedium.copy(color = EInkInk)
+    } else {
+        MaterialTheme.typography.labelMedium.copy(
+            fontFamily = SevenSegment,
+            letterSpacing = 1.sp,
+            color = color,
+            shadow = Shadow(color = color.copy(alpha = 0.85f), offset = Offset.Zero, blurRadius = 8f),
+        )
+    }
+    val textWidth = remember(message, eink) { textMeasurer.measure(AnnotatedString(message), style).size.width }
     var containerWidth by remember { mutableIntStateOf(1) }
     val travel = (containerWidth + textWidth).coerceAtLeast(1)
     val loopMs = (12 - speed.coerceIn(1, 10)) * 700
@@ -331,8 +344,8 @@ private fun SystemReadout(message: String, color: Color, speed: Int = 5, modifie
             Modifier
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(4.dp))
-                .background(Color.Black.copy(alpha = 0.55f))
-                .border(1.dp, LineColor, RoundedCornerShape(4.dp))
+                .background(if (eink) EInkPaper else Color.Black.copy(alpha = 0.55f))
+                .border(1.dp, if (eink) EInkFrame else LineColor, RoundedCornerShape(4.dp))
                 .onSizeChanged { containerWidth = it.width },
             contentAlignment = Alignment.CenterStart,
         ) {

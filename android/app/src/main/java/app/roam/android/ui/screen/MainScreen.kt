@@ -127,6 +127,7 @@ fun MainScreen(
     val xpFlash by vm.xpFlash.collectAsState()
     val systemMessage by vm.systemMessage.collectAsState()
     val systemMessageSpeed by vm.systemMessageSpeed.collectAsState()
+    val systemMessageDisplay by vm.systemMessageDisplay.collectAsState()
     val hardwareColorScheme by vm.hardwareColorScheme.collectAsState()
     val backlightEnabled by vm.backlightEnabled.collectAsState()
     val backlightColorKey by vm.backlightColor.collectAsState()
@@ -195,6 +196,7 @@ fun MainScreen(
                     warmQueueSize = warmQueueSize,
                     systemMessage = systemMessage,
                     systemMessageSpeed = systemMessageSpeed,
+                    systemMessageDisplay = systemMessageDisplay,
                     backlightEnabled = backlightEnabled,
                     backlightColor = backlightColor(backlightColorKey),
                     unreadNotificationCount = unreadNotificationCount,

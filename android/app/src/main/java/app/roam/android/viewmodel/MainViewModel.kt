@@ -126,6 +126,7 @@ class MainViewModel(
     private val DECK_SHAPE_KEY = "deck_shape"    // "round", "square"
     private val DECK_LABELS_KEY = "deck_labels"
     private val SYSTEM_MESSAGE_SPEED_KEY = "system_message_speed"
+    private val SYSTEM_MESSAGE_DISPLAY_KEY = "system_message_display"
     private val DECK_TEXTURE_KEY = "deck_texture"
     private val OS_COLOR_KEY = "os_color_scheme"
     private val HARDWARE_COLOR_KEY = "hardware_color_scheme"
@@ -895,6 +896,15 @@ class MainViewModel(
         prefs.edit().putInt(SYSTEM_MESSAGE_SPEED_KEY, _systemMessageSpeed.value).apply()
     }
 
+    /** System-message readout style ("eink" = paper/ink strip, "led" = 7-segment glow). */
+    private val _systemMessageDisplay = MutableStateFlow(prefs.getString(SYSTEM_MESSAGE_DISPLAY_KEY, "eink") ?: "eink")
+    val systemMessageDisplay: StateFlow<String> = _systemMessageDisplay.asStateFlow()
+
+    fun setSystemMessageDisplay(value: String) {
+        _systemMessageDisplay.value = value
+        prefs.edit().putString(SYSTEM_MESSAGE_DISPLAY_KEY, value).apply()
+    }
+
     /** Chassis/deck material texture ("metal", "plastic", "wood", "leather"). */
     private val _deckTexture = MutableStateFlow(prefs.getString(DECK_TEXTURE_KEY, "plastic") ?: "plastic")
     val deckTexture: StateFlow<String> = _deckTexture.asStateFlow()
@@ -1196,8 +1206,14 @@ class MainViewModel(
 
         // Observe connectivity; flush queued ratings when back online (14.9)
         viewModelScope.launch {
+            var prevOnline = true
             connectivityFlow(application).collect { online ->
+                val changed = online != prevOnline
+                prevOnline = online
                 _isOnline.value = online
+                if (changed) {
+                    pushSystemMessage(if (online) "UPLINK RESTORED // ONLINE" else "UPLINK DOWN // OFFLINE")
+                }
                 if (online) {
                     flushPendingRatings()
                     // If a roam failed while offline, auto-retry now that we're back online

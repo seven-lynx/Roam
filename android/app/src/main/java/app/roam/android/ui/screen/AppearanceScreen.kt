@@ -55,6 +55,7 @@ fun AppearanceScreen(
     val deckShape by vm.deckShape.collectAsState()
     val deckLabelsEnabled by vm.deckLabelsEnabled.collectAsState()
     val systemMessageSpeed by vm.systemMessageSpeed.collectAsState()
+    val systemMessageDisplay by vm.systemMessageDisplay.collectAsState()
     val hardwareFx by vm.hardwareFx.collectAsState()
     val deckTexture by vm.deckTexture.collectAsState()
     val osColorScheme by vm.osColorScheme.collectAsState()
@@ -72,11 +73,13 @@ fun AppearanceScreen(
     var osColorDropdownExpanded by remember { mutableStateOf(false) }
     var hardwareColorDropdownExpanded by remember { mutableStateOf(false) }
     var backlightColorDropdownExpanded by remember { mutableStateOf(false) }
+    var systemMessageDisplayDropdownExpanded by remember { mutableStateOf(false) }
 
     val deckLayoutLabel = DECK_LAYOUTS.firstOrNull { it.first == deckLayout }?.second ?: "Straight line"
     val osColorLabel = ROAM_OS_PALETTES.firstOrNull { it.key == osColorScheme }?.label ?: "Phosphor Teal"
     val hardwareColorLabel = ROAM_OS_PALETTES.firstOrNull { it.key == hardwareColorScheme }?.label ?: "Phosphor Teal"
     val backlightColorLabel = BACKLIGHT_COLORS.firstOrNull { it.key == backlightColor }?.label ?: "Ice Blue"
+    val systemMessageDisplayLabel = if (systemMessageDisplay == "led") "7-segment LED" else "E-ink"
     val deckSizeLabel = DECK_SIZES.firstOrNull { it.first == deckSize }?.second ?: "Medium"
     val deckShapeLabel = DECK_SHAPES.firstOrNull { it.first == deckShape }?.second ?: "Round"
 
@@ -128,6 +131,23 @@ fun AppearanceScreen(
 
             SettingsToggleRow("Deck labels", "Show text labels on the control buttons", deckLabelsEnabled) { vm.setDeckLabelsEnabled(it) }
             SettingsFxSliderRow("Message scroll speed", systemMessageSpeed) { vm.setSystemMessageSpeed(it) }
+
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("System readout", style = MaterialTheme.typography.bodyLarge)
+                    Text("Deck message display style", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
+                }
+                Box {
+                    OutlinedButton(onClick = { systemMessageDisplayDropdownExpanded = true }) { Text(systemMessageDisplayLabel) }
+                    DropdownMenu(expanded = systemMessageDisplayDropdownExpanded, onDismissRequest = { systemMessageDisplayDropdownExpanded = false }) {
+                        DropdownMenuItem(text = { Text("E-ink") }, onClick = { vm.setSystemMessageDisplay("eink"); systemMessageDisplayDropdownExpanded = false })
+                        DropdownMenuItem(text = { Text("7-segment LED") }, onClick = { vm.setSystemMessageDisplay("led"); systemMessageDisplayDropdownExpanded = false })
+                    }
+                }
+            }
 
             Row(
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
