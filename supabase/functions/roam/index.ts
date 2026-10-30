@@ -208,25 +208,37 @@ Deno.serve(async (req) => {
       )
     }
 
-    // Attach the current user's rating (1/-1, or 0 = unrated) to the single-URL
-    // response so the Android deck can render the thumbs keys already "pressed in"
-    // when the user revisits a URL they previously rated.
+    // Fold the current user's ratings into the response so the Android deck can
+    // render the thumbs keys already "pressed in" when the user revisits a URL
+    // they previously rated. One query covers both the single-URL and batch
+    // (prefetch) paths.
     let responseBody: unknown = results
-    if (count === 1 && results.length === 1) {
-      const first = results[0] as Record<string, unknown> & { id: string }
-      let userRating = 0
-      try {
-        const { data: ratingRow } = await supabase
+    try {
+      const ids = results.map((r) => (r as Record<string, unknown>).id as string)
+      const ratingMap = new Map<string, number>()
+      if (ids.length > 0) {
+        const { data: ratingRows } = await supabase
           .from('ratings')
-          .select('value')
+          .select('url_id, value')
           .eq('user_id', user.id)
-          .eq('url_id', first.id)
-          .maybeSingle()
-        if (ratingRow && typeof ratingRow.value === 'number') userRating = ratingRow.value
-      } catch (e) {
-        console.error('user rating lookup failed', e)
+          .in('url_id', ids)
+        if (Array.isArray(ratingRows)) {
+          for (const row of ratingRows) {
+            const r = row as { url_id?: string; value?: number }
+            if (r && typeof r.url_id === 'string' && typeof r.value === 'number') {
+              ratingMap.set(r.url_id, r.value)
+            }
+          }
+        }
       }
-      responseBody = { ...first, user_rating: userRating }
+      const withRatings = results.map((entry) => ({
+        ...entry,
+        user_rating: ratingMap.get((entry as Record<string, unknown>).id as string) ?? 0,
+      }))
+      responseBody = count === 1 && withRatings.length === 1 ? withRatings[0] : withRatings
+    } catch (e) {
+      console.error('user rating lookup failed', e)
+      responseBody = count === 1 && results.length === 1 ? results[0] : results
     }
 
     return json(responseBody, 200, { 'Cache-Control': 'private, max-age=5' })

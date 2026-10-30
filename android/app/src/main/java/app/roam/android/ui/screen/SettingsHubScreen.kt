@@ -54,6 +54,7 @@ import app.roam.android.ui.component.CategoryIconLabel
 import app.roam.android.ui.component.LevelProgressBar
 import app.roam.android.ui.component.RoamOsLoadingBlock
 import app.roam.android.ui.component.SettingsActionRow
+import app.roam.android.ui.component.SettingsFlavorText
 import app.roam.android.ui.component.SettingsSectionHeader
 import app.roam.android.ui.component.SettingsTopBar
 import app.roam.android.ui.theme.Fog
@@ -152,6 +153,11 @@ fun SettingsHubScreen(
         ) {
             Spacer(Modifier.height(16.dp))
 
+            if (roamOs) {
+                SettingsFlavorText("// identity uplink :: profile, network, and device calibration")
+                Spacer(Modifier.height(8.dp))
+            }
+
             if (profileLoading && profile == null) {
                 RoamOsLoadingBlock(label = "SIGNAL //")
                 Spacer(Modifier.height(16.dp))
@@ -247,24 +253,26 @@ fun SettingsHubScreen(
 
             // Account
             SettingsSectionHeader(if (roamOs) "IDENTITY" else "Account")
-            SettingsActionRow("Edit Profile", "Name, bio, interests, privacy", onClick = onNavigateToProfile)
+            if (roamOs) Text("// who you are :: profile, collections, saved nodes", style = MaterialTheme.typography.labelSmall, color = Fog, modifier = Modifier.padding(horizontal = 16.dp, vertical = 2.dp))
+            SettingsActionRow("account", "Name, bio, interests, privacy", onClick = onNavigateToProfile)
             SettingsActionRow("Collections", "${collections.size} collections", onClick = onNavigateToSaved)
-            SettingsActionRow("Saved URLs", "${savedUrls.size} saved", onClick = onNavigateToSaved)
-            SettingsActionRow("Bookmark this page", if (savedConfirmation) "Saved!" else currentUrl ?: "No page loaded", onClick = { vm.saveForLater() })
-            SettingsActionRow("History", "Pages you've visited", onClick = onNavigateToHistory)
-            SettingsActionRow("Notifications", if (unreadNotificationCount > 0) "${unreadNotificationCount} unread" else "All caught up", onClick = onNavigateToNotifications)
+            SettingsActionRow("archive", "${savedUrls.size} saved", onClick = onNavigateToSaved)
+            SettingsActionRow("pin page", if (savedConfirmation) "Saved!" else currentUrl ?: "No page loaded", onClick = { vm.saveForLater() })
+            SettingsActionRow("log", "Pages you've visited", onClick = onNavigateToHistory)
+            SettingsActionRow("alerts", if (unreadNotificationCount > 0) "${unreadNotificationCount} unread" else "All caught up", onClick = onNavigateToNotifications)
 
             HorizontalDivider()
             Spacer(Modifier.height(8.dp))
 
             // Social
             SettingsSectionHeader(if (roamOs) "NETWORK" else "Social")
-            SettingsActionRow("Search users", "Find people to follow", onClick = onOpenUserSearch)
-            SettingsActionRow("Leaderboard", "Top explorers", onClick = onNavigateToLeaderboard)
+            if (roamOs) Text("// the social graph :: peers, ranks, and signals", style = MaterialTheme.typography.labelSmall, color = Fog, modifier = Modifier.padding(horizontal = 16.dp, vertical = 2.dp))
+            SettingsActionRow("find", "Find people to follow", onClick = onOpenUserSearch)
+            SettingsActionRow("rankings", "Top explorers", onClick = onNavigateToLeaderboard)
             SettingsActionRow("Badges", "View all badges", onClick = onNavigateToBadges)
-            SettingsActionRow("Challenges", "Complete challenges and earn XP", onClick = onNavigateToChallenges)
-            SettingsActionRow("Activity feed", "See what people you follow are doing", onClick = onNavigateToActivityFeed)
-            SettingsActionRow("Open in Roam Web", "roamtheweb.app", onClick = {
+            SettingsActionRow("quests", "Complete challenges and earn XP", onClick = onNavigateToChallenges)
+            SettingsActionRow("stream", "See what people you follow are doing", onClick = onNavigateToActivityFeed)
+            SettingsActionRow("open // web", "roamtheweb.app", onClick = {
                 vm.navigateToWeb("https://roamtheweb.app")
                 onNavigateToRoam()
             })
@@ -274,6 +282,7 @@ fun SettingsHubScreen(
 
             // Preferences
             SettingsSectionHeader(if (roamOs) "CONFIG" else "Preferences")
+            if (roamOs) Text("// device calibration :: optics, net, scan, sensory, audio", style = MaterialTheme.typography.labelSmall, color = Fog, modifier = Modifier.padding(horizontal = 16.dp, vertical = 2.dp))
             SettingsActionRow(if (roamOs) "Display // Optics" else "Appearance", "Theme, frame, CRT, wear and deck", onClick = onNavigateToAppearance)
             SettingsActionRow(if (roamOs) "Net // Browser" else "Browser", "Languages, dark mode, translation", onClick = onNavigateToBrowser)
             SettingsActionRow(if (roamOs) "Scan // Discovery" else "Discovery", "Categories, focus mode, paywalls", onClick = onNavigateToDiscovery)
@@ -285,8 +294,9 @@ fun SettingsHubScreen(
 
             // Feedback
             SettingsSectionHeader(if (roamOs) "UPLINK" else "Feedback")
+            if (roamOs) Text("// transmit & receive :: submissions, feedback, auth", style = MaterialTheme.typography.labelSmall, color = Fog, modifier = Modifier.padding(horizontal = 16.dp, vertical = 2.dp))
             SettingsActionRow(if (roamOs) "Upload URL" else "Submit a URL", if (roamOs) "Push a new page to the network" else "Suggest a page to add to Roam", onClick = { showSubmitUrlDialog = true })
-            SettingsActionRow("Send feedback", "Tell us what you think", onClick = {
+            SettingsActionRow("beam feedback", "Tell us what you think", onClick = {
                 val intent = Intent(Intent.ACTION_SENDTO).apply {
                     data = "mailto:developer@roamtheweb.app".toUri()
                     putExtra(Intent.EXTRA_SUBJECT, "Roam feedback")
@@ -335,7 +345,7 @@ fun SettingsHubScreen(
             HorizontalDivider()
             Spacer(Modifier.height(8.dp))
 
-            SettingsActionRow("Sign out", null, tint = MaterialTheme.colorScheme.error, onClick = onSignOut)
+            SettingsActionRow("disconnect", null, tint = MaterialTheme.colorScheme.error, onClick = onSignOut)
 
             Spacer(Modifier.height(32.dp))
         }

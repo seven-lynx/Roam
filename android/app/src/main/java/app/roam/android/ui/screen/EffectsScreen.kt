@@ -42,9 +42,9 @@ fun EffectsScreen(
                 SettingsFlavorText("Set the deck's sensory channels: alerts, sound, and haptics.")
             }
 
-            SettingsToggleRow("Push notifications", "Receive alerts for your activity", notificationsEnabled) { vm.setNotificationsEnabled(it) }
-            SettingsToggleRow("Haptic feedback", "Vibrate on taps and celebrations", hapticFeedbackEnabled) { vm.setHapticFeedbackEnabled(it) }
-            SettingsToggleRow("Celebration animations", "Show full-screen animations for achievements", celebrationAnimationsEnabled) { vm.setCelebrationAnimationsEnabled(it) }
+            SettingsToggleRow("alerts", "Receive alerts for your activity", notificationsEnabled) { vm.setNotificationsEnabled(it) }
+            SettingsToggleRow("haptics", "Vibrate on taps and celebrations", hapticFeedbackEnabled) { vm.setHapticFeedbackEnabled(it) }
+            SettingsToggleRow("celebrations", "Show full-screen animations for achievements", celebrationAnimationsEnabled) { vm.setCelebrationAnimationsEnabled(it) }
         }
     }
 }

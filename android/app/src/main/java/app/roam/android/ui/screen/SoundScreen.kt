@@ -55,14 +55,14 @@ fun SoundScreen(
                 SettingsFlavorText("Route the deck's audio channels: volume and per-channel mute.")
             }
 
-            SettingsToggleRow("Sound effects", "Master switch for all audio", soundEffectsEnabled) { vm.setSoundEffectsEnabled(it) }
+            SettingsToggleRow("audio master", "Master switch for all audio", soundEffectsEnabled) { vm.setSoundEffectsEnabled(it) }
 
             Row(
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Column(modifier = Modifier.weight(1f)) {
-                    Text("Volume", style = MaterialTheme.typography.bodyLarge)
+                    Text("master gain", style = MaterialTheme.typography.bodyLarge)
                     Text("${soundVolume}%", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
                 }
                 Slider(
@@ -74,11 +74,11 @@ fun SoundScreen(
             }
 
             SettingsSectionHeader(if (roamOs) "CHANNELS" else "Channels")
-            SettingsToggleRow("Deck clicks", "Key presses and the Roam button", soundDeckEnabled) { vm.setSoundDeckEnabled(it) }
-            SettingsToggleRow("Rating sounds", "Thumbs up / down feedback", soundRatingEnabled) { vm.setSoundRatingEnabled(it) }
-            SettingsToggleRow("Loading & scan", "Boot, scan and ambient server noises", soundLoadingEnabled) { vm.setSoundLoadingEnabled(it) }
+            SettingsToggleRow("key clicks", "Key presses and the Roam button", soundDeckEnabled) { vm.setSoundDeckEnabled(it) }
+            SettingsToggleRow("vote tones", "Thumbs up / down feedback", soundRatingEnabled) { vm.setSoundRatingEnabled(it) }
+            SettingsToggleRow("boot & scan", "Boot, scan and ambient server noises", soundLoadingEnabled) { vm.setSoundLoadingEnabled(it) }
             SettingsToggleRow("Celebrations", "Badge, level and challenge chimes", soundCelebrationEnabled) { vm.setSoundCelebrationEnabled(it) }
-            SettingsToggleRow("Actions", "Save, submit and share confirmations", soundActionEnabled) { vm.setSoundActionEnabled(it) }
+            SettingsToggleRow("confirmations", "Save, submit and share confirmations", soundActionEnabled) { vm.setSoundActionEnabled(it) }
         }
     }
 }

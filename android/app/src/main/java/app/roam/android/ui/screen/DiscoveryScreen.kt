@@ -73,7 +73,7 @@ fun DiscoveryScreen(
                     Text("Category", style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
                     Box {
                         OutlinedButton(onClick = { focusCategoryDropdownExpanded = true }) {
-                            if (focusCategory != null) CategoryIconLabel(focusCategory.icon, focusCategory.name) else Text("Pick one...")
+                            if (focusCategory != null) CategoryIconLabel(focusCategory.icon, focusCategory.name) else Text("select...")
                         }
                         DropdownMenu(expanded = focusCategoryDropdownExpanded, onDismissRequest = { focusCategoryDropdownExpanded = false }) {
                             categories.forEach { cat ->
@@ -90,7 +90,7 @@ fun DiscoveryScreen(
                         modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Text("Topic", style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
+                        Text("subcat", style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
                         Box {
                             OutlinedButton(onClick = { focusSubcategoryDropdownExpanded = true }) { Text(focusSubcat?.name ?: "All") }
                             DropdownMenu(expanded = focusSubcategoryDropdownExpanded, onDismissRequest = { focusSubcategoryDropdownExpanded = false }) {

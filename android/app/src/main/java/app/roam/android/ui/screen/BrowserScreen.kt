@@ -76,7 +76,7 @@ fun BrowserScreen(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Column(modifier = Modifier.weight(1f)) {
-                    Text("Preferred languages", style = MaterialTheme.typography.bodyLarge)
+                    Text("LANG FILTERS", style = MaterialTheme.typography.bodyLarge)
                     Text("Select which languages you want to see", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
                 }
                 Box {
@@ -155,7 +155,7 @@ fun BrowserScreen(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Column(modifier = Modifier.weight(1f)) {
-                    Text("Menu gesture", style = MaterialTheme.typography.bodyLarge)
+                    Text("DECK GESTURE", style = MaterialTheme.typography.bodyLarge)
                     Text("How to open the menu", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
                 }
                 Box {
@@ -172,10 +172,10 @@ fun BrowserScreen(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Column(modifier = Modifier.weight(1f)) {
-                    Text("Delete cookies", style = MaterialTheme.typography.bodyLarge)
+                    Text("PURGE CACHE", style = MaterialTheme.typography.bodyLarge)
                     Text("Clear all cookies and site data", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
                 }
-                OutlinedButton(onClick = { vm.clearCookies() }) { Text("Clear") }
+                OutlinedButton(onClick = { vm.clearCookies() }) { Text("purge") }
             }
         }
     }

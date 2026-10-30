@@ -66,12 +66,12 @@ fun CommsMenu(
             ) {
                 Text("// open a channel", style = MaterialTheme.typography.labelSmall, color = Fog)
                 Spacer(Modifier.height(8.dp))
-                CommsRow(Icons.Filled.Notifications, "Notifications", "Review your latest transmissions") {
+                CommsRow(Icons.Filled.Notifications, "alerts", "Review your latest transmissions") {
                     onClose()
                     onCheckNotifications()
                 }
                 Spacer(Modifier.height(8.dp))
-                CommsRow(Icons.Filled.Feedback, "Send feedback", "Beam your thoughts upstream") {
+                CommsRow(Icons.Filled.Feedback, "beam feedback", "Beam your thoughts upstream") {
                     feedbackDialogOpen = true
                 }
                 Spacer(Modifier.height(8.dp))

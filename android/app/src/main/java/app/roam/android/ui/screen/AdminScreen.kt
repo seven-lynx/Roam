@@ -140,18 +140,18 @@ fun AdminScreen(
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
             )
             // ── Stats Cards ──────────────────────────────────────────────
-            SectionHeader("Overview")
+            SectionHeader("status")
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp),
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                StatChip("Pending", "${adminStats?.pending ?: 0}", Color(0xFFF59E0B))
-                StatChip("Approved", "${adminStats?.approved ?: 0}", Color(0xFF10B981))
-                StatChip("Rejected", "${adminStats?.rejected ?: 0}", Color(0xFFEF4444))
-                if (isAdmin) StatChip("Reports", "${adminStats?.reports ?: 0}", Color(0xFF8B5CF6))
-                else StatChip("Reports", "${adminReports.size}", Color(0xFF8B5CF6))
+                StatChip("queued", "${adminStats?.pending ?: 0}", Color(0xFFF59E0B))
+                StatChip("approved", "${adminStats?.approved ?: 0}", Color(0xFF10B981))
+                StatChip("rejected", "${adminStats?.rejected ?: 0}", Color(0xFFEF4444))
+                if (isAdmin) StatChip("flags", "${adminStats?.reports ?: 0}", Color(0xFF8B5CF6))
+                else StatChip("flags", "${adminReports.size}", Color(0xFF8B5CF6))
             }
 
             Spacer(Modifier.height(12.dp))
@@ -163,11 +163,11 @@ fun AdminScreen(
                     .padding(horizontal = 16.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                AdminTab("Queue", "queue", selectedTab) { selectedTab = it }
-                if (!isAdmin) AdminTab("Analytics", "analytics", selectedTab) { selectedTab = it }
-                AdminTab("Reports", "reports", selectedTab) { selectedTab = it }
+                AdminTab("queue", "queue", selectedTab) { selectedTab = it }
+                if (!isAdmin) AdminTab("telemetry", "analytics", selectedTab) { selectedTab = it }
+                AdminTab("flags", "reports", selectedTab) { selectedTab = it }
                 if (isAdmin) {
-                    AdminTab("System", "system", selectedTab) { selectedTab = it }
+                    AdminTab("system", "system", selectedTab) { selectedTab = it }
                 }
             }
 
@@ -176,6 +176,18 @@ fun AdminScreen(
             Spacer(Modifier.height(8.dp))
 
             // ── Tab Content ──────────────────────────────────────────────
+            Text(
+                when (selectedTab) {
+                    "queue" -> "// queue :: pending submissions awaiting review"
+                    "analytics" -> "// telemetry :: traffic & engagement"
+                    "reports" -> "// flags :: reported links & takedowns"
+                    else -> "// system :: web admin uplinks"
+                },
+                style = MaterialTheme.typography.labelSmall,
+                color = Fog,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 2.dp),
+            )
+
             when (selectedTab) {
                 "queue" -> QueueTab(
                     items = adminQueue,
@@ -808,16 +820,16 @@ private fun SystemTab(
     onOpenWebEmail: () -> Unit,
 ) {
     Column(modifier = Modifier.fillMaxWidth()) {
-        SectionHeader("Web Admin Panels")
-        SystemActionRow("Moderation Queue", "Review pending submissions", onClick = onOpenWebQueue)
-        SystemActionRow("Analytics", "View usage statistics", onClick = onOpenWebAnalytics)
+        SectionHeader("remote uplinks")
+        SystemActionRow("review queue", "Review pending submissions", onClick = onOpenWebQueue)
+        SystemActionRow("telemetry", "View usage statistics", onClick = onOpenWebAnalytics)
         SystemActionRow("Badges", "Grant badges to users", onClick = onOpenWebBadges)
-        SystemActionRow("Email", "Send bulk emails", onClick = onOpenWebEmail)
+        SystemActionRow("broadcast", "Send bulk emails", onClick = onOpenWebEmail)
         Spacer(Modifier.height(8.dp))
         HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
         Spacer(Modifier.height(8.dp))
-        SectionHeader("Full Dashboard")
-        SystemActionRow("Open Admin Dashboard", "roamtheweb.app/admin", onClick = onOpenWebAdmin)
+        SectionHeader("remote console")
+        SystemActionRow("open remote console", "roamtheweb.app/admin", onClick = onOpenWebAdmin)
     }
 }
 

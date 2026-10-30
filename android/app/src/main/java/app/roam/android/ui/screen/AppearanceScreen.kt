@@ -109,7 +109,7 @@ fun AppearanceScreen(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Column(modifier = Modifier.weight(1f)) {
-                    Text("Theme", style = MaterialTheme.typography.bodyLarge)
+                    Text("SHELL", style = MaterialTheme.typography.bodyLarge)
                     Text("Roam Classic or the ROAM-OS look", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
                 }
                 Box {
@@ -129,7 +129,7 @@ fun AppearanceScreen(
                 }
             }
 
-            SettingsToggleRow("Deck labels", "Show text labels on the control buttons", deckLabelsEnabled) { vm.setDeckLabelsEnabled(it) }
+            SettingsToggleRow("KEY LABELS", "Show text labels on the control buttons", deckLabelsEnabled) { vm.setDeckLabelsEnabled(it) }
             SettingsFxSliderRow("Message scroll speed", systemMessageSpeed) { vm.setSystemMessageSpeed(it) }
 
             Row(
@@ -137,7 +137,7 @@ fun AppearanceScreen(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Column(modifier = Modifier.weight(1f)) {
-                    Text("System readout", style = MaterialTheme.typography.bodyLarge)
+                    Text("READOUT", style = MaterialTheme.typography.bodyLarge)
                     Text("Deck message display style", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
                 }
                 Box {
@@ -154,7 +154,7 @@ fun AppearanceScreen(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Column(modifier = Modifier.weight(1f)) {
-                    Text("Material", style = MaterialTheme.typography.bodyLarge)
+                    Text("CHASSIS", style = MaterialTheme.typography.bodyLarge)
                     Text("Chassis and deck texture", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
                 }
                 Box {
@@ -173,7 +173,7 @@ fun AppearanceScreen(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
-                        Text("OS color", style = MaterialTheme.typography.bodyLarge)
+                        Text("OS TINT", style = MaterialTheme.typography.bodyLarge)
                         Text("Roam-OS UI and terminal display color", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
                     }
                     Box {
@@ -191,7 +191,7 @@ fun AppearanceScreen(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
-                        Text("Hardware color", style = MaterialTheme.typography.bodyLarge)
+                        Text("DECK TINT", style = MaterialTheme.typography.bodyLarge)
                         Text("Chassis and control deck accent color", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
                     }
                     Box {
@@ -211,7 +211,7 @@ fun AppearanceScreen(
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
-                            Text("Backlight color", style = MaterialTheme.typography.bodyLarge)
+                            Text("KEY GLOW", style = MaterialTheme.typography.bodyLarge)
                             Text("Key glow color", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
                         }
                         Box {
@@ -248,7 +248,7 @@ fun AppearanceScreen(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
-                        Text("Deck layout", style = MaterialTheme.typography.bodyLarge)
+                        Text("DECK TOPOLOGY", style = MaterialTheme.typography.bodyLarge)
                         Text("Arrange the ROAM-OS control deck keys", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
                     }
                     Box {
@@ -266,7 +266,7 @@ fun AppearanceScreen(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
-                        Text("Button size", style = MaterialTheme.typography.bodyLarge)
+                        Text("KEY SCALE", style = MaterialTheme.typography.bodyLarge)
                         Text("Control deck key size", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
                     }
                     Box {
@@ -284,7 +284,7 @@ fun AppearanceScreen(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
-                        Text("Button shape", style = MaterialTheme.typography.bodyLarge)
+                        Text("KEY PROFILE", style = MaterialTheme.typography.bodyLarge)
                         Text("Round or square keys (Roam stays round)", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
                     }
                     Box {

@@ -50,11 +50,13 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.graphics.vector.ImageVector
 import app.roam.android.model.Collection
 import app.roam.android.ui.theme.Bone
+import app.roam.android.ui.theme.Danger
 import app.roam.android.ui.theme.Fog
 import app.roam.android.ui.theme.LineColor
 import app.roam.android.ui.theme.Oxide3
 import app.roam.android.ui.theme.Panel2
 import app.roam.android.ui.theme.TealBright
+import kotlin.math.abs
 import kotlin.math.roundToInt
 
 @Composable
@@ -124,8 +126,8 @@ fun ProgramLauncher(
                     }
                     Spacer(Modifier.height(8.dp))
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        ProgramTile(Icons.Filled.TravelExplore, "roam-cat", { onRoamWithinCategory(); onClose() }, Modifier.weight(1f))
-                        ProgramTile(Icons.Filled.CollectionsBookmark, "roam-col", {
+                        ProgramTile(Icons.Filled.TravelExplore, "roam/cat", { onRoamWithinCategory(); onClose() }, Modifier.weight(1f))
+                        ProgramTile(Icons.Filled.CollectionsBookmark, "roam/col", {
                             if (collections.isNotEmpty()) { collectionPickerMode = "roam"; collectionPickerOpen = true }
                         }, Modifier.weight(1f))
                     }
@@ -327,28 +329,47 @@ private fun UrlInfoCard(
 @Composable
 private fun WilsonScoreMeter(score: Double) {
     val clamped = score.coerceIn(0.0, 1.0)
-    val filledSegments = (clamped * 10).roundToInt().coerceIn(0, 10)
-    val pct = (clamped * 100).roundToInt()
+    // Re-centre: 0.5 is the neutral midpoint. Below -> red (negative, left);
+    // above -> green (positive, right).
+    val deviation = clamped - 0.5
+    val fill = (deviation / 0.5).coerceIn(-1.0, 1.0)
+    val meterColor = if (deviation < 0) Danger else TealBright
     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-        Text("CONF", style = MaterialTheme.typography.labelSmall, color = Fog)
+        Text("SIGNAL", style = MaterialTheme.typography.labelSmall, color = Fog)
         Spacer(Modifier.width(8.dp))
-        Row(
-            modifier = Modifier.weight(1f).height(10.dp),
-            horizontalArrangement = Arrangement.spacedBy(3.dp),
+        Box(
+            modifier = Modifier
+                .weight(1f)
+                .height(10.dp)
+                .clip(RoundedCornerShape(2.dp))
+                .background(Oxide3.copy(alpha = 0.35f)),
+            contentAlignment = Alignment.Center,
         ) {
-            repeat(10) { i ->
-                Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxHeight()
-                        .clip(RoundedCornerShape(2.dp))
-                        .background(if (i < filledSegments) TealBright else Oxide3.copy(alpha = 0.35f)),
-                )
-            }
+            Box(
+                modifier = Modifier
+                    .width(1.dp)
+                    .fillMaxHeight()
+                    .background(LineColor),
+            )
+            Box(
+                modifier = Modifier
+                    .align(if (deviation < 0) Alignment.CenterEnd else Alignment.CenterStart)
+                    .fillMaxWidth(abs(fill).toFloat())
+                    .fillMaxHeight()
+                    .clip(RoundedCornerShape(2.dp))
+                    .background(meterColor),
+            )
         }
         Spacer(Modifier.width(8.dp))
-        Text("$pct%", style = MaterialTheme.typography.labelSmall, color = Bone)
+        Text(formatWilson(clamped), style = MaterialTheme.typography.labelSmall, color = meterColor)
     }
+}
+
+private fun formatWilson(score: Double): String {
+    val thousandths = (score * 1000).roundToInt()
+    val whole = thousandths / 1000
+    val frac = (thousandths % 1000).toString().padStart(3, '0')
+    return "$whole.$frac"
 }
 
 @Composable
