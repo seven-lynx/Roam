@@ -21,14 +21,14 @@ env:
 jobs:
   changed-paths:
     name: Detect changed paths (used for build optimisation)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     outputs:
       web: ${{ steps.filter.outputs.web }}
       extension: ${{ steps.filter.outputs.extension }}
       android: ${{ steps.filter.outputs.android }}
       supabase: ${{ steps.filter.outputs.supabase }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d
         id: filter
         with:
@@ -52,7 +52,7 @@ jobs:
 
   lint-and-test:
     name: Lint & Test
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     # Cancel superseded runs on the same branch/ref so amended commits don't
     # pay minutes for older code. PRs get their own concurrency key so a
     # review-time re-run doesn't kill the under-review run.
@@ -62,15 +62,15 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: ${{ env.NODE_VERSION }}
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v5
         with:
           version: ${{ env.PNPM_VERSION }}
 
@@ -79,7 +79,7 @@ jobs:
         run: echo "STORE_PATH=$(pnpm store path)" >> $GITHUB_OUTPUT
 
       - name: Cache pnpm modules
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ${{ steps.pnpm-cache.outputs.STORE_PATH }}
           key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
@@ -125,7 +125,7 @@ jobs:
           deno-version: v2.x
 
       - name: Cache Deno dependencies
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ~/.cache/deno
           key: deno-${{ hashFiles('supabase/functions/**/*.ts') }}
@@ -217,7 +217,7 @@ jobs:
           distribution: 'temurin'
 
       - name: Cache Gradle distributions
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             ~/.gradle/wrapper/dists
@@ -266,22 +266,22 @@ jobs:
     # (PR builds are wasteful since Vercel handles the production deploy).
     needs: [lint-and-test, changed-paths]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.changed-paths.outputs.web == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     concurrency:
       group: build-web-${{ github.ref }}
       cancel-in-progress: true
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: ${{ env.NODE_VERSION }}
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v5
         with:
           version: ${{ env.PNPM_VERSION }}
 
@@ -308,22 +308,22 @@ jobs:
     # happens via the deploy workflow on main.
     needs: [lint-and-test, changed-paths]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.changed-paths.outputs.extension == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     concurrency:
       group: build-extension-${{ github.ref }}
       cancel-in-progress: true
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: ${{ env.NODE_VERSION }}
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v5
         with:
           version: ${{ env.PNPM_VERSION }}
 
@@ -359,7 +359,7 @@ jobs:
     # Scan PRs and pushes; cancel superseded runs. The job is gated on
     # pull_request only (pushes don't surface SARIF results, so running
     # this on push wastes minutes).
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     if: github.event_name == 'pull_request'
     concurrency:
       group: security-scan-${{ github.event.pull_request.number || github.sha }}
@@ -375,7 +375,7 @@ jobs:
       security-events: write
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Run Trivy vulnerability scanner
         # Pinned to a commit SHA (was @master). Trivy-action updates its
@@ -396,8 +396,8 @@ jobs:
         # for forks and fall back to uploading the SARIF as an artifact so
         # reviewers can still inspect it.
         if: github.event.pull_request.head.repo.fork == false
-        # Pinned to the v3 tip as of 2026-09-24; bump with a Dependabot PR.
-        uses: github/codeql-action/upload-sarif@1190a975f95ce23525efb6a3fc21ea29567c1b52
+        # codeql-action @v4 releases are immutable; the major tag tracks the latest v4 patch.
+        uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: 'trivy-results.sarif'
 

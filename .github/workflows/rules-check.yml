@@ -9,19 +9,19 @@ on:
 jobs:
   rules:
     name: Project rules enforcement
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     # Cancel superseded runs; same key for PR and the push that supersedes it.
     concurrency:
       group: rules-check-${{ github.event.pull_request.number || github.ref }}
       cancel-in-progress: true
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 200
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: '24'
 
@@ -34,7 +34,7 @@ jobs:
 
   verify-roam-static:
     name: Static guard for roam() SQL safety
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     # Distinct concurrency group from the rules job above. Sharing a group with
     # `cancel-in-progress: true` makes two jobs in the same run cancel each other,
     # so the rules job never actually ran.
@@ -43,7 +43,7 @@ jobs:
       cancel-in-progress: true
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       # Pure-text check (runs everywhere, no infra needed).
       # Scans every NEW SQL migration for the v31 42P01 alias pattern.

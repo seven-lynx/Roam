@@ -29,7 +29,7 @@ permissions:
 jobs:
   deploy:
     name: Deploy Supabase
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     environment: production
     # Never cancel an in-flight database deploy (Hard Rule 6.4).
     concurrency:
@@ -38,15 +38,15 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: '24'
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v5
         with:
           version: '10'
 
