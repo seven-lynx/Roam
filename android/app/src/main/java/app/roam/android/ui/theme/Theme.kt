@@ -100,11 +100,7 @@ fun RoamTheme(
             // Transparent system bars so full-bleed content (the ROAM-OS control
             // deck) shows through behind the nav bar. This also cooperates with
             // the device "transparent navigation bar" developer option.
-            window.statusBarColor = android.graphics.Color.TRANSPARENT
-            window.navigationBarColor = android.graphics.Color.TRANSPARENT
-            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
-                window.isNavigationBarContrastEnforced = false
-            }
+            applyTransparentSystemBars(window)
 
             val controller = WindowCompat.getInsetsController(window, view)
             // Always keep the status and navigation bars visible. WebView page loads

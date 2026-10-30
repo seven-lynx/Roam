@@ -46,6 +46,7 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.webkit.WebSettingsCompat
 import androidx.webkit.WebViewFeature
 import app.roam.android.viewmodel.WebNavCommand
+import app.roam.android.ui.theme.applyTransparentSystemBars
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.delay
 
@@ -71,11 +72,7 @@ private fun ensureSystemBarsVisible(view: android.view.View, darkMode: Boolean) 
     val activity = view.context.findActivity() ?: return
     // Re-assert transparent bars: a page's theme-color / fullscreen hints can
     // otherwise leave the nav bar opaque black behind the control deck.
-    activity.window.statusBarColor = android.graphics.Color.TRANSPARENT
-    activity.window.navigationBarColor = android.graphics.Color.TRANSPARENT
-    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
-        activity.window.isNavigationBarContrastEnforced = false
-    }
+    applyTransparentSystemBars(activity.window)
     val controller = WindowCompat.getInsetsController(activity.window, view)
     controller.show(WindowInsetsCompat.Type.systemBars())
     controller.systemBarsBehavior =
