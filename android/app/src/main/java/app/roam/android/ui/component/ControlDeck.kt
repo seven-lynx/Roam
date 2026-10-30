@@ -53,6 +53,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ShaderBrush
@@ -148,6 +149,25 @@ fun ControlDeck(
                     drawCircle(Bone, radius = r, center = Offset(x, y))
                     drawCircle(Oxide, radius = r, center = Offset(x, y), style = Stroke(width = 1.dp.toPx()))
                     drawLine(Oxide, Offset(x - r * 0.55f, y), Offset(x + r * 0.55f, y), strokeWidth = 1.dp.toPx())
+                }
+                // Base plate behind the system nav bar — ties the deck into the
+                // nav area so it reads as a continuous chassis under the buttons.
+                if (navBarBottom > 0f) {
+                    drawRect(
+                        brush = Brush.verticalGradient(
+                            listOf(lerp(Abyss, palette.primary, 0.08f), Abyss),
+                            startY = size.height - navBarBottom,
+                            endY = size.height,
+                        ),
+                        topLeft = Offset(0f, size.height - navBarBottom),
+                        size = Size(size.width, navBarBottom),
+                    )
+                    drawLine(
+                        color = palette.primary.copy(alpha = 0.22f),
+                        start = Offset(0f, size.height - navBarBottom),
+                        end = Offset(size.width, size.height - navBarBottom),
+                        strokeWidth = 1.dp.toPx(),
+                    )
                 }
             }
             .navigationBarsPadding(),

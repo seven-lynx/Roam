@@ -36,8 +36,8 @@ class MainActivity : ComponentActivity() {
     private val mainVm: MainViewModel by viewModels()
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        enableEdgeToEdge()
         super.onCreate(savedInstanceState)
+        enableEdgeToEdge()
         // Wait for Supabase to finish restoring its session from SharedPreferences before
         // attempting the PKCE code exchange. If we call handleDeeplinks() while the Auth
         // plugin is still in Initializing state, the code_verifier hasn't been loaded yet

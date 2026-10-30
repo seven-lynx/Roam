@@ -69,6 +69,13 @@ private fun android.content.Context.findActivity(): android.app.Activity? {
  */
 private fun ensureSystemBarsVisible(view: android.view.View, darkMode: Boolean) {
     val activity = view.context.findActivity() ?: return
+    // Re-assert transparent bars: a page's theme-color / fullscreen hints can
+    // otherwise leave the nav bar opaque black behind the control deck.
+    activity.window.statusBarColor = android.graphics.Color.TRANSPARENT
+    activity.window.navigationBarColor = android.graphics.Color.TRANSPARENT
+    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+        activity.window.isNavigationBarContrastEnforced = false
+    }
     val controller = WindowCompat.getInsetsController(activity.window, view)
     controller.show(WindowInsetsCompat.Type.systemBars())
     controller.systemBarsBehavior =
