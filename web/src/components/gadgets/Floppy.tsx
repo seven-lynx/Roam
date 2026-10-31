@@ -1,3 +1,5 @@
+'use client';
+
 import Link from 'next/link';
 import { useWorkstation } from '@/components/WorkstationContext';
 import { deskArt } from '@/lib/art';

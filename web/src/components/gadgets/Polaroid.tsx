@@ -1,3 +1,5 @@
+'use client';
+
 import { rotationFor } from '@/lib/desk-layout';
 import { useWorkstation } from '@/components/WorkstationContext';
 import { deskArt } from '@/lib/art';
