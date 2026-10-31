@@ -94,9 +94,9 @@ jobs:
       - name: Apply migrations
         run: |
           if [ "${{ inputs.include_all }}" = "true" ]; then
-            supabase db push --include-all
+            supabase db push --include-all --yes
           else
-            supabase db push
+            supabase db push --yes
           fi
 
       - name: Deploy Edge Functions
