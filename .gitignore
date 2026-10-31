@@ -81,3 +81,7 @@ scripts/*
 !supabase/scripts/
 .vscode/mcp.json
 android/app/google-services.json
+
+# Local-only asset/agent prompt notes
+web/*.local.md
+

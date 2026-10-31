@@ -63,6 +63,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.AnnotatedString
@@ -357,19 +358,24 @@ private fun SystemReadout(message: String, color: Color, speed: Int = 5, display
             shadow = Shadow(color = color.copy(alpha = 0.85f), offset = Offset.Zero, blurRadius = 8f),
         )
     }
-    // Seamless infinite stream: repeat the tile enough times to always cover the
-    // container, then scroll by one tile width for a gap-free wrap.
     val density = LocalDensity.current
     val separatorPx = with(density) { 16.dp.toPx() }
-    val copyWidth = remember(message, eink) { textMeasurer.measure(AnnotatedString(message), style).size.width }
+    val copyWidth = remember(message, eink) { textMeasurer.measure(AnnotatedString(message), style).size.width.toFloat() }
     val tileWidth = (copyWidth + separatorPx).coerceAtLeast(1f)
-    var containerWidth by remember { mutableIntStateOf(0) }
+
+    // Start with a fallback width so tiles never defaults to 2, preventing blank gaps.
+    val config = LocalConfiguration.current
+    val fallbackWidth = with(density) { (config.screenWidthDp * 0.55f).dp.toPx().toInt() }
+    var containerWidth by remember { mutableIntStateOf(fallbackWidth) }
     val tiles = remember(containerWidth, tileWidth) {
-        if (tileWidth <= 0f) 2 else (containerWidth / tileWidth).toInt() + 2
+        ((containerWidth / tileWidth).toInt().coerceAtLeast(4) + 2)
     }
+
     val pxPerSec = 20f + speed.coerceIn(1, 10) * 8f
-    val loopMs = (tileWidth / pxPerSec * 1000f).toInt().coerceAtLeast(1)
-    val transition = key(speed, eink) { rememberInfiniteTransition(label = "readout-stream") }
+    val loopMs = (tileWidth / pxPerSec * 1000f).toInt().coerceAtLeast(500)
+
+    // Restart animation when tile count or speed changes so the stream never goes blank.
+    val transition = key(speed, eink, tiles) { rememberInfiniteTransition(label = "readout-stream") }
     val t by transition.animateFloat(
         initialValue = 0f,
         targetValue = 1f,

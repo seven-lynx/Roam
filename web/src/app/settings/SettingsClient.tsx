@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import * as Sentry from '@sentry/nextjs';
 import { validatePassword, validatePasswordsMatch, getPasswordStrengthColor, getPasswordStrengthLabel } from '@/lib/validation';
+import { useWorkstation } from '@/components/WorkstationContext';
+import { deskArt } from '@/lib/art';
 
 interface SettingsClientProps {
   userId: string;
@@ -15,10 +17,11 @@ interface SettingsClientProps {
   initialSkipPaywalled: boolean;
 }
 
-type SettingsTab = 'account' | 'notifications' | 'language' | 'discovery' | 'security' | 'data' | 'danger';
+type SettingsTab = 'account' | 'appearance' | 'notifications' | 'language' | 'discovery' | 'security' | 'data' | 'danger';
 
 const TABS: { id: SettingsTab; label: string; icon: string; danger?: boolean }[] = [
   { id: 'account', label: 'Account', icon: '👤' },
+  { id: 'appearance', label: 'Appearance', icon: '🎨' },
   { id: 'notifications', label: 'Notifications', icon: '🔔' },
   { id: 'language', label: 'Language', icon: '🌐' },
   { id: 'discovery', label: 'Discovery', icon: '🎯' },
@@ -139,6 +142,7 @@ export function SettingsClient({
   const supabase = createClient();
   const isEmailUser = provider === 'email';
   const [tab, setTab] = useState<SettingsTab>('account');
+  const { artVariant, setArtVariant } = useWorkstation();
 
   // Notification toggle
   const [notifications, setNotifications] = useState(initialNotifications);
@@ -448,6 +452,30 @@ export function SettingsClient({
             )}
 
             {/* ── Notifications Tab ──────────────────────── */}
+            {/* ── Appearance Tab ──────────────────────────── */}
+            {tab === 'appearance' && (
+              <Section title="Appearance">
+                <p className="text-sm text-muted mb-4">
+                  The desk hardware is rendered from two photorealistic asset packs. Pick your favourite — the change applies instantly and is remembered on this device.
+                </p>
+                <div className="grid grid-cols-2 gap-4">
+                  {(['a', 'b'] as const).map((v) => (
+                    <button
+                      key={v}
+                      type="button"
+                      onClick={() => setArtVariant(v)}
+                      aria-pressed={artVariant === v}
+                      className={`rounded-xl border-2 p-2 text-center transition-colors ${artVariant === v ? 'border-accent' : 'border-line hover:border-line-strong'}`}
+                    >
+                      <img src={deskArt('camera', v)} alt={`Asset pack ${v.toUpperCase()} preview`} className="aspect-square w-full rounded-lg bg-black/50 object-contain" />
+                      <span className="mt-2 block font-mono text-xs text-ink">Pack {v.toUpperCase()}</span>
+                    </button>
+                  ))}
+                </div>
+                <p className="mt-3 text-xs text-muted">Previews use the film camera. You can also flip packs from the tray&rsquo;s ART button.</p>
+              </Section>
+            )}
+
             {tab === 'notifications' && (
               <Section title="Notifications">
                 <div className="flex items-center justify-between">

@@ -115,7 +115,10 @@ fun NotificationsScreen(
     val notificationsLoading by vm.notificationsLoading.collectAsState()
     val unreadCount by vm.unreadNotificationCount.collectAsState()
 
-    LaunchedEffect(Unit) { vm.loadNotifications() }
+    LaunchedEffect(Unit) {
+        vm.fetchUnreadNotificationCount()
+        vm.loadNotifications()
+    }
 
     Scaffold(
         topBar = {

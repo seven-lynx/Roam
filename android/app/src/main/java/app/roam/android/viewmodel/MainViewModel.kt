@@ -1288,7 +1288,10 @@ class MainViewModel(
         viewModelScope.launch {
             supabase.auth.sessionStatus.collect { status ->
                 when (status) {
-                    is SessionStatus.Authenticated -> checkUserRole()
+                    is SessionStatus.Authenticated -> {
+                        checkUserRole()
+                        fetchUnreadNotificationCount()
+                    }
                     is SessionStatus.NotAuthenticated,
                     is SessionStatus.RefreshFailure -> {
                         _adminModeEnabled.value = false

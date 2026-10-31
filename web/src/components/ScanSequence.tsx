@@ -2,18 +2,21 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useWorkstation } from '@/components/WorkstationContext';
+import { Window } from '@/components/Window';
 import { CompileView, ScanView, StageTracker, TriangulateView } from '@/components/ScanStages';
 import { ScanResult } from '@/components/ScanResult';
 import { STAGE_MS, fetchScanTarget, hexLine, type ScanStage, type ScanTarget } from '@/lib/scan';
+import { scanBlip } from '@/lib/sfx';
 
 /**
- * Full-screen scan -> triangulate -> compile -> mount sequence opened by the
- * ROAM key. The target is a real catalogue entry; signal and hex readouts are
- * decorative and labelled as simulated. Any key or click skips ahead, and
- * reduced-motion users go straight to the result.
+ * ROAM key window (opens maximized): scan -> triangulate -> compile -> mount.
+ * The target is a real catalogue entry; signal and hex readouts are decorative
+ * and labelled as simulated. Any non-control key skips ahead; reduced-motion
+ * users go straight to the result.
  */
 export function ScanSequence() {
-  const { scanOpen, setScanOpen } = useWorkstation();
+  const { isOpen, closeWindow } = useWorkstation();
+  const open = isOpen('scan');
   const [stage, setStage] = useState<ScanStage>('scan');
   const [target, setTarget] = useState<ScanTarget | null>(null);
   const [resolved, setResolved] = useState(false);
@@ -27,13 +30,14 @@ export function ScanSequence() {
     timers.current = [];
   }, []);
 
-  // Start (or restart) whenever the sequence opens or "scan again" is pressed.
+  // Start (or restart) whenever the window opens or "scan again" is pressed.
   useEffect(() => {
-    if (!scanOpen) return;
+    if (!open) return;
     let cancelled = false;
     setTarget(null);
     setResolved(false);
     setStage('scan');
+    scanBlip();
 
     fetchScanTarget().then((t) => {
       if (cancelled) return;
@@ -57,56 +61,46 @@ export function ScanSequence() {
       cancelled = true;
       clearTimers();
     };
-  }, [scanOpen, run, clearTimers]);
+  }, [open, run, clearTimers]);
 
   // Scrolling hex stream while the animated stages play.
   useEffect(() => {
-    if (!scanOpen || stage === 'mount') return;
+    if (!open || stage === 'mount') return;
     const id = window.setInterval(() => setHex((h) => [...h.slice(-9), hexLine()]), 70);
     return () => window.clearInterval(id);
-  }, [scanOpen, stage]);
+  }, [open, stage]);
 
-  const close = useCallback(() => setScanOpen(false), [setScanOpen]);
+  const close = useCallback(() => closeWindow('scan'), [closeWindow]);
   const skip = useCallback(() => {
     clearTimers();
     setStage('mount');
   }, [clearTimers]);
 
+  // Any non-control key skips ahead (Escape closes via the shell's handler).
   useEffect(() => {
-    if (!scanOpen) return;
+    if (!open || stage === 'mount') return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') close();
-      else if (stage !== 'mount') skip();
+      if (e.key === 'Escape') return;
+      const t = e.target as HTMLElement | null;
+      if (t && t.closest && t.closest('button, input, textarea, a')) return;
+      skip();
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [scanOpen, stage, close, skip]);
+  }, [open, stage, skip]);
 
   // Move focus to the primary action once the result is on screen.
   useEffect(() => {
     if (stage === 'mount' && resolved) actionRef.current?.focus();
   }, [stage, resolved]);
 
-  if (!scanOpen) return null;
+  if (!open) return null;
 
   const showResult = stage === 'mount' && resolved;
 
   return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-label="Scanning for a page"
-      className="absolute inset-0 z-[50] flex flex-col bg-screen font-mono"
-      onClick={() => { if (stage !== 'mount') skip(); }}
-    >
-      <div className="screen-bar">
-        <span className="led" aria-hidden="true" />
-        <span className="font-pixel tracking-[0.2em] text-ink">roam</span>
-        <span className="flex-1" />
-        <button type="button" onClick={close} className="text-muted hover:text-ink" aria-label="Close scan">✕</button>
-      </div>
-
-      <div className="flex flex-1 flex-col items-center justify-center gap-6 overflow-y-auto px-6 py-8">
+    <Window id="scan" icon={<span aria-hidden="true">◎</span>}>
+      <div className="flex flex-1 flex-col items-center justify-center gap-6 overflow-y-auto px-6 py-8 font-mono">
         <StageTracker stage={stage} />
         {stage === 'scan' && <ScanView />}
         {stage === 'triangulate' && <TriangulateView lines={hex} />}
@@ -115,6 +109,6 @@ export function ScanSequence() {
         {showResult && <ScanResult target={target} actionRef={actionRef} onAgain={() => setRun((n) => n + 1)} onClose={close} />}
         {stage !== 'mount' && <p className="text-[10px] tracking-widest text-muted">press any key to skip</p>}
       </div>
-    </div>
+    </Window>
   );
 }

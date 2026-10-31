@@ -62,6 +62,7 @@ object SoundManager {
                     R.raw.generic_success,
                     R.raw.click,
                     R.raw.click_heavy,
+                    R.raw.click_nav,
                     R.raw.load_start,
                     R.raw.load_complete,
                     R.raw.save_url,
@@ -80,7 +81,7 @@ object SoundManager {
     }
 
     private fun categoryFor(resId: Int): Category = when (resId) {
-        R.raw.click, R.raw.click_heavy -> Category.DECK
+        R.raw.click, R.raw.click_heavy, R.raw.click_nav -> Category.DECK
         R.raw.like, R.raw.skip -> Category.RATING
         R.raw.load_start, R.raw.load_complete, R.raw.scan_blip, R.raw.mount_complete,
         R.raw.server_hum, R.raw.relay_tick, R.raw.modem_blip -> Category.LOADING

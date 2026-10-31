@@ -22,7 +22,7 @@ android {
         applicationId = "app.roam.android"
         minSdk = 26
         targetSdk = 36
-        versionCode = 34
+        versionCode = 35
         versionName = "1.4.0"
 
 

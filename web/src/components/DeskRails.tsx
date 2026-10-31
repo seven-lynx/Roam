@@ -52,7 +52,7 @@ export function RightRail() {
         <StickyNote id="r-note1" text="don't trust the 404s" color="pink" />
       </Slot>
       <Slot id="r-radar" w={0.78} tilt={0} nudge={12}><RadarPuck /></Slot>
-      <Slot id="r-polaroid" w={0.95} tilt={7}><Polaroid id="r-polaroid" caption="last seen: 1999" scene="skyline" /></Slot>
+      <Slot id="r-polaroid" w={0.95} tilt={7}><Polaroid id="r-polaroid" caption="last seen: 1999" /></Slot>
       <Slot id="r-cass" w={1.2} tilt={-3}><Cassette /></Slot>
       <Slot id="r-floppy" w={0.82} tilt={5}><Floppy /></Slot>
       <Slot id="r-note2" w={1} tilt={3}>

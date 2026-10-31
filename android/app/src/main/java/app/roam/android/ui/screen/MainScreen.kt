@@ -186,7 +186,7 @@ fun MainScreen(
     val celebration by vm.celebration.collectAsState()
 
     CompositionLocalProvider(
-        LocalClickSound provides { vm.uiFeedback(R.raw.click) },
+        LocalClickSound provides { vm.uiFeedback(R.raw.click_nav) },
         LocalHardwarePalette provides roamOsPalette(hardwareColorScheme),
     ) {
     Scaffold(

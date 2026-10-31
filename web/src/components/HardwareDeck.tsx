@@ -2,22 +2,83 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useEffect, useState } from 'react';
 import { PRIMARY_KEYS, isActivePath } from '@/lib/os-nav';
 import { KeyIcon } from '@/components/KeyIcon';
-import { useWorkstation } from '@/components/WorkstationContext';
+import { useWorkstation, BRIGHTNESS_MIN, BRIGHTNESS_MAX } from '@/components/WorkstationContext';
+import { RotaryKnob } from '@/components/RotaryKnob';
+import { click, clickHeavy, clickNav } from '@/lib/sfx';
 
 const SCROLL_STEP = 220;
 
-/**
- * Physical controls under the screen. Route keys are real links (keyboard
- * accessible and crawlable); the rest are buttons wired to the workstation.
- */
-export function HardwareDeck({ onRoam }: { onRoam: () => void }) {
-  const pathname = usePathname();
-  const { scrollRef, fx, setFx, launcherOpen, setLauncherOpen, setFeedbackOpen } = useWorkstation();
+const DIODES = [
+  { id: 'power', label: 'PWR' },
+  { id: 'net', label: 'NET' },
+  { id: 'disk', label: 'DSK' },
+  { id: 'sig', label: 'SIG' },
+  { id: 'sound', label: 'SND' },
+  { id: 'scan', label: 'SCN' },
+] as const;
+type DiodeId = (typeof DIODES)[number]['id'];
 
-  const scrollBy = (top: number, left = 0) =>
-    scrollRef.current?.scrollBy({ top, left, behavior: 'smooth' });
+/**
+ * Physical controls under the screen: route keys (real links), the ROAM/MENU/COMMS
+ * keys, a status diode strip wired to live state, and two functional rotary knobs
+ * (master volume + CRT brightness).
+ */
+export function HardwareDeck() {
+  const pathname = usePathname();
+  const {
+    scrollRef,
+    fx,
+    setFx,
+    sound,
+    muted,
+    volume,
+    setVolume,
+    toggleMute,
+    brightness,
+    setBrightness,
+    windows,
+    openWindow,
+    closeWindow,
+  } = useWorkstation();
+
+  const scanOpen = !!windows.scan;
+  const launcherOpen = !!windows.launcher;
+
+  // DISK diode blinks on every route change.
+  const [disk, setDisk] = useState(false);
+  useEffect(() => {
+    setDisk(true);
+    const t = setTimeout(() => setDisk(false), 350);
+    return () => clearTimeout(t);
+  }, [pathname]);
+
+  // SIG diode tracks real connectivity.
+  const [online, setOnline] = useState(true);
+  useEffect(() => {
+    const on = () => setOnline(true);
+    const off = () => setOnline(false);
+    window.addEventListener('online', on);
+    window.addEventListener('offline', off);
+    setOnline(navigator.onLine);
+    return () => {
+      window.removeEventListener('online', on);
+      window.removeEventListener('offline', off);
+    };
+  }, []);
+
+  const scrollBy = (top: number, left = 0) => scrollRef.current?.scrollBy({ top, left, behavior: 'smooth' });
+
+  const diodeOn: Record<DiodeId, boolean> = {
+    power: true,
+    net: scanOpen,
+    disk,
+    sig: online,
+    sound: sound && !muted,
+    scan: scanOpen,
+  };
 
   return (
     <div className="deck" role="group" aria-label="Hardware controls">
@@ -38,6 +99,7 @@ export function HardwareDeck({ onRoam }: { onRoam: () => void }) {
               className="keycap"
               aria-current={active ? 'page' : undefined}
               title={k.file}
+              onClick={() => click()}
             >
               <KeyIcon name={k.icon} />
               <span className="keycap-label">{k.label}</span>
@@ -50,19 +112,44 @@ export function HardwareDeck({ onRoam }: { onRoam: () => void }) {
           className="keycap"
           aria-expanded={launcherOpen}
           aria-haspopup="dialog"
-          onClick={() => setLauncherOpen(!launcherOpen)}
+          onClick={() => (launcherOpen ? closeWindow('launcher') : openWindow('launcher'))}
           title="menu"
         >
           <KeyIcon name="menu" />
           <span className="keycap-label">Menu</span>
           <span className="key-led" aria-hidden="true" />
         </button>
-        <button type="button" className="keycap keycap--roam" onClick={onRoam} title="roam scan">
+        <button
+          type="button"
+          className="keycap keycap--roam"
+          onClick={() => {
+            clickHeavy();
+            openWindow('scan');
+          }}
+          title="roam scan"
+        >
           <KeyIcon name="roam" />
           <span className="keycap-label">Roam</span>
           <span className="key-led" aria-hidden="true" />
         </button>
       </nav>
+
+      <div className="deck-instruments" aria-label="Status and controls">
+        <div className="diode-strip" aria-hidden="true">
+          {DIODES.map((d) => (
+            <span key={d.id} className="diode" data-on={diodeOn[d.id]}>
+              <span className="diode-dot" />
+              <span className="diode-label">{d.label}</span>
+            </span>
+          ))}
+        </div>
+        <RotaryKnob label="VOL" value={volume} onChange={setVolume} onPress={toggleMute} pressed={muted} />
+        <RotaryKnob
+          label="BRT"
+          value={(brightness - BRIGHTNESS_MIN) / (BRIGHTNESS_MAX - BRIGHTNESS_MIN)}
+          onChange={(v) => setBrightness(BRIGHTNESS_MIN + v * (BRIGHTNESS_MAX - BRIGHTNESS_MIN))}
+        />
+      </div>
 
       <div className="deck-side">
         <div className="dpad" role="group" aria-label="Scroll the screen">
@@ -72,7 +159,15 @@ export function HardwareDeck({ onRoam }: { onRoam: () => void }) {
           <button type="button" className="right" aria-label="Scroll right" onClick={() => scrollBy(0, SCROLL_STEP)}>▶</button>
         </div>
         <div className="flex flex-col gap-2 items-center">
-          <button type="button" className="keycap !flex-none !px-3" onClick={() => setFeedbackOpen(true)} title="roam comms">
+          <button
+            type="button"
+            className="keycap !flex-none !px-3"
+            onClick={() => {
+              clickNav();
+              openWindow('feedback');
+            }}
+            title="roam comms"
+          >
             <KeyIcon name="comms" className="w-3.5 h-3.5" />
             <span className="keycap-label">Comms</span>
           </button>
@@ -82,7 +177,10 @@ export function HardwareDeck({ onRoam }: { onRoam: () => void }) {
             aria-checked={fx}
             aria-label="CRT effects"
             className="switch"
-            onClick={() => setFx(!fx)}
+            onClick={() => {
+              clickNav();
+              setFx(!fx);
+            }}
           >
             <span className="switch-track"><span className="switch-thumb" /></span>
             FX

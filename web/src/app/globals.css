@@ -696,6 +696,72 @@ button.gadget, a.gadget { cursor: pointer; transition: transform 0.15s ease, fil
 button.gadget:hover, a.gadget:hover { transform: translateY(-3px) rotate(-1deg); filter: drop-shadow(0 10px 12px rgba(0, 0, 0, 0.6)) brightness(1.08); }
 button.gadget:active { transform: translateY(1px) scale(0.98); }
 
+/* ── Photorealistic desk art (GPT-generated, keyed to transparency) ── */
+.art-img { display: block; width: 100%; height: auto; }
+.gadget[data-on] .art-img { filter: drop-shadow(0 0 8px var(--color-neon)); }
+
+/* Compass needle overlay (pivot centred on the dial). */
+.compass-needle {
+  position: absolute;
+  left: 50%;
+  bottom: 50%;
+  width: 2.5%;
+  height: 32%;
+  margin-left: -1.25%;
+  transform-origin: 50% 100%;
+  background: linear-gradient(180deg, #ff2e88 50%, #cdd8d4 50%);
+  border-radius: 2px;
+  box-shadow: 0 0 6px rgba(255, 46, 136, 0.55);
+  pointer-events: none;
+}
+
+/* Sat-nav coordinate readout overlaid near the top of the screen. */
+.satnav-readout {
+  position: absolute;
+  top: 15%;
+  left: 50%;
+  transform: translateX(-50%);
+  font-family: var(--font-mono);
+  font-size: clamp(0.5rem, 0.75vw, 0.7rem);
+  letter-spacing: 0.05em;
+  color: var(--phosphor);
+  text-shadow: 0 0 5px var(--phosphor-glow);
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+/* Cyberdeck mode readout on the clamshell's bezel. */
+.cyberdeck-mode {
+  position: absolute;
+  top: 6%;
+  left: 50%;
+  transform: translateX(-50%);
+  font-family: var(--font-mono);
+  font-size: clamp(0.5rem, 0.7vw, 0.66rem);
+  letter-spacing: 0.12em;
+  color: #cfc9a8;
+  pointer-events: none;
+}
+
+/* Freestanding hardware props behind the chassis. */
+.desk-hardware { position: absolute; inset: 0; z-index: 1; pointer-events: none; }
+.desk-prop { position: absolute; }
+@media (max-width: 1099px) {
+  .desk-hardware { display: none; }
+}
+
+/* Subtle brushed-metal grain over the chassis body. */
+.chassis-metal {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-repeat: repeat;
+  background-size: 420px;
+  opacity: 0.12;
+  border-radius: inherit;
+}
+
 .trace { stroke-dasharray: 190; animation: trace 2.4s linear infinite; }
 @keyframes trace { from { stroke-dashoffset: 190; } to { stroke-dashoffset: 0; } }
 
@@ -759,3 +825,202 @@ button.gadget:active { transform: translateY(1px) scale(0.98); }
 }
 
 
+
+/* ============================================================
+   WINDOW MANAGER (desktop terminal)
+   ============================================================ */
+.window {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  background: var(--panel);
+  border: 1px solid var(--line-strong);
+  border-radius: 6px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  overflow: hidden;
+}
+.window--max { border-radius: 0; }
+.window-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex: 0 0 auto;
+  padding: 0.35rem 0.5rem;
+  background: linear-gradient(180deg, var(--panel-3), var(--panel-2));
+  border-bottom: 1px solid var(--line);
+  cursor: grab;
+  user-select: none;
+  font-family: var(--font-pixel);
+  font-size: 0.6rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.window-bar:active { cursor: grabbing; }
+.window-icon { color: var(--phosphor); flex: 0 0 auto; }
+.window-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink); }
+.window-controls { display: flex; gap: 4px; flex: 0 0 auto; }
+.win-btn {
+  width: 20px;
+  height: 20px;
+  display: grid;
+  place-items: center;
+  font-size: 11px;
+  line-height: 1;
+  color: var(--muted);
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  cursor: pointer;
+}
+.win-btn:hover { color: var(--ink); border-color: var(--phosphor); }
+.win-btn--close:hover { color: #fff; background: var(--danger); border-color: var(--danger); }
+.window-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.window-scroll { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
+.terminal-input {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex: 0 0 auto;
+  padding: 0.4rem 0.6rem;
+  border-top: 1px solid var(--line);
+  background: var(--panel-2);
+  font-family: var(--font-mono);
+  font-size: 0.9rem;
+}
+
+/* ============================================================
+   DOCK (in-screen taskbar, always visible)
+   ============================================================ */
+.dock {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.3rem 0.5rem;
+  background: rgba(10, 21, 24, 0.92);
+  border-top: 1px solid var(--line);
+}
+.dock-quick { display: flex; gap: 4px; flex: 0 0 auto; }
+.dock-btn {
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  font-size: 14px;
+  color: var(--muted);
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  cursor: pointer;
+}
+.dock-btn:hover { color: var(--phosphor); border-color: var(--phosphor); }
+.dock-windows { display: flex; flex: 1 1 auto; gap: 6px; min-width: 0; overflow-x: auto; }
+.dock-tile {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0.2rem 0.6rem;
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.dock-tile.is-focused { color: var(--ink); border-color: var(--line-strong); }
+.dock-tile.is-minimized { opacity: 0.6; }
+.dock-led { width: 6px; height: 6px; border-radius: 9999px; background: var(--line); flex: 0 0 auto; }
+.dock-tile.is-focused .dock-led { background: var(--phosphor); box-shadow: 0 0 6px var(--phosphor-glow); }
+.dock-tray { display: flex; align-items: center; gap: 0.5rem; flex: 0 0 auto; }
+.dock-clock { font-family: var(--font-mono); font-size: 0.7rem; color: var(--muted); tabular-nums: 1; }
+.dock-signal { display: flex; align-items: flex-end; gap: 2px; height: 12px; }
+.dock-signal span { width: 3px; background: var(--phosphor); }
+.tray-btn {
+  width: 26px;
+  height: 26px;
+  display: grid;
+  place-items: center;
+  font-size: 11px;
+  color: var(--muted);
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  cursor: pointer;
+}
+.tray-btn[aria-checked='true'] { color: var(--phosphor); border-color: var(--line-strong); }
+.tray-slider { width: 60px; accent-color: var(--phosphor); cursor: pointer; }
+
+/* Keep page content clear of the always-on dock. */
+.screen-scroll { padding-bottom: 3rem; }
+
+/* ============================================================
+   DECK INSTRUMENTS: status diodes + rotary knobs
+   ============================================================ */
+.deck-instruments { display: flex; align-items: center; gap: 0.85rem; flex: 0 0 auto; }
+.diode-strip {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 6px;
+  background: #161812;
+  border: 1px solid #000;
+  border-radius: 4px;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.8);
+}
+.diode { display: flex; align-items: center; gap: 5px; }
+.diode-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 9999px;
+  background: #2a2d22;
+  box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.6);
+  transition: background-color 0.12s ease, box-shadow 0.12s ease;
+}
+.diode[data-on='true'] .diode-dot { background: var(--color-neon); box-shadow: 0 0 8px var(--color-neon); }
+.diode-label { font-family: var(--font-pixel); font-size: 0.5rem; letter-spacing: 0.06em; color: #4a4d3c; }
+.diode[data-on='true'] .diode-label { color: #9aa0a0; }
+
+.knob-control { display: flex; flex-direction: column; align-items: center; gap: 3px; }
+.knob {
+  position: relative;
+  width: 44px;
+  height: 44px;
+  border-radius: 9999px;
+  background: radial-gradient(circle at 50% 42%, #3c3c2e, #1b1b14 70%);
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.85), 0 1px 0 rgba(255, 255, 255, 0.28);
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+.knob-img { width: 100%; height: 100%; object-fit: contain; border-radius: 9999px; }
+.knob.is-dragging { cursor: grabbing; }
+.knob.is-pressed { box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.9); }
+.knob.is-pressed .knob-img { filter: brightness(0.72) saturate(0.85); }
+.knob-label { font-family: var(--font-pixel); font-size: 0.5rem; letter-spacing: 0.08em; color: #2b2a1d; }
+
+/* On medium screens the deck is tight: drop the diode strip first. */
+@media (max-width: 1099px) {
+  .diode-strip { display: none; }
+}
+
+/* Mobile: the physical instruments collapse into the dock's system tray. */
+@media (max-width: 767px) {
+  .deck-instruments { display: none; }
+  .dock-tile-label { display: none; }
+  .tray-slider { width: 46px; }
+}
