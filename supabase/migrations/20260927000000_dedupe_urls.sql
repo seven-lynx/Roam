@@ -20,8 +20,6 @@
 -- Rollback: keep a backup dump before running; the migration deletes rows.
 -- =============================================================================
 
-BEGIN
-
 -- ── Phase A: dedupe original_url collisions ────────────────────────────────
 -- For each group of urls with the same original_url, pick a winner.
 
@@ -40,7 +38,7 @@ CREATE TEMP TABLE _orig_winners AS
   ORDER BY original_url,
            upvotes DESC,
            downvotes ASC,
-           created_at ASC
+           created_at ASC;
 
 -- Re-point every FK row from a loser url to its winner.
 -- Each UPDATE is guarded by a table-existence check so the migration is
@@ -166,15 +164,15 @@ BEGIN
       FROM _orig_winners w JOIN public.urls u ON u.original_url = w.original_url
      WHERE r.url_id = u.id AND u.id <> w.winner_id;
   END IF;
-END $$
+END $$;
 
 -- Delete losers.
 DELETE FROM public.urls u
  USING _orig_winners w
  WHERE u.original_url = w.original_url
-   AND u.id <> w.winner_id
+   AND u.id <> w.winner_id;
 
-DROP TABLE _orig_winners
+DROP TABLE _orig_winners;
 
 -- ── Phase B: case-only collision dedupe (GATED) ───────────────────────────
 -- ⚠️  Risk: Wikipedia/Wikivoyage often use mixed case in titles, and the
@@ -216,7 +214,7 @@ BEGIN
   RAISE NOTICE 'Phase B deleted % case-collision losers', v_deduped;
 
   DROP TABLE _case_winners;
-END $$
+END $$;
 
 -- ── Phase C: trivial cleanups ──────────────────────────────────────────────
 -- 1. One duplicate pending moderation_queue row (hothardware.com news).
@@ -227,17 +225,16 @@ DELETE FROM public.moderation_queue
    GROUP BY url, status
  )
    AND url = 'https://hothardware.com/news/ex-employee-claims-tech-firm-destroying-48gb-ram-ma'
-   AND status = 'pending'
+   AND status = 'pending';
 
 -- 2. Orphan url_reports pointing to inactive URLs (16 rows per audit).
 DELETE FROM public.url_reports
- WHERE url_id IN (SELECT id FROM public.urls WHERE inactive = TRUE)
+ WHERE url_id IN (SELECT id FROM public.urls WHERE inactive = TRUE);
 
 -- 3. Orphan seen_urls pointing to inactive URLs (1 row per audit).
 DELETE FROM public.seen_urls
- WHERE url_id IN (SELECT id FROM public.urls WHERE inactive = TRUE)
+ WHERE url_id IN (SELECT id FROM public.urls WHERE inactive = TRUE);
 
-COMMIT
 
 -- ── Post-migration verification (read-only) ───────────────────────────────
 -- Run these by hand after applying; expected counts based on 2026-09-27 audit:

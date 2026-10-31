@@ -5,6 +5,13 @@
 --   avg_wilson_score — AVG(wilson_score) across approved+active URLs
 --   active_users_week — COUNT(DISTINCT user_id) from ratings in the window
 
+-- Replay guard: idx_urls_active_partial is referenced below but was originally
+-- created in a later migration (20260531041311). Create it here (idempotent) so
+-- a fresh `db push` succeeds; the later migration's IF NOT EXISTS is then a no-op.
+CREATE INDEX IF NOT EXISTS idx_urls_active_partial
+  ON public.urls (id)
+  WHERE approved = true AND inactive = false;
+
 DROP FUNCTION IF EXISTS public.admin_url_stats(timestamptz);
 
 CREATE FUNCTION public.admin_url_stats(since_date timestamptz)

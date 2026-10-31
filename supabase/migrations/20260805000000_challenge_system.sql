@@ -161,7 +161,8 @@ VALUES
 ('speed-challenger', 'Speed Challenger', 'Complete a daily challenge within 1 hour', '🏃', 'engagement', 0, NULL, 150, false),
 ('streak-challenger', 'Streak Challenger', 'Complete 1+ challenge per day for 7 days', '🔥', 'engagement', 0, NULL, 200, false),
 ('january-grind', 'January Grind', 'Complete 20 daily challenges in January', '❄️', 'engagement', 0, NULL, 300, true),
-('challenge-hoarder', 'Challenge Hoarder', 'Have 5+ active challenges and complete all', '📦', 'engagement', 0, NULL, 150, false);
+('challenge-hoarder', 'Challenge Hoarder', 'Have 5+ active challenges and complete all', '📦', 'engagement', 0, NULL, 150, false)
+ON CONFLICT DO NOTHING;
 
 -- ── 7. Add challenge_complete notification type ────────────────────────────
 ALTER TABLE public.notifications
