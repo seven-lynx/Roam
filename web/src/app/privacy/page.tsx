@@ -26,7 +26,7 @@ export default function PrivacyPage() {
         <h2>2. Data we collect</h2>
         <h3>Account data</h3>
         <p>
-          When you create an account we collect your email address and, if you sign in
+          When you create an account we collect your email address and, if you log in
           with Google or GitHub, your profile name and avatar URL from that provider.
           You may optionally set a username, display name, and bio.
         </p>
@@ -55,7 +55,7 @@ export default function PrivacyPage() {
 
         <h2>3. How we use your data</h2>
         <ul>
-          <li>To serve personalised URL recommendations filtered by your category preferences.</li>
+          <li>To serve personalized URL recommendations filtered by your category preferences.</li>
           <li>To avoid serving you URLs you have already seen.</li>
           <li>To display your public profile and collections to other users.</li>
           <li>To moderate submitted URLs before they are approved.</li>

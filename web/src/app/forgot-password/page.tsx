@@ -70,7 +70,7 @@ export default function ForgotPasswordPage() {
               href="/join?mode=signin"
               className="text-sm text-muted hover:text-ink transition-colors"
             >
-              ← Back to sign in
+              ← Back to log in
             </Link>
           </div>
         ) : (
@@ -104,7 +104,7 @@ export default function ForgotPasswordPage() {
               href="/join?mode=signin"
               className="text-center text-sm text-muted hover:text-ink transition-colors"
             >
-              ← Back to sign in
+              ← Back to log in
             </Link>
           </form>
         )}

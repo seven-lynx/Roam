@@ -42,7 +42,7 @@ export function CookieBanner({ onConsent }: CookieBannerProps) {
   }
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-50 border-t border-line bg-panel-2 px-6 py-4 shadow-lg">
+    <div className="absolute bottom-14 left-1/2 -translate-x-1/2 w-[min(calc(100%-1rem),42rem)] z-40 border border-line bg-panel-2 px-6 py-4 shadow-lg rounded-lg">
       <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
         <p className="text-sm text-muted leading-relaxed">
           Roam uses a single session cookie for authentication. No tracking, no ads.{" "}

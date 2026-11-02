@@ -1,8 +1,8 @@
 import type { Metadata } from 'next';
-import { LeaderboardClient } from './LeaderboardClient';
+import { RankingsClient } from './RankingsClient';
 
-export const metadata: Metadata = { title: 'Leaderboard' };
+export const metadata: Metadata = { title: 'Rankings' };
 
-export default function LeaderboardPage() {
-  return <LeaderboardClient />;
+export default function RankingsPage() {
+  return <RankingsClient />;
 }

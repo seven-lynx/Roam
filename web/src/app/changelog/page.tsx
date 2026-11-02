@@ -26,7 +26,7 @@ const ANDROID_ENTRIES: Entry[] = [
     date: "2026-10-28",
     items: [
       "ROAM-OS theme — a retro-futuristic ROAM-OS handheld look with CRT scanlines, film grain, and a phosphor-teal and gold palette.",
-      "Appearance settings — theme switcher (Roam Classic / ROAM-OS), device-frame toggle, and CRT-effects toggle.",
+      "Optics settings — theme switcher (Roam Classic / ROAM-OS), device-frame toggle, and CRT-effects toggle.",
       "Boot/scan loading screen with themed messages and an OS status bar showing the current category, subcategory, and domain.",
     ],
   },
@@ -107,7 +107,7 @@ const WEB_ENTRIES: Entry[] = [
     version: "Platform",
     date: "2026",
     items: [
-      "Tag-based topics, challenge system and leaderboards, badge gallery, public profiles, follows, activity feed, and shareable collections.",
+      "Tag-based topics, challenge system and rankings, badge gallery, public profiles, follows, activity feed, and shareable collections.",
       "Browser extension for Chrome and Firefox.",
     ],
   },

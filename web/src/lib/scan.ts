@@ -1,10 +1,29 @@
 import { createClient } from '@/lib/supabase/client';
+import { roamBufferNext } from '@/lib/roam-buffer';
 
 export interface ScanTarget {
   id: string;
   title: string | null;
   original_url: string;
   upvotes: number;
+  downvotes: number;
+  wilson_score: number;
+  category_id: string | null;
+  subcategory_id: string | null;
+  /** Resolved category name (joined from `categories`). */
+  category: string | null;
+  /** Resolved subcategory name (joined from `subcategories`). */
+  subcategory: string | null;
+}
+
+/** URL metadata surfaced in the in-OS browser's control deck. */
+export interface UrlMeta {
+  urlId: string;
+  category: string | null;
+  subcategory: string | null;
+  wilsonScore: number;
+  upvotes: number;
+  downvotes: number;
 }
 
 export type ScanStage = 'scan' | 'triangulate' | 'compile' | 'mount';
@@ -36,21 +55,92 @@ export function hexLine(rand: () => number = Math.random, bytes = 12): string {
   ).join(' ');
 }
 
+const SCAN_SELECT =
+  'id, title, original_url, upvotes, downvotes, wilson_score, category_id, subcategory_id, categories(name), subcategories(name)';
+
+function mapScanRow(row: Record<string, unknown>): ScanTarget {
+  return {
+    id: row.id,
+    title: row.title,
+    original_url: row.original_url,
+    upvotes: row.upvotes,
+    downvotes: row.downvotes,
+    wilson_score: row.wilson_score,
+    category_id: row.category_id,
+    subcategory_id: row.subcategory_id,
+    category: (row.categories as { name?: string } | null)?.name ?? null,
+    subcategory: (row.subcategories as { name?: string } | null)?.name ?? null,
+  } as ScanTarget;
+}
+
+/** Fetch one entry's full metadata by its `original_url` (enrichment). */
+async function fetchTargetByUrl(url: string): Promise<ScanTarget | null> {
+  try {
+    const { data } = await createClient()
+      .from('urls')
+      .select(SCAN_SELECT)
+      .eq('original_url', url)
+      .limit(1)
+      .maybeSingle();
+    if (!data) return null;
+    return mapScanRow(data as Record<string, unknown>);
+  } catch {
+    return null;
+  }
+}
+
 /**
- * Fetch a random approved, active site from the highest-rated pool.
- * Returns null when the catalogue is unreachable or empty.
+ * Fetch a roam target. Prefers a validated (hot) entry from the prefetch buffer
+ * so the ROAM key serves instantly; falls back to a random approved, active site
+ * from the highest-rated pool. Returns null when the catalog is unreachable.
  */
 export async function fetchScanTarget(): Promise<ScanTarget | null> {
+  // Prefer hot: it's already reachability-checked and ready to serve.
+  const hot = roamBufferNext();
+  if (hot) {
+    const full = await fetchTargetByUrl(hot.url);
+    if (full) return full;
+  }
+
   try {
     const { data, error } = await createClient()
       .from('urls')
-      .select('id, title, original_url, upvotes')
+      .select(SCAN_SELECT)
       .eq('approved', true)
       .eq('inactive', false)
       .order('wilson_score', { ascending: false })
       .limit(60);
     if (error || !data) return null;
-    return pickRandom(data as ScanTarget[]);
+    const rows = (data as Array<Record<string, unknown>>).map(mapScanRow);
+    return pickRandom(rows);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Fetch category / subcategory names, Wilson score and vote counts for a URL by
+ * its `original_url`. Used to enrich the browser's control deck when a link is
+ * opened without full metadata (e.g. the homepage's random-page button).
+ */
+export async function fetchUrlMeta(url: string): Promise<UrlMeta | null> {
+  try {
+    const { data } = await createClient()
+      .from('urls')
+      .select('id, wilson_score, upvotes, downvotes, categories(name), subcategories(name)')
+      .eq('original_url', url)
+      .limit(1)
+      .maybeSingle();
+    if (!data) return null;
+    const row = data as Record<string, unknown>;
+    return {
+      urlId: row.id as string,
+      category: (row.categories as { name?: string } | null)?.name ?? null,
+      subcategory: (row.subcategories as { name?: string } | null)?.name ?? null,
+      wilsonScore: row.wilson_score as number,
+      upvotes: row.upvotes as number,
+      downvotes: row.downvotes as number,
+    };
   } catch {
     return null;
   }

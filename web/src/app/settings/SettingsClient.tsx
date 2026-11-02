@@ -1,12 +1,12 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, type ChangeEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import * as Sentry from '@sentry/nextjs';
 import { validatePassword, validatePasswordsMatch, getPasswordStrengthColor, getPasswordStrengthLabel } from '@/lib/validation';
-import { useWorkstation } from '@/components/WorkstationContext';
-import { deskArt } from '@/lib/art';
+import { useWorkstation, THEME_PRESETS, CAMERA_ZOOM_MIN, CAMERA_ZOOM_MAX } from '@/components/WorkstationContext';
+import { WALLPAPERS, useWallpaper, setWallpaperMode, selectWallpaper, setCustomWallpaper, removeCustomWallpaper } from '@/lib/wallpaper';
 
 interface SettingsClientProps {
   userId: string;
@@ -17,11 +17,11 @@ interface SettingsClientProps {
   initialSkipPaywalled: boolean;
 }
 
-type SettingsTab = 'account' | 'appearance' | 'notifications' | 'language' | 'discovery' | 'security' | 'data' | 'danger';
+type SettingsTab = 'account' | 'optics' | 'notifications' | 'language' | 'discovery' | 'security' | 'data' | 'danger';
 
 const TABS: { id: SettingsTab; label: string; icon: string; danger?: boolean }[] = [
   { id: 'account', label: 'Account', icon: '👤' },
-  { id: 'appearance', label: 'Appearance', icon: '🎨' },
+  { id: 'optics', label: 'Optics', icon: '🔭' },
   { id: 'notifications', label: 'Notifications', icon: '🔔' },
   { id: 'language', label: 'Language', icon: '🌐' },
   { id: 'discovery', label: 'Discovery', icon: '🎯' },
@@ -96,7 +96,7 @@ function Toggle({ checked, onChange, disabled }: { checked: boolean; onChange: (
 function Section({ title, children, danger }: { title: string; children: React.ReactNode; danger?: boolean }) {
   return (
     <section className={`rounded-2xl border p-6 ${danger ? 'border-danger border-danger' : 'border-line'}`}>
-      <h2 className={`text-lg font-semibold mb-5 ${danger ? 'text-danger text-danger' : 'text-ink'}`}>{title}</h2>
+      <h2 className={`text-lg font-semibold mb-5 ${danger ? 'text-danger text-danger' : 'text-gold'}`}>{title}</h2>
       {children}
     </section>
   );
@@ -142,7 +142,21 @@ export function SettingsClient({
   const supabase = createClient();
   const isEmailUser = provider === 'email';
   const [tab, setTab] = useState<SettingsTab>('account');
-  const { artVariant, setArtVariant } = useWorkstation();
+  const { warp, setWarp, theme, setTheme, camera, setCamera, resetCamera, deckMode, setDeckMode } = useWorkstation();
+  const wallpaper = useWallpaper();
+  const wallpaperFileRef = useRef<HTMLInputElement>(null);
+
+  function onWallpaperUpload(e: ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result !== 'string') return;
+      setCustomWallpaper(`url("${reader.result}") center / cover no-repeat, #07100f`);
+    };
+    reader.readAsDataURL(file);
+    e.target.value = '';
+  }
 
   // Notification toggle
   const [notifications, setNotifications] = useState(initialNotifications);
@@ -452,27 +466,159 @@ export function SettingsClient({
             )}
 
             {/* ── Notifications Tab ──────────────────────── */}
-            {/* ── Appearance Tab ──────────────────────────── */}
-            {tab === 'appearance' && (
-              <Section title="Appearance">
-                <p className="text-sm text-muted mb-4">
-                  The desk hardware is rendered from two photorealistic asset packs. Pick your favourite — the change applies instantly and is remembered on this device.
-                </p>
-                <div className="grid grid-cols-2 gap-4">
-                  {(['a', 'b'] as const).map((v) => (
-                    <button
-                      key={v}
-                      type="button"
-                      onClick={() => setArtVariant(v)}
-                      aria-pressed={artVariant === v}
-                      className={`rounded-xl border-2 p-2 text-center transition-colors ${artVariant === v ? 'border-accent' : 'border-line hover:border-line-strong'}`}
-                    >
-                      <img src={deskArt('camera', v)} alt={`Asset pack ${v.toUpperCase()} preview`} className="aspect-square w-full rounded-lg bg-black/50 object-contain" />
-                      <span className="mt-2 block font-mono text-xs text-ink">Pack {v.toUpperCase()}</span>
-                    </button>
-                  ))}
+            {/* ── Optics Tab ──────────────────────────── */}
+            {tab === 'optics' && (
+              <Section title="Optics">
+                <div className="mb-2">
+                  <h3 className="text-sm font-semibold text-gold">Color theme</h3>
+                  <p className="text-xs text-muted mt-1 mb-3">Recolor the entire operating system.</p>
+                  <div className="ctl-swatches" role="radiogroup" aria-label="Color theme">
+                    {THEME_PRESETS.map((p) => (
+                      <button key={p.id} type="button" role="radio" aria-checked={theme === p.id}
+                        className={`ctl-swatch${theme === p.id ? ' is-on' : ''}`}
+                        style={{ background: `linear-gradient(135deg, ${p.phosphor} 0% 50%, ${p.accent} 50% 100%)` }}
+                        onClick={() => setTheme(p.id)}
+                        title={p.label} aria-label={p.label} />
+                    ))}
+                  </div>
                 </div>
-                <p className="mt-3 text-xs text-muted">Previews use the film camera. You can also flip packs from the tray&rsquo;s ART button.</p>
+                <div className="mt-6 border-t border-line pt-5">
+                  <h3 className="text-sm font-semibold text-gold">CRT barrel warp</h3>
+                  <p className="text-xs text-muted mt-1 mb-3">
+                    Curve the screen glass — more warp reads like a heavier CRT tube. The FX tray switch still masters every effect.
+                  </p>
+                  <input
+                    type="range"
+                    min={0}
+                    max={100}
+                    value={Math.round(warp * 100)}
+                    onChange={(e) => setWarp(Number(e.target.value) / 100)}
+                    className="w-full accent-gold"
+                    aria-label="CRT barrel warp"
+                  />
+                  <div className="mt-1 flex justify-between font-mono text-[10px] text-muted">
+                    <span>Flat</span>
+                    <span>{Math.round(warp * 100)}%</span>
+                    <span>Curved</span>
+                  </div>
+                </div>
+
+                <div className="mt-6 border-t border-line pt-5">
+                  <h3 className="text-sm font-semibold text-gold">Deck framing</h3>
+                  <p className="text-xs text-muted mt-1 mb-3">
+                    Tune how the 3D deck fills the view. The screen overlay is anchored to the deck, so it moves with these controls — changes apply instantly and are remembered on this device.
+                  </p>
+
+                  <div className="flex items-center justify-between mb-1">
+                    <label htmlFor="deck-zoom" className="text-xs text-muted">Zoom</label>
+                    <span className="font-mono text-xs text-ink">{camera.zoom.toFixed(2)}×</span>
+                  </div>
+                  <input
+                    id="deck-zoom"
+                    type="range"
+                    min={CAMERA_ZOOM_MIN}
+                    max={CAMERA_ZOOM_MAX}
+                    step={0.05}
+                    value={camera.zoom}
+                    onChange={(e) => setCamera({ ...camera, zoom: Number(e.target.value) })}
+                    className="w-full accent-gold"
+                    aria-label="Deck zoom"
+                  />
+
+                  <div className="mt-4 grid grid-cols-2 gap-3">
+                    <label className="block">
+                      <span className="text-xs text-muted">Pan X (px)</span>
+                      <input
+                        type="number"
+                        value={Math.round(camera.panX)}
+                        onChange={(e) => setCamera({ ...camera, panX: Number(e.target.value) })}
+                        className="mt-1 w-full rounded-lg border border-line bg-panel px-3 py-2 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-ink"
+                      />
+                    </label>
+                    <label className="block">
+                      <span className="text-xs text-muted">Pan Y (px)</span>
+                      <input
+                        type="number"
+                        value={Math.round(camera.panY)}
+                        onChange={(e) => setCamera({ ...camera, panY: Number(e.target.value) })}
+                        className="mt-1 w-full rounded-lg border border-line bg-panel px-3 py-2 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-ink"
+                      />
+                    </label>
+                  </div>
+
+                  <div className="mt-4 flex gap-3">
+                    <button type="button" onClick={resetCamera} className="flex-1 rounded-lg border border-line py-2 text-sm font-medium text-muted hover:bg-panel-2 transition-colors">
+                      Reset framing
+                    </button>
+                  </div>
+                </div>
+
+                <div className="mt-6 border-t border-line pt-5">
+                  <h3 className="text-sm font-semibold text-gold">Cyberdeck view</h3>
+                  <p className="text-xs text-muted mt-1 mb-3">
+                    Hide the 3D deck and run ROAM-OS edge-to-edge in the window.
+                  </p>
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={deckMode}
+                    onClick={() => setDeckMode(!deckMode)}
+                    className="w-full rounded-lg border border-line py-2.5 text-sm font-medium text-muted hover:bg-panel-2 transition-colors"
+                  >
+                    {deckMode ? 'Exit cyberdeck view' : 'Cyberdeck view'}
+                  </button>
+                </div>
+
+                <div className="mt-6 border-t border-line pt-5">
+                  <h3 className="text-sm font-semibold text-gold">Wallpaper</h3>
+                  <p className="text-xs text-muted mt-1 mb-3">
+                    Set the desktop backdrop. Cycle mode shuffles the whole folder every five minutes.
+                  </p>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-ink">Cycle wallpapers</p>
+                      <p className="text-xs text-muted">Rotate the full folder randomly every 5 minutes.</p>
+                    </div>
+                    <Toggle checked={wallpaper.mode === 'cycle'} onChange={() => setWallpaperMode(wallpaper.mode === 'cycle' ? 'fixed' : 'cycle')} />
+                  </div>
+                  <div className="mt-4">
+                    <div className="desktop-wallpaper-grid settings-wallpaper-grid">
+                      {WALLPAPERS.map((w) => (
+                        <button
+                          key={w.id}
+                          type="button"
+                          className={`desktop-wallpaper-swatch${wallpaper.current.id === w.id && wallpaper.mode === 'fixed' ? ' is-on' : ''}`}
+                          style={{ background: w.css }}
+                          onClick={() => selectWallpaper(w.id)}
+                          aria-label={w.label}
+                          title={w.label}
+                        />
+                      ))}
+                      {wallpaper.custom && (
+                        <button
+                          type="button"
+                          className={`desktop-wallpaper-swatch${wallpaper.current.id === 'custom' ? ' is-on' : ''}`}
+                          style={{ background: wallpaper.custom.css }}
+                          onClick={() => selectWallpaper('custom')}
+                          aria-label="Custom"
+                          title="Custom"
+                        />
+                      )}
+                    </div>
+                    <div className="mt-3 flex items-center gap-3">
+                      <button type="button" className="desktop-wallpaper-upload" onClick={() => wallpaperFileRef.current?.click()}>
+                        Upload image
+                      </button>
+                      {wallpaper.custom && (
+                        <button type="button" className="text-xs text-muted hover:text-danger transition-colors" onClick={() => removeCustomWallpaper()}>
+                          Remove custom
+                        </button>
+                      )}
+                    </div>
+                    <p className="desktop-wallpaper-note mt-2">Uploads stay on this device and are saved with your preferences.</p>
+                    <input ref={wallpaperFileRef} type="file" accept="image/*" className="hidden" onChange={onWallpaperUpload} />
+                  </div>
+                </div>
               </Section>
             )}
 

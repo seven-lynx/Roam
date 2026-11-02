@@ -14,7 +14,7 @@ const STEPS = [
     desc: "Add Roam from the Chrome Web Store or Firefox Add-ons. It takes seconds.",
   },
   {
-    title: "Sign in",
+    title: "Log in",
     desc: "Link your Roam account so your ratings and interests sync across devices.",
   },
   {

@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { extractDomain } from '@/lib/url-utils';
+import { useWorkstation } from '@/components/WorkstationContext';
 import { selectMonthlySites, currentMonthKey } from '@/lib/showcase';
 
 interface ShowcaseSite {
@@ -15,6 +16,7 @@ interface ShowcaseSite {
 }
 
 export function SiteShowcase() {
+  const { openUrl } = useWorkstation();
   const [sites, setSites] = useState<ShowcaseSite[]>([]);
   const [current, setCurrent] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -54,10 +56,16 @@ export function SiteShowcase() {
 
   if (loading) {
     return (
-      <div className="animate-pulse panel p-6">
-        <div className="aspect-video bg-panel-3 mb-4" />
-        <div className="h-5 w-3/4 bg-panel-3 mb-2" />
-        <div className="h-4 w-1/3 bg-panel-3" />
+      <div className="widget">
+        <div className="widget-head">
+          <span className="widget-grip" aria-hidden="true"><i /><i /><i /></span>
+          <span className="widget-title">This month&apos;s picks</span>
+        </div>
+        <div className="widget-body animate-pulse">
+          <div className="aspect-video bg-panel-3 mb-4" />
+          <div className="h-5 w-3/4 bg-panel-3 mb-2" />
+          <div className="h-4 w-1/3 bg-panel-3" />
+        </div>
       </div>
     );
   }
@@ -68,21 +76,31 @@ export function SiteShowcase() {
 
   return (
     <div
-      className="panel overflow-hidden"
+      className="widget"
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
     >
-      <div className="flex items-center justify-between px-5 pt-4 text-xs text-muted">
-        <span className="font-semibold uppercase tracking-wider">This month&apos;s picks</span>
-        <span>Refreshed monthly</span>
+      <div className="widget-head">
+        <span className="widget-grip" aria-hidden="true"><i /><i /><i /></span>
+        <span className="widget-title">This month&apos;s picks</span>
+        <span className="widget-hint">Refreshed monthly</span>
       </div>
+      <div className="widget-body">
 
       {/* Slide */}
-      <a
-        href={site.original_url}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="block"
+      <button
+        type="button"
+        onClick={() =>
+          openUrl({
+            url: site.original_url,
+            title: site.title,
+            domain: extractDomain(site.original_url),
+            wilsonScore: site.wilson_score,
+            upvotes: site.upvotes,
+            urlId: site.id,
+          })
+        }
+        className="block w-full text-left"
       >
         {/* OG Image */}
         <div className="aspect-video bg-panel-3 relative overflow-hidden">
@@ -118,7 +136,7 @@ export function SiteShowcase() {
             </span>
           </div>
         </div>
-      </a>
+      </button>
 
       {/* Controls */}
       {sites.length > 1 && (
@@ -162,6 +180,8 @@ export function SiteShowcase() {
           </div>
         </div>
       )}
+        <div className="widget-foot">~/.roam/feed.log · refreshed monthly</div>
+      </div>
     </div>
   );
 }

@@ -48,7 +48,7 @@ export default function SupportRoamPage() {
                 <dt className="text-muted">
                   Supabase Pro
                   <span className="block text-muted text-xs mt-0.5">
-                    Hosts the URL catalogue, ratings, and discovery data
+                    Hosts the URL catalog, ratings, and discovery data
                   </span>
                 </dt>
                 <dd className="font-semibold text-ink whitespace-nowrap">

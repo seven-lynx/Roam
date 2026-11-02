@@ -62,12 +62,12 @@ export default function TermsPage() {
         <p>
           You retain ownership of content you create (collections, bios, display names).
           By posting content on Roam, you grant us a non-exclusive, royalty-free,
-          worldwide licence to store and display that content as part of the service.
+          worldwide license to store and display that content as part of the service.
         </p>
 
         <h2>7. Intellectual property</h2>
         <p>
-          Roam&apos;s source code is released under the MIT licence. The Roam name and
+          Roam&apos;s source code is released under the MIT license. The Roam name and
           logo are not licensed for reuse without permission.
         </p>
 
@@ -82,7 +82,7 @@ export default function TermsPage() {
         <p>
           Roam is provided &ldquo;as is&rdquo; without warranty of any kind. We do not warrant
           that the service will be uninterrupted, error-free, or that any particular
-          URL in the catalogue is safe or accurate. You access external URLs at your
+          URL in the catalog is safe or accurate. You access external URLs at your
           own risk.
         </p>
 

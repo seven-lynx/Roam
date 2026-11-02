@@ -1,13 +1,15 @@
 import { createClient } from '@/lib/supabase/client';
-import { APP_URL } from '@/lib/constants';
+import { roamBufferNext } from '@/lib/roam-buffer';
 
 /**
- * Opens a page from the curated catalogue in a new tab, falling back to the
- * public collections page if the lookup fails. Used by the homepage's
- * "try a random page" button; the ROAM key on the deck runs the scan sequence
- * instead (see ScanSequence).
+ * Pick a random curated page URL for the homepage's "try a random page" button.
+ * Prefers a validated (hot) entry from the prefetch buffer; falls back to a
+ * direct catalog query. Returns null when the catalog is unreachable.
  */
-export async function openRandomPage(): Promise<void> {
+export async function fetchRandomPageUrl(): Promise<string | null> {
+  const hot = roamBufferNext();
+  if (hot?.url) return hot.url;
+
   try {
     const supabase = createClient();
     const { data } = await supabase
@@ -17,11 +19,10 @@ export async function openRandomPage(): Promise<void> {
       .order('RANDOM()' as never);
 
     if (data && data.length > 0 && data[0]?.original_url) {
-      window.open(data[0].original_url, '_blank', 'noopener,noreferrer');
-    } else {
-      window.open(`${APP_URL}/collections`, '_blank');
+      return data[0].original_url;
     }
+    return null;
   } catch {
-    window.open(`${APP_URL}/collections`, '_blank');
+    return null;
   }
 }

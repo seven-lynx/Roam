@@ -10,8 +10,8 @@ import { scanBlip } from '@/lib/sfx';
 
 /**
  * ROAM key window (opens maximized): scan -> triangulate -> compile -> mount.
- * The target is a real catalogue entry; signal and hex readouts are decorative
- * and labelled as simulated. Any non-control key skips ahead; reduced-motion
+ * The target is a real catalog entry; signal and hex readouts are decorative
+ * and labeled as simulated. Any non-control key skips ahead; reduced-motion
  * users go straight to the result.
  */
 export function ScanSequence() {

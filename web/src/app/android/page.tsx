@@ -27,7 +27,7 @@ const FEATURES = [
   {
     icon: "🏆",
     title: "Challenges & badges",
-    desc: "Earn XP, unlock badges, and climb the leaderboard right from your phone.",
+    desc: "Earn XP, unlock badges, and climb the rankings right from your phone.",
   },
 ];
 

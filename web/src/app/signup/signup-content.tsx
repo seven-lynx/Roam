@@ -305,7 +305,7 @@ export default function SignupPageContent() {
             {mode === "create" ? "Create your account" : "Welcome back"}
           </h1>
           <p className="mt-1 text-sm text-muted">
-            {mode === "create" ? "Free, forever." : "Sign in to continue."}
+            {mode === "create" ? "Free, forever." : "Log in to continue."}
           </p>
         </div>
 
@@ -331,7 +331,7 @@ export default function SignupPageContent() {
                 : "text-muted hover:text-ink"
             }`}
           >
-            Sign in
+            Log in
           </button>
         </div>
 
@@ -428,7 +428,7 @@ export default function SignupPageContent() {
             </button>
           </form>
         ) : (
-          /* ── Sign in form ── */
+          /* ── Log in form ── */
           <form onSubmit={handleSignIn} className="flex flex-col gap-4" noValidate>
             <div className="flex flex-col gap-1.5">
               <label htmlFor="signin-email" className="text-sm font-medium text-muted">Email</label>
@@ -466,7 +466,7 @@ export default function SignupPageContent() {
               disabled={loading || !signinFormValid}
               className="w-full rounded-lg bg-panel bg-panel text-ink text-ink py-2.5 text-sm font-semibold hover:opacity-90 transition-opacity disabled:opacity-40"
             >
-              {loading ? "Signing in…" : "Sign in"}
+              {loading ? "Logging in…" : "Log in"}
             </button>
           </form>
         )}

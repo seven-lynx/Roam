@@ -121,7 +121,7 @@ export default function SubmitPage() {
         </Link>
 
         <div className="flex flex-col gap-2 mb-8">
-          <h1 className="text-3xl font-bold text-ink">Submit a URL</h1>
+          <h1 className="text-3xl font-bold text-ink">Upload a URL</h1>
           <p className="text-muted text-sm">
             Found something worth sharing? Submissions go to a moderation queue before going live.
             Max 10 per hour.

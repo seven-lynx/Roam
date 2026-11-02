@@ -431,7 +431,7 @@ export default function HowItWorks() {
               >
                 GitHub
               </a>
-              . The URL catalogue and ratings database are not public (that&rsquo;s the
+              . The URL catalog and ratings database are not public (that&rsquo;s the
               secret sauce), but the code that powers discovery is fully open.
             </p>
           </details>

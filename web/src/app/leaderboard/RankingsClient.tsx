@@ -25,14 +25,14 @@ const periodLabels: Record<Period, string> = {
   all_time: 'All Time',
 };
 
-export function LeaderboardClient() {
+export function RankingsClient() {
   const [period, setPeriod] = useState<Period>('weekly');
   const [entries, setEntries] = useState<Entry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    async function fetchLeaderboard() {
+    async function fetchRankings() {
       setLoading(true);
       setError(null);
       try {
@@ -47,23 +47,23 @@ export function LeaderboardClient() {
           }
         );
         const data = await res.json();
-        if (!res.ok) throw new Error(data.error || `HTTP ${res.status}: Failed to load leaderboard`);
+        if (!res.ok) throw new Error(data.error || `HTTP ${res.status}: Failed to load rankings`);
         setEntries(data?.entries ?? []);
       } catch (e) {
-        const msg = e instanceof Error ? e.message : 'Failed to load leaderboard';
+        const msg = e instanceof Error ? e.message : 'Failed to load rankings';
         setError(msg);
       } finally {
         setLoading(false);
       }
     }
-    fetchLeaderboard();
+    fetchRankings();
   }, [period]);
 
   return (
     <div className="min-h-full bg-screen">
       <div className="max-w-2xl mx-auto px-6 py-12">
         <div className="mb-8">
-          <h1 className="text-2xl font-bold text-ink">Leaderboard</h1>
+          <h1 className="text-2xl font-bold text-ink">Rankings</h1>
           <p className="text-sm text-muted mt-1">Top explorers on Roam</p>
         </div>
 

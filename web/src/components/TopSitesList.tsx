@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { extractDomain, getFaviconUrl } from '@/lib/url-utils';
+import { useWorkstation } from '@/components/WorkstationContext';
 import type { TopSite } from './TopSites';
 
 interface Props {
@@ -10,6 +11,7 @@ interface Props {
 }
 
 export function TopSitesList({ sites, userId }: Props) {
+  const { openUrl } = useWorkstation();
   return (
     <div className="w-full border-t border-line pt-10">
       <div className="flex items-center justify-between mb-6">
@@ -22,12 +24,20 @@ export function TopSitesList({ sites, userId }: Props) {
           const domain = extractDomain(site.original_url) || site.domain || site.original_url;
 
           return (
-            <a
+            <button
               key={site.id}
-              href={site.original_url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-4 panel px-4 py-3 hover:bg-panel-2 transition-colors group"
+              type="button"
+              onClick={() =>
+                openUrl({
+                  url: site.original_url,
+                  title: site.title,
+                  domain,
+                  wilsonScore: site.wilson_score,
+                  upvotes: site.upvotes,
+                  urlId: site.id,
+                })
+              }
+              className="flex items-center gap-4 panel px-4 py-3 hover:bg-panel-2 transition-colors group w-full text-left"
             >
               {/* Favicon */}
               {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -51,7 +61,7 @@ export function TopSitesList({ sites, userId }: Props) {
                 <span className="text-ok">↑</span>
                 <span>{site.upvotes}</span>
               </div>
-            </a>
+            </button>
           );
         })}
       </div>

@@ -87,7 +87,7 @@ export function ChallengesClient() {
 
         {!loading && !error && !signedIn && (
           <div className="text-center py-16 text-muted">
-            <p className="text-sm">Sign in to see your challenges.</p>
+            <p className="text-sm">Log in to see your challenges.</p>
           </div>
         )}
 
