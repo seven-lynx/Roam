@@ -1,6 +1,6 @@
 // instrumentation.ts — Next.js instrumentation hook.
 // This file is loaded once per runtime (nodejs / edge) on server startup.
-// It initialises Sentry before any request is processed.
+// It initializes Sentry before any request is processed.
 //
 // Docs: https://nextjs.org/docs/app/building-your-application/optimizing/instrumentation
 
