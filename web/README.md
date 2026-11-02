@@ -1,6 +1,6 @@
 # Roam Web Platform
 
-The Next.js 16 web application for Roam. The web surface is the account-management hub: onboarding, auth, profile, settings, privacy/terms, collections, public profiles, and the admin moderation area.
+The Next.js 16 web application for Roam. The web surface is the account-management hub and the ROAM-OS landing experience — the 3D cyberdeck desktop with its window manager and in-device programs — plus onboarding, auth, profile, settings, privacy/terms, collections, public profiles, and the admin moderation area.
 
 ## Tech Stack
 
@@ -16,6 +16,11 @@ The Next.js 16 web application for Roam. The web surface is the account-manageme
 
 ## Features
 
+### ROAM-OS desktop
+- **Cyberdeck** (`/desktop`) — a full-viewport 3D cyberdeck with the live ROAM-OS projected onto its screen, plus physical controls (sliders, switches, rotary knob, gauges) wired to OS state.
+- **Window manager** — launcher (`PROGRAMS`), scan (`ROAM`), comms (`COMMS`), terminal (`TERMINAL`), settings (`SETTINGS`), and browser (`BROWSER`) windows.
+- **In-device programs** — RELAY, BOTFIELD, COMPILER, and DEBRIS (reskinned Snake, Minesweeper, Tetris, Asteroids).
+
 ### Onboarding
 - **Create account** — Google OAuth or email/password
 - **Pick interests** — select categories you care about (pillar or topic mode)
@@ -30,7 +35,7 @@ The Next.js 16 web application for Roam. The web surface is the account-manageme
 - **Public profiles** (`/u/[username]`) — view user profiles with activity, collections, badges, and XP
 - **Collections** (`/collections/[slug]`) — public collection browsing
 - **Follow/unfollow** — manage follows from profile pages
-- **Leaderboard** (`/leaderboard`) — weekly, monthly, and all-time XP rankings
+- **Rankings** (`/leaderboard`) — weekly, monthly, and all-time XP rankings
 - **Badge gallery** (`/badges`) — ~150 badges with unlock details and progress tracking
 
 ### Admin
@@ -53,6 +58,7 @@ The Next.js 16 web application for Roam. The web surface is the account-manageme
 | Route | Type | Auth required | Purpose |
 |---|---|---|---|
 | `/` | Server Component | No | Landing page |
+| `/desktop` | Client Component | No | ROAM-OS 3D cyberdeck desktop (window manager + programs) |
 | `/join` | Client Component | No | Create account / sign in (tabbed OAuth + email) |
 | `/signup` | Client Component | No | Alternative sign-up entry point |
 | `/auth/callback` | Route handler | No | OAuth code exchange + routing |

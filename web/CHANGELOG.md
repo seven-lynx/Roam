@@ -2,6 +2,18 @@
 
 All notable changes to the Roam web platform.
 
+## [2026-11-02] — ROAM-OS cyberdeck desktop & in-device programs
+
+### Added
+- 3D cyberdeck desktop (`/desktop`) — a full-viewport cyberdeck with the live ROAM-OS projected onto its screen, physical controls (sliders, switches, rotary knob, gauges) wired to OS state, and a screen-calibration overlay.
+- Window-manager chrome — the launcher (`PROGRAMS`), scan (`ROAM`), comms (`COMMS`), terminal (`TERMINAL`), settings (`SETTINGS`), and browser (`BROWSER`) windows, plus `CYBERDECK CONTROLS`, `MOUNT DECK`, `ROAM INFO`, and `REFUEL`.
+- Four in-device programs — RELAY, BOTFIELD, COMPILER, and DEBRIS (reskinned Snake, Minesweeper, Tetris, and Asteroids) with shared window chrome, scoped keyboard capture, and Apache-2.0 attribution.
+- `check-urls` and `home-stats` API routes.
+
+### Changed
+- Replaced the desk-gadget landing with the cyberdeck window manager; the landing, leaderboard, and settings surfaces restyled to the ROAM-OS theme.
+- Third-party notices now credit zeli-web-games (Apache-2.0).
+
 ## [2026-10-29] — Android ROAM-OS control deck & hardware customization
 
 ### Added

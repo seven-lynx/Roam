@@ -46,6 +46,7 @@
 **Major Milestones:**
 - ✅ Supabase backend: 164 migrations, 27 Edge Functions, RLS on every table
 - ✅ Web app (Next.js 16), browser extension (MV3), Android app (Kotlin/Compose) — all published
+- ✅ ROAM-OS cyberdeck — 3D cyberdeck desktop (`/desktop`) + window manager + four in-device programs (RELAY, BOTFIELD, COMPILER, DEBRIS)
 - ✅ ~990K URLs live in the discovery pool (down from ~2.8M after dead-URL cleanup)
 - ✅ Gamification: ~150 badges, levels (1–50), daily challenges, leaderboards
 - ✅ Tag system: schema + vocabulary deployed (discovery wiring pending — see `docs/TAG_SYSTEM.md`)
