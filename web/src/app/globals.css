@@ -495,6 +495,28 @@ a[rel*="noopener"]:visited {
 }
 .screen[data-fx="off"] .crt-layer { display: none; }
 
+/* ── CRT barrel warp: clip isolation ──────────────────────────────────────
+   The barrel is a spatial SVG filter (`feDisplacementMap`) applied to
+   `.screen`. A spatial filter on an ancestor rasterizes the entire subtree,
+   and Chromium/WebKit do not reliably honour descendant `overflow` clips
+   during that pass. While the barrel is active we promote every scroll/clip
+   container onto its own compositing layer so each `overflow` is applied
+   locally and content cannot escape a window, menu, or the screen. */
+.screen[data-barrel="on"] .screen-scroll,
+.screen[data-barrel="on"] .window,
+.screen[data-barrel="on"] .window-body,
+.screen[data-barrel="on"] .window-scroll,
+.screen[data-barrel="on"] .dock-windows,
+.screen[data-barrel="on"] .dock-menu-panel,
+.screen[data-barrel="on"] .launcher-dropdown,
+.screen[data-barrel="on"] .launcher-list,
+.screen[data-barrel="on"] .launcher-cats,
+.screen[data-barrel="on"] .launcher-flyout,
+.screen[data-barrel="on"] .launcher-sub-menu,
+.screen[data-barrel="on"] .desktop-widgets {
+  will-change: transform;
+}
+
 .screen-scroll {
   position: relative;
   flex: 1 1 auto;

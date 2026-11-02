@@ -710,6 +710,8 @@ export function WorkstationShell({
     [fx, setFx, sound, setSound, volume, setVolume, muted, toggleMute, setMuted, brightness, setBrightness, warp, setWarp, displayFx, setDisplayFx, soundFx, setSoundFx, taskbarAutoHide, setTaskbarAutoHide, theme, setTheme, uiMode, setUiMode, handheld, artVariant, setArtVariant, inspect, setInspect, toggleInspect, camera, setCamera, resetCamera, fit, saveFit, fitDeck, alert, showAlert, showConfirm, dismissAlert, resetOsSettings, windows, isOpen, openWindow, closeWindow, launcherOpen, setLauncherOpen, toggleLauncher, minimizeWindow, toggleMaximize, focusWindow, moveWindow, minimizeAll, restoreAll, deckReady, setDeckReady, deckMode, setDeckMode, deckRequested, setDeckRequested, openDeckLauncher, deckProgress, setDeckProgress, browse, openUrl, updateBrowse, closeBrowse],
   );
 
+  const barrelActive = fx && displayFx.barrel && warp > 0.02;
+
   return (
     <WorkstationContext.Provider value={value}>
       <Cyberdeck3D>
@@ -726,11 +728,12 @@ export function WorkstationShell({
         <div
           className="screen"
           data-fx={fx ? 'on' : 'off'}
+          data-barrel={barrelActive ? 'on' : 'off'}
           data-theme={theme}
           data-layout={handheld ? 'handheld' : 'desktop'}
           ref={screenRef}
           style={{
-            filter: `brightness(${brightness})${fx && displayFx.barrel && warp > 0.02 ? ' url(#crt-barrel)' : ''}`,
+            filter: `brightness(${brightness})${barrelActive ? ' url(#crt-barrel)' : ''}`,
             borderRadius: deckMode ? `${12 + warp * 22}px` : 0,
             clipPath: deckMode ? `inset(0 round ${12 + warp * 22}px)` : 'inset(0)',
           }}
