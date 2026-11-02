@@ -12,6 +12,8 @@
   },
   "dependencies": {
     "@sentry/nextjs": "^10.51.0",
+    "@splinetool/react-spline": "^4.1.0",
+    "@splinetool/runtime": "^2.0.126",
     "@supabase/ssr": "^0.10.2",
     "@supabase/supabase-js": "^2.104.1",
     "@tailwindcss/typography": "^0.5.19",
