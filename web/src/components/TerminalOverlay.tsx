@@ -10,17 +10,17 @@ import { useWorkstation } from '@/components/WorkstationContext';
  * FX switch hides the whole layer set via the `.crt-layer` class.
  */
 export function TerminalOverlay() {
-  const { warp } = useWorkstation();
+  const { warp, displayFx } = useWorkstation();
   return (
     <div aria-hidden="true" className="crt-layer pointer-events-none absolute inset-0 z-[45] overflow-hidden">
-      <div className="crt-grille absolute inset-0" />
-      <div className="crt-scanlines absolute inset-0" />
-      <div className="crt-grain absolute inset-0" />
-      <div className="crt-static absolute inset-0" />
-      <div className="crt-fringe absolute inset-0" />
-      <div className="crt-vignette absolute inset-0" />
-      <div className="crt-flicker absolute inset-0" />
-      <div className="crt-curvature absolute inset-0" style={{ opacity: warp }} />
+      {displayFx.grille && <div className="crt-grille absolute inset-0" />}
+      {displayFx.scanlines && <div className="crt-scanlines absolute inset-0" />}
+      {displayFx.grain && <div className="crt-grain absolute inset-0" />}
+      {displayFx.static && <div className="crt-static absolute inset-0" />}
+      {displayFx.fringe && <div className="crt-fringe absolute inset-0" />}
+      {displayFx.vignette && <div className="crt-vignette absolute inset-0" />}
+      {displayFx.flicker && <div className="crt-flicker absolute inset-0" />}
+      {displayFx.curvature && <div className="crt-curvature absolute inset-0" style={{ opacity: warp }} />}
     </div>
   );
 }

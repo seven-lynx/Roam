@@ -3,16 +3,18 @@
 import { useState } from 'react';
 import { useWorkstation } from '@/components/WorkstationContext';
 import { ProgramWindow } from '@/components/programs/ProgramWindow';
+import { ScaleToFit } from '@/components/programs/ScaleToFit';
 import { PROGRAMS } from '@/lib/os-programs';
 import { beep, success } from '@/lib/sfx';
 
 /**
- * BOTFIELD.EXE — six buried bots in a six-by-six grid. Adapted from
+ * BOTFIELD — ten buried bots in an eight-by-eight grid. Adapted from
  * zeli-web-games "Minesweeper" (Apache-2.0); reskinned + relabeled.
  */
 
-const SIZE = 6;
-const MINES = 6;
+const SIZE = 8;
+const MINES = 10;
+const CELL = 48;
 
 interface Cell {
   mine: boolean;
@@ -127,7 +129,7 @@ function BotfieldGame() {
   const swept = board.flat().filter((c) => c.revealed && !c.mine).length;
 
   return (
-    <div style={{ margin: 'auto', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
+    <div style={{ flex: '1 1 auto', minHeight: 0, width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
       <div style={{ fontFamily: 'var(--font-pixel)', fontSize: 12, letterSpacing: '0.08em', color: 'var(--muted)' }}>
         <span style={{ color: 'var(--danger)' }}>● {MINES}</span> ·{' '}
         <span style={{ color: 'var(--accent)' }}>⚑ {flags}</span> ·{' '}
@@ -138,17 +140,18 @@ function BotfieldGame() {
         {won && <span style={{ color: 'var(--phosphor)' }}> — FIELD CLEAR</span>}
       </div>
 
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: `repeat(${SIZE}, 44px)`,
-          gap: 2,
-          padding: 4,
-          background: 'var(--panel-2)',
-          borderRadius: 8,
-          border: won ? '2px solid var(--phosphor)' : gameOver ? '2px solid var(--danger)' : '1px solid var(--line)',
-        }}
-      >
+      <ScaleToFit width={SIZE * CELL + 24} height={SIZE * CELL + 24}>
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: `repeat(${SIZE}, ${CELL}px)`,
+            gap: 2,
+            padding: 4,
+            background: 'var(--panel-2)',
+            borderRadius: 8,
+            border: won ? '2px solid var(--phosphor)' : gameOver ? '2px solid var(--danger)' : '1px solid var(--line)',
+          }}
+        >
         {board.flat().map((cell, idx) => {
           const r = Math.floor(idx / SIZE);
           const c = idx % SIZE;
@@ -159,8 +162,8 @@ function BotfieldGame() {
               onClick={() => (flagMode ? flagCell(r, c) : sweep(r, c))}
               onContextMenu={(e) => { e.preventDefault(); flagCell(r, c); }}
               style={{
-                width: 44,
-                height: 44,
+                width: CELL,
+                height: CELL,
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -178,7 +181,8 @@ function BotfieldGame() {
             </div>
           );
         })}
-      </div>
+        </div>
+      </ScaleToFit>
 
       <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
         <button
@@ -199,7 +203,7 @@ function BotfieldGame() {
           ⚑ {flagMode ? 'FLAG MODE' : 'FLAG'}
         </button>
         <span style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--muted)' }}>
-          {flagMode ? 'TAP to flag' : 'TAP to sweep'} · RIGHT-CLICK flag
+          {flagMode ? 'TAP to flag' : 'TAP to sweep'} · LONG-PRESS flag
         </span>
         {(gameOver || won) && (
           <button type="button" className="program-btn" onClick={reset}>

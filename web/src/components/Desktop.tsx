@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState, type ChangeEvent, type PointerEvent } from 'react';
+import { useEffect, useRef, useState, type PointerEvent } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useWorkstation, type WindowId } from '@/components/WorkstationContext';
 import { click } from '@/lib/sfx';
@@ -9,15 +9,7 @@ import { RankingsWidget } from '@/components/RankingsWidget';
 import { TelemetryWidget } from '@/components/TelemetryWidget';
 import { DeckDiagnosticsWidget } from '@/components/DeckDiagnosticsWidget';
 import { DraggableWidget } from '@/components/DraggableWidget';
-import {
-  WALLPAPERS,
-  useWallpaper,
-  selectWallpaper,
-  setCustomWallpaper,
-  setWallpaperMode,
-  applyRandomWallpaper,
-  WALLPAPER_CYCLE_MS,
-} from '@/lib/wallpaper';
+import { useWallpaper, applyRandomWallpaper, WALLPAPER_CYCLE_MS } from '@/lib/wallpaper';
 
 /**
  * The ROAM-OS desktop: its own page with a selectable wallpaper and a strip of
@@ -63,6 +55,14 @@ const DESKTOP_APPS: DesktopApp[] = [
 const ICON_W = 76;
 const ICON_H = 86;
 
+/** Right-edge docked widget rail, top → bottom order. */
+const WIDGET_SPECS = [
+  { id: 'showcase', w: 340, node: <SiteShowcase /> },
+  { id: 'deckdiag', w: 300, node: <DeckDiagnosticsWidget /> },
+  { id: 'rankings', w: 320, node: <RankingsWidget limit={5} /> },
+  { id: 'telemetry', w: 260, node: <TelemetryWidget /> },
+];
+
 interface IconPos {
   x: number;
   y: number;
@@ -99,9 +99,8 @@ export function Desktop() {
   const pathname = usePathname();
   const { openWindow, toggleLauncher, handheld } = useWorkstation();
   const [positions, setPositions] = useState<IconMap>(loadPositions);
+  const [order, setOrder] = useState<string[]>(() => WIDGET_SPECS.map((w) => w.id));
   const wallpaper = useWallpaper();
-  const [pickerOpen, setPickerOpen] = useState(false);
-  const fileRef = useRef<HTMLInputElement>(null);
 
   // Shuffle the wallpaper folder while in cycle mode (the default).
   useEffect(() => {
@@ -119,18 +118,6 @@ export function Desktop() {
     const maxX = Math.max(0, window.innerWidth - ICON_W);
     const maxY = Math.max(0, window.innerHeight - ICON_H - 44); // clear the dock
     return { x: Math.min(Math.max(0, x), maxX), y: Math.min(Math.max(0, y), maxY) };
-  };
-
-  const onUpload = (e: ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      if (typeof reader.result !== 'string') return;
-      setCustomWallpaper(`url("${reader.result}") center / cover no-repeat, #07100f`);
-    };
-    reader.readAsDataURL(file);
-    e.target.value = '';
   };
 
   const onDown = (e: PointerEvent<HTMLButtonElement>, app: DesktopApp) => {
@@ -177,67 +164,21 @@ export function Desktop() {
     else openWindow(app.id as WindowId);
   };
 
-  const vw = typeof window !== 'undefined' ? window.innerWidth : 1280;
-  const widgetSpecs = [
-    { id: 'showcase', x: Math.max(12, vw - 380), y: 56, w: 360, node: <SiteShowcase /> },
-    { id: 'rankings', x: Math.max(12, vw - 380), y: 504, w: 320, node: <RankingsWidget limit={5} /> },
-    { id: 'telemetry', x: Math.max(12, vw - 700), y: 470, w: 260, node: <TelemetryWidget /> },
-    { id: 'deckdiag', x: Math.max(12, vw - 700), y: 56, w: 300, node: <DeckDiagnosticsWidget /> },
-  ];
+  const reorderWidget = (id: string, dir: -1 | 1) => {
+    setOrder((prev) => {
+      const i = prev.indexOf(id);
+      const j = i + dir;
+      if (i < 0 || j < 0 || j >= prev.length) return prev;
+      const next = prev.slice();
+      const tmp = next[i];
+      next[i] = next[j];
+      next[j] = tmp;
+      return next;
+    });
+  };
 
   return (
     <div className={`desktop${handheld ? ' desktop--handheld' : ''}`} aria-label="Desktop" style={{ background: wallpaper.current.css }}>
-      <div className="desktop-toolbar">
-        <button
-          type="button"
-          className="desktop-wallpaper-btn"
-          onClick={() => { click(); setPickerOpen((v) => !v); }}
-          aria-expanded={pickerOpen}
-        >
-          🖼 Wallpaper
-        </button>
-        {pickerOpen && (
-          <div className="desktop-wallpaper-panel">
-            <button
-              type="button"
-              className={`desktop-wallpaper-cycle${wallpaper.mode === 'cycle' ? ' is-on' : ''}`}
-              onClick={() => { click(); setWallpaperMode(wallpaper.mode === 'cycle' ? 'fixed' : 'cycle'); }}
-            >
-              <span className="dot" />
-              {wallpaper.mode === 'cycle' ? 'Auto-cycle: on' : 'Auto-cycle: off'}
-            </button>
-            <div className="desktop-wallpaper-grid">
-              {WALLPAPERS.map((w) => (
-                <button
-                  key={w.id}
-                  type="button"
-                  className={`desktop-wallpaper-swatch${wallpaper.current.id === w.id && wallpaper.mode === 'fixed' ? ' is-on' : ''}`}
-                  style={{ background: w.css }}
-                  onClick={() => { click(); selectWallpaper(w.id); }}
-                  aria-label={w.label}
-                  title={w.label}
-                />
-              ))}
-              {wallpaper.custom && (
-                <button
-                  type="button"
-                  className={`desktop-wallpaper-swatch${wallpaper.current.id === 'custom' ? ' is-on' : ''}`}
-                  style={{ background: wallpaper.custom.css }}
-                  onClick={() => { click(); selectWallpaper('custom'); }}
-                  aria-label="Custom"
-                  title="Custom"
-                />
-              )}
-            </div>
-            <button type="button" className="desktop-wallpaper-upload" onClick={() => fileRef.current?.click()}>
-              Upload image
-            </button>
-            <p className="desktop-wallpaper-note">Uploads stay on this device and are saved with your preferences.</p>
-            <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={onUpload} />
-          </div>
-        )}
-      </div>
-
       <div className="desktop-icons">
         {DESKTOP_APPS.map((app) => {
           const p = positions[app.id] ?? { x: 0, y: 0 };
@@ -263,11 +204,15 @@ export function Desktop() {
       </div>
 
       <div className="desktop-widgets" aria-label="Desktop widgets">
-        {widgetSpecs.map((w) => (
-          <DraggableWidget key={w.id} id={w.id} defaultX={w.x} defaultY={w.y} width={w.w}>
-            {w.node}
-          </DraggableWidget>
-        ))}
+        {order.map((id) => {
+          const spec = WIDGET_SPECS.find((w) => w.id === id);
+          if (!spec) return null;
+          return (
+            <DraggableWidget key={id} id={id} width={spec.w} onReorder={(dir) => reorderWidget(id, dir)}>
+              {spec.node}
+            </DraggableWidget>
+          );
+        })}
       </div>
     </div>
   );

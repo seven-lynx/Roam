@@ -14,6 +14,8 @@ import {
   CAMERA_ZOOM_MIN,
   CAMERA_ZOOM_MAX,
   THEME_PRESETS,
+  DISPLAY_FX_DEFAULTS,
+  type DisplayFx,
   type Windows,
   type WindowId,
   type WindowRect,
@@ -33,7 +35,7 @@ import { Terminal } from '@/components/Terminal';
 import { Dock } from '@/components/Dock';
 import { GestureLayer } from '@/components/GestureLayer';
 import { AlertDialog } from '@/components/AlertDialog';
-import { setSfxVolume, setSfxMuted, setSfxEnabled, unlockAudio, startAmbient } from '@/lib/sfx';
+import { setSfxVolume, setSfxMuted, setSfxEnabled, setSfxEffect, unlockAudio, startAmbient, SOUND_EFFECTS, DEFAULT_SOUND_FX, type SoundEffect } from '@/lib/sfx';
 import { Cyberdeck3D } from '@/components/Cyberdeck3D';
 import { Desktop } from '@/components/Desktop';
 import { SettingsApp } from '@/components/SettingsApp';
@@ -51,6 +53,8 @@ import { resetWallpaper } from '@/lib/wallpaper';
 import type { ArtVariant } from '@/lib/art';
 
 const FX_KEY = 'roam-fx';
+const DISPLAY_FX_KEY = 'roam-display-fx';
+const SOUND_FX_KEY = 'roam-sound-fx';
 const SOUND_KEY = 'roam-sound';
 const VOL_KEY = 'roam-vol';
 const MUTED_KEY = 'roam-muted';
@@ -74,10 +78,42 @@ const DECK_VERSION_KEY = 'roam-deck-version';
 // lines bow outward. Neutral (#808080) at the centre, full deflection at the
 // edges. Scale follows the warp slider; the filter is only attached to `.screen`
 // when warp > 0.02.
-const CRT_H_GRAD =
-  "data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='256' height='256'%3E%3ClinearGradient id='h' x1='0' y1='0' x2='1' y2='0'%3E%3Cstop offset='0' stop-color='%23000'/%3E%3Cstop offset='0.25' stop-color='%23700000'/%3E%3Cstop offset='0.5' stop-color='%23800000'/%3E%3Cstop offset='0.75' stop-color='%238f0000'/%3E%3Cstop offset='1' stop-color='%23f00'/%3E%3C/linearGradient%3E%3Crect width='256' height='256' fill='url(%23h)'/%3E%3C/svg%3E";
-const CRT_V_GRAD =
-  "data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='256' height='256'%3E%3ClinearGradient id='v' x1='0' y1='0' x2='0' y2='1'%3E%3Cstop offset='0' stop-color='%23000'/%3E%3Cstop offset='0.25' stop-color='%23007000'/%3E%3Cstop offset='0.5' stop-color='%23008000'/%3E%3Cstop offset='0.75' stop-color='%23008f00'/%3E%3Cstop offset='1' stop-color='%230f0'/%3E%3C/linearGradient%3E%3Crect width='256' height='256' fill='url(%23v)'/%3E%3C/svg%3E";
+// The old SVG data-URI displacement maps were unreliable (feImage often rasterised
+// them as transparent black, which collapses the warp to a plain zoom). Instead we
+// bake the two cubic ramps into a single 256×256 PNG at runtime — R channel =
+// horizontal displacement, G channel = vertical — so `feDisplacementMap` always
+// gets a valid, real curvature map.
+const BARREL_MAP_SIZE = 256;
+let barrelMapCache: string | null = null;
+
+function getBarrelMap(): string {
+  if (barrelMapCache) return barrelMapCache;
+  if (typeof document === 'undefined') return '';
+  const canvas = document.createElement('canvas');
+  canvas.width = BARREL_MAP_SIZE;
+  canvas.height = BARREL_MAP_SIZE;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return '';
+  const img = ctx.createImageData(BARREL_MAP_SIZE, BARREL_MAP_SIZE);
+  // Neutral (#808080) at the centre, full deflection at the edges, via a smooth
+  // cubic (flat middle, steep ends) — the shape that bows straight lines outward.
+  for (let y = 0; y < BARREL_MAP_SIZE; y++) {
+    for (let x = 0; x < BARREL_MAP_SIZE; x++) {
+      const tx = x / (BARREL_MAP_SIZE - 1);
+      const ty = y / (BARREL_MAP_SIZE - 1);
+      const rx = 128 + Math.round(1020 * Math.pow(tx - 0.5, 3));
+      const ry = 128 + Math.round(1020 * Math.pow(ty - 0.5, 3));
+      const i = (y * BARREL_MAP_SIZE + x) * 4;
+      img.data[i] = Math.max(0, Math.min(255, rx)); // R → horizontal
+      img.data[i + 1] = Math.max(0, Math.min(255, ry)); // G → vertical
+      img.data[i + 2] = 128; // B unused by the displacement map
+      img.data[i + 3] = 255;
+    }
+  }
+  ctx.putImageData(img, 0, 0);
+  barrelMapCache = canvas.toDataURL('image/png');
+  return barrelMapCache;
+}
 
 const clampZoom = (n: number) => Math.min(CAMERA_ZOOM_MAX, Math.max(CAMERA_ZOOM_MIN, n));
 
@@ -122,6 +158,9 @@ export function WorkstationShell({
   const [muted, setMutedState] = useState(false);
   const [brightness, setBrightnessState] = useState(1);
   const [warp, setWarpState] = useState(0.35);
+  const [displayFx, setDisplayFxState] = useState<DisplayFx>({ ...DISPLAY_FX_DEFAULTS });
+  const [soundFx, setSoundFxState] = useState<Record<SoundEffect, boolean>>({ ...DEFAULT_SOUND_FX });
+  const [barrelMap, setBarrelMap] = useState('');
   const [taskbarAutoHide, setTaskbarAutoHideState] = useState(false);
   const [theme, setThemeState] = useState<Theme>('green');
   const [uiMode, setUiModeState] = useState<UiMode>('auto');
@@ -144,6 +183,11 @@ export function WorkstationShell({
   // Saved window geometry (rect + maximized), restored when a window opens.
   const layoutRef = useRef<Partial<Record<WindowId, { rect: WindowRect; maximized: boolean }>>>({});
 
+  // Bake the barrel displacement map client-side (canvas is unavailable during SSR).
+  useEffect(() => {
+    setBarrelMap(getBarrelMap());
+  }, []);
+
   // Restore persisted preferences once on mount.
   useEffect(() => {
     try {
@@ -160,6 +204,24 @@ export function WorkstationShell({
       if (localStorage.getItem(FX_KEY) === 'off') setFxState(false);
       if (localStorage.getItem(SOUND_KEY) === 'off') setSoundState(false);
       if (localStorage.getItem(MUTED_KEY) === '1') setMutedState(true);
+      const rawDisplayFx = localStorage.getItem(DISPLAY_FX_KEY);
+      if (rawDisplayFx) {
+        try {
+          const parsed = JSON.parse(rawDisplayFx) as Partial<DisplayFx>;
+          setDisplayFxState((prev) => ({ ...prev, ...parsed }));
+        } catch {
+          /* corrupt display FX: keep defaults */
+        }
+      }
+      const rawSoundFx = localStorage.getItem(SOUND_FX_KEY);
+      if (rawSoundFx) {
+        try {
+          const parsed = JSON.parse(rawSoundFx) as Partial<Record<SoundEffect, boolean>>;
+          setSoundFxState((prev) => ({ ...prev, ...parsed }));
+        } catch {
+          /* corrupt sound FX: keep defaults */
+        }
+      }
       // `Number(null)` is 0, so only parse a key that actually exists — otherwise a
       // fresh visitor would get volume 0 and brightness clamped to its minimum.
       const rawVol = localStorage.getItem(VOL_KEY);
@@ -265,6 +327,23 @@ export function WorkstationShell({
     try { localStorage.setItem(WARP_KEY, String(c)); } catch { /* ignore */ }
   }, []);
 
+  const setDisplayFx = useCallback((patch: Partial<DisplayFx>) => {
+    setDisplayFxState((prev) => {
+      const next = { ...prev, ...patch };
+      try { localStorage.setItem(DISPLAY_FX_KEY, JSON.stringify(next)); } catch { /* ignore */ }
+      return next;
+    });
+  }, []);
+
+  const setSoundFx = useCallback((name: SoundEffect, on: boolean) => {
+    setSoundFxState((prev) => {
+      const next = { ...prev, [name]: on };
+      try { localStorage.setItem(SOUND_FX_KEY, JSON.stringify(next)); } catch { /* ignore */ }
+      return next;
+    });
+    setSfxEffect(name, on);
+  }, []);
+
   const setTheme = useCallback((t: Theme) => {
     setThemeState(t);
     try { localStorage.setItem(THEME_KEY, t); } catch { /* ignore */ }
@@ -337,6 +416,9 @@ export function WorkstationShell({
     setMutedState(false);
     setBrightnessState(1);
     setWarpState(0.35);
+    setDisplayFxState({ ...DISPLAY_FX_DEFAULTS });
+    setSoundFxState({ ...DEFAULT_SOUND_FX });
+    SOUND_EFFECTS.forEach((name) => setSfxEffect(name, DEFAULT_SOUND_FX[name]));
     setThemeState('green');
     setTaskbarAutoHideState(false);
     setUiModeState('auto');
@@ -349,7 +431,7 @@ export function WorkstationShell({
     setFitState(null);
     resetWallpaper();
     try {
-      [FX_KEY, SOUND_KEY, VOL_KEY, MUTED_KEY, BRIGHT_KEY, ART_KEY, WARP_KEY, THEME_KEY, AUTOHIDE_KEY, UI_MODE_KEY, CAMERA_ZOOM_KEY, CAMERA_PAN_KEY, CAMERA_FIT_KEY]
+      [FX_KEY, DISPLAY_FX_KEY, SOUND_FX_KEY, SOUND_KEY, VOL_KEY, MUTED_KEY, BRIGHT_KEY, ART_KEY, WARP_KEY, THEME_KEY, AUTOHIDE_KEY, UI_MODE_KEY, CAMERA_ZOOM_KEY, CAMERA_PAN_KEY, CAMERA_FIT_KEY]
         .forEach((k) => localStorage.removeItem(k));
     } catch { /* ignore */ }
   }, []);
@@ -358,6 +440,9 @@ export function WorkstationShell({
   useEffect(() => { setSfxEnabled(sound); }, [sound]);
   useEffect(() => { setSfxVolume(volume); }, [volume]);
   useEffect(() => { setSfxMuted(muted); }, [muted]);
+  useEffect(() => {
+    SOUND_EFFECTS.forEach((name) => setSfxEffect(name, soundFx[name]));
+  }, [soundFx]);
 
   // Autoplay policy: create/resume the AudioContext on the first gesture, then
   // start the gentle data-flow ambience.
@@ -392,7 +477,7 @@ export function WorkstationShell({
       const el = screenRef.current;
       const sw = el ? el.clientWidth : window.innerWidth;
       const sh = el ? el.clientHeight : window.innerHeight;
-      // Clamp into the work area (below the status bar, above the taskbar).
+      // Clamp into the work area (below the status bar, above the dock).
       const w = Math.max(240, Math.min(saved?.rect.w ?? def.w, sw));
       const h = Math.max(160, Math.min(saved?.rect.h ?? def.h, sh - TOP_BAR_H - DOCK_H));
       const maxX = Math.max(0, sw - w);
@@ -556,6 +641,10 @@ export function WorkstationShell({
       setBrightness,
       warp,
       setWarp,
+      displayFx,
+      setDisplayFx,
+      soundFx,
+      setSoundFx,
       taskbarAutoHide,
       setTaskbarAutoHide,
       theme,
@@ -607,7 +696,7 @@ export function WorkstationShell({
       updateBrowse,
       closeBrowse,
     }),
-    [fx, setFx, sound, setSound, volume, setVolume, muted, toggleMute, setMuted, brightness, setBrightness, warp, setWarp, taskbarAutoHide, setTaskbarAutoHide, theme, setTheme, uiMode, setUiMode, handheld, artVariant, setArtVariant, inspect, setInspect, toggleInspect, camera, setCamera, resetCamera, fit, saveFit, fitDeck, alert, showAlert, showConfirm, dismissAlert, resetOsSettings, windows, isOpen, openWindow, closeWindow, launcherOpen, setLauncherOpen, toggleLauncher, minimizeWindow, toggleMaximize, focusWindow, moveWindow, minimizeAll, restoreAll, deckReady, setDeckReady, deckMode, setDeckMode, deckRequested, setDeckRequested, openDeckLauncher, deckProgress, setDeckProgress, browse, openUrl, updateBrowse, closeBrowse],
+    [fx, setFx, sound, setSound, volume, setVolume, muted, toggleMute, setMuted, brightness, setBrightness, warp, setWarp, displayFx, setDisplayFx, soundFx, setSoundFx, taskbarAutoHide, setTaskbarAutoHide, theme, setTheme, uiMode, setUiMode, handheld, artVariant, setArtVariant, inspect, setInspect, toggleInspect, camera, setCamera, resetCamera, fit, saveFit, fitDeck, alert, showAlert, showConfirm, dismissAlert, resetOsSettings, windows, isOpen, openWindow, closeWindow, launcherOpen, setLauncherOpen, toggleLauncher, minimizeWindow, toggleMaximize, focusWindow, moveWindow, minimizeAll, restoreAll, deckReady, setDeckReady, deckMode, setDeckMode, deckRequested, setDeckRequested, openDeckLauncher, deckProgress, setDeckProgress, browse, openUrl, updateBrowse, closeBrowse],
   );
 
   return (
@@ -616,9 +705,9 @@ export function WorkstationShell({
         <svg aria-hidden="true" focusable="false" style={{ position: 'absolute', width: 0, height: 0, overflow: 'hidden' }}>
           <defs>
             <filter id="crt-barrel" x="-8%" y="-8%" width="116%" height="116%" colorInterpolationFilters="sRGB">
-              <feImage href={CRT_H_GRAD} result="h" x="0" y="0" width="100%" height="100%" preserveAspectRatio="none" />
-              <feImage href={CRT_V_GRAD} result="v" x="0" y="0" width="100%" height="100%" preserveAspectRatio="none" />
-              <feComposite in="h" in2="v" operator="arithmetic" k1="0" k2="1" k3="1" k4="0" result="map" />
+              {barrelMap && (
+                <feImage href={barrelMap} result="map" x="0" y="0" width="100%" height="100%" preserveAspectRatio="none" />
+              )}
               <feDisplacementMap in="SourceGraphic" in2="map" scale={Math.round(warp * 40)} xChannelSelector="R" yChannelSelector="G" />
             </filter>
           </defs>
@@ -629,7 +718,7 @@ export function WorkstationShell({
           data-theme={theme}
           data-layout={handheld ? 'handheld' : 'desktop'}
           ref={screenRef}
-          style={{ filter: `brightness(${brightness})${fx && warp > 0.02 ? ' url(#crt-barrel)' : ''}`, borderRadius: deckMode ? `${12 + warp * 22}px` : 0 }}
+          style={{ filter: `brightness(${brightness})${fx && displayFx.barrel && warp > 0.02 ? ' url(#crt-barrel)' : ''}`, borderRadius: deckMode ? `${12 + warp * 22}px` : 0 }}
         >
           <StatusBar />
           <div

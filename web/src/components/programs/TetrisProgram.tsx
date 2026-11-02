@@ -3,19 +3,20 @@
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react';
 import { useWorkstation } from '@/components/WorkstationContext';
 import { ProgramWindow } from '@/components/programs/ProgramWindow';
+import { ScaleToFit } from '@/components/programs/ScaleToFit';
 import { useGameKeys } from '@/components/programs/useGameKeys';
 import { useSwipeSteer } from '@/components/programs/useSwipeSteer';
 import { PROGRAMS } from '@/lib/os-programs';
 import { click, beep } from '@/lib/sfx';
 
 /**
- * COMPILER.EXE — falling data shards. Adapted from zeli-web-games "MiniTetris"
+ * COMPILER — falling data shards. Adapted from zeli-web-games "MiniTetris"
  * (Apache-2.0); reskinned to the Roam palette + relabeled.
  */
 
 const COLS = 10;
-const ROWS = 18;
-const CELL = 20;
+const ROWS = 20;
+const CELL = 26;
 
 const SHAPES: number[][][] = [
   [[1, 1, 1, 1]],
@@ -182,24 +183,25 @@ function CompilerGame() {
         if (piece[pr][pc] && pos.r + pr >= 0) display[pos.r + pr][pos.c + pc] = shapeIdx + 1;
 
   return (
-    <div style={{ margin: 'auto', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
+    <div style={{ flex: '1 1 auto', minHeight: 0, width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
       <div style={{ fontFamily: 'var(--font-pixel)', fontSize: 12, letterSpacing: '0.08em', color: 'var(--muted)' }}>
         LINES <span style={{ color: 'var(--accent)' }}>{lines}</span>
         {lines >= 5 && <span style={{ color: 'var(--phosphor)', marginLeft: 8 }}>· SHARP</span>}
       </div>
 
-      <div
-        {...swipe}
-        style={{
-          display: 'grid',
-          gridTemplateColumns: `repeat(${COLS}, ${CELL}px)`,
-          background: 'var(--panel-2)',
-          borderRadius: 6,
-          border: !active ? '2px solid var(--danger)' : '1px solid var(--line)',
-          padding: 1,
-          touchAction: 'none',
-        }}
-      >
+      <ScaleToFit width={COLS * CELL} height={ROWS * CELL}>
+        <div
+          {...swipe}
+          style={{
+            display: 'grid',
+            gridTemplateColumns: `repeat(${COLS}, ${CELL}px)`,
+            background: 'var(--panel-2)',
+            borderRadius: 6,
+            border: !active ? '2px solid var(--danger)' : '1px solid var(--line)',
+            padding: 1,
+            touchAction: 'none',
+          }}
+        >
         {display.flat().map((c, i) => (
           <div
             key={i}
@@ -213,7 +215,8 @@ function CompilerGame() {
             }}
           />
         ))}
-      </div>
+        </div>
+      </ScaleToFit>
 
       {!active && (
         <div style={{ fontFamily: 'var(--font-pixel)', fontSize: 14, color: 'var(--danger)', letterSpacing: '0.08em' }}>

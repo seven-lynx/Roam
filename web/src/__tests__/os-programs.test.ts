@@ -8,7 +8,7 @@ describe('os-programs registry', () => {
       const p = PROGRAMS[id];
       expect(p.id).toBe(id);
       expect(p.title).toBeTruthy();
-      expect(p.file).toContain('ROAM');
+      expect(p.file).toContain('/roam/bin/');
       expect(p.glyph).toBeTruthy();
       expect(p.tagline).toBeTruthy();
       expect(p.controls).toBeTruthy();

@@ -73,15 +73,18 @@ function RingGauge({
   thickness,
   sweep,
   value,
+  color,
 }: {
   radius: number;
   thickness: number;
   sweep: number;
   value: number;
+  color: string;
 }) {
   const pct = Math.max(0, Math.min(1, value));
   const start = -sweep / 2;
   const end = sweep / 2;
+  const fillStyle = { stroke: color };
 
   if (sweep >= 359.9) {
     const c = 2 * Math.PI * radius;
@@ -90,6 +93,7 @@ function RingGauge({
         <circle className="deck-ring-track" cx={CX} cy={CY} r={radius} />
         <circle
           className="deck-ring-fill"
+          style={fillStyle}
           cx={CX}
           cy={CY}
           r={radius}
@@ -104,7 +108,7 @@ function RingGauge({
   return (
     <g strokeWidth={thickness}>
       <path className="deck-ring-track" d={arcPath(radius, start, end)} />
-      <path className="deck-ring-fill" d={arcPath(radius, start, start + pct * sweep)} />
+      <path className="deck-ring-fill" style={fillStyle} d={arcPath(radius, start, start + pct * sweep)} />
     </g>
   );
 }
@@ -231,10 +235,10 @@ export function DeckDiagnosticsWidget() {
   const hot = Math.min(buffer.hot, NIXIE_MAX);
   const warm = Math.min(buffer.warm, NIXIE_MAX);
 
-  const rings: Array<{ key: RingKey; value: number; label: string; digit: string }> = [];
-  if (cfg.load) rings.push({ key: 'load', value: loadPct, label: 'LOAD', digit: `${Math.round(deckProgress * 100)}%` });
-  if (cfg.hot) rings.push({ key: 'hot', value: hot / NIXIE_MAX, label: 'HOT', digit: String(hot) });
-  if (cfg.warm) rings.push({ key: 'warm', value: warm / NIXIE_MAX, label: 'WARM', digit: String(warm) });
+  const rings: Array<{ key: RingKey; value: number; label: string; digit: string; color: string }> = [];
+  if (cfg.load) rings.push({ key: 'load', value: loadPct, label: 'LOAD', digit: `${Math.round(deckProgress * 100)}%`, color: 'var(--phosphor)' });
+  if (cfg.hot) rings.push({ key: 'hot', value: hot / NIXIE_MAX, label: 'HOT', digit: String(hot), color: 'var(--warn)' });
+  if (cfg.warm) rings.push({ key: 'warm', value: warm / NIXIE_MAX, label: 'WARM', digit: String(warm), color: 'var(--accent)' });
 
   // Concentric radii: outer → inner, spaced so the strokes never overlap.
   const step = cfg.thickness + 9;
@@ -253,6 +257,8 @@ export function DeckDiagnosticsWidget() {
         ) : (
           <>
             <svg className="deck-diag-rings" viewBox="0 0 220 220" aria-hidden="true">
+              <circle className="deck-diag-bezel" cx={CX} cy={CY} r={109} />
+              <circle className="deck-diag-ticks" cx={CX} cy={CY} r={100} />
               {rings.map((ring, i) => (
                 <RingGauge
                   key={ring.key}
@@ -260,6 +266,7 @@ export function DeckDiagnosticsWidget() {
                   thickness={cfg.thickness}
                   sweep={cfg.sweep}
                   value={ring.value}
+                  color={ring.color}
                 />
               ))}
             </svg>

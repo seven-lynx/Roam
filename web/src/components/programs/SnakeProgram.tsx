@@ -3,18 +3,19 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { useWorkstation } from '@/components/WorkstationContext';
 import { ProgramWindow } from '@/components/programs/ProgramWindow';
+import { ScaleToFit } from '@/components/programs/ScaleToFit';
 import { useGameKeys } from '@/components/programs/useGameKeys';
 import { useSwipeSteer } from '@/components/programs/useSwipeSteer';
 import { PROGRAMS } from '@/lib/os-programs';
 import { click, beep } from '@/lib/sfx';
 
 /**
- * RELAY.EXE — the signal serpent. Adapted from zeli-web-games "Snake"
+ * RELAY — the signal serpent. Adapted from zeli-web-games "Snake"
  * (Apache-2.0); reskinned to the Roam palette and relabeled.
  */
 
-const GRID = 15;
-const CELL = 22;
+const GRID = 18;
+const CELL = 28;
 const SPEED = 110;
 
 type Pt = { x: number; y: number };
@@ -126,24 +127,25 @@ function RelayGame() {
   };
 
   return (
-    <div style={{ margin: 'auto', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
+    <div style={{ flex: '1 1 auto', minHeight: 0, width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
       <div style={{ fontFamily: 'var(--font-pixel)', fontSize: 12, letterSpacing: '0.1em', color: 'var(--muted)' }}>
         PKT <span style={{ color: 'var(--phosphor)' }}>{view.score}</span>
       </div>
 
-      <div
-        {...swipe}
-        style={{
-          width: GRID * CELL,
-          height: GRID * CELL,
-          position: 'relative',
-          background: 'var(--panel-2)',
-          border: '1px solid var(--line)',
-          borderRadius: 6,
-          overflow: 'hidden',
-          touchAction: 'none',
-        }}
-      >
+      <ScaleToFit width={GRID * CELL} height={GRID * CELL}>
+        <div
+          {...swipe}
+          style={{
+            width: GRID * CELL,
+            height: GRID * CELL,
+            position: 'relative',
+            background: 'var(--panel-2)',
+            border: '1px solid var(--line)',
+            borderRadius: 6,
+            overflow: 'hidden',
+            touchAction: 'none',
+          }}
+        >
         {Array.from({ length: GRID * GRID }, (_, i) => {
           const x = i % GRID;
           const y = Math.floor(i / GRID);
@@ -212,7 +214,8 @@ function RelayGame() {
             </button>
           </div>
         )}
-      </div>
+        </div>
+      </ScaleToFit>
 
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3 }}>
         <button type="button" style={dBtn} onClick={() => steer(0, -1)} aria-label="Up">

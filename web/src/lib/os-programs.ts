@@ -23,7 +23,7 @@ export interface Program {
   id: ProgramId;
   /** Window title — diegetic, uppercase. */
   title: string;
-  /** DOS-style path flavor for the window chrome + launcher. */
+  /** UNIX-style path flavor for the window chrome + launcher. */
   file: string;
   /** Short glyph for the launcher tile / window icon. */
   glyph: string;
@@ -48,7 +48,7 @@ export const PROGRAMS: Record<ProgramId, Program> = {
   snake: {
     id: 'snake',
     title: 'RELAY',
-    file: 'C:\\ROAM\\PROGRAMS\\RELAY.EXE',
+    file: '/roam/bin/RELAY',
     glyph: '≋',
     tagline: 'A signal serpent. Swallow relay packets to grow the link — never cross your own line.',
     controls: 'ARROWS / SWIPE steer · on-screen D-PAD',
@@ -58,17 +58,17 @@ export const PROGRAMS: Record<ProgramId, Program> = {
   minesweeper: {
     id: 'minesweeper',
     title: 'BOTFIELD',
-    file: 'C:\\ROAM\\PROGRAMS\\BOTFIELD.EXE',
+    file: '/roam/bin/BOTFIELD',
     glyph: '▦',
-    tagline: 'Six bots are buried in a six-by-six grid. Sweep every clean sector; numbers count adjacent bots.',
-    controls: 'TAP sweep · ⚑ flag · RIGHT-CLICK flag',
+    tagline: 'Ten bots are buried in an eight-by-eight grid. Sweep every clean sector; numbers count adjacent bots.',
+    controls: 'TAP sweep · ⚑ flag · LONG-PRESS flag',
     license: APACHE_2,
     source: ZELI,
   },
   tetris: {
     id: 'tetris',
     title: 'COMPILER',
-    file: 'C:\\ROAM\\PROGRAMS\\COMPILER.EXE',
+    file: '/roam/bin/COMPILER',
     glyph: '▥',
     tagline: 'Falling data shards. Full lines compile out. Do not stack past the top.',
     controls: 'SWIPE / ← → move · ↑ rotate · ↓ drop',
@@ -78,7 +78,7 @@ export const PROGRAMS: Record<ProgramId, Program> = {
   asteroids: {
     id: 'asteroids',
     title: 'DEBRIS',
-    file: 'C:\\ROAM\\PROGRAMS\\DEBRIS.EXE',
+    file: '/roam/bin/DEBRIS',
     glyph: '✦',
     tagline: 'The dead web left wreckage behind. Drift the debris field and clear it.',
     controls: '← → rotate · ▲ thrust · ● fire',

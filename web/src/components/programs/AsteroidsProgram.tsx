@@ -3,19 +3,20 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { useWorkstation } from '@/components/WorkstationContext';
 import { ProgramWindow } from '@/components/programs/ProgramWindow';
+import { ScaleToFit } from '@/components/programs/ScaleToFit';
 import { useGameKeys } from '@/components/programs/useGameKeys';
 import { PROGRAMS } from '@/lib/os-programs';
 import { click, beep, success } from '@/lib/sfx';
 
 /**
- * DEBRIS.EXE — a drift through the dead web's wreckage. Adapted from
+ * DEBRIS — a drift through the dead web's wreckage. Adapted from
  * zeli-web-games "Asteroids" (Apache-2.0); reskinned + relabeled. The canvas
  * draws with fixed phosphor colors (a self-contained vector program rather
  * than the OS theme).
  */
 
-const W = 320;
-const H = 420;
+const W = 480;
+const H = 560;
 
 interface Rock {
   x: number;
@@ -249,7 +250,7 @@ function DebrisGame() {
   }, []);
 
   return (
-    <div style={{ margin: 'auto', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
+    <div style={{ flex: '1 1 auto', minHeight: 0, width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
       <div style={{ display: 'flex', gap: 16, fontFamily: 'var(--font-pixel)', fontSize: 12, letterSpacing: '0.08em' }}>
         <span style={{ color: 'var(--muted)' }}>
           SCORE <span style={{ color: 'var(--accent)' }}>{hud.score}/100</span>
@@ -259,12 +260,14 @@ function DebrisGame() {
         </span>
       </div>
 
-      <canvas
-        ref={canvasRef}
-        width={W}
-        height={H}
-        style={{ borderRadius: 10, border: '1px solid var(--line)', background: 'var(--panel-2)' }}
-      />
+      <ScaleToFit width={W} height={H}>
+        <canvas
+          ref={canvasRef}
+          width={W}
+          height={H}
+          style={{ borderRadius: 10, border: '1px solid var(--line)', background: 'var(--panel-2)' }}
+        />
+      </ScaleToFit>
 
       <div style={{ display: 'flex', gap: 4 }}>
         <button

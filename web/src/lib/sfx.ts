@@ -46,12 +46,67 @@ export type SfxName =
   | 'badgeEarn'
   | 'levelUp';
 
+/** A named sound is an `SfxName` plus two engine-only channels: the generic
+ *  pointer/button `blip` (used by RadarPuck et al.) and the mains `ambient` hum. */
+export type SoundEffect = SfxName | 'ambient' | 'blip';
+
+/** Every individually-toggleable sound, in display order. */
+export const SOUND_EFFECTS: SoundEffect[] = [
+  'click',
+  'clickHeavy',
+  'clickNav',
+  'loadStart',
+  'loadComplete',
+  'scanBlip',
+  'mountComplete',
+  'like',
+  'skip',
+  'saveUrl',
+  'serverHum',
+  'relayTick',
+  'modemBlip',
+  'beep',
+  'success',
+  'badgeEarn',
+  'levelUp',
+  'blip',
+  'ambient',
+];
+
+/**
+ * Factory defaults: only the mechanical clicks and the loading chimes are on
+ * out of the box. Game blips, feed jingles and the mains hum stay silent until
+ * the operator turns them on in Settings.
+ */
+export const DEFAULT_SOUND_FX: Record<SoundEffect, boolean> = {
+  click: true,
+  clickHeavy: true,
+  clickNav: true,
+  loadStart: true,
+  loadComplete: true,
+  scanBlip: false,
+  mountComplete: false,
+  like: false,
+  skip: false,
+  saveUrl: false,
+  serverHum: false,
+  relayTick: false,
+  modemBlip: false,
+  beep: false,
+  success: false,
+  badgeEarn: false,
+  levelUp: false,
+  blip: false,
+  ambient: false,
+};
+
 class SoundEngine {
   private ctx: AudioContext | null = null;
   private master: GainNode | null = null;
   private vol = 0.7;
   private muted = false;
   private enabled = true;
+  private fxEnabled: Record<SoundEffect, boolean> = { ...DEFAULT_SOUND_FX };
   private hum: { gain: GainNode; sources: AudioScheduledSourceNode[] } | null = null;
 
   private ensure(): AudioContext | null {
@@ -107,12 +162,22 @@ class SoundEngine {
     return this.enabled;
   }
 
+  /** Enable/disable a single named sound (persisted independently of master). */
+  setEffect(name: SoundEffect, on: boolean) {
+    this.fxEnabled[name] = on;
+  }
+
+  isEffectOn(name: SoundEffect) {
+    return this.fxEnabled[name] !== false;
+  }
+
   /**
    * Mechanical key/switch click: a short filtered-noise transient, a low
    * "body" thunk with a fast downward pitch bend, and a crisp high tick that
    * carries the per-gadget frequency. Reads as hardware, not a beep.
    */
   tick(freq: number, dur: number, gain: number) {
+    if (!this.fxEnabled.click) return;
     const ctx = this.ensure();
     if (!ctx || !this.master) return;
     const t0 = ctx.currentTime;
@@ -133,6 +198,7 @@ class SoundEngine {
 
   /** A single soft sine blip at a frequency (keeps RadarPuck's call signature). */
   blipTone(freq = 440, dur = 0.09) {
+    if (!this.fxEnabled.blip) return;
     this.tone([{ freq, start: 0, length: dur, amp: 0.04 }], dur + 0.02);
   }
 
@@ -187,6 +253,7 @@ class SoundEngine {
   }
 
   play(name: SfxName) {
+    if (!this.fxEnabled[name]) return;
     switch (name) {
       case 'click':
         this.tone([{ freq: E4, start: 0, length: 0.05, amp: 0.5 }, { freq: 1800, start: 0, length: 0.006, amp: 0.12 }], 0.08);
@@ -278,6 +345,7 @@ class SoundEngine {
    * gain, so mute, volume and the sound toggle gate it uniformly.
    */
   startAmbient() {
+    if (!this.fxEnabled.ambient) return;
     if (this.hum) return;
     const ctx = this.ensure();
     if (!ctx || !this.master) return;
@@ -328,6 +396,8 @@ export const unlockAudio = () => sfx.unlock();
 export const setSfxVolume = (v: number) => sfx.setVolume(v);
 export const setSfxMuted = (m: boolean) => sfx.setMuted(m);
 export const setSfxEnabled = (on: boolean) => sfx.setEnabled(on);
+export const setSfxEffect = (name: SoundEffect, on: boolean) => sfx.setEffect(name, on);
+export const isSfxEffectOn = (name: SoundEffect) => sfx.isEffectOn(name);
 export const startAmbient = () => sfx.startAmbient();
 export const stopAmbient = () => sfx.stopAmbient();
 

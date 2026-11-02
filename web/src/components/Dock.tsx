@@ -9,7 +9,7 @@ import { fetchUrlMeta } from '@/lib/scan';
 import { setRating } from '@/lib/ratings';
 
 /**
- * In-screen taskbar. The main controls sit centered (downvote · launcher · ROAM ·
+ * In-screen dock. The main controls sit centered (downvote · launcher · ROAM ·
  * settings · upvote, mirroring the Android control deck), with open windows on
  * the left and the system tray (terminal, comms, display/sound dropdowns,
  * inspect) on the right.
@@ -96,7 +96,7 @@ export function Dock() {
   };
 
   return (
-    <div className="dock" role="toolbar" aria-label="Taskbar" data-autohide={taskbarAutoHide ? 'on' : 'off'}>
+    <div className="dock" role="toolbar" aria-label="Dock" data-autohide={taskbarAutoHide ? 'on' : 'off'}>
       <div className="dock-windows">
         {ids.map((id) => {
           const w = windows[id]!;

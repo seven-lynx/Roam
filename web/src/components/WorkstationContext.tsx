@@ -5,6 +5,7 @@ import { createContext, useContext, type RefObject } from 'react';
 import type { ArtVariant } from '@/lib/art';
 import { ANCHOR_CAMERA } from '@/lib/deck-framing';
 import { PROGRAMS, type ProgramId } from '@/lib/os-programs';
+import { DEFAULT_SOUND_FX, type SoundEffect } from '@/lib/sfx';
 
 export type WindowId = 'launcher' | 'scan' | 'feedback' | 'terminal' | 'settings' | 'browser' | 'cyberdeck' | 'deck' | 'info' | 'coffee' | ProgramId;
 
@@ -40,10 +41,10 @@ export const WINDOW_DEFAULTS: Record<
   deck: { title: 'MOUNT DECK', w: 560, h: 320 },
   info: { title: 'ROAM INFO', w: 720, h: 560 },
   coffee: { title: 'REFUEL', w: 560, h: 320 },
-  snake: { title: PROGRAMS.snake.title, w: 420, h: 560 },
-  minesweeper: { title: PROGRAMS.minesweeper.title, w: 380, h: 520 },
-  tetris: { title: PROGRAMS.tetris.title, w: 360, h: 560 },
-  asteroids: { title: PROGRAMS.asteroids.title, w: 420, h: 580 },
+  snake: { title: PROGRAMS.snake.title, w: 560, h: 640 },
+  minesweeper: { title: PROGRAMS.minesweeper.title, w: 520, h: 600 },
+  tetris: { title: PROGRAMS.tetris.title, w: 420, h: 640 },
+  asteroids: { title: PROGRAMS.asteroids.title, w: 560, h: 680 },
 };
 
 export const BRIGHTNESS_MIN = 0.35;
@@ -51,7 +52,7 @@ export const BRIGHTNESS_MAX = 1.3;
 
 /** Top status-bar height (px) — windows clamp below it. */
 export const TOP_BAR_H = 40;
-/** Bottom taskbar height (px) — windows clamp above it. */
+/** Bottom dock height (px) — windows clamp above it. */
 export const DOCK_H = 44;
 /** Maximum simultaneous windows; the oldest (lowest z) auto-closes past this. */
 export const MAX_OPEN_WINDOWS = 5;
@@ -68,6 +69,32 @@ export const THEME_PRESETS: { id: Theme; label: string; phosphor: string; accent
   { id: 'blue', label: 'Blue', phosphor: '#5b8bb0', accent: '#e0b45f' },
   { id: 'ice', label: 'Ice', phosphor: '#bfe3de', accent: '#4f8a8f' },
 ];
+
+/** Granular CRT display-effect layers, each independently toggleable. The master
+ *  `fx` switch still hides the whole overlay set; these gate individual layers. */
+export interface DisplayFx {
+  scanlines: boolean;
+  grille: boolean;
+  grain: boolean;
+  static: boolean;
+  fringe: boolean;
+  vignette: boolean;
+  flicker: boolean;
+  curvature: boolean;
+  barrel: boolean;
+}
+
+export const DISPLAY_FX_DEFAULTS: DisplayFx = {
+  scanlines: true,
+  grille: true,
+  grain: true,
+  static: true,
+  fringe: true,
+  vignette: true,
+  flicker: true,
+  curvature: true,
+  barrel: true,
+};
 
 /** Screen layout: auto-detect the device, or force the handheld (mobile) /
  *  desktop (workstation) shell. */
@@ -145,7 +172,13 @@ export interface WorkstationState {
   /** CRT barrel-warp / curvature amount (0..1), adjustable in Settings. */
   warp: number;
   setWarp: (v: number) => void;
-  /** Auto-hide the taskbar (slide off-screen until hovered). */
+  /** Granular CRT display-effect layers (each independently toggleable). */
+  displayFx: DisplayFx;
+  setDisplayFx: (patch: Partial<DisplayFx>) => void;
+  /** Per-sound-effect toggles (clicks/loading on by default; rest off). */
+  soundFx: Record<SoundEffect, boolean>;
+  setSoundFx: (name: SoundEffect, on: boolean) => void;
+  /** Auto-hide the dock (slide off-screen until hovered). */
   taskbarAutoHide: boolean;
   setTaskbarAutoHide: (on: boolean) => void;
   /** OS screen color theme (recolors the whole screen). */
@@ -237,6 +270,10 @@ const DEFAULT_WORKSTATION: WorkstationState = {
   setBrightness: noop,
   warp: 0.35,
   setWarp: noop,
+  displayFx: { ...DISPLAY_FX_DEFAULTS },
+  setDisplayFx: noop,
+  soundFx: { ...DEFAULT_SOUND_FX },
+  setSoundFx: noop,
   taskbarAutoHide: false,
   setTaskbarAutoHide: noop,
   theme: 'green',

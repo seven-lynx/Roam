@@ -2,6 +2,24 @@
 
 All notable changes to the Roam web platform.
 
+## [2026-11-02] — ROAM-OS polish & CRT overhaul
+
+### Changed
+- Replaced the Windows-flavored diegetic program paths (`C:\ROAM\...\*.EXE`) with UNIX-style paths (`/roam/bin/RELAY`, etc.), and relabeled the in-screen dock (was "taskbar") across the dock, settings, and chrome.
+- Enlarged the game playfields (RELAY 18×18, COMPILER 10×20, DEBRIS 480×560, BOTFIELD 8×8) and made them scale-to-fit their windows, so they fill the window — including when maximized.
+- Docked the desktop widgets into a right-edge rail with transparent, chamfered (bevelled) tiles; dragging a widget's grip reorders it within the rail, and its bottom-left handle resizes it.
+- Moved wallpaper selection off the desktop and into the Settings hub (WALLPAPER section with swatches, auto-cycle, upload, and remove-custom).
+
+### Added
+- Granular CRT display-effect toggles (scanlines, aperture grille, grain, static, fringe, vignette, flicker, curvature, barrel warp) alongside the master switch.
+- Per-sound-effect toggles with factory defaults that keep only the UI clicks and loading chimes on; everything else (game blips, feed jingles, mains hum) defaults off.
+- A real barrel-warp CRT filter: the unreliable SVG data-URI displacement maps were replaced with runtime-generated PNG maps, so the geometric curvature actually renders instead of collapsing to a plain zoom.
+- Prettier Conky-style deck-diagnostic rings (per-ring colors, a bezel ring, and tick marks).
+
+### Fixed
+- Hardened window chrome (`contain: paint`, `overflow: clip`) so scrolling content can no longer escape its window.
+- Every window now exposes minimize + close (maximize remains desktop-only).
+
 ## [2026-11-02] — Touch controls for in-device programs
 
 ### Added

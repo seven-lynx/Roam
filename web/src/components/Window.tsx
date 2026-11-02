@@ -125,13 +125,11 @@ export function Window({ id, icon, children }: WindowProps) {
         <span className="window-icon" aria-hidden="true">{icon}</span>
         <span className="window-title">{win.title}</span>
         <span className="window-controls">
+          <button type="button" className="win-btn" onClick={() => { click(); minimizeWindow(id); }} aria-label="Minimize">–</button>
           {!handheld && (
-            <>
-              <button type="button" className="win-btn" onClick={() => { click(); minimizeWindow(id); }} aria-label="Minimize">–</button>
-              <button type="button" className="win-btn" onClick={() => { click(); toggleMaximize(id); }} aria-label={maximized ? 'Restore' : 'Maximize'}>
-                {maximized ? '❐' : '□'}
-              </button>
-            </>
+            <button type="button" className="win-btn" onClick={() => { click(); toggleMaximize(id); }} aria-label={maximized ? 'Restore' : 'Maximize'}>
+              {maximized ? '❐' : '□'}
+            </button>
           )}
           <button type="button" className="win-btn win-btn--close" onClick={() => { click(880, 0.05, 0.1); closeWindow(id); }} aria-label="Close">✕</button>
         </span>

@@ -8,7 +8,7 @@ import type { Program } from '@/lib/os-programs';
 
 /**
  * Shared chrome for an in-OS program: the standard `Window` plus a diegetic
- * kicker (7LYNX brand + DOS path) and a toggleable ABOUT / LICENSE drawer.
+ * kicker (7LYNX brand + UNIX path) and a toggleable ABOUT / LICENSE drawer.
  */
 export function ProgramWindow({
   id,
