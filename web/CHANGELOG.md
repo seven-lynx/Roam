@@ -9,6 +9,7 @@ All notable changes to the Roam web platform.
 - Window-manager chrome — the launcher (`PROGRAMS`), scan (`ROAM`), comms (`COMMS`), terminal (`TERMINAL`), settings (`SETTINGS`), and browser (`BROWSER`) windows, plus `CYBERDECK CONTROLS`, `MOUNT DECK`, `ROAM INFO`, and `REFUEL`.
 - Four in-device programs — RELAY, BOTFIELD, COMPILER, and DEBRIS (reskinned Snake, Minesweeper, Tetris, and Asteroids) with shared window chrome, scoped keyboard capture, and Apache-2.0 attribution.
 - `check-urls` and `home-stats` API routes.
+- Boot-time controls guide — a dismissible "how to play / controls" overlay shown whenever an in-device program launches.
 
 ### Changed
 - Replaced the desk-gadget landing with the cyberdeck window manager; the landing, leaderboard, and settings surfaces restyled to the ROAM-OS theme.

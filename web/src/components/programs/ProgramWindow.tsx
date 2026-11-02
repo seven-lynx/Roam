@@ -20,6 +20,7 @@ export function ProgramWindow({
   children: ReactNode;
 }) {
   const [about, setAbout] = useState(false);
+  const [guide, setGuide] = useState(true);
 
   return (
     <Window id={id} icon={<span aria-hidden="true">{program.glyph}</span>}>
@@ -39,7 +40,52 @@ export function ProgramWindow({
           </button>
         </div>
 
-        <div className="program-play">{children}</div>
+        <div className="program-play" style={{ position: 'relative' }}>
+          {children}
+
+          {guide && (
+            <div
+              role="dialog"
+              aria-label="Controls"
+              style={{
+                position: 'absolute',
+                inset: 0,
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 8,
+                padding: 16,
+                textAlign: 'center',
+                background: 'rgba(7,16,15,0.95)',
+                zIndex: 2,
+              }}
+            >
+              <span
+                style={{
+                  color: 'var(--accent)',
+                  fontSize: 18,
+                  letterSpacing: '0.12em',
+                  fontFamily: 'var(--font-pixel)',
+                }}
+              >
+                {program.title}
+              </span>
+              <span style={{ color: 'var(--phosphor)', fontSize: 11, fontFamily: 'var(--font-mono)' }}>
+                {program.file}
+              </span>
+              <p style={{ color: 'var(--fg)', fontSize: 11, margin: 0, maxWidth: 320, fontFamily: 'var(--font-mono)' }}>
+                {program.tagline}
+              </p>
+              <p style={{ color: 'var(--accent)', fontSize: 11, margin: 0, fontFamily: 'var(--font-pixel)' }}>
+                CONTROLS — {program.controls}
+              </p>
+              <button type="button" className="program-btn" onClick={() => setGuide(false)}>
+                RUN // START
+              </button>
+            </div>
+          )}
+        </div>
 
         {about && (
           <div className="program-about" role="note">

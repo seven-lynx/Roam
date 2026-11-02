@@ -2,6 +2,13 @@
 
 All notable changes to the Roam Android app.
 
+## [1.5.0] - 2026-11-02
+
+### Added
+- In-device programs — a "software shelf" (`ProgramsScreen`) reachable from the config sheet, backed by a shared `Program` registry that mirrors the web's four shipped games (RELAY, BOTFIELD, COMPILER, DEBRIS).
+- RELAY — a native Compose Snake game running inside a `RoamOsWindow`: a single-canvas board (one snapshot per ~110ms tick), swipe gestures or an on-screen D-pad (toggleable), a boot-time controls guide, an ABOUT/LICENSE drawer, and click/tick sound effects gated on the SFX toggle.
+- Unit tests for the program registry and swipe-steering resolver.
+
 ## [1.4.0] - 2026-10-29
 
 ### Added

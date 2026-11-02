@@ -31,6 +31,7 @@ import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Translate
 import androidx.compose.material.icons.filled.TravelExplore
+import androidx.compose.material.icons.filled.VideogameAsset
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -78,6 +79,7 @@ fun ProgramLauncher(
     onNavForward: () -> Unit,
     onNavReload: () -> Unit,
     onReportBrokenLink: () -> Unit,
+    onOpenPrograms: () -> Unit,
     title: String?,
     description: String?,
     domain: String?,
@@ -136,6 +138,8 @@ fun ProgramLauncher(
                         ProgramTile(Icons.Filled.Folder, "collections", { onManageCollections(); onClose() }, Modifier.weight(1f))
                         ProgramTile(Icons.Filled.Flag, "report", { onReportBrokenLink(); onClose() }, Modifier.weight(1f))
                     }
+                    Spacer(Modifier.height(8.dp))
+                    ProgramTile(Icons.Filled.VideogameAsset, "shelf", { onOpenPrograms(); onClose() }, Modifier.fillMaxWidth())
                 }
                 Box(Modifier.fillMaxWidth().height(1.dp).background(LineColor))
                 Text(

@@ -81,6 +81,7 @@ import app.roam.android.ui.component.BootScanLoading
 import app.roam.android.ui.component.ConfigBottomSheet
 import app.roam.android.ui.component.ControlDeck
 import app.roam.android.ui.component.ProgramLauncher
+import app.roam.android.ui.component.ProgramsScreen
 import app.roam.android.ui.component.HandheldShell
 import app.roam.android.ui.component.HardwareFx
 import app.roam.android.ui.component.LocalClickSound
@@ -648,6 +649,7 @@ private fun DiscoverTab(
     val translateLanguage by vm.translateLanguage.collectAsState()
     val webViewReady by vm.webViewReady.collectAsState()
     val showTranslatePicker by vm.showTranslatePicker.collectAsState()
+    var programsOpen by remember { mutableStateOf(false) }
     val isRoamOs = themeVariant == RoamThemeVariant.ROAM_OS
     val screenLabel = if (isRoamOs) when {
         showTranslatePicker -> "TRANSLATE // TARGET"
@@ -655,6 +657,7 @@ private fun DiscoverTab(
         showCommsMenu -> "COMMS // UPLINK"
         showShareUrlSheet -> "SHARE // LINK"
         showSubmitSheet -> "SUBMIT // URL"
+        programsOpen -> "PROGRAMS // SHELF"
         else -> null
     } else null
 
@@ -1105,6 +1108,7 @@ private fun DiscoverTab(
                         onNavForward = { vm.webNavForward() },
                         onNavReload = { vm.webNavReload() },
                         onReportBrokenLink = { vm.reportBrokenLink() },
+                        onOpenPrograms = { vm.closeConfigSheet(); programsOpen = true },
                         title = loaded?.roamUrl?.title,
                         description = loaded?.roamUrl?.description,
                         domain = rawUrl?.toUri()?.host?.removePrefix("www."),
@@ -1112,6 +1116,14 @@ private fun DiscoverTab(
                         subcategory = loaded?.roamUrl?.subcategoryId?.let { id -> subcategories.firstOrNull { it.id == id }?.name },
                         wilsonScore = loaded?.roamUrl?.wilsonScore ?: 0.0,
                         onClose = { vm.closeConfigSheet() },
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                }
+
+                if (isRoamOs && programsOpen) {
+                    ProgramsScreen(
+                        soundEnabled = soundEffectsEnabled,
+                        onClose = { programsOpen = false },
                         modifier = Modifier.fillMaxSize(),
                     )
                 }
