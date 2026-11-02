@@ -1,9 +1,9 @@
 import { LAUNCHER_GROUPS, PRIMARY_KEYS, isActivePath, toUnixPath } from '@/lib/os-nav';
 
 describe('os-nav', () => {
-  it('keeps the site\'s real route names (nothing is renamed)', () => {
+  it('lists the primary keys with their on-deck labels', () => {
     const labels = PRIMARY_KEYS.map((k) => k.label);
-    expect(labels).toEqual(['Home', 'Collections', 'Badges', 'Challenges', 'Leaderboard', 'Profile']);
+    expect(labels).toEqual(['Home', 'Collections', 'Badges', 'Challenges', 'Rankings', 'Profile']);
   });
 
   it('gives every primary key a unique, absolute href', () => {
@@ -14,7 +14,9 @@ describe('os-nav', () => {
 
   it('does not duplicate a primary key inside the launcher', () => {
     const primary = new Set(PRIMARY_KEYS.map((k) => k.href));
-    const launcher = LAUNCHER_GROUPS.flatMap((g) => g.items.map((i) => i.href));
+    const launcher = LAUNCHER_GROUPS.flatMap((g) =>
+      g.items.map((i) => i.href).filter((h): h is string => typeof h === 'string'),
+    );
     launcher.forEach((h) => expect(primary.has(h)).toBe(false));
   });
 

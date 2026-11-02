@@ -44,13 +44,37 @@ describe('scan helpers', () => {
 describe('fetchScanTarget', () => {
   afterEach(() => jest.clearAllMocks());
 
-  it('returns a catalogue entry and only queries approved, active sites', async () => {
+  it('returns a catalog entry and only queries approved, active sites', async () => {
     const chain = mockCatalogue({
-      data: [{ id: '1', title: 'Old Web', original_url: 'https://example.org', upvotes: 9 }],
+      data: [
+        {
+          id: '1',
+          title: 'Old Web',
+          original_url: 'https://example.org',
+          upvotes: 9,
+          downvotes: 2,
+          wilson_score: 0.8,
+          category_id: 'c1',
+          subcategory_id: 's1',
+          categories: { name: 'Tech' },
+          subcategories: { name: 'Hacking' },
+        },
+      ],
       error: null,
     });
     const target = await fetchScanTarget();
-    expect(target).toEqual({ id: '1', title: 'Old Web', original_url: 'https://example.org', upvotes: 9 });
+    expect(target).toEqual({
+      id: '1',
+      title: 'Old Web',
+      original_url: 'https://example.org',
+      upvotes: 9,
+      downvotes: 2,
+      wilson_score: 0.8,
+      category_id: 'c1',
+      subcategory_id: 's1',
+      category: 'Tech',
+      subcategory: 'Hacking',
+    });
     expect(chain.eq).toHaveBeenCalledWith('approved', true);
     expect(chain.eq).toHaveBeenCalledWith('inactive', false);
   });
@@ -60,7 +84,7 @@ describe('fetchScanTarget', () => {
     expect(await fetchScanTarget()).toBeNull();
   });
 
-  it('returns null when the catalogue is empty', async () => {
+  it('returns null when the catalog is empty', async () => {
     mockCatalogue({ data: [], error: null });
     expect(await fetchScanTarget()).toBeNull();
   });

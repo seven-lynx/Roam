@@ -40,6 +40,19 @@ jest.mock('next/navigation', () => ({
   },
 }))
 
+// Mock next/link — Next 16's Link uses the compiled React runtime, which has no
+// active dispatcher in jsdom tests, so rendering it throws
+// "Cannot read properties of null (reading 'useContext')". Render a plain <a>.
+jest.mock('next/link', () => {
+  const React = require('react');
+  const MockLink = React.forwardRef(function MockLink({ href, children, ...rest }, ref) {
+    const hrefString = typeof href === 'string' ? href : href?.pathname || '#';
+    return React.createElement('a', { href: hrefString, ref, ...rest }, children);
+  });
+  MockLink.displayName = 'MockLink';
+  return { __esModule: true, default: MockLink };
+})
+
 // Mock Supabase
 jest.mock('@supabase/supabase-js', () => ({
   createClient: jest.fn(),
