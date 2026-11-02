@@ -69,6 +69,10 @@ export const THEME_PRESETS: { id: Theme; label: string; phosphor: string; accent
   { id: 'ice', label: 'Ice', phosphor: '#bfe3de', accent: '#4f8a8f' },
 ];
 
+/** Screen layout: auto-detect the device, or force the handheld (mobile) /
+ *  desktop (workstation) shell. */
+export type UiMode = 'auto' | 'desktop' | 'handheld';
+
 /** Deck camera framing. Zoom is absolute; pan is an accumulated screen-px offset. */
 export interface CameraFraming {
   zoom: number;
@@ -147,6 +151,11 @@ export interface WorkstationState {
   /** OS screen color theme (recolors the whole screen). */
   theme: Theme;
   setTheme: (t: Theme) => void;
+  /** Screen layout mode (auto / desktop / handheld). */
+  uiMode: UiMode;
+  setUiMode: (mode: UiMode) => void;
+  /** Effective handheld (mobile) layout — resolved from uiMode + the device. */
+  handheld: boolean;
   /** True once the Spline cyberdeck scene has loaded and bridged. */
   deckReady: boolean;
   setDeckReady: (ready: boolean) => void;
@@ -232,6 +241,9 @@ const DEFAULT_WORKSTATION: WorkstationState = {
   setTaskbarAutoHide: noop,
   theme: 'green',
   setTheme: noop,
+  uiMode: 'auto',
+  setUiMode: noop,
+  handheld: false,
   deckReady: false,
   setDeckReady: noop,
   artVariant: 'a',

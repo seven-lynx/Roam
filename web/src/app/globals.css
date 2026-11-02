@@ -2772,3 +2772,132 @@ button.gadget:active { transform: translateY(1px) scale(0.98); }
 }
 .program-btn:hover { border-color: var(--phosphor); box-shadow: 0 0 0 1px var(--phosphor-glow), 0 0 14px var(--phosphor-glow); }
 
+/* ============================================================
+   HANDHELD SHELL (mobile layout — the OS is the device)
+   Gated by .screen[data-layout="handheld"]. Desktop (>767px) is
+   unchanged; these rules restyle the OS when the handheld toggle
+   (or auto-detection) is active. No physical chassis — the screen
+   fills the viewport with the CRT FX on.
+   ============================================================ */
+
+/* Base wrappers introduced for the handheld homescreen. */
+.desktop-icons { position: absolute; inset: 0; }
+.launcher-list { display: none; }
+
+.screen[data-layout="handheld"] {
+  border-radius: 0;
+  box-shadow: none;
+}
+
+/* ── Homescreen: tap grid (no drag) + widget strip ── */
+.screen[data-layout="handheld"] .desktop {
+  display: flex;
+  flex-direction: column;
+}
+.screen[data-layout="handheld"] .desktop-toolbar { display: none; }
+
+.screen[data-layout="handheld"] .desktop-widgets {
+  position: static;
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: row;
+  gap: 10px;
+  overflow-x: auto;
+  padding: 10px;
+  pointer-events: auto;
+  z-index: 7;
+  -webkit-overflow-scrolling: touch;
+}
+.screen[data-layout="handheld"] .desktop-widgets .dw-wrap {
+  position: static;
+  flex: 0 0 auto;
+  width: 264px;
+  max-width: 80vw;
+}
+
+.screen[data-layout="handheld"] .desktop-icons {
+  position: static;
+  flex: 1 1 auto;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  align-content: start;
+  gap: 6px;
+  padding: 6px 10px 16px;
+  overflow-y: auto;
+  pointer-events: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.screen[data-layout="handheld"] .desktop-icon {
+  position: static;
+  width: auto;
+  height: auto;
+  min-height: 78px;
+  touch-action: manipulation;
+}
+.screen[data-layout="handheld"] .desktop-glyph { width: 46px; height: 46px; font-size: 19px; }
+.screen[data-layout="handheld"] .desktop-file { display: none; }
+
+/* ── Windows open full-screen with a slide-in ── */
+.screen[data-layout="handheld"] .window--handheld {
+  animation: handheld-window-in 0.18s ease-out;
+}
+@keyframes handheld-window-in {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Launcher becomes a full-screen drawer with a flat list ── */
+.screen[data-layout="handheld"] .launcher-dropdown {
+  top: 40px;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: auto;
+  max-width: none;
+  border-radius: 0;
+  border: none;
+  border-top: 1px solid var(--line);
+  box-shadow: none;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  animation: none;
+}
+.screen[data-layout="handheld"] .launcher-dropdown-head { flex: 0 0 auto; }
+.screen[data-layout="handheld"] .launcher-recent { flex: 0 0 auto; }
+.screen[data-layout="handheld"] .launcher-cascade { display: none; }
+.screen[data-layout="handheld"] .launcher-list {
+  display: block;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 0.5rem;
+  -webkit-overflow-scrolling: touch;
+}
+.screen[data-layout="handheld"] .launcher-list-group { margin-bottom: 0.75rem; }
+.screen[data-layout="handheld"] .launcher-list-head {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-family: var(--font-pixel);
+  font-size: 0.62rem;
+  letter-spacing: 0.14em;
+  color: var(--accent);
+  text-transform: uppercase;
+  padding: 0.35rem 0.5rem;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 0.3rem;
+}
+.screen[data-layout="handheld"] .launcher-list-items { display: flex; flex-direction: column; gap: 2px; }
+.screen[data-layout="handheld"] .launcher-item { padding: 0.55rem 0.6rem; }
+.screen[data-layout="handheld"] .launcher-flavor { flex: 0 0 auto; }
+.screen[data-layout="handheld"] .launcher-footer { flex: 0 0 auto; }
+
+/* ── Control deck: larger tap targets, window tray collapsed ── */
+.screen[data-layout="handheld"] .dock { padding: 0.4rem 0.4rem; gap: 0.4rem; }
+.screen[data-layout="handheld"] .dock-windows { display: none; }
+.screen[data-layout="handheld"] .dock-main { flex: 1 1 auto; justify-content: center; }
+.screen[data-layout="handheld"] .dock-btn { width: 38px; height: 38px; font-size: 16px; }
+.screen[data-layout="handheld"] .dock-btn.dock-roam { width: 44px; font-size: 18px; }
+

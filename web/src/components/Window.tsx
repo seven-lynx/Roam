@@ -16,7 +16,7 @@ interface WindowProps {
  * context; this component only renders chrome and reports pointer gestures.
  */
 export function Window({ id, icon, children }: WindowProps) {
-  const { windows, screenRef, focusWindow, minimizeWindow, toggleMaximize, closeWindow, moveWindow } = useWorkstation();
+  const { windows, screenRef, focusWindow, minimizeWindow, toggleMaximize, closeWindow, moveWindow, handheld } = useWorkstation();
   const win = windows[id];
   const ref = useRef<HTMLElement>(null);
   const drag = useRef<{ px: number; py: number; ox: number; oy: number } | null>(null);
@@ -28,22 +28,26 @@ export function Window({ id, icon, children }: WindowProps) {
 
   if (!win || win.minimized) return null;
 
+  // Handheld layout forces every window full-screen (between the status bar and
+  // the dock) without mutating the saved desktop geometry.
+  const maximized = win.maximized || handheld;
+
   const style: CSSProperties = {
     zIndex: 30 + win.z,
-    ...(win.maximized
+    ...(maximized
       ? { left: 0, top: TOP_BAR_H, width: '100%', height: `calc(100% - ${TOP_BAR_H + DOCK_H}px)` }
       : { left: win.rect.x, top: win.rect.y, width: win.rect.w, height: win.rect.h }),
   };
 
   const startDrag = (e: PointerEvent<HTMLDivElement>) => {
-    if (win.maximized) return;
+    if (maximized) return;
     if ((e.target as HTMLElement).closest('button')) return;
     e.currentTarget.setPointerCapture(e.pointerId);
     drag.current = { px: e.clientX, py: e.clientY, ox: win.rect.x, oy: win.rect.y };
   };
 
   const onDragMove = (e: PointerEvent<HTMLDivElement>) => {
-    if (!drag.current || win.maximized) return;
+    if (!drag.current || maximized) return;
     const el = screenRef.current;
     const dx = e.clientX - drag.current.px;
     const dy = e.clientY - drag.current.py;
@@ -60,7 +64,7 @@ export function Window({ id, icon, children }: WindowProps) {
   };
 
   const startResize = (e: PointerEvent<HTMLSpanElement>) => {
-    if (win.maximized) return;
+    if (maximized) return;
     const dir = e.currentTarget.dataset.dir ?? 'se';
     e.currentTarget.setPointerCapture(e.pointerId);
     resize.current = { dir, px: e.clientX, py: e.clientY, r: win.rect };
@@ -68,7 +72,7 @@ export function Window({ id, icon, children }: WindowProps) {
 
   const onResizeMove = (e: PointerEvent<HTMLSpanElement>) => {
     const d = resize.current;
-    if (!d || win.maximized) return;
+    if (!d || maximized) return;
     const el = screenRef.current;
     const maxW = el ? el.clientWidth : window.innerWidth;
     const maxH = el ? el.clientHeight - DOCK_H : window.innerHeight - DOCK_H;
@@ -107,7 +111,7 @@ export function Window({ id, icon, children }: WindowProps) {
       role="dialog"
       aria-label={win.title}
       tabIndex={-1}
-      className={`window${win.maximized ? ' window--max' : ''}`}
+      className={`window${maximized ? ' window--max' : ''}${handheld ? ' window--handheld' : ''}`}
       style={style}
       onPointerDown={() => focusWindow(id)}
     >
@@ -121,15 +125,19 @@ export function Window({ id, icon, children }: WindowProps) {
         <span className="window-icon" aria-hidden="true">{icon}</span>
         <span className="window-title">{win.title}</span>
         <span className="window-controls">
-          <button type="button" className="win-btn" onClick={() => { click(); minimizeWindow(id); }} aria-label="Minimize">–</button>
-          <button type="button" className="win-btn" onClick={() => { click(); toggleMaximize(id); }} aria-label={win.maximized ? 'Restore' : 'Maximize'}>
-            {win.maximized ? '❐' : '□'}
-          </button>
+          {!handheld && (
+            <>
+              <button type="button" className="win-btn" onClick={() => { click(); minimizeWindow(id); }} aria-label="Minimize">–</button>
+              <button type="button" className="win-btn" onClick={() => { click(); toggleMaximize(id); }} aria-label={maximized ? 'Restore' : 'Maximize'}>
+                {maximized ? '❐' : '□'}
+              </button>
+            </>
+          )}
           <button type="button" className="win-btn win-btn--close" onClick={() => { click(880, 0.05, 0.1); closeWindow(id); }} aria-label="Close">✕</button>
         </span>
       </header>
       <div className="window-body">{children}</div>
-      {!win.maximized && (
+      {!maximized && (
         <>
           <span className="win-resize win-resize--n" data-dir="n" onPointerDown={startResize} onPointerMove={onResizeMove} onPointerUp={endResize} onPointerCancel={endResize} />
           <span className="win-resize win-resize--s" data-dir="s" onPointerDown={startResize} onPointerMove={onResizeMove} onPointerUp={endResize} onPointerCancel={endResize} />

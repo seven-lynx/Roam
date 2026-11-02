@@ -19,16 +19,19 @@ import {
   type WindowRect,
   type CameraFraming,
   type Theme,
+  type UiMode,
   type AlertMessage,
   type AlertConfirmOptions,
   type BrowseTarget,
 } from '@/components/WorkstationContext';
+import { useIsMobile } from '@/lib/hooks';
 import { StatusBar } from '@/components/StatusBar';
 import { Launcher } from '@/components/Launcher';
 import FeedbackWidget from '@/components/FeedbackWidget';
 import { ScanSequence } from '@/components/ScanSequence';
 import { Terminal } from '@/components/Terminal';
 import { Dock } from '@/components/Dock';
+import { GestureLayer } from '@/components/GestureLayer';
 import { AlertDialog } from '@/components/AlertDialog';
 import { setSfxVolume, setSfxMuted, setSfxEnabled, unlockAudio, startAmbient } from '@/lib/sfx';
 import { Cyberdeck3D } from '@/components/Cyberdeck3D';
@@ -56,6 +59,7 @@ const ART_KEY = 'roam-art';
 const WARP_KEY = 'roam-warp';
 const AUTOHIDE_KEY = 'roam-autohide';
 const THEME_KEY = 'roam-theme';
+const UI_MODE_KEY = 'roam-ui-mode';
 const CAMERA_ZOOM_KEY = 'roam-deck-zoom';
 const CAMERA_PAN_KEY = 'roam-deck-pan';
 const CAMERA_FIT_KEY = 'roam-deck-fit';
@@ -108,6 +112,7 @@ export function WorkstationShell({
   overlays?: ReactNode;
 }) {
   const pathname = usePathname();
+  const isMobile = useIsMobile();
   const scrollRef = useRef<HTMLDivElement>(null);
   const screenRef = useRef<HTMLDivElement>(null);
 
@@ -119,6 +124,7 @@ export function WorkstationShell({
   const [warp, setWarpState] = useState(0.35);
   const [taskbarAutoHide, setTaskbarAutoHideState] = useState(false);
   const [theme, setThemeState] = useState<Theme>('green');
+  const [uiMode, setUiModeState] = useState<UiMode>('auto');
   const [launcherOpen, setLauncherOpenState] = useState(false);
   const [artVariant, setArtVariantState] = useState<ArtVariant>('a');
   const [inspect, setInspectState] = useState(false);
@@ -132,6 +138,9 @@ export function WorkstationShell({
   const [deckReady, setDeckReadyState] = useState(false);
   const [browse, setBrowseState] = useState<BrowseTarget | null>(null);
   const zRef = useRef(0);
+  // Effective handheld (mobile) layout — forced via the Settings toggle, or
+  // auto-detected from the viewport.
+  const handheld = uiMode === 'handheld' || (uiMode === 'auto' && isMobile);
   // Saved window geometry (rect + maximized), restored when a window opens.
   const layoutRef = useRef<Partial<Record<WindowId, { rect: WindowRect; maximized: boolean }>>>({});
 
@@ -173,6 +182,8 @@ export function WorkstationShell({
       const rawTheme = localStorage.getItem(THEME_KEY) ?? localStorage.getItem('roam-phosphor');
       if (rawTheme && THEME_PRESETS.some((p) => p.id === rawTheme)) setThemeState(rawTheme as Theme);
       if (localStorage.getItem(AUTOHIDE_KEY) === '1') setTaskbarAutoHideState(true);
+      const rawUiMode = localStorage.getItem(UI_MODE_KEY);
+      if (rawUiMode === 'desktop' || rawUiMode === 'handheld') setUiModeState(rawUiMode);
 
       // Restore saved window geometry (rect + maximized) — applied when windows open.
       try {
@@ -264,6 +275,11 @@ export function WorkstationShell({
     try { localStorage.setItem(AUTOHIDE_KEY, on ? '1' : '0'); } catch { /* ignore */ }
   }, []);
 
+  const setUiMode = useCallback((mode: UiMode) => {
+    setUiModeState(mode);
+    try { localStorage.setItem(UI_MODE_KEY, mode); } catch { /* ignore */ }
+  }, []);
+
   const setArtVariant = useCallback((v: ArtVariant) => {
     setArtVariantState(v);
     try { localStorage.setItem(ART_KEY, v); } catch { /* ignore */ }
@@ -323,6 +339,7 @@ export function WorkstationShell({
     setWarpState(0.35);
     setThemeState('green');
     setTaskbarAutoHideState(false);
+    setUiModeState('auto');
     setDeckModeState(false);
     setDeckRequestedState(false);
     setLauncherOpenState(false);
@@ -332,7 +349,7 @@ export function WorkstationShell({
     setFitState(null);
     resetWallpaper();
     try {
-      [FX_KEY, SOUND_KEY, VOL_KEY, MUTED_KEY, BRIGHT_KEY, ART_KEY, WARP_KEY, THEME_KEY, AUTOHIDE_KEY, CAMERA_ZOOM_KEY, CAMERA_PAN_KEY, CAMERA_FIT_KEY]
+      [FX_KEY, SOUND_KEY, VOL_KEY, MUTED_KEY, BRIGHT_KEY, ART_KEY, WARP_KEY, THEME_KEY, AUTOHIDE_KEY, UI_MODE_KEY, CAMERA_ZOOM_KEY, CAMERA_PAN_KEY, CAMERA_FIT_KEY]
         .forEach((k) => localStorage.removeItem(k));
     } catch { /* ignore */ }
   }, []);
@@ -543,6 +560,9 @@ export function WorkstationShell({
       setTaskbarAutoHide,
       theme,
       setTheme,
+      uiMode,
+      setUiMode,
+      handheld,
       artVariant,
       setArtVariant,
       inspect,
@@ -587,7 +607,7 @@ export function WorkstationShell({
       updateBrowse,
       closeBrowse,
     }),
-    [fx, setFx, sound, setSound, volume, setVolume, muted, toggleMute, setMuted, brightness, setBrightness, warp, setWarp, taskbarAutoHide, setTaskbarAutoHide, theme, setTheme, artVariant, setArtVariant, inspect, setInspect, toggleInspect, camera, setCamera, resetCamera, fit, saveFit, fitDeck, alert, showAlert, showConfirm, dismissAlert, resetOsSettings, windows, isOpen, openWindow, closeWindow, launcherOpen, setLauncherOpen, toggleLauncher, minimizeWindow, toggleMaximize, focusWindow, moveWindow, minimizeAll, restoreAll, deckReady, setDeckReady, deckMode, setDeckMode, deckRequested, setDeckRequested, openDeckLauncher, deckProgress, setDeckProgress, browse, openUrl, updateBrowse, closeBrowse],
+    [fx, setFx, sound, setSound, volume, setVolume, muted, toggleMute, setMuted, brightness, setBrightness, warp, setWarp, taskbarAutoHide, setTaskbarAutoHide, theme, setTheme, uiMode, setUiMode, handheld, artVariant, setArtVariant, inspect, setInspect, toggleInspect, camera, setCamera, resetCamera, fit, saveFit, fitDeck, alert, showAlert, showConfirm, dismissAlert, resetOsSettings, windows, isOpen, openWindow, closeWindow, launcherOpen, setLauncherOpen, toggleLauncher, minimizeWindow, toggleMaximize, focusWindow, moveWindow, minimizeAll, restoreAll, deckReady, setDeckReady, deckMode, setDeckMode, deckRequested, setDeckRequested, openDeckLauncher, deckProgress, setDeckProgress, browse, openUrl, updateBrowse, closeBrowse],
   );
 
   return (
@@ -607,6 +627,7 @@ export function WorkstationShell({
           className="screen"
           data-fx={fx ? 'on' : 'off'}
           data-theme={theme}
+          data-layout={handheld ? 'handheld' : 'desktop'}
           ref={screenRef}
           style={{ filter: `brightness(${brightness})${fx && warp > 0.02 ? ' url(#crt-barrel)' : ''}`, borderRadius: deckMode ? `${12 + warp * 22}px` : 0 }}
         >
@@ -637,6 +658,7 @@ export function WorkstationShell({
           <AsteroidsProgram />
           <Terminal />
           <Dock />
+          <GestureLayer />
           <AlertDialog />
           {overlays}
         </div>

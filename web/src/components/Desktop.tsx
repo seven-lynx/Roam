@@ -97,7 +97,7 @@ function loadPositions(): IconMap {
 export function Desktop() {
   const router = useRouter();
   const pathname = usePathname();
-  const { openWindow, toggleLauncher } = useWorkstation();
+  const { openWindow, toggleLauncher, handheld } = useWorkstation();
   const [positions, setPositions] = useState<IconMap>(loadPositions);
   const wallpaper = useWallpaper();
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -186,7 +186,7 @@ export function Desktop() {
   ];
 
   return (
-    <div className="desktop" aria-label="Desktop" style={{ background: wallpaper.current.css }}>
+    <div className={`desktop${handheld ? ' desktop--handheld' : ''}`} aria-label="Desktop" style={{ background: wallpaper.current.css }}>
       <div className="desktop-toolbar">
         <button
           type="button"
@@ -238,27 +238,29 @@ export function Desktop() {
         )}
       </div>
 
-      {DESKTOP_APPS.map((app) => {
-        const p = positions[app.id] ?? { x: 0, y: 0 };
-        return (
-          <button
-            key={app.id}
-            type="button"
-            className="desktop-icon"
-            style={{ left: p.x, top: p.y }}
-            onPointerDown={(e) => onDown(e, app)}
-            onPointerMove={onMove}
-            onPointerUp={(e) => onUp(e, app)}
-            onPointerCancel={() => (dragRef.current = null)}
-          >
-            <span className="desktop-glyph" aria-hidden="true">
-              {app.glyph}
-            </span>
-            <span className="desktop-label">{app.label}</span>
-            <span className="desktop-file">{app.file}</span>
-          </button>
-        );
-      })}
+      <div className="desktop-icons">
+        {DESKTOP_APPS.map((app) => {
+          const p = positions[app.id] ?? { x: 0, y: 0 };
+          return (
+            <button
+              key={app.id}
+              type="button"
+              className="desktop-icon"
+              style={{ left: p.x, top: p.y }}
+              onPointerDown={(e) => onDown(e, app)}
+              onPointerMove={onMove}
+              onPointerUp={(e) => onUp(e, app)}
+              onPointerCancel={() => (dragRef.current = null)}
+            >
+              <span className="desktop-glyph" aria-hidden="true">
+                {app.glyph}
+              </span>
+              <span className="desktop-label">{app.label}</span>
+              <span className="desktop-file">{app.file}</span>
+            </button>
+          );
+        })}
+      </div>
 
       <div className="desktop-widgets" aria-label="Desktop widgets">
         {widgetSpecs.map((w) => (

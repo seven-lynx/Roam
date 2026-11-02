@@ -135,3 +135,23 @@ export function useAuthStateChange(callback: (event: 'SIGNED_IN' | 'SIGNED_OUT',
     return () => subscription.unsubscribe();
   }, [supabase]);
 }
+
+/**
+ * True while the viewport is phone-sized (<= 767px). SSR-safe: reads the media
+ * query in an effect so the first render matches the server and then updates.
+ */
+export function useIsMobile() {
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 767px)');
+    const update = () => setIsMobile(mq.matches);
+    update();
+    if (typeof mq.addEventListener === 'function') {
+      mq.addEventListener('change', update);
+      return () => mq.removeEventListener('change', update);
+    }
+    mq.addListener(update);
+    return () => mq.removeListener(update);
+  }, []);
+  return isMobile;
+}

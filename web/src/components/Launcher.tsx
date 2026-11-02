@@ -40,7 +40,7 @@ interface Category {
 /** START-MENU key menu: cascading category list with a flyout panel. */
 export function Launcher() {
   const {
-    launcherOpen, setLauncherOpen, openWindow, setInspect, openDeckLauncher, showAlert, showConfirm,
+    launcherOpen, setLauncherOpen, openWindow, setInspect, openDeckLauncher, showAlert, showConfirm, handheld,
   } = useWorkstation();
   const { session } = useAuth();
   const router = useRouter();
@@ -160,7 +160,7 @@ export function Launcher() {
   const activeCategory = categories.find((c) => c.id === active);
 
   return (
-    <div className="launcher-dropdown" ref={ref} role="menu" aria-label="Programs">
+    <div className={`launcher-dropdown${handheld ? ' launcher-dropdown--handheld' : ''}`} ref={ref} role="menu" aria-label="Programs">
       <div className="launcher-dropdown-head">
         <LynxMark size={20} />
         <span className="launcher-head-title">Launcher</span>
@@ -176,6 +176,20 @@ export function Launcher() {
           ))}
         </div>
       )}
+
+      <div className="launcher-list" aria-label="All programs">
+        {categories.map((c) => (
+          <div key={c.id} className="launcher-list-group">
+            <div className="launcher-list-head">
+              <span className="launcher-cat-glyph">{c.glyph}</span>
+              {c.title}
+            </div>
+            <div className="launcher-list-items">
+              {c.items.map((item) => renderItem(item))}
+            </div>
+          </div>
+        ))}
+      </div>
 
       <div className="launcher-cascade" onMouseLeave={() => setActive(null)}>
         <div className="launcher-cats">

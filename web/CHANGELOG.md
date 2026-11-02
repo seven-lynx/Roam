@@ -2,6 +2,16 @@
 
 All notable changes to the Roam web platform.
 
+## [2026-11-02] — Handheld shell & touch gestures
+
+### Added
+- Handheld layout toggle in the ROAM-OS settings hub ("Handheld mode" — palm-top shell with full-screen programs, a thumb-sized control deck, and a swipeable widget strip; off returns to the desk rig), with auto-detection and a "Reset to auto-detect" control.
+- Responsive handheld shell (no physical chassis): the OS fills the viewport edge-to-edge with CRT effects on; the desktop becomes a 4-column app grid, the launcher becomes a full-screen drawer, and windows open full-screen with a slide-in.
+- Touch gestures while in handheld mode — swipe up from the bottom for the launcher, swipe down from the top for settings, and edge-swipe from either side to go back.
+
+### Changed
+- Added a `viewport` export (`viewport-fit: cover`) and a `useIsMobile` media-query hook for app-like, edge-to-edge mobile rendering.
+
 ## [2026-11-02] — ROAM-OS cyberdeck desktop & in-device programs
 
 ### Added

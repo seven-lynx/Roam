@@ -86,6 +86,7 @@ export function SettingsApp() {
     inspect, toggleInspect,
     deckMode, setDeckMode,
     taskbarAutoHide, setTaskbarAutoHide,
+    uiMode, setUiMode, handheld,
     showAlert,
     resetCamera,
     resetOsSettings,
@@ -107,6 +108,23 @@ export function SettingsApp() {
               <Slider value={warp} min={0} max={1} step={0.05} onChange={setWarp} label="Barrel curvature" fmt={(v) => `${Math.round(v * 100)}%`} />
               <Slider value={brightness} min={BRIGHTNESS_MIN} max={BRIGHTNESS_MAX} step={0.05} onChange={setBrightness} label="Brightness" fmt={(v) => `${Math.round(v * 100)}%`} />
               <Toggle on={taskbarAutoHide} onChange={() => setTaskbarAutoHide(!taskbarAutoHide)} label="Auto-hide taskbar" hint="slides away until you hover the bottom edge" />
+            </div>
+          </section>
+
+          <section className="panel">
+            <div className="panel-head"><span className="led" />SHELL</div>
+            <div className="p-2">
+              <Toggle
+                on={handheld}
+                onChange={() => setUiMode(handheld ? 'desktop' : 'handheld')}
+                label="Handheld mode"
+                hint="palm-top shell · full-screen programs · thumb deck (off = desk rig)"
+              />
+              {uiMode !== 'auto' && (
+                <button type="button" className="set-btn" onClick={() => { click(); setUiMode('auto'); }}>
+                  Reset to auto-detect
+                </button>
+              )}
             </div>
           </section>
 
