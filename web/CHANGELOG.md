@@ -2,6 +2,14 @@
 
 All notable changes to the Roam web platform.
 
+## [2026-11-02] — Radial barrel warp
+### Changed
+- Replaced the separable cubic CRT displacement map with a true radial barrel warp that mirrors the Android `CrtOverlay` shader (`center + d·(1 + amount·r²)`), so the edges bow outward like a fisheye instead of a barely-visible anamorphic zoom.
+- Made the warp resolution-independent (the filter now runs in `objectBoundingBox` units) and scaled it to the Android app's strength — up to 0.70 at the max dial, which pushes corners ~17% toward centre.
+
+### Fixed
+- Removed the filter's `-8%…116%` ink-overflow region and hard-clipped the screen with a matching `clip-path`, so the stronger warp no longer escapes the screen or overruns scrollable menus.
+
 ## [2026-11-02] — Window manager & widget legibility pass
 
 ### Changed

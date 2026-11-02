@@ -71,19 +71,26 @@ const WINDOW_LAYOUT_KEY = 'roam-window-layout';
 const DECK_VERSION_KEY = 'roam-deck-version';
 
 // ── CRT barrel distortion ───────────────────────────────────────────────
-// Real geometric barrel warp via feDisplacementMap. The displacement map uses a
-// *cubic* ramp per axis (R = horizontal, G = vertical) rather than a linear one:
-// a linear ramp is an affine transform — a plain zoom — whereas the cubic ramp
-// is flat at the centre and steep at the edges, which is what makes straight
-// lines bow outward. Neutral (#808080) at the centre, full deflection at the
-// edges. Scale follows the warp slider; the filter is only attached to `.screen`
-// when warp > 0.02.
-// The old SVG data-URI displacement maps were unreliable (feImage often rasterised
-// them as transparent black, which collapses the warp to a plain zoom). Instead we
-// bake the two cubic ramps into a single 256×256 PNG at runtime — R channel =
-// horizontal displacement, G channel = vertical — so `feDisplacementMap` always
-// gets a valid, real curvature map.
+// Real geometric barrel warp via feDisplacementMap, ported from the Android
+// `CrtOverlay` AGSL shader:
+//     warped = center + d * (1 + amount * r2)
+// where d is the offset from the screen centre and r2 = dot(d, d). That *radial*
+// formula bows both axes outward (a true fisheye) rather than the old separable
+// cubic ramp, which was effectively an anamorphic zoom — too subtle to notice.
+// The map bakes the shape (amount = 1) into a single 256×256 PNG — R channel =
+// horizontal displacement, G channel = vertical — with #808080 at the centre and
+// full deflection at the corners. `feDisplacementMap` samples source at
+// `coord + scale*(channel - 0.5)`, so each channel stores `d * r2` (max 0.25 at
+// the corners) scaled to the full 0..255 range. The filter runs in
+// objectBoundingBox units, so `scale` is a fraction of the screen size and
+// follows the warp slider to match Android's amount (0 … 0.70).
 const BARREL_MAP_SIZE = 256;
+// Android's `CrtOverlay` tops out at (fisheye - 1) / 9 * 0.70 → 0.70 at max dial.
+const BARREL_AMOUNT_MAX = 0.7;
+// Channel swing ÷ normalised displacement (508 / 255 ≈ 1.992): the corner
+// displacement (d·r2 = 0.25) maps to the full 0..255 channel range, so
+// scale = amount / gain reproduces the shader's displacement exactly.
+const BARREL_MAP_GAIN = 508 / 255;
 let barrelMapCache: string | null = null;
 
 function getBarrelMap(): string {
@@ -95,17 +102,21 @@ function getBarrelMap(): string {
   const ctx = canvas.getContext('2d');
   if (!ctx) return '';
   const img = ctx.createImageData(BARREL_MAP_SIZE, BARREL_MAP_SIZE);
-  // Neutral (#808080) at the centre, full deflection at the edges, via a smooth
-  // cubic (flat middle, steep ends) — the shape that bows straight lines outward.
+  // Radial displacement: R = dx·r2, G = dy·r2, normalised to the full channel
+  // range (neutral #808080 at the centre, ±127 at the corners).
+  const K = 127 / 0.25; // 508
   for (let y = 0; y < BARREL_MAP_SIZE; y++) {
     for (let x = 0; x < BARREL_MAP_SIZE; x++) {
       const tx = x / (BARREL_MAP_SIZE - 1);
       const ty = y / (BARREL_MAP_SIZE - 1);
-      const rx = 128 + Math.round(1020 * Math.pow(tx - 0.5, 3));
-      const ry = 128 + Math.round(1020 * Math.pow(ty - 0.5, 3));
+      const dx = tx - 0.5;
+      const dy = ty - 0.5;
+      const r2 = dx * dx + dy * dy;
+      const sx = dx * r2; // radial x displacement (normalised)
+      const sy = dy * r2; // radial y displacement (normalised)
       const i = (y * BARREL_MAP_SIZE + x) * 4;
-      img.data[i] = Math.max(0, Math.min(255, rx)); // R → horizontal
-      img.data[i + 1] = Math.max(0, Math.min(255, ry)); // G → vertical
+      img.data[i] = Math.max(0, Math.min(255, Math.round(128 + sx * K))); // R → horizontal
+      img.data[i + 1] = Math.max(0, Math.min(255, Math.round(128 + sy * K))); // G → vertical
       img.data[i + 2] = 128; // B unused by the displacement map
       img.data[i + 3] = 255;
     }
@@ -704,11 +715,11 @@ export function WorkstationShell({
       <Cyberdeck3D>
         <svg aria-hidden="true" focusable="false" style={{ position: 'absolute', width: 0, height: 0, overflow: 'hidden' }}>
           <defs>
-            <filter id="crt-barrel" x="-8%" y="-8%" width="116%" height="116%" colorInterpolationFilters="sRGB">
+            <filter id="crt-barrel" x="0%" y="0%" width="100%" height="100%" primitiveUnits="objectBoundingBox" colorInterpolationFilters="sRGB">
               {barrelMap && (
-                <feImage href={barrelMap} result="map" x="0" y="0" width="100%" height="100%" preserveAspectRatio="none" />
+                <feImage href={barrelMap} result="map" x="0" y="0" width="1" height="1" preserveAspectRatio="none" />
               )}
-              <feDisplacementMap in="SourceGraphic" in2="map" scale={Math.round(warp * 40)} xChannelSelector="R" yChannelSelector="G" />
+              <feDisplacementMap in="SourceGraphic" in2="map" scale={(warp * BARREL_AMOUNT_MAX) / BARREL_MAP_GAIN} xChannelSelector="R" yChannelSelector="G" />
             </filter>
           </defs>
         </svg>
@@ -718,7 +729,11 @@ export function WorkstationShell({
           data-theme={theme}
           data-layout={handheld ? 'handheld' : 'desktop'}
           ref={screenRef}
-          style={{ filter: `brightness(${brightness})${fx && displayFx.barrel && warp > 0.02 ? ' url(#crt-barrel)' : ''}`, borderRadius: deckMode ? `${12 + warp * 22}px` : 0 }}
+          style={{
+            filter: `brightness(${brightness})${fx && displayFx.barrel && warp > 0.02 ? ' url(#crt-barrel)' : ''}`,
+            borderRadius: deckMode ? `${12 + warp * 22}px` : 0,
+            clipPath: deckMode ? `inset(0 round ${12 + warp * 22}px)` : 'inset(0)',
+          }}
         >
           <StatusBar />
           <div
