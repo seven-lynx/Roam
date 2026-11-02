@@ -14,9 +14,7 @@ import { PageTransition } from "@/components/PageTransition";
 import { createClient } from "@/lib/supabase/server";
 import { TerminalOverlay } from "@/components/TerminalOverlay";
 import { FlashlightCursor } from "@/components/FlashlightCursor";
-import { BootSequence } from "@/components/BootSequence";
 import { WorkstationShell } from "@/components/WorkstationShell";
-import { LeftRail, RightRail } from "@/components/DeskRails";
 
 const spaceGrotesk = Space_Grotesk({
   variable: "--font-space-grotesk",
@@ -90,18 +88,11 @@ export default async function RootLayout({
               Skip to content
             </a>
             <WorkstationShell
-              rails={
-                <>
-                  <LeftRail />
-                  <RightRail />
-                </>
-              }
               overlays={
                 <>
                   <FlashlightCursor />
                   <TerminalOverlay />
                   <CookieBanner />
-                  <BootSequence />
                 </>
               }
             >

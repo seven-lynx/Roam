@@ -40,7 +40,11 @@ export type SfxName =
   | 'saveUrl'
   | 'serverHum'
   | 'relayTick'
-  | 'modemBlip';
+  | 'modemBlip'
+  | 'beep'
+  | 'success'
+  | 'badgeEarn'
+  | 'levelUp';
 
 class SoundEngine {
   private ctx: AudioContext | null = null;
@@ -48,7 +52,7 @@ class SoundEngine {
   private vol = 0.7;
   private muted = false;
   private enabled = true;
-  private ambientId: number | null = null;
+  private hum: { gain: GainNode; sources: AudioScheduledSourceNode[] } | null = null;
 
   private ensure(): AudioContext | null {
     if (typeof window === 'undefined') return null;
@@ -103,20 +107,28 @@ class SoundEngine {
     return this.enabled;
   }
 
-  /** Short square-wave tick - the original desk-gadget click signature. */
+  /**
+   * Mechanical key/switch click: a short filtered-noise transient, a low
+   * "body" thunk with a fast downward pitch bend, and a crisp high tick that
+   * carries the per-gadget frequency. Reads as hardware, not a beep.
+   */
   tick(freq: number, dur: number, gain: number) {
     const ctx = this.ensure();
     if (!ctx || !this.master) return;
     const t0 = ctx.currentTime;
+    const bodyFreq = Math.max(55, Math.min(420, freq * 0.4));
     const osc = ctx.createOscillator();
     const g = ctx.createGain();
-    osc.type = 'square';
-    osc.frequency.value = freq;
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(bodyFreq, t0);
+    osc.frequency.exponentialRampToValueAtTime(Math.max(38, bodyFreq * 0.35), t0 + dur);
     g.gain.setValueAtTime(Math.min(1, gain), t0);
     g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
     osc.connect(g).connect(this.master);
     osc.start(t0);
-    osc.stop(t0 + dur);
+    osc.stop(t0 + dur + 0.02);
+    this.noise(0, Math.min(0.02, dur), gain * 0.7);
+    this.tone([{ freq: Math.min(6000, freq), start: 0, length: 0.008, amp: gain * 0.18 }], 0.02);
   }
 
   /** A single soft sine blip at a frequency (keeps RadarPuck's call signature). */
@@ -245,26 +257,68 @@ class SoundEngine {
       case 'modemBlip':
         this.tone([{ freq: 980, start: 0, length: 0.09, amp: 0.35 }, { freq: 1650, start: 0.06, length: 0.1, amp: 0.3 }], 0.2);
         break;
+      case 'beep':
+        this.tone([{ freq: 880, start: 0, length: 0.08, amp: 0.25 }], 0.1);
+        break;
+      case 'success':
+        this.tone([{ freq: E5, start: 0, length: 0.09, amp: 0.3 }, { freq: A5, start: 0.09, length: 0.14, amp: 0.3 }], 0.25);
+        break;
+      case 'badgeEarn':
+        this.tone([{ freq: C6, start: 0, length: 0.07, amp: 0.3 }, { freq: E6, start: 0.07, length: 0.12, amp: 0.28 }], 0.2);
+        break;
+      case 'levelUp':
+        this.tone([{ freq: C5, start: 0, length: 0.1, amp: 0.32 }, { freq: E5, start: 0.1, length: 0.1, amp: 0.32 }, { freq: G5, start: 0.2, length: 0.16, amp: 0.32 }], 0.4);
+        break;
     }
   }
 
-  /** Gentle, spaced-out "data flow" ambience (mirrors the Android loading loop). */
+  /**
+   * A barely-there mains hum (50Hz fundamental + octave + a faint airy top)
+   * that replaced the old random blips. It runs once and sits under the master
+   * gain, so mute, volume and the sound toggle gate it uniformly.
+   */
   startAmbient() {
-    if (this.ambientId !== null) return;
-    const accents: SfxName[] = ['scanBlip', 'relayTick', 'modemBlip'];
-    const tick = () => {
-      this.ambientId = window.setTimeout(tick, 4000 + Math.random() * 8000);
-      if (!this.enabled || this.muted || this.vol <= 0) return;
-      this.play(accents[Math.floor(Math.random() * accents.length)]);
+    if (this.hum) return;
+    const ctx = this.ensure();
+    if (!ctx || !this.master) return;
+    const gain = ctx.createGain();
+    gain.gain.setValueAtTime(0.0001, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.02, ctx.currentTime + 2.5);
+    const mk = (freq: number, type: OscillatorType, detune: number) => {
+      const o = ctx.createOscillator();
+      o.type = type;
+      o.frequency.value = freq;
+      o.detune.value = detune;
+      o.connect(gain);
+      o.start();
+      return o;
     };
-    this.ambientId = window.setTimeout(tick, 3000 + Math.random() * 5000);
+    const sources: AudioScheduledSourceNode[] = [
+      mk(40, 'sine', 0),
+      mk(80, 'sine', 3),
+      mk(160, 'triangle', -5),
+    ];
+    gain.connect(this.master);
+    this.hum = { gain, sources };
   }
 
   stopAmbient() {
-    if (this.ambientId !== null) {
-      window.clearTimeout(this.ambientId);
-      this.ambientId = null;
+    if (!this.hum) return;
+    const ctx = this.ctx;
+    if (ctx) {
+      const t = ctx.currentTime;
+      this.hum.gain.gain.cancelScheduledValues(t);
+      this.hum.gain.gain.setValueAtTime(this.hum.gain.gain.value, t);
+      this.hum.gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.4);
+      for (const s of this.hum.sources) {
+        try {
+          s.stop(t + 0.5);
+        } catch {
+          /* already stopped */
+        }
+      }
     }
+    this.hum = null;
   }
 }
 
@@ -278,7 +332,7 @@ export const startAmbient = () => sfx.startAmbient();
 export const stopAmbient = () => sfx.stopAmbient();
 
 /** Generic key click - keeps the desk gadgets' existing call signature. */
-export function click(freq = 760, dur = 0.05, gain = 0.06) {
+export function click(freq = 620, dur = 0.05, gain = 0.1) {
   sfx.tick(freq, dur, gain);
 }
 
@@ -299,3 +353,7 @@ export const saveUrl = () => sfx.play('saveUrl');
 export const serverHum = () => sfx.play('serverHum');
 export const relayTick = () => sfx.play('relayTick');
 export const modemBlip = () => sfx.play('modemBlip');
+export const beep = () => sfx.play('beep');
+export const success = () => sfx.play('success');
+export const badgeEarn = () => sfx.play('badgeEarn');
+export const levelUp = () => sfx.play('levelUp');

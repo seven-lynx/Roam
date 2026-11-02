@@ -1,10 +1,12 @@
 /**
  * Navigation data for the ROAM-OS workstation: the hardware keys under the
  * screen, the on-screen launcher, and helpers for the Unix-style path readout.
- * Route labels are the site's real names; `file` is flavour text only.
+ * Route labels are the site's real names; `file` is flavor text only.
  */
 
-export type KeyIconName = 'home' | 'collections' | 'badges' | 'challenges' | 'leaderboard' | 'profile' | 'menu';
+import { PROGRAMS, type ProgramId } from './os-programs';
+
+export type KeyIconName = 'home' | 'collections' | 'badges' | 'challenges' | 'rankings' | 'profile' | 'menu';
 
 export interface NavKey {
   href: string;
@@ -14,10 +16,23 @@ export interface NavKey {
 }
 
 export interface LauncherItem {
-  href: string;
+  /** Route to navigate to (internal link). */
+  href?: string;
+  /** In-OS action instead of navigation. */
+  action?: 'inspect' | 'report' | 'roam' | 'deckview' | 'desktop' | 'settings' | 'program';
+  /** Which in-OS program to open (for the `program` action). */
+  program?: ProgramId;
+  /** External URL (opens in a new tab). */
+  external?: string;
   label: string;
   file: string;
-  /** Only show for signed-in (true) or signed-out (false) users. Omit for everyone. */
+  /** Short glyph shown on the launcher tile. */
+  glyph?: string;
+  /**
+   * Requires sign-in (true) or sign-out (false). Gated items stay visible and,
+   * when selected by a signed-out user, raise a diegetic error before redirecting
+   * to sign-in.
+   */
   auth?: boolean;
 }
 
@@ -32,7 +47,7 @@ export const PRIMARY_KEYS: NavKey[] = [
   { href: '/collections', label: 'Collections', file: '~/collections/', icon: 'collections' },
   { href: '/badges', label: 'Badges', file: '~/.roam/badges/', icon: 'badges' },
   { href: '/challenges', label: 'Challenges', file: '~/.roam/challenges/', icon: 'challenges' },
-  { href: '/leaderboard', label: 'Leaderboard', file: '~/.roam/ranks.log', icon: 'leaderboard' },
+  { href: '/leaderboard', label: 'Rankings', file: '~/.roam/ranks.log', icon: 'rankings' },
   { href: '/profile', label: 'Profile', file: '~/.roam/profile', icon: 'profile' },
 ];
 
@@ -41,35 +56,50 @@ export const LAUNCHER_GROUPS: LauncherGroup[] = [
   {
     title: 'Explore',
     items: [
-      { href: '/how-it-works', label: 'How It Works', file: 'man roam' },
-      { href: '/stats', label: 'Stats', file: '~/.roam/stats.log' },
-      { href: '/changelog', label: 'Changelog', file: '~/.roam/CHANGELOG' },
+      { href: '/how-it-works', label: 'How It Works', file: 'man roam', glyph: '?' },
+      { href: '/stats', label: 'Stats', file: '~/.roam/stats.log', glyph: '≡' },
+      { href: '/changelog', label: 'Changelog', file: '~/.roam/CHANGELOG', glyph: 'Δ' },
     ],
   },
   {
     title: 'Community',
     items: [
-      { href: '/following', label: 'Following', file: '~/.roam/following', auth: true },
-      { href: '/people', label: 'People', file: '~/people/', auth: true },
-      { href: '/submit', label: 'Submit a URL', file: 'roam submit', auth: true },
+      { href: '/following', label: 'Following', file: '~/.roam/following', auth: true, glyph: '▣' },
+      { href: '/people', label: 'People', file: '~/people/', auth: true, glyph: '◉' },
+      { href: '/submit', label: 'Upload URL', file: 'roam upload', auth: true, glyph: '↑' },
+      { action: 'report', label: 'Report broken link', file: 'roam report', glyph: '!' },
     ],
   },
   {
-    title: 'Get the app',
+    title: 'Roam',
     items: [
-      { href: '/extensions', label: 'Browser Extension', file: 'roam-ext.tar.gz' },
-      { href: '/android', label: 'Android App', file: 'roam-android.apk' },
+      { action: 'roam', label: 'Roam', file: 'roam scan', glyph: '◎' },
+      { href: '/extensions', label: 'Browser Extension', file: 'roam-ext.tar.gz', glyph: '◈' },
+      { href: '/android', label: 'Android App', file: 'roam-android.apk', glyph: '▭' },
+    ],
+  },
+  {
+    title: 'Programs',
+    items: [
+      { action: 'program', program: 'snake', label: 'RELAY', file: PROGRAMS.snake.file, glyph: PROGRAMS.snake.glyph },
+      { action: 'program', program: 'minesweeper', label: 'BOTFIELD', file: PROGRAMS.minesweeper.file, glyph: PROGRAMS.minesweeper.glyph },
+      { action: 'program', program: 'tetris', label: 'COMPILER', file: PROGRAMS.tetris.file, glyph: PROGRAMS.tetris.glyph },
+      { action: 'program', program: 'asteroids', label: 'DEBRIS', file: PROGRAMS.asteroids.file, glyph: PROGRAMS.asteroids.glyph },
     ],
   },
   {
     title: 'System',
     items: [
-      { href: '/settings', label: 'Settings', file: '~/.roamrc', auth: true },
-      { href: '/signup?mode=signin', label: 'Sign in', file: 'roam login', auth: false },
-      { href: '/signup', label: 'Get started', file: 'roam init', auth: false },
-      { href: '/support-roam', label: 'Support Roam', file: 'support.txt' },
-      { href: '/privacy', label: 'Privacy Policy', file: 'privacy.txt' },
-      { href: '/terms', label: 'Terms of Service', file: 'terms.txt' },
+      { action: 'settings', label: 'Config', file: '~/.roamrc', glyph: '⚙' },
+      { action: 'desktop', label: 'Desktop', file: 'roam desktop', glyph: '⌂' },
+      { external: 'https://github.com/seven-lynx/roam', label: '7 Lynx', file: 'github.com/seven-lynx', glyph: '7' },
+      { action: 'inspect', label: 'Inspect the deck', file: 'roam inspect', glyph: '⟳' },
+      { action: 'deckview', label: 'Cyberdeck view', file: 'roam deck', glyph: '⛶' },
+      { href: '/signup?mode=signin', label: 'Log in', file: 'roam login', auth: false, glyph: '→' },
+      { href: '/signup', label: 'Get started', file: 'roam init', auth: false, glyph: '✦' },
+      { href: '/support-roam', label: 'Support Roam', file: 'support.txt', glyph: '♥' },
+      { href: '/privacy', label: 'Privacy Policy', file: 'privacy.txt', glyph: '⊘' },
+      { href: '/terms', label: 'Terms of Service', file: 'terms.txt', glyph: '§' },
     ],
   },
 ];
