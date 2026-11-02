@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { useWorkstation } from '@/components/WorkstationContext';
 import { ProgramWindow } from '@/components/programs/ProgramWindow';
 import { useGameKeys } from '@/components/programs/useGameKeys';
@@ -77,6 +77,19 @@ function DebrisGame() {
     setHud({ score: 0, lives: 3, over: false });
   };
 
+  const fire = () => {
+    if (state.current.over) return;
+    const s = state.current;
+    s.bullets.push({
+      x: s.ship.x,
+      y: s.ship.y,
+      vx: Math.sin(s.ship.angle) * 6,
+      vy: -Math.cos(s.ship.angle) * 6,
+      life: 40,
+    });
+    click(520, 0.04, 0.08);
+  };
+
   useEffect(() => {
     reset();
   }, []);
@@ -87,17 +100,7 @@ function DebrisGame() {
       const k = e.key;
       if (k === 'ArrowLeft' || k === 'ArrowRight' || k === 'ArrowUp' || k === ' ') e.preventDefault();
       keys.current[k] = true;
-      if (k === ' ' && !state.current.over) {
-        const s = state.current;
-        s.bullets.push({
-          x: s.ship.x,
-          y: s.ship.y,
-          vx: Math.sin(s.ship.angle) * 6,
-          vy: -Math.cos(s.ship.angle) * 6,
-          life: 40,
-        });
-        click(520, 0.04, 0.08);
-      }
+      if (k === ' ') fire();
     },
     (e) => {
       keys.current[e.key] = false;
@@ -263,8 +266,47 @@ function DebrisGame() {
         style={{ borderRadius: 10, border: '1px solid var(--line)', background: 'var(--panel-2)' }}
       />
 
+      <div style={{ display: 'flex', gap: 4 }}>
+        <button
+          type="button"
+          style={ctrlBtn}
+          onPointerDown={() => { keys.current['ArrowLeft'] = true; }}
+          onPointerUp={() => { keys.current['ArrowLeft'] = false; }}
+          onPointerLeave={() => { keys.current['ArrowLeft'] = false; }}
+          onPointerCancel={() => { keys.current['ArrowLeft'] = false; }}
+          aria-label="Rotate left"
+        >
+          ◀
+        </button>
+        <button type="button" style={ctrlBtn} onPointerDown={fire} aria-label="Fire">
+          ●
+        </button>
+        <button
+          type="button"
+          style={ctrlBtn}
+          onPointerDown={() => { keys.current['ArrowUp'] = true; }}
+          onPointerUp={() => { keys.current['ArrowUp'] = false; }}
+          onPointerLeave={() => { keys.current['ArrowUp'] = false; }}
+          onPointerCancel={() => { keys.current['ArrowUp'] = false; }}
+          aria-label="Thrust"
+        >
+          ▲
+        </button>
+        <button
+          type="button"
+          style={ctrlBtn}
+          onPointerDown={() => { keys.current['ArrowRight'] = true; }}
+          onPointerUp={() => { keys.current['ArrowRight'] = false; }}
+          onPointerLeave={() => { keys.current['ArrowRight'] = false; }}
+          onPointerCancel={() => { keys.current['ArrowRight'] = false; }}
+          aria-label="Rotate right"
+        >
+          ▶
+        </button>
+      </div>
+
       <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--muted)' }}>
-        ← → ROTATE · ↑ THRUST · SPACE FIRE
+        ← → ROTATE · ▲ THRUST · ● FIRE
       </div>
 
       {hud.over && (
@@ -280,6 +322,18 @@ function DebrisGame() {
     </div>
   );
 }
+
+const ctrlBtn: CSSProperties = {
+  width: 44,
+  height: 36,
+  fontSize: 14,
+  background: 'var(--panel-3)',
+  color: 'var(--fg)',
+  border: '1px solid var(--line)',
+  borderRadius: 8,
+  cursor: 'pointer',
+  touchAction: 'manipulation',
+};
 
 export function AsteroidsProgram() {
   const { isOpen } = useWorkstation();

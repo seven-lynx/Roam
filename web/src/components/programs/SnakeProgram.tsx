@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { useWorkstation } from '@/components/WorkstationContext';
 import { ProgramWindow } from '@/components/programs/ProgramWindow';
 import { useGameKeys } from '@/components/programs/useGameKeys';
+import { useSwipeSteer } from '@/components/programs/useSwipeSteer';
 import { PROGRAMS } from '@/lib/os-programs';
 import { click, beep } from '@/lib/sfx';
 
@@ -54,6 +55,13 @@ function RelayGame() {
     if (dx === -d.x && dy === -d.y) return; // no 180° reversals
     dir.current = { x: dx, y: dy };
   };
+
+  const swipe = useSwipeSteer((s) => {
+    if (s === 'up') steer(0, -1);
+    else if (s === 'down') steer(0, 1);
+    else if (s === 'left') steer(-1, 0);
+    else if (s === 'right') steer(1, 0);
+  });
 
   useGameKeys('snake', (e) => {
     const map: Record<string, Pt> = {
@@ -124,6 +132,7 @@ function RelayGame() {
       </div>
 
       <div
+        {...swipe}
         style={{
           width: GRID * CELL,
           height: GRID * CELL,
@@ -132,6 +141,7 @@ function RelayGame() {
           border: '1px solid var(--line)',
           borderRadius: 6,
           overflow: 'hidden',
+          touchAction: 'none',
         }}
       >
         {Array.from({ length: GRID * GRID }, (_, i) => {

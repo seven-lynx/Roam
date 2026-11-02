@@ -2,6 +2,15 @@
 
 All notable changes to the Roam web platform.
 
+## [2026-11-02] — Touch controls for in-device programs
+
+### Added
+- Touch controls for the in-device programs: swipe steering in RELAY and COMPILER, an on-screen arcade pad (rotate/thrust/fire) in DEBRIS, and a flag-mode toggle in BOTFIELD — so every program is playable without a keyboard.
+- Shared swipe resolver (`lib/steer.ts`, a TypeScript port of the Android `SteerDirection.kt`) with unit tests, used by the games' swipe steering.
+
+### Changed
+- Updated the programs' controls hints (`os-programs.ts`) to reflect the new touch inputs.
+
 ## [2026-11-02] — Handheld shell & touch gestures
 
 ### Added

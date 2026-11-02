@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, type MouseEvent } from 'react';
+import { useState } from 'react';
 import { useWorkstation } from '@/components/WorkstationContext';
 import { ProgramWindow } from '@/components/programs/ProgramWindow';
 import { PROGRAMS } from '@/lib/os-programs';
@@ -65,6 +65,7 @@ function BotfieldGame() {
   const [board, setBoard] = useState<Cell[][]>(createBoard);
   const [gameOver, setGameOver] = useState(false);
   const [won, setWon] = useState(false);
+  const [flagMode, setFlagMode] = useState(false);
 
   const flood = (b: Cell[][], sr: number, sc: number): Cell[][] => {
     const next = b.map((row) => row.map((cell) => ({ ...cell })));
@@ -114,8 +115,7 @@ function BotfieldGame() {
     }
   };
 
-  const flag = (e: MouseEvent<HTMLDivElement>, r: number, c: number) => {
-    e.preventDefault();
+  const flagCell = (r: number, c: number) => {
     if (gameOver || won) return;
     if (board[r][c].revealed) return;
     const next = board.map((row) => row.map((cell) => ({ ...cell })));
@@ -156,8 +156,8 @@ function BotfieldGame() {
           return (
             <div
               key={idx}
-              onClick={() => sweep(r, c)}
-              onContextMenu={(e) => flag(e, r, c)}
+              onClick={() => (flagMode ? flagCell(r, c) : sweep(r, c))}
+              onContextMenu={(e) => { e.preventDefault(); flagCell(r, c); }}
               style={{
                 width: 44,
                 height: 44,
@@ -169,6 +169,7 @@ function BotfieldGame() {
                 fontWeight: 700,
                 cursor: cell.revealed ? 'default' : 'pointer',
                 userSelect: 'none',
+                touchAction: 'manipulation',
                 background: cell.revealed ? (cell.mine ? 'rgba(255,92,122,0.25)' : 'var(--panel-3)') : 'var(--panel)',
                 color: cell.revealed && !cell.mine ? (COUNT_COLORS[cell.count] ?? 'var(--fg)') : 'var(--fg)',
               }}
@@ -180,8 +181,25 @@ function BotfieldGame() {
       </div>
 
       <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+        <button
+          type="button"
+          aria-pressed={flagMode}
+          onClick={() => setFlagMode((v) => !v)}
+          style={{
+            fontFamily: 'var(--font-mono)',
+            fontSize: 11,
+            padding: '4px 8px',
+            color: flagMode ? 'var(--accent)' : 'var(--muted)',
+            background: flagMode ? 'var(--panel-3)' : 'var(--panel-2)',
+            border: `1px solid ${flagMode ? 'var(--accent)' : 'var(--line)'}`,
+            borderRadius: 4,
+            cursor: 'pointer',
+          }}
+        >
+          ⚑ {flagMode ? 'FLAG MODE' : 'FLAG'}
+        </button>
         <span style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--muted)' }}>
-          CLICK sweep · RIGHT-CLICK flag
+          {flagMode ? 'TAP to flag' : 'TAP to sweep'} · RIGHT-CLICK flag
         </span>
         {(gameOver || won) && (
           <button type="button" className="program-btn" onClick={reset}>

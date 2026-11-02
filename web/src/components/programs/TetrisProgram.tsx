@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState, type CSSProperties } from 're
 import { useWorkstation } from '@/components/WorkstationContext';
 import { ProgramWindow } from '@/components/programs/ProgramWindow';
 import { useGameKeys } from '@/components/programs/useGameKeys';
+import { useSwipeSteer } from '@/components/programs/useSwipeSteer';
 import { PROGRAMS } from '@/lib/os-programs';
 import { click, beep } from '@/lib/sfx';
 
@@ -155,6 +156,17 @@ function CompilerGame() {
     }
   });
 
+  const swipe = useSwipeSteer((s) => {
+    if (!piece || !active) return;
+    if (s === 'left' && !collides(board, piece, pos.r, pos.c - 1)) setPos((p) => ({ ...p, c: p.c - 1 }));
+    else if (s === 'right' && !collides(board, piece, pos.r, pos.c + 1)) setPos((p) => ({ ...p, c: p.c + 1 }));
+    else if (s === 'down') drop();
+    else if (s === 'up') {
+      const rp = rotate(piece);
+      if (!collides(board, rp, pos.r, pos.c)) setPiece(rp);
+    }
+  });
+
   const restart = () => {
     setBoard(emptyBoard());
     setLines(0);
@@ -177,6 +189,7 @@ function CompilerGame() {
       </div>
 
       <div
+        {...swipe}
         style={{
           display: 'grid',
           gridTemplateColumns: `repeat(${COLS}, ${CELL}px)`,
@@ -184,6 +197,7 @@ function CompilerGame() {
           borderRadius: 6,
           border: !active ? '2px solid var(--danger)' : '1px solid var(--line)',
           padding: 1,
+          touchAction: 'none',
         }}
       >
         {display.flat().map((c, i) => (
