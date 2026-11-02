@@ -2,6 +2,17 @@
 
 All notable changes to the Roam web platform.
 
+## [2026-11-02] — Window manager & widget legibility pass
+
+### Changed
+- Deepened the desktop widget chamfer (10px → 24px bevel) and added translucent, chamfered backing chips behind widget text so it stays legible over busy wallpapers (including the deck-diagnostics disc's transparent mode).
+- The topmost (focused) window now shows a brighter title bar and a faint phosphor ring, and double-clicking a window's title bar toggles maximize.
+
+### Fixed
+- Clamped the PROGRAMS launcher dropdown, dock display/sound trays, and launcher fly-outs with a max-height + scroll so they can no longer overflow the screen on short viewports.
+- Switched window clipping from `overflow: clip` to `overflow: hidden` (plus `contain: paint`) for reliable clipping on all browsers, added `overflow-x: hidden` to window scroll regions, and raised the minimum window size so game controls are never cut off.
+
+
 ## [2026-11-02] — ROAM-OS polish & CRT overhaul
 
 ### Changed

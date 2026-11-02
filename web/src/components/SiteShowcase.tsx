@@ -122,7 +122,7 @@ export function SiteShowcase() {
         </div>
 
         {/* Info */}
-        <div className="p-5">
+        <div className="widget-chip p-5 mt-2">
           <h3 className="text-lg font-semibold text-ink truncate">
             {site.title || site.original_url}
           </h3>

@@ -28,6 +28,11 @@ export function Window({ id, icon, children }: WindowProps) {
 
   if (!win || win.minimized) return null;
 
+  // The topmost visible window is "focused"; give it a brighter chrome.
+  const visibleIds = (Object.keys(windows) as WindowId[]).filter((w) => windows[w] && !windows[w]!.minimized);
+  const topZ = visibleIds.reduce((m, w) => Math.max(m, windows[w]!.z), 0);
+  const focused = win.z === topZ;
+
   // Handheld layout forces every window full-screen (between the status bar and
   // the dock) without mutating the saved desktop geometry.
   const maximized = win.maximized || handheld;
@@ -76,8 +81,8 @@ export function Window({ id, icon, children }: WindowProps) {
     const el = screenRef.current;
     const maxW = el ? el.clientWidth : window.innerWidth;
     const maxH = el ? el.clientHeight - DOCK_H : window.innerHeight - DOCK_H;
-    const MIN_W = 240;
-    const MIN_H = 160;
+    const MIN_W = 280;
+    const MIN_H = 240;
     const dx = e.clientX - d.px;
     const dy = e.clientY - d.py;
     let { x, y, w, h } = d.r;
@@ -111,7 +116,7 @@ export function Window({ id, icon, children }: WindowProps) {
       role="dialog"
       aria-label={win.title}
       tabIndex={-1}
-      className={`window${maximized ? ' window--max' : ''}${handheld ? ' window--handheld' : ''}`}
+      className={`window${maximized ? ' window--max' : ''}${handheld ? ' window--handheld' : ''}${focused ? ' window--focused' : ''}`}
       style={style}
       onPointerDown={() => focusWindow(id)}
     >
@@ -121,6 +126,12 @@ export function Window({ id, icon, children }: WindowProps) {
         onPointerMove={onDragMove}
         onPointerUp={endDrag}
         onPointerCancel={endDrag}
+        onDoubleClick={(e) => {
+          if (handheld) return;
+          if ((e.target as HTMLElement).closest('button')) return;
+          click();
+          toggleMaximize(id);
+        }}
       >
         <span className="window-icon" aria-hidden="true">{icon}</span>
         <span className="window-title">{win.title}</span>

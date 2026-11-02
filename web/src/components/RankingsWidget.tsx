@@ -85,13 +85,13 @@ export function RankingsWidget({ limit = 5 }: { limit?: number }) {
           ))}
         </div>
 
-        {loading && <div className="py-8 text-center text-muted text-sm">Loading…</div>}
-        {error && <div className="text-danger text-xs p-2">{error}</div>}
+        {loading && <div className="widget-empty">Loading…</div>}
+        {error && <div className="widget-chip text-danger text-xs p-2">{error}</div>}
 
         {!loading && !error && (
           <div className="flex flex-col gap-1">
             {entries.length === 0 && (
-              <div className="py-6 text-center text-muted text-xs">No rankings yet. Be the first to roam!</div>
+              <div className="widget-empty">No rankings yet. Be the first to roam!</div>
             )}
             {entries.map((entry) => {
               const isTop3 = entry.rank <= 3;
@@ -99,8 +99,8 @@ export function RankingsWidget({ limit = 5 }: { limit?: number }) {
                 <Link
                   key={entry.user_id}
                   href={`/u/${entry.username}`}
-                  className={`flex items-center gap-3 rounded-lg border px-3 py-2 transition-colors ${
-                    isTop3 ? 'border-gold bg-panel-2/40' : 'border-line hover:bg-panel-2'
+                  className={`rank-row flex items-center gap-3 px-3 py-2 transition-colors ${
+                    isTop3 ? 'rank-row--top' : ''
                   }`}
                 >
                   <span className="w-7 text-center font-bold tabular-nums text-ink">

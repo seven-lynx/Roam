@@ -93,6 +93,9 @@
   --ok: #59b3ae;
   --info: #5b8bb0;
   --warn: #e08a4a;
+  /* Bevelled-corner cut sizes for the chamfered widgets and text chips. */
+  --chamfer-widget: 24px;
+  --chamfer-chip: 8px;
 }
 
 /* ── Color themes (OS screen) ──────────────────────────────── */
@@ -863,12 +866,32 @@ button.gadget:active { transform: translateY(1px) scale(0.98); }
   border-radius: 6px;
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.06);
   /* Clip all descendants to the window, including absolutely-positioned
-     overlays and any scaled game boards — nothing may escape the chrome. */
-  overflow: clip;
+     overlays and any scaled game boards — nothing may escape the chrome.
+     `overflow: hidden` (not `clip`) keeps clipping on browsers that predate
+     `overflow: clip`; `contain: paint` guarantees it and pins fixed/absolute
+     descendants to this window. */
+  overflow: hidden;
   contain: paint;
   isolation: isolate;
+  min-width: 0;
+  min-height: 0;
+  max-width: 100%;
+  max-height: 100%;
 }
 .window--max { border-radius: 0; }
+/* Focused (topmost) window: brighter chrome + a faint phosphor ring. */
+.window--focused .window-bar {
+  background: linear-gradient(180deg, var(--panel-3), var(--panel-2));
+  color: var(--ink);
+}
+.window--focused .window-title { color: var(--accent-strong); }
+.window--focused {
+  box-shadow:
+    0 12px 40px rgba(0, 0, 0, 0.6),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    0 0 0 1px var(--phosphor-glow),
+    0 0 18px var(--phosphor-glow);
+}
 .window-bar {
   display: flex;
   align-items: center;
@@ -912,7 +935,7 @@ button.gadget:active { transform: translateY(1px) scale(0.98); }
   flex-direction: column;
   overflow: hidden;
 }
-.window-scroll { flex: 1 1 auto; min-height: 0; max-height: 100%; overflow-y: auto; overscroll-behavior: contain; }
+.window-scroll { flex: 1 1 auto; min-height: 0; min-width: 0; max-height: 100%; overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain; }
 .terminal-input {
   display: flex;
   align-items: center;
@@ -1900,6 +1923,8 @@ button.gadget:active { transform: translateY(1px) scale(0.98); }
   flex-direction: column;
   gap: 2px;
   z-index: 60;
+  max-height: min(360px, calc(100vh - 160px));
+  overflow-y: auto;
 }
 .dock-menu-row {
   display: flex;
@@ -1992,6 +2017,12 @@ button.gadget:active { transform: translateY(1px) scale(0.98); }
   animation: start-in 0.16s ease-out;
   padding: 0.5rem;
 }
+
+/* Keep the start menu inside the screen on short desktop viewports. */
+.screen[data-layout='desktop'] .launcher-dropdown {
+  max-height: calc(100% - 3rem);
+  overflow-y: auto;
+}
 @keyframes start-in {
   from { opacity: 0; transform: translateY(-6px) scale(0.985); }
   to { opacity: 1; transform: translateY(0) scale(1); }
@@ -2059,6 +2090,8 @@ button.gadget:active { transform: translateY(1px) scale(0.98); }
   border-radius: 6px;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
   z-index: 46;
+  max-height: min(420px, calc(100vh - 8rem));
+  overflow-y: auto;
 }
 .launcher-footer {
   display: flex;
@@ -2307,14 +2340,14 @@ button.gadget:active { transform: translateY(1px) scale(0.98); }
   overflow: hidden;
   /* Chamfered (bevelled) corners: 45° cuts on all four corners. */
   clip-path: polygon(
-    10px 0,
-    calc(100% - 10px) 0,
-    100% 10px,
-    100% calc(100% - 10px),
-    calc(100% - 10px) 100%,
-    10px 100%,
-    0 calc(100% - 10px),
-    0 10px
+    var(--chamfer-widget) 0,
+    calc(100% - var(--chamfer-widget)) 0,
+    100% var(--chamfer-widget),
+    100% calc(100% - var(--chamfer-widget)),
+    calc(100% - var(--chamfer-widget)) 100%,
+    var(--chamfer-widget) 100%,
+    0 calc(100% - var(--chamfer-widget)),
+    0 var(--chamfer-widget)
   );
 }
 .widget-head {
@@ -2355,8 +2388,25 @@ button.gadget:active { transform: translateY(1px) scale(0.98); }
   white-space: nowrap;
 }
 .widget-body { padding: 0.7rem; }
+/* Chamfered backing chip for text that sits on a transparent widget, so it
+   stays legible over busy wallpapers. Matches the widget's bevelled corners. */
+.widget-chip,
 .widget-empty {
-  padding: 1.5rem 0;
+  background: rgba(5, 10, 12, 0.8);
+  border: 1px solid var(--line);
+  clip-path: polygon(
+    var(--chamfer-chip) 0,
+    calc(100% - var(--chamfer-chip)) 0,
+    100% var(--chamfer-chip),
+    100% calc(100% - var(--chamfer-chip)),
+    calc(100% - var(--chamfer-chip)) 100%,
+    var(--chamfer-chip) 100%,
+    0 calc(100% - var(--chamfer-chip)),
+    0 var(--chamfer-chip)
+  );
+}
+.widget-empty {
+  padding: 0.8rem 0.9rem;
   text-align: center;
   font-family: var(--font-mono);
   font-size: 0.7rem;
@@ -2392,6 +2442,24 @@ button.gadget:active { transform: translateY(1px) scale(0.98); }
   letter-spacing: 0.1em;
   color: var(--muted);
 }
+
+/* Rankings rows are chamfered chips so names stay readable over wallpaper. */
+.rank-row {
+  background: rgba(5, 10, 12, 0.8);
+  border: 1px solid var(--line);
+  clip-path: polygon(
+    var(--chamfer-chip) 0,
+    calc(100% - var(--chamfer-chip)) 0,
+    100% var(--chamfer-chip),
+    100% calc(100% - var(--chamfer-chip)),
+    calc(100% - var(--chamfer-chip)) 100%,
+    var(--chamfer-chip) 100%,
+    0 calc(100% - var(--chamfer-chip)),
+    0 var(--chamfer-chip)
+  );
+}
+.rank-row:hover { background: var(--panel-2); border-color: var(--phosphor); }
+.rank-row--top { border-color: var(--accent); }
 
 /* Deck diagnostics widget */
 .diag-row {
@@ -2431,6 +2499,24 @@ button.gadget:active { transform: translateY(1px) scale(0.98); }
   border-color: transparent;
   box-shadow: none;
 }
+/* A transparent disc still needs a backing box behind its readout text. */
+.widget.deck-diag.bg-off .deck-diag-center,
+.widget.deck-diag.bg-off .deck-diag-top {
+  background: rgba(5, 10, 12, 0.8);
+  border: 1px solid var(--line);
+  clip-path: polygon(
+    var(--chamfer-chip) 0,
+    calc(100% - var(--chamfer-chip)) 0,
+    100% var(--chamfer-chip),
+    100% calc(100% - var(--chamfer-chip)),
+    calc(100% - var(--chamfer-chip)) 100%,
+    var(--chamfer-chip) 100%,
+    0 calc(100% - var(--chamfer-chip)),
+    0 var(--chamfer-chip)
+  );
+}
+.widget.deck-diag.bg-off .deck-diag-center { padding: 0.4rem 0.7rem; }
+.widget.deck-diag.bg-off .deck-diag-top { padding: 0.25rem 0.6rem; }
 .deck-diag-head {
   position: absolute;
   inset: 0;
@@ -2678,8 +2764,19 @@ button.gadget:active { transform: translateY(1px) scale(0.98); }
 /* Widget footer flavor line */
 .widget-foot {
   margin-top: 0.55rem;
-  padding-top: 0.4rem;
-  border-top: 1px solid var(--line);
+  padding: 0.4rem 0.6rem;
+  background: rgba(5, 10, 12, 0.8);
+  border: 1px solid var(--line);
+  clip-path: polygon(
+    var(--chamfer-chip) 0,
+    calc(100% - var(--chamfer-chip)) 0,
+    100% var(--chamfer-chip),
+    100% calc(100% - var(--chamfer-chip)),
+    calc(100% - var(--chamfer-chip)) 100%,
+    var(--chamfer-chip) 100%,
+    0 calc(100% - var(--chamfer-chip)),
+    0 var(--chamfer-chip)
+  );
   font-family: var(--font-mono);
   font-size: 0.55rem;
   letter-spacing: 0.06em;
