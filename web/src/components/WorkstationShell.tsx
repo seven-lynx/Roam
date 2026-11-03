@@ -46,6 +46,7 @@ import { BrowserWindow } from '@/components/BrowserWindow';
 import { DeckLauncher } from '@/components/DeckLauncher';
 import { RoamInfo } from '@/components/RoamInfo';
 import { CoffeeApp } from '@/components/CoffeeApp';
+import { CameraRollProgram } from '@/components/programs/CameraRollProgram';
 import { SnakeProgram } from '@/components/programs/SnakeProgram';
 import { MinesweeperProgram } from '@/components/programs/MinesweeperProgram';
 import { TetrisProgram } from '@/components/programs/TetrisProgram';
@@ -790,6 +791,7 @@ export function WorkstationShell({
           <DeckLauncher />
           <RoamInfo />
           <CoffeeApp />
+          <CameraRollProgram />
           <SnakeProgram />
           <MinesweeperProgram />
           <TetrisProgram />

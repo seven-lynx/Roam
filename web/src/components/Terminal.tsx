@@ -30,6 +30,9 @@ const APP_ALIASES: Record<string, WindowId> = {
   compiler: 'tetris',
   asteroids: 'asteroids',
   debris: 'asteroids',
+  roll: 'roll',
+  cameraroll: 'roll',
+  gallery: 'roll',
 };
 
 /** In-screen command terminal — the desktop-terminal centrepiece of ROAM-OS. */

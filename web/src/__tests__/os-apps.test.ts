@@ -12,7 +12,7 @@ describe('os-apps registry', () => {
       expect(labels).toContain(label);
     }
     expect(ALL_APPS.filter((a) => a.kind === 'program')).toHaveLength(7);
-    expect(ALL_APPS.filter((a) => a.kind === 'window')).toHaveLength(4);
+    expect(ALL_APPS.filter((a) => a.kind === 'window')).toHaveLength(5);
   });
 
   it('filters case-insensitively across label, file and glyph', () => {
@@ -25,8 +25,8 @@ describe('os-apps registry', () => {
     expect(filterApps('   ')).toHaveLength(ALL_APPS.length);
   });
 
-  it('lays out the handheld home screen with six singles and two folders', () => {
-    expect(HOME_APPS).toHaveLength(6);
+  it('lays out the handheld home screen with seven singles and two folders', () => {
+    expect(HOME_APPS).toHaveLength(7);
     expect(HOME_FOLDERS.map((f) => f.id)).toEqual(['games', 'links']);
   });
 

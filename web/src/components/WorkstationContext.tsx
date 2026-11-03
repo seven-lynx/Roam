@@ -7,7 +7,7 @@ import { ANCHOR_CAMERA } from '@/lib/deck-framing';
 import { PROGRAMS, type ProgramId } from '@/lib/os-programs';
 import { DEFAULT_SOUND_FX, type SoundEffect } from '@/lib/sfx';
 
-export type WindowId = 'launcher' | 'scan' | 'feedback' | 'terminal' | 'settings' | 'browser' | 'cyberdeck' | 'deck' | 'info' | 'coffee' | ProgramId;
+export type WindowId = 'launcher' | 'scan' | 'feedback' | 'terminal' | 'settings' | 'browser' | 'cyberdeck' | 'deck' | 'info' | 'coffee' | 'roll' | ProgramId;
 
 export interface WindowRect {
   x: number;
@@ -36,11 +36,12 @@ export const WINDOW_DEFAULTS: Record<
   feedback: { title: 'COMMS', w: 560, h: 420 },
   terminal: { title: 'TERMINAL', w: 720, h: 300 },
   settings: { title: 'SETTINGS', w: 640, h: 560 },
-  browser: { title: 'BROWSER', w: 920, h: 620 },
+  browser: { title: 'SURF', w: 920, h: 620 },
   cyberdeck: { title: 'CYBERDECK CONTROLS', w: 640, h: 560 },
   deck: { title: 'MOUNT DECK', w: 560, h: 320 },
   info: { title: 'ROAM INFO', w: 720, h: 560 },
   coffee: { title: 'REFUEL', w: 560, h: 320 },
+  roll: { title: 'CYBERDECK ROLL', w: 560, h: 640 },
   snake: { title: PROGRAMS.snake.title, w: 560, h: 640 },
   minesweeper: { title: PROGRAMS.minesweeper.title, w: 520, h: 600 },
   tetris: { title: PROGRAMS.tetris.title, w: 420, h: 640 },

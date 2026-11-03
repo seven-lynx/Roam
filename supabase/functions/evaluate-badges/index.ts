@@ -477,6 +477,16 @@ Deno.serve(async (req: Request) => {
         case "rate-spree": qualifies = false; break; // batch repair handles
         case "the-completionist-rate": qualifies = false; break; // batch repair handles
 
+        // ─── Cyberdeck Roll gallery ───
+        case "roll-wallpaper": {
+          const { count: c } = await sb.from("user_actions").select("*", { count: "exact", head: true }).eq("user_id", user_id).eq("action_type", "wallpaper");
+          qualifies = (c ?? 0) >= 1; break;
+        }
+        case "roll-rate-5": {
+          const { count: c } = await sb.from("user_actions").select("*", { count: "exact", head: true }).eq("user_id", user_id).eq("action_type", "roll_rate");
+          qualifies = (c ?? 0) >= 5; break;
+        }
+
         // ═══ Secret ═══
         case "error-404-explorer": {
           const { count: c } = await sb.from("log_failed_urls").select("*", { count: "exact", head: true }).eq("user_id", user_id);

@@ -102,6 +102,7 @@ const SYSTEM_WINDOWS: AppEntry[] = [
   { id: 'win-comms', label: 'COMMS', file: 'roam comms', glyph: '☰', kind: 'window', group: 'System', window: 'feedback' },
   { id: 'win-info', label: 'ROAM INFO', file: 'roam info', glyph: '◎', kind: 'window', group: 'System', window: 'info' },
   { id: 'win-refuel', label: 'REFUEL', file: 'roam refuel', glyph: '☕', kind: 'window', group: 'System', window: 'coffee' },
+  { id: 'win-roll', label: 'CYBERDECK ROLL', file: 'roam roll', glyph: '◳', kind: 'window', group: 'System', window: 'roll' },
 ];
 
 /** Every launchable surface, flattened for the searchable app drawer. */
@@ -143,6 +144,7 @@ export const HOME_APPS: AppEntry[] = [
   { id: 'home-config', label: 'CONFIG', file: '~/.roamrc', glyph: '⚙', kind: 'action', group: 'System', action: 'settings' },
   { id: 'home-refuel', label: 'REFUEL', file: 'roam refuel', glyph: '☕', kind: 'window', group: 'System', window: 'coffee' },
   { id: 'home-cyberdeck', label: 'CYBERDECK', file: 'roam deck', glyph: '⛶', kind: 'action', group: 'System', action: 'deckview' },
+  { id: 'home-roll', label: 'ROLL', file: 'roam roll', glyph: '◳', kind: 'window', group: 'System', window: 'roll' },
 ];
 
 /** Folders on the handheld home screen — tap to open a scoped tile grid. */
