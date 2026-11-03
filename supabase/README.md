@@ -103,6 +103,39 @@ supabase functions deploy sentry-webhook
    idempotent per Sentry issue: repeated deliveries do not create duplicates
    (dedup key is `sentry-issue:<id>` in the issue body).
 
+## `push-notify` database webhook
+
+`functions/push-notify/` is triggered by a **Supabase Database Webhook** on
+`INSERT` into `public.notifications`. It resolves the recipient's `push_tokens`
+and delivers a push message via FCM (Android) and Web Push (browser). It does
+**not** send email — the email channel is intentionally inactive.
+
+**One-time webhook setup (must be created in the dashboard — it is not captured
+by migrations):**
+
+1. Go to **Database → Webhooks → Create a new webhook**.
+2. Configure:
+   - **Name:** `notify-on-insert`
+   - **Table:** `notifications`
+   - **Events:** `INSERT`
+   - **Payload format:** `JSON` — the function expects `{ type, table, record }`
+   - **HTTP method:** `POST`
+   - **URL:** `https://<project-ref>.supabase.co/functions/v1/push-notify`
+   - **Auth:** service-role (so the webhook is authenticated; the function itself
+     does not verify a JWT).
+
+**Secrets (set via `supabase secrets set`):**
+
+| Secret | Purpose |
+| --- | --- |
+| `FCM_SERVICE_ACCOUNT_JSON` | Firebase service-account JSON for Android FCM |
+| `FCM_PROJECT_ID` | Firebase project id |
+| `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` | Web Push VAPID keys |
+
+**Per-type opt-out:** the function reads `user_settings.notification_preferences`
+(a JSONB of `{ "<type>": { "push": false } }`) and skips push for any type with
+an explicit `push: false`.
+
 ## Useful references
 
 - [Changelog](./CHANGELOG.md) — notable schema, RLS, and Edge Function changes

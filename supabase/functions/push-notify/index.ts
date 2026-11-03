@@ -19,8 +19,11 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 // ═══════════════════════════════════════════════════════════════════════════
 // CORS — restrict to Supabase webhook origin (server-to-server)
 // ═══════════════════════════════════════════════════════════════════════════
+// Server-to-server webhook receiver. CORS only matters for browser clients, so
+// restrict the allowed origin to the Supabase project itself rather than '*'.
+const SUPABASE_ORIGIN = Deno.env.get('SUPABASE_URL') || 'https://supabase.co'
 const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Origin': SUPABASE_ORIGIN,
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 }
@@ -494,6 +497,26 @@ Deno.serve(async (req: Request) => {
 
   // Query push tokens for this user
   const adminClient = createClient(supabaseUrl, serviceRoleKey)
+
+  // Honour per-type notification preferences (opt-out). A missing type or a
+  // missing "push" flag means enabled; only an explicit `push: false` skips.
+  const notificationType = record.type as string | undefined
+  if (notificationType) {
+    const { data: settings } = await adminClient
+      .from('user_settings')
+      .select('notification_preferences')
+      .eq('user_id', userId)
+      .maybeSingle()
+
+    const prefs = (settings?.notification_preferences ?? {}) as Record<
+      string,
+      { push?: boolean } | undefined
+    >
+    if (prefs[notificationType]?.push === false) {
+      return json({ sent: 0, message: 'Push disabled for this notification type' })
+    }
+  }
+
   const { data: tokens, error: tokensError } = await adminClient
     .from('push_tokens')
     .select('id, platform, token')

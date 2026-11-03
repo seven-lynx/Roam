@@ -5,7 +5,7 @@ import { createClient } from '@/lib/supabase/client';
 
 interface Notification {
   id: string;
-  type: 'url_approved' | 'url_rejected' | 'new_follower' | 'badge_unlocked' | 'level_up';
+  type: 'url_approved' | 'url_rejected' | 'new_follower' | 'badge_unlocked' | 'level_up' | 'url_shared' | 'challenge_complete';
   title: string;
   body: string | null;
   data: Record<string, unknown>;
@@ -85,6 +85,32 @@ export function NotificationBell() {
           () => {
             // Increment unread count when a new notification arrives
             setUnreadCount(c => c + 1);
+          },
+        )
+        .on(
+          'postgres_changes',
+          {
+            event: 'UPDATE',
+            schema: 'public',
+            table: 'notifications',
+            filter: `user_id=eq.${user.id}`,
+          },
+          () => {
+            // Reconcile after a notification is marked read/unread elsewhere
+            fetchUnreadCount();
+          },
+        )
+        .on(
+          'postgres_changes',
+          {
+            event: 'DELETE',
+            schema: 'public',
+            table: 'notifications',
+            filter: `user_id=eq.${user.id}`,
+          },
+          () => {
+            // Reconcile after a notification is deleted elsewhere
+            fetchUnreadCount();
           },
         )
         .subscribe();
@@ -173,6 +199,44 @@ export function NotificationBell() {
     }
   }
 
+  async function markRead(id: string) {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      await supabase
+        .from('notifications')
+        .update({ read: true })
+        .eq('id', id)
+        .eq('user_id', user.id);
+
+      setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
+      setUnreadCount(c => Math.max(0, c - 1));
+    } catch {
+      // silently ignore
+    }
+  }
+
+  async function deleteOne(id: string) {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const wasUnread = notifications.find(n => n.id === id)?.read === false;
+
+      await supabase
+        .from('notifications')
+        .delete()
+        .eq('id', id)
+        .eq('user_id', user.id);
+
+      setNotifications(prev => prev.filter(n => n.id !== id));
+      if (wasUnread) setUnreadCount(c => Math.max(0, c - 1));
+    } catch {
+      // silently ignore
+    }
+  }
+
   function getIcon(type: string): string {
     switch (type) {
       case 'url_approved': return '✅';
@@ -180,6 +244,8 @@ export function NotificationBell() {
       case 'new_follower': return '👤';
       case 'badge_unlocked': return '🏅';
       case 'level_up': return '⬆️';
+      case 'url_shared': return '🔗';
+      case 'challenge_complete': return '🎯';
       default: return '🔔';
     }
   }
@@ -244,68 +310,87 @@ export function NotificationBell() {
                 <p className="text-xs mt-1">You&rsquo;ll be notified when your URL submissions are reviewed.</p>
               </div>
             ) : (
-notifications.map((n) => {
-                  const linkUrl =
-                    typeof n.data?.url === 'string' ? n.data.url :
-                    n.type === 'new_follower' && typeof n.data?.follower_username === 'string'
-                      ? `/u/${n.data.follower_username}` :
-                    n.type === 'badge_unlocked' && typeof n.data?.v_profile_url === 'string'
-                      ? n.data.v_profile_url :
-                    n.type === 'level_up' && typeof n.data?.v_profile_url === 'string'
-                      ? n.data.v_profile_url :
-                    null
-                  const Content = (
-                    <div className="flex gap-3">
-                      <span className="text-lg flex-shrink-0 mt-0.5">{getIcon(n.type)}</span>
-                      <div className="flex-1 min-w-0">
-                        <p className={`text-sm ${!n.read ? 'font-semibold text-ink' : 'text-muted'}`}>
-                          {n.title}
-                        </p>
-                        {n.body && (
-                          <p className="text-xs text-muted mt-0.5 line-clamp-2">
-                            {n.body}
-                          </p>
-                        )}
-                        <p className="text-[10px] text-muted opacity-70 mt-1">
-                          {timeAgo(n.created_at)}
-                        </p>
-                      </div>
-                      {!n.read && (
-                        <span className="flex-shrink-0 w-2 h-2 rounded-full bg-phosphor mt-1.5" />
-                      )}
-                    </div>
-                  )
-                  const className = `block px-4 py-3 border-b border-line last:border-b-0 transition-colors hover:bg-panel-2 ${
-                    !n.read ? 'bg-panel-3' : ''
-                  }`
+            notifications.map((n) => {
+              const linkUrl =
+                typeof n.data?.url === 'string' ? n.data.url :
+                n.type === 'new_follower' && typeof n.data?.username === 'string' ? `/u/${n.data.username}` :
+                n.type === 'new_follower' && typeof n.data?.follower_username === 'string' ? `/u/${n.data.follower_username}` :
+                n.type === 'badge_unlocked' && typeof n.data?.v_profile_url === 'string' ? n.data.v_profile_url :
+                n.type === 'level_up' && typeof n.data?.v_profile_url === 'string' ? n.data.v_profile_url :
+                n.type === 'challenge_complete' ? '/challenges' :
+                null
 
-                  const isExternal = linkUrl && (linkUrl.startsWith('http://') || linkUrl.startsWith('https://'))
-                  return linkUrl ? (
-                    isExternal ? (
-                      <a
-                        key={n.id}
-                        href={linkUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className={className}
+              const isExternal = linkUrl && (linkUrl.startsWith('http://') || linkUrl.startsWith('https://'))
+              const rowClass = `flex items-start gap-1 px-4 py-3 border-b border-line last:border-b-0 transition-colors hover:bg-panel-2 ${
+                !n.read ? 'bg-panel-3' : ''
+              }`
+              const content = (
+                <div className="flex gap-3">
+                  <span className="text-lg flex-shrink-0 mt-0.5">{getIcon(n.type)}</span>
+                  <div className="flex-1 min-w-0">
+                    <p className={`text-sm ${!n.read ? 'font-semibold text-ink' : 'text-muted'}`}>
+                      {n.title}
+                    </p>
+                    {n.body && (
+                      <p className="text-xs text-muted mt-0.5 line-clamp-2">
+                        {n.body}
+                      </p>
+                    )}
+                    <p className="text-[10px] text-muted opacity-70 mt-1">
+                      {timeAgo(n.created_at)}
+                    </p>
+                  </div>
+                  {!n.read && (
+                    <span className="flex-shrink-0 w-2 h-2 rounded-full bg-phosphor mt-1.5" />
+                  )}
+                </div>
+              )
+
+              const link = linkUrl ? (
+                isExternal ? (
+                  <a
+                    href={linkUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex-1 min-w-0"
+                  >
+                    {content}
+                  </a>
+                ) : (
+                  <a href={linkUrl} className="flex-1 min-w-0">
+                    {content}
+                  </a>
+                )
+              ) : (
+                <div className="flex-1 min-w-0">{content}</div>
+              )
+
+              return (
+                <div key={n.id} className={rowClass}>
+                  {link}
+                  <div className="flex flex-col gap-1 shrink-0">
+                    {!n.read && (
+                      <button
+                        onClick={() => markRead(n.id)}
+                        title="Mark as read"
+                        aria-label="Mark as read"
+                        className="text-xs text-muted hover:text-ink transition-colors"
                       >
-                        {Content}
-                      </a>
-                    ) : (
-                      <a
-                        key={n.id}
-                        href={linkUrl}
-                        className={className}
-                      >
-                        {Content}
-                      </a>
-                    )
-                  ) : (
-                    <div key={n.id} className={className}>
-                      {Content}
-                    </div>
-                  )
-                })
+                        ✓
+                      </button>
+                    )}
+                    <button
+                      onClick={() => deleteOne(n.id)}
+                      title="Delete"
+                      aria-label="Delete notification"
+                      className="text-xs text-muted hover:text-danger transition-colors"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                </div>
+              )
+            })
             )}
           </div>
         </div>

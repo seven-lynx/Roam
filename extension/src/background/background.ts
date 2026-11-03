@@ -398,6 +398,8 @@ async function _dispatch(req: Request): Promise<Response> {
     case 'GET_NOTIFICATIONS':     return getNotifications();
     case 'GET_UNREAD_COUNT':      return getUnreadNotificationCount();
     case 'MARK_NOTIFICATIONS_READ': return markNotificationsRead();
+    case 'MARK_NOTIFICATION_READ': return markNotificationRead(req.notificationId);
+    case 'CLEAR_NOTIFICATIONS':   return clearNotifications();
     case 'DELETE_NOTIFICATION':   return deleteNotification(req.notificationId);
     case 'GET_BADGES':            return getBadges();
     case 'GET_CHALLENGES':        return getChallenges();
@@ -1202,6 +1204,29 @@ async function deleteNotification(notificationId: string): Promise<Response<null
     .from('notifications')
     .delete()
     .eq('id', notificationId)
+    .eq('user_id', session.user.id);
+  if (error) return { ok: false, error: error.message };
+  return { ok: true, data: null };
+}
+
+async function markNotificationRead(notificationId: string): Promise<Response<null>> {
+  const session = (await getSupabase().auth.getSession()).data.session;
+  if (!session) return { ok: false, error: 'Not signed in.' };
+  const { error } = await getSupabase()
+    .from('notifications')
+    .update({ read: true })
+    .eq('id', notificationId)
+    .eq('user_id', session.user.id);
+  if (error) return { ok: false, error: error.message };
+  return { ok: true, data: null };
+}
+
+async function clearNotifications(): Promise<Response<null>> {
+  const session = (await getSupabase().auth.getSession()).data.session;
+  if (!session) return { ok: false, error: 'Not signed in.' };
+  const { error } = await getSupabase()
+    .from('notifications')
+    .delete()
     .eq('user_id', session.user.id);
   if (error) return { ok: false, error: error.message };
   return { ok: true, data: null };

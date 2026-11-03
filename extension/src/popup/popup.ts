@@ -76,6 +76,17 @@ function showToast(message: string) {
   setTimeout(() => { t.hidden = true; }, 2000);
 }
 
+/** Decrements the unread-count chip after a single notification is read/deleted. */
+function decrementUnreadChip() {
+  const chip = el('notif-count-chip');
+  const remaining = Number(chip.textContent || '0');
+  if (remaining > 1) {
+    chip.textContent = String(remaining - 1);
+  } else {
+    chip.hidden = true;
+  }
+}
+
 function showError(message: string, operation?: string) {
   const prefix = operation ? `[${operation}] ` : '';
   const span = document.querySelector<HTMLElement>('#state-error .error-msg');
@@ -1030,8 +1041,17 @@ document.addEventListener('DOMContentLoaded', () => {
         del.addEventListener('click', async (e) => {
           e.stopPropagation();
           await sendToBackground({ type: 'DELETE_NOTIFICATION', notificationId: n.id });
+          const wasUnread = row.classList.contains('notif-item--unread');
           row.remove();
           if (!list.children.length) empty.hidden = false;
+          if (wasUnread) decrementUnreadChip();
+        });
+        // Tapping an unread notification marks it read.
+        row.addEventListener('click', async () => {
+          if (!row.classList.contains('notif-item--unread')) return;
+          await sendToBackground({ type: 'MARK_NOTIFICATION_READ', notificationId: n.id });
+          row.classList.remove('notif-item--unread');
+          decrementUnreadChip();
         });
         row.appendChild(text);
         row.appendChild(del);
@@ -1054,6 +1074,13 @@ document.addEventListener('DOMContentLoaded', () => {
     el('notif-list').querySelectorAll('.notif-item--unread').forEach(r => r.classList.remove('notif-item--unread'));
     const chip = el('notif-count-chip');
     chip.hidden = true;
+  });
+
+  el('btn-clear-notifications').addEventListener('click', async () => {
+    await sendToBackground({ type: 'CLEAR_NOTIFICATIONS' });
+    el('notif-list').textContent = '';
+    el('notif-empty').hidden = false;
+    el('notif-count-chip').hidden = true;
   });
 
   // ── Badges ────────────────────────────────────────────────────────────────

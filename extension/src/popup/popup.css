@@ -646,6 +646,7 @@ body {
   transition: background var(--transition), color var(--transition);
 }
 .notif-mark-read:hover { background: var(--bg-hover); color: var(--text); }
+.notif-header-actions { display: flex; gap: 4px; flex-shrink: 0; }
 .notif-list {
   display: flex;
   flex-direction: column;

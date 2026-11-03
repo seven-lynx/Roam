@@ -28,6 +28,7 @@ import androidx.compose.material.icons.filled.EmojiEvents
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -85,23 +86,29 @@ private fun getNotificationIcon(type: String): ImageVector = when (type) {
     "new_follower" -> Icons.Filled.Person
     "badge_unlocked" -> Icons.Filled.EmojiEvents
     "level_up" -> Icons.AutoMirrored.Filled.TrendingUp
+    "challenge_complete" -> Icons.Filled.Star
     "url_shared" -> Icons.Filled.Share
     else -> Icons.Filled.Notifications
 }
 
+private const val WEB_BASE_URL = "https://roamtheweb.app"
+
 /**
- * Resolves a navigation deep-link from a notification.
- * Returns a relative path (e.g. "/u/alice") for in-app navigation,
- * or a full URL (e.g. "https://example.com") for browser fallback.
+ * Resolves a navigation deep-link from a notification. Always returns a full URL
+ * so it can be loaded directly in the in-app WebView (relative paths such as
+ * "/u/alice" are resolved against the Roam web origin).
  */
 private fun resolveNotificationUrl(notification: AppNotification): String? {
-    return when (notification.type) {
+    val url = when (notification.type) {
         "url_approved", "url_rejected" -> notification.data?.url
-        "new_follower" -> notification.data?.followerUsername?.let { "/u/$it" }
-        "badge_unlocked", "level_up" -> notification.data?.vProfileUrl
+        "new_follower" -> notification.data?.url
+            ?: notification.data?.username?.let { "/u/$it" }
+        "badge_unlocked", "level_up" -> notification.data?.url
         "url_shared" -> notification.data?.url
+        "challenge_complete" -> "$WEB_BASE_URL/challenges"
         else -> null
-    }
+    } ?: return null
+    return if (url.startsWith("/")) "$WEB_BASE_URL$url" else url
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -130,6 +137,11 @@ fun NotificationsScreen(
                     }
                 },
                 actions = {
+                    if (notifications.isNotEmpty()) {
+                        TextButton(onClick = { vm.clearAllNotifications() }) {
+                            Text("Clear all")
+                        }
+                    }
                     if (unreadCount > 0) {
                         TextButton(onClick = { vm.markAllNotificationsRead() }) {
                             Text("Mark all read")
@@ -188,6 +200,7 @@ fun NotificationsScreen(
                     NotificationRow(
                         notification = notif,
                         onDelete = { vm.deleteNotification(notif.id) },
+                        onMarkRead = { vm.markNotificationRead(notif.id) },
                         onNavigateToUrl = onNavigateToUrl,
                     )
                 }
@@ -200,6 +213,7 @@ fun NotificationsScreen(
 private fun NotificationRow(
     notification: AppNotification,
     onDelete: () -> Unit,
+    onMarkRead: () -> Unit,
     onNavigateToUrl: ((String) -> Unit)?,
 ) {
     var expanded by remember { mutableStateOf(false) }
@@ -215,7 +229,10 @@ private fun NotificationRow(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { expanded = !expanded }
+            .clickable {
+                if (isUnread) onMarkRead()
+                expanded = !expanded
+            }
             .padding(horizontal = 16.dp, vertical = 10.dp),
     ) {
         Row(
@@ -297,6 +314,7 @@ private fun NotificationRow(
                 "new_follower" -> "View profile"
                 "badge_unlocked" -> "View badges"
                 "level_up" -> "View profile"
+                "challenge_complete" -> "View challenges"
                 "url_shared" -> "Open in Roam"
                 else -> "Open in Roam"
             }

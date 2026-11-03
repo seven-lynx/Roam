@@ -45,6 +45,8 @@ export type Request =
   | { type: 'GET_UNREAD_COUNT' }
   | { type: 'MARK_NOTIFICATIONS_READ' }
   | { type: 'DELETE_NOTIFICATION'; notificationId: string }
+  | { type: 'MARK_NOTIFICATION_READ'; notificationId: string }
+  | { type: 'CLEAR_NOTIFICATIONS' }
   | { type: 'GET_BADGES' }
   | { type: 'GET_CHALLENGES' }
   | { type: 'GET_URL_HISTORY'; limit?: number }

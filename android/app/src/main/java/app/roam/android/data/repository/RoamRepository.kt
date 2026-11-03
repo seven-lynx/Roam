@@ -1023,6 +1023,32 @@ class RoamRepository {
         }
     }
 
+    /** Marks a single notification as read. Only allows updates to the current user's notifications. */
+    suspend fun markNotificationRead(notificationId: String) {
+        val userId = supabase.auth.currentUserOrNull()?.id ?: return
+        runCatching {
+            supabase.postgrest.from("notifications")
+                .update({ set("read", true) }) {
+                    filter {
+                        eq("id", notificationId)
+                        eq("user_id", userId)
+                    }
+                }
+        }
+    }
+
+    /** Deletes all notifications for the current user. */
+    suspend fun deleteAllNotifications() {
+        val userId = supabase.auth.currentUserOrNull()?.id ?: return
+        runCatching {
+            supabase.postgrest.from("notifications").delete {
+                filter {
+                    eq("user_id", userId)
+                }
+            }
+        }
+    }
+
     // ── Push tokens ──────────────────────────────────────────────────────────
 
     /** Registers an FCM token for the current user. Called by FCMService on token refresh. */

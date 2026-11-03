@@ -80,6 +80,25 @@ Deno.serve(async (req: Request) => {
       (winRows ?? []).map((r: any) => (r.action as string).replace("game:", "").replace(":win", "")),
     );
 
+    // Game scores & deep runs (fetched once; score-milestone badges share these).
+    const { data: overRows } = await sb
+      .from("xp_log")
+      .select("action, metadata")
+      .eq("user_id", user_id)
+      .in("action", [
+        "game:snake:over", "game:tetris:over", "game:asteroids:over",
+        "game:frogger:over", "game:underweb:over", "game:substrate:over",
+      ]);
+    const { data: levelRows } = await sb
+      .from("xp_log")
+      .select("action, metadata")
+      .eq("user_id", user_id)
+      .in("action", ["game:snake:level", "game:tetris:level"]);
+
+    const maxScore = Math.max(0, ...(overRows ?? []).map((r: any) => Number(r.metadata?.score) || 0));
+    const maxSnakeLevel = Math.max(0, ...(levelRows ?? []).filter((r: any) => r.action === "game:snake:level").map((r: any) => Number(r.metadata?.level) || 0));
+    const maxTetrisLevel = Math.max(0, ...(levelRows ?? []).filter((r: any) => r.action === "game:tetris:level").map((r: any) => Number(r.metadata?.level) || 0));
+
     for (const badge of allBadges ?? []) {
       if (unlocked.has(badge.id)) continue;
       if (badge.is_hidden || badge.category === "gift") continue;
@@ -510,6 +529,15 @@ Deno.serve(async (req: Request) => {
         case "win-underweb": qualifies = winGames.has("underweb"); break;
         case "win-substrate": qualifies = winGames.has("substrate"); break;
 
+        // Completionist ladder + score/deep-run milestones (games).
+        case "gamer-first": qualifies = winGames.size >= 1; break;
+        case "gamer-3": qualifies = winGames.size >= 3; break;
+        case "gamer-all": qualifies = winGames.size >= 7; break;
+        case "high-score-500": qualifies = maxScore >= 500; break;
+        case "high-score-1000": qualifies = maxScore >= 1000; break;
+        case "relay-lvl-25": qualifies = maxSnakeLevel >= 25; break;
+        case "compiler-lvl-25": qualifies = maxTetrisLevel >= 25; break;
+
         // ═══ Secret ═══
         case "error-404-explorer": {
           const { count: c } = await sb.from("log_failed_urls").select("*", { count: "exact", head: true }).eq("user_id", user_id);
@@ -563,59 +591,9 @@ Deno.serve(async (req: Request) => {
       console.log(`Badges awarded to ${user_id}: ${toAward.map((b: any) => b.slug).join(", ")}`);
     }
 
-    // ── Challenge completion check ─────────────────────────────────
-    try {
-      const now = new Date().toISOString();
-      const { data: completableChallenges } = await sb
-        .from("user_challenges")
-        .select(`
-          instance_id, progress_current,
-          challenge_instances!inner(id, challenge_id,
-            challenges!inner(id, challenge_key, title, xp_reward, goal_count)
-          )
-        `)
-        .eq("user_id", user_id)
-        .is("completed_at", null)
-        .gte("challenge_instances.expires_at", now);
-
-      if (completableChallenges && completableChallenges.length > 0) {
-        for (const uc of completableChallenges) {
-          const challenge = uc.challenge_instances?.[0]?.challenges?.[0];
-          if (!challenge) continue;
-          if ((uc.progress_current ?? 0) >= (challenge.goal_count ?? 999)) {
-            // Mark completed
-            await sb.from("user_challenges")
-              .update({ completed_at: now, completed_xp_awarded: true })
-              .eq("user_id", user_id)
-              .eq("instance_id", uc.instance_id);
-
-            // Award XP through the unified primitive
-            const xp = challenge.xp_reward ?? 50;
-            await sb.rpc("apply_xp", {
-              p_user_id: user_id,
-              p_action: "challenge_reward",
-              p_xp: xp,
-              p_metadata: { challenge_key: challenge.challenge_key, challenge_title: challenge.title },
-              p_idempotency_key: null,
-            });
-
-            // Insert notification
-            await sb.from("notifications").insert({
-              user_id,
-              type: "challenge_complete",
-              title: `Challenge Complete: ${challenge.title}!`,
-              body: `+${xp} XP earned`,
-              data: { challenge_key: challenge.challenge_key, xp },
-            });
-
-            console.log(`Challenge completed for ${user_id}: ${challenge.challenge_key}`);
-          }
-        }
-      }
-    } catch (e) {
-      console.error("challenge completion check failed:", e);
-    }
-
+    // Challenge completion is handled by the on_user_action_challenge() DB trigger
+    // (see 20261103000003_unify_challenge_trigger.sql). Keeping a second copy here
+    // would double-award XP and duplicate challenge_complete notifications.
     return Response.json({ awarded: toAward.length, badges: toAward.map((b: any) => b.slug) }, { headers: corsHeaders });
   } catch (e: any) {
     console.error("evaluate-badges error:", e.message);

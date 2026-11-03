@@ -381,6 +381,11 @@ deno_version = 2
 # set, the scheduler must send `Authorization: Bearer <CRON_SECRET>` (see .env.example).
 schedule = "0 0 * * *"
 
+[functions.cron-notification-cleanup]
+# Retention cleanup for notifications + push tokens. Runs daily at 03:00 UTC.
+# Requires CRON_SECRET auth if set (see .env.example).
+schedule = "0 3 * * *"
+
 [functions.sentry-webhook]
 # Public webhook receiver for Sentry (server-to-server). Deployed with
 # verify_jwt=false and protected by a shared secret instead:

@@ -128,7 +128,7 @@ It handles ~150 badges across these categories:
 - **Social** — followers, following, mutual connections, profile completion
 - **Streaks** — daily streak milestones
 - **Curiosity** — URL ratings (formerly `engagement`)
-- **Games** — per-game win badges (`win-*`) and score milestones
+- **Games** — per-game win badges (`win-*`), completionist ladder (`gamer-*`), and score/deep-run milestones
 - **Milestones** — level-based badges, total XP badges
 - **Secret** — special conditions (error-404, etc.)
 
@@ -219,6 +219,19 @@ Only works when DNS can resolve Supabase's direct database hostname. Falls back 
 
 ---
 
+## Known Tech Debt
+
+- **`user_actions` written by edge functions.** `RULES.md`'s Hard Rule says
+  `user_actions` rows are written by triggers, not edge functions, but ~10 edge
+  functions (`collection`, `follow`, `game-action`, `rate`, `report-url`,
+  `roam`, `roll-action`, `save-url`, `share-url`, `submit-url`) insert
+  `user_actions` rows directly as the canonical audit log + challenge trigger
+  input. This is a pre-existing deviation (predates the XP/badge work, and the
+  challenge system itself uses `user_actions` as its primary action log). A
+  decision — refactor to triggers vs. amend the rule — is tracked separately.
+
+---
+
 ## Key Migrations
 
 | Migration | Purpose |
@@ -231,6 +244,10 @@ Only works when DNS can resolve Supabase's direct database hostname. Falls back 
 | `20261103000000_award_game_xp.sql` | Variable game XP (retired by `_unify_xp_badges`) |
 | `20261103000001_roll_badges.sql` | Cyberdeck Roll gallery badges (`roll-wallpaper`, `roll-rate-5`) |
 | `20261103000002_unify_xp_badges.sql` | **Unified XP economy:** `apply_xp()`, `award_xp()` wrapper, `game` user_actions, game-win badge seeds, drops legacy SQL evaluator |
+| `20261103000003_unify_challenge_trigger.sql` | Route challenge completion rewards through `apply_xp()` (was direct `xp_log`/`profiles` writes) |
+| `20261103000004_harden_award_xp.sql` | `award_xp()` restricted so `authenticated` callers may only award XP to themselves |
+| `20261103000005_harden_grant_badge.sql` | `grant_badge()` restricted to service-role (was `authenticated`) |
+| `20261103000006_game_milestone_badges.sql` | Game completionist ladder (`gamer-*`) + score/deep-run milestone badges |
 
 ## Quick Reference
 

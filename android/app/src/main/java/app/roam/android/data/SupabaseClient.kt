@@ -12,9 +12,11 @@ import io.github.jan.supabase.auth.SettingsSessionManager
 import io.github.jan.supabase.createSupabaseClient
 import io.github.jan.supabase.functions.Functions
 import io.github.jan.supabase.postgrest.Postgrest
+import io.github.jan.supabase.serializer.KotlinXSerializer
 import io.github.jan.supabase.storage.Storage
 import io.ktor.client.engine.okhttp.OkHttp
 import io.ktor.client.plugins.HttpTimeout
+import kotlinx.serialization.json.Json
 import java.util.concurrent.TimeUnit
 
 /**
@@ -25,6 +27,16 @@ val supabase = createSupabaseClient(
     supabaseUrl = BuildConfig.SUPABASE_URL,
     supabaseKey = BuildConfig.SUPABASE_ANON_KEY,
 ) {
+    // Lenient JSON decoding. The notifications `data` column is a free-form JSONB
+    // whose keys have drifted over time (e.g. `username` vs `follower_username`).
+    // Without `ignoreUnknownKeys`, a single unrecognised key makes the whole
+    // `decodeList<AppNotification>()` throw and the notifications screen renders
+    // empty even though rows exist and the unread count is non-zero.
+    defaultSerializer = KotlinXSerializer(Json {
+        ignoreUnknownKeys = true
+        isLenient = true
+        explicitNulls = false
+    })
     install(Auth) {
         flowType = FlowType.PKCE
         scheme = "app.roam.android"

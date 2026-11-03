@@ -24,11 +24,15 @@ data class AppNotificationData(
     val url: String? = null,
     @SerialName("queue_id") val queueId: String? = null,
     val title: String? = null,
-    // Follower notifications (new_follower)
-    @SerialName("follower_username") val followerUsername: String? = null,
+    // Follower notifications (new_follower). The DB emits "username"; "follower_username"
+    // is accepted for backward compatibility with older rows.
+    @SerialName("username")
+    @JsonNames("follower_username")
+    val username: String? = null,
     @SerialName("follower_id") val followerId: String? = null,
+    @SerialName("display_name") val displayName: String? = null,
+    @SerialName("avatar_url") val avatarUrl: String? = null,
     // Badge notifications (badge_unlocked)
-    @SerialName("badge_id") val badgeId: String? = null,
     @SerialName("badge_slug") val badgeSlug: String? = null,
     @SerialName("badge_name") val badgeName: String? = null,
     @SerialName("badge_icon") val badgeIcon: String? = null,
@@ -38,10 +42,10 @@ data class AppNotificationData(
     @SerialName("new_level")
     @JsonNames("level")
     val newLevel: Int? = null,
+    val rank: String? = null,
     // Challenge-complete notifications (challenge_complete)
+    @SerialName("challenge_key") val challengeKey: String? = null,
     @SerialName("xp") val xp: Int? = null,
-    // Shared deep-link (badge_unlocked, level_up)
-    @SerialName("v_profile_url") val vProfileUrl: String? = null,
     // URL share notification (url_shared)
     @SerialName("sender_username") val senderUsername: String? = null,
     @SerialName("sender_id") val senderId: String? = null,

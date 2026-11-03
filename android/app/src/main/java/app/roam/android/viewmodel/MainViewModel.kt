@@ -2235,6 +2235,26 @@ class MainViewModel(
         fetchUnreadNotificationCount()
     }
 
+    /** Marks a single notification as read locally and on the server. */
+    fun markNotificationRead(notificationId: String) {
+        _notifications.value = _notifications.value.map {
+            if (it.id == notificationId) it.copy(read = true) else it
+        }
+        viewModelScope.launch {
+            runCatching { repo.markNotificationRead(notificationId) }
+        }
+        fetchUnreadNotificationCount()
+    }
+
+    /** Deletes all notifications locally and on the server. */
+    fun clearAllNotifications() {
+        _notifications.value = emptyList()
+        _unreadNotificationCount.value = 0
+        viewModelScope.launch {
+            runCatching { repo.deleteAllNotifications() }
+        }
+    }
+
     fun showTransientToast(message: String) {
         _submitToast.value = message
         viewModelScope.launch {
