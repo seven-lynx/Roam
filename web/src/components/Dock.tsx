@@ -49,8 +49,11 @@ export function Dock() {
   const menuRef = useRef<HTMLDivElement>(null);
 
   const ids = (Object.keys(windows) as WindowId[]).filter((id) => windows[id]);
-  const topZ = ids.reduce((m, id) => Math.max(m, windows[id]!.z), 0);
-  const anyVisible = ids.some((id) => !windows[id]!.minimized);
+  // Focus follows the top-most *visible* window (matching Window.tsx), so a
+  // minimized window doesn't keep its tile highlighted after being tucked.
+  const visibleIds = ids.filter((id) => !windows[id]!.minimized);
+  const topZ = visibleIds.reduce((m, id) => Math.max(m, windows[id]!.z), 0);
+  const anyVisible = visibleIds.length > 0;
 
   const onTile = (id: WindowId) => {
     const w = windows[id];

@@ -82,8 +82,10 @@ function RingGauge({
   color: string;
 }) {
   const pct = Math.max(0, Math.min(1, value));
-  const start = -sweep / 2;
-  const end = sweep / 2;
+  // Open the gap toward the right (90°) instead of the bottom (180°) so the
+  // concentric rings read as gauges filling from the left and facing right.
+  const start = -90 - sweep / 2;
+  const end = -90 + sweep / 2;
   const fillStyle = { stroke: color };
 
   if (sweep >= 359.9) {

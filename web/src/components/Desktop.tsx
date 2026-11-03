@@ -57,13 +57,14 @@ const DESKTOP_APPS: DesktopApp[] = [
 const ICON_W = 76;
 const ICON_H = 86;
 
-/** Desktop widgets, pinned to corners: a right rail (showcase + telemetry), the rankings rail on the left, and deck diagnostics in the bottom corner. */
-const WIDGET_SPECS: { id: string; w: number; dock: 'left' | 'right' | 'bottom'; node: ReactNode }[] = [
-  { id: 'showcase', w: 510, dock: 'right', node: <SiteShowcase /> },
-  { id: 'deckdiag', w: 300, dock: 'bottom', node: <DeckDiagnosticsWidget /> },
-  { id: 'rankings', w: 320, dock: 'left', node: <RankingsWidget limit={5} /> },
-  { id: 'telemetry', w: 260, dock: 'right', node: <TelemetryWidget /> },
-];
+/** Desktop widgets, pinned to corners: showcase + rankings form the top-right
+ *  cluster, sys telemetry sits bottom-left, and deck diagnostics bottom-right. */
+const WIDGETS: Record<string, ReactNode> = {
+  showcase: <SiteShowcase />,
+  rankings: <RankingsWidget limit={5} />,
+  telemetry: <TelemetryWidget />,
+  deckdiag: <DeckDiagnosticsWidget />,
+};
 
 /** Handheld pager: one widget per screen, in this order. */
 const HANDHELD_WIDGET_ORDER = ['showcase', 'rankings', 'telemetry', 'deckdiag'] as const;
@@ -77,7 +78,7 @@ type IconMap = Record<string, IconPos>;
 
 function defaultPositions(): IconMap {
   const out: IconMap = {};
-  const PER_COL = 9;
+  const PER_COL = 6;
   DESKTOP_APPS.forEach((a, i) => {
     const col = Math.floor(i / PER_COL);
     const row = i % PER_COL;
@@ -105,7 +106,6 @@ export function Desktop() {
   const { openWindow, toggleLauncher, handheld, toggleAppDrawer } = useWorkstation();
   const { launch } = useAppLauncher();
   const [positions, setPositions] = useState<IconMap>(loadPositions);
-  const [order, setOrder] = useState<string[]>(() => WIDGET_SPECS.filter((w) => w.dock === 'right').map((w) => w.id));
   const [folderOpen, setFolderOpen] = useState<string | null>(null);
   const [page, setPage] = useState(0);
   const pagerRef = useRef<HTMLDivElement>(null);
@@ -173,19 +173,6 @@ export function Desktop() {
     else openWindow(app.id as WindowId);
   };
 
-  const reorderWidget = (id: string, dir: -1 | 1) => {
-    setOrder((prev) => {
-      const i = prev.indexOf(id);
-      const j = i + dir;
-      if (i < 0 || j < 0 || j >= prev.length) return prev;
-      const next = prev.slice();
-      const tmp = next[i];
-      next[i] = next[j];
-      next[j] = tmp;
-      return next;
-    });
-  };
-
   const onPagerScroll = (e: UIEvent<HTMLDivElement>) => {
     const el = e.currentTarget;
     const idx = Math.round(el.scrollLeft / Math.max(1, el.clientWidth));
@@ -224,14 +211,11 @@ export function Desktop() {
             </div>
           </section>
 
-          {HANDHELD_WIDGET_ORDER.map((id) => {
-            const spec = WIDGET_SPECS.find((w) => w.id === id)!;
-            return (
-              <section key={id} className="home-page home-page--widget" aria-label={spec.id}>
-                <div className="home-widget">{spec.node}</div>
-              </section>
-            );
-          })}
+          {HANDHELD_WIDGET_ORDER.map((id) => (
+            <section key={id} className="home-page home-page--widget" aria-label={id}>
+              <div className="home-widget">{WIDGETS[id]}</div>
+            </section>
+          ))}
         </div>
 
         <div className="home-page-dots" aria-label="Pages">
@@ -271,32 +255,25 @@ export function Desktop() {
         })}
       </div>
 
-      <div className="desktop-widgets" aria-label="Desktop widgets (right)">
-        {order.map((id) => {
-          const spec = WIDGET_SPECS.find((w) => w.id === id && w.dock === 'right');
-          if (!spec) return null;
-          return (
-            <DraggableWidget key={id} id={id} width={spec.w} onReorder={(dir) => reorderWidget(id, dir)}>
-              {spec.node}
-            </DraggableWidget>
-          );
-        })}
+      <div className="desktop-widgets desktop-widgets--top" aria-label="Desktop widgets (top right)">
+        <DraggableWidget id="showcase" width={510}>
+          {WIDGETS.showcase}
+        </DraggableWidget>
+        <div className="dw-wrap" style={{ width: 320 }}>
+          {WIDGETS.rankings}
+        </div>
       </div>
 
-      <div className="desktop-widgets desktop-widgets--left" aria-label="Desktop widgets (left)">
-        {WIDGET_SPECS.filter((w) => w.dock === 'left').map((spec) => (
-          <div key={spec.id} className="dw-wrap" style={{ width: spec.w }}>
-            {spec.node}
-          </div>
-        ))}
+      <div className="desktop-widgets desktop-widgets--bottomleft" aria-label="Desktop widgets (bottom left)">
+        <div className="dw-wrap" style={{ width: 210 }}>
+          {WIDGETS.telemetry}
+        </div>
       </div>
 
-      <div className="desktop-widgets desktop-widgets--bottom" aria-label="Desktop widgets (bottom)">
-        {WIDGET_SPECS.filter((w) => w.dock === 'bottom').map((spec) => (
-          <div key={spec.id} className="dw-wrap" style={{ width: spec.w }}>
-            {spec.node}
-          </div>
-        ))}
+      <div className="desktop-widgets desktop-widgets--bottom" aria-label="Desktop widgets (bottom right)">
+        <div className="dw-wrap" style={{ width: 200 }}>
+          {WIDGETS.deckdiag}
+        </div>
       </div>
     </div>
   );

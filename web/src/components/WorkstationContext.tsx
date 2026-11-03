@@ -41,7 +41,7 @@ export const WINDOW_DEFAULTS: Record<
   deck: { title: 'MOUNT DECK', w: 560, h: 320 },
   info: { title: 'ROAM INFO', w: 720, h: 560 },
   coffee: { title: 'REFUEL', w: 560, h: 320 },
-  roll: { title: 'CYBERDECK ROLL', w: 560, h: 640 },
+  roll: { title: 'GALLERY', w: 560, h: 640 },
   snake: { title: PROGRAMS.snake.title, w: 560, h: 640 },
   minesweeper: { title: PROGRAMS.minesweeper.title, w: 520, h: 600 },
   tetris: { title: PROGRAMS.tetris.title, w: 420, h: 640 },
