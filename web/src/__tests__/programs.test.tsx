@@ -5,6 +5,7 @@ import { SnakeProgram } from '@/components/programs/SnakeProgram';
 import { MinesweeperProgram } from '@/components/programs/MinesweeperProgram';
 import { TetrisProgram } from '@/components/programs/TetrisProgram';
 import { AsteroidsProgram } from '@/components/programs/AsteroidsProgram';
+import { FroggerProgram } from '@/components/programs/FroggerProgram';
 import { UnderwebProgram } from '@/components/programs/UnderwebProgram';
 import { SubstrateProgram } from '@/components/programs/SubstrateProgram';
 
@@ -28,6 +29,7 @@ describe('program windows', () => {
     ['minesweeper', MinesweeperProgram],
     ['tetris', TetrisProgram],
     ['asteroids', AsteroidsProgram],
+    ['frogger', FroggerProgram],
     ['underweb', UnderwebProgram],
     ['substrate', SubstrateProgram],
   ])('renders nothing when %s is closed', (_name, Component) => {

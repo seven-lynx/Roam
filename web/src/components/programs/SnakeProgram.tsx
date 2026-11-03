@@ -9,6 +9,8 @@ import { useGameKeys } from '@/components/programs/useGameKeys';
 import { useSwipeSteer } from '@/components/programs/useSwipeSteer';
 import { useGameLevel } from '@/components/programs/useGameLevel';
 import { GameLevelOverlay } from '@/components/programs/GameLevelOverlay';
+import { AnalogStick } from '@/components/programs/AnalogStick';
+import { useControlMode } from '@/components/programs/useControlMode';
 import { PROGRAMS } from '@/lib/os-programs';
 import { makeRunId } from '@/lib/game-xp';
 import { click, beep } from '@/lib/sfx';
@@ -21,8 +23,8 @@ import { click, beep } from '@/lib/sfx';
 const GRID = 18;
 const CELL = 28;
 const PACKETS_PER_LEVEL = 5;
-const BASE_SPEED = 110;
-const MIN_SPEED = 55;
+const BASE_SPEED = 135;
+const MIN_SPEED = 68;
 
 /** Tick interval (ms) tightens as the level climbs. */
 function speedFor(level: number): number {
@@ -58,7 +60,8 @@ function RelayGame() {
 
   const { session } = useAuth();
   const [runId] = useState(() => makeRunId());
-  const { level, phase, countdown, lastXp, levelRef, phaseRef, completeLevel, gameOver, resetLevels } =
+  const { mode, toggle } = useControlMode('roam-snake-control');
+  const { level, phase, countdown, lastXp, levelRef, phaseRef, begin, completeLevel, gameOver, resetLevels } =
     useGameLevel({ game: 'snake', userId: session?.user.id ?? null, runId });
 
   // Latest callbacks so the fixed-effect loop never closes over a stale closure.
@@ -82,12 +85,14 @@ function RelayGame() {
     dir.current = { x: dx, y: dy };
   };
 
-  const swipe = useSwipeSteer((s) => {
+  const steerDir = (s: 'up' | 'down' | 'left' | 'right') => {
     if (s === 'up') steer(0, -1);
     else if (s === 'down') steer(0, 1);
     else if (s === 'left') steer(-1, 0);
-    else if (s === 'right') steer(1, 0);
-  });
+    else steer(1, 0);
+  };
+
+  const swipe = useSwipeSteer(steerDir);
 
   useGameKeys('snake', (e) => {
     const map: Record<string, Pt> = {
@@ -243,27 +248,35 @@ function RelayGame() {
           overTitle="SIGNAL LOST"
           scoreLabel="PKT"
           score={view.score}
+          onStart={begin}
           onRestart={reset}
         />
         </div>
       </ScaleToFit>
 
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3 }}>
-        <button type="button" style={dBtn} onClick={() => steer(0, -1)} aria-label="Up">
-          ▲
-        </button>
-        <div style={{ display: 'flex', gap: 3 }}>
-          <button type="button" style={dBtn} onClick={() => steer(-1, 0)} aria-label="Left">
-            ◀
+      {mode === 'dpad' ? (
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3 }}>
+          <button type="button" style={dBtn} onClick={() => steer(0, -1)} aria-label="Up">
+            ▲
           </button>
-          <button type="button" style={dBtn} onClick={() => steer(0, 1)} aria-label="Down">
-            ▼
-          </button>
-          <button type="button" style={dBtn} onClick={() => steer(1, 0)} aria-label="Right">
-            ▶
-          </button>
+          <div style={{ display: 'flex', gap: 3 }}>
+            <button type="button" style={dBtn} onClick={() => steer(-1, 0)} aria-label="Left">
+              ◀
+            </button>
+            <button type="button" style={dBtn} onClick={() => steer(0, 1)} aria-label="Down">
+              ▼
+            </button>
+            <button type="button" style={dBtn} onClick={() => steer(1, 0)} aria-label="Right">
+              ▶
+            </button>
+          </div>
         </div>
-      </div>
+      ) : (
+        <AnalogStick onSteer={steerDir} label="Steering stick" />
+      )}
+      <button type="button" className="program-btn" onClick={toggle} style={{ fontSize: 11, padding: '2px 10px' }}>
+        {mode === 'dpad' ? 'D-PAD ⇄ STICK' : 'STICK ⇄ D-PAD'}
+      </button>
     </div>
   );
 }

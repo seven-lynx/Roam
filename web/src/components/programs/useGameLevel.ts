@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState, type MutableRefObject } from 'react';
 import { awardGameXp, gameOverXp, LEVEL_XP, XP_LEVEL_CAP, type GameId } from '@/lib/game-xp';
 
-export type LevelPhase = 'playing' | 'complete' | 'start' | 'over';
+export type LevelPhase = 'ready' | 'playing' | 'complete' | 'start' | 'over';
 
 const COUNTDOWN_FROM = 3;
 const COUNTDOWN_STEP_MS = 700;
@@ -28,6 +28,8 @@ export interface GameLevelController {
   /** Ref mirrors of `level` / `phase` for reading inside a rAF/interval loop. */
   levelRef: MutableRefObject<number>;
   phaseRef: MutableRefObject<LevelPhase>;
+  /** Start the current level from the initial READY screen. */
+  begin: () => void;
   /** Call when the current level's win condition is met. */
   completeLevel: () => void;
   /** Call on death. Awards game-over XP only past the level cap. */
@@ -37,8 +39,8 @@ export interface GameLevelController {
 }
 
 /**
- * Drives the shared LEVEL COMPLETE → LEVEL START (countdown) → play loop for
- * the three action games. State lives here; the games read `phaseRef` /
+ * Drives the shared READY → play → LEVEL COMPLETE → LEVEL START (countdown) →
+ * play loop for the action games. State lives here; the games read `phaseRef` /
  * `levelRef` inside their own loops to pause during the interstitial screens
  * and to apply per-level difficulty.
  */
@@ -46,12 +48,12 @@ export function useGameLevel(opts: UseGameLevelOptions): GameLevelController {
   const { game, userId, runId } = opts;
 
   const [level, setLevel] = useState(1);
-  const [phase, setPhase] = useState<LevelPhase>('playing');
+  const [phase, setPhase] = useState<LevelPhase>('ready');
   const [countdown, setCountdown] = useState(COUNTDOWN_FROM);
   const [lastXp, setLastXp] = useState(0);
 
   const levelRef = useRef(1);
-  const phaseRef = useRef<LevelPhase>('playing');
+  const phaseRef = useRef<LevelPhase>('ready');
   const timers = useRef<number[]>([]);
 
   const clearTimers = useCallback(() => {
@@ -69,8 +71,13 @@ export function useGameLevel(opts: UseGameLevelOptions): GameLevelController {
     levelRef.current = 1;
     setLevel(1);
     setLastXp(0);
-    setPhaseBoth('playing');
+    setPhaseBoth('ready');
   }, [clearTimers, setPhaseBoth]);
+
+  const begin = useCallback(() => {
+    if (phaseRef.current !== 'ready') return;
+    setPhaseBoth('playing');
+  }, [setPhaseBoth]);
 
   const completeLevel = useCallback(
     () => {
@@ -91,8 +98,12 @@ export function useGameLevel(opts: UseGameLevelOptions): GameLevelController {
 
       timers.current.push(
         window.setTimeout(() => {
-          setPhaseBoth('start');
+          // Advance to the next level now so the LEVEL START countdown already
+          // shows the level it is counting down *into*.
+          levelRef.current = lvl + 1;
+          setLevel(lvl + 1);
           setCountdown(COUNTDOWN_FROM);
+          setPhaseBoth('start');
         }, COMPLETE_MS),
       );
     },
@@ -119,12 +130,10 @@ export function useGameLevel(opts: UseGameLevelOptions): GameLevelController {
     [game, userId, runId, setPhaseBoth],
   );
 
-  // Countdown → advance to the next level and resume play.
+  // Countdown → resume play.
   useEffect(() => {
     if (phase !== 'start') return;
     if (countdown <= 0) {
-      levelRef.current += 1;
-      setLevel(levelRef.current);
       setPhaseBoth('playing');
       return;
     }
@@ -135,5 +144,5 @@ export function useGameLevel(opts: UseGameLevelOptions): GameLevelController {
   // Clear any pending interstitial timers on unmount.
   useEffect(() => clearTimers, [clearTimers]);
 
-  return { level, phase, countdown, lastXp, levelRef, phaseRef, completeLevel, gameOver, resetLevels };
+  return { level, phase, countdown, lastXp, levelRef, phaseRef, begin, completeLevel, gameOver, resetLevels };
 }

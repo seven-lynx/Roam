@@ -1,8 +1,12 @@
-import { LEVEL_XP, XP_LEVEL_CAP, gameOverXp, makeRunId } from '@/lib/game-xp';
+import { LEVEL_XP, WIN_XP, XP_LEVEL_CAP, gameOverXp, makeRunId } from '@/lib/game-xp';
 
 describe('game-xp economy', () => {
   it('awards a flat 10 XP per level', () => {
     expect(LEVEL_XP).toBe(10);
+  });
+
+  it('awards a flat 100 XP for winning a game', () => {
+    expect(WIN_XP).toBe(100);
   });
 
   it('stops per-level XP after level 100', () => {

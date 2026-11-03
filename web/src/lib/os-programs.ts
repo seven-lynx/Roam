@@ -10,7 +10,7 @@
  * manager, the launcher and the terminal without pulling in React.
  */
 
-export const PROGRAM_IDS = ['snake', 'minesweeper', 'tetris', 'asteroids', 'underweb', 'substrate'] as const;
+export const PROGRAM_IDS = ['snake', 'minesweeper', 'tetris', 'asteroids', 'frogger', 'underweb', 'substrate'] as const;
 export type ProgramId = (typeof PROGRAM_IDS)[number];
 
 export interface ProgramLicense {
@@ -90,6 +90,16 @@ export const PROGRAMS: Record<ProgramId, Program> = {
     controls: '← → rotate · ▲ thrust · ● fire',
     license: APACHE_2,
     source: ZELI,
+  },
+  frogger: {
+    id: 'frogger',
+    title: 'FIREWALK',
+    file: '/roam/bin/FIREWALK',
+    glyph: '⚡',
+    tagline: 'Guide a probe packet through the perimeter: dodge shifting rule-filters, ride carrier packets across the dark static, and reach five open ports.',
+    controls: 'ARROWS / SWIPE hop · on-screen D-PAD',
+    license: MIT,
+    source: 'original Roam-OS game (7 Lynx)',
   },
   underweb: {
     id: 'underweb',

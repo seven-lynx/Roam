@@ -1,5 +1,5 @@
 import path from 'path';
-import { createSubstrateSession, rewriteIntro, normalizeStoryText, SUBSTRATE_REWRITES } from '@/lib/zmachine';
+import { createSubstrateSession, rewriteIntro, normalizeStoryText, hasSubstrateWon, SUBSTRATE_REWRITES } from '@/lib/zmachine';
 import { ZScreen } from '@/lib/zscreen';
 
 // The story is a checked-in asset; in Node (Jest) tszm reads it via fs.
@@ -10,14 +10,28 @@ describe('SUBSTRATE Z-machine', () => {
     expect(rewriteIntro('ZORK I: The Great Underground Empire')).toBe('SUBSTRATE: The Buried Foundation');
     expect(rewriteIntro('Infocom interactive fiction - a fantasy story')).toBe('A recovered interactive fiction');
     expect(rewriteIntro('ZORK is a registered trademark of Infocom, Inc.')).toBe('buried beneath the dead web');
-    expect(
-      rewriteIntro(
-        'ZORK I: The Great Underground Empire\nInfocom interactive fiction - a fantasy story\nCopyright (c) 1981',
-      ),
-    ).toBe('SUBSTRATE: The Buried Foundation\nA recovered interactive fiction\nCopyright (c) 1981');
+
+    // The copyright + release lines arrive in chunks from tszm, so the rewrite
+    // keys target the pieces that land intact.
+    expect(rewriteIntro('Copyright (c) 1981, 1982, 1983, 1984, 1985, 1986')).toBe('recovered from the substrate archives');
+    expect(rewriteIntro(' Infocom, Inc. All rights reserved.')).toBe(' — all signals preserved');
+    expect(rewriteIntro('Release ')).toBe('build ');
+    expect(rewriteIntro(' / Serial number ')).toBe(' · sector ');
+
+    expect(rewriteIntro("Play 'ZORK: The Great Underground Empire, Part II'.")).toBe(
+      "Play 'SUBSTRATE: The Deeper Foundations, Part II'.",
+    );
+    expect(rewriteIntro('Score: 0')).toBe('SIGNAL: 0');
+    expect(rewriteIntro('Moves: 0')).toBe('TURNS: 0');
     expect(rewriteIntro('West of House')).toBe('West of House');
     expect(rewriteIntro('')).toBe('');
-    expect(Object.keys(SUBSTRATE_REWRITES)).toHaveLength(3);
+    expect(Object.keys(SUBSTRATE_REWRITES)).toHaveLength(10);
+  });
+
+  it('detects the endgame line', () => {
+    expect(hasSubstrateWon('You have gained the mastery of the first part of the Great Underground Empire')).toBe(true);
+    expect(hasSubstrateWon('West of House')).toBe(false);
+    expect(hasSubstrateWon('')).toBe(false);
   });
 
   it('normalizes Zork I paragraph markers to newlines', () => {
@@ -45,6 +59,14 @@ describe('SUBSTRATE Z-machine', () => {
     expect(intro).toContain('SUBSTRATE: The Buried Foundation');
     expect(intro).not.toContain('ZORK I:');
     expect(intro).toContain('West of House');
+
+    // No out-of-world branding may leak into the transcript or status line.
+    for (const token of ['ZORK', 'Zork', 'Infocom', 'trademark', 'Copyright', 'copyright']) {
+      expect(intro).not.toContain(token);
+      expect(s.statusLine).not.toContain(token);
+    }
+    expect(s.statusLine).toContain('SIGNAL:');
+    expect(s.statusLine).toContain('TURNS:');
 
     s.send('open mailbox');
     await s.whenIdle();

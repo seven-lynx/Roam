@@ -83,7 +83,7 @@ function CompilerGame() {
 
   const { session } = useAuth();
   const [runId] = useState(() => makeRunId());
-  const { level, phase, countdown, lastXp, levelRef, phaseRef, completeLevel, gameOver, resetLevels } =
+  const { level, phase, countdown, lastXp, levelRef, phaseRef, begin, completeLevel, gameOver, resetLevels } =
     useGameLevel({ game: 'tetris', userId: session?.user.id ?? null, runId });
   const completeLevelRef = useRef(completeLevel);
   const gameOverRef = useRef(gameOver);
@@ -254,6 +254,7 @@ function CompilerGame() {
           overTitle="BUFFER OVERFLOW"
           scoreLabel="LINES"
           score={lines}
+          onStart={begin}
           onRestart={restart}
         />
         </div>

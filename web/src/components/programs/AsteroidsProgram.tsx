@@ -9,9 +9,12 @@ import { useGameKeys } from '@/components/programs/useGameKeys';
 import { useSwipeSteer } from '@/components/programs/useSwipeSteer';
 import { useGameLevel } from '@/components/programs/useGameLevel';
 import { GameLevelOverlay } from '@/components/programs/GameLevelOverlay';
+import { AnalogStick } from '@/components/programs/AnalogStick';
+import { useControlMode } from '@/components/programs/useControlMode';
 import { PROGRAMS } from '@/lib/os-programs';
 import { makeRunId } from '@/lib/game-xp';
 import { click, beep, success } from '@/lib/sfx';
+import type { Steer } from '@/lib/steer';
 
 /**
  * DEBRIS — a drift through the dead web's wreckage. Adapted from
@@ -87,7 +90,8 @@ function DebrisGame() {
 
   const { session } = useAuth();
   const [runId] = useState(() => makeRunId());
-  const { level, phase, countdown, lastXp, levelRef, phaseRef, completeLevel, gameOver, resetLevels } =
+  const { mode, toggle } = useControlMode('roam-asteroids-control');
+  const { level, phase, countdown, lastXp, levelRef, phaseRef, begin, completeLevel, gameOver, resetLevels } =
     useGameLevel({ game: 'asteroids', userId: session?.user.id ?? null, runId });
   const completeLevelRef = useRef(completeLevel);
   const gameOverRef = useRef(gameOver);
@@ -115,6 +119,14 @@ function DebrisGame() {
       life: 40,
     });
     click(520, 0.04, 0.08);
+  };
+
+  // Analog stick (STICK mode): up thrusts, left/right rotate; maps onto the same
+  // `keys.current` state the rAF loop already reads, so no loop changes needed.
+  const stickHold = (s: Steer | null) => {
+    keys.current['ArrowUp'] = s === 'up';
+    keys.current['ArrowLeft'] = s === 'left';
+    keys.current['ArrowRight'] = s === 'right';
   };
 
   // Swipe steering (mobile): left/right rotate, up thrusts.
@@ -320,49 +332,63 @@ function DebrisGame() {
             overTitle="DEBRIS CLEARED"
             scoreLabel="SCORE"
             score={hud.score}
+            onStart={begin}
             onRestart={reset}
           />
         </div>
       </ScaleToFit>
 
-      <div style={{ display: 'flex', gap: 4 }}>
-        <button
-          type="button"
-          style={ctrlBtn}
-          onPointerDown={() => { keys.current['ArrowLeft'] = true; }}
-          onPointerUp={() => { keys.current['ArrowLeft'] = false; }}
-          onPointerLeave={() => { keys.current['ArrowLeft'] = false; }}
-          onPointerCancel={() => { keys.current['ArrowLeft'] = false; }}
-          aria-label="Rotate left"
-        >
-          ◀
-        </button>
-        <button type="button" style={ctrlBtn} onPointerDown={fire} aria-label="Fire">
-          ●
-        </button>
-        <button
-          type="button"
-          style={ctrlBtn}
-          onPointerDown={() => { keys.current['ArrowUp'] = true; }}
-          onPointerUp={() => { keys.current['ArrowUp'] = false; }}
-          onPointerLeave={() => { keys.current['ArrowUp'] = false; }}
-          onPointerCancel={() => { keys.current['ArrowUp'] = false; }}
-          aria-label="Thrust"
-        >
-          ▲
-        </button>
-        <button
-          type="button"
-          style={ctrlBtn}
-          onPointerDown={() => { keys.current['ArrowRight'] = true; }}
-          onPointerUp={() => { keys.current['ArrowRight'] = false; }}
-          onPointerLeave={() => { keys.current['ArrowRight'] = false; }}
-          onPointerCancel={() => { keys.current['ArrowRight'] = false; }}
-          aria-label="Rotate right"
-        >
-          ▶
-        </button>
-      </div>
+      {mode === 'dpad' ? (
+        <div style={{ display: 'flex', gap: 4 }}>
+          <button
+            type="button"
+            style={ctrlBtn}
+            onPointerDown={() => { keys.current['ArrowLeft'] = true; }}
+            onPointerUp={() => { keys.current['ArrowLeft'] = false; }}
+            onPointerLeave={() => { keys.current['ArrowLeft'] = false; }}
+            onPointerCancel={() => { keys.current['ArrowLeft'] = false; }}
+            aria-label="Rotate left"
+          >
+            ◀
+          </button>
+          <button type="button" style={ctrlBtn} onPointerDown={fire} aria-label="Fire">
+            ●
+          </button>
+          <button
+            type="button"
+            style={ctrlBtn}
+            onPointerDown={() => { keys.current['ArrowUp'] = true; }}
+            onPointerUp={() => { keys.current['ArrowUp'] = false; }}
+            onPointerLeave={() => { keys.current['ArrowUp'] = false; }}
+            onPointerCancel={() => { keys.current['ArrowUp'] = false; }}
+            aria-label="Thrust"
+          >
+            ▲
+          </button>
+          <button
+            type="button"
+            style={ctrlBtn}
+            onPointerDown={() => { keys.current['ArrowRight'] = true; }}
+            onPointerUp={() => { keys.current['ArrowRight'] = false; }}
+            onPointerLeave={() => { keys.current['ArrowRight'] = false; }}
+            onPointerCancel={() => { keys.current['ArrowRight'] = false; }}
+            aria-label="Rotate right"
+          >
+            ▶
+          </button>
+        </div>
+      ) : (
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', maxWidth: 360, padding: '0 8px' }}>
+          <AnalogStick onHold={stickHold} label="Flight stick" size={104} />
+          <button type="button" style={fireBtn} onPointerDown={fire} aria-label="Fire">
+            FIRE
+          </button>
+        </div>
+      )}
+
+      <button type="button" className="program-btn" onClick={toggle} style={{ fontSize: 11, padding: '2px 10px' }}>
+        {mode === 'dpad' ? 'D-PAD ⇄ STICK' : 'STICK ⇄ D-PAD'}
+      </button>
 
       <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--muted)' }}>
         ← → ROTATE · ▲ THRUST · ● FIRE · SWIPE TO STEER
@@ -380,6 +406,21 @@ const ctrlBtn: CSSProperties = {
   color: 'var(--fg)',
   border: '1px solid var(--line)',
   borderRadius: 8,
+  cursor: 'pointer',
+  touchAction: 'manipulation',
+};
+
+const fireBtn: CSSProperties = {
+  // Large single-shot fire button, opposite the analog stick in STICK mode.
+  width: 84,
+  height: 84,
+  borderRadius: '50%',
+  fontSize: 14,
+  fontWeight: 700,
+  letterSpacing: '0.08em',
+  background: 'var(--danger)',
+  color: 'var(--bg)',
+  border: '1px solid var(--danger)',
   cursor: 'pointer',
   touchAction: 'manipulation',
 };

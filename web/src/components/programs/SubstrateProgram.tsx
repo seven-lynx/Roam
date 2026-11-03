@@ -1,11 +1,13 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useAuth } from '@/components/AuthProvider';
 import { useWorkstation } from '@/components/WorkstationContext';
 import { ProgramWindow } from '@/components/programs/ProgramWindow';
 import { PROGRAMS } from '@/lib/os-programs';
 import { click } from '@/lib/sfx';
-import { createSubstrateSession, type SubstrateSession } from '@/lib/zmachine';
+import { awardGameXp, makeRunId } from '@/lib/game-xp';
+import { createSubstrateSession, hasSubstrateWon, type SubstrateSession } from '@/lib/zmachine';
 
 /** The story is a static asset served from `web/public/stories/`. */
 const STORY_URL = '/stories/zork1.z3';
@@ -24,6 +26,19 @@ function SubstrateGame() {
   const sessionRef = useRef<SubstrateSession | null>(null);
   const viewRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  const { session: authSession } = useAuth();
+  const [runId] = useState(() => makeRunId());
+  const awardedWin = useRef(false);
+
+  // Award a flat win bonus once the endgame line first appears in the transcript.
+  useEffect(() => {
+    if (awardedWin.current || !text || !hasSubstrateWon(text)) return;
+    awardedWin.current = true;
+    if (authSession?.user.id) {
+      void awardGameXp({ userId: authSession.user.id, game: 'substrate', kind: 'win', runId });
+    }
+  }, [text, authSession, runId]);
 
   useEffect(() => {
     const s = createSubstrateSession(STORY_URL, {

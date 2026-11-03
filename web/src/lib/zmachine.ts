@@ -23,11 +23,26 @@ if (typeof globalThis.Buffer === 'undefined') {
   (globalThis as { Buffer?: typeof Buffer }).Buffer = Buffer;
 }
 
-/** The exact intro/rubric strings Zork I prints, mapped to SUBSTRATE copy. */
+/**
+ * The exact intro/rubric strings Zork I prints, mapped to diegetic SUBSTRATE
+ * copy. `tszm` flushes the Z-machine output buffer in ~120-character chunks, so
+ * the longer lines (the copyright notice and the release/serial line) are keyed
+ * on the pieces that actually arrive intact rather than the full line. This also
+ * relabels the reverse-video status line (`Score:` / `Moves:`) and the
+ * endgame's `ZORK … Part II` teaser so no out-of-world branding leaks into the
+ * transcript.
+ */
 export const SUBSTRATE_REWRITES: Record<string, string> = {
   'ZORK I: The Great Underground Empire': 'SUBSTRATE: The Buried Foundation',
   'Infocom interactive fiction - a fantasy story': 'A recovered interactive fiction',
   'ZORK is a registered trademark of Infocom, Inc.': 'buried beneath the dead web',
+  'Copyright (c) 1981, 1982, 1983, 1984, 1985, 1986': 'recovered from the substrate archives',
+  ' Infocom, Inc. All rights reserved.': ' — all signals preserved',
+  'Release ': 'build ',
+  ' / Serial number ': ' · sector ',
+  'ZORK: The Great Underground Empire, Part II': 'SUBSTRATE: The Deeper Foundations, Part II',
+  'Score:': 'SIGNAL:',
+  'Moves:': 'TURNS:',
 };
 
 /** Rewrite the intro/rubric substrings wherever they appear in emitted text. */
@@ -37,6 +52,15 @@ export function rewriteIntro(text: string): string {
     if (out.includes(from)) out = out.split(from).join(to);
   }
   return out;
+}
+
+/**
+ * Detect the endgame: Zork I prints "You have gained the mastery of the first
+ * part of the Great Underground Empire …" once every treasure is deposited in
+ * the trophy case. Only the win triggers this line.
+ */
+export function hasSubstrateWon(text: string): boolean {
+  return /gained the mastery/i.test(text);
 }
 
 /**

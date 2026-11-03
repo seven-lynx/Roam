@@ -1,10 +1,12 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { useAuth } from '@/components/AuthProvider';
 import { useWorkstation } from '@/components/WorkstationContext';
 import { ProgramWindow } from '@/components/programs/ProgramWindow';
 import { PROGRAMS } from '@/lib/os-programs';
 import { click, success } from '@/lib/sfx';
+import { awardGameXp, makeRunId } from '@/lib/game-xp';
 import { createGame, runCommand, type GameState } from '@/lib/text-adventure';
 
 /**
@@ -19,6 +21,9 @@ function UnderwebGame() {
   const viewRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
+  const { session } = useAuth();
+  const [runId] = useState(() => makeRunId());
+
   // Keep the newest transcript line in view.
   useEffect(() => {
     const el = viewRef.current;
@@ -31,7 +36,12 @@ function UnderwebGame() {
     if (!line) return;
     click(440, 0.04, 0.06);
     const next = runCommand(state, line);
-    if (next.won && !state.won) success();
+    if (next.won && !state.won) {
+      success();
+      if (session?.user.id) {
+        void awardGameXp({ userId: session.user.id, game: 'underweb', kind: 'win', runId });
+      }
+    }
     setState(next);
   };
 

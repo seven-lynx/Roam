@@ -1,18 +1,23 @@
 /**
- * Game XP economy for the in-OS action games (RELAY / COMPILER / DEBRIS).
+ * Game XP economy for the in-OS games (RELAY / BOTFIELD / COMPILER / DEBRIS /
+ * FIREWALK / UNDERWEB / SUBSTRATE).
  *
- * Awards are variable (per-level + score-derived game-over bonus), so they go
- * through `award_game_xp` rather than the fixed `award_xp`. The pure functions
- * (`LEVEL_XP`, `gameOverXp`) are exported for unit tests and so the games can
- * show the exact amount a player is about to earn without touching the DB.
+ * Awards are variable (per-level + score-derived game-over bonus + a flat win
+ * bonus), so they go through `award_game_xp` rather than the fixed `award_xp`.
+ * The pure functions (`LEVEL_XP`, `WIN_XP`, `gameOverXp`) are exported for unit
+ * tests and so the games can show the exact amount a player is about to earn
+ * without touching the DB.
  */
 
 import { createClient } from '@/lib/supabase/client';
 
-export type GameId = 'snake' | 'tetris' | 'asteroids';
+export type GameId = 'snake' | 'tetris' | 'asteroids' | 'frogger' | 'underweb' | 'substrate';
 
 /** Flat XP awarded for clearing a single level (levels 1..100). */
 export const LEVEL_XP = 10;
+
+/** Flat XP awarded for winning a game (a text adventure's completion). */
+export const WIN_XP = 100;
 
 /** The highest level that still awards per-level XP; after this the run is endless. */
 export const XP_LEVEL_CAP = 100;
@@ -41,7 +46,7 @@ export interface GameXpAward {
 export interface AwardGameXpInput {
   userId: string;
   game: GameId;
-  kind: 'level' | 'over';
+  kind: 'level' | 'over' | 'win';
   runId: string;
   /** Current level (for the `level` award and idempotency). */
   level?: number;
@@ -56,20 +61,24 @@ export interface AwardGameXpInput {
 export async function awardGameXp(input: AwardGameXpInput): Promise<GameXpAward | null> {
   const { userId, game, kind, runId, level, score } = input;
 
-  const xp = kind === 'level' ? LEVEL_XP : gameOverXp(score ?? 0);
+  const xp = kind === 'level' ? LEVEL_XP : kind === 'win' ? WIN_XP : gameOverXp(score ?? 0);
   if (xp <= 0) return null;
 
   const action = `game:${game}:${kind}`;
   const idempotencyKey =
     kind === 'level'
       ? `game:${game}:${runId}:level:${level ?? 0}`
-      : `game:${game}:${runId}:over`;
+      : kind === 'win'
+        ? `game:${game}:${runId}:win`
+        : `game:${game}:${runId}:over`;
+
+  const metadata = kind === 'level' ? { level } : kind === 'win' ? {} : { level, score };
 
   const { data, error } = await createClient().rpc('award_game_xp', {
     p_user_id: userId,
     p_action: action,
     p_xp: xp,
-    p_metadata: kind === 'level' ? { level } : { level, score },
+    p_metadata: metadata,
     p_idempotency_key: idempotencyKey,
   });
 

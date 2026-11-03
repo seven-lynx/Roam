@@ -33,15 +33,18 @@ describe('os-programs registry', () => {
     expect(getProgram('minesweeper').title).toBe('BOTFIELD');
     expect(getProgram('tetris').title).toBe('COMPILER');
     expect(getProgram('asteroids').title).toBe('DEBRIS');
+    expect(getProgram('frogger').title).toBe('FIREWALK');
     expect(getProgram('underweb').title).toBe('UNDERWEB');
     expect(getProgram('substrate').title).toBe('SUBSTRATE');
   });
 
-  it('licenses the zeli ports as Apache-2.0 and the fiction as MIT', () => {
+  it('licenses the zeli ports as Apache-2.0 and the originals as MIT', () => {
     for (const id of ['snake', 'minesweeper', 'tetris', 'asteroids'] as const) {
       expect(PROGRAMS[id].license.spdx).toBe('Apache-2.0');
       expect(PROGRAMS[id].source).toContain('zeli-web-games');
     }
+    expect(PROGRAMS.frogger.license.spdx).toBe('MIT');
+    expect(PROGRAMS.frogger.source).toContain('original');
     expect(PROGRAMS.underweb.license.spdx).toBe('MIT');
     expect(PROGRAMS.underweb.source).toContain('original');
     expect(PROGRAMS.substrate.license.spdx).toBe('MIT');

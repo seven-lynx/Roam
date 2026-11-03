@@ -13,18 +13,20 @@ export interface GameLevelOverlayProps {
   /** Final-score label/value for the game-over screen. */
   scoreLabel?: string;
   score?: number;
+  /** Start handler shown on the initial READY screen. */
+  onStart?: () => void;
   /** Restart handler shown on the game-over screen. */
   onRestart?: () => void;
 }
 
 /**
- * The shared interstitial overlay for the action games: LEVEL COMPLETE (with
- * the XP award) and LEVEL START (a 3·2·1 countdown), plus a unified game-over
- * screen. Rendered inside a `position: relative` board wrapper so it covers
- * exactly the playfield.
+ * The shared interstitial overlay for the action games: READY (START button),
+ * LEVEL COMPLETE (with the XP award) and LEVEL START (a 3·2·1 countdown), plus
+ * a unified game-over screen. Rendered inside a `position: relative` board
+ * wrapper so it covers exactly the playfield.
  */
 export function GameLevelOverlay(props: GameLevelOverlayProps) {
-  const { phase, level, countdown, lastXp, signedIn, overTitle, scoreLabel, score, onRestart } = props;
+  const { phase, level, countdown, lastXp, signedIn, overTitle, scoreLabel, score, onStart, onRestart } = props;
 
   if (phase === 'playing') return null;
 
@@ -32,6 +34,17 @@ export function GameLevelOverlay(props: GameLevelOverlayProps) {
 
   return (
     <div className="game-level-overlay" role="status">
+      {phase === 'ready' && (
+        <>
+          <div className="game-level-title">LEVEL {level}</div>
+          {onStart && (
+            <button type="button" className="program-btn" onClick={onStart} style={{ marginTop: 6 }}>
+              START
+            </button>
+          )}
+        </>
+      )}
+
       {phase === 'complete' && (
         <>
           <div className="game-level-title">LEVEL {level} CLEAR</div>

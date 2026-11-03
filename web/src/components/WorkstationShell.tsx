@@ -50,6 +50,7 @@ import { SnakeProgram } from '@/components/programs/SnakeProgram';
 import { MinesweeperProgram } from '@/components/programs/MinesweeperProgram';
 import { TetrisProgram } from '@/components/programs/TetrisProgram';
 import { AsteroidsProgram } from '@/components/programs/AsteroidsProgram';
+import { FroggerProgram } from '@/components/programs/FroggerProgram';
 import { UnderwebProgram } from '@/components/programs/UnderwebProgram';
 import { SubstrateProgram } from '@/components/programs/SubstrateProgram';
 import { DECK_VERSION } from '@/lib/deck-framing';
@@ -793,6 +794,7 @@ export function WorkstationShell({
           <MinesweeperProgram />
           <TetrisProgram />
           <AsteroidsProgram />
+          <FroggerProgram />
           <UnderwebProgram />
           <SubstrateProgram />
           <Terminal />

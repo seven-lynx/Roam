@@ -11,7 +11,7 @@ describe('os-apps registry', () => {
     for (const label of ['HOME', 'COLLECTIONS', 'BADGES', 'CHALLENGES', 'RANKINGS', 'PROFILE']) {
       expect(labels).toContain(label);
     }
-    expect(ALL_APPS.filter((a) => a.kind === 'program')).toHaveLength(6);
+    expect(ALL_APPS.filter((a) => a.kind === 'program')).toHaveLength(7);
     expect(ALL_APPS.filter((a) => a.kind === 'window')).toHaveLength(4);
   });
 
@@ -33,7 +33,7 @@ describe('os-apps registry', () => {
   it('packs the games and links folders with their expected apps', () => {
     const games = HOME_FOLDERS.find((f) => f.id === 'games')!;
     const links = HOME_FOLDERS.find((f) => f.id === 'links')!;
-    expect(games.items).toHaveLength(6);
+    expect(games.items).toHaveLength(7);
     expect(games.items.every((a) => a.kind === 'program')).toBe(true);
     expect(links.items).toHaveLength(6);
     expect(links.items.every((a) => a.kind === 'route')).toBe(true);
