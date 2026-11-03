@@ -1,12 +1,16 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react';
+import { useAuth } from '@/components/AuthProvider';
 import { useWorkstation } from '@/components/WorkstationContext';
 import { ProgramWindow } from '@/components/programs/ProgramWindow';
 import { ScaleToFit } from '@/components/programs/ScaleToFit';
 import { useGameKeys } from '@/components/programs/useGameKeys';
 import { useSwipeSteer } from '@/components/programs/useSwipeSteer';
+import { useGameLevel } from '@/components/programs/useGameLevel';
+import { GameLevelOverlay } from '@/components/programs/GameLevelOverlay';
 import { PROGRAMS } from '@/lib/os-programs';
+import { makeRunId } from '@/lib/game-xp';
 import { click, beep } from '@/lib/sfx';
 
 /**
@@ -17,6 +21,14 @@ import { click, beep } from '@/lib/sfx';
 const COLS = 10;
 const ROWS = 20;
 const CELL = 26;
+const LINES_PER_LEVEL = 5;
+const BASE_DROP_MS = 500;
+const MIN_DROP_MS = 200;
+
+/** Drop interval (ms) tightens as the level climbs. */
+function speedFor(level: number): number {
+  return Math.max(MIN_DROP_MS, BASE_DROP_MS - (level - 1) * 30);
+}
 
 const SHAPES: number[][][] = [
   [[1, 1, 1, 1]],
@@ -69,6 +81,17 @@ function CompilerGame() {
   const [shapeIdx, setShapeIdx] = useState(0);
   const linesRef = useRef(0);
 
+  const { session } = useAuth();
+  const [runId] = useState(() => makeRunId());
+  const { level, phase, countdown, lastXp, levelRef, phaseRef, completeLevel, gameOver, resetLevels } =
+    useGameLevel({ game: 'tetris', userId: session?.user.id ?? null, runId });
+  const completeLevelRef = useRef(completeLevel);
+  const gameOverRef = useRef(gameOver);
+  useEffect(() => {
+    completeLevelRef.current = completeLevel;
+    gameOverRef.current = gameOver;
+  });
+
   const newPiece = useCallback(() => {
     const idx = Math.floor(Math.random() * SHAPES.length);
     setShapeIdx(idx);
@@ -113,7 +136,7 @@ function CompilerGame() {
   }, []);
 
   const drop = useCallback(() => {
-    if (!piece || !active) return;
+    if (!piece || !active || phaseRef.current !== 'playing') return;
     const nr = pos.r + 1;
     if (collides(board, piece, nr, pos.c)) {
       const nb = merge(board, piece, pos.r, pos.c, shapeIdx + 1);
@@ -122,6 +145,9 @@ function CompilerGame() {
       setLines(linesRef.current);
       setBoard(cb);
       if (cleared > 0) click(440, 0.04, 0.08);
+      if (linesRef.current >= levelRef.current * LINES_PER_LEVEL) {
+        completeLevelRef.current();
+      }
 
       const idx = Math.floor(Math.random() * SHAPES.length);
       const np = SHAPES[idx];
@@ -129,6 +155,7 @@ function CompilerGame() {
       if (collides(cb, np, 0, nc)) {
         setActive(false);
         beep();
+        gameOverRef.current(linesRef.current);
         return;
       }
       setShapeIdx(idx);
@@ -137,16 +164,16 @@ function CompilerGame() {
     } else {
       setPos({ r: nr, c: pos.c });
     }
-  }, [piece, pos, board, shapeIdx, active, collides, merge, clearLines]);
+  }, [piece, pos, board, shapeIdx, active, collides, merge, clearLines, levelRef, phaseRef]);
 
   useEffect(() => {
-    if (!active) return;
-    const t = setInterval(drop, 500);
+    if (!active || phaseRef.current !== 'playing') return;
+    const t = setInterval(drop, speedFor(level));
     return () => clearInterval(t);
-  }, [active, drop]);
+  }, [active, drop, level, phaseRef]);
 
   useGameKeys('tetris', (e) => {
-    if (!piece || !active) return;
+    if (!piece || !active || phaseRef.current !== 'playing') return;
     e.preventDefault();
     if (e.key === 'ArrowLeft' && !collides(board, piece, pos.r, pos.c - 1)) setPos((p) => ({ ...p, c: p.c - 1 }));
     if (e.key === 'ArrowRight' && !collides(board, piece, pos.r, pos.c + 1)) setPos((p) => ({ ...p, c: p.c + 1 }));
@@ -158,7 +185,7 @@ function CompilerGame() {
   });
 
   const swipe = useSwipeSteer((s) => {
-    if (!piece || !active) return;
+    if (!piece || !active || phaseRef.current !== 'playing') return;
     if (s === 'left' && !collides(board, piece, pos.r, pos.c - 1)) setPos((p) => ({ ...p, c: p.c - 1 }));
     else if (s === 'right' && !collides(board, piece, pos.r, pos.c + 1)) setPos((p) => ({ ...p, c: p.c + 1 }));
     else if (s === 'down') drop();
@@ -172,6 +199,7 @@ function CompilerGame() {
     setBoard(emptyBoard());
     setLines(0);
     linesRef.current = 0;
+    resetLevels();
     setActive(true);
     newPiece();
   };
@@ -185,14 +213,16 @@ function CompilerGame() {
   return (
     <div style={{ flex: '1 1 auto', minHeight: 0, width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
       <div style={{ fontFamily: 'var(--font-pixel)', fontSize: 12, letterSpacing: '0.08em', color: 'var(--muted)' }}>
-        LINES <span style={{ color: 'var(--accent)' }}>{lines}</span>
-        {lines >= 5 && <span style={{ color: 'var(--phosphor)', marginLeft: 8 }}>· SHARP</span>}
+        LVL <span style={{ color: 'var(--accent)' }}>{level}</span>
+        <span style={{ margin: '0 8px' }}>·</span>
+        LINES <span style={{ color: 'var(--phosphor)' }}>{lines}</span>
       </div>
 
       <ScaleToFit width={COLS * CELL} height={ROWS * CELL}>
         <div
           {...swipe}
           style={{
+            position: 'relative',
             display: 'grid',
             gridTemplateColumns: `repeat(${COLS}, ${CELL}px)`,
             background: 'var(--panel-2)',
@@ -215,14 +245,19 @@ function CompilerGame() {
             }}
           />
         ))}
+        <GameLevelOverlay
+          phase={phase}
+          level={level}
+          countdown={countdown}
+          lastXp={lastXp}
+          signedIn={!!session}
+          overTitle="BUFFER OVERFLOW"
+          scoreLabel="LINES"
+          score={lines}
+          onRestart={restart}
+        />
         </div>
       </ScaleToFit>
-
-      {!active && (
-        <div style={{ fontFamily: 'var(--font-pixel)', fontSize: 14, color: 'var(--danger)', letterSpacing: '0.08em' }}>
-          BUFFER OVERFLOW — {lines} LINES
-        </div>
-      )}
 
       <div style={{ display: 'flex', gap: 4 }}>
         <button type="button" style={ctrlBtn} onClick={() => !collides(board, piece, pos.r, pos.c - 1) && setPos((p) => ({ ...p, c: p.c - 1 }))}>
@@ -246,12 +281,6 @@ function CompilerGame() {
           ▶
         </button>
       </div>
-
-      {!active && (
-        <button type="button" className="program-btn" onClick={restart}>
-          RESTART
-        </button>
-      )}
     </div>
   );
 }

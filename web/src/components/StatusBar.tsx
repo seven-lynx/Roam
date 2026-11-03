@@ -25,7 +25,7 @@ export function StatusBar() {
   const { session } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
-  const { deckMode, setDeckMode, openDeckLauncher, toggleLauncher } = useWorkstation();
+  const { deckMode, setDeckMode, openDeckLauncher, toggleLauncher, handheld } = useWorkstation();
   const [menuOpen, setMenuOpen] = useState(false);
   const [clock, setClock] = useState('');
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -79,6 +79,16 @@ export function StatusBar() {
   return (
     <header className="screen-bar" role="banner">
       <span className="led" aria-hidden="true" />
+      {handheld && (
+        <button
+          type="button"
+          onClick={() => router.push('/')}
+          className="font-pixel tracking-[0.22em] text-ink bg-transparent border-0 p-0 cursor-pointer hover:text-phosphor transition-colors"
+          aria-label="Home"
+        >
+          ⌂
+        </button>
+      )}
       <button
         type="button"
         onClick={toggleLauncher}

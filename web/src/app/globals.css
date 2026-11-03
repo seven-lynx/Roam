@@ -2945,6 +2945,47 @@ button.gadget:active { transform: translateY(1px) scale(0.98); }
 }
 .program-btn:hover { border-color: var(--phosphor); box-shadow: 0 0 0 1px var(--phosphor-glow), 0 0 14px var(--phosphor-glow); }
 
+/* ── Game level interstitial (LEVEL COMPLETE / LEVEL START / game over) ── */
+.game-level-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  text-align: center;
+  background: rgba(7, 16, 15, 0.78);
+  font-family: var(--font-pixel);
+  pointer-events: auto;
+}
+.game-level-title {
+  color: var(--phosphor);
+  font-size: 0.85rem;
+  letter-spacing: 0.18em;
+}
+.game-level-count {
+  color: var(--accent);
+  font-size: 2rem;
+  line-height: 1;
+  text-shadow: 0 0 14px var(--phosphor-glow);
+}
+.game-level-over {
+  color: var(--danger);
+  font-size: 0.8rem;
+  letter-spacing: 0.14em;
+}
+.game-level-score {
+  color: var(--muted);
+  font-size: 0.6rem;
+  letter-spacing: 0.08em;
+}
+.game-level-xp {
+  color: var(--accent);
+  font-size: 0.62rem;
+  letter-spacing: 0.12em;
+}
+
 /* UNDERWEB — text adventure terminal */
 .underweb {
   flex: 1 1 auto;
@@ -3213,6 +3254,7 @@ button.gadget:active { transform: translateY(1px) scale(0.98); }
 .screen[data-layout="handheld"] .desktop {
   display: flex;
   flex-direction: column;
+  padding-top: 40px; /* clear the always-on status bar */
 }
 .screen[data-layout="handheld"] .desktop-toolbar { display: none; }
 
@@ -3378,7 +3420,10 @@ button.gadget:active { transform: translateY(1px) scale(0.98); }
 /* ── Home folder overlay ── */
 .folder-overlay {
   position: absolute;
-  inset: 0;
+  top: 40px;
+  left: 0;
+  right: 0;
+  bottom: 0;
   z-index: 40;
   display: flex;
   flex-direction: column;

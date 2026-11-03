@@ -16,6 +16,12 @@ jest.mock('@/components/WorkstationContext', () => ({
   DOCK_H: 44,
 }));
 
+// AuthProvider creates a Supabase client at module scope; mock it so importing
+// the games (which read the session via useAuth) doesn't require env vars.
+jest.mock('@/components/AuthProvider', () => ({
+  useAuth: () => ({ session: null }),
+}));
+
 describe('program windows', () => {
   it.each<[string, ComponentType]>([
     ['snake', SnakeProgram],

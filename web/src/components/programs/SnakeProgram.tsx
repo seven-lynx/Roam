@@ -1,12 +1,16 @@
 'use client';
 
 import { useEffect, useRef, useState, type CSSProperties } from 'react';
+import { useAuth } from '@/components/AuthProvider';
 import { useWorkstation } from '@/components/WorkstationContext';
 import { ProgramWindow } from '@/components/programs/ProgramWindow';
 import { ScaleToFit } from '@/components/programs/ScaleToFit';
 import { useGameKeys } from '@/components/programs/useGameKeys';
 import { useSwipeSteer } from '@/components/programs/useSwipeSteer';
+import { useGameLevel } from '@/components/programs/useGameLevel';
+import { GameLevelOverlay } from '@/components/programs/GameLevelOverlay';
 import { PROGRAMS } from '@/lib/os-programs';
+import { makeRunId } from '@/lib/game-xp';
 import { click, beep } from '@/lib/sfx';
 
 /**
@@ -16,7 +20,14 @@ import { click, beep } from '@/lib/sfx';
 
 const GRID = 18;
 const CELL = 28;
-const SPEED = 110;
+const PACKETS_PER_LEVEL = 5;
+const BASE_SPEED = 110;
+const MIN_SPEED = 55;
+
+/** Tick interval (ms) tightens as the level climbs. */
+function speedFor(level: number): number {
+  return Math.max(MIN_SPEED, BASE_SPEED - (level - 1) * 8);
+}
 
 type Pt = { x: number; y: number };
 
@@ -45,9 +56,23 @@ function RelayGame() {
   const dir = useRef<Pt>({ x: 1, y: 0 });
   const [view, setView] = useState<RelayState>(() => fresh());
 
+  const { session } = useAuth();
+  const [runId] = useState(() => makeRunId());
+  const { level, phase, countdown, lastXp, levelRef, phaseRef, completeLevel, gameOver, resetLevels } =
+    useGameLevel({ game: 'snake', userId: session?.user.id ?? null, runId });
+
+  // Latest callbacks so the fixed-effect loop never closes over a stale closure.
+  const completeLevelRef = useRef(completeLevel);
+  const gameOverRef = useRef(gameOver);
+  useEffect(() => {
+    completeLevelRef.current = completeLevel;
+    gameOverRef.current = gameOver;
+  });
+
   const reset = () => {
     state.current = fresh();
     dir.current = { x: 1, y: 0 };
+    resetLevels();
     setView(state.current);
   };
 
@@ -78,37 +103,51 @@ function RelayGame() {
   });
 
   useEffect(() => {
-    const loop = setInterval(() => {
+    let alive = true;
+    let timer = 0;
+    const tick = () => {
+      if (!alive) return;
       const s = state.current;
-      if (!s.active) return;
-      const d = dir.current;
-      const head = { x: s.snake[0].x + d.x, y: s.snake[0].y + d.y };
-      const hit =
-        head.x < 0 ||
-        head.x >= GRID ||
-        head.y < 0 ||
-        head.y >= GRID ||
-        s.snake.some((seg) => seg.x === head.x && seg.y === head.y);
-      if (hit) {
-        s.active = false;
-        s.over = true;
-        beep();
-        setView({ ...s });
-        return;
+      // Pause while the LEVEL COMPLETE / LEVEL START interstitials are shown.
+      if (s.active && phaseRef.current === 'playing') {
+        const d = dir.current;
+        const head = { x: s.snake[0].x + d.x, y: s.snake[0].y + d.y };
+        const hit =
+          head.x < 0 ||
+          head.x >= GRID ||
+          head.y < 0 ||
+          head.y >= GRID ||
+          s.snake.some((seg) => seg.x === head.x && seg.y === head.y);
+        if (hit) {
+          s.active = false;
+          s.over = true;
+          beep();
+          gameOverRef.current(s.score);
+          setView({ ...s });
+        } else {
+          const next = [head, ...s.snake];
+          if (head.x === s.food.x && head.y === s.food.y) {
+            s.score += 1;
+            s.food = spawnFood(next);
+            click(660, 0.05, 0.1);
+            if (s.score >= levelRef.current * PACKETS_PER_LEVEL) {
+              completeLevelRef.current();
+            }
+          } else {
+            next.pop();
+          }
+          s.snake = next;
+          setView({ ...s });
+        }
       }
-      const next = [head, ...s.snake];
-      if (head.x === s.food.x && head.y === s.food.y) {
-        s.score += 1;
-        s.food = spawnFood(next);
-        click(660, 0.05, 0.1);
-      } else {
-        next.pop();
-      }
-      s.snake = next;
-      setView({ ...s });
-    }, SPEED);
-    return () => clearInterval(loop);
-  }, []);
+      timer = window.setTimeout(tick, speedFor(levelRef.current));
+    };
+    timer = window.setTimeout(tick, speedFor(1));
+    return () => {
+      alive = false;
+      window.clearTimeout(timer);
+    };
+  }, [levelRef, phaseRef]);
 
   const cellStyle = (seg: Pt, i: number): CSSProperties => {
     const isHead = i === 0;
@@ -129,6 +168,8 @@ function RelayGame() {
   return (
     <div style={{ flex: '1 1 auto', minHeight: 0, width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
       <div style={{ fontFamily: 'var(--font-pixel)', fontSize: 12, letterSpacing: '0.1em', color: 'var(--muted)' }}>
+        LVL <span style={{ color: 'var(--accent)' }}>{level}</span>
+        <span style={{ margin: '0 8px' }}>·</span>
         PKT <span style={{ color: 'var(--phosphor)' }}>{view.score}</span>
       </div>
 
@@ -193,27 +234,17 @@ function RelayGame() {
           />
         </span>
 
-        {view.over && (
-          <div
-            style={{
-              position: 'absolute',
-              inset: 0,
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: 8,
-              background: 'rgba(7,16,15,0.72)',
-              fontFamily: 'var(--font-pixel)',
-            }}
-          >
-            <div style={{ color: 'var(--danger)', fontSize: 16, letterSpacing: '0.12em' }}>SIGNAL LOST</div>
-            <div style={{ color: 'var(--muted)', fontSize: 11 }}>PKT {view.score}</div>
-            <button type="button" className="program-btn" onClick={reset}>
-              RESTART
-            </button>
-          </div>
-        )}
+        <GameLevelOverlay
+          phase={phase}
+          level={level}
+          countdown={countdown}
+          lastXp={lastXp}
+          signedIn={!!session}
+          overTitle="SIGNAL LOST"
+          scoreLabel="PKT"
+          score={view.score}
+          onRestart={reset}
+        />
         </div>
       </ScaleToFit>
 

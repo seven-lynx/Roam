@@ -1,11 +1,16 @@
 'use client';
 
-import { useEffect, useRef, useState, type CSSProperties } from 'react';
+import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react';
+import { useAuth } from '@/components/AuthProvider';
 import { useWorkstation } from '@/components/WorkstationContext';
 import { ProgramWindow } from '@/components/programs/ProgramWindow';
 import { ScaleToFit } from '@/components/programs/ScaleToFit';
 import { useGameKeys } from '@/components/programs/useGameKeys';
+import { useSwipeSteer } from '@/components/programs/useSwipeSteer';
+import { useGameLevel } from '@/components/programs/useGameLevel';
+import { GameLevelOverlay } from '@/components/programs/GameLevelOverlay';
 import { PROGRAMS } from '@/lib/os-programs';
+import { makeRunId } from '@/lib/game-xp';
 import { click, beep, success } from '@/lib/sfx';
 
 /**
@@ -44,21 +49,28 @@ interface DebrisState {
   frame: number;
 }
 
-function freshState(): DebrisState {
+/** Spawn a wave: 5 rocks on level 1, one more each level, moving faster. */
+function spawnWave(level: number): Rock[] {
+  const count = 5 + (level - 1);
+  const speed = 1 + (level - 1) * 0.15;
   const rocks: Rock[] = [];
-  for (let i = 0; i < 5; i++) {
+  for (let i = 0; i < count; i++) {
     rocks.push({
       x: Math.random() * W,
       y: Math.random() * H * 0.3,
-      vx: (Math.random() - 0.5) * 2,
-      vy: 0.5 + Math.random() * 1.5,
+      vx: (Math.random() - 0.5) * 2 * speed,
+      vy: (0.5 + Math.random() * 1.5) * speed,
       size: 20 + Math.random() * 15,
     });
   }
+  return rocks;
+}
+
+function freshState(level = 1): DebrisState {
   return {
     ship: { x: W / 2, y: H / 2, angle: 0, vx: 0, vy: 0 },
     bullets: [],
-    rocks,
+    rocks: spawnWave(level),
     score: 0,
     lives: 3,
     over: false,
@@ -69,17 +81,31 @@ function freshState(): DebrisState {
 function DebrisGame() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const keys = useRef<Record<string, boolean>>({});
-  const state = useRef<DebrisState>(freshState());
+  const state = useRef<DebrisState>(freshState(1));
+  const waveSpawned = useRef(1);
   const [hud, setHud] = useState({ score: 0, lives: 3, over: false });
 
-  const reset = () => {
-    state.current = freshState();
+  const { session } = useAuth();
+  const [runId] = useState(() => makeRunId());
+  const { level, phase, countdown, lastXp, levelRef, phaseRef, completeLevel, gameOver, resetLevels } =
+    useGameLevel({ game: 'asteroids', userId: session?.user.id ?? null, runId });
+  const completeLevelRef = useRef(completeLevel);
+  const gameOverRef = useRef(gameOver);
+  useEffect(() => {
+    completeLevelRef.current = completeLevel;
+    gameOverRef.current = gameOver;
+  });
+
+  const reset = useCallback(() => {
+    state.current = freshState(1);
     keys.current = {};
+    waveSpawned.current = 1;
+    resetLevels();
     setHud({ score: 0, lives: 3, over: false });
-  };
+  }, [resetLevels]);
 
   const fire = () => {
-    if (state.current.over) return;
+    if (state.current.over || phaseRef.current !== 'playing') return;
     const s = state.current;
     s.bullets.push({
       x: s.ship.x,
@@ -91,9 +117,21 @@ function DebrisGame() {
     click(520, 0.04, 0.08);
   };
 
+  // Swipe steering (mobile): left/right rotate, up thrusts.
+  const swipe = useSwipeSteer((s) => {
+    if (state.current.over || phaseRef.current !== 'playing') return;
+    const ship = state.current.ship;
+    if (s === 'left') ship.angle -= 0.5;
+    else if (s === 'right') ship.angle += 0.5;
+    else if (s === 'up') {
+      ship.vx += Math.sin(ship.angle) * 0.9;
+      ship.vy -= Math.cos(ship.angle) * 0.9;
+    }
+  });
+
   useEffect(() => {
     reset();
-  }, []);
+  }, [reset]);
 
   useGameKeys(
     'asteroids',
@@ -118,9 +156,17 @@ function DebrisGame() {
     const loop = () => {
       const s = state.current;
       const k = keys.current;
+      const playing = phaseRef.current === 'playing' && !s.over;
 
-      if (!s.over) {
+      if (playing) {
         s.frame++;
+
+        // Spawn the next wave when the level advances.
+        if (waveSpawned.current !== levelRef.current) {
+          s.rocks = s.rocks.concat(spawnWave(levelRef.current));
+          waveSpawned.current = levelRef.current;
+        }
+
         if (k['ArrowLeft']) s.ship.angle -= 0.08;
         if (k['ArrowRight']) s.ship.angle += 0.08;
         if (k['ArrowUp']) {
@@ -139,15 +185,6 @@ function DebrisGame() {
           return b.life > 0 && b.x > 0 && b.x < W && b.y > 0 && b.y < H;
         });
 
-        if (s.frame % 60 === 0 && s.rocks.length < 8) {
-          s.rocks.push({
-            x: Math.random() * W,
-            y: -20,
-            vx: (Math.random() - 0.5) * 2,
-            vy: 0.5 + Math.random(),
-            size: 18 + Math.random() * 15,
-          });
-        }
         s.rocks.forEach((a) => {
           a.x = (a.x + a.vx + W) % W;
           a.y += a.vy;
@@ -184,16 +221,19 @@ function DebrisGame() {
             if (s.lives <= 0) {
               s.over = true;
               beep();
+              gameOverRef.current(s.score);
               break;
             }
           }
         }
         s.rocks = s.rocks.filter((a) => a.size > 0);
 
-        if (s.score >= 100) {
-          s.over = true;
+        // Wave cleared → advance to the next level.
+        if (!s.over && s.rocks.length === 0) {
           success();
+          completeLevelRef.current();
         }
+
         setHud({ score: s.score, lives: s.lives, over: s.over });
       }
 
@@ -247,13 +287,16 @@ function DebrisGame() {
 
     raf = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(raf);
-  }, []);
+  }, [levelRef, phaseRef]);
 
   return (
     <div style={{ flex: '1 1 auto', minHeight: 0, width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
       <div style={{ display: 'flex', gap: 16, fontFamily: 'var(--font-pixel)', fontSize: 12, letterSpacing: '0.08em' }}>
         <span style={{ color: 'var(--muted)' }}>
-          SCORE <span style={{ color: 'var(--accent)' }}>{hud.score}/100</span>
+          WAVE <span style={{ color: 'var(--accent)' }}>{level}</span>
+        </span>
+        <span style={{ color: 'var(--muted)' }}>
+          SCORE <span style={{ color: 'var(--phosphor)' }}>{hud.score}</span>
         </span>
         <span style={{ color: 'var(--muted)' }}>
           HULL <span style={{ color: 'var(--danger)' }}>{'■'.repeat(Math.max(0, hud.lives))}</span>
@@ -261,12 +304,25 @@ function DebrisGame() {
       </div>
 
       <ScaleToFit width={W} height={H}>
-        <canvas
-          ref={canvasRef}
-          width={W}
-          height={H}
-          style={{ borderRadius: 10, border: '1px solid var(--line)', background: 'var(--panel-2)' }}
-        />
+        <div {...swipe} style={{ position: 'relative', width: W, height: H, touchAction: 'none' }}>
+          <canvas
+            ref={canvasRef}
+            width={W}
+            height={H}
+            style={{ borderRadius: 10, border: '1px solid var(--line)', background: 'var(--panel-2)', display: 'block' }}
+          />
+          <GameLevelOverlay
+            phase={phase}
+            level={level}
+            countdown={countdown}
+            lastXp={lastXp}
+            signedIn={!!session}
+            overTitle="DEBRIS CLEARED"
+            scoreLabel="SCORE"
+            score={hud.score}
+            onRestart={reset}
+          />
+        </div>
       </ScaleToFit>
 
       <div style={{ display: 'flex', gap: 4 }}>
@@ -309,19 +365,8 @@ function DebrisGame() {
       </div>
 
       <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--muted)' }}>
-        ← → ROTATE · ▲ THRUST · ● FIRE
+        ← → ROTATE · ▲ THRUST · ● FIRE · SWIPE TO STEER
       </div>
-
-      {hud.over && (
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          <span style={{ fontFamily: 'var(--font-pixel)', fontSize: 12, color: 'var(--danger)', letterSpacing: '0.08em' }}>
-            DEBRIS CLEARED
-          </span>
-          <button type="button" className="program-btn" onClick={reset}>
-            RESTART
-          </button>
-        </div>
-      )}
     </div>
   );
 }

@@ -197,6 +197,13 @@ export function WorkstationShell({
   // Effective handheld (mobile) layout — forced via the Settings toggle, or
   // auto-detected from the viewport.
   const handheld = uiMode === 'handheld' || (uiMode === 'auto' && isMobile);
+
+  // The CRT barrel warp (curved-glass effect) is meaningless on a palm-top:
+  // disable it whenever the handheld layout is active.
+  useEffect(() => {
+    if (handheld) setWarpState(0);
+  }, [handheld]);
+
   // Saved window geometry (rect + maximized), restored when a window opens.
   const layoutRef = useRef<Partial<Record<WindowId, { rect: WindowRect; maximized: boolean }>>>({});
 
@@ -437,7 +444,7 @@ export function WorkstationShell({
     setVolumeState(0.7);
     setMutedState(false);
     setBrightnessState(1);
-    setWarpState(0.7);
+    setWarpState(handheld ? 0 : 0.7);
     setDisplayFxState({ ...DISPLAY_FX_DEFAULTS });
     setSoundFxState({ ...DEFAULT_SOUND_FX });
     SOUND_EFFECTS.forEach((name) => setSfxEffect(name, DEFAULT_SOUND_FX[name]));
@@ -458,7 +465,7 @@ export function WorkstationShell({
       [FX_KEY, DISPLAY_FX_KEY, SOUND_FX_KEY, SOUND_KEY, VOL_KEY, MUTED_KEY, BRIGHT_KEY, ART_KEY, WARP_KEY, THEME_KEY, AUTOHIDE_KEY, UI_MODE_KEY, CAMERA_ZOOM_KEY, CAMERA_PAN_KEY, CAMERA_FIT_KEY]
         .forEach((k) => localStorage.removeItem(k));
     } catch { /* ignore */ }
-  }, []);
+  }, [handheld]);
 
   // Push preference changes into the synthesized sound engine.
   useEffect(() => { setSfxEnabled(sound); }, [sound]);

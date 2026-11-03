@@ -12,9 +12,19 @@ import { beep, success } from '@/lib/sfx';
  * zeli-web-games "Minesweeper" (Apache-2.0); reskinned + relabeled.
  */
 
-const SIZE = 8;
-const MINES = 10;
+const BASE_SIZE = 8;
+const BASE_MINES = 10;
 const CELL = 48;
+
+/** Grid dimension per level: 8 → 10 → 12 → … */
+function sizeFor(level: number): number {
+  return BASE_SIZE + (level - 1) * 2;
+}
+
+/** Buried bots per level: 10 → 15 → 20 → … */
+function minesFor(level: number): number {
+  return BASE_MINES + (level - 1) * 5;
+}
 
 interface Cell {
   mine: boolean;
@@ -23,28 +33,28 @@ interface Cell {
   count: number;
 }
 
-function createBoard(): Cell[][] {
-  const board: Cell[][] = Array.from({ length: SIZE }, () =>
-    Array.from({ length: SIZE }, () => ({ mine: false, revealed: false, flagged: false, count: 0 })),
+function createBoard(size: number, mines: number): Cell[][] {
+  const board: Cell[][] = Array.from({ length: size }, () =>
+    Array.from({ length: size }, () => ({ mine: false, revealed: false, flagged: false, count: 0 })),
   );
   let placed = 0;
-  while (placed < MINES) {
-    const r = Math.floor(Math.random() * SIZE);
-    const c = Math.floor(Math.random() * SIZE);
+  while (placed < mines) {
+    const r = Math.floor(Math.random() * size);
+    const c = Math.floor(Math.random() * size);
     if (!board[r][c].mine) {
       board[r][c].mine = true;
       placed++;
     }
   }
-  for (let r = 0; r < SIZE; r++)
-    for (let c = 0; c < SIZE; c++)
+  for (let r = 0; r < size; r++)
+    for (let c = 0; c < size; c++)
       if (!board[r][c].mine) {
         let cnt = 0;
         for (let dr = -1; dr <= 1; dr++)
           for (let dc = -1; dc <= 1; dc++) {
             const nr = r + dr;
             const nc = c + dc;
-            if (nr >= 0 && nr < SIZE && nc >= 0 && nc < SIZE && board[nr][nc].mine) cnt++;
+            if (nr >= 0 && nr < size && nc >= 0 && nc < size && board[nr][nc].mine) cnt++;
           }
         board[r][c].count = cnt;
       }
@@ -64,9 +74,11 @@ const COUNT_COLORS = [
 ];
 
 function BotfieldGame() {
-  const [board, setBoard] = useState<Cell[][]>(createBoard);
+  const [level, setLevel] = useState(1);
+  const size = sizeFor(level);
+  const mines = minesFor(level);
+  const [board, setBoard] = useState<Cell[][]>(() => createBoard(sizeFor(1), minesFor(1)));
   const [gameOver, setGameOver] = useState(false);
-  const [won, setWon] = useState(false);
   const [flagMode, setFlagMode] = useState(false);
 
   const flood = (b: Cell[][], sr: number, sc: number): Cell[][] => {
@@ -74,7 +86,7 @@ function BotfieldGame() {
     const stack: Array<[number, number]> = [[sr, sc]];
     while (stack.length) {
       const [r, c] = stack.pop()!;
-      if (r < 0 || r >= SIZE || c < 0 || c >= SIZE) continue;
+      if (r < 0 || r >= size || c < 0 || c >= size) continue;
       const cell = next[r][c];
       if (cell.revealed || cell.flagged) continue;
       cell.revealed = true;
@@ -87,19 +99,19 @@ function BotfieldGame() {
   };
 
   const checkWin = (b: Cell[][]) => {
-    for (let r = 0; r < SIZE; r++)
-      for (let c = 0; c < SIZE; c++) if (!b[r][c].mine && !b[r][c].revealed) return false;
+    for (let r = 0; r < size; r++)
+      for (let c = 0; c < size; c++) if (!b[r][c].mine && !b[r][c].revealed) return false;
     return true;
   };
 
   const reset = () => {
-    setBoard(createBoard());
+    setLevel(1);
+    setBoard(createBoard(sizeFor(1), minesFor(1)));
     setGameOver(false);
-    setWon(false);
   };
 
   const sweep = (r: number, c: number) => {
-    if (gameOver || won) return;
+    if (gameOver) return;
     if (board[r][c].flagged || board[r][c].revealed) return;
     const next = board.map((row) => row.map((cell) => ({ ...cell })));
     if (next[r][c].mine) {
@@ -112,13 +124,15 @@ function BotfieldGame() {
     const revealed = flood(next, r, c);
     setBoard(revealed);
     if (checkWin(revealed)) {
-      setWon(true);
       success();
+      const nextLevel = level + 1;
+      setLevel(nextLevel);
+      setBoard(createBoard(sizeFor(nextLevel), minesFor(nextLevel)));
     }
   };
 
   const flagCell = (r: number, c: number) => {
-    if (gameOver || won) return;
+    if (gameOver) return;
     if (board[r][c].revealed) return;
     const next = board.map((row) => row.map((cell) => ({ ...cell })));
     next[r][c].flagged = !next[r][c].flagged;
@@ -131,30 +145,31 @@ function BotfieldGame() {
   return (
     <div style={{ flex: '1 1 auto', minHeight: 0, width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
       <div style={{ fontFamily: 'var(--font-pixel)', fontSize: 12, letterSpacing: '0.08em', color: 'var(--muted)' }}>
-        <span style={{ color: 'var(--danger)' }}>● {MINES}</span> ·{' '}
+        LVL <span style={{ color: 'var(--accent)' }}>{level}</span>
+        <span style={{ margin: '0 6px' }}>·</span>
+        <span style={{ color: 'var(--danger)' }}>● {mines}</span> ·{' '}
         <span style={{ color: 'var(--accent)' }}>⚑ {flags}</span> ·{' '}
         <span style={{ color: 'var(--phosphor)' }}>
-          {swept}/{SIZE * SIZE - MINES}
+          {swept}/{size * size - mines}
         </span>
         {gameOver && <span style={{ color: 'var(--danger)' }}> — SECTOR COMPROMISED</span>}
-        {won && <span style={{ color: 'var(--phosphor)' }}> — FIELD CLEAR</span>}
       </div>
 
-      <ScaleToFit width={SIZE * CELL + 24} height={SIZE * CELL + 24}>
+      <ScaleToFit width={size * CELL + 24} height={size * CELL + 24}>
         <div
           style={{
             display: 'grid',
-            gridTemplateColumns: `repeat(${SIZE}, ${CELL}px)`,
+            gridTemplateColumns: `repeat(${size}, ${CELL}px)`,
             gap: 2,
             padding: 4,
             background: 'var(--panel-2)',
             borderRadius: 8,
-            border: won ? '2px solid var(--phosphor)' : gameOver ? '2px solid var(--danger)' : '1px solid var(--line)',
+            border: gameOver ? '2px solid var(--danger)' : '1px solid var(--line)',
           }}
         >
         {board.flat().map((cell, idx) => {
-          const r = Math.floor(idx / SIZE);
-          const c = idx % SIZE;
+          const r = Math.floor(idx / size);
+          const c = idx % size;
           const shown = cell.flagged && !cell.revealed ? '⚑' : cell.revealed ? (cell.mine ? '●' : cell.count > 0 ? String(cell.count) : '') : '';
           return (
             <div
@@ -205,7 +220,7 @@ function BotfieldGame() {
         <span style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--muted)' }}>
           {flagMode ? 'TAP to flag' : 'TAP to sweep'} · LONG-PRESS flag
         </span>
-        {(gameOver || won) && (
+        {gameOver && (
           <button type="button" className="program-btn" onClick={reset}>
             RESTART
           </button>
