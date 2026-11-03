@@ -5,8 +5,13 @@ import { COMPILE_LOG, STAGE_MS, fetchScanTarget, hexLine, pickRandom } from '@/l
 
 const mockedCreateClient = createClient as unknown as jest.Mock;
 
-function mockCatalogue(result: { data: unknown; error: unknown } | Error) {
-  const limit = result instanceof Error ? jest.fn().mockRejectedValue(result) : jest.fn().mockResolvedValue(result);
+function mockCatalogue(...results: Array<{ data: unknown; error: unknown } | Error>) {
+  let call = 0;
+  const limit = jest.fn(() => {
+    const result = results[Math.min(call, results.length - 1)];
+    call += 1;
+    return result instanceof Error ? Promise.reject(result) : Promise.resolve(result);
+  });
   const chain: Record<string, jest.Mock> = {};
   chain.select = jest.fn(() => chain);
   chain.eq = jest.fn(() => chain);
@@ -62,8 +67,9 @@ describe('fetchScanTarget', () => {
       ],
       error: null,
     });
-    const target = await fetchScanTarget();
-    expect(target).toEqual({
+    const outcome = await fetchScanTarget();
+    expect(outcome.error).toBeNull();
+    expect(outcome.target).toEqual({
       id: '1',
       title: 'Old Web',
       original_url: 'https://example.org',
@@ -79,18 +85,48 @@ describe('fetchScanTarget', () => {
     expect(chain.eq).toHaveBeenCalledWith('inactive', false);
   });
 
-  it('returns null on a query error', async () => {
+  it('surfaces the error message on a query error', async () => {
     mockCatalogue({ data: null, error: { message: 'boom' } });
-    expect(await fetchScanTarget()).toBeNull();
+    const outcome = await fetchScanTarget();
+    expect(outcome.target).toBeNull();
+    expect(outcome.error).toBe('boom');
   });
 
-  it('returns null when the catalog is empty', async () => {
+  it('reports an empty catalog', async () => {
     mockCatalogue({ data: [], error: null });
-    expect(await fetchScanTarget()).toBeNull();
+    const outcome = await fetchScanTarget();
+    expect(outcome.target).toBeNull();
+    expect(outcome.error).toBe('catalog is empty');
   });
 
-  it('returns null instead of throwing when the request fails', async () => {
+  it('surfaces the network error instead of throwing', async () => {
     mockCatalogue(new Error('network down'));
-    expect(await fetchScanTarget()).toBeNull();
+    const outcome = await fetchScanTarget();
+    expect(outcome.target).toBeNull();
+    expect(outcome.error).toBe('network down');
+  });
+
+  it('retries without the inactive filter when the active pool is empty', async () => {
+    const row = {
+      id: '2',
+      title: 'Fallback',
+      original_url: 'https://fallback.example',
+      upvotes: 1,
+      downvotes: 0,
+      wilson_score: 0.5,
+      category_id: null,
+      subcategory_id: null,
+      categories: null,
+      subcategories: null,
+    };
+    const chain = mockCatalogue(
+      { data: [], error: null },
+      { data: [row], error: null },
+    );
+    const outcome = await fetchScanTarget();
+    expect(outcome.error).toBeNull();
+    expect(outcome.target?.original_url).toBe('https://fallback.example');
+    // approved + inactive on pass 1, then approved only on pass 2.
+    expect(chain.eq).toHaveBeenCalledTimes(3);
   });
 });

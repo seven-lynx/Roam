@@ -89,33 +89,59 @@ async function fetchTargetByUrl(url: string): Promise<ScanTarget | null> {
   }
 }
 
+/** Result of a roam-target lookup, separating the target from any failure reason. */
+export interface ScanOutcome {
+  target: ScanTarget | null;
+  error: string | null;
+}
+
 /**
  * Fetch a roam target. Prefers a validated (hot) entry from the prefetch buffer
- * so the ROAM key serves instantly; falls back to a random approved, active site
- * from the highest-rated pool. Returns null when the catalog is unreachable.
+ * so the ROAM key serves instantly; falls back to a random approved site from the
+ * highest-rated pool. Returns `{ target, error }` so callers can surface *why* a
+ * scan failed instead of a generic "no signal".
  */
-export async function fetchScanTarget(): Promise<ScanTarget | null> {
+export async function fetchScanTarget(): Promise<ScanOutcome> {
   // Prefer hot: it's already reachability-checked and ready to serve.
   const hot = roamBufferNext();
   if (hot) {
     const full = await fetchTargetByUrl(hot.url);
-    if (full) return full;
+    if (full) return { target: full, error: null };
   }
 
-  try {
-    const { data, error } = await createClient()
-      .from('urls')
-      .select(SCAN_SELECT)
-      .eq('approved', true)
-      .eq('inactive', false)
-      .order('wilson_score', { ascending: false })
-      .limit(60);
-    if (error || !data) return null;
-    const rows = (data as Array<Record<string, unknown>>).map(mapScanRow);
-    return pickRandom(rows);
-  } catch {
-    return null;
+  let lastError: string | null = null;
+
+  // Two passes: first restrict to active sites, then (if that came up empty or
+  // errored — e.g. the `inactive` column is missing, or passive retirement
+  // marked every site inactive) retry against all approved sites. Either way we
+  // surface the underlying error rather than swallowing it.
+  for (const requireActive of [true, false]) {
+    try {
+      let query = createClient()
+        .from('urls')
+        .select(SCAN_SELECT)
+        .eq('approved', true);
+      if (requireActive) query = query.eq('inactive', false);
+      const { data, error } = await query
+        .order('wilson_score', { ascending: false })
+        .limit(60);
+
+      if (error) {
+        lastError = error.message;
+        console.error('[roam] catalog query failed', { requireActive, error });
+        continue;
+      }
+
+      const rows = ((data ?? []) as Array<Record<string, unknown>>).map(mapScanRow);
+      if (rows.length > 0) return { target: pickRandom(rows), error: null };
+      lastError = 'catalog is empty';
+    } catch (e) {
+      lastError = e instanceof Error ? e.message : String(e);
+      console.error('[roam] catalog query threw', { requireActive, e });
+    }
   }
+
+  return { target: null, error: lastError ?? 'catalog unreachable' };
 }
 
 /**

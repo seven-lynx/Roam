@@ -19,6 +19,7 @@ export function ScanSequence() {
   const open = isOpen('scan');
   const [stage, setStage] = useState<ScanStage>('scan');
   const [target, setTarget] = useState<ScanTarget | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [resolved, setResolved] = useState(false);
   const [hex, setHex] = useState<string[]>([]);
   const [run, setRun] = useState(0);
@@ -35,13 +36,15 @@ export function ScanSequence() {
     if (!open) return;
     let cancelled = false;
     setTarget(null);
+    setError(null);
     setResolved(false);
     setStage('scan');
     scanBlip();
 
-    fetchScanTarget().then((t) => {
+    fetchScanTarget().then((outcome) => {
       if (cancelled) return;
-      setTarget(t);
+      setTarget(outcome.target);
+      setError(outcome.error);
       setResolved(true);
     });
 
@@ -106,7 +109,7 @@ export function ScanSequence() {
         {stage === 'triangulate' && <TriangulateView lines={hex} />}
         {stage === 'compile' && <CompileView />}
         {stage === 'mount' && !resolved && <p className="text-sm text-muted" role="status">resolving target…</p>}
-        {showResult && <ScanResult target={target} actionRef={actionRef} onAgain={() => setRun((n) => n + 1)} onClose={close} />}
+        {showResult && <ScanResult target={target} error={error} actionRef={actionRef} onAgain={() => setRun((n) => n + 1)} onClose={close} />}
         {stage !== 'mount' && <p className="text-[10px] tracking-widest text-muted">press any key to skip</p>}
       </div>
     </Window>

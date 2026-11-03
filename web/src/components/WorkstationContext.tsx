@@ -268,7 +268,7 @@ const DEFAULT_WORKSTATION: WorkstationState = {
   toggleMute: noop,
   brightness: 1,
   setBrightness: noop,
-  warp: 0.35,
+  warp: 0.7,
   setWarp: noop,
   displayFx: { ...DISPLAY_FX_DEFAULTS },
   setDisplayFx: noop,

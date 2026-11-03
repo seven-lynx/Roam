@@ -9,7 +9,8 @@ import { WilsonScoreMeter } from '@/components/WilsonScoreMeter';
 import { extractDomain } from '@/lib/url-utils';
 import { fetchUrlMeta } from '@/lib/scan';
 import { getMyRating, setRating } from '@/lib/ratings';
-import { like } from '@/lib/sfx';
+import { saveUrlForUser } from '@/lib/save-url';
+import { like, saveUrl as playSaveUrl } from '@/lib/sfx';
 
 /**
  * The in-OS browser window. Loads a roam URL inside the screen and shows a
@@ -23,6 +24,8 @@ export function BrowserWindow() {
   const router = useRouter();
   const [frameKey, setFrameKey] = useState(0);
   const [enriching, setEnriching] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [saving, setSaving] = useState(false);
   const enrichedUrlRef = useRef<string | null>(null);
 
   const open = !!windows.browser;
@@ -71,6 +74,11 @@ export function BrowserWindow() {
     })();
   }, [browse, session?.user?.id, updateBrowse]);
 
+  // Reset the save state whenever a different page is loaded.
+  useEffect(() => {
+    setSaved(false);
+  }, [browse?.url]);
+
   const rate = async (value: 1 | -1) => {
     if (!browse) return;
     if (!session?.user?.id) {
@@ -99,6 +107,26 @@ export function BrowserWindow() {
     }
   };
 
+  const save = async () => {
+    if (!browse) return;
+    if (!session?.user?.id) {
+      showAlert('ACCESS DENIED', 'Log in to save pages.\n\nRedirecting…');
+      router.push('/signup?mode=signin');
+      return;
+    }
+    if (saving || saved) return;
+
+    setSaving(true);
+    const ok = await saveUrlForUser(browse.url, browse.title ?? null, browse.urlId ?? null);
+    setSaving(false);
+    if (ok) {
+      setSaved(true);
+      playSaveUrl();
+    } else {
+      showAlert('SAVE FAILED', 'The save relay is unreachable. Try again.');
+    }
+  };
+
   if (!browse) return null;
 
   const domain = browse.domain || extractDomain(browse.url);
@@ -116,6 +144,17 @@ export function BrowserWindow() {
           <span className="browser-address" title={browse.url}>
             {domain}
           </span>
+          <button
+            type="button"
+            className="browser-btn"
+            aria-pressed={saved}
+            aria-label={saved ? 'Saved for later' : 'Save for later'}
+            title={saved ? 'Saved for later' : 'Save for later'}
+            onClick={save}
+            disabled={saving}
+          >
+            {saving ? '…' : saved ? '✓' : '▣'}
+          </button>
           <a
             className="browser-btn"
             href={browse.url}
@@ -126,6 +165,15 @@ export function BrowserWindow() {
           >
             ↗
           </a>
+          <button
+            type="button"
+            className="browser-btn browser-close"
+            aria-label="Close browser"
+            title="Close browser"
+            onClick={() => closeBrowse()}
+          >
+            ✕
+          </button>
         </div>
 
         <div className="browser-meta">

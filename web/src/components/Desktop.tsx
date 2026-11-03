@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState, type PointerEvent } from 'react';
+import { useEffect, useRef, useState, type PointerEvent, type ReactNode } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useWorkstation, type WindowId } from '@/components/WorkstationContext';
 import { click } from '@/lib/sfx';
@@ -55,12 +55,12 @@ const DESKTOP_APPS: DesktopApp[] = [
 const ICON_W = 76;
 const ICON_H = 86;
 
-/** Right-edge docked widget rail, top → bottom order. */
-const WIDGET_SPECS = [
-  { id: 'showcase', w: 340, node: <SiteShowcase /> },
-  { id: 'deckdiag', w: 300, node: <DeckDiagnosticsWidget /> },
-  { id: 'rankings', w: 320, node: <RankingsWidget limit={5} /> },
-  { id: 'telemetry', w: 260, node: <TelemetryWidget /> },
+/** Desktop widgets, pinned to corners: a right rail (showcase + telemetry), the rankings rail on the left, and deck diagnostics in the bottom corner. */
+const WIDGET_SPECS: { id: string; w: number; dock: 'left' | 'right' | 'bottom'; node: ReactNode }[] = [
+  { id: 'showcase', w: 510, dock: 'right', node: <SiteShowcase /> },
+  { id: 'deckdiag', w: 300, dock: 'bottom', node: <DeckDiagnosticsWidget /> },
+  { id: 'rankings', w: 320, dock: 'left', node: <RankingsWidget limit={5} /> },
+  { id: 'telemetry', w: 260, dock: 'right', node: <TelemetryWidget /> },
 ];
 
 interface IconPos {
@@ -99,7 +99,7 @@ export function Desktop() {
   const pathname = usePathname();
   const { openWindow, toggleLauncher, handheld } = useWorkstation();
   const [positions, setPositions] = useState<IconMap>(loadPositions);
-  const [order, setOrder] = useState<string[]>(() => WIDGET_SPECS.map((w) => w.id));
+  const [order, setOrder] = useState<string[]>(() => WIDGET_SPECS.filter((w) => w.dock === 'right').map((w) => w.id));
   const wallpaper = useWallpaper();
 
   // Shuffle the wallpaper folder while in cycle mode (the default).
@@ -203,9 +203,9 @@ export function Desktop() {
         })}
       </div>
 
-      <div className="desktop-widgets" aria-label="Desktop widgets">
+      <div className="desktop-widgets" aria-label="Desktop widgets (right)">
         {order.map((id) => {
-          const spec = WIDGET_SPECS.find((w) => w.id === id);
+          const spec = WIDGET_SPECS.find((w) => w.id === id && w.dock === 'right');
           if (!spec) return null;
           return (
             <DraggableWidget key={id} id={id} width={spec.w} onReorder={(dir) => reorderWidget(id, dir)}>
@@ -213,6 +213,22 @@ export function Desktop() {
             </DraggableWidget>
           );
         })}
+      </div>
+
+      <div className="desktop-widgets desktop-widgets--left" aria-label="Desktop widgets (left)">
+        {WIDGET_SPECS.filter((w) => w.dock === 'left').map((spec) => (
+          <div key={spec.id} className="dw-wrap" style={{ width: spec.w }}>
+            {spec.node}
+          </div>
+        ))}
+      </div>
+
+      <div className="desktop-widgets desktop-widgets--bottom" aria-label="Desktop widgets (bottom)">
+        {WIDGET_SPECS.filter((w) => w.dock === 'bottom').map((spec) => (
+          <div key={spec.id} className="dw-wrap" style={{ width: spec.w }}>
+            {spec.node}
+          </div>
+        ))}
       </div>
     </div>
   );

@@ -14,7 +14,8 @@ export async function getMyRating(urlId: string): Promise<1 | -1 | null> {
       .maybeSingle();
     const v = data?.value;
     return v === 1 || v === -1 ? (v as 1 | -1) : null;
-  } catch {
+  } catch (e) {
+    console.error('[ratings] read failed', e);
     return null;
   }
 }
@@ -30,7 +31,8 @@ export async function setRating(urlId: string, userId: string, value: 1 | -1): P
       .from('ratings')
       .upsert({ user_id: userId, url_id: urlId, value }, { onConflict: 'user_id,url_id' });
     return !error;
-  } catch {
+  } catch (e) {
+    console.error('[ratings] upsert failed', e);
     return false;
   }
 }

@@ -168,7 +168,7 @@ export function WorkstationShell({
   const [volume, setVolumeState] = useState(0.7);
   const [muted, setMutedState] = useState(false);
   const [brightness, setBrightnessState] = useState(1);
-  const [warp, setWarpState] = useState(0.35);
+  const [warp, setWarpState] = useState(0.7);
   const [displayFx, setDisplayFxState] = useState<DisplayFx>({ ...DISPLAY_FX_DEFAULTS });
   const [soundFx, setSoundFxState] = useState<Record<SoundEffect, boolean>>({ ...DEFAULT_SOUND_FX });
   const [barrelMap, setBarrelMap] = useState('');
@@ -426,7 +426,7 @@ export function WorkstationShell({
     setVolumeState(0.7);
     setMutedState(false);
     setBrightnessState(1);
-    setWarpState(0.35);
+    setWarpState(0.7);
     setDisplayFxState({ ...DISPLAY_FX_DEFAULTS });
     setSoundFxState({ ...DEFAULT_SOUND_FX });
     SOUND_EFFECTS.forEach((name) => setSfxEffect(name, DEFAULT_SOUND_FX[name]));

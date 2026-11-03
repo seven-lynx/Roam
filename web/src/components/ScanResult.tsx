@@ -7,6 +7,7 @@ import type { ScanTarget } from '@/lib/scan';
 
 interface Props {
   target: ScanTarget | null;
+  error?: string | null;
   actionRef: RefObject<HTMLElement | null>;
   onAgain: () => void;
   onClose: () => void;
@@ -17,7 +18,7 @@ interface Props {
  * OS browser (with a "new tab" fallback for sites that refuse framing); the
  * card also surfaces the category · subcategory readout and the Wilson score.
  */
-export function ScanResult({ target, actionRef, onAgain, onClose }: Props) {
+export function ScanResult({ target, error, actionRef, onAgain, onClose }: Props) {
   const { openUrl } = useWorkstation();
 
   if (!target) {
@@ -26,6 +27,11 @@ export function ScanResult({ target, actionRef, onAgain, onClose }: Props) {
         <div className="panel-head"><span className="led" />no signal</div>
         <div className="space-y-3 p-5 text-sm text-muted">
           <p>The catalog didn&rsquo;t answer. Try again, or browse the collections instead.</p>
+          {error && (
+            <p className="break-all text-xs text-muted">
+              <span className="kicker">trace</span> {error}
+            </p>
+          )}
           <div className="flex flex-wrap gap-3">
             <button ref={actionRef as RefObject<HTMLButtonElement>} type="button" className="btn btn-primary" onClick={onAgain}>
               Scan again

@@ -1858,6 +1858,7 @@ button.gadget:active { transform: translateY(1px) scale(0.98); }
   text-decoration: none;
 }
 .browser-btn:hover { color: var(--phosphor); border-color: var(--phosphor); }
+.browser-btn.browser-close:hover { color: var(--danger); border-color: var(--danger); }
 .browser-address {
   flex: 1 1 auto;
   min-width: 0;
@@ -2347,6 +2348,17 @@ button.gadget:active { transform: translateY(1px) scale(0.98); }
   z-index: 2;
 }
 .desktop-widget { flex: 0 0 auto; }
+.desktop-widgets--left {
+  left: 12px;
+  right: auto;
+  bottom: auto;
+  align-items: flex-start;
+}
+.desktop-widgets--bottom {
+  top: auto;
+  bottom: 60px;
+  align-items: flex-end;
+}
 @media (max-width: 900px) {
   .desktop-widgets { display: none; }
 }

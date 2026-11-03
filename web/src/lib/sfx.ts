@@ -74,9 +74,10 @@ export const SOUND_EFFECTS: SoundEffect[] = [
 ];
 
 /**
- * Factory defaults: only the mechanical clicks and the loading chimes are on
- * out of the box. Game blips, feed jingles and the mains hum stay silent until
- * the operator turns them on in Settings.
+ * Factory defaults: every sound the operator or the OS itself triggers is on
+ * out of the box. Only the two always-on bed layers — the feed `serverHum` and
+ * the mains `ambient` hum — stay silent, since neither is tied to a discrete
+ * user/OS action.
  */
 export const DEFAULT_SOUND_FX: Record<SoundEffect, boolean> = {
   click: true,
@@ -84,19 +85,19 @@ export const DEFAULT_SOUND_FX: Record<SoundEffect, boolean> = {
   clickNav: true,
   loadStart: true,
   loadComplete: true,
-  scanBlip: false,
-  mountComplete: false,
-  like: false,
-  skip: false,
-  saveUrl: false,
+  scanBlip: true,
+  mountComplete: true,
+  like: true,
+  skip: true,
+  saveUrl: true,
   serverHum: false,
-  relayTick: false,
-  modemBlip: false,
-  beep: false,
-  success: false,
-  badgeEarn: false,
-  levelUp: false,
-  blip: false,
+  relayTick: true,
+  modemBlip: true,
+  beep: true,
+  success: true,
+  badgeEarn: true,
+  levelUp: true,
+  blip: true,
   ambient: false,
 };
 
