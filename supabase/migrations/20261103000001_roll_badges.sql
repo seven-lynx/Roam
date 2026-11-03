@@ -1,7 +1,7 @@
 -- =============================================================================
--- Cyberdeck Roll gallery badges + canonical action types
+-- Gallery badges + canonical action types
 -- =============================================================================
--- The in-OS "Cyberdeck Roll" program (web) records two primary actions:
+-- The in-OS "Gallery" program (web) records two primary actions:
 --   * wallpaper   — set a photo as the desktop wallpaper
 --   * roll_rate   — "like" a photo
 -- These are logged to user_actions (the existing audit log + challenge trigger)
@@ -38,6 +38,16 @@ CREATE POLICY "Authenticated users can insert own actions"
 -- 3. Seed the two roll badges (idempotent).
 INSERT INTO public.badges (slug, name, description, icon, category, tier, required_count, xp_reward)
 VALUES
-  ('roll-wallpaper', 'Decked Out', 'Set a photo from the Cyberdeck Roll as your desktop wallpaper', '🖥️', 'engagement', 1, 1, 25),
-  ('roll-rate-5', 'Photo Critic', 'Like 5 photos in the Cyberdeck Roll', '📸', 'engagement', 1, 5, 25)
+  ('roll-wallpaper', 'Decked Out', 'Set a photo from the Gallery as your desktop wallpaper', '🖥️', 'curiosity', 1, 1, 25),
+  ('roll-rate-5', 'Photo Critic', 'Like 5 photos in the Gallery', '📸', 'curiosity', 1, 5, 25)
 ON CONFLICT (slug) DO NOTHING;
+
+-- Reconcile rows seeded before the taxonomy rename (engagement -> curiosity)
+-- and the program rename (Cyberdeck Roll -> Gallery). Idempotent.
+UPDATE public.badges
+   SET category    = 'curiosity',
+       description = CASE slug
+         WHEN 'roll-wallpaper' THEN 'Set a photo from the Gallery as your desktop wallpaper'
+         WHEN 'roll-rate-5'     THEN 'Like 5 photos in the Gallery'
+       END
+ WHERE slug IN ('roll-wallpaper', 'roll-rate-5');

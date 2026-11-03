@@ -22,7 +22,7 @@ Roam's backend runs on Supabase and provides authentication, the PostgreSQL sche
 - Add schema changes as migrations in `migrations/`
 - Keep Edge Function input validation strict and explicit
 - Update [docs/API.md](../docs/API.md) when request or response shapes change
-- Use `supabase db push` to apply migrations; `supabase functions deploy <name>` to deploy functions
+- Use `supabase db push --project-ref yrhckctwtdjowulfuaqc --password <db-password>` to apply migrations to production (always pass `--project-ref` — the CLI may be linked to `roam-staging`); `supabase functions deploy <name>` to deploy functions
 - Before a release, run `node supabase/scripts/check-migrations.mjs` to confirm local and remote migration history are in sync
 
 ## Migrations
