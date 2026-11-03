@@ -238,14 +238,16 @@ function RelayGame() {
 }
 
 const dBtn: CSSProperties = {
-  width: 36,
-  height: 30,
-  fontSize: 12,
+  // 44px minimum touch target for the on-screen D-pad (Apple HIG / Material).
+  width: 44,
+  height: 44,
+  fontSize: 14,
   background: 'var(--panel-3)',
   color: 'var(--fg)',
   border: '1px solid var(--line)',
   borderRadius: 6,
   cursor: 'pointer',
+  touchAction: 'manipulation',
 };
 
 export function SnakeProgram() {

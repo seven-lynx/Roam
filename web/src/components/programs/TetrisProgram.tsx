@@ -257,14 +257,16 @@ function CompilerGame() {
 }
 
 const ctrlBtn: CSSProperties = {
-  width: 42,
-  height: 34,
+  // 44px minimum touch target (Apple HIG / Material).
+  width: 44,
+  height: 44,
   fontSize: 14,
   background: 'var(--panel-3)',
   color: 'var(--fg)',
   border: '1px solid var(--line)',
   borderRadius: 8,
   cursor: 'pointer',
+  touchAction: 'manipulation',
 };
 
 export function TetrisProgram() {

@@ -55,8 +55,13 @@ export function hexLine(rand: () => number = Math.random, bytes = 12): string {
   ).join(' ');
 }
 
+// NOTE: `categories` and `subcategories` are now ambiguous in PostgREST — the
+// tag-graph migration added a `url_categories` junction table (many-to-many), so
+// the bare `categories(name)` embed returns PGRST201 "Multiple Choices". The
+// explicit `!urls_category_id_fkey` / `!urls_subcategory_id_fkey` hints pin the
+// embed to the original many-to-one FK columns on `urls`.
 const SCAN_SELECT =
-  'id, title, original_url, upvotes, downvotes, wilson_score, category_id, subcategory_id, categories(name), subcategories(name)';
+  'id, title, original_url, upvotes, downvotes, wilson_score, category_id, subcategory_id, categories!urls_category_id_fkey(name), subcategories!urls_subcategory_id_fkey(name)';
 
 function mapScanRow(row: Record<string, unknown>): ScanTarget {
   return {
@@ -73,13 +78,13 @@ function mapScanRow(row: Record<string, unknown>): ScanTarget {
   } as ScanTarget;
 }
 
-/** Fetch one entry's full metadata by its `original_url` (enrichment). */
+/** Fetch one entry's full metadata by its normalized `url` (enrichment). */
 async function fetchTargetByUrl(url: string): Promise<ScanTarget | null> {
   try {
     const { data } = await createClient()
       .from('urls')
       .select(SCAN_SELECT)
-      .eq('original_url', url)
+      .eq('url', url)
       .limit(1)
       .maybeSingle();
     if (!data) return null;
@@ -96,19 +101,77 @@ export interface ScanOutcome {
 }
 
 /**
- * Fetch a roam target. Prefers a validated (hot) entry from the prefetch buffer
- * so the ROAM key serves instantly; falls back to a random approved site from the
- * highest-rated pool. Returns `{ target, error }` so callers can surface *why* a
- * scan failed instead of a generic "no signal".
+ * Fetch a roam target for the ROAM key.
+ *
+ * Resolution order:
+ *   1. A validated (hot) entry from the prefetch buffer — instant + reachability
+ *      checked, matching the Android hot-queue fast path.
+ *   2. When signed in, the `roam` edge function — this records the roam event
+ *      (XP / streak / seen_urls) and respects category prefs, matching Android's
+ *      cold-roam path.
+ *   3. A direct catalog query — the anonymous fallback (approved URLs are
+ *      readable by everyone via RLS), also used if the edge function fails.
+ *
+ * Returns `{ target, error }` so callers can surface *why* a scan failed instead
+ * of a generic "no signal".
  */
 export async function fetchScanTarget(): Promise<ScanOutcome> {
-  // Prefer hot: it's already reachability-checked and ready to serve.
+  // 1. Prefer hot: it's already reachability-checked and ready to serve.
   const hot = roamBufferNext();
   if (hot) {
     const full = await fetchTargetByUrl(hot.url);
     if (full) return { target: full, error: null };
   }
 
+  // 2. Signed in → roam edge function (records gamification + respects prefs).
+  const viaEdge = await fetchRoamViaEdge();
+  if (viaEdge) return { target: viaEdge, error: null };
+
+  // 3. Anonymous / edge-failure fallback → direct catalog query.
+  return fetchScanTargetDirect();
+}
+
+/**
+ * Ask the `roam` edge function for a single URL and enrich it into a full
+ * `ScanTarget`. Returns null when signed out, the pool is exhausted (404), or the
+ * request fails — the caller then falls back to the direct query.
+ */
+async function fetchRoamViaEdge(): Promise<ScanTarget | null> {
+  try {
+    const supabase = createClient();
+    if (typeof supabase.auth?.getSession !== 'function') return null;
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.access_token) return null;
+
+    const base = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    if (!base) return null;
+
+    const res = await fetch(`${base}/functions/v1/roam`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${session.access_token}`,
+      },
+      body: JSON.stringify({ count: 1 }),
+    });
+    // 404 = genuine pool exhaustion; any other non-2xx = retry later.
+    if (!res.ok) return null;
+
+    const json = (await res.json().catch(() => null)) as { url?: unknown } | null;
+    const url = typeof json?.url === 'string' ? json.url : null;
+    if (!url) return null;
+
+    // The edge function returns the normalized `url`; enrich it into the full
+    // target (original_url, votes, category/subcategory names).
+    return await fetchTargetByUrl(url);
+  } catch (e) {
+    console.error('[roam] edge-function roam failed', e);
+    return null;
+  }
+}
+
+/** Direct catalog query: highest-rated approved site, two-pass active/any fallback. */
+async function fetchScanTargetDirect(): Promise<ScanOutcome> {
   let lastError: string | null = null;
 
   // Two passes: first restrict to active sites, then (if that came up empty or
@@ -153,7 +216,7 @@ export async function fetchUrlMeta(url: string): Promise<UrlMeta | null> {
   try {
     const { data } = await createClient()
       .from('urls')
-      .select('id, wilson_score, upvotes, downvotes, categories(name), subcategories(name)')
+      .select('id, wilson_score, upvotes, downvotes, categories!urls_category_id_fkey(name), subcategories!urls_subcategory_id_fkey(name)')
       .eq('original_url', url)
       .limit(1)
       .maybeSingle();

@@ -10,7 +10,7 @@
  * manager, the launcher and the terminal without pulling in React.
  */
 
-export const PROGRAM_IDS = ['snake', 'minesweeper', 'tetris', 'asteroids'] as const;
+export const PROGRAM_IDS = ['snake', 'minesweeper', 'tetris', 'asteroids', 'underweb'] as const;
 export type ProgramId = (typeof PROGRAM_IDS)[number];
 
 export interface ProgramLicense {
@@ -43,6 +43,12 @@ const APACHE_2: ProgramLicense = {
 };
 
 const ZELI = 'zeli-web-games (github.com/hajunho/zeli-web-games)';
+
+const MIT: ProgramLicense = {
+  name: 'MIT License',
+  spdx: 'MIT',
+  url: 'https://opensource.org/licenses/MIT',
+};
 
 export const PROGRAMS: Record<ProgramId, Program> = {
   snake: {
@@ -84,6 +90,16 @@ export const PROGRAMS: Record<ProgramId, Program> = {
     controls: '← → rotate · ▲ thrust · ● fire',
     license: APACHE_2,
     source: ZELI,
+  },
+  underweb: {
+    id: 'underweb',
+    title: 'UNDERWEB',
+    file: '/roam/bin/UNDERWEB',
+    glyph: '▽',
+    tagline: 'Descend the buried web. Recover the five gems and carry them back to the surface.',
+    controls: 'TYPE COMMANDS · N/S/E/W · TAKE · LOOK · EXAMINE · LIGHT · OPEN · FEED',
+    license: MIT,
+    source: 'original Roam-OS interactive fiction (7 Lynx)',
   },
 };
 

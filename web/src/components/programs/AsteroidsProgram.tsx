@@ -327,8 +327,9 @@ function DebrisGame() {
 }
 
 const ctrlBtn: CSSProperties = {
+  // 44px minimum touch target (Apple HIG / Material).
   width: 44,
-  height: 36,
+  height: 44,
   fontSize: 14,
   background: 'var(--panel-3)',
   color: 'var(--fg)',

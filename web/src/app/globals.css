@@ -2945,6 +2945,166 @@ button.gadget:active { transform: translateY(1px) scale(0.98); }
 }
 .program-btn:hover { border-color: var(--phosphor); box-shadow: 0 0 0 1px var(--phosphor-glow), 0 0 14px var(--phosphor-glow); }
 
+/* UNDERWEB — text adventure terminal */
+.underweb {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  overflow: hidden;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  line-height: 1.55;
+  color: var(--fg);
+}
+
+.underweb-view {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 0.55rem 0.65rem;
+  cursor: text;
+}
+
+.underweb-line {
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.underweb-echo { color: var(--phosphor); }
+.underweb-sys { color: var(--accent); letter-spacing: 0.06em; }
+.underweb-win { color: var(--accent); text-shadow: 0 0 10px var(--phosphor-glow); }
+.underweb-out { color: var(--fg); }
+
+.underweb-input {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.4rem 0.55rem;
+  border-top: 1px solid var(--line);
+  background: var(--panel-3);
+}
+
+.underweb-prompt {
+  color: var(--accent);
+  font-family: var(--font-pixel);
+  font-size: 0.7rem;
+}
+
+.underweb-input input {
+  flex: 1 1 auto;
+  min-width: 0;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--fg);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  caret-color: var(--accent);
+}
+
+.underweb-send {
+  flex: 0 0 auto;
+  font-family: var(--font-pixel);
+  font-size: 0.55rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--fg);
+  background: var(--panel-2);
+  border: 1px solid var(--line-strong);
+  border-radius: 3px;
+  padding: 0.35rem 0.5rem;
+  cursor: pointer;
+}
+.underweb-send:hover { border-color: var(--phosphor); }
+
+.program-splash {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  padding: 1rem;
+  text-align: center;
+  background:
+    radial-gradient(600px 380px at 50% 18%, rgba(89, 179, 174, 0.10), transparent 70%),
+    var(--panel-2);
+  border: 1px solid var(--line);
+  cursor: pointer;
+  overflow: hidden;
+}
+.program-splash-scanlines {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: repeating-linear-gradient(0deg, rgba(0, 0, 0, 0.22) 0 1px, transparent 1px 3px);
+  opacity: 0.5;
+}
+.program-splash-glyph {
+  font-size: 2.2rem;
+  line-height: 1;
+  color: var(--accent);
+  text-shadow: 0 0 12px var(--accent);
+}
+.program-splash-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-family: var(--font-pixel);
+  font-size: 0.7rem;
+  letter-spacing: 0.12em;
+  color: var(--accent);
+}
+.program-splash-title {
+  font-family: var(--font-pixel);
+  font-size: 1.1rem;
+  letter-spacing: 0.14em;
+  color: var(--fg);
+}
+.program-splash-file {
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.08em;
+  color: var(--phosphor);
+}
+.program-splash-tagline {
+  max-width: 340px;
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  line-height: 1.5;
+  color: var(--muted);
+}
+.program-splash-log {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 0.4rem;
+  min-height: 3.4rem;
+  font-family: var(--font-mono);
+  font-size: 0.58rem;
+  letter-spacing: 0.06em;
+  color: var(--phosphor);
+  opacity: 0.85;
+}
+.program-splash-skip {
+  position: absolute;
+  bottom: 0.5rem;
+  font-family: var(--font-mono);
+  font-size: 0.55rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
 /* ============================================================
    HANDHELD SHELL (mobile layout — the OS is the device)
    Gated by .screen[data-layout="handheld"]. Desktop (>767px) is

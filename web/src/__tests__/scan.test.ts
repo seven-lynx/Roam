@@ -85,6 +85,17 @@ describe('fetchScanTarget', () => {
     expect(chain.eq).toHaveBeenCalledWith('inactive', false);
   });
 
+  it('uses disambiguated relationship hints for the category/subcategory embeds', async () => {
+    // The tag-graph migration added a `url_categories` junction table, which made
+    // the bare `categories(name)` / `subcategories(name)` embeds return PGRST201
+    // "Multiple Choices". This guards the explicit-FK hint fix.
+    const chain = mockCatalogue({ data: [], error: null });
+    await fetchScanTarget();
+    const selectArg = chain.select.mock.calls[0]?.[0] as string | undefined;
+    expect(selectArg).toContain('categories!urls_category_id_fkey(name)');
+    expect(selectArg).toContain('subcategories!urls_subcategory_id_fkey(name)');
+  });
+
   it('surfaces the error message on a query error', async () => {
     mockCatalogue({ data: null, error: { message: 'boom' } });
     const outcome = await fetchScanTarget();
@@ -128,5 +139,104 @@ describe('fetchScanTarget', () => {
     expect(outcome.target?.original_url).toBe('https://fallback.example');
     // approved + inactive on pass 1, then approved only on pass 2.
     expect(chain.eq).toHaveBeenCalledTimes(3);
+  });
+
+  describe('edge function path', () => {
+    const OLD_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const OLD_FETCH = global.fetch;
+
+    beforeEach(() => {
+      process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://supabase.test.co';
+    });
+
+    afterEach(() => {
+      if (OLD_URL === undefined) delete process.env.NEXT_PUBLIC_SUPABASE_URL;
+      else process.env.NEXT_PUBLIC_SUPABASE_URL = OLD_URL;
+      global.fetch = OLD_FETCH;
+      jest.clearAllMocks();
+    });
+
+    function mockEdgePath(
+      session: { access_token: string } | null,
+      edgeResponse: { ok: boolean; status: number; json: () => Promise<unknown> },
+      enrichRow: Record<string, unknown> | null,
+    ) {
+      const maybeSingle = jest.fn().mockResolvedValue({ data: enrichRow ?? null, error: null });
+      const limit = jest.fn(() => ({ maybeSingle }));
+      const chain: Record<string, jest.Mock> = {};
+      chain.select = jest.fn(() => chain);
+      chain.eq = jest.fn(() => chain);
+      chain.order = jest.fn(() => chain);
+      chain.limit = limit;
+      const client = {
+        auth: { getSession: jest.fn().mockResolvedValue({ data: { session } }) },
+        from: jest.fn(() => chain),
+      };
+      mockedCreateClient.mockReturnValue(client);
+      global.fetch = jest.fn().mockResolvedValue(edgeResponse) as unknown as typeof fetch;
+      return { chain, client };
+    }
+
+    it('uses the roam edge function when signed in (records gamification)', async () => {
+      const row = {
+        id: 'e1',
+        title: 'Edge',
+        original_url: 'https://edge.example',
+        upvotes: 3,
+        downvotes: 1,
+        wilson_score: 0.7,
+        category_id: 'c1',
+        subcategory_id: 's1',
+        categories: { name: 'Tech' },
+        subcategories: { name: 'Web' },
+      };
+      mockEdgePath(
+        { access_token: 'tok' },
+        { ok: true, status: 200, json: async () => ({ url: 'https://edge.example' }) },
+        row,
+      );
+
+      const outcome = await fetchScanTarget();
+
+      expect(outcome.error).toBeNull();
+      expect(outcome.target?.id).toBe('e1');
+      expect(global.fetch).toHaveBeenCalledTimes(1);
+      expect(global.fetch).toHaveBeenCalledWith(
+        'https://supabase.test.co/functions/v1/roam',
+        expect.objectContaining({
+          method: 'POST',
+          headers: expect.objectContaining({ Authorization: 'Bearer tok' }),
+        }),
+      );
+    });
+
+    it('falls back to the direct query when the edge function is exhausted (404)', async () => {
+      const directRow = {
+        id: 'd1',
+        title: 'Direct',
+        original_url: 'https://direct.example',
+        upvotes: 0,
+        downvotes: 0,
+        wilson_score: 0.2,
+        category_id: null,
+        subcategory_id: null,
+        categories: null,
+        subcategories: null,
+      };
+      const chain = mockCatalogue({ data: [directRow], error: null });
+      mockedCreateClient.mockReturnValue({
+        auth: { getSession: jest.fn().mockResolvedValue({ data: { session: { access_token: 'tok' } } }) },
+        from: jest.fn(() => chain),
+      });
+      global.fetch = jest
+        .fn()
+        .mockResolvedValue({ ok: false, status: 404, json: async () => ({ error: 'exhausted' }) }) as unknown as typeof fetch;
+
+      const outcome = await fetchScanTarget();
+
+      expect(outcome.error).toBeNull();
+      expect(outcome.target?.id).toBe('d1');
+      expect(global.fetch).toHaveBeenCalledTimes(1);
+    });
   });
 });

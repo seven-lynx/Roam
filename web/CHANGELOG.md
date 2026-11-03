@@ -2,6 +2,13 @@
 
 All notable changes to the Roam web platform.
 
+## [2026-11-02] — UNDERWEB text adventure program
+### Added
+- A fifth in-OS program, UNDERWEB (`/roam/bin/UNDERWEB`): a Zork-style text adventure rethemed to the ROAM-OS lore. You are a wanderer on the surface of the Dead Internet; descend the buried underweb, recover the five gems, and carry them back up to the Uplink Field. Built on a pure TypeScript engine (`lib/text-adventure.ts`) with a terminal renderer (`programs/UnderwebProgram.tsx`) that uses the native soft keyboard for text input on touch devices.
+- Pure-logic unit tests for the UNDERWEB parser, world, and full win path (`underweb.test.ts`).
+### Changed
+- Generalized the program ABOUT line from "adapted from …" to a neutral "· source" separator so the original in-OS fiction can sit alongside the Apache-2.0 zeli ports.
+
 ## [2026-11-02] — Radial barrel warp
 ### Changed
 - Replaced the separable cubic CRT displacement map with a true radial barrel warp that mirrors the Android `CrtOverlay` shader (`center + d·(1 + amount·r²)`), so the edges bow outward like a fisheye instead of a barely-visible anamorphic zoom.

@@ -48,6 +48,7 @@ import { SnakeProgram } from '@/components/programs/SnakeProgram';
 import { MinesweeperProgram } from '@/components/programs/MinesweeperProgram';
 import { TetrisProgram } from '@/components/programs/TetrisProgram';
 import { AsteroidsProgram } from '@/components/programs/AsteroidsProgram';
+import { UnderwebProgram } from '@/components/programs/UnderwebProgram';
 import { DECK_VERSION } from '@/lib/deck-framing';
 import { resetWallpaper } from '@/lib/wallpaper';
 import type { ArtVariant } from '@/lib/art';
@@ -763,6 +764,7 @@ export function WorkstationShell({
           <MinesweeperProgram />
           <TetrisProgram />
           <AsteroidsProgram />
+          <UnderwebProgram />
           <Terminal />
           <Dock />
           <GestureLayer />
