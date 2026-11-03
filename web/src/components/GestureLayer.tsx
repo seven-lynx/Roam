@@ -12,8 +12,8 @@ const TOP_ZONE = 44; // px from the top that trigger swipe-down (the status bar)
 
 /**
  * Handheld-only touch gestures, wired directly to the `.screen` element:
- *   - swipe up from the bottom  → open the launcher
- *   - swipe down from the top   → open settings (or close the launcher)
+ *   - swipe up from the bottom  → open the all-apps drawer
+ *   - swipe down from the top   → toggle the quick-settings sheet
  *   - swipe in from either edge → back (close the top window, or navigate back)
  * Mouse input is ignored; mouse users (e.g. a desktop browser forced into
  * handheld mode) still have the dock/launcher buttons.
@@ -22,19 +22,20 @@ export function GestureLayer() {
   const {
     handheld,
     screenRef,
-    launcherOpen,
-    toggleLauncher,
-    setLauncherOpen,
-    openWindow,
+    appDrawerOpen,
+    quickSettingsOpen,
+    toggleAppDrawer,
+    setAppDrawerOpen,
+    toggleQuickSettings,
     closeWindow,
     windows,
   } = useWorkstation();
   const router = useRouter();
 
   // Always-latest state, read from inside the once-per-mode effect below.
-  const live = useRef({ launcherOpen, windows });
+  const live = useRef({ appDrawerOpen, quickSettingsOpen, windows });
   useEffect(() => {
-    live.current = { launcherOpen, windows };
+    live.current = { appDrawerOpen, quickSettingsOpen, windows };
   });
 
   useEffect(() => {
@@ -81,11 +82,11 @@ export function GestureLayer() {
 
       if (m === 'up') {
         click();
-        if (!live.current.launcherOpen) toggleLauncher();
+        if (!live.current.appDrawerOpen) toggleAppDrawer();
       } else if (m === 'down') {
         click();
-        if (live.current.launcherOpen) setLauncherOpen(false);
-        else openWindow('settings');
+        if (live.current.appDrawerOpen) setAppDrawerOpen(false);
+        toggleQuickSettings();
       } else if (m === 'back') {
         click();
         const ids = (Object.keys(live.current.windows) as WindowId[]).filter((k) => live.current.windows[k]);
@@ -108,7 +109,7 @@ export function GestureLayer() {
       el.removeEventListener('pointerup', onEnd);
       el.removeEventListener('pointercancel', onEnd);
     };
-  }, [handheld, screenRef, toggleLauncher, setLauncherOpen, openWindow, closeWindow, router]);
+  }, [handheld, screenRef, toggleAppDrawer, setAppDrawerOpen, toggleQuickSettings, closeWindow, router]);
 
   return null;
 }

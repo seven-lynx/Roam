@@ -29,6 +29,8 @@ import {
 import { useIsMobile } from '@/lib/hooks';
 import { StatusBar } from '@/components/StatusBar';
 import { Launcher } from '@/components/Launcher';
+import { AppDrawer } from '@/components/AppDrawer';
+import { QuickSettings } from '@/components/QuickSettings';
 import FeedbackWidget from '@/components/FeedbackWidget';
 import { ScanSequence } from '@/components/ScanSequence';
 import { Terminal } from '@/components/Terminal';
@@ -178,6 +180,8 @@ export function WorkstationShell({
   const [theme, setThemeState] = useState<Theme>('green');
   const [uiMode, setUiModeState] = useState<UiMode>('auto');
   const [launcherOpen, setLauncherOpenState] = useState(false);
+  const [appDrawerOpen, setAppDrawerOpenState] = useState(false);
+  const [quickSettingsOpen, setQuickSettingsOpenState] = useState(false);
   const [artVariant, setArtVariantState] = useState<ArtVariant>('a');
   const [inspect, setInspectState] = useState(false);
   const [camera, setCameraState] = useState<CameraFraming>(DEFAULT_CAMERA);
@@ -414,6 +418,11 @@ export function WorkstationShell({
   const setLauncherOpen = useCallback((open: boolean) => setLauncherOpenState(open), []);
   const toggleLauncher = useCallback(() => setLauncherOpenState((v) => !v), []);
 
+  const setAppDrawerOpen = useCallback((open: boolean) => setAppDrawerOpenState(open), []);
+  const toggleAppDrawer = useCallback(() => setAppDrawerOpenState((v) => !v), []);
+  const setQuickSettingsOpen = useCallback((open: boolean) => setQuickSettingsOpenState(open), []);
+  const toggleQuickSettings = useCallback(() => setQuickSettingsOpenState((v) => !v), []);
+
   // ── Diegetic dialog + factory reset ───────────────────────────
   const showAlert = useCallback((title: string, message: string) => setAlertState({ title, message }), []);
   const showConfirm = useCallback(
@@ -438,6 +447,8 @@ export function WorkstationShell({
     setDeckModeState(false);
     setDeckRequestedState(false);
     setLauncherOpenState(false);
+    setAppDrawerOpenState(false);
+    setQuickSettingsOpenState(false);
     setArtVariantState('a');
     setInspectState(false);
     setCameraState(DEFAULT_CAMERA);
@@ -628,6 +639,8 @@ export function WorkstationShell({
   // Close the launcher menu and scan window on navigation; reset the scroller.
   useEffect(() => {
     setLauncherOpen(false);
+    setAppDrawerOpen(false);
+    setQuickSettingsOpen(false);
     closeWindow('scan');
     const el = scrollRef.current;
     if (!el) return;
@@ -689,6 +702,12 @@ export function WorkstationShell({
       launcherOpen,
       setLauncherOpen,
       toggleLauncher,
+      appDrawerOpen,
+      setAppDrawerOpen,
+      toggleAppDrawer,
+      quickSettingsOpen,
+      setQuickSettingsOpen,
+      toggleQuickSettings,
       minimizeWindow,
       toggleMaximize,
       focusWindow,
@@ -709,7 +728,7 @@ export function WorkstationShell({
       updateBrowse,
       closeBrowse,
     }),
-    [fx, setFx, sound, setSound, volume, setVolume, muted, toggleMute, setMuted, brightness, setBrightness, warp, setWarp, displayFx, setDisplayFx, soundFx, setSoundFx, taskbarAutoHide, setTaskbarAutoHide, theme, setTheme, uiMode, setUiMode, handheld, artVariant, setArtVariant, inspect, setInspect, toggleInspect, camera, setCamera, resetCamera, fit, saveFit, fitDeck, alert, showAlert, showConfirm, dismissAlert, resetOsSettings, windows, isOpen, openWindow, closeWindow, launcherOpen, setLauncherOpen, toggleLauncher, minimizeWindow, toggleMaximize, focusWindow, moveWindow, minimizeAll, restoreAll, deckReady, setDeckReady, deckMode, setDeckMode, deckRequested, setDeckRequested, openDeckLauncher, deckProgress, setDeckProgress, browse, openUrl, updateBrowse, closeBrowse],
+    [fx, setFx, sound, setSound, volume, setVolume, muted, toggleMute, setMuted, brightness, setBrightness, warp, setWarp, displayFx, setDisplayFx, soundFx, setSoundFx, taskbarAutoHide, setTaskbarAutoHide, theme, setTheme, uiMode, setUiMode, handheld, artVariant, setArtVariant, inspect, setInspect, toggleInspect, camera, setCamera, resetCamera, fit, saveFit, fitDeck, alert, showAlert, showConfirm, dismissAlert, resetOsSettings, windows, isOpen, openWindow, closeWindow, launcherOpen, setLauncherOpen, toggleLauncher, appDrawerOpen, setAppDrawerOpen, toggleAppDrawer, quickSettingsOpen, setQuickSettingsOpen, toggleQuickSettings, minimizeWindow, toggleMaximize, focusWindow, moveWindow, minimizeAll, restoreAll, deckReady, setDeckReady, deckMode, setDeckMode, deckRequested, setDeckRequested, openDeckLauncher, deckProgress, setDeckProgress, browse, openUrl, updateBrowse, closeBrowse],
   );
 
   const barrelActive = fx && displayFx.barrel && warp > 0.02;
@@ -753,6 +772,8 @@ export function WorkstationShell({
           </div>
           <Desktop />
           <Launcher />
+          <AppDrawer />
+          <QuickSettings />
           <ScanSequence />
           <BrowserWindow />
           <FeedbackWidget />

@@ -19,6 +19,7 @@ export function Dock() {
     windows,
     openWindow,
     toggleLauncher,
+    toggleAppDrawer,
     minimizeWindow,
     focusWindow,
     fx,
@@ -40,6 +41,7 @@ export function Dock() {
     minimizeAll,
     restoreAll,
     taskbarAutoHide,
+    handheld,
   } = useWorkstation();
   const { session } = useAuth();
   const router = useRouter();
@@ -128,13 +130,13 @@ export function Dock() {
         >
           ▼
         </button>
-        <button type="button" className="dock-btn" onClick={() => { click(); toggleLauncher(); }} data-tip="Programs" aria-label="Programs">
+        <button type="button" className="dock-btn" onClick={() => { click(); if (handheld) toggleAppDrawer(); else toggleLauncher(); }} data-tip="Menu" aria-label="Menu">
           ▤
         </button>
-        <button type="button" className="dock-btn dock-roam" onClick={() => { click(); openWindow('scan'); }} data-tip="Roam" aria-label="Roam">
+        <button type="button" className="dock-btn dock-roam" onClick={() => { click(); openWindow('scan'); }} data-tip="Roam key" aria-label="Roam key">
           ◎
         </button>
-        <button type="button" className="dock-btn" onClick={() => { click(); openWindow('settings'); }} data-tip="Settings" aria-label="Settings">
+        <button type="button" className="dock-btn" onClick={() => { click(); openWindow('settings'); }} data-tip="Settings hub" aria-label="Settings hub">
           ⚙
         </button>
         <button

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState, type PointerEvent, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type PointerEvent, type ReactNode, type UIEvent } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useWorkstation, type WindowId } from '@/components/WorkstationContext';
 import { click } from '@/lib/sfx';
@@ -10,6 +10,8 @@ import { TelemetryWidget } from '@/components/TelemetryWidget';
 import { DeckDiagnosticsWidget } from '@/components/DeckDiagnosticsWidget';
 import { DraggableWidget } from '@/components/DraggableWidget';
 import { useWallpaper, applyRandomWallpaper, WALLPAPER_CYCLE_MS } from '@/lib/wallpaper';
+import { HOME_APPS, HOME_FOLDERS, type HomeFolder } from '@/lib/os-apps';
+import { useAppLauncher } from '@/lib/use-app-launcher';
 
 /**
  * The ROAM-OS desktop: its own page with a selectable wallpaper and a strip of
@@ -63,6 +65,9 @@ const WIDGET_SPECS: { id: string; w: number; dock: 'left' | 'right' | 'bottom'; 
   { id: 'telemetry', w: 260, dock: 'right', node: <TelemetryWidget /> },
 ];
 
+/** Handheld pager: one widget per screen, in this order. */
+const HANDHELD_WIDGET_ORDER = ['showcase', 'rankings', 'telemetry', 'deckdiag'] as const;
+
 interface IconPos {
   x: number;
   y: number;
@@ -97,9 +102,13 @@ function loadPositions(): IconMap {
 export function Desktop() {
   const router = useRouter();
   const pathname = usePathname();
-  const { openWindow, toggleLauncher, handheld } = useWorkstation();
+  const { openWindow, toggleLauncher, handheld, toggleAppDrawer } = useWorkstation();
+  const { launch } = useAppLauncher();
   const [positions, setPositions] = useState<IconMap>(loadPositions);
   const [order, setOrder] = useState<string[]>(() => WIDGET_SPECS.filter((w) => w.dock === 'right').map((w) => w.id));
+  const [folderOpen, setFolderOpen] = useState<string | null>(null);
+  const [page, setPage] = useState(0);
+  const pagerRef = useRef<HTMLDivElement>(null);
   const wallpaper = useWallpaper();
 
   // Shuffle the wallpaper folder while in cycle mode (the default).
@@ -177,6 +186,65 @@ export function Desktop() {
     });
   };
 
+  const onPagerScroll = (e: UIEvent<HTMLDivElement>) => {
+    const el = e.currentTarget;
+    const idx = Math.round(el.scrollLeft / Math.max(1, el.clientWidth));
+    setPage(Math.min(Math.max(0, idx), HANDHELD_WIDGET_ORDER.length));
+  };
+
+  const scrollToPage = (i: number) => {
+    const el = pagerRef.current;
+    if (!el) return;
+    el.scrollTo({ left: i * el.clientWidth, behavior: 'smooth' });
+  };
+
+  if (handheld) {
+    const openFolder = HOME_FOLDERS.find((f) => f.id === folderOpen) ?? null;
+    return (
+      <div className="desktop desktop--handheld" aria-label="Desktop" style={{ background: wallpaper.current.css }}>
+        <div className="home-pager" ref={pagerRef} onScroll={onPagerScroll}>
+          <section className="home-page home-page--apps" aria-label="Apps">
+            <div className="desktop-icons">
+              {HOME_APPS.map((app) => (
+                <button key={app.id} type="button" className="desktop-icon" onClick={() => { click(); launch(app); }}>
+                  <span className="desktop-glyph" aria-hidden="true">{app.glyph}</span>
+                  <span className="desktop-label">{app.label}</span>
+                </button>
+              ))}
+              {HOME_FOLDERS.map((f) => (
+                <button key={f.id} type="button" className="desktop-icon" onClick={() => { click(); setFolderOpen(f.id); }}>
+                  <span className="desktop-glyph" aria-hidden="true">{f.glyph}</span>
+                  <span className="desktop-label">{f.label}</span>
+                </button>
+              ))}
+              <button type="button" className="desktop-icon" onClick={() => { click(); toggleAppDrawer(); }}>
+                <span className="desktop-glyph" aria-hidden="true">⊞</span>
+                <span className="desktop-label">ALL APPS</span>
+              </button>
+            </div>
+          </section>
+
+          {HANDHELD_WIDGET_ORDER.map((id) => {
+            const spec = WIDGET_SPECS.find((w) => w.id === id)!;
+            return (
+              <section key={id} className="home-page home-page--widget" aria-label={spec.id}>
+                <div className="home-widget">{spec.node}</div>
+              </section>
+            );
+          })}
+        </div>
+
+        <div className="home-page-dots" aria-label="Pages">
+          {Array.from({ length: HANDHELD_WIDGET_ORDER.length + 1 }).map((_, i) => (
+            <button key={i} type="button" className={`home-dot${page === i ? ' is-active' : ''}`} aria-label={`Page ${i + 1}`} onClick={() => scrollToPage(i)} />
+          ))}
+        </div>
+
+        {openFolder && <FolderOverlay folder={openFolder} onClose={() => setFolderOpen(null)} />}
+      </div>
+    );
+  }
+
   return (
     <div className={`desktop${handheld ? ' desktop--handheld' : ''}`} aria-label="Desktop" style={{ background: wallpaper.current.css }}>
       <div className="desktop-icons">
@@ -228,6 +296,38 @@ export function Desktop() {
           <div key={spec.id} className="dw-wrap" style={{ width: spec.w }}>
             {spec.node}
           </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function FolderOverlay({ folder, onClose }: { folder: HomeFolder; onClose: () => void }) {
+  const { launch } = useAppLauncher();
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
+  return (
+    <div className="folder-overlay" role="dialog" aria-label={folder.label}>
+      <div className="folder-overlay-head">
+        <span className="folder-overlay-glyph" aria-hidden="true">{folder.glyph}</span>
+        <span className="folder-overlay-title">{folder.label}</span>
+        <button type="button" className="folder-overlay-close" aria-label={`Close ${folder.label}`} onClick={() => { click(); onClose(); }}>
+          ✕
+        </button>
+      </div>
+      <div className="desktop-icons">
+        {folder.items.map((app) => (
+          <button key={app.id} type="button" className="desktop-icon" onClick={() => { click(); onClose(); launch(app); }}>
+            <span className="desktop-glyph" aria-hidden="true">{app.glyph}</span>
+            <span className="desktop-label">{app.label}</span>
+          </button>
         ))}
       </div>
     </div>

@@ -227,6 +227,14 @@ export interface WorkstationState {
   launcherOpen: boolean;
   setLauncherOpen: (open: boolean) => void;
   toggleLauncher: () => void;
+  /** Android-style all-apps drawer (searchable tile grid, handheld). */
+  appDrawerOpen: boolean;
+  setAppDrawerOpen: (open: boolean) => void;
+  toggleAppDrawer: () => void;
+  /** Swipe-down quick-settings sheet (handheld). */
+  quickSettingsOpen: boolean;
+  setQuickSettingsOpen: (open: boolean) => void;
+  toggleQuickSettings: () => void;
   minimizeWindow: (id: WindowId) => void;
   toggleMaximize: (id: WindowId) => void;
   focusWindow: (id: WindowId) => void;
@@ -309,6 +317,12 @@ const DEFAULT_WORKSTATION: WorkstationState = {
   launcherOpen: false,
   setLauncherOpen: noop,
   toggleLauncher: noop,
+  appDrawerOpen: false,
+  setAppDrawerOpen: noop,
+  toggleAppDrawer: noop,
+  quickSettingsOpen: false,
+  setQuickSettingsOpen: noop,
+  toggleQuickSettings: noop,
   minimizeWindow: noop,
   toggleMaximize: noop,
   focusWindow: noop,
