@@ -195,18 +195,13 @@ Deno.serve(async (req: Request) => {
           if (!error) {
             const xp = toAward.reduce((s: number, b: any) => s + (b.xp_reward ?? 0), 0);
             if (xp > 0) {
-              await sb.from("xp_log").insert({
-                user_id: user.id,
-                action: "badge_rewards",
-                xp_awarded: xp,
-                metadata: { source: "cron_secret", badge_count: toAward.length },
+              await sb.rpc("apply_xp", {
+                p_user_id: user.id,
+                p_action: "badge_rewards",
+                p_xp: xp,
+                p_metadata: { source: "cron_secret", badge_count: toAward.length },
+                p_idempotency_key: null,
               });
-              const { data: xpRows } = await sb.from("xp_log").select("xp_awarded").eq("user_id", user.id);
-              const newXp = (xpRows ?? []).reduce((s: number, r: any) => s + r.xp_awarded, 0);
-              await sb.from("profiles").update({
-                xp_total: newXp,
-                level: Math.floor(Math.sqrt(newXp / 100)) + 1,
-              }).eq("id", user.id);
             }
             try { await sb.rpc("sync_profile_badge_count", { p_user_id: user.id }); } catch { /* badge count sync is non-critical */ }
           }
@@ -239,11 +234,12 @@ Deno.serve(async (req: Request) => {
               unlocked_at: new Date().toISOString(),
             }, { onConflict: "user_id,badge_id" });
             if (eclipseBadge.xp_reward) {
-              await sb.from("xp_log").insert({
-                user_id: user.id,
-                action: "badge_rewards",
-                xp_awarded: eclipseBadge.xp_reward,
-                metadata: { source: "cron_eclipse" },
+              await sb.rpc("apply_xp", {
+                p_user_id: user.id,
+                p_action: "badge_rewards",
+                p_xp: eclipseBadge.xp_reward,
+                p_metadata: { source: "cron_eclipse" },
+                p_idempotency_key: null,
               });
             }
             try { await sb.rpc("sync_profile_badge_count", { p_user_id: user.id }); } catch { /* badge count sync is non-critical */ }

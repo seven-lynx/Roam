@@ -6,6 +6,7 @@
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { corsHeaders, getCorsHeaders } from '../_shared/cors.ts'
+import { awardXpAndEvaluate } from '../_shared/gamification.ts'
 import { normalizeUrl } from '../_shared/normalise.ts'
 import { validateRequired } from '../_shared/env.ts'
 import { initSentry } from '../_shared/sentry.ts'
@@ -128,38 +129,15 @@ Deno.serve(async (req) => {
     metadata: { url: normalizedUrl }
   })
 
-  // Gamification: award XP for submission
+  // Gamification: award submit_url XP (25, from xp_actions) + re-evaluate badges.
   EdgeRuntime.waitUntil(
-    (async () => {
-      try {
-        const svcClient = createClient(
-          Deno.env.get('SUPABASE_URL')!,
-          Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
-          { auth: { persistSession: false } },
-        )
-
-        const xpKey = `submit:${user.id}:${normalizedUrl}`
-        await svcClient.from('xp_log').upsert({
-          user_id: user.id,
-          action: 'submit_url',
-          xp_awarded: 10,
-          idempotency_key: xpKey,
-        }, { onConflict: 'idempotency_key', ignoreDuplicates: true })
-
-        // Recalculate XP + level
-        const { data: xpRows } = await svcClient.from('xp_log').select('xp_awarded').eq('user_id', user.id)
-        const newXp = (xpRows ?? []).reduce((s: number, r: any) => s + r.xp_awarded, 0)
-        await svcClient.from('profiles').update({
-          xp_total: newXp,
-          level: Math.floor(Math.sqrt(newXp / 100)) + 1,
-        }).eq('id', user.id)
-
-        // Evaluate badges
-        await supabase.functions.invoke('evaluate-badges', { body: { user_id: user.id } })
-      } catch (e) {
-        console.error('submit gamification failed:', e)
-      }
-    })()
+    awardXpAndEvaluate(
+      supabase,
+      user.id,
+      'submit_url',
+      { url: normalizedUrl },
+      `submit:${user.id}:${normalizedUrl}`,
+    ),
   )
 
   return json({ success: true, id: queueEntry.id, message: 'URL submitted for review' }, 201)

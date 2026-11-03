@@ -12,7 +12,7 @@ import { GameLevelOverlay } from '@/components/programs/GameLevelOverlay';
 import { AnalogStick } from '@/components/programs/AnalogStick';
 import { useControlMode } from '@/components/programs/useControlMode';
 import { PROGRAMS } from '@/lib/os-programs';
-import { makeRunId } from '@/lib/game-xp';
+import { makeRunId, WIN_LEVEL } from '@/lib/game-xp';
 import { click, beep } from '@/lib/sfx';
 
 /**
@@ -62,7 +62,7 @@ function RelayGame() {
   const [runId] = useState(() => makeRunId());
   const { mode, toggle } = useControlMode('roam-snake-control');
   const { level, phase, countdown, lastXp, levelRef, phaseRef, begin, completeLevel, gameOver, resetLevels } =
-    useGameLevel({ game: 'snake', userId: session?.user.id ?? null, runId });
+    useGameLevel({ game: 'snake', userId: session?.user.id ?? null, runId, winLevel: WIN_LEVEL });
 
   // Latest callbacks so the fixed-effect loop never closes over a stale closure.
   const completeLevelRef = useRef(completeLevel);

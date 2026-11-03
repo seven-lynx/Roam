@@ -102,7 +102,7 @@ export function BrowserWindow() {
   const score = browse.wilsonScore ?? 0;
 
   return (
-    <Window id="browser" icon={<span aria-hidden="true">≈</span>}>
+    <Window id="browser" icon={<span aria-hidden="true">≋</span>}>
       {collapsed ? (
         <div className="browser-peek">
           <button
@@ -191,7 +191,7 @@ export function BrowserWindow() {
         <iframe
           key={frameKey}
           src={browse.url}
-          title={label || 'Surf'}
+          title={label || 'Drift'}
           className="browser-iframe"
           referrerPolicy="no-referrer"
         />

@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState, type MutableRefObject } from 'react';
-import { awardGameXp, gameOverXp, LEVEL_XP, XP_LEVEL_CAP, type GameId } from '@/lib/game-xp';
+import { awardGameXp, gameOverXp, LEVEL_XP, WIN_XP, XP_LEVEL_CAP, type GameId } from '@/lib/game-xp';
 
 export type LevelPhase = 'ready' | 'playing' | 'complete' | 'start' | 'over';
 
@@ -15,6 +15,8 @@ export interface UseGameLevelOptions {
   userId: string | null;
   /** Stable per-run id so retries/restarts can't double-award the same level. */
   runId: string;
+  /** Arcade games have no end; clearing this level also awards the flat WIN_XP. */
+  winLevel?: number;
 }
 
 export interface GameLevelController {
@@ -30,7 +32,7 @@ export interface GameLevelController {
   phaseRef: MutableRefObject<LevelPhase>;
   /** Start the current level from the initial READY screen. */
   begin: () => void;
-  /** Call when the current level's win condition is met. */
+  /** Call when the current level's win condition is met (a win at `winLevel`). */
   completeLevel: () => void;
   /** Call on death. Awards game-over XP only past the level cap. */
   gameOver: (score: number) => void;
@@ -45,7 +47,7 @@ export interface GameLevelController {
  * and to apply per-level difficulty.
  */
 export function useGameLevel(opts: UseGameLevelOptions): GameLevelController {
-  const { game, userId, runId } = opts;
+  const { game, userId, runId, winLevel } = opts;
 
   const [level, setLevel] = useState(1);
   const [phase, setPhase] = useState<LevelPhase>('ready');
@@ -83,15 +85,20 @@ export function useGameLevel(opts: UseGameLevelOptions): GameLevelController {
     () => {
       if (phaseRef.current !== 'playing') return;
       const lvl = levelRef.current;
+      const isWin = winLevel !== undefined && lvl === winLevel;
       setPhaseBoth('complete');
 
       if (userId) {
-        // Fire-and-forget: the award is idempotent, and the overlay only needs
+        // Fire-and-forget: awards are idempotent, and the overlay only needs
         // the value for display (a signed-out guest shows the earned amount).
-        setLastXp(LEVEL_XP);
+        // Clearing the win level pays the level XP plus the flat win bonus.
+        setLastXp(isWin ? LEVEL_XP + WIN_XP : LEVEL_XP);
         void awardGameXp({ userId, game, kind: 'level', level: lvl, runId }).then((r) => {
-          if (r) setLastXp(r.xpAwarded);
+          if (r && !isWin) setLastXp(r.xpAwarded);
         });
+        if (isWin) {
+          void awardGameXp({ userId, game, kind: 'win', runId });
+        }
       } else {
         setLastXp(0);
       }
@@ -107,7 +114,7 @@ export function useGameLevel(opts: UseGameLevelOptions): GameLevelController {
         }, COMPLETE_MS),
       );
     },
-    [game, userId, runId, setPhaseBoth],
+    [game, userId, runId, winLevel, setPhaseBoth],
   );
 
   const gameOver = useCallback(

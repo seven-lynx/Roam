@@ -8,6 +8,7 @@
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { corsHeaders, getCorsHeaders } from '../_shared/cors.ts'
+import { awardXpAndEvaluate } from '../_shared/gamification.ts'
 
 Deno.serve(async (req) => {
   const headers = getCorsHeaders(req.headers.get('origin'))
@@ -18,6 +19,15 @@ Deno.serve(async (req) => {
     Deno.env.get('SUPABASE_URL')!,
     Deno.env.get('SUPABASE_ANON_KEY')!,
     { global: { headers: { Authorization: req.headers.get('Authorization') ?? '' } } },
+  )
+
+  // Service-role client for cross-user awards: gain_follower targets the
+  // followed user, which the hardened award_xp (auth.uid() = p_user_id)
+  // disallows for the authenticated caller.
+  const svc = createClient(
+    Deno.env.get('SUPABASE_URL')!,
+    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+    { auth: { persistSession: false } },
   )
 
   const { data: { user }, error: authError } = await supabase.auth.getUser()
@@ -45,13 +55,19 @@ Deno.serve(async (req) => {
       metadata: { target_user_id: followingId }
     })
 
-    // Fire-and-forget: evaluate badges for both users
+    // Fire-and-forget: award follow/gain-follower XP + re-evaluate badges for both.
     EdgeRuntime.waitUntil(
       (async () => {
-        try {
-          await supabase.functions.invoke('evaluate-badges', { body: { user_id: user.id } })
-          await supabase.functions.invoke('evaluate-badges', { body: { user_id: followingId } })
-        } catch { /* best effort */ }
+        await awardXpAndEvaluate(
+          supabase, user.id, 'follow_user',
+          { target_user_id: followingId },
+          `follow:${user.id}:${followingId}`,
+        )
+        await awardXpAndEvaluate(
+          svc, followingId, 'gain_follower',
+          { follower_id: user.id },
+          `gain:${followingId}:${user.id}`,
+        )
       })()
     )
 

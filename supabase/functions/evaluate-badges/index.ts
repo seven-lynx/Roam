@@ -66,6 +66,20 @@ Deno.serve(async (req: Request) => {
 
     const toAward: any[] = [];
 
+    // ── Game wins (fetched once; the per-game win badges share this set) ──
+    const { data: winRows } = await sb
+      .from("xp_log")
+      .select("action")
+      .eq("user_id", user_id)
+      .in("action", [
+        "game:snake:win", "game:minesweeper:win", "game:tetris:win",
+        "game:asteroids:win", "game:frogger:win", "game:underweb:win",
+        "game:substrate:win",
+      ]);
+    const winGames = new Set(
+      (winRows ?? []).map((r: any) => (r.action as string).replace("game:", "").replace(":win", "")),
+    );
+
     for (const badge of allBadges ?? []) {
       if (unlocked.has(badge.id)) continue;
       if (badge.is_hidden || badge.category === "gift") continue;
@@ -487,6 +501,15 @@ Deno.serve(async (req: Request) => {
           qualifies = (c ?? 0) >= 5; break;
         }
 
+        // ─── Games (ordinary Roam XP) ───
+        case "win-relay": qualifies = winGames.has("snake"); break;
+        case "win-botfield": qualifies = winGames.has("minesweeper"); break;
+        case "win-compiler": qualifies = winGames.has("tetris"); break;
+        case "win-debris": qualifies = winGames.has("asteroids"); break;
+        case "win-firewalk": qualifies = winGames.has("frogger"); break;
+        case "win-underweb": qualifies = winGames.has("underweb"); break;
+        case "win-substrate": qualifies = winGames.has("substrate"); break;
+
         // ═══ Secret ═══
         case "error-404-explorer": {
           const { count: c } = await sb.from("log_failed_urls").select("*", { count: "exact", head: true }).eq("user_id", user_id);
@@ -525,18 +548,13 @@ Deno.serve(async (req: Request) => {
 
       const xp = toAward.reduce((s: number, b: any) => s + (b.xp_reward ?? 0), 0);
       if (xp > 0) {
-        await sb.from("xp_log").insert({
-          user_id,
-          action: "badge_rewards",
-          xp_awarded: xp,
-          metadata: { source: "edge_function", badge_count: toAward.length },
+        await sb.rpc("apply_xp", {
+          p_user_id: user_id,
+          p_action: "badge_rewards",
+          p_xp: xp,
+          p_metadata: { source: "edge_function", badge_count: toAward.length },
+          p_idempotency_key: null,
         });
-        const { data: xpRows } = await sb.from("xp_log").select("xp_awarded").eq("user_id", user_id);
-        const newXp = (xpRows ?? []).reduce((s: number, r: any) => s + r.xp_awarded, 0);
-        await sb.from("profiles").update({
-          xp_total: newXp,
-          level: Math.floor(Math.sqrt(newXp / 100)) + 1,
-        }).eq("id", user_id);
       }
       try {
         await sb.rpc("sync_profile_badge_count", { p_user_id: user_id });
@@ -571,22 +589,15 @@ Deno.serve(async (req: Request) => {
               .eq("user_id", user_id)
               .eq("instance_id", uc.instance_id);
 
-            // Award XP
+            // Award XP through the unified primitive
             const xp = challenge.xp_reward ?? 50;
-            await sb.from("xp_log").insert({
-              user_id,
-              action: "challenge_reward",
-              xp_awarded: xp,
-              metadata: { challenge_key: challenge.challenge_key, challenge_title: challenge.title },
+            await sb.rpc("apply_xp", {
+              p_user_id: user_id,
+              p_action: "challenge_reward",
+              p_xp: xp,
+              p_metadata: { challenge_key: challenge.challenge_key, challenge_title: challenge.title },
+              p_idempotency_key: null,
             });
-
-            // Recalculate total XP + level
-            const { data: xpRows } = await sb.from("xp_log").select("xp_awarded").eq("user_id", user_id);
-            const newXp = (xpRows ?? []).reduce((s: number, r: any) => s + r.xp_awarded, 0);
-            await sb.from("profiles").update({
-              xp_total: newXp,
-              level: Math.floor(Math.sqrt(newXp / 100)) + 1,
-            }).eq("id", user_id);
 
             // Insert notification
             await sb.from("notifications").insert({

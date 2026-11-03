@@ -10,7 +10,7 @@ import { useSwipeSteer } from '@/components/programs/useSwipeSteer';
 import { useGameLevel } from '@/components/programs/useGameLevel';
 import { GameLevelOverlay } from '@/components/programs/GameLevelOverlay';
 import { PROGRAMS } from '@/lib/os-programs';
-import { makeRunId } from '@/lib/game-xp';
+import { makeRunId, WIN_LEVEL } from '@/lib/game-xp';
 import { click, beep } from '@/lib/sfx';
 
 /**
@@ -84,7 +84,7 @@ function CompilerGame() {
   const { session } = useAuth();
   const [runId] = useState(() => makeRunId());
   const { level, phase, countdown, lastXp, levelRef, phaseRef, begin, completeLevel, gameOver, resetLevels } =
-    useGameLevel({ game: 'tetris', userId: session?.user.id ?? null, runId });
+    useGameLevel({ game: 'tetris', userId: session?.user.id ?? null, runId, winLevel: WIN_LEVEL });
   const completeLevelRef = useRef(completeLevel);
   const gameOverRef = useRef(gameOver);
   useEffect(() => {

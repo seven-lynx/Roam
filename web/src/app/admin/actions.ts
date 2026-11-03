@@ -223,94 +223,42 @@ export async function grantBadgeAdmin(
 
   if (!targetProfile) return { data: null, error: "User not found" };
 
-  const { data: badge } = await admin
-    .from("badges")
-    .select("id, slug, name, xp_reward")
-    .eq("slug", badgeSlug)
-    .single();
-
-  if (!badge) return { data: null, error: `Badge not found: ${badgeSlug}` };
-
+  // Resolve the acting admin's profile id (for granted_by) — non-critical.
   let grantedBy: string | null = null;
   try {
     const { data: adminsList } = await admin.auth.admin.listUsers({ perPage: 50 });
-    if (adminsList?.users?.length) {
-      const adminUser = adminsList.users.find(
-        (u) => u.app_metadata?.role === "admin"
-      );
-      if (adminUser) {
-        const { data: adminProfile } = await admin
-          .from("profiles")
-          .select("id")
-          .eq("id", adminUser.id)
-          .single();
-        grantedBy = adminProfile?.id ?? null;
-      }
+    const adminUser = adminsList?.users?.find(
+      (u) => u.app_metadata?.role === "admin"
+    );
+    if (adminUser) {
+      const { data: adminProfile } = await admin
+        .from("profiles")
+        .select("id")
+        .eq("id", adminUser.id)
+        .single();
+      grantedBy = adminProfile?.id ?? null;
     }
   } catch {
     // Non-critical
   }
 
-  const { error: insertError } = await admin
-    .from("user_badges")
-    .upsert(
-      {
-        user_id: targetProfile.id,
-        badge_id: badge.id,
-        granted_by: grantedBy,
-        progress_current: 0,
-        unlocked_at: new Date().toISOString(),
-      },
-      { onConflict: "user_id,badge_id" }
-    );
+  // The SQL grant_badge() verifies the badge exists and handles the badge_count
+  // bump, badge_unlocked/level_up notifications, and XP award atomically via the
+  // unified apply_xp() primitive (single Roam XP economy).
+  const { data: result, error } = await admin.rpc("grant_badge", {
+    p_user_id: targetProfile.id,
+    p_badge_slug: badgeSlug,
+    p_granted_by: grantedBy,
+  });
 
-  if (insertError) {
-    if (insertError.code === "23505") {
-      return {
-        data: { message: `Badge "${badgeSlug}" was already granted to @${username}!` },
-        error: null,
-      };
-    }
-    return { data: null, error: insertError.message };
-  }
+  if (error) return { data: null, error: error.message };
 
-  if (badge.xp_reward > 0) {
-    await admin.from("xp_log").insert({
-      user_id: targetProfile.id,
-      action: "badge_gifted",
-      xp_awarded: badge.xp_reward,
-      metadata: { badge_slug: badgeSlug, granted_by: grantedBy },
-    });
-
-    const { data: currentProfile } = await admin
-      .from("profiles")
-      .select("xp_total, badge_count")
-      .eq("id", targetProfile.id)
-      .single();
-
-    if (currentProfile) {
-      const newXp = (currentProfile.xp_total ?? 0) + badge.xp_reward;
-      const newLevel = Math.floor(Math.sqrt(newXp / 100)) + 1;
-
-      await admin
-        .from("profiles")
-        .update({
-          xp_total: newXp,
-          badge_count: (currentProfile.badge_count ?? 0) + 1,
-          level: newLevel,
-        })
-        .eq("id", targetProfile.id);
-    }
-  } else {
-    const { data: currentProfile } = await admin
-      .from("profiles")
-      .select("badge_count")
-      .eq("id", targetProfile.id)
-      .single();
-    await admin
-      .from("profiles")
-      .update({ badge_count: (currentProfile?.badge_count ?? 0) + 1 })
-      .eq("id", targetProfile.id);
+  const rows = Array.isArray(result) ? result : result ? [result] : [];
+  if (rows.length === 0) {
+    return {
+      data: { message: `Badge "${badgeSlug}" was already granted to @${username}!` },
+      error: null,
+    };
   }
 
   return {

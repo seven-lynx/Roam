@@ -1,4 +1,4 @@
-import { LEVEL_XP, WIN_XP, XP_LEVEL_CAP, gameOverXp, makeRunId } from '@/lib/game-xp';
+import { LEVEL_XP, WIN_XP, WIN_LEVEL, XP_LEVEL_CAP, gameOverXp, makeRunId } from '@/lib/game-xp';
 
 describe('game-xp economy', () => {
   it('awards a flat 10 XP per level', () => {
@@ -7,6 +7,10 @@ describe('game-xp economy', () => {
 
   it('awards a flat 100 XP for winning a game', () => {
     expect(WIN_XP).toBe(100);
+  });
+
+  it('defines an arcade "win" as clearing level 10', () => {
+    expect(WIN_LEVEL).toBe(10);
   });
 
   it('stops per-level XP after level 100', () => {

@@ -12,7 +12,7 @@ import { GameLevelOverlay } from '@/components/programs/GameLevelOverlay';
 import { AnalogStick } from '@/components/programs/AnalogStick';
 import { useControlMode } from '@/components/programs/useControlMode';
 import { PROGRAMS } from '@/lib/os-programs';
-import { makeRunId } from '@/lib/game-xp';
+import { makeRunId, WIN_LEVEL } from '@/lib/game-xp';
 import { click, beep, success } from '@/lib/sfx';
 import type { Steer } from '@/lib/steer';
 
@@ -92,7 +92,7 @@ function DebrisGame() {
   const [runId] = useState(() => makeRunId());
   const { mode, toggle } = useControlMode('roam-asteroids-control');
   const { level, phase, countdown, lastXp, levelRef, phaseRef, begin, completeLevel, gameOver, resetLevels } =
-    useGameLevel({ game: 'asteroids', userId: session?.user.id ?? null, runId });
+    useGameLevel({ game: 'asteroids', userId: session?.user.id ?? null, runId, winLevel: WIN_LEVEL });
   const completeLevelRef = useRef(completeLevel);
   const gameOverRef = useRef(gameOver);
   useEffect(() => {

@@ -10,6 +10,7 @@
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { corsHeaders } from '../_shared/cors.ts'
+import { awardXpAndEvaluate } from '../_shared/gamification.ts'
 
 const COLLECTION_ITEM_CAP = 10_000
 const RESERVED_SLUGS = new Set(['join', 'admin', 'privacy', 'terms', 'u', 'c'])
@@ -69,23 +70,15 @@ Deno.serve(async (req) => {
       metadata: { collection_id: data.id }
     })
 
-    // Fire-and-forget: award XP for creating a collection
+    // Fire-and-forget: award create_collection XP + re-evaluate badges.
     EdgeRuntime.waitUntil(
-      (async () => {
-        try {
-          const svcClient = createClient(
-            Deno.env.get('SUPABASE_URL')!,
-            Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
-            { auth: { persistSession: false } },
-          )
-          await svcClient.from('xp_log').insert({
-            user_id: user.id,
-            action: 'create_collection',
-            xp_awarded: 5,
-          })
-          await supabase.functions.invoke('evaluate-badges', { body: { user_id: user.id } })
-        } catch { /* best effort */ }
-      })()
+      awardXpAndEvaluate(
+        supabase,
+        user.id,
+        'create_collection',
+        { collection_id: data.id },
+        `create_collection:${user.id}:${data.id}`,
+      ),
     )
 
     return json(data, 201)
@@ -185,6 +178,13 @@ Deno.serve(async (req) => {
             action_type: 'collection',
             metadata: { collection_id: collectionId, url_id: urlId },
           })
+          await awardXpAndEvaluate(
+            supabase,
+            user.id,
+            'add_to_collection',
+            { collection_id: collectionId, url_id: urlId },
+            `add_item:${user.id}:${collectionId}:${urlId}`,
+          )
         } catch (e) {
           console.error('challenge progress failed', e)
         }

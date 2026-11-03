@@ -73,7 +73,8 @@ object RoamOsIcons {
         "social" -> Icons.Filled.Group
         "streaks" -> Icons.Filled.LocalFireDepartment
         "contributing" -> Icons.Filled.AddTask
-        "engagement" -> Icons.Filled.Favorite
+        "curiosity" -> Icons.Filled.Favorite
+        "games" -> Icons.Filled.EmojiEvents
         "secret" -> Icons.Filled.Lock
         "milestone" -> Icons.Filled.MilitaryTech
         "gift" -> Icons.Filled.CardGiftcard

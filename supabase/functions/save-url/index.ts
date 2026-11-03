@@ -5,6 +5,7 @@
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { corsHeaders } from '../_shared/cors.ts'
+import { awardXpAndEvaluate } from '../_shared/gamification.ts'
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return json('ok', 200)
@@ -73,6 +74,17 @@ Deno.serve(async (req) => {
       action_type: "save",
       metadata: { url_id: urlId || null, url }
     })
+
+    // Fire-and-forget: award save_url XP + re-evaluate badges (unified Roam XP)
+    EdgeRuntime.waitUntil(
+      awardXpAndEvaluate(
+        supabase,
+        user.id,
+        'save_url',
+        { url_id: urlId || null, url },
+        `save:${user.id}:${url}`,
+      ),
+    )
 
     return json({ success: true })
   }

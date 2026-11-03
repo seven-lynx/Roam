@@ -6,6 +6,7 @@
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { corsHeaders } from '../_shared/cors.ts'
+import { awardXpAndEvaluate } from '../_shared/gamification.ts'
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
@@ -93,6 +94,15 @@ Deno.serve(async (req) => {
     action_type: 'share',
     metadata: { url_id: urlId, recipient_id: recipientId },
   })
+
+  // Fire-and-forget: award share_url XP + re-evaluate badges.
+  EdgeRuntime.waitUntil(
+    awardXpAndEvaluate(
+      supabase, user.id, 'share_url',
+      { url_id: urlId, recipient_id: recipientId },
+      `share:${user.id}:${urlId}:${recipientId}`,
+    ),
+  )
 
   return json({ success: true, ...(data as Record<string, unknown> ?? {}) })
 })

@@ -36,7 +36,7 @@ export const WINDOW_DEFAULTS: Record<
   feedback: { title: 'COMMS', w: 560, h: 420 },
   terminal: { title: 'TERMINAL', w: 720, h: 300 },
   settings: { title: 'SETTINGS', w: 640, h: 560 },
-  browser: { title: 'SURF', w: 920, h: 620 },
+  browser: { title: 'DRIFT', w: 920, h: 620 },
   cyberdeck: { title: 'CYBERDECK CONTROLS', w: 640, h: 560 },
   deck: { title: 'MOUNT DECK', w: 560, h: 320 },
   info: { title: 'ROAM INFO', w: 720, h: 560 },

@@ -63,7 +63,8 @@ object TierInfo {
         "social" to "Social",
         "streaks" to "Streaks",
         "contributing" to "Contributing",
-        "engagement" to "Engagement",
+        "curiosity" to "Curiosity",
+        "games" to "Games",
         "secret" to "Secret",
         "milestone" to "Milestone",
         "gift" to "Gift"

@@ -5,7 +5,7 @@ import { createClient } from '@/lib/supabase/client';
 import { BadgeDisplay, CATEGORY_LABELS } from '@/components/badges/BadgeDisplay';
 import type { BadgeData } from '@/components/badges/BadgeDisplay';
 
-const CATEGORIES = ['exploration', 'collecting', 'curating', 'social', 'streaks', 'contributing', 'engagement', 'milestone', 'secret', 'gift'] as const;
+const CATEGORIES = ['exploration', 'collecting', 'curating', 'social', 'streaks', 'contributing', 'curiosity', 'games', 'milestone', 'secret', 'gift'] as const;
 
 const TIERS = [
   { value: null, label: 'All Tiers' },
