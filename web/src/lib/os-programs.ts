@@ -10,7 +10,7 @@
  * manager, the launcher and the terminal without pulling in React.
  */
 
-export const PROGRAM_IDS = ['snake', 'minesweeper', 'tetris', 'asteroids', 'underweb'] as const;
+export const PROGRAM_IDS = ['snake', 'minesweeper', 'tetris', 'asteroids', 'underweb', 'substrate'] as const;
 export type ProgramId = (typeof PROGRAM_IDS)[number];
 
 export interface ProgramLicense {
@@ -100,6 +100,17 @@ export const PROGRAMS: Record<ProgramId, Program> = {
     controls: 'TYPE COMMANDS · N/S/E/W · TAKE · LOOK · EXAMINE · LIGHT · OPEN · FEED',
     license: MIT,
     source: 'original Roam-OS interactive fiction (7 Lynx)',
+  },
+  substrate: {
+    id: 'substrate',
+    title: 'SUBSTRATE',
+    file: '/roam/bin/SUBSTRATE',
+    glyph: '▤',
+    tagline:
+      'Descend to the substrate — the buried foundation where the Great Underground Empire sleeps — and recover its treasures.',
+    controls: 'TYPE COMMANDS · N/S/E/W/U/D · TAKE · EXAMINE · OPEN · READ · INVENTORY · SAVE/RESTORE',
+    license: MIT,
+    source: 'Zork I source (Infocom, MIT via Microsoft) · tszm engine (BSD-3-Clause)',
   },
 };
 

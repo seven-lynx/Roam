@@ -3,6 +3,14 @@ import { withSentryConfig } from "@sentry/nextjs";
 
 const nextConfig: NextConfig = {
   /* config options here */
+  turbopack: {
+    // `tszm` (SUBSTRATE's Z-machine engine) ships a node-only `fs/promises`
+    // require in a dead branch (the browser path fetches the story instead).
+    // Alias it to an empty module so the client and SSR bundles can resolve it.
+    resolveAlias: {
+      "fs/promises": "./src/lib/empty-node-module.ts",
+    },
+  },
   async redirects() {
     return [
       {

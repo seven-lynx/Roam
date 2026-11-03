@@ -34,6 +34,7 @@ describe('os-programs registry', () => {
     expect(getProgram('tetris').title).toBe('COMPILER');
     expect(getProgram('asteroids').title).toBe('DEBRIS');
     expect(getProgram('underweb').title).toBe('UNDERWEB');
+    expect(getProgram('substrate').title).toBe('SUBSTRATE');
   });
 
   it('licenses the zeli ports as Apache-2.0 and the fiction as MIT', () => {
@@ -43,6 +44,8 @@ describe('os-programs registry', () => {
     }
     expect(PROGRAMS.underweb.license.spdx).toBe('MIT');
     expect(PROGRAMS.underweb.source).toContain('original');
+    expect(PROGRAMS.substrate.license.spdx).toBe('MIT');
+    expect(PROGRAMS.substrate.source).toContain('Zork I');
   });
 
   it('registers every program as an openable window', () => {

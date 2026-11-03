@@ -2,6 +2,12 @@
 
 All notable changes to the Roam web platform.
 
+## [2026-11-02] — SUBSTRATE text adventure (Zork I port)
+### Added
+- A sixth in-OS program, SUBSTRATE (`/roam/bin/SUBSTRATE`): a rebranded port of the MIT-licensed Infocom classic Zork I, running on the BSD-3-Clause `tszm` Z-machine interpreter. The story (`public/stories/zork1.z3`) ships unmodified; the intro/rubric text is rewritten at the renderer layer to the ROAM-OS lore ("descend to the substrate…").
+- A pure ANSI screen model (`lib/zscreen.ts`) and a browser session wrapper (`lib/zmachine.ts`), plus a terminal renderer (`programs/SubstrateProgram.tsx`).
+- Unit + integration tests (`zmachine.test.ts`) covering the title rewrite, the status-line model, and a command round-trip.
+
 ## [2026-11-02] — UNDERWEB text adventure program
 ### Added
 - A fifth in-OS program, UNDERWEB (`/roam/bin/UNDERWEB`): a Zork-style text adventure rethemed to the ROAM-OS lore. You are a wanderer on the surface of the Dead Internet; descend the buried underweb, recover the five gems, and carry them back up to the Uplink Field. Built on a pure TypeScript engine (`lib/text-adventure.ts`) with a terminal renderer (`programs/UnderwebProgram.tsx`) that uses the native soft keyboard for text input on touch devices.

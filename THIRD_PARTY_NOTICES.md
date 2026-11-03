@@ -40,3 +40,23 @@ Unless required by applicable law or agreed to in writing, software distributed
 under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
 CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
+
+## Zork I (SUBSTRATE story file)
+
+ROAM-OS ships the precompiled Z-machine story `web/public/stories/zork1.z3`
+(the source for the in-OS program SUBSTRATE).
+
+- **Source:** https://github.com/historicalsource/zork1
+- **License:** MIT (Copyright (c) 2025 Microsoft)
+- **Full license text:** `web/public/stories/LICENSE`
+
+The story file is distributed unmodified. "Zork" is a trademark and is not
+used as the program name.
+
+## tszm (Z-machine interpreter)
+
+SUBSTRATE runs on the **tszm** TypeScript Z-machine interpreter.
+
+- **Source:** https://github.com/cshepherd/tszm (npm `tszm`)
+- **License:** BSD-3-Clause
+- **Full license text:** bundled with the package (`node_modules/tszm/LICENSE`)

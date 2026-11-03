@@ -6,6 +6,7 @@ import { MinesweeperProgram } from '@/components/programs/MinesweeperProgram';
 import { TetrisProgram } from '@/components/programs/TetrisProgram';
 import { AsteroidsProgram } from '@/components/programs/AsteroidsProgram';
 import { UnderwebProgram } from '@/components/programs/UnderwebProgram';
+import { SubstrateProgram } from '@/components/programs/SubstrateProgram';
 
 // The program wrappers only read `isOpen` from the workstation context; window
 // chrome (Window) additionally needs the top/dock bar heights at module scope.
@@ -22,6 +23,7 @@ describe('program windows', () => {
     ['tetris', TetrisProgram],
     ['asteroids', AsteroidsProgram],
     ['underweb', UnderwebProgram],
+    ['substrate', SubstrateProgram],
   ])('renders nothing when %s is closed', (_name, Component) => {
     const { container } = render(<Component />);
     expect(container).toBeEmptyDOMElement();

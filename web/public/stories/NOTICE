@@ -1,0 +1,10 @@
+Zork I (Microcomputer Version) — historicalsource/zork1
+
+Source: https://github.com/historicalsource/zork1
+License: MIT (Copyright (c) 2025 Microsoft) — see LICENSE next to this file.
+Original game: Marc Blank, Dave Lebling, Bruce Daniels and Tim Anderson
+(Infocom, 1980).
+
+The story file `zork1.z3` is distributed unmodified. In ROAM-OS the program is
+rebranded as SUBSTRATE; the intro/rubric text is rewritten at the renderer
+layer. "Zork" is a trademark and is not used as the program name.

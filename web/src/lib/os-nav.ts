@@ -86,6 +86,7 @@ export const LAUNCHER_GROUPS: LauncherGroup[] = [
       { action: 'program', program: 'tetris', label: 'COMPILER', file: PROGRAMS.tetris.file, glyph: PROGRAMS.tetris.glyph },
       { action: 'program', program: 'asteroids', label: 'DEBRIS', file: PROGRAMS.asteroids.file, glyph: PROGRAMS.asteroids.glyph },
       { action: 'program', program: 'underweb', label: 'UNDERWEB', file: PROGRAMS.underweb.file, glyph: PROGRAMS.underweb.glyph },
+      { action: 'program', program: 'substrate', label: 'SUBSTRATE', file: PROGRAMS.substrate.file, glyph: PROGRAMS.substrate.glyph },
     ],
   },
   {

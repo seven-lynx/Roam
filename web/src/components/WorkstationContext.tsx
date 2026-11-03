@@ -46,6 +46,7 @@ export const WINDOW_DEFAULTS: Record<
   tetris: { title: PROGRAMS.tetris.title, w: 420, h: 640 },
   asteroids: { title: PROGRAMS.asteroids.title, w: 560, h: 680 },
   underweb: { title: PROGRAMS.underweb.title, w: 560, h: 680 },
+  substrate: { title: PROGRAMS.substrate.title, w: 620, h: 720 },
 };
 
 export const BRIGHTNESS_MIN = 0.35;
