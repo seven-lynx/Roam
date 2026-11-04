@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useEffect, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import { createClient } from '@/lib/supabase/client';
 
@@ -20,6 +20,8 @@ interface AuthContextValue {
   profile: Profile | null;
   loading: boolean;
   walkthroughCompleted: boolean;
+  /** Re-fetches the profile from the DB (e.g. after the walkthrough finishes). */
+  refresh: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue>({
@@ -27,6 +29,7 @@ const AuthContext = createContext<AuthContextValue>({
   profile: null,
   loading: true,
   walkthroughCompleted: false,
+  refresh: async () => undefined,
 });
 
 export function useAuth() {
@@ -44,23 +47,30 @@ export function AuthProvider({ initialSession, children }: AuthProviderProps) {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    // Load profile whenever session changes
-    async function loadProfile(userId: string) {
+  const loadProfile = useCallback(
+    async (userId: string) => {
       const { data } = await supabase
         .from('profiles')
         .select('id, username, email, bio, avatar_url, walkthrough_completed_at')
         .eq('id', userId)
         .single();
       setProfile(data ?? null);
-    }
+    },
+    [supabase],
+  );
 
+  // Load profile whenever session changes.
+  useEffect(() => {
     if (session?.user.id) {
       loadProfile(session.user.id);
     } else {
       setProfile(null);
     }
-  }, [session, supabase]);
+  }, [session, loadProfile]);
+
+  const refresh = useCallback(async () => {
+    if (session?.user.id) await loadProfile(session.user.id);
+  }, [session, loadProfile]);
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, newSession) => {
@@ -72,7 +82,7 @@ export function AuthProvider({ initialSession, children }: AuthProviderProps) {
   }, [supabase, initialSession]);
 
   return (
-    <AuthContext.Provider value={{ session, profile, loading, walkthroughCompleted: profile?.walkthrough_completed_at != null }}>
+    <AuthContext.Provider value={{ session, profile, loading, walkthroughCompleted: profile?.walkthrough_completed_at != null, refresh }}>
       {children}
     </AuthContext.Provider>
   );

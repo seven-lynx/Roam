@@ -30,6 +30,7 @@ import {
   type WidgetId,
 } from '@/components/WorkstationContext';
 import { useIsMobile } from '@/lib/hooks';
+import { useAuth } from '@/components/AuthProvider';
 import { StatusBar } from '@/components/StatusBar';
 import { RoamClassic } from '@/components/RoamClassic';
 import { Walkthrough } from '@/components/Walkthrough';
@@ -589,13 +590,16 @@ export function WorkstationShell({
   // First-run onboarding: auto-open the README once, desktop only. Handheld
   // operators reach it from a home-screen icon and open it by hand, so skip
   // the auto-open whenever the effective layout is mobile.
+  const { session, walkthroughCompleted } = useAuth();
   const readmeSeenRef = useRef(false);
   useEffect(() => {
     // Defer a tick: on the first render `handheld` is still desktop — the
     // SSR-safe media query and any persisted UI mode only settle after mount.
+    // Don't auto-open while a signed-in operator is still inside the unskippable
+    // first-run walkthrough — wait until they finish.
+    if (session && !walkthroughCompleted) return;
     const t = setTimeout(() => {
       if (readmeSeenRef.current) return;
-      readmeSeenRef.current = true;
       if (handheldRef.current) return;
       try {
         if (localStorage.getItem(README_SEEN_KEY) !== null) return;
@@ -603,10 +607,11 @@ export function WorkstationShell({
       } catch {
         /* storage unavailable: still show on desktop */
       }
+      readmeSeenRef.current = true;
       openWindow('readme');
     }, 0);
     return () => clearTimeout(t);
-  }, [openWindow]);
+  }, [openWindow, session, walkthroughCompleted]);
 
   const openDeckLauncher = useCallback(() => {
     setDeckRequestedState(true);
