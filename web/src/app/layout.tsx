@@ -6,15 +6,9 @@ import { Space_Grotesk, IBM_Plex_Mono, Silkscreen, Caveat } from "next/font/goog
 import "./globals.css";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { AuthProvider } from "@/components/AuthProvider";
-import { CookieBanner } from "@/components/CookieBanner";
 import { WebsiteSchema } from "@/components/JsonLd";
-import { Suspense } from "react";
-import Link from "next/link";
-import { PageTransition } from "@/components/PageTransition";
 import { createClient } from "@/lib/supabase/server";
-import { TerminalOverlay } from "@/components/TerminalOverlay";
-import { FlashlightCursor } from "@/components/FlashlightCursor";
-import { WorkstationShell } from "@/components/WorkstationShell";
+import { EmbedGate } from "@/components/EmbedGate";
 
 const spaceGrotesk = Space_Grotesk({
   variable: "--font-space-grotesk",
@@ -94,33 +88,7 @@ export default async function RootLayout({
             >
               Skip to content
             </a>
-            <WorkstationShell
-              overlays={
-                <>
-                  <FlashlightCursor />
-                  <TerminalOverlay />
-                  <CookieBanner />
-                </>
-              }
-            >
-              <Suspense><PageTransition /></Suspense>
-              <main id="main-content" className="min-h-full">
-                {children}
-              </main>
-              <footer className="border-t border-line px-6 py-6 text-center font-mono text-xs text-muted">
-                <nav aria-label="Footer" className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2">
-                  <Link href="/how-it-works" className="hover:text-ink">How It Works</Link>
-                  <Link href="/support-roam" className="hover:text-gold">Support Roam</Link>
-                  <Link href="/extensions" className="hover:text-ink">Extensions</Link>
-                  <Link href="/android" className="hover:text-ink">Android</Link>
-                  <Link href="/stats" className="hover:text-ink">Stats</Link>
-                  <Link href="/changelog" className="hover:text-ink">Changelog</Link>
-                  <Link href="/privacy" className="hover:text-ink">Privacy</Link>
-                  <Link href="/terms" className="hover:text-ink">Terms</Link>
-                  <a href="https://github.com/seven-lynx/Roam" target="_blank" rel="noopener noreferrer" className="hover:text-ink">GitHub</a>
-                </nav>
-              </footer>
-            </WorkstationShell>
+            <EmbedGate>{children}</EmbedGate>
           </ErrorBoundary>
         </AuthProvider>
       </body>

@@ -133,7 +133,7 @@ export function Dock() {
         >
           ▼
         </button>
-        <button type="button" className="dock-btn" onClick={() => { click(); if (handheld) toggleAppDrawer(); else toggleLauncher(); }} data-tip="Menu" aria-label="Menu">
+        <button type="button" data-launcher-toggle="true" className="dock-btn" onClick={() => { click(); if (handheld) toggleAppDrawer(); else toggleLauncher(); }} data-tip="Menu" aria-label="Menu">
           ▤
         </button>
         <button type="button" className="dock-btn dock-roam" onClick={() => { click(); openWindow('scan'); }} data-tip="Roam key" aria-label="Roam key">

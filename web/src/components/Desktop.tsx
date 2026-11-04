@@ -1,14 +1,13 @@
 'use client';
 
-import { useEffect, useRef, useState, type PointerEvent, type ReactNode, type UIEvent } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type PointerEvent, type ReactNode, type UIEvent } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
-import { useWorkstation, type WindowId } from '@/components/WorkstationContext';
+import { useWorkstation, type WindowId, TOP_BAR_H, DOCK_H } from '@/components/WorkstationContext';
 import { click } from '@/lib/sfx';
 import { SiteShowcase } from '@/components/SiteShowcase';
 import { RankingsWidget } from '@/components/RankingsWidget';
 import { TelemetryWidget } from '@/components/TelemetryWidget';
 import { DeckDiagnosticsWidget } from '@/components/DeckDiagnosticsWidget';
-import { DraggableWidget } from '@/components/DraggableWidget';
 import { useWallpaper, applyRandomWallpaper, WALLPAPER_CYCLE_MS } from '@/lib/wallpaper';
 import { HOME_APPS, HOME_FOLDERS, type HomeFolder } from '@/lib/os-apps';
 import { useAppLauncher } from '@/lib/use-app-launcher';
@@ -29,9 +28,9 @@ interface DesktopApp {
   label: string;
   glyph: string;
   file: string;
-  /** Navigate to this internal route instead of opening a window. */
+  /** Open this internal route as an app-style window. */
   href?: string;
-  /** Open this external URL in a new tab instead of opening a window. */
+  /** Open this external URL in the in-OS ROAM browser. */
   external?: string;
 }
 
@@ -57,8 +56,8 @@ const DESKTOP_APPS: DesktopApp[] = [
 const ICON_W = 76;
 const ICON_H = 86;
 
-/** Desktop widgets, pinned to corners: showcase + rankings form the top-right
- *  cluster, sys telemetry sits bottom-left, and deck diagnostics bottom-right. */
+/** Desktop widgets, pinned to corners: telemetry · rankings · deck diagnostics
+ *  form the top-right cluster, and the showcase sits bottom-right. */
 const WIDGETS: Record<string, ReactNode> = {
   showcase: <SiteShowcase />,
   rankings: <RankingsWidget limit={5} />,
@@ -68,6 +67,17 @@ const WIDGETS: Record<string, ReactNode> = {
 
 /** Handheld pager: one widget per screen, in this order. */
 const HANDHELD_WIDGET_ORDER = ['showcase', 'rankings', 'telemetry', 'deckdiag'] as const;
+
+interface Rect {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+function rectsOverlap(a: Rect, b: Rect): boolean {
+  return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
+}
 
 interface IconPos {
   x: number;
@@ -103,13 +113,21 @@ function loadPositions(): IconMap {
 export function Desktop() {
   const router = useRouter();
   const pathname = usePathname();
-  const { openWindow, toggleLauncher, handheld, toggleAppDrawer } = useWorkstation();
+  const { openWindow, toggleLauncher, handheld, toggleAppDrawer, windows, screenRef, widgets, openUrl, openAppView } = useWorkstation();
   const { launch } = useAppLauncher();
+  const visibleWidgetIds = HANDHELD_WIDGET_ORDER.filter((id) => widgets[id]);
   const [positions, setPositions] = useState<IconMap>(loadPositions);
   const [folderOpen, setFolderOpen] = useState<string | null>(null);
   const [page, setPage] = useState(0);
   const pagerRef = useRef<HTMLDivElement>(null);
   const wallpaper = useWallpaper();
+  const widgetRefs = useRef<Record<string, HTMLDivElement | null>>({
+    showcase: null,
+    rankings: null,
+    telemetry: null,
+    deckdiag: null,
+  });
+  const [covered, setCovered] = useState<Record<string, boolean>>({});
 
   // Shuffle the wallpaper folder while in cycle mode (the default).
   useEffect(() => {
@@ -118,6 +136,38 @@ export function Desktop() {
     const id = setInterval(applyRandomWallpaper, WALLPAPER_CYCLE_MS);
     return () => clearInterval(id);
   }, [wallpaper.mode]);
+  // Deactivate widgets that sit underneath an open window: compute overlap
+  // between each widget's box and every visible window rect, then apply `inert`.
+  useLayoutEffect(() => {
+    const screenEl = screenRef.current;
+    if (!screenEl) return;
+    const screenRect = screenEl.getBoundingClientRect();
+    const sw = screenEl.clientWidth;
+    const sh = screenEl.clientHeight;
+    const windowRects: Rect[] = [];
+    (Object.keys(windows) as WindowId[]).forEach((wid) => {
+      const w = windows[wid];
+      if (!w || w.minimized) return;
+      windowRects.push(
+        w.maximized || handheld
+          ? { x: 0, y: TOP_BAR_H, w: sw, h: sh - TOP_BAR_H - DOCK_H }
+          : { x: w.rect.x, y: w.rect.y, w: w.rect.w, h: w.rect.h },
+      );
+    });
+    const next: Record<string, boolean> = {};
+    (['showcase', 'rankings', 'telemetry', 'deckdiag'] as const).forEach((id) => {
+      const el = widgetRefs.current[id];
+      if (!el) {
+        next[id] = false;
+        return;
+      }
+      const r = el.getBoundingClientRect();
+      const wr: Rect = { x: r.left - screenRect.left, y: r.top - screenRect.top, w: r.width, h: r.height };
+      next[id] = windowRects.some((win) => rectsOverlap(wr, win));
+    });
+    setCovered((prev) => (JSON.stringify(prev) === JSON.stringify(next) ? prev : next));
+  }, [windows, handheld, screenRef]);
+
   const dragRef = useRef<{ id: string; sx: number; sy: number; ox: number; oy: number; moved: boolean } | null>(null);
 
   // The desktop is the homepage + its own dedicated route.
@@ -166,8 +216,8 @@ export function Desktop() {
 
     // A clean tap/click: launch.
     click();
-    if (app.external) window.open(app.external, '_blank', 'noopener,noreferrer');
-    else if (app.href) router.push(app.href);
+    if (app.external) openUrl({ url: app.external, title: app.label });
+    else if (app.href) openAppView(app.href, app.label);
     else if (app.id === 'home') router.push('/');
     else if (app.id === 'launcher') toggleLauncher();
     else openWindow(app.id as WindowId);
@@ -176,7 +226,7 @@ export function Desktop() {
   const onPagerScroll = (e: UIEvent<HTMLDivElement>) => {
     const el = e.currentTarget;
     const idx = Math.round(el.scrollLeft / Math.max(1, el.clientWidth));
-    setPage(Math.min(Math.max(0, idx), HANDHELD_WIDGET_ORDER.length));
+    setPage(Math.min(Math.max(0, idx), visibleWidgetIds.length));
   };
 
   const scrollToPage = (i: number) => {
@@ -211,7 +261,7 @@ export function Desktop() {
             </div>
           </section>
 
-          {HANDHELD_WIDGET_ORDER.map((id) => (
+          {visibleWidgetIds.map((id) => (
             <section key={id} className="home-page home-page--widget" aria-label={id}>
               <div className="home-widget">{WIDGETS[id]}</div>
             </section>
@@ -219,7 +269,7 @@ export function Desktop() {
         </div>
 
         <div className="home-page-dots" aria-label="Pages">
-          {Array.from({ length: HANDHELD_WIDGET_ORDER.length + 1 }).map((_, i) => (
+          {Array.from({ length: visibleWidgetIds.length + 1 }).map((_, i) => (
             <button key={i} type="button" className={`home-dot${page === i ? ' is-active' : ''}`} aria-label={`Page ${i + 1}`} onClick={() => scrollToPage(i)} />
           ))}
         </div>
@@ -244,6 +294,7 @@ export function Desktop() {
               onPointerMove={onMove}
               onPointerUp={(e) => onUp(e, app)}
               onPointerCancel={() => (dragRef.current = null)}
+              data-launcher-toggle={app.id === 'launcher' ? 'true' : undefined}
             >
               <span className="desktop-glyph" aria-hidden="true">
                 {app.glyph}
@@ -256,24 +307,49 @@ export function Desktop() {
       </div>
 
       <div className="desktop-widgets desktop-widgets--top" aria-label="Desktop widgets (top right)">
-        <DraggableWidget id="showcase" width={510}>
-          {WIDGETS.showcase}
-        </DraggableWidget>
-        <div className="dw-wrap" style={{ width: 320 }}>
-          {WIDGETS.rankings}
-        </div>
-      </div>
-
-      <div className="desktop-widgets desktop-widgets--bottomleft" aria-label="Desktop widgets (bottom left)">
-        <div className="dw-wrap" style={{ width: 210 }}>
-          {WIDGETS.telemetry}
-        </div>
+        {widgets.telemetry && (
+          <div
+            className="dw-wrap dw-wrap--fixed"
+            ref={(el) => { widgetRefs.current.telemetry = el; }}
+            inert={covered.telemetry}
+            style={{ width: 210, height: 210, pointerEvents: covered.telemetry ? 'none' : 'auto' }}
+          >
+            {WIDGETS.telemetry}
+          </div>
+        )}
+        {widgets.rankings && (
+          <div
+            className="dw-wrap dw-wrap--fixed"
+            ref={(el) => { widgetRefs.current.rankings = el; }}
+            inert={covered.rankings}
+            style={{ width: 320, height: 210, pointerEvents: covered.rankings ? 'none' : 'auto' }}
+          >
+            {WIDGETS.rankings}
+          </div>
+        )}
+        {widgets.deckdiag && (
+          <div
+            className="dw-wrap"
+            ref={(el) => { widgetRefs.current.deckdiag = el; }}
+            inert={covered.deckdiag}
+            style={{ width: 210, pointerEvents: covered.deckdiag ? 'none' : 'auto' }}
+          >
+            {WIDGETS.deckdiag}
+          </div>
+        )}
       </div>
 
       <div className="desktop-widgets desktop-widgets--bottom" aria-label="Desktop widgets (bottom right)">
-        <div className="dw-wrap" style={{ width: 200 }}>
-          {WIDGETS.deckdiag}
-        </div>
+        {widgets.showcase && (
+          <div
+            className="dw-wrap"
+            ref={(el) => { widgetRefs.current.showcase = el; }}
+            inert={covered.showcase}
+            style={{ width: 510, pointerEvents: covered.showcase ? 'none' : 'auto' }}
+          >
+            {WIDGETS.showcase}
+          </div>
+        )}
       </div>
     </div>
   );

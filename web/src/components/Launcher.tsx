@@ -30,6 +30,10 @@ function rememberRecent(href: string): void {
   }
 }
 
+function isAuthFlow(href: string): boolean {
+  return href.startsWith('/signup') || href.startsWith('/forgot') || href.startsWith('/auth/');
+}
+
 interface Category {
   id: string;
   title: string;
@@ -41,6 +45,7 @@ interface Category {
 export function Launcher() {
   const {
     launcherOpen, setLauncherOpen, openWindow, setInspect, openDeckLauncher, showAlert, showConfirm, handheld,
+    openAppView, openUrl,
   } = useWorkstation();
   const { session } = useAuth();
   const router = useRouter();
@@ -55,6 +60,10 @@ export function Launcher() {
   useEffect(() => {
     if (!launcherOpen) return;
     const onDown = (e: MouseEvent) => {
+      const t = e.target as HTMLElement | null;
+      // Ignore clicks on launcher-toggle controls (status-bar ROAM-OS, dock ▤,
+      // desktop PROGRAMS) so their own click handler can toggle cleanly.
+      if (t && t.closest('[data-launcher-toggle]')) return;
       if (ref.current && !ref.current.contains(e.target as Node)) setLauncherOpen(false);
     };
     const onKey = (e: KeyboardEvent) => {
@@ -109,6 +118,11 @@ export function Launcher() {
     setLauncherOpen(false);
   };
 
+  const openInternal = (href: string, label: string) => {
+    if (isAuthFlow(href)) router.push(href);
+    else openAppView(href, label);
+  };
+
   const recentItems = recent
     .map((href) => allItems.find((i) => i.href === href))
     .filter((i): i is LauncherItem => !!i);
@@ -134,26 +148,46 @@ export function Launcher() {
       );
     }
     if (item.external) {
+      const external = item.external;
       return (
-        <a key={item.label} href={item.external} target="_blank" rel="noopener noreferrer" className="launcher-item">
+        <button
+          key={item.label}
+          type="button"
+          className="launcher-item"
+          onClick={() => { click(); setLauncherOpen(false); openUrl({ url: external, title: item.label }); }}
+        >
           <span className="launcher-item-glyph">{glyph(item)}</span>
           <span>{item.label}</span>
-          <span className="launcher-item-file">{item.file} ↗</span>
-        </a>
+          <span className="launcher-item-file">{item.file}</span>
+        </button>
+      );
+    }
+    if (isAuthFlow(item.href ?? '')) {
+      return (
+        <Link
+          key={item.label}
+          href={item.href ?? '/'}
+          className="launcher-item"
+          onClick={() => onRoute(item.href ?? '/')}
+        >
+          <span className="launcher-item-glyph">{glyph(item)}</span>
+          <span>{item.label}</span>
+          <span className="launcher-item-file">{item.file}</span>
+        </Link>
       );
     }
     return (
-      <Link
+      <button
         key={item.label}
-        href={item.href ?? '/'}
+        type="button"
         className="launcher-item"
-        onClick={(e) => { if (gate(item)) e.preventDefault(); else onRoute(item.href ?? '/'); }}
+        onClick={() => { if (gate(item)) return; onRoute(item.href ?? '/'); openInternal(item.href ?? '/', item.label); }}
         aria-disabled={item.auth === true && !signedIn}
       >
         <span className="launcher-item-glyph">{glyph(item)}{item.auth === true && !signedIn ? ' 🔒' : ''}</span>
         <span>{item.label}</span>
         <span className="launcher-item-file">{item.auth === true && !signedIn ? 'log in' : item.file}</span>
-      </Link>
+      </button>
     );
   };
 
@@ -170,7 +204,7 @@ export function Launcher() {
       {recentItems.length > 0 && (
         <div className="launcher-recent">
           {recentItems.map((item) => (
-            <button key={item.href} type="button" className="launcher-recent-chip" onClick={() => onRoute(item.href ?? '/')}>
+            <button key={item.href} type="button" className="launcher-recent-chip" onClick={() => { onRoute(item.href ?? '/'); openInternal(item.href ?? '/', item.label); }}>
               {glyph(item)} {item.label}
             </button>
           ))}

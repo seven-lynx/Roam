@@ -25,6 +25,8 @@ import {
   type AlertMessage,
   type AlertConfirmOptions,
   type BrowseTarget,
+  type AppView,
+  type WidgetId,
 } from '@/components/WorkstationContext';
 import { useIsMobile } from '@/lib/hooks';
 import { StatusBar } from '@/components/StatusBar';
@@ -43,6 +45,7 @@ import { Desktop } from '@/components/Desktop';
 import { SettingsApp } from '@/components/SettingsApp';
 import { CyberdeckControls } from '@/components/CyberdeckControls';
 import { BrowserWindow } from '@/components/BrowserWindow';
+import { AppWindow } from '@/components/AppWindow';
 import { DeckLauncher } from '@/components/DeckLauncher';
 import { RoamInfo } from '@/components/RoamInfo';
 import { CoffeeApp } from '@/components/CoffeeApp';
@@ -67,6 +70,7 @@ const MUTED_KEY = 'roam-muted';
 const BRIGHT_KEY = 'roam-bright';
 const ART_KEY = 'roam-art';
 const WARP_KEY = 'roam-warp';
+const WIDGETS_KEY = 'roam-widgets';
 const AUTOHIDE_KEY = 'roam-autohide';
 const THEME_KEY = 'roam-theme';
 const UI_MODE_KEY = 'roam-ui-mode';
@@ -91,8 +95,8 @@ const DECK_VERSION_KEY = 'roam-deck-version';
 // objectBoundingBox units, so `scale` is a fraction of the screen size and
 // follows the warp slider to match Android's amount (0 … 0.70).
 const BARREL_MAP_SIZE = 256;
-// Android's `CrtOverlay` tops out at (fisheye - 1) / 9 * 0.70 → 0.70 at max dial.
-const BARREL_AMOUNT_MAX = 0.7;
+// Recalibrated range: the warp slider's 100% is now a subtle 0.14 (the old 10%).
+const BARREL_AMOUNT_MAX = 0.14;
 // Channel swing ÷ normalised displacement (508 / 255 ≈ 1.992): the corner
 // displacement (d·r2 = 0.25) maps to the full 0..255 channel range, so
 // scale = amount / gain reproduces the shader's displacement exactly.
@@ -173,8 +177,8 @@ export function WorkstationShell({
   const [sound, setSoundState] = useState(true);
   const [volume, setVolumeState] = useState(0.7);
   const [muted, setMutedState] = useState(false);
-  const [brightness, setBrightnessState] = useState(1);
-  const [warp, setWarpState] = useState(0.7);
+  const [brightness, setBrightnessState] = useState(BRIGHTNESS_MAX);
+  const [warp, setWarpState] = useState(0.1);
   const [displayFx, setDisplayFxState] = useState<DisplayFx>({ ...DISPLAY_FX_DEFAULTS });
   const [soundFx, setSoundFxState] = useState<Record<SoundEffect, boolean>>({ ...DEFAULT_SOUND_FX });
   const [barrelMap, setBarrelMap] = useState('');
@@ -195,6 +199,8 @@ export function WorkstationShell({
   const [deckProgress, setDeckProgressState] = useState(0);
   const [deckReady, setDeckReadyState] = useState(false);
   const [browse, setBrowseState] = useState<BrowseTarget | null>(null);
+  const [appView, setAppViewState] = useState<AppView | null>(null);
+  const [widgets, setWidgetsState] = useState<Record<WidgetId, boolean>>({ showcase: true, rankings: true, telemetry: true, deckdiag: true });
   const zRef = useRef(0);
   // Effective handheld (mobile) layout — forced via the Settings toggle, or
   // auto-detected from the viewport.
@@ -270,6 +276,15 @@ export function WorkstationShell({
       const rawTheme = localStorage.getItem(THEME_KEY) ?? localStorage.getItem('roam-phosphor');
       if (rawTheme && THEME_PRESETS.some((p) => p.id === rawTheme)) setThemeState(rawTheme as Theme);
       if (localStorage.getItem(AUTOHIDE_KEY) === '1') setTaskbarAutoHideState(true);
+      const rawWidgets = localStorage.getItem(WIDGETS_KEY);
+      if (rawWidgets) {
+        try {
+          const parsed = JSON.parse(rawWidgets) as Partial<Record<WidgetId, boolean>>;
+          setWidgetsState((prev) => ({ ...prev, ...parsed }));
+        } catch {
+          /* corrupt widgets: keep defaults */
+        }
+      }
       const rawUiMode = localStorage.getItem(UI_MODE_KEY);
       if (rawUiMode === 'desktop' || rawUiMode === 'handheld') setUiModeState(rawUiMode);
 
@@ -445,8 +460,8 @@ export function WorkstationShell({
     setSoundState(true);
     setVolumeState(0.7);
     setMutedState(false);
-    setBrightnessState(1);
-    setWarpState(handheld ? 0 : 0.7);
+    setBrightnessState(BRIGHTNESS_MAX);
+    setWarpState(handheld ? 0 : 0.1);
     setDisplayFxState({ ...DISPLAY_FX_DEFAULTS });
     setSoundFxState({ ...DEFAULT_SOUND_FX });
     SOUND_EFFECTS.forEach((name) => setSfxEffect(name, DEFAULT_SOUND_FX[name]));
@@ -458,13 +473,14 @@ export function WorkstationShell({
     setLauncherOpenState(false);
     setAppDrawerOpenState(false);
     setQuickSettingsOpenState(false);
+    setWidgetsState({ showcase: true, rankings: true, telemetry: true, deckdiag: true });
     setArtVariantState('a');
     setInspectState(false);
     setCameraState(DEFAULT_CAMERA);
     setFitState(null);
     resetWallpaper();
     try {
-      [FX_KEY, DISPLAY_FX_KEY, SOUND_FX_KEY, SOUND_KEY, VOL_KEY, MUTED_KEY, BRIGHT_KEY, ART_KEY, WARP_KEY, THEME_KEY, AUTOHIDE_KEY, UI_MODE_KEY, CAMERA_ZOOM_KEY, CAMERA_PAN_KEY, CAMERA_FIT_KEY]
+      [FX_KEY, DISPLAY_FX_KEY, SOUND_FX_KEY, SOUND_KEY, VOL_KEY, MUTED_KEY, BRIGHT_KEY, ART_KEY, WARP_KEY, THEME_KEY, AUTOHIDE_KEY, UI_MODE_KEY, WIDGETS_KEY, CAMERA_ZOOM_KEY, CAMERA_PAN_KEY, CAMERA_FIT_KEY]
         .forEach((k) => localStorage.removeItem(k));
     } catch { /* ignore */ }
   }, [handheld]);
@@ -502,7 +518,7 @@ export function WorkstationShell({
     });
   }, []);
 
-  const openWindow = useCallback((id: WindowId) => {
+  const openWindow = useCallback((id: WindowId, title?: string) => {
     setWindows((prev) => {
       const existing = prev[id];
       const def = WINDOW_DEFAULTS[id];
@@ -544,8 +560,8 @@ export function WorkstationShell({
       next = {
         ...next,
         [id]: existing
-          ? { ...existing, minimized: false, z }
-          : { title: def.title, minimized: false, maximized, rect, z },
+          ? { ...existing, title: title ?? existing.title, minimized: false, z }
+          : { title: title ?? def.title, minimized: false, maximized, rect, z },
       };
       return next;
     });
@@ -579,6 +595,24 @@ export function WorkstationShell({
     setBrowseState(null);
     closeWindow('browser');
   }, [closeWindow]);
+
+  const openAppView = useCallback((url: string, title: string) => {
+    setAppViewState({ url, title });
+    openWindow('webapp', title);
+  }, [openWindow]);
+
+  const closeAppView = useCallback(() => {
+    setAppViewState(null);
+    closeWindow('webapp');
+  }, [closeWindow]);
+
+  const toggleWidget = useCallback((id: WidgetId) => {
+    setWidgetsState((prev) => {
+      const next = { ...prev, [id]: !prev[id] };
+      try { localStorage.setItem(WIDGETS_KEY, JSON.stringify(next)); } catch { /* ignore */ }
+      return next;
+    });
+  }, []);
 
   const minimizeWindow = useCallback((id: WindowId) => {
     setWindows((prev) => {
@@ -736,8 +770,13 @@ export function WorkstationShell({
       openUrl,
       updateBrowse,
       closeBrowse,
+      appView,
+      openAppView,
+      closeAppView,
+      widgets,
+      toggleWidget,
     }),
-    [fx, setFx, sound, setSound, volume, setVolume, muted, toggleMute, setMuted, brightness, setBrightness, warp, setWarp, displayFx, setDisplayFx, soundFx, setSoundFx, taskbarAutoHide, setTaskbarAutoHide, theme, setTheme, uiMode, setUiMode, handheld, artVariant, setArtVariant, inspect, setInspect, toggleInspect, camera, setCamera, resetCamera, fit, saveFit, fitDeck, alert, showAlert, showConfirm, dismissAlert, resetOsSettings, windows, isOpen, openWindow, closeWindow, launcherOpen, setLauncherOpen, toggleLauncher, appDrawerOpen, setAppDrawerOpen, toggleAppDrawer, quickSettingsOpen, setQuickSettingsOpen, toggleQuickSettings, minimizeWindow, toggleMaximize, focusWindow, moveWindow, minimizeAll, restoreAll, deckReady, setDeckReady, deckMode, setDeckMode, deckRequested, setDeckRequested, openDeckLauncher, deckProgress, setDeckProgress, browse, openUrl, updateBrowse, closeBrowse],
+    [fx, setFx, sound, setSound, volume, setVolume, muted, toggleMute, setMuted, brightness, setBrightness, warp, setWarp, displayFx, setDisplayFx, soundFx, setSoundFx, taskbarAutoHide, setTaskbarAutoHide, theme, setTheme, uiMode, setUiMode, handheld, artVariant, setArtVariant, inspect, setInspect, toggleInspect, camera, setCamera, resetCamera, fit, saveFit, fitDeck, alert, showAlert, showConfirm, dismissAlert, resetOsSettings, windows, isOpen, openWindow, closeWindow, launcherOpen, setLauncherOpen, toggleLauncher, appDrawerOpen, setAppDrawerOpen, toggleAppDrawer, quickSettingsOpen, setQuickSettingsOpen, toggleQuickSettings, minimizeWindow, toggleMaximize, focusWindow, moveWindow, minimizeAll, restoreAll, deckReady, setDeckReady, deckMode, setDeckMode, deckRequested, setDeckRequested, openDeckLauncher, deckProgress, setDeckProgress, browse, openUrl, updateBrowse, closeBrowse, appView, openAppView, closeAppView, widgets, toggleWidget],
   );
 
   const barrelActive = fx && displayFx.barrel && warp > 0.02;
@@ -785,6 +824,7 @@ export function WorkstationShell({
           <QuickSettings />
           <ScanSequence />
           <BrowserWindow />
+          <AppWindow />
           <FeedbackWidget />
           <SettingsApp />
           <CyberdeckControls />

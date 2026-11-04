@@ -249,10 +249,6 @@ export function DeckDiagnosticsWidget() {
 
   return (
     <div className={`widget deck-diag${cfg.bg ? '' : ' bg-off'}`}>
-      {/* Invisible drag surface: the whole disc is a `.widget-head`, so the
-          DraggableWidget wrapper can reposition from anywhere inside it. */}
-      <div className="widget-head deck-diag-head" aria-hidden="true" />
-
       <div className="deck-diag-stage">
         {menuOpen ? (
           <RingConfigPanel cfg={cfg} onUpdate={update} onClose={() => setMenuOpen(false)} />

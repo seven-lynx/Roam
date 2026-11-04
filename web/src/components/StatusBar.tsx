@@ -25,7 +25,7 @@ export function StatusBar() {
   const { session } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
-  const { deckMode, setDeckMode, openDeckLauncher, toggleLauncher, handheld } = useWorkstation();
+  const { toggleLauncher, handheld } = useWorkstation();
   const [menuOpen, setMenuOpen] = useState(false);
   const [clock, setClock] = useState('');
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -91,6 +91,7 @@ export function StatusBar() {
       )}
       <button
         type="button"
+        data-launcher-toggle="true"
         onClick={toggleLauncher}
         className="font-pixel tracking-[0.22em] text-ink bg-transparent border-0 p-0 cursor-pointer hover:text-phosphor transition-colors"
         aria-label="Open programs"
@@ -140,17 +141,6 @@ export function StatusBar() {
 
       <span className="tabular-nums text-ink min-w-[3.2ch]" suppressHydrationWarning>{clock || '--:--'}</span>
       <SignalBars />
-      <button
-        type="button"
-        onClick={() => (deckMode ? setDeckMode(false) : openDeckLauncher())}
-        aria-label={deckMode ? 'Exit the deck' : 'Mount the deck'}
-        aria-pressed={deckMode}
-        className="flex items-center gap-1 px-2 py-0.5 rounded border border-line text-[11px] text-muted hover:text-ink hover:border-gold transition-colors"
-        title={deckMode ? 'Exit cyberdeck view' : 'Mount the 3D cyberdeck'}
-      >
-        <span aria-hidden="true">⛶</span>
-        <span className="hidden sm:inline font-pixel tracking-widest">DECK</span>
-      </button>
       <button
         type="button"
         onClick={toggleFullscreen}

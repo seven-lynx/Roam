@@ -19,7 +19,7 @@ interface Props {
  * card also surfaces the category · subcategory readout and the Wilson score.
  */
 export function ScanResult({ target, error, actionRef, onAgain, onClose }: Props) {
-  const { openUrl } = useWorkstation();
+  const { openUrl, closeWindow } = useWorkstation();
 
   if (!target) {
     return (
@@ -69,7 +69,8 @@ export function ScanResult({ target, error, actionRef, onAgain, onClose }: Props
             ref={actionRef as RefObject<HTMLButtonElement>}
             type="button"
             className="btn btn-primary"
-            onClick={() =>
+            onClick={() => {
+              closeWindow('scan');
               openUrl({
                 url: target.original_url,
                 title: target.title,
@@ -80,8 +81,8 @@ export function ScanResult({ target, error, actionRef, onAgain, onClose }: Props
                 upvotes: target.upvotes,
                 downvotes: target.downvotes,
                 urlId: target.id,
-              })
-            }
+              });
+            }}
           >
             Open
           </button>

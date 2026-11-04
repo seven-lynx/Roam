@@ -160,6 +160,7 @@ export function SettingsApp() {
     showAlert,
     resetCamera,
     resetOsSettings,
+    widgets, toggleWidget,
   } = useWorkstation();
   const { session } = useAuth();
   const router = useRouter();
@@ -269,6 +270,16 @@ export function SettingsApp() {
                   Reset to auto-detect
                 </button>
               )}
+            </div>
+          </section>
+
+          <section className="panel">
+            <div className="panel-head"><span className="led" />WIDGETS</div>
+            <div className="p-2">
+              <Toggle on={widgets.showcase} onChange={() => toggleWidget('showcase')} label="This month's picks" hint="showcase slideshow" />
+              <Toggle on={widgets.rankings} onChange={() => toggleWidget('rankings')} label="Rankings" hint="top explorers" />
+              <Toggle on={widgets.telemetry} onChange={() => toggleWidget('telemetry')} label="Sys telemetry" hint="network counters" />
+              <Toggle on={widgets.deckdiag} onChange={() => toggleWidget('deckdiag')} label="Deck diagnostics" hint="load / hot / warm rings" />
             </div>
           </section>
 

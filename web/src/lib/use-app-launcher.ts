@@ -15,7 +15,7 @@ export function useAppLauncher() {
   const router = useRouter();
   const pathname = usePathname();
   const { session } = useAuth();
-  const { openWindow, setInspect, openDeckLauncher, showAlert, showConfirm } = useWorkstation();
+  const { openWindow, setInspect, openDeckLauncher, showAlert, showConfirm, openAppView, openUrl } = useWorkstation();
   const signedIn = !!session;
 
   const gate = (app: AppEntry): boolean => {
@@ -31,11 +31,15 @@ export function useAppLauncher() {
     if (gate(app)) return;
 
     if (app.external) {
-      window.open(app.external, '_blank', 'noopener,noreferrer');
+      openUrl({ url: app.external, title: app.label });
       return;
     }
     if (app.href) {
-      router.push(app.href);
+      if (app.href.startsWith('/signup') || app.href.startsWith('/forgot') || app.href.startsWith('/auth/')) {
+        router.push(app.href);
+      } else {
+        openAppView(app.href, app.label);
+      }
       return;
     }
     if (app.program) {

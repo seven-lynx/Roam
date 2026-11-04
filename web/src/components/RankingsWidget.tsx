@@ -67,7 +67,6 @@ export function RankingsWidget({ limit = 5 }: { limit?: number }) {
   return (
     <div className="widget">
       <div className="widget-head">
-        <span className="widget-grip" aria-hidden="true"><i /><i /><i /></span>
         <span className="widget-title">RANKINGS</span>
       </div>
       <div className="widget-body">

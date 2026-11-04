@@ -58,7 +58,6 @@ export function SiteShowcase() {
     return (
       <div className="widget">
         <div className="widget-head">
-          <span className="widget-grip" aria-hidden="true"><i /><i /><i /></span>
           <span className="widget-title">This month&apos;s picks</span>
         </div>
         <div className="widget-body animate-pulse">
@@ -81,7 +80,6 @@ export function SiteShowcase() {
       onMouseLeave={() => setPaused(false)}
     >
       <div className="widget-head">
-        <span className="widget-grip" aria-hidden="true"><i /><i /><i /></span>
         <span className="widget-title">This month&apos;s picks</span>
         <span className="widget-hint">Refreshed monthly</span>
       </div>

@@ -7,7 +7,7 @@ import { ANCHOR_CAMERA } from '@/lib/deck-framing';
 import { PROGRAMS, type ProgramId } from '@/lib/os-programs';
 import { DEFAULT_SOUND_FX, type SoundEffect } from '@/lib/sfx';
 
-export type WindowId = 'launcher' | 'scan' | 'feedback' | 'terminal' | 'settings' | 'browser' | 'cyberdeck' | 'deck' | 'info' | 'coffee' | 'roll' | ProgramId;
+export type WindowId = 'launcher' | 'scan' | 'feedback' | 'terminal' | 'settings' | 'browser' | 'webapp' | 'cyberdeck' | 'deck' | 'info' | 'coffee' | 'roll' | ProgramId;
 
 export interface WindowRect {
   x: number;
@@ -36,7 +36,8 @@ export const WINDOW_DEFAULTS: Record<
   feedback: { title: 'COMMS', w: 560, h: 420 },
   terminal: { title: 'TERMINAL', w: 720, h: 300 },
   settings: { title: 'SETTINGS', w: 640, h: 560 },
-  browser: { title: 'DRIFT', w: 920, h: 620 },
+  browser: { title: 'ROAM', w: 920, h: 620 },
+  webapp: { title: 'APP', w: 760, h: 560 },
   cyberdeck: { title: 'CYBERDECK CONTROLS', w: 640, h: 560 },
   deck: { title: 'MOUNT DECK', w: 560, h: 320 },
   info: { title: 'ROAM INFO', w: 720, h: 560 },
@@ -147,6 +148,15 @@ export interface BrowseTarget {
   rated?: 1 | -1 | null;
 }
 
+/** An internal roamtheweb.app page opened as an app-style window. */
+export interface AppView {
+  url: string;
+  title: string;
+}
+
+/** The four docked desktop widgets that can be toggled in Settings. */
+export type WidgetId = 'showcase' | 'rankings' | 'telemetry' | 'deckdiag';
+
 /** Neutral "full deck in frame" zoom the OS treats as normal size. */
 export const DEFAULT_ZOOM = 1;
 export const CAMERA_ZOOM_MIN = 0.2;
@@ -223,7 +233,7 @@ export interface WorkstationState {
   /** Open-window state keyed by window id. */
   windows: Windows;
   isOpen: (id: WindowId) => boolean;
-  openWindow: (id: WindowId) => void;
+  openWindow: (id: WindowId, title?: string) => void;
   closeWindow: (id: WindowId) => void;
   /** Start-menu launcher dropdown (MENU key / Programs button). */
   launcherOpen: boolean;
@@ -263,6 +273,16 @@ export interface WorkstationState {
   updateBrowse: (target: BrowseTarget) => void;
   /** Close the browser window and clear the current browse target. */
   closeBrowse: () => void;
+  /** Internal roamtheweb.app page currently open in the app-style window. */
+  appView: AppView | null;
+  /** Open an internal route as an app-style window (with OS chrome). */
+  openAppView: (url: string, title: string) => void;
+  /** Close the app-style window and clear the current app view. */
+  closeAppView: () => void;
+  /** Per-widget visibility toggles for the desktop widgets. */
+  widgets: Record<WidgetId, boolean>;
+  /** Toggle a desktop widget on/off (persisted). */
+  toggleWidget: (id: WidgetId) => void;
 }
 
 const noop = () => {};
@@ -278,9 +298,9 @@ const DEFAULT_WORKSTATION: WorkstationState = {
   setVolume: noop,
   muted: false,
   toggleMute: noop,
-  brightness: 1,
+  brightness: BRIGHTNESS_MAX,
   setBrightness: noop,
-  warp: 0.7,
+  warp: 0.1,
   setWarp: noop,
   displayFx: { ...DISPLAY_FX_DEFAULTS },
   setDisplayFx: noop,
@@ -342,6 +362,11 @@ const DEFAULT_WORKSTATION: WorkstationState = {
   openUrl: noop,
   updateBrowse: noop,
   closeBrowse: noop,
+  appView: null,
+  openAppView: noop,
+  closeAppView: noop,
+  widgets: { showcase: true, rankings: true, telemetry: true, deckdiag: true },
+  toggleWidget: noop,
 };
 
 export const WorkstationContext = createContext<WorkstationState>(DEFAULT_WORKSTATION);

@@ -529,6 +529,12 @@ a[rel*="noopener"]:visited {
 }
 .screen-scroll:focus-visible { outline: 2px solid var(--phosphor); outline-offset: -2px; }
 
+.embed-root {
+  min-height: 100vh;
+  background: var(--bg);
+  color: var(--fg);
+}
+
 .screen-bar {
   position: relative;
   z-index: 5;
@@ -536,6 +542,8 @@ a[rel*="noopener"]:visited {
   align-items: center;
   gap: 0.5rem;
   flex: 0 0 auto;
+  height: 40px;
+  box-sizing: border-box;
   padding: 0.35rem 0.75rem;
   background: var(--panel-2);
   border-bottom: 1px solid var(--line);
@@ -2083,7 +2091,7 @@ button.gadget:active { transform: translateY(1px) scale(0.98); }
 /* ── Start-menu launcher dropdown ─────────────────────────────────────── */
 .launcher-dropdown {
   position: absolute;
-  top: 2.25rem;
+  top: 40px;
   left: 0.5rem;
   z-index: 45;
   width: fit-content;
@@ -2392,16 +2400,8 @@ button.gadget:active { transform: translateY(1px) scale(0.98); }
   pointer-events: auto;
   flex: 0 0 auto;
 }
-.dw-resize {
-  position: absolute;
-  left: 0;
-  bottom: 0;
-  width: 18px;
-  height: 18px;
-  cursor: ew-resize;
-  touch-action: none;
-  z-index: 2;
-}
+.dw-wrap--fixed .widget { height: 100%; display: flex; flex-direction: column; }
+.dw-wrap--fixed .widget-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
 .desktop-widget { flex: 0 0 auto; }
 .desktop-widgets--left {
   left: 12px;
@@ -2419,13 +2419,6 @@ button.gadget:active { transform: translateY(1px) scale(0.98); }
   flex-direction: row;
   align-items: flex-start;
   overflow: visible;
-}
-.desktop-widgets--bottomleft {
-  top: auto;
-  left: 12px;
-  right: auto;
-  bottom: 60px;
-  align-items: flex-start;
 }
 @media (max-width: 900px) {
   .desktop-widgets { display: none; }
@@ -2459,17 +2452,6 @@ button.gadget:active { transform: translateY(1px) scale(0.98); }
   padding: 0.45rem 0.7rem;
   border-bottom: 1px solid var(--line);
   background: linear-gradient(180deg, var(--panel-2), var(--panel));
-}
-.widget-grip {
-  display: flex;
-  gap: 3px;
-  flex: 0 0 auto;
-}
-.widget-grip i {
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  background: var(--muted);
 }
 .widget-title {
   font-family: var(--font-mono);
@@ -2591,7 +2573,7 @@ button.gadget:active { transform: translateY(1px) scale(0.98); }
 /* Conky-style deck diagnostics: concentric open-arc rings in a round disc */
 .widget.deck-diag {
   position: relative;
-  max-width: 200px;
+  max-width: 210px;
   aspect-ratio: 1 / 1;
   border-radius: 50%;
   clip-path: none;
@@ -2620,16 +2602,6 @@ button.gadget:active { transform: translateY(1px) scale(0.98); }
 }
 .widget.deck-diag.bg-off .deck-diag-center { padding: 0.4rem 0.7rem; }
 .widget.deck-diag.bg-off .deck-diag-top { padding: 0.25rem 0.6rem; }
-.deck-diag-head {
-  position: absolute;
-  inset: 0;
-  padding: 0;
-  border: 0;
-  background: transparent;
-  cursor: grab;
-  z-index: 0;
-}
-.deck-diag-head:active { cursor: grabbing; }
 .deck-diag-stage {
   position: absolute;
   inset: 0;

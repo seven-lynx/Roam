@@ -191,7 +191,7 @@ export function BrowserWindow() {
         <iframe
           key={frameKey}
           src={browse.url}
-          title={label || 'Drift'}
+          title={label || 'Roam'}
           className="browser-iframe"
           referrerPolicy="no-referrer"
         />

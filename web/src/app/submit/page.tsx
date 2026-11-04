@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { LoadingPage } from '@/components/UI';
 import { createClient } from '@/lib/supabase/client';
 import { useRequireAuth } from '@/lib/hooks';
@@ -22,6 +23,7 @@ const FALLBACK_CATEGORIES: Category[] = [
 export default function SubmitPage() {
   const { isReady } = useRequireAuth();
   const supabase = createClient();
+  const isEmbed = useSearchParams().get('embed') === '1';
 
   const [url, setUrl] = useState('');
   const [title, setTitle] = useState('');
@@ -116,9 +118,11 @@ export default function SubmitPage() {
   return (
     <div className="min-h-full bg-screen">
       <main className="max-w-2xl mx-auto px-6 py-12">
-        <Link href="/profile" className="text-muted hover:text-ink transition-colors text-sm mb-8 inline-block">
-          ← Back to profile
-        </Link>
+        {!isEmbed && (
+          <Link href="/profile" className="text-muted hover:text-ink transition-colors text-sm mb-8 inline-block">
+            ← Back to profile
+          </Link>
+        )}
 
         <div className="flex flex-col gap-2 mb-8">
           <h1 className="text-3xl font-bold text-ink">Upload a URL</h1>
@@ -141,12 +145,14 @@ export default function SubmitPage() {
               >
                 Submit another
               </button>
-              <Link
-                href="/profile"
-                className="rounded-lg bg-panel bg-panel text-ink text-ink px-4 py-2 text-sm font-semibold hover:opacity-90 transition-opacity"
-              >
-                Back to profile
-              </Link>
+              {!isEmbed && (
+                <Link
+                  href="/profile"
+                  className="rounded-lg bg-panel bg-panel text-ink text-ink px-4 py-2 text-sm font-semibold hover:opacity-90 transition-opacity"
+                >
+                  Back to profile
+                </Link>
+              )}
             </div>
           </div>
         ) : (
