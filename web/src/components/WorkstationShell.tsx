@@ -48,6 +48,7 @@ import { BrowserWindow } from '@/components/BrowserWindow';
 import { AppWindow } from '@/components/AppWindow';
 import { DeckLauncher } from '@/components/DeckLauncher';
 import { RoamInfo } from '@/components/RoamInfo';
+import { Readme } from '@/components/Readme';
 import { CoffeeApp } from '@/components/CoffeeApp';
 import { CameraRollProgram } from '@/components/programs/CameraRollProgram';
 import { SnakeProgram } from '@/components/programs/SnakeProgram';
@@ -79,6 +80,7 @@ const CAMERA_PAN_KEY = 'roam-deck-pan';
 const CAMERA_FIT_KEY = 'roam-deck-fit';
 const WINDOW_LAYOUT_KEY = 'roam-window-layout';
 const DECK_VERSION_KEY = 'roam-deck-version';
+const README_SEEN_KEY = 'roam-readme-seen';
 
 // ── CRT barrel distortion ───────────────────────────────────────────────
 // Real geometric barrel warp via feDisplacementMap, ported from the Android
@@ -205,6 +207,12 @@ export function WorkstationShell({
   // Effective handheld (mobile) layout — forced via the Settings toggle, or
   // auto-detected from the viewport.
   const handheld = uiMode === 'handheld' || (uiMode === 'auto' && isMobile);
+
+  // Latest handheld value, for the deferred first-run readme check below.
+  const handheldRef = useRef(handheld);
+  useEffect(() => {
+    handheldRef.current = handheld;
+  }, [handheld]);
 
   // The CRT barrel warp (curved-glass effect) is meaningless on a palm-top:
   // disable it whenever the handheld layout is active.
@@ -567,6 +575,28 @@ export function WorkstationShell({
     });
   }, []);
 
+  // First-run onboarding: auto-open the README once, desktop only. Handheld
+  // operators reach it from a home-screen icon and open it by hand, so skip
+  // the auto-open whenever the effective layout is mobile.
+  const readmeSeenRef = useRef(false);
+  useEffect(() => {
+    // Defer a tick: on the first render `handheld` is still desktop — the
+    // SSR-safe media query and any persisted UI mode only settle after mount.
+    const t = setTimeout(() => {
+      if (readmeSeenRef.current) return;
+      readmeSeenRef.current = true;
+      if (handheldRef.current) return;
+      try {
+        if (localStorage.getItem(README_SEEN_KEY) !== null) return;
+        localStorage.setItem(README_SEEN_KEY, '1');
+      } catch {
+        /* storage unavailable: still show on desktop */
+      }
+      openWindow('readme');
+    }, 0);
+    return () => clearTimeout(t);
+  }, [openWindow]);
+
   const openDeckLauncher = useCallback(() => {
     setDeckRequestedState(true);
     setDeckProgressState(0);
@@ -830,6 +860,7 @@ export function WorkstationShell({
           <CyberdeckControls />
           <DeckLauncher />
           <RoamInfo />
+          <Readme />
           <CoffeeApp />
           <CameraRollProgram />
           <SnakeProgram />

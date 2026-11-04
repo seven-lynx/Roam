@@ -145,6 +145,7 @@ export const HOME_APPS: AppEntry[] = [
   { id: 'home-refuel', label: 'REFUEL', file: 'roam refuel', glyph: '☕', kind: 'window', group: 'System', window: 'coffee' },
   { id: 'home-cyberdeck', label: 'CYBERDECK', file: 'roam deck', glyph: '⛶', kind: 'action', group: 'System', action: 'deckview' },
   { id: 'home-roll', label: 'GALLERY', file: 'roam roll', glyph: '◳', kind: 'window', group: 'System', window: 'roll' },
+  { id: 'home-readme', label: 'README', file: 'readme.txt', glyph: '✎', kind: 'window', group: 'System', window: 'readme' },
 ];
 
 /** Folders on the handheld home screen — tap to open a scoped tile grid. */

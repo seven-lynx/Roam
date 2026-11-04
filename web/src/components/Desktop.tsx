@@ -42,6 +42,7 @@ const DESKTOP_APPS: DesktopApp[] = [
   { id: 'feedback', label: 'COMMS', glyph: '☰', file: 'roam comms' },
   { id: 'settings', label: 'CONFIG', glyph: '⚙', file: '~/.roamrc' },
   { id: 'info', label: 'ROAM INFO', glyph: '◎', file: 'roam info' },
+  { id: 'readme', label: 'README', glyph: '✎', file: 'readme.txt' },
   { id: 'coffee', label: 'REFUEL', glyph: '☕', file: 'roam refuel' },
   { id: 'cyberdeck', label: 'CYBERDECK', glyph: '⛶', file: 'roam deck' },
   { id: '7lynx', label: '7 LYNX', glyph: '7', file: 'github.com/seven-lynx', external: 'https://github.com/seven-lynx/roam' },

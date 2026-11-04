@@ -7,7 +7,7 @@ import { ANCHOR_CAMERA } from '@/lib/deck-framing';
 import { PROGRAMS, type ProgramId } from '@/lib/os-programs';
 import { DEFAULT_SOUND_FX, type SoundEffect } from '@/lib/sfx';
 
-export type WindowId = 'launcher' | 'scan' | 'feedback' | 'terminal' | 'settings' | 'browser' | 'webapp' | 'cyberdeck' | 'deck' | 'info' | 'coffee' | 'roll' | ProgramId;
+export type WindowId = 'launcher' | 'scan' | 'feedback' | 'terminal' | 'settings' | 'browser' | 'webapp' | 'cyberdeck' | 'deck' | 'info' | 'coffee' | 'roll' | 'readme' | ProgramId;
 
 export interface WindowRect {
   x: number;
@@ -43,6 +43,7 @@ export const WINDOW_DEFAULTS: Record<
   info: { title: 'ROAM INFO', w: 720, h: 560 },
   coffee: { title: 'REFUEL', w: 560, h: 320 },
   roll: { title: 'GALLERY', w: 560, h: 640 },
+  readme: { title: 'README', w: 560, h: 640 },
   snake: { title: PROGRAMS.snake.title, w: 560, h: 640 },
   minesweeper: { title: PROGRAMS.minesweeper.title, w: 520, h: 600 },
   tetris: { title: PROGRAMS.tetris.title, w: 420, h: 640 },

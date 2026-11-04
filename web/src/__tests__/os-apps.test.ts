@@ -25,8 +25,8 @@ describe('os-apps registry', () => {
     expect(filterApps('   ')).toHaveLength(ALL_APPS.length);
   });
 
-  it('lays out the handheld home screen with seven singles and two folders', () => {
-    expect(HOME_APPS).toHaveLength(7);
+  it('lays out the handheld home screen with eight singles and two folders', () => {
+    expect(HOME_APPS).toHaveLength(8);
     expect(HOME_FOLDERS.map((f) => f.id)).toEqual(['games', 'links']);
   });
 
