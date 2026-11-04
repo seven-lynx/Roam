@@ -118,7 +118,8 @@ async function handleList(admin: any) {
       updated_at,
       reviewer_note,
       reviewed_by,
-      subcategory_id
+      subcategory_id,
+      category_id
     `)
     .order('created_at', { ascending: false })
     .limit(100)
@@ -155,10 +156,28 @@ async function handleList(admin: any) {
     }
   }
 
+  // Fetch category (pillar) names
+  const catIds = [...new Set((data ?? []).map((item: any) => item.category_id).filter(Boolean))] as string[]
+  const catMap: Record<string, string> = {}
+  if (catIds.length > 0) {
+    const { data: cats } = await admin
+      .from('categories')
+      .select('id, name')
+      .in('id', catIds)
+    if (cats) {
+      for (const c of cats) {
+        catMap[c.id] = c.name
+      }
+    }
+  }
+
   const enriched = (data ?? []).map((item: any) => ({
     ...item,
     submitted_by_username: item.submitted_by
       ? (profileMap[item.submitted_by]?.username ?? null)
+      : null,
+    category_name: item.category_id
+      ? (catMap[item.category_id] ?? null)
       : null,
     subcategory_name: item.subcategory_id
       ? (subcatMap[item.subcategory_id] ?? null)
@@ -180,7 +199,7 @@ async function handleApprove(
   // Fetch the submission
   const { data: item, error: fetchErr } = await admin
     .from('moderation_queue')
-    .select('url, title, description, subcategory_id, submitted_by')
+    .select('url, title, description, category_id, subcategory_id, submitted_by')
     .eq('id', id)
     .single()
 
@@ -208,6 +227,7 @@ async function handleApprove(
         approved: true,
         title: item.title,
         description: item.description,
+        category_id: item.category_id,
         subcategory_id: item.subcategory_id,
       },
       { onConflict: 'url' },

@@ -1,5 +1,5 @@
 // POST /functions/v1/submit-url
-// Body: { url: string, title?: string, description?: string, subcategory_id?: string }
+// Body: { url: string, title?: string, description?: string, category_id?: string, subcategory_id?: string }
 // Rate limit: 10 submissions per user per hour (429 if exceeded).
 // Safe Browsing check: auto-rejects flagged URLs (422).
 // Approved URLs move to the moderation queue for admin review.
@@ -36,6 +36,7 @@ Deno.serve(async (req) => {
   const rawUrl = body.url as string | undefined
   const title = (body.title as string) || ''
   const description = (body.description as string) || ''
+  const categoryId = body.category_id as string | undefined
   const subcategoryId = body.subcategory_id as string | undefined
 
   if (!rawUrl) return json({ error: 'url required' }, 400)
@@ -103,6 +104,18 @@ Deno.serve(async (req) => {
     return json({ error: 'This URL has already been submitted', duplicate: true, url_id: existing.id }, 409)
   }
 
+  // Resolve the pillar when only a topic was sent: look up the subcategory's
+  // parent so the queue records both category_id (pillar) and subcategory_id.
+  let resolvedCategoryId: string | null = categoryId ?? null
+  if (!resolvedCategoryId && subcategoryId) {
+    const { data: sub } = await supabase
+      .from('subcategories')
+      .select('category_id')
+      .eq('id', subcategoryId)
+      .maybeSingle()
+    resolvedCategoryId = (sub?.category_id as string | undefined) ?? null
+  }
+
   // Insert into moderation queue
   const { data: queueEntry, error: insertError } = await supabase
     .from('moderation_queue')
@@ -110,6 +123,7 @@ Deno.serve(async (req) => {
       url: normalizedUrl,
       title: title || normalizedUrl,
       description,
+      category_id: resolvedCategoryId || null,
       subcategory_id: subcategoryId || null,
       submitted_by: user.id,
       status: 'pending',

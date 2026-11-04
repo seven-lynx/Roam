@@ -369,7 +369,7 @@ async function _dispatch(req: Request): Promise<Response> {
     case 'ROAM_CATEGORY':         return roamCategory(req.categoryId);
     case 'RATE':                  return rate(req.url_id, req.vote);
     case 'CHECK_URL':             return checkUrl(req.url);
-    case 'SUBMIT_URL':            return submitUrl(req.url, req.categoryId);
+    case 'SUBMIT_URL':            return submitUrl(req.url, req.categoryId, req.subcategoryId);
     case 'SAVE_LATER':            return saveLater(req.url, req.title);
     case 'GET_SAVED_URLS':        return getSavedUrls();
     case 'REMOVE_SAVED_URL':      return removeSavedUrl(req.savedUrlId);
@@ -806,10 +806,11 @@ async function checkUrl(url: string): Promise<Response<CheckUrlData>> {
   return { ok: true, data: { known: false } };
 }
 
-async function submitUrl(url: string, categoryId: string): Promise<Response<{ duplicate?: boolean; message?: string }>> {
+async function submitUrl(url: string, categoryId: string, subcategoryId?: string): Promise<Response<{ duplicate?: boolean; message?: string }>> {
   const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
   if (!categoryId || !UUID_RE.test(categoryId)) return { ok: false, error: 'Invalid category selection.' };
-  const { data, error } = await getSupabase().functions.invoke('submit-url', { body: { url, category_id: categoryId } });
+  if (subcategoryId && !UUID_RE.test(subcategoryId)) return { ok: false, error: 'Invalid topic selection.' };
+  const { data, error } = await getSupabase().functions.invoke('submit-url', { body: { url, category_id: categoryId, subcategory_id: subcategoryId } });
   if (error) {
     type FnErr = Error & { context?: globalThis.Response };
     const ctx = (error as FnErr).context;

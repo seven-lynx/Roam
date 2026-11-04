@@ -20,7 +20,7 @@ export type Request =
   | { type: 'ROAM_CATEGORY'; categoryId: string }
   | { type: 'RATE'; url_id: string; vote: 1 | -1 }
   | { type: 'CHECK_URL'; url: string }
-  | { type: 'SUBMIT_URL'; url: string; categoryId: string }
+  | { type: 'SUBMIT_URL'; url: string; categoryId: string; subcategoryId?: string }
   | { type: 'SAVE_LATER'; url: string; title?: string }
   | { type: 'GET_SAVED_URLS' }
   | { type: 'REMOVE_SAVED_URL'; savedUrlId: string }

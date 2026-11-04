@@ -603,12 +603,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // ── Category chip selection + subcategory loading ──────────────────────────
   let selectedCategory: string | null = null;
+  let selectedSubcategory: string | null = null;
   el('category-chips').addEventListener('click', (e) => {
     const chip = (e.target as HTMLElement).closest<HTMLButtonElement>('.chip');
     if (!chip) return;
     el('category-chips').querySelectorAll('.chip').forEach((c) => c.classList.remove('selected'));
     chip.classList.add('selected');
     selectedCategory = chip.dataset.catId ?? null;
+    selectedSubcategory = null;
     el<HTMLButtonElement>('btn-submit').disabled = false;
     // Load subcategories for this category
     const subcatContainer = el('subcategory-chips');
@@ -632,6 +634,15 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
+  // ── Subcategory chip selection ──────────────────────────────────────────────
+  el('subcategory-chip-grid').addEventListener('click', (e) => {
+    const chip = (e.target as HTMLElement).closest<HTMLButtonElement>('.chip');
+    if (!chip) return;
+    el('subcategory-chip-grid').querySelectorAll('.chip').forEach((c) => c.classList.remove('selected'));
+    chip.classList.add('selected');
+    selectedSubcategory = chip.dataset.subcatId ?? null;
+  });
+
   // ── Submit unknown URL ────────────────────────────────────────────────────
   const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
   el('btn-submit').addEventListener('click', async () => {
@@ -642,7 +653,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const submitErr = el<HTMLParagraphElement>('submit-error');
     submitErr.hidden = true;
     el<HTMLButtonElement>('btn-submit').disabled = true;
-    const res = await sendToBackground<{ duplicate?: boolean; message?: string }>({ type: 'SUBMIT_URL', url, categoryId: selectedCategory });
+    const res = await sendToBackground<{ duplicate?: boolean; message?: string }>({ type: 'SUBMIT_URL', url, categoryId: selectedCategory, subcategoryId: selectedSubcategory ?? undefined });
     el<HTMLButtonElement>('btn-submit').disabled = false;
     if (!res.ok) {
       submitErr.textContent = res.error.includes('safe') || res.error.includes('Safe')
