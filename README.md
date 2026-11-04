@@ -28,9 +28,8 @@ The discovery function runs directly in PostgreSQL. When you press the button, i
 - **Your taste** — topics you upvote more often surface more; topics you downvote dial back. Calibrated per subcategory.
 - **Freshness** — recently published pages get a mild boost; very old ones fade gradually
 - **Exploration bonus** — newly seeded pages receive a small boost to keep fresh content circulating
-- **Inline scoring** — all per-row sub-queries eliminated; scoring computed inline for dramatically faster discovery
-- **Parallel batch** — multiple candidate URLs fetched and validated concurrently via `Promise.allSettled`
-- **Pool-empty guard** — automatic retry with wider sampling when the initial pool is exhausted
+
+For speed, scoring is computed inline in the query, candidate URLs are fetched and validated concurrently in parallel batches, and an automatic pool-empty guard retries with wider sampling when the initial pool is exhausted. See [`docs/ALGORITHM.md`](docs/ALGORITHM.md) for the full model.
 
 
 ---
@@ -64,8 +63,8 @@ The discovery function runs directly in PostgreSQL. When you press the button, i
 - Pillar vs. topic interest selection — toggle between broad category discovery or specific subcategory focus
 
 **Gamification**
-- ~150 badges across 12 categories (discovery, curation, streaks, social, niches, and more)
-- Level progression (1–50) with XP earned from rating, submitting, and discovering
+- ~150 badges across 11 categories (exploration, collecting, curating, social, streaks, contributing, curiosity, games, and more)
+- Level progression (1–100) with XP earned from rating, submitting, and discovering
 - Daily challenges — complete tasks like rating URLs, discovering pages, and exploring categories to earn bonus XP
 - Leaderboard — compete on weekly, monthly, and all-time XP rankings
 - Badge gallery with unlock details and progress tracking
@@ -95,16 +94,21 @@ Deliberately non-intrusive. Click, roam, rate, close — nothing is injected int
 - Badge gallery with ~150 badges and level progression
 - Public profiles, follows, and URL sharing
 - Material Design 3 / Jetpack Compose
-- Android 8.0+ (SDK 26), target SDK 35
+- Android 8.0+ (SDK 26), target SDK 36
 - Google OAuth or email/password sign-in
 - Offline rating queue with automatic flush on reconnect
 
 
 ### Web
 
-- Account management portal, onboarding, and admin moderation
-- Next.js 16 / TypeScript / Tailwind CSS, deployed on Vercel
-- 15-card admin analytics dashboard with request-time caching
+The web surface is the ROAM-OS desktop experience — a windowed GUI with a launcher, programs, and in-device apps — plus the full account hub and admin tooling.
+
+- ROAM-OS desktop — window manager with launcher (`PROGRAMS`), scan (`ROAM`), comms (`COMMS`), terminal (`TERMINAL`), settings (`SETTINGS`), and browser (`BROWSER`) windows
+- In-device programs — RELAY, BOTFIELD, COMPILER, and DEBRIS (reskinned Snake, Minesweeper, Tetris, Asteroids)
+- Account hub — onboarding, profile, settings, collections, saved URLs, and public profiles
+- Social & gamification — leaderboard (`/leaderboard`), badge gallery (`/badges`), follow/unfollow, and XP rankings
+- Admin moderation and a 15-card analytics dashboard with request-time caching
+- Next.js 16 / React 19 / TypeScript / Tailwind CSS, deployed on Vercel
 
 See [web/README.md](web/README.md) for the current route map and UI spec.
 
@@ -116,7 +120,7 @@ See [web/README.md](web/README.md) for the current route map and UI spec.
 
 The database does the heavy lifting. Discovery runs as a `plpgsql` RPC (`roam()`) invoked via a Deno Edge Function. Row-Level Security enforces all access control at the database level. Every successful discovery is tracked via `serve_count` for analytics.
 
-Edge Functions (Deno) handle operations that need more than a simple query: `roam`, `rate`, `submit-url`, `save-url`, `collection`, `follow`, `profile`, `feedback`, `report-url`, `log-failed-urls`, `leaderboard`, `share-url`, `delete-user`, `export-user`, `beta-signup`, `send-bulk-email`, `push-notify`, `activity-feed`, `admin-moderation`, `cron-streak-cleanup`, `report-engagement`, `scrape-url`, plus the scheduled ones: `challenges`, `cron-daily-challenges`, `cron-secret-badges`, `roam-health-check`, `evaluate-badges`. See [`docs/API.md`](docs/API.md) for the full contract on each.
+Edge Functions (Deno) handle operations that need more than a simple query: `roam`, `rate`, `submit-url`, `save-url`, `collection`, `follow`, `profile`, `feedback`, `report-url`, `log-failed-urls`, `leaderboard`, `share-url`, `delete-user`, `export-user`, `beta-signup`, `send-bulk-email`, `push-notify`, `activity-feed`, `admin-moderation`, `report-engagement`, `scrape-url`, `sentry-webhook`, `game-action`, `roll-action`, plus the scheduled ones: `challenges`, `cron-daily-challenges`, `cron-secret-badges`, `cron-streak-cleanup`, `cron-notification-cleanup`, `roam-health-check`, `evaluate-badges`. See [`docs/API.md`](docs/API.md) for the full contract on each.
 
 **Key tables:**
 
@@ -158,8 +162,8 @@ Kotlin + Jetpack Compose + Supabase Kotlin SDK. Single-activity MVVM with `MainV
 ```
 roam/
 ├── supabase/
-│   ├── migrations/         # 164 migrations (full schema history)
-│   └── functions/          # 27 Deno Edge Functions
+│   ├── migrations/         # 179 migrations (full schema history)
+│   └── functions/          # 31 Deno Edge Functions
 │       └── _shared/        # CORS, auth helpers, rate limiting, Sentry
 │
 ├── web/                    # Next.js app (Vercel)
@@ -190,9 +194,10 @@ roam/
 
 > Note: `scripts/` and `docs/` contain a mix of public (tracked) and
 > local-only (gitignored) files. Only the reference docs under `docs/`
-> (API, ALGORITHM, BADGE_SYSTEM_ARCHITECTURE, ROADMAP, STORE_SUBMISSION_GUIDE)
-> and the CI rule-enforcement scripts under `scripts/` are committed — see
-> `.gitignore` for the exact allowlist.
+> (INDEX, API, ALGORITHM, ARCHITECTURE, BADGE_SYSTEM_ARCHITECTURE, GLOSSARY,
+> ROADMAP, STORE_SUBMISSION_GUIDE) and the validation/rule-enforcement
+> scripts under `scripts/` are committed — see `.gitignore` for the exact
+> allowlist.
 
 ---
 
@@ -360,16 +365,21 @@ Run `pnpm lint` before pushing. Use TypeScript throughout.
 ## Project documents
 
 - [`docs/INDEX.md`](docs/INDEX.md) — the documentation index (start here).
+- [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — system overview.
+- [`docs/ALGORITHM.md`](docs/ALGORITHM.md) — the discovery scoring model.
+- [`docs/BADGE_SYSTEM_ARCHITECTURE.md`](docs/BADGE_SYSTEM_ARCHITECTURE.md) — badge and gamification design.
+- [`docs/GLOSSARY.md`](docs/GLOSSARY.md) — terminology.
+- [`docs/API.md`](docs/API.md) — Edge Function + RPC contracts.
+- [`docs/ROADMAP.md`](docs/ROADMAP.md) — current work and post-launch plans.
+- [`supabase/SCHEMA.md`](supabase/SCHEMA.md) — database schema reference.
 - [`CONTRIBUTING.md`](CONTRIBUTING.md) — how to file PRs and the contributor licence grant.
 - [`CODE_OF_CONDUCT.md`](CODE_OF_CONDUCT.md) — expected behaviour and reporting.
 - [`SECURITY.md`](SECURITY.md) — how to report vulnerabilities.
 - [`RULES.md`](RULES.md) — the project rulebook; read before opening a PR.
 - [`RUNBOOK.md`](RUNBOOK.md) — operational incidents and their resolutions.
-- [`docs/API.md`](docs/API.md) — Edge Function + RPC contracts.
-- [`docs/ROADMAP.md`](docs/ROADMAP.md) — current work and post-launch plans.
 
 ---
 
-Built with Supabase, Next.js, Jetpack Compose, esbuild, Tailwind CSS, and TypeScript.
+Built with Supabase, Next.js, React, Tailwind CSS, TypeScript, Deno, Jetpack Compose, and esbuild.
 
 Made by 7 Lynx. Questions? [Open an issue](https://github.com/seven-lynx/Roam/issues).
