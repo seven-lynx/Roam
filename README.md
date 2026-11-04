@@ -375,7 +375,6 @@ Run `pnpm lint` before pushing. Use TypeScript throughout.
 - [`CONTRIBUTING.md`](CONTRIBUTING.md) — how to file PRs and the contributor licence grant.
 - [`CODE_OF_CONDUCT.md`](CODE_OF_CONDUCT.md) — expected behaviour and reporting.
 - [`SECURITY.md`](SECURITY.md) — how to report vulnerabilities.
-- [`RULES.md`](RULES.md) — the project rulebook; read before opening a PR.
 - [`RUNBOOK.md`](RUNBOOK.md) — operational incidents and their resolutions.
 
 ---

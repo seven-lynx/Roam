@@ -33,15 +33,12 @@ issues (active exploitation, data exposure) are escalated to a hotfix.
 These are enforced by `scripts/check-rules.mjs` and CI:
 
 - **No hardcoded secrets.** Prefixes checked: `AIza`, `sk-`, `sntryu_`,
-  `sbp_`, `sb_secret_`, `sb_publishable_`, `re_`, `KGAT_`. See the rulebook
-  at the repo root (§ 1.3); the full rotation checklist lives in the internal
-  (local-only) secrets audit.
+  `sbp_`, `sb_secret_`, `sb_publishable_`, `re_`, `KGAT_`. The full
+  rotation checklist lives in the internal (local-only) secrets audit.
 - **Row-Level Security on every table.** RLS is the security boundary;
-  middleware redirects are UX, not enforcement. See the Supabase backend
-  rule file for details.
+  middleware redirects are UX, not enforcement.
 - **Service-role keys never reach the client.** The extension build
-  refuses to bundle `SUPABASE_SERVICE_ROLE_KEY`. See the browser
-  extension rule file (§ E.1).
+  refuses to bundle `SUPABASE_SERVICE_ROLE_KEY`.
 - **Trivy + TruffleHog run on every PR.** See
   `.github/workflows/ci.yml`.
 

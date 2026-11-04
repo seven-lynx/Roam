@@ -221,7 +221,7 @@ Only works when DNS can resolve Supabase's direct database hostname. Falls back 
 
 ## Known Tech Debt
 
-- **`user_actions` written by edge functions.** `RULES.md`'s Hard Rule says
+- **`user_actions` written by edge functions.** The project's Hard Rule says
   `user_actions` rows are written by triggers, not edge functions, but ~10 edge
   functions (`collection`, `follow`, `game-action`, `rate`, `report-url`,
   `roam`, `roll-action`, `save-url`, `share-url`, `submit-url`) insert

@@ -2,8 +2,7 @@
 
 Operational incidents, their root causes, and resolutions. Add an entry for
 every production incident and for every non-additive migration (rollback
-procedures live here — see [RULES.md](RULES.md) §1.4 and
-[supabase/RULES.md](supabase/RULES.md) S.5).
+procedures live here).
 
 ## Incidents
 

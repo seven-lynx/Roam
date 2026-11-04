@@ -22,13 +22,11 @@
 
 ## Pre-merge checklist
 
-Read the rulebook at the repo root first.
-
 ### Universal checks
 
 - [ ] No `[deploy]`, `[ship]`, `[prod]`, or `[release]` tags in any commit message
 - [ ] No hints at automated authorship in any committed file (comments, doc, commit message)
-- [ ] No hardcoded secrets (checked against the § 1.3 prefixes in the rulebook)
+- [ ] No hardcoded secrets
 - [ ] No `.skip` migrations added to `supabase/migrations/` (use `_superseded/` if applicable)
 - [ ] No new duplicate filenames between `web/src/components/` and `web/src/app/<route>/`
 - [ ] No `proxy.ts` reintroduced (use `middleware.ts`)
@@ -41,7 +39,7 @@ Read the rulebook at the repo root first.
 - [ ] New SQL function or RPC → `scripts/verify-roam-rpc.mjs` extended or new verification script added
 - [ ] Migration that adds a trigger → rollback documented in `RUNBOOK.md`
 - [ ] New RLS policy → security test added in `web/src/__tests__/security.test.ts`
-- [ ] New manifest permission → documented in the browser extension rule file's "Permissions table"
+- [ ] New manifest permission → documented in the extension permissions table
 
 ### Local CI loop (run before pushing)
 

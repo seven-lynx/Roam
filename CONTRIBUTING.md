@@ -6,9 +6,8 @@ public repository.
 
 ## Before you start
 
-1. Read [RULES.md](RULES.md) — it is the project rulebook and is CI-enforced.
-2. Read [README.md](README.md) for the architecture overview.
-3. Check the open issues and [docs/ROADMAP.md](docs/ROADMAP.md) so you don't
+1. Read [README.md](README.md) for the architecture overview.
+2. Check the open issues and [docs/ROADMAP.md](docs/ROADMAP.md) so you don't
    duplicate work that is already in flight.
 
 ## How to contribute
@@ -35,8 +34,9 @@ Squash-merge to `main` with a Conventional Commits message
 
 ## Local CI before pushing
 
-Run the project rule checks and test suites before pushing — see
-[RULES.md](RULES.md) §2.2 for the exact order.
+Run the project rule checks and test suites before pushing
+(`node scripts/check-rules.mjs`, then lint/typecheck/tests for the
+platform you touched).
 
 ## Contributor licence grant
 

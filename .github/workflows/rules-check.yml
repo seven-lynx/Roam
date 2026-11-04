@@ -49,7 +49,7 @@ jobs:
       # Scans every NEW SQL migration for the v31 42P01 alias pattern.
       # Legacy migrations that already use the pattern (v30, v31, v32)
       # are allowlisted because they have been manually audited and
-      # verified safe. See RUNBOOK.md and RULES.md R7.
+      # verified safe. See RUNBOOK.md R7.
       # The DB-backed check below runs on push to main to catch the
       # pattern in any future migration resolved function body.
       - name: Pure-text check v31 alias bug in NEW migrations
@@ -79,7 +79,7 @@ jobs:
           if [ -n "$HITS" ]; then
             echo "::error::Found array_agg(u.*) pattern in a NEW migration:"
             echo "$HITS"
-            echo "See RUNBOOK.md and RULES.md R7."
+            echo "See RUNBOOK.md R7."
             exit 1
           fi
           echo "PASS: no new migrations contain the v31 alias bug pattern."

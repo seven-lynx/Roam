@@ -142,7 +142,7 @@ jobs:
         uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d
         with:
           # token-only filter; default branch protection must allow this token.
-          # See RULES.md §1.6½ (workflow path-filter rule).
+          # Workflow path-filter rule: token-based (see dorny/paths-filter).
           token: ${{ secrets.GITHUB_TOKEN }}
           filter: 'supabase/functions'
           # Exclude the test directory — test-only PRs should not pay the
