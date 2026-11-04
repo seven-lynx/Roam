@@ -19,9 +19,8 @@ export interface Wallpaper {
 
 export const WALLPAPERS: Wallpaper[] = [
   { id: 'deck-01', label: 'Deck 01', css: "url('/wallpapers/deck-wallpaper-01.jpg') center / cover no-repeat, #07100f" },
-  { id: 'deck-02', label: 'Deck 02', css: "url('/wallpapers/deck-wallpaper-02.jpg') center / cover no-repeat, #07100f" },
+  { id: 'deck-02', label: 'Deck 02', css: "url('/wallpapers/deck-wallpaper-02.jpeg') center / cover no-repeat, #07100f" },
   { id: 'deck-03', label: 'Deck 03', css: "url('/wallpapers/deck-wallpaper-03.jpg') center / cover no-repeat, #07100f" },
-  { id: 'deck-04', label: 'Deck 04', css: "url('/wallpapers/deck-wallpaper-04.jpg') center / cover no-repeat, #07100f" },
   { id: 'deck-05', label: 'Deck 05', css: "url('/wallpapers/deck-wallpaper-05.jpg') center / cover no-repeat, #07100f" },
   { id: 'deck-06', label: 'Deck 06', css: "url('/wallpapers/deck-wallpaper-06.jpg') center / cover no-repeat, #07100f" },
   { id: 'deck-07', label: 'Deck 07', css: "url('/wallpapers/deck-wallpaper-07.jpg') center / cover no-repeat, #07100f" },
@@ -43,11 +42,12 @@ export const WALLPAPERS: Wallpaper[] = [
   { id: 'deck-23', label: 'Deck 23', css: "url('/wallpapers/deck-wallpaper-23.jpg') center / cover no-repeat, #07100f" },
   { id: 'deck-24', label: 'Deck 24', css: "url('/wallpapers/deck-wallpaper-24.jpg') center / cover no-repeat, #07100f" },
   { id: 'deck-25', label: 'Deck 25', css: "url('/wallpapers/deck-wallpaper-25.jpg') center / cover no-repeat, #07100f" },
-  { id: 'deck-26', label: 'Deck 26', css: "url('/wallpapers/deck-wallpaper-26.jpg') center / cover no-repeat, #07100f" },
+  { id: 'deck-26', label: 'Deck 26', css: "url('/wallpapers/deck-wallpaper-26.jpeg') center / cover no-repeat, #07100f" },
   { id: 'deck-27', label: 'Deck 27', css: "url('/wallpapers/deck-wallpaper-27.jpg') center / cover no-repeat, #07100f" },
   { id: 'deck-28', label: 'Deck 28', css: "url('/wallpapers/deck-wallpaper-28.jpg') center / cover no-repeat, #07100f" },
   { id: 'deck-29', label: 'Deck 29', css: "url('/wallpapers/deck-wallpaper-29.jpg') center / cover no-repeat, #07100f" },
   { id: 'deck-30', label: 'Deck 30', css: "url('/wallpapers/deck-wallpaper-30.jpg') center / cover no-repeat, #07100f" },
+  { id: 'deck-31', label: 'Deck 31', css: "url('/wallpapers/deck-wallpaper-31.jpg') center / cover no-repeat, #07100f" },
 ];
 
 const WALLPAPER_KEY = 'roam-desktop-wallpaper';

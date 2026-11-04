@@ -359,6 +359,7 @@ Run `pnpm lint` before pushing. Use TypeScript throughout.
 
 ## Project documents
 
+- [`docs/INDEX.md`](docs/INDEX.md) — the documentation index (start here).
 - [`CONTRIBUTING.md`](CONTRIBUTING.md) — how to file PRs and the contributor licence grant.
 - [`CODE_OF_CONDUCT.md`](CODE_OF_CONDUCT.md) — expected behaviour and reporting.
 - [`SECURITY.md`](SECURITY.md) — how to report vulnerabilities.

@@ -21,7 +21,7 @@ If a migration needs to be skipped, move it to `supabase/migrations/_superseded/
 Any state derived from a primary user action (`save`, `rate`, `discover`, `follow`, `submit`) must be updated by a **Postgres trigger**:
 - `user_actions` rows are inserted by triggers
 - `user_interest_scores.calibrated_weight` is updated by a trigger on ratings
-- `seen_urls.serve_count` is bumped by a trigger
+- `seen_urls` per-user size is capped by the `trg_seen_urls_cap` trigger (evicts the oldest rows past 2,000)
 
 Edge functions may call RPCs that wrap these, but the canonical writer is the trigger.
 

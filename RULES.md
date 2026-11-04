@@ -87,10 +87,13 @@ supabase db reset && node scripts/verify-roam-rpc.mjs
 - "Just refactoring" is fine without tests **if** the diff is purely mechanical (rename, extract).
 
 ### 2.4 Documentation is part of the change
+**Every commit updates all relevant docs — no exceptions.** Docs go stale when they
+drift from the code; updating them is part of "done", never a follow-up.
 - New env var → `.env.example` update.
 - New edge function → `docs/API.md` entry.
 - New SQL table or column → `docs/API.md` and a migration comment block describing intent.
 - Incident → `RUNBOOK.md` entry.
+- Renamed/regenerated asset → update `web/scripts/copy-deck-assets.mjs` and regenerate `web/src/lib/camera-roll.ts` in the same commit.
 - Resolved audit item → close the checkbox in the internal `WEB_AUDIT_REPORT.md` (local-only).
 
 ### 2.5 No silent error swallowing

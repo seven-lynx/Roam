@@ -43,6 +43,10 @@ Non-additive migrations (DROP, ALTER TYPE, …) must document a rollback here.
 - Change: Adds `public.home_stats()`, a SECURITY DEFINER SQL function returning one row of aggregate counters (`total_users`, `total_ratings`, `active_urls`, `active_tags`, `total_serves`) for the marketing homepage and `/stats` page. Grant is limited to `anon` and `authenticated`; row-level data is never exposed.
 - Rollback: `DROP FUNCTION IF EXISTS public.home_stats();`
 
+### 20261103000009_serve_telemetry_hygiene.sql
+- Change: Replaces the broken `urls.serve_count`-based serve telemetry with a lifetime counter (`serve_counter`) maintained by a rollup-before-prune job, and adds a daily hygiene job (`over_served_unrated`). Re-points the nightly `delete-old-seen-urls` cron to `rollup_seen_urls_and_prune()`, makes the `enforce_seen_url_cap` trigger fold evicted rows into the counter, re-sources `home_stats().total_serves` to `serve_counter.total_serves + COUNT(seen_urls)`, and adds a `refresh-over-served-unrated` cron (04:00 UTC).
+- Rollback: `DROP TABLE IF EXISTS public.serve_counter, public.over_served_unrated; DROP FUNCTION IF EXISTS public.rollup_seen_urls_and_prune(), public.refresh_over_served_unrated(integer);` then restore `refresh_home_stats()` from `20261103000008_fix_home_stats_perf.sql`, restore `enforce_seen_url_cap()` from `20260506000004_seen_urls_cap.sql`, re-point the `delete-old-seen-urls` cron back to `DELETE FROM public.seen_urls WHERE seen_at < NOW() - INTERVAL '30 days'`, and `SELECT cron.unschedule('refresh-over-served-unrated');`.
+
 <!-- Template:
 ### <migration filename>
 - Change: ...
