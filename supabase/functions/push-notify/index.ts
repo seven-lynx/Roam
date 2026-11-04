@@ -15,6 +15,7 @@
 //   4. Sends via Web Push API for web subscriptions
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { sendEmail } from '../_shared/resend.ts'
 
 // ═══════════════════════════════════════════════════════════════════════════
 // CORS — restrict to Supabase webhook origin (server-to-server)
@@ -445,6 +446,133 @@ async function encryptPayload(
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
+const WEB_DOMAIN = 'roamtheweb.app'
+
+// Moderation-decision notifications are the only types that currently send a
+// transactional email. Everything else (badge_unlocked, level_up, new_follower,
+// url_shared, ...) stays push-only to avoid email fatigue.
+const EMAIL_NOTIFICATION_TYPES = new Set(['url_approved', 'url_rejected'])
+
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+}
+
+interface TransactionalEmail {
+  subject: string
+  html: string
+  text: string
+}
+
+function buildTransactionalEmail(
+  type: string,
+  data: Record<string, string>,
+): TransactionalEmail {
+  const approved = type === 'url_approved'
+  const url = data.url ?? ''
+  const linkTitle = data.title || url || 'your submission'
+  const accent = approved ? '#39ff14' : '#ff2e88'
+  const documentPath = approved ? '~/inbox/submission-approved.txt' : '~/inbox/submission-not-approved.txt'
+  const statusBar = approved ? 'STATUS: LIVE' : 'STATUS: DECLINED'
+  const hero = approved ? 'SUBMISSION APPROVED.' : 'SUBMISSION NOT APPROVED.'
+  const subject = approved ? 'ROAM-OS // submission approved' : 'ROAM-OS // submission not approved'
+  const preheader = approved
+    ? 'Your link is now live in the Roam database.'
+    : 'Your link did not make it through moderation.'
+  const ctaLabel = approved ? 'VIEW IN ROAM' : 'REVIEW SUBMISSION'
+  const bodyParagraph = approved
+    ? `Your link, <strong style="color:#e0b45f;">&ldquo;${escapeHtml(linkTitle)}&rdquo;</strong>, cleared moderation and is now in the Roam database &mdash; discoverable by everyone wandering the network.`
+    : `Your link, <strong style="color:#e0b45f;">&ldquo;${escapeHtml(linkTitle)}&rdquo;</strong>, was not approved and won&rsquo;t be added to the Roam database this time.`
+
+  const urlBlock = url
+    ? `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border:1px dashed #28444a;background-color:#0f1f24;"><tr><td style="padding:16px 18px;font-family:'IBM Plex Mono','Courier New',monospace;"><span style="font-size:10px;letter-spacing:2px;color:${accent};">&#9679; LIVE ENTRY</span><span style="display:block;font-size:14px;line-height:1.6;color:#e6dcc3;margin-top:6px;word-break:break-all;">${escapeHtml(url)}</span></td></tr></table>`
+    : ''
+
+  const html = `<!DOCTYPE html>
+<html lang="en" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="color-scheme" content="dark">
+  <meta name="supported-color-schemes" content="dark">
+  <title>${escapeHtml(subject)}</title>
+  <!--[if mso]><style>table,tr,td,div,p,a{font-family:'Courier New',monospace;}</style><![endif]-->
+</head>
+<body style="margin:0;padding:0;background-color:#040a0a;-webkit-text-size-adjust:100%;-ms-text-size-adjust:100%;">
+  <div style="display:none;max-height:0;overflow:hidden;mso-hide:all;line-height:1px;font-size:1px;color:#040a0a;">${escapeHtml(preheader)}</div>
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#040a0a" style="background-color:#040a0a;">
+    <tr>
+      <td align="center" style="padding:28px 12px 40px 12px;">
+        <table role="presentation" width="640" cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width:640px;border:1px solid #28444a;background-color:#0a1214;">
+          <tr>
+            <td style="padding:0;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#0f1f24;border-bottom:1px solid #28444a;">
+                <tr>
+                  <td style="padding:12px 20px;font-family:'IBM Plex Mono','Courier New',monospace;font-size:12px;letter-spacing:0.5px;">
+                    <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+                      <tr>
+                        <td width="12" valign="middle"><span style="display:inline-block;width:9px;height:9px;background-color:${accent};border-radius:50%;"></span></td>
+                        <td valign="middle" style="padding-left:8px;font-weight:bold;letter-spacing:3px;color:#e6dcc3;">ROAM-OS</td>
+                        <td valign="middle" style="padding-left:14px;color:#3f7f7d;">|</td>
+                        <td valign="middle" style="padding-left:14px;color:#8fa3a0;">${escapeHtml(documentPath)}</td>
+                        <td align="right" valign="middle" style="color:#59b3ae;white-space:nowrap;">${statusBar}</td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+              </table>
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                <tr><td style="padding:40px 24px 8px 24px;font-family:'IBM Plex Mono','Courier New',monospace;font-size:26px;line-height:1.1;font-weight:bold;letter-spacing:2px;color:${accent};">${hero}</td></tr>
+                <tr><td style="padding:12px 24px 20px 24px;font-family:'IBM Plex Mono','Courier New',monospace;font-size:14px;line-height:1.7;color:#e6dcc3;">${bodyParagraph}</td></tr>
+              </table>
+              ${url ? `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td style="padding:0 24px;">${urlBlock}</td></tr></table>` : ''}
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                <tr><td align="center" style="padding:28px 24px 8px 24px;"><a href="https://${WEB_DOMAIN}" style="display:inline-block;padding:12px 28px;font-family:'IBM Plex Mono','Courier New',monospace;font-size:13px;letter-spacing:2px;color:#040a0a;background-color:${accent};text-decoration:none;border-radius:2px;">${ctaLabel}</a></td></tr>
+              </table>
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                <tr><td style="padding:28px 24px 0 24px;font-family:'IBM Plex Mono','Courier New',monospace;font-size:14px;line-height:1.7;color:#e6dcc3;">Thank you for adding another signal to the map.</td></tr>
+                <tr><td style="padding:12px 24px 44px 24px;font-family:'IBM Plex Mono','Courier New',monospace;font-size:16px;color:#e0b45f;letter-spacing:1px;">Keep wandering.</td></tr>
+              </table>
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-top:1px solid #223741;background-color:#0a1518;">
+                <tr><td style="padding:20px 24px;font-family:'IBM Plex Mono','Courier New',monospace;font-size:11px;line-height:1.8;color:#8fa3a0;">ROAM-OS // sent from the wasteland.<br>You are getting this because you submitted a link and this notification is enabled in your <a href="https://${WEB_DOMAIN}/settings" style="color:#8fa3a0;text-decoration:underline;">Roam settings</a>.</td></tr>
+              </table>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`
+
+  const text = approved
+    ? `ROAM-OS // SUBMISSION APPROVED.
+
+Your link, "${linkTitle}", cleared moderation and is now live in the Roam database.
+
+LIVE ENTRY:
+${url || '(no url)'}
+
+View it: https://${WEB_DOMAIN}
+
+Keep wandering.
+
+You are getting this because you submitted a link and this notification is enabled in your Roam settings: https://${WEB_DOMAIN}/settings`
+    : `ROAM-OS // SUBMISSION NOT APPROVED.
+
+Your link, "${linkTitle}", was not approved and won't be added to the Roam database this time.
+
+Keep wandering.
+
+You are getting this because you submitted a link and this notification is enabled in your Roam settings: https://${WEB_DOMAIN}/settings`
+
+  return { subject, html, text }
+}
+
 // Main handler
 // ═══════════════════════════════════════════════════════════════════════════
 Deno.serve(async (req: Request) => {
@@ -491,48 +619,59 @@ Deno.serve(async (req: Request) => {
       const parsed = typeof record.data === 'string' ? JSON.parse(record.data as string) : record.data
       if (parsed && typeof parsed === 'object') {
         if (parsed.url) data.url = String(parsed.url)
+        if (parsed.title) data.title = String(parsed.title)
       }
     } catch { /* ignore malformed data */ }
   }
 
-  // Query push tokens for this user
+  // Query the recipient's notification settings, then decide which channels
+  // (push and/or email) should fire for this notification.
   const adminClient = createClient(supabaseUrl, serviceRoleKey)
 
   // Honour per-type notification preferences (opt-out). A missing type or a
-  // missing "push" flag means enabled; only an explicit `push: false` skips.
+  // missing channel flag means enabled; only an explicit `push: false` /
+  // `email: false` skips that channel. Email is additionally restricted to a
+  // small allowlist of transactional types (moderation decisions) so we don't
+  // generate email fatigue from badge/level/follow notifications.
   const notificationType = record.type as string | undefined
-  if (notificationType) {
-    const { data: settings } = await adminClient
-      .from('user_settings')
-      .select('notification_preferences')
-      .eq('user_id', userId)
-      .maybeSingle()
-
-    const prefs = (settings?.notification_preferences ?? {}) as Record<
-      string,
-      { push?: boolean } | undefined
-    >
-    if (prefs[notificationType]?.push === false) {
-      return json({ sent: 0, message: 'Push disabled for this notification type' })
-    }
-  }
-
-  const { data: tokens, error: tokensError } = await adminClient
-    .from('push_tokens')
-    .select('id, platform, token')
+  const { data: settings } = await adminClient
+    .from('user_settings')
+    .select('email_notifications, notification_preferences')
     .eq('user_id', userId)
+    .maybeSingle()
 
-  if (tokensError) {
-    console.error('[push-notify] Failed to query push_tokens:', tokensError.message)
-    return json({ error: 'Failed to query push tokens' }, 500)
-  }
-
-  if (!tokens || tokens.length === 0) {
-    return json({ sent: 0, message: 'No push tokens for this user' })
-  }
+  const prefs = (settings?.notification_preferences ?? {}) as Record<
+    string,
+    { push?: boolean; email?: boolean } | undefined
+  >
+  const pushEnabled = prefs[notificationType ?? '']?.push !== false
+  const emailEnabled =
+    notificationType !== undefined &&
+    EMAIL_NOTIFICATION_TYPES.has(notificationType) &&
+    settings?.email_notifications !== false &&
+    prefs[notificationType]?.email !== false
 
   let sentCount = 0
   let failCount = 0
+  let emailSent = false
+  let emailError: string | undefined
+
+  // Resolve push tokens (only when push is enabled) so the email channel can
+  // still fire for email-only users.
+  let tokens: { id: string; platform: string; token: string }[] = []
+  if (pushEnabled) {
+    const { data, error } = await adminClient
+      .from('push_tokens')
+      .select('id, platform, token')
+      .eq('user_id', userId)
+
+    if (error) {
+      console.error('[push-notify] Failed to query push_tokens:', error.message)
+      reportToSentry(error.message, 'error', { userId, type: notificationType })
+    } else if (data) {
+      tokens = data
+    }
+  }
 
   // ── Send to Android via FCM ──────────────────────────────────────────────
   const androidTokens = tokens.filter(t => t.platform === 'android')
@@ -617,9 +756,47 @@ Deno.serve(async (req: Request) => {
     console.log('[push-notify] Skipping Web Push: VAPID not configured (missing env vars)')
   }
 
+  // ── Transactional email (moderation decisions only) ─────────────────────
+  if (emailEnabled) {
+    const { data: userData, error: userError } = await adminClient.auth.admin.getUserById(userId)
+    const email = userData?.user?.email
+
+    if (userError || !email) {
+      const msg = `[push-notify] No email for ${userId} - skipping transactional email`
+      console.error(msg)
+      reportToSentry(userError ? userError.message : msg, 'warning', { userId, type: notificationType })
+      emailError = 'no_recipient_email'
+    } else {
+      const txn = buildTransactionalEmail(notificationType as string, data)
+      const result = await sendEmail({ to: email, subject: txn.subject, html: txn.html, text: txn.text })
+      emailSent = result.ok
+      if (!result.ok) emailError = result.error
+
+      // Best-effort audit log.
+      const { error: logError } = await adminClient
+        .from('email_log')
+        .insert({
+          subject: txn.subject,
+          body_md: txn.text,
+          recipient_count: 1,
+          success_count: result.ok ? 1 : 0,
+          fail_count: result.ok ? 0 : 1,
+          sent_by: '00000000-0000-0000-0000-000000000000',
+          sender_type: 'transactional',
+        })
+
+      if (logError) {
+        console.error('[push-notify] Failed to log transactional email:', logError.message)
+        reportToSentry(logError.message, 'warning', { operation: 'email-log-insert' })
+      }
+    }
+  }
+
   return json({
     sent: sentCount,
     failed: failCount,
     total: tokens.length,
+    emailSent,
+    emailError,
   })
 })

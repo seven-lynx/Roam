@@ -107,8 +107,9 @@ supabase functions deploy sentry-webhook
 
 `functions/push-notify/` is triggered by a **Supabase Database Webhook** on
 `INSERT` into `public.notifications`. It resolves the recipient's `push_tokens`
-and delivers a push message via FCM (Android) and Web Push (browser). It does
-**not** send email — the email channel is intentionally inactive.
+and delivers a push message via FCM (Android) and Web Push (browser). For
+moderation decisions (`url_approved` / `url_rejected`) it also sends a
+transactional email via Resend when email notifications are enabled.
 
 **One-time webhook setup (must be created in the dashboard — it is not captured
 by migrations):**
@@ -131,10 +132,13 @@ by migrations):**
 | `FCM_SERVICE_ACCOUNT_JSON` | Firebase service-account JSON for Android FCM |
 | `FCM_PROJECT_ID` | Firebase project id |
 | `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` | Web Push VAPID keys |
+| `RESEND_API_KEY` | Resend API key for transactional approval/rejection emails |
 
 **Per-type opt-out:** the function reads `user_settings.notification_preferences`
-(a JSONB of `{ "<type>": { "push": false } }`) and skips push for any type with
-an explicit `push: false`.
+(a JSONB of `{ "<type>": { "push": true, "email": true } }`). An absent type or
+channel means enabled; only an explicit `push: false` / `email: false` skips that
+channel. Email is additionally limited to `url_approved` and `url_rejected`, and
+is skipped when `user_settings.email_notifications` is false.
 
 ## Useful references
 

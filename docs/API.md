@@ -1358,7 +1358,7 @@ The canonical badge evaluator (replaces the legacy SQL `evaluate_badges()` RPC).
 
 ### `push-notify` — Send push notifications (webhook)
 
-Triggered by a Supabase Database Webhook when a row is inserted into the `notifications` table. Sends push messages via Firebase Cloud Messaging (Android tokens) and the Web Push API (browser subscriptions).
+Triggered by a Supabase Database Webhook when a row is inserted into the `notifications` table. Sends push messages via Firebase Cloud Messaging (Android tokens) and the Web Push API (browser subscriptions), plus a transactional email for `url_approved` / `url_rejected` notifications (honouring `email_notifications` and per-type preferences).
 
 **Endpoint:** `POST /functions/v1/push-notify`
 
@@ -1372,10 +1372,10 @@ Triggered by a Supabase Database Webhook when a row is inserted into the `notifi
   "record": {
     "id": "uuid",
     "user_id": "uuid",
-    "type": "badge_unlock",
-    "title": "New badge unlocked",
-    "body": "You earned the Explorer badge",
-    "data": {}
+    "type": "url_approved",
+    "title": "URL approved!",
+    "body": "Your submission was approved and is now in the database.",
+    "data": { "url": "https://example.com", "queue_id": "uuid", "title": "Example" }
   }
 }
 ```
@@ -1383,7 +1383,11 @@ Triggered by a Supabase Database Webhook when a row is inserted into the `notifi
 **Response (200):**
 ```json
 {
-  "ok": true
+  "sent": 1,
+  "failed": 0,
+  "total": 1,
+  "emailSent": true,
+  "emailError": null
 }
 ```
 

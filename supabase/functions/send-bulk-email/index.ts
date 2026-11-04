@@ -15,6 +15,7 @@
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { initSentry } from '../_shared/sentry.ts'
+import { sendEmail } from '../_shared/resend.ts'
 
 // ═══════════════════════════════════════════════════════════════════════════
 // CORS — admin-only endpoint, restrict to our web app
@@ -243,7 +244,6 @@ Deno.serve(async (req: Request) => {
   }
 
   // ── Step 3: Render email ─────────────────────────────────────────────────
-  const mailFromDomain = 'mail.roamtheweb.app'
   const webDomain = 'roamtheweb.app'
   const htmlBody = hasHtml ? bodyHtml as string : markdownToHtml(bodyMarkdown as string)
 
@@ -273,38 +273,25 @@ Deno.serve(async (req: Request) => {
       }
       const finalText = stripHtml(finalHtml)
 
-      try {
-        const response = await fetch('https://api.resend.com/emails', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${resendApiKey}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            from: `Roam <hello@${mailFromDomain}>`,
-            to: recip.email,
-            subject: subject,
-            html: finalHtml,
-            text: finalText,
-          }),
-        })
+      const sendResult = await sendEmail({
+        to: recip.email,
+        subject: subject,
+        html: finalHtml,
+        text: finalText,
+      })
 
-        const result = await response.json()
-        if (!response.ok) {
-          console.error(`[send-bulk-email] Failed to send to ${recip.email}:`, result)
-          report(`Resend API error for ${recip.email}: ${result?.message ?? 'Unknown error'}`, 'warning', {
-            email: recip.email,
-            resendStatus: response.status,
-            operation: 'resend-send',
-          })
-          return { success: false, userId: recip.userId, email: recip.email, error: result?.message ?? 'Unknown error' }
-        }
-        return { success: true, userId: recip.userId, email: recip.email }
-      } catch (err) {
-        console.error(`[send-bulk-email] Error sending to ${recip.email}:`, err)
-        report(err, 'warning', { email: recip.email, operation: 'resend-fetch' })
-        return { success: false, userId: recip.userId, email: recip.email, error: String(err) }
+      if (!sendResult.ok) {
+        const sendError = sendResult.error ?? 'Unknown error'
+        console.error(`[send-bulk-email] Failed to send to ${recip.email}:`, sendError)
+        report(`Resend API error for ${recip.email}: ${sendError}`, 'warning', {
+          email: recip.email,
+          resendStatus: sendResult.status,
+          operation: 'resend-send',
+        })
+        return { success: false, userId: recip.userId, email: recip.email, error: sendError }
       }
+
+      return { success: true, userId: recip.userId, email: recip.email }
     })
 
     const results = await Promise.all(promises)
