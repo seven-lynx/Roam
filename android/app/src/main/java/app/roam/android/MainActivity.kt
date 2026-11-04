@@ -14,6 +14,7 @@ import app.roam.android.ui.screen.CategoryOnboardingScreen
 import app.roam.android.ui.screen.MainScreen
 import app.roam.android.ui.screen.OnboardingScreen
 import app.roam.android.ui.screen.SplashScreen
+import app.roam.android.ui.screen.WalkthroughScreen
 import app.roam.android.ui.theme.RoamTheme
 import app.roam.android.ui.theme.RoamThemeVariant
 import app.roam.android.ui.theme.roamOsPalette
@@ -68,7 +69,11 @@ class MainActivity : ComponentActivity() {
                 when (authState) {
                     AuthState.Loading -> SplashScreen(variant = themeVariant)
                     AuthState.Unauthenticated -> OnboardingScreen()
-                    AuthState.NeedsOnboarding -> CategoryOnboardingScreen(
+                    AuthState.NeedsOnboarding -> WalkthroughScreen(
+                        vm = mainVm,
+                        onComplete = { authVm.markOnboardingComplete() },
+                    )
+                    AuthState.EditingInterests -> CategoryOnboardingScreen(
                         vm = mainVm,
                         onComplete = { authVm.markOnboardingComplete() },
                     )
@@ -85,6 +90,9 @@ class MainActivity : ComponentActivity() {
                             }
                         },
                         onNavigateToInterests = {
+                            authVm.setStatus(AuthState.EditingInterests)
+                        },
+                        onReplayWalkthrough = {
                             authVm.setStatus(AuthState.NeedsOnboarding)
                         }
                     )

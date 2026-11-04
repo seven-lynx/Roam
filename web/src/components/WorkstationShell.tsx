@@ -21,6 +21,7 @@ import {
   type WindowRect,
   type CameraFraming,
   type Theme,
+  type WebappTheme,
   type UiMode,
   type AlertMessage,
   type AlertConfirmOptions,
@@ -30,6 +31,8 @@ import {
 } from '@/components/WorkstationContext';
 import { useIsMobile } from '@/lib/hooks';
 import { StatusBar } from '@/components/StatusBar';
+import { RoamClassic } from '@/components/RoamClassic';
+import { Walkthrough } from '@/components/Walkthrough';
 import { Launcher } from '@/components/Launcher';
 import { AppDrawer } from '@/components/AppDrawer';
 import { QuickSettings } from '@/components/QuickSettings';
@@ -186,6 +189,7 @@ export function WorkstationShell({
   const [barrelMap, setBarrelMap] = useState('');
   const [taskbarAutoHide, setTaskbarAutoHideState] = useState(false);
   const [theme, setThemeState] = useState<Theme>('green');
+  const [webappTheme, setWebappThemeState] = useState<WebappTheme>('roam-os');
   const [uiMode, setUiModeState] = useState<UiMode>('auto');
   const [launcherOpen, setLauncherOpenState] = useState(false);
   const [appDrawerOpen, setAppDrawerOpenState] = useState(false);
@@ -283,6 +287,8 @@ export function WorkstationShell({
       if (a === 'b') setArtVariantState('b');
       const rawTheme = localStorage.getItem(THEME_KEY) ?? localStorage.getItem('roam-phosphor');
       if (rawTheme && THEME_PRESETS.some((p) => p.id === rawTheme)) setThemeState(rawTheme as Theme);
+      const rawWebappTheme = localStorage.getItem('roam-webapp-theme');
+      if (rawWebappTheme === 'classic' || rawWebappTheme === 'roam-os') setWebappThemeState(rawWebappTheme);
       if (localStorage.getItem(AUTOHIDE_KEY) === '1') setTaskbarAutoHideState(true);
       const rawWidgets = localStorage.getItem(WIDGETS_KEY);
       if (rawWidgets) {
@@ -396,6 +402,11 @@ export function WorkstationShell({
   const setTheme = useCallback((t: Theme) => {
     setThemeState(t);
     try { localStorage.setItem(THEME_KEY, t); } catch { /* ignore */ }
+  }, []);
+
+  const setWebappTheme = useCallback((t: WebappTheme) => {
+    setWebappThemeState(t);
+    try { localStorage.setItem('roam-webapp-theme', t); } catch { /* ignore */ }
   }, []);
 
   const setTaskbarAutoHide = useCallback((on: boolean) => {
@@ -748,6 +759,8 @@ export function WorkstationShell({
       setTaskbarAutoHide,
       theme,
       setTheme,
+      webappTheme,
+      setWebappTheme,
       uiMode,
       setUiMode,
       handheld,
@@ -806,7 +819,7 @@ export function WorkstationShell({
       widgets,
       toggleWidget,
     }),
-    [fx, setFx, sound, setSound, volume, setVolume, muted, toggleMute, setMuted, brightness, setBrightness, warp, setWarp, displayFx, setDisplayFx, soundFx, setSoundFx, taskbarAutoHide, setTaskbarAutoHide, theme, setTheme, uiMode, setUiMode, handheld, artVariant, setArtVariant, inspect, setInspect, toggleInspect, camera, setCamera, resetCamera, fit, saveFit, fitDeck, alert, showAlert, showConfirm, dismissAlert, resetOsSettings, windows, isOpen, openWindow, closeWindow, launcherOpen, setLauncherOpen, toggleLauncher, appDrawerOpen, setAppDrawerOpen, toggleAppDrawer, quickSettingsOpen, setQuickSettingsOpen, toggleQuickSettings, minimizeWindow, toggleMaximize, focusWindow, moveWindow, minimizeAll, restoreAll, deckReady, setDeckReady, deckMode, setDeckMode, deckRequested, setDeckRequested, openDeckLauncher, deckProgress, setDeckProgress, browse, openUrl, updateBrowse, closeBrowse, appView, openAppView, closeAppView, widgets, toggleWidget],
+    [fx, setFx, sound, setSound, volume, setVolume, muted, toggleMute, setMuted, brightness, setBrightness, warp, setWarp, displayFx, setDisplayFx, soundFx, setSoundFx, taskbarAutoHide, setTaskbarAutoHide, theme, setTheme, webappTheme, setWebappTheme, uiMode, setUiMode, handheld, artVariant, setArtVariant, inspect, setInspect, toggleInspect, camera, setCamera, resetCamera, fit, saveFit, fitDeck, alert, showAlert, showConfirm, dismissAlert, resetOsSettings, windows, isOpen, openWindow, closeWindow, launcherOpen, setLauncherOpen, toggleLauncher, appDrawerOpen, setAppDrawerOpen, toggleAppDrawer, quickSettingsOpen, setQuickSettingsOpen, toggleQuickSettings, minimizeWindow, toggleMaximize, focusWindow, moveWindow, minimizeAll, restoreAll, deckReady, setDeckReady, deckMode, setDeckMode, deckRequested, setDeckRequested, openDeckLauncher, deckProgress, setDeckProgress, browse, openUrl, updateBrowse, closeBrowse, appView, openAppView, closeAppView, widgets, toggleWidget],
   );
 
   const barrelActive = fx && displayFx.barrel && warp > 0.02;
@@ -875,6 +888,8 @@ export function WorkstationShell({
           <GestureLayer />
           <AlertDialog />
           {overlays}
+          {webappTheme === 'classic' && <RoamClassic />}
+          <Walkthrough />
         </div>
       </Cyberdeck3D>
     </WorkstationContext.Provider>

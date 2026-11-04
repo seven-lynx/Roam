@@ -68,6 +68,10 @@ export const MAX_OPEN_WINDOWS = 5;
  *  the text glow. */
 export type Theme = 'green' | 'amber' | 'magenta' | 'blue' | 'ice';
 
+/** Whole-app shell: ROAM-OS (cyberdeck desktop) or Roam Classic (the original
+ *  web-app shell). Persisted per device. */
+export type WebappTheme = 'roam-os' | 'classic';
+
 export const THEME_PRESETS: { id: Theme; label: string; phosphor: string; accent: string }[] = [
   { id: 'green', label: 'Green', phosphor: '#59b3ae', accent: '#c9a24b' },
   { id: 'amber', label: 'Amber', phosphor: '#e08a4a', accent: '#e0b45f' },
@@ -199,6 +203,9 @@ export interface WorkstationState {
   /** OS screen color theme (recolors the whole screen). */
   theme: Theme;
   setTheme: (t: Theme) => void;
+  /** Which app shell is mounted: the ROAM-OS desktop or Roam Classic. */
+  webappTheme: WebappTheme;
+  setWebappTheme: (t: WebappTheme) => void;
   /** Screen layout mode (auto / desktop / handheld). */
   uiMode: UiMode;
   setUiMode: (mode: UiMode) => void;
@@ -311,6 +318,8 @@ const DEFAULT_WORKSTATION: WorkstationState = {
   setTaskbarAutoHide: noop,
   theme: 'green',
   setTheme: noop,
+  webappTheme: 'roam-os',
+  setWebappTheme: noop,
   uiMode: 'auto',
   setUiMode: noop,
   handheld: false,

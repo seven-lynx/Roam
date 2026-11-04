@@ -30,6 +30,10 @@ import kotlinx.serialization.json.add
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+import java.util.TimeZone
 
 /** Outcome of a URL submission. Lets the UI distinguish duplicates from real failures. */
 sealed interface SubmitResult {
@@ -576,6 +580,40 @@ class RoamRepository {
             .from("profiles")
             .update(mapOf("is_public" to isPublic)) { filter { eq("id", userId) } }
     }
+
+    /**
+     * Returns whether the current user has completed the scripted onboarding
+     * walkthrough. Returns null when the user id isn't available yet (session
+     * still settling), so callers can distinguish "not ready" from "not done".
+     */
+    suspend fun getWalkthroughCompleted(): Boolean? {
+        val userId = supabase.auth.currentUserOrNull()?.id ?: return null
+        val row = supabase.postgrest
+            .from("profiles")
+            .select(Columns.list("walkthrough_completed_at")) {
+                filter { eq("id", userId) }
+                limit(1)
+            }
+            .decodeList<WalkthroughCompletedRow>()
+            .firstOrNull()
+        return row?.completedAt != null
+    }
+
+    /** Marks the scripted onboarding walkthrough as complete for the current user. */
+    suspend fun completeWalkthrough() {
+        val userId = supabase.auth.currentUserOrNull()?.id ?: return
+        val now = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSXXX", Locale.US).apply {
+            timeZone = TimeZone.getTimeZone("UTC")
+        }.format(Date())
+        supabase.postgrest
+            .from("profiles")
+            .update(mapOf("walkthrough_completed_at" to now)) { filter { eq("id", userId) } }
+    }
+
+    @Serializable
+    private data class WalkthroughCompletedRow(
+        @SerialName("walkthrough_completed_at") val completedAt: String? = null,
+    )
 
     /**
      * Returns the set of subcategory IDs the user has selected (topic mode).

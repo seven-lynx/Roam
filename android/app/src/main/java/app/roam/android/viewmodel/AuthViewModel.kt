@@ -22,8 +22,10 @@ sealed interface AuthState {
     data object Authenticated : AuthState
     /** No session — redirect to onboarding */
     data object Unauthenticated : AuthState
-    /** Authenticated but no interest categories set yet — show native category picker */
+    /** Authenticated but hasn't completed the scripted walkthrough yet — show it. */
     data object NeedsOnboarding : AuthState
+    /** Authenticated and editing interests outside the walkthrough (from Profile). */
+    data object EditingInterests : AuthState
 }
 
 class AuthViewModel(
@@ -74,18 +76,18 @@ class AuthViewModel(
      * Returns [AuthState.NeedsOnboarding] if not, [AuthState.Authenticated] if yes.
      */
     private suspend fun checkOnboarding(): AuthState {
-        // Session/auth state can flip to Authenticated slightly before user/category reads stabilize.
+        // Session/auth state can flip to Authenticated slightly before the profile row is readable.
         repeat(4) { attempt ->
-            val categoriesResult = runCatching { repo.getUserCategoryIds() }
-            val categories = categoriesResult.getOrNull()
-            Log.d(TAG, "checkOnboarding attempt ${attempt + 1}: categories=$categories, error=${categoriesResult.exceptionOrNull()?.message}")
-            if (categories != null) {
-                val state = if (categories.isEmpty()) AuthState.NeedsOnboarding else AuthState.Authenticated
-                Log.d(TAG, "checkOnboarding resolved → $state (${categories.size} categories)")
+            val result = runCatching { repo.getWalkthroughCompleted() }
+            val completed = result.getOrNull()
+            Log.d(TAG, "checkOnboarding attempt ${attempt + 1}: completed=$completed, error=${result.exceptionOrNull()?.message}")
+            if (completed != null) {
+                val state = if (completed) AuthState.Authenticated else AuthState.NeedsOnboarding
+                Log.d(TAG, "checkOnboarding resolved → $state")
                 return state
             }
 
-            Log.w(TAG, "Onboarding check attempt ${attempt + 1} failed; retrying", categoriesResult.exceptionOrNull())
+            Log.w(TAG, "Onboarding check attempt ${attempt + 1} failed; retrying", result.exceptionOrNull())
             delay(250)
         }
 

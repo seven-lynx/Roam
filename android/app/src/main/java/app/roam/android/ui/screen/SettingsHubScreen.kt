@@ -75,6 +75,7 @@ fun SettingsHubScreen(
     onNavigateToLeaderboard: () -> Unit = {},
     onNavigateToPublicProfile: (String) -> Unit = {},
     onNavigateToRoam: () -> Unit = {},
+    onReplayWalkthrough: () -> Unit = {},
     onOpenUserSearch: () -> Unit = {},
     onNavigateToActivityFeed: () -> Unit = {},
     onNavigateToAdmin: () -> Unit = {},
@@ -317,8 +318,7 @@ fun SettingsHubScreen(
                 CustomTabsIntent.Builder().build().launchUrl(context, Uri.parse("https://roamtheweb.app/privacy"))
             })
             SettingsActionRow("Replay guided tour", "See the walkthrough again", onClick = {
-                vm.resetWalkthrough()
-                onNavigateToRoam()
+                onReplayWalkthrough()
             })
             Row(
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),

@@ -115,7 +115,6 @@ class MainViewModel(
     private val HARDWARE_FX_MASTER_KEY = "hardware_fx_master"
     private val BACKLIGHT_KEY = "backlit_keys"
     private val BACKLIGHT_COLOR_KEY = "backlight_color"
-    private val WALKTHROUGH_SEEN_KEY = "walkthrough_seen"
     private val LAST_URL_KEY = "last_url"
     private val LAST_URL_TITLE_KEY = "last_url_title"
     private val SOUND_EFFECTS_KEY = "sound_effects"
@@ -496,17 +495,9 @@ class MainViewModel(
         }
     }
 
-    /** Returns true if the user has already seen the feature walkthrough. */
-    fun hasSeenWalkthrough(): Boolean = prefs.getBoolean(WALKTHROUGH_SEEN_KEY, false)
-
-    /** Marks the feature walkthrough as seen (persisted). */
-    fun markWalkthroughSeen() {
-        prefs.edit().putBoolean(WALKTHROUGH_SEEN_KEY, true).apply()
-    }
-
-    /** Resets the walkthrough flag so it shows again on the next main-screen visit. */
-    fun resetWalkthrough() {
-        prefs.edit().remove(WALKTHROUGH_SEEN_KEY).apply()
+    /** Marks the scripted onboarding walkthrough complete (server-side). */
+    fun completeWalkthrough() {
+        viewModelScope.launch { runCatching { repo.completeWalkthrough() } }
     }
 
     /** True while the current URL is wrapped through Google Translate. */

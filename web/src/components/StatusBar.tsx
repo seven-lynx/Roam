@@ -25,7 +25,7 @@ export function StatusBar() {
   const { session } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
-  const { toggleLauncher, handheld } = useWorkstation();
+  const { toggleLauncher, handheld, webappTheme, setWebappTheme } = useWorkstation();
   const [menuOpen, setMenuOpen] = useState(false);
   const [clock, setClock] = useState('');
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -141,6 +141,16 @@ export function StatusBar() {
 
       <span className="tabular-nums text-ink min-w-[3.2ch]" suppressHydrationWarning>{clock || '--:--'}</span>
       <SignalBars />
+      <button
+        type="button"
+        onClick={() => setWebappTheme(webappTheme === 'roam-os' ? 'classic' : 'roam-os')}
+        aria-pressed={webappTheme === 'classic'}
+        aria-label={webappTheme === 'roam-os' ? 'Switch to Roam Classic' : 'Switch to Roam-OS'}
+        className="px-2 h-7 rounded border border-line text-[10px] font-mono tracking-wide text-ink hover:text-phosphor hover:border-gold transition-colors"
+        title={webappTheme === 'roam-os' ? 'Switch to Roam Classic' : 'Switch to Roam-OS'}
+      >
+        {webappTheme === 'roam-os' ? 'CLASSIC' : 'ROAM-OS'}
+      </button>
       <button
         type="button"
         onClick={toggleFullscreen}

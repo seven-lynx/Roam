@@ -88,7 +88,6 @@ import app.roam.android.ui.component.LocalClickSound
 import app.roam.android.ui.component.OsStatusBar
 import app.roam.android.ui.component.RoamTab
 import app.roam.android.ui.component.RoamOsBootScreen
-import app.roam.android.ui.component.Tour
 import app.roam.android.ui.component.TranslateLoading
 import app.roam.android.ui.component.TranslatePicker
 import app.roam.android.ui.component.RoamWebView
@@ -115,6 +114,7 @@ fun MainScreen(
     activity: MainActivity,
     onSignOut: () -> Unit = {},
     onNavigateToInterests: () -> Unit = {},
+    onReplayWalkthrough: () -> Unit = {},
 ) {
     val context = LocalContext.current
     var currentTab by rememberSaveable { mutableStateOf(RoamTab.Roam.route) }
@@ -308,6 +308,7 @@ fun MainScreen(
                         currentTab = RoamTab.PublicProfile.route
                     },
                     onNavigateToRoam = { currentTab = RoamTab.Roam.route },
+                    onReplayWalkthrough = onReplayWalkthrough,
                     onOpenUserSearch = { showUserSearch = true },
                     onNavigateToAdmin = { currentTab = RoamTab.Admin.route },
                     onNavigateToAppearance = { currentTab = RoamTab.Appearance.route },
@@ -551,15 +552,6 @@ fun MainScreen(
                         viewedUsername = username
                         currentTab = RoamTab.PublicProfile.route
                     },
-                )
-            }
-
-            // ── Interactive Tour (top-level, survives tab switches) ──
-            if (!vm.hasSeenWalkthrough()) {
-                Tour(
-                    onDismiss = { vm.markWalkthroughSeen() },
-                    onNavigateToSettingsHub = { currentTab = RoamTab.SettingsHub.route },
-                    onOpenConfigSheet = { vm.openConfigSheet() },
                 )
             }
 

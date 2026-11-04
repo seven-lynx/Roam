@@ -12,18 +12,21 @@ export interface Profile {
   email: string;
   bio?: string;
   avatar_url?: string;
+  walkthrough_completed_at?: string | null;
 }
 
 interface AuthContextValue {
   session: Session | null;
   profile: Profile | null;
   loading: boolean;
+  walkthroughCompleted: boolean;
 }
 
 const AuthContext = createContext<AuthContextValue>({
   session: null,
   profile: null,
   loading: true,
+  walkthroughCompleted: false,
 });
 
 export function useAuth() {
@@ -46,7 +49,7 @@ export function AuthProvider({ initialSession, children }: AuthProviderProps) {
     async function loadProfile(userId: string) {
       const { data } = await supabase
         .from('profiles')
-        .select('id, username, email, bio, avatar_url')
+        .select('id, username, email, bio, avatar_url, walkthrough_completed_at')
         .eq('id', userId)
         .single();
       setProfile(data ?? null);
@@ -69,7 +72,7 @@ export function AuthProvider({ initialSession, children }: AuthProviderProps) {
   }, [supabase, initialSession]);
 
   return (
-    <AuthContext.Provider value={{ session, profile, loading }}>
+    <AuthContext.Provider value={{ session, profile, loading, walkthroughCompleted: profile?.walkthrough_completed_at != null }}>
       {children}
     </AuthContext.Provider>
   );
