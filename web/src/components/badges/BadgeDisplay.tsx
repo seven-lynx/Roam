@@ -1,6 +1,14 @@
 'use client';
 
 import { Tooltip } from '@/components/ui/tooltip';
+import { Icon } from '@/components/Icon';
+import {
+  DEFAULT_GLYPH,
+  HIDDEN_GLYPH,
+  resolveBadgeGlyph,
+  TIER_RING,
+  type IconDef,
+} from '@/lib/icons';
 
 export type BadgeData = {
   id: string;
@@ -31,12 +39,12 @@ const TIER_NAMES: Record<number, string> = {
 };
 
 const TIER_COLORS: Record<number, string> = {
-  0: 'bg-panel-2',
-  1: 'bg-panel-2 bg-panel-2/30 border-gold',
-  2: 'bg-panel-2 border-line border-line',
-  3: 'bg-panel-2 bg-panel-2/30 border-gold border-gold',
-  4: 'bg-panel-2 bg-panel-2/30 border-phosphor border-phosphor',
-  5: 'bg-panel-2 bg-panel-2/30 border-line border-line',
+  0: 'bg-panel-2 border-line',
+  1: 'bg-panel-2/40 border-ember/70',
+  2: 'bg-panel-2/40 border-muted',
+  3: 'bg-panel-2/40 border-gold',
+  4: 'bg-panel-2/40 border-phosphor',
+  5: 'bg-panel-2/40 border-gold-bright',
 };
 
 const CATEGORY_LABELS: Record<string, string> = {
@@ -71,7 +79,7 @@ export function BadgeDisplay({ badges, showLocked = true, showSecret = false, co
   if (displayBadges.length === 0) {
     return (
       <div className="text-center py-8 text-muted">
-        <span className="text-4xl block mb-2">🏅</span>
+        <div className="flex justify-center mb-2"><Icon def={DEFAULT_GLYPH} size={40} className="text-muted" /></div>
         <p className="text-sm">No badges yet. Start roaming to earn your first badge!</p>
       </div>
     );
@@ -91,6 +99,35 @@ export function BadgeDisplay({ badges, showLocked = true, showSecret = false, co
   );
 }
 
+function BadgeGlyph({ badge, compact }: { badge: BadgeData; compact: boolean }) {
+  const unlocked = badge.is_unlocked;
+  const hidden = badge.is_hidden && !unlocked;
+  const def: IconDef = hidden ? HIDDEN_GLYPH : resolveBadgeGlyph(badge.slug, badge.category);
+  const ring = unlocked && badge.tier > 0 ? (TIER_RING[badge.tier] ?? null) : null;
+  const size = compact ? 20 : 26;
+  return (
+    <span className={`relative inline-flex items-center justify-center ${compact ? 'h-6 w-6' : 'h-8 w-8'}`}>
+      {ring && (
+        <svg
+          viewBox="0 0 24 24"
+          width={size + 10}
+          height={size + 10}
+          className={`absolute ${ring}`}
+          fill="none"
+          stroke="currentColor"
+          strokeWidth={1.4}
+          strokeDasharray="3 3"
+          opacity={0.75}
+          aria-hidden="true"
+        >
+          <circle cx="12" cy="12" r="11" />
+        </svg>
+      )}
+      <Icon def={def} size={size} className="text-ink" />
+    </span>
+  );
+}
+
 function BadgeItem({ badge, compact }: { badge: BadgeData; compact: boolean }) {
   const unlocked = badge.is_unlocked;
   const tierColor = unlocked ? TIER_COLORS[badge.tier] || TIER_COLORS[0] : 'bg-panel-2 bg-panel-2/50 opacity-60';
@@ -102,7 +139,7 @@ function BadgeItem({ badge, compact }: { badge: BadgeData; compact: boolean }) {
   return (
     <Tooltip content={
       <div className="max-w-[200px] text-center">
-        <p className="font-semibold text-sm">{badge.icon} {badge.name}</p>
+        <p className="font-semibold text-sm">{badge.name}</p>
         <p className="text-xs mt-0.5">{badge.description}</p>
         {!unlocked && badge.is_hidden ? (
           <p className="text-xs mt-1 italic">???</p>
@@ -146,9 +183,7 @@ function BadgeItem({ badge, compact }: { badge: BadgeData; compact: boolean }) {
             {TIER_NAMES[badge.tier]}
           </span>
         )}
-        <span className={`${compact ? 'text-xl' : 'text-2xl'} leading-none`}>
-          {badge.is_hidden && !unlocked ? '❓' : badge.icon}
-        </span>
+        <BadgeGlyph badge={badge} compact={compact} />
         {!compact && (
           <span className="text-[10px] mt-1 text-center leading-tight line-clamp-2 font-medium">
             {badge.is_hidden && !unlocked ? '???' : badge.name}

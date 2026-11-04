@@ -54,7 +54,7 @@ Shared vocabulary for the product and the discovery scoring system. Where a term
 
 **Level** — Progression from 1–50 driven by accumulated XP.
 
-**Badge** — An unlockable achievement; ~150 badges across 12 categories (`badges` / `user_badges`).
+**Badge** — An unlockable achievement; 335 badges across 11 categories (`badges` / `user_badges`).
 
 **Streak** — Consecutive days of activity (`user_daily_activity`).
 

@@ -63,7 +63,7 @@ For speed, scoring is computed inline in the query, candidate URLs are fetched a
 - Pillar vs. topic interest selection — toggle between broad category discovery or specific subcategory focus
 
 **Gamification**
-- ~150 badges across 11 categories (exploration, collecting, curating, social, streaks, contributing, curiosity, games, and more)
+- 335 badges across 11 categories (exploration, collecting, curating, social, streaks, contributing, curiosity, games, and more)
 - Level progression (1–100) with XP earned from rating, submitting, and discovering
 - Daily challenges — complete tasks like rating URLs, discovering pages, and exploring categories to earn bonus XP
 - Leaderboard — compete on weekly, monthly, and all-time XP rankings
@@ -91,7 +91,7 @@ Deliberately non-intrusive. Click, roam, rate, close — nothing is injected int
 - Push notifications for new features, badge unlocks, level-ups, and shared URLs
 - Activity feed — see what people you follow are discovering and rating
 - Leaderboard — weekly, monthly, and all-time XP rankings
-- Badge gallery with ~150 badges and level progression
+- Badge gallery with 335 badges and level progression
 - Public profiles, follows, and URL sharing
 - Material Design 3 / Jetpack Compose
 - Android 8.0+ (SDK 26), target SDK 36

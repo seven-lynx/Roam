@@ -1329,7 +1329,7 @@ Returns the authenticated user's active (unexpired) challenge instances with cur
 
 ### `evaluate-badges` — Evaluate and award badges
 
-The canonical badge evaluator (replaces the legacy SQL `evaluate_badges()` RPC). Computes a user's activity stats, compares them against ~150 badge definitions, and awards any newly earned badges plus their XP. Called fire-and-forget by other edge functions after user actions, and by the badge-repair tooling.
+The canonical badge evaluator (replaces the legacy SQL `evaluate_badges()` RPC). Computes a user's activity stats, compares them against 335 badge definitions, and awards any newly earned badges plus their XP. Called fire-and-forget by other edge functions after user actions, and by the badge-repair tooling.
 
 **Endpoint:** `POST /functions/v1/evaluate-badges`
 

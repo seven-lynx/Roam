@@ -120,7 +120,7 @@ This is the **single authoritative badge evaluator**. It runs:
 - **Real-time:** Fired asynchronously by other edge functions after user actions
 - **Batch repair:** Called for every user via `scripts/repair-badges-comprehensive.mjs`
 
-It handles ~150 badges across these categories:
+It handles 335 badges across these categories:
 - **Exploration** — roam count, session badges, time-of-day badges
 - **Collecting** — save count, category diversity, save streaks
 - **Curating** — collection count, public collections, collection favorites

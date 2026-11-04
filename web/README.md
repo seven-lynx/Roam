@@ -36,7 +36,7 @@ The Next.js 16 web application for Roam. The web surface is the account-manageme
 - **Collections** (`/collections/[slug]`) — public collection browsing
 - **Follow/unfollow** — manage follows from profile pages
 - **Rankings** (`/leaderboard`) — weekly, monthly, and all-time XP rankings
-- **Badge gallery** (`/badges`) — ~150 badges with unlock details and progress tracking
+- **Badge gallery** (`/badges`) — 335 badges with unlock details and progress tracking
 
 ### Admin
 - **Moderation queue** — review and approve/reject submissions with detail view, filtering, search, sort

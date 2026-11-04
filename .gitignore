@@ -31,6 +31,13 @@ CLAUDE.md
 web/CLAUDE.md
 .github/copilot-instructions.md
 .github/skills/
+# RULES.md (root + per-platform) are AI-authoring rules, not contributor docs.
+# They stay local-only so the public repo carries no agent-specific instructions.
+RULES.md
+android/RULES.md
+extension/RULES.md
+supabase/RULES.md
+web/RULES.md
 # NOTE: web/AGENTS.md is intentionally tracked — it's the canonical rules file
 # for the web layer, distinct from any personal AI tooling notes.
 
