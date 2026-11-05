@@ -1,0 +1,15 @@
+# Screenshot flow: Challenges (Settings Hub -> quests).
+appId: app.roam.android
+---
+- launchApp:
+    clearState: false
+- extendedWaitUntil:
+    visible: "Settings"
+    timeout: 30000
+- tapOn: "Settings"
+- extendedWaitUntil:
+    visible: "quests"
+    timeout: 10000
+- tapOn: "quests"
+- waitForAnimationToEnd
+- takeScreenshot: android-challenges

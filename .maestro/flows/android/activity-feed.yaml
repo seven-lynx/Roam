@@ -1,0 +1,15 @@
+# Screenshot flow: Activity Feed (Settings Hub -> stream).
+appId: app.roam.android
+---
+- launchApp:
+    clearState: false
+- extendedWaitUntil:
+    visible: "Settings"
+    timeout: 30000
+- tapOn: "Settings"
+- extendedWaitUntil:
+    visible: "stream"
+    timeout: 10000
+- tapOn: "stream"
+- waitForAnimationToEnd
+- takeScreenshot: android-activity-feed

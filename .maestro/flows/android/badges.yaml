@@ -1,0 +1,15 @@
+# Screenshot flow: Badges (Settings Hub -> Badges).
+appId: app.roam.android
+---
+- launchApp:
+    clearState: false
+- extendedWaitUntil:
+    visible: "Settings"
+    timeout: 30000
+- tapOn: "Settings"
+- extendedWaitUntil:
+    visible: "Badges"
+    timeout: 10000
+- tapOn: "Badges"
+- waitForAnimationToEnd
+- takeScreenshot: android-badges

@@ -1,0 +1,19 @@
+# Sign-in subflow for a clean install.
+# Runs after a fresh launch when the app is unauthenticated.
+# Requires ROAM_EMAIL + ROAM_PASSWORD (the runner forwards them via `-e`).
+appId: app.roam.android
+---
+- launchApp:
+    clearState: false
+- extendedWaitUntil:
+    visible: "Continue with Google"
+    timeout: 30000
+- tapOn: "Continue with Email"
+- tapOn: "Email"
+- inputText: ${ROAM_EMAIL}
+- tapOn: "Password"
+- inputText: ${ROAM_PASSWORD}
+- tapOn: "Sign In"
+- extendedWaitUntil:
+    visible: "Settings"
+    timeout: 30000

@@ -50,6 +50,8 @@ android/roam-release.jks
 # Reports
 scripts/reports/offline/
 scripts/reports/.checkpoints/
+# Visual recording output (large screenshots/videos)
+artifacts/
 
 # Cache / generated data (large files)
 scripts/.cache/
@@ -82,6 +84,7 @@ scripts/*
 !scripts/check-rules.mjs
 !scripts/validate-env.mjs
 !scripts/verify-roam-rpc.mjs
+!scripts/record-android.mjs
 !scripts/.rules-allowlist
 # Backend tooling under supabase/scripts is tracked (unlike the local-only
 # root scripts/ directory used for offline seeders and AI tooling).

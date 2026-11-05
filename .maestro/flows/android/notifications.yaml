@@ -1,0 +1,15 @@
+# Screenshot flow: Notifications (Settings Hub -> alerts).
+appId: app.roam.android
+---
+- launchApp:
+    clearState: false
+- extendedWaitUntil:
+    visible: "Settings"
+    timeout: 30000
+- tapOn: "Settings"
+- extendedWaitUntil:
+    visible: "alerts"
+    timeout: 10000
+- tapOn: "alerts"
+- waitForAnimationToEnd
+- takeScreenshot: android-notifications

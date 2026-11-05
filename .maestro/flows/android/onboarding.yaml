@@ -1,0 +1,10 @@
+# Screenshot flow: Onboarding / sign-in (signed-out state).
+# NOTE: uses clearState so it logs out of any existing session.
+appId: app.roam.android
+---
+- launchApp:
+    clearState: true
+- extendedWaitUntil:
+    visible: "Continue with Google"
+    timeout: 30000
+- takeScreenshot: android-onboarding

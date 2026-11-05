@@ -1,0 +1,16 @@
+# Screenshot flow: Notifications & Effects (Settings Hub -> Sensory // Feedback).
+# NOTE: row label is the ROAM-OS flavour; classic theme uses "Notifications & Effects".
+appId: app.roam.android
+---
+- launchApp:
+    clearState: false
+- extendedWaitUntil:
+    visible: "Settings"
+    timeout: 30000
+- tapOn: "Settings"
+- extendedWaitUntil:
+    visible: "Sensory // Feedback"
+    timeout: 10000
+- tapOn: "Sensory // Feedback"
+- waitForAnimationToEnd
+- takeScreenshot: android-effects

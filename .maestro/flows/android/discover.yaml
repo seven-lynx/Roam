@@ -1,0 +1,11 @@
+# Screenshot flow: Discover (main Roam screen).
+# Assumes an already-signed-in device (run _signin.yaml once on a clean install).
+appId: app.roam.android
+---
+- launchApp:
+    clearState: false
+- extendedWaitUntil:
+    visible: "Settings"
+    timeout: 30000
+- waitForAnimationToEnd
+- takeScreenshot: android-discover

@@ -1,0 +1,16 @@
+# Screenshot flow: Browser settings (Settings Hub -> Net // Browser).
+# NOTE: row label is the ROAM-OS flavour; classic theme uses "Browser".
+appId: app.roam.android
+---
+- launchApp:
+    clearState: false
+- extendedWaitUntil:
+    visible: "Settings"
+    timeout: 30000
+- tapOn: "Settings"
+- extendedWaitUntil:
+    visible: "Net // Browser"
+    timeout: 10000
+- tapOn: "Net // Browser"
+- waitForAnimationToEnd
+- takeScreenshot: android-browser

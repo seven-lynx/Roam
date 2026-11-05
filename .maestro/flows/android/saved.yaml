@@ -1,0 +1,15 @@
+# Screenshot flow: Saved (Settings Hub -> Collections).
+appId: app.roam.android
+---
+- launchApp:
+    clearState: false
+- extendedWaitUntil:
+    visible: "Settings"
+    timeout: 30000
+- tapOn: "Settings"
+- extendedWaitUntil:
+    visible: "Collections"
+    timeout: 10000
+- tapOn: "Collections"
+- waitForAnimationToEnd
+- takeScreenshot: android-saved

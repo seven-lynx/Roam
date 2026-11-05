@@ -1,0 +1,120 @@
+name: Visual record
+
+on:
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: "Web origin to record (default: production)"
+        required: false
+        default: "https://roamtheweb.app"
+      record_android:
+        description: "Also record Android screens via Maestro (slow, emulator)"
+        type: boolean
+        required: false
+        default: false
+  schedule:
+    # Monday 06:00 UTC — web-only cadence (cheap on Linux). Android stays opt-in
+    # because it needs an emulator and burns minutes.
+    - cron: "0 6 * * 1"
+
+env:
+  NODE_VERSION: "24"
+  PNPM_VERSION: "10"
+
+jobs:
+  record-web:
+    name: Record web screens (Playwright)
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v5
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Install web dependencies
+        working-directory: ./web
+        run: pnpm install
+
+      - name: Install Chromium
+        working-directory: ./web
+        run: npx playwright install --with-deps chromium
+
+      - name: Record screens
+        working-directory: ./web
+        env:
+          WEB_BASE_URL: ${{ github.event.inputs.base_url || 'https://roamtheweb.app' }}
+          RECORD_VIDEO: "true"
+          # Optional signed-in capture: set from a repo secret as a storageState
+          # file is not committed. Omit to capture the signed-out experience.
+          # STORAGE_STATE: ${{ secrets.VISUAL_STORAGE_STATE_PATH }}
+        run: node scripts/record-screens.mjs
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: roam-web-screens
+          path: artifacts/visuals/web/
+          retention-days: 14
+
+  record-android:
+    name: Record Android screens (Maestro)
+    # Opt-in: Android recording is heavy and needs a configured runner/secrets,
+    # so it only runs when explicitly requested.
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.record_android == true }}
+    runs-on: macos-14
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      # NOTE: this build requires `android/app/google-services.json` (Firebase)
+      # and Supabase config provided via CI secrets / gradle properties, since
+      # those files are gitignored. Supply them before enabling this job.
+      - name: Build debug APK
+        working-directory: ./android
+        run: ./gradlew :app:assembleDebug
+
+      - name: Install Maestro CLI
+        run: curl -Ls "https://get.maestro.mobile.dev" | bash
+
+      - name: Start Android emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          arch: x86_64
+          script: |
+            adb install -r android/app/build/outputs/apk/debug/app-debug.apk
+            # PATH for the Maestro install from the previous step
+            export PATH="$PATH:$HOME/.maestro/bin"
+            node scripts/record-android.mjs
+        env:
+          ROAM_EMAIL: ${{ secrets.VISUAL_ROAM_EMAIL }}
+          ROAM_PASSWORD: ${{ secrets.VISUAL_ROAM_PASSWORD }}
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: roam-android-screens
+          path: artifacts/visuals/android/
+          retention-days: 14
