@@ -43,6 +43,22 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v5
 
+      # Staging is opt-in infra: fail fast with an actionable message instead
+      # of letting the CLI error out later on an empty --project-ref.
+      - name: Verify staging project is provisioned
+        env:
+          STAGING_SUPABASE_PROJECT_REF: ${{ vars.STAGING_SUPABASE_PROJECT_REF }}
+          STAGING_SUPABASE_ACCESS_TOKEN: ${{ secrets.STAGING_SUPABASE_ACCESS_TOKEN }}
+        run: |
+          missing=""
+          [ -z "${STAGING_SUPABASE_PROJECT_REF}" ] && missing="vars.STAGING_SUPABASE_PROJECT_REF"
+          [ -z "${STAGING_SUPABASE_ACCESS_TOKEN}" ] && missing="${missing}${missing:+ }secrets.STAGING_SUPABASE_ACCESS_TOKEN"
+          if [ -n "${missing}" ]; then
+            echo "::error::Staging Supabase is not provisioned. Missing: ${missing}"
+            echo "::error::Provision a staging Supabase project, then set the repository variable/secret listed above and re-run."
+            exit 1
+          fi
+
       - name: Setup Node.js
         uses: actions/setup-node@v5
         with:
