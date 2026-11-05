@@ -5,8 +5,10 @@ import {
   HIDDEN_GLYPH,
   resolveBadgeGlyph,
   normalizeCategory,
+  tierAccent,
   TIER_RING,
 } from "../lib/icons";
+import { BADGE_CATALOG } from "../lib/badge-catalog";
 
 const CORE_CATEGORIES = [
   "exploration",
@@ -63,4 +65,37 @@ describe("icon glyph pack", () => {
     for (let t = 1; t <= 5; t++) expect(TIER_RING[t]).toBeTruthy();
     expect(TIER_RING[0]).toBeNull();
   });
+
+  it("assigns a per-badge glyph to every catalog badge", () => {
+    const missing = BADGE_CATALOG.filter((b) => !BADGE_GLYPHS[b.slug]);
+    expect(missing.map((b) => b.slug)).toEqual([]);
+  });
+
+  it("renders a distinct glyph for every catalog badge", () => {
+    const seen = new Map<string, string>();
+    const dupes: string[] = [];
+    for (const b of BADGE_CATALOG) {
+      const children = resolveBadgeGlyph(b.slug, b.category, b.tier).children;
+      const first = seen.get(children);
+      if (first) dupes.push(`${b.slug} == ${first}`);
+      else seen.set(children, b.slug);
+    }
+    expect(dupes).toEqual([]);
+  });
+
+  it("keeps tier chains on a shared base distinguished only by the accent", () => {
+    const base = resolveBadgeGlyph("wanderer-bronze", "exploration", 1).children;
+    expect(base).toContain('cy="21.2"');
+    const higher = resolveBadgeGlyph("wanderer-gold", "exploration", 3).children;
+    expect(higher.length).toBeGreaterThan(base.length);
+  });
+
+  it("adds one pip per tier (clamped at 5)", () => {
+    expect(tierAccent(0)).toBe("");
+    expect(tierAccent(1).match(/<circle/g)?.length).toBe(1);
+    expect(tierAccent(3).match(/<circle/g)?.length).toBe(3);
+    expect(tierAccent(5).match(/<circle/g)?.length).toBe(5);
+    expect(tierAccent(9).match(/<circle/g)?.length).toBe(5);
+  });
 });
+

@@ -102,7 +102,7 @@ export function BadgeDisplay({ badges, showLocked = true, showSecret = false, co
 function BadgeGlyph({ badge, compact }: { badge: BadgeData; compact: boolean }) {
   const unlocked = badge.is_unlocked;
   const hidden = badge.is_hidden && !unlocked;
-  const def: IconDef = hidden ? HIDDEN_GLYPH : resolveBadgeGlyph(badge.slug, badge.category);
+  const def: IconDef = hidden ? HIDDEN_GLYPH : resolveBadgeGlyph(badge.slug, badge.category, badge.tier);
   const ring = unlocked && badge.tier > 0 ? (TIER_RING[badge.tier] ?? null) : null;
   const size = compact ? 20 : 26;
   return (
