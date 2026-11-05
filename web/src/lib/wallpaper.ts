@@ -28,8 +28,6 @@ export const WALLPAPERS: Wallpaper[] = [
   { id: 'deck-09', label: 'Deck 09', css: "url('/wallpapers/deck-wallpaper-09.jpg') center / cover no-repeat, #07100f" },
   { id: 'deck-10', label: 'Deck 10', css: "url('/wallpapers/deck-wallpaper-10.jpg') center / cover no-repeat, #07100f" },
   { id: 'deck-11', label: 'Deck 11', css: "url('/wallpapers/deck-wallpaper-11.jpg') center / cover no-repeat, #07100f" },
-  { id: 'deck-12', label: 'Deck 12', css: "url('/wallpapers/deck-wallpaper-12.jpg') center / cover no-repeat, #07100f" },
-  { id: 'deck-13', label: 'Deck 13', css: "url('/wallpapers/deck-wallpaper-13.jpg') center / cover no-repeat, #07100f" },
   { id: 'deck-14', label: 'Deck 14', css: "url('/wallpapers/deck-wallpaper-14.jpg') center / cover no-repeat, #07100f" },
   { id: 'deck-15', label: 'Deck 15', css: "url('/wallpapers/deck-wallpaper-15.jpg') center / cover no-repeat, #07100f" },
   { id: 'deck-16', label: 'Deck 16', css: "url('/wallpapers/deck-wallpaper-16.jpg') center / cover no-repeat, #07100f" },
