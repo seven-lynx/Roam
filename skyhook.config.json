@@ -19,7 +19,7 @@
       { "id": "lmstudio", "baseUrl": "http://localhost:1234/v1" }
     ],
     "model": "qwen2.5-7b-instruct-1m@q4_k_m",
-    "promptFile": ".roam-local/docs/tagging-prompt.md",
+    "promptFile": ".roam-local/docs/prompts/tagging-prompt.md",
     "worker": {
       "batchSize": 25,
       "modelSource": "llm"
