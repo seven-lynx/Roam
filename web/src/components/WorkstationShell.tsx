@@ -84,7 +84,6 @@ const CAMERA_PAN_KEY = 'roam-deck-pan';
 const CAMERA_FIT_KEY = 'roam-deck-fit';
 const WINDOW_LAYOUT_KEY = 'roam-window-layout';
 const DECK_VERSION_KEY = 'roam-deck-version';
-const README_SEEN_KEY = 'roam-readme-seen';
 
 // ── CRT barrel distortion ───────────────────────────────────────────────
 // Real geometric barrel warp via feDisplacementMap, ported from the Android
@@ -213,7 +212,7 @@ export function WorkstationShell({
   // auto-detected from the viewport.
   const handheld = uiMode === 'handheld' || (uiMode === 'auto' && isMobile);
 
-  // Latest handheld value, for the deferred first-run readme check below.
+  // Latest handheld value, for the deferred desktop readme auto-open below.
   const handheldRef = useRef(handheld);
   useEffect(() => {
     handheldRef.current = handheld;
@@ -587,27 +586,18 @@ export function WorkstationShell({
     });
   }, []);
 
-  // First-run onboarding: auto-open the README once, desktop only. Handheld
-  // operators reach it from a home-screen icon and open it by hand, so skip
-  // the auto-open whenever the effective layout is mobile.
+  // Desktop auto-open: show the README tour every time the desktop mounts.
+  // Handheld operators reach it from a home-screen icon and open it by hand,
+  // so skip the auto-open whenever the effective layout is mobile.
   const { session, walkthroughCompleted } = useAuth();
-  const readmeSeenRef = useRef(false);
   useEffect(() => {
     // Defer a tick: on the first render `handheld` is still desktop — the
     // SSR-safe media query and any persisted UI mode only settle after mount.
-    // Don't auto-open while a signed-in operator is still inside the unskippable
-    // first-run walkthrough — wait until they finish.
+    // Only delay while a signed-in operator is still inside the unskippable
+    // first-run walkthrough — open as soon as they finish it.
     if (session && !walkthroughCompleted) return;
     const t = setTimeout(() => {
-      if (readmeSeenRef.current) return;
       if (handheldRef.current) return;
-      try {
-        if (localStorage.getItem(README_SEEN_KEY) !== null) return;
-        localStorage.setItem(README_SEEN_KEY, '1');
-      } catch {
-        /* storage unavailable: still show on desktop */
-      }
-      readmeSeenRef.current = true;
       openWindow('readme');
     }, 0);
     return () => clearTimeout(t);
