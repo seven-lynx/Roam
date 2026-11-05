@@ -257,7 +257,7 @@ export function Launcher() {
       <div className="launcher-footer">
         <button type="button" className="launcher-footer-btn" data-tip="Config" aria-label="Config" onClick={() => { click(); openWindow('settings'); setLauncherOpen(false); }}>⚙</button>
         {signedIn ? (
-          <Link href="/profile" className="launcher-footer-btn" data-tip="Account" aria-label="Account" onClick={() => setLauncherOpen(false)}>◉</Link>
+          <button type="button" className="launcher-footer-btn" data-tip="Account" aria-label="Account" onClick={() => { click(); openAppView('/profile', 'Profile'); setLauncherOpen(false); }}>◉</button>
         ) : (
           <Link href="/signup?mode=signin" className="launcher-footer-btn" data-tip="Log in" aria-label="Log in" onClick={() => setLauncherOpen(false)}>→</Link>
         )}

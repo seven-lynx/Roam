@@ -1,4 +1,3 @@
-import Link from 'next/link';
 import type { RefObject } from 'react';
 import { extractDomain } from '@/lib/url-utils';
 import { useWorkstation } from '@/components/WorkstationContext';
@@ -19,7 +18,7 @@ interface Props {
  * card also surfaces the category · subcategory readout and the Wilson score.
  */
 export function ScanResult({ target, error, actionRef, onAgain, onClose }: Props) {
-  const { openUrl, closeWindow } = useWorkstation();
+  const { openUrl, closeWindow, openAppView } = useWorkstation();
 
   if (!target) {
     return (
@@ -36,7 +35,7 @@ export function ScanResult({ target, error, actionRef, onAgain, onClose }: Props
             <button ref={actionRef as RefObject<HTMLButtonElement>} type="button" className="btn btn-primary" onClick={onAgain}>
               Scan again
             </button>
-            <Link href="/collections" className="btn btn-secondary" onClick={onClose}>Collections</Link>
+            <button type="button" className="btn btn-secondary" onClick={() => { onClose(); openAppView('/collections', 'Collections'); }}>Collections</button>
             <button type="button" className="btn btn-ghost" onClick={onClose}>Close</button>
           </div>
         </div>

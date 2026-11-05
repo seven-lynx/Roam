@@ -161,6 +161,8 @@ export function SettingsApp() {
     resetCamera,
     resetOsSettings,
     widgets, toggleWidget,
+    openAppView,
+    closeWindow,
   } = useWorkstation();
   const { session } = useAuth();
   const router = useRouter();
@@ -339,7 +341,15 @@ export function SettingsApp() {
             <div className="panel-head"><span className="led" />ACCOUNT</div>
             <div className="p-2">
               {session ? (
-                <button type="button" className="set-btn" onClick={() => { click(); router.push('/settings'); }}>
+                <button
+                  type="button"
+                  className="set-btn"
+                  onClick={() => {
+                    click();
+                    openAppView('/settings', 'Settings');
+                    closeWindow('settings');
+                  }}
+                >
                   Account &amp; site settings →
                 </button>
               ) : (

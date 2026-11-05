@@ -1,13 +1,11 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { useWorkstation } from '@/components/WorkstationContext';
 import { fetchRandomPageUrl } from '@/lib/random-page';
 
 export function RandomPageButton() {
-  const { openUrl } = useWorkstation();
-  const router = useRouter();
+  const { openUrl, openAppView } = useWorkstation();
   const [loading, setLoading] = useState(false);
 
   async function handleClick() {
@@ -15,7 +13,7 @@ export function RandomPageButton() {
     try {
       const url = await fetchRandomPageUrl();
       if (url) openUrl({ url });
-      else router.push('/collections');
+      else openAppView('/collections', 'Collections');
     } finally {
       setLoading(false);
     }

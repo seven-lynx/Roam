@@ -1,9 +1,11 @@
 'use client';
 
-import { Suspense, type ReactNode } from 'react';
+import { Suspense, useEffect, useState, type ReactNode } from 'react';
 import Link from 'next/link';
-import { useSearchParams } from 'next/navigation';
+import { usePathname, useSearchParams } from 'next/navigation';
 import { WorkstationShell } from '@/components/WorkstationShell';
+import { AppRouteWindow } from '@/components/AppRouteWindow';
+import { matchWindowRoute } from '@/lib/os-routes';
 import { FlashlightCursor } from '@/components/FlashlightCursor';
 import { TerminalOverlay } from '@/components/TerminalOverlay';
 import { CookieBanner } from '@/components/CookieBanner';
@@ -11,6 +13,12 @@ import { PageTransition } from '@/components/PageTransition';
 
 function Gate({ children }: { children: ReactNode }) {
   const params = useSearchParams();
+  const pathname = usePathname();
+  // Defer the route→window coercion to the client so server rendering (and the
+  // hydration pass) still output the real page content for these public/SEO
+  // routes; deep-link coercion then happens one frame after mount.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
 
   if (params.get('embed') === '1') {
     // Bare render for pages loaded inside an app window: no OS shell, footer or
@@ -18,16 +26,27 @@ function Gate({ children }: { children: ReactNode }) {
     return <main id="main-content" className="embed-root">{children}</main>;
   }
 
+  const overlays = (
+    <>
+      <FlashlightCursor />
+      <TerminalOverlay />
+      <CookieBanner />
+    </>
+  );
+
+  // Internal app routes render as OS windows (not chrome-less full pages), so
+  // they get a close button and still respond to "Show Desktop".
+  const route = mounted ? matchWindowRoute(pathname) : null;
+  if (route) {
+    return (
+      <WorkstationShell overlays={overlays}>
+        <AppRouteWindow route={route} />
+      </WorkstationShell>
+    );
+  }
+
   return (
-    <WorkstationShell
-      overlays={
-        <>
-          <FlashlightCursor />
-          <TerminalOverlay />
-          <CookieBanner />
-        </>
-      }
-    >
+    <WorkstationShell overlays={overlays}>
       <Suspense><PageTransition /></Suspense>
       <main id="main-content" className="min-h-full">
         {children}

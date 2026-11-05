@@ -25,7 +25,7 @@ export function StatusBar() {
   const { session } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
-  const { toggleLauncher, handheld, webappTheme, setWebappTheme } = useWorkstation();
+  const { toggleLauncher, handheld, webappTheme, setWebappTheme, openAppView } = useWorkstation();
   const [menuOpen, setMenuOpen] = useState(false);
   const [clock, setClock] = useState('');
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -120,8 +120,8 @@ export function StatusBar() {
             </button>
             {menuOpen && (
               <div className="absolute right-0 mt-2 w-44 panel p-1 z-50 normal-case tracking-normal">
-                <Link href="/profile" className="block px-3 py-2 text-sm font-mono text-ink hover:bg-panel-2">Profile</Link>
-                <Link href="/settings" className="block px-3 py-2 text-sm font-mono text-ink hover:bg-panel-2">Settings</Link>
+                <button type="button" onClick={() => { setMenuOpen(false); openAppView('/profile', 'Profile'); }} className="w-full text-left block px-3 py-2 text-sm font-mono text-ink hover:bg-panel-2">Profile</button>
+                <button type="button" onClick={() => { setMenuOpen(false); openAppView('/settings', 'Settings'); }} className="w-full text-left block px-3 py-2 text-sm font-mono text-ink hover:bg-panel-2">Settings</button>
                 <hr className="my-1 border-line" />
                 <button type="button" onClick={handleLogout} className="w-full text-left px-3 py-2 text-sm font-mono text-danger hover:bg-panel-2">
                   Log out

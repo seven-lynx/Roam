@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { ShareRecipientSearch } from './ShareRecipientSearch';
 
@@ -24,6 +24,15 @@ export function ShareUrlModal({ urlId, urlTitle, onClose }: Props) {
   const [isSharing, setIsSharing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+
+  // Close on Escape; ignore while a share is in flight to avoid dropping it.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && !isSharing) onClose();
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [onClose, isSharing]);
 
   const handleShare = async () => {
     if (!selectedRecipient) return;
@@ -62,16 +71,33 @@ export function ShareUrlModal({ urlId, urlTitle, onClose }: Props) {
   };
 
   return (
-    <div className="fixed inset-0 bg-screen/50 flex items-center justify-center z-50 p-4">
+    <div
+      className="fixed inset-0 bg-screen/50 flex items-center justify-center z-50 p-4"
+      onClick={(e) => {
+        if (e.target === e.currentTarget && !isSharing) onClose();
+      }}
+      role="presentation"
+    >
       <div className="bg-panel rounded-lg shadow-xl max-w-md w-full p-6">
         {/* Header */}
-        <div className="mb-6">
-          <h2 className="text-xl font-bold text-ink mb-1">
-            Share URL with a friend
-          </h2>
-          <p className="text-sm text-muted line-clamp-2">
-            {urlTitle}
-          </p>
+        <div className="mb-6 flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <h2 className="text-xl font-bold text-ink mb-1">
+              Share URL with a friend
+            </h2>
+            <p className="text-sm text-muted line-clamp-2">
+              {urlTitle}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={isSharing}
+            aria-label="Close"
+            className="shrink-0 w-7 h-7 flex items-center justify-center rounded text-muted hover:text-ink hover:bg-panel-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          >
+            ✕
+          </button>
         </div>
 
         {/* Recipient Picker */}

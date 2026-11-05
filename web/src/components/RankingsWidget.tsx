@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
+import { useWorkstation } from '@/components/WorkstationContext';
 
 type Period = 'weekly' | 'monthly' | 'all_time';
 
@@ -30,6 +31,7 @@ const periodLabels: Record<Period, string> = {
  * `/leaderboard` page.
  */
 export function RankingsWidget({ limit = 5 }: { limit?: number }) {
+  const { openAppView } = useWorkstation();
   const [period, setPeriod] = useState<Period>('weekly');
   const [entries, setEntries] = useState<Entry[]>([]);
   const [loading, setLoading] = useState(true);
@@ -98,6 +100,7 @@ export function RankingsWidget({ limit = 5 }: { limit?: number }) {
                 <Link
                   key={entry.user_id}
                   href={`/u/${entry.username}`}
+                  onClick={(e) => { e.preventDefault(); openAppView(`/u/${entry.username}`, 'Profile'); }}
                   className={`rank-row flex items-center gap-3 px-3 py-2 transition-colors ${
                     isTop3 ? 'rank-row--top' : ''
                   }`}
@@ -118,7 +121,7 @@ export function RankingsWidget({ limit = 5 }: { limit?: number }) {
           </div>
         )}
 
-        <Link href="/leaderboard" className="block text-center text-xs text-gold hover:underline mt-2">
+        <Link href="/leaderboard" onClick={(e) => { e.preventDefault(); openAppView('/leaderboard', 'Rankings'); }} className="block text-center text-xs text-gold hover:underline mt-2">
           Full rankings →
         </Link>
         <div className="widget-foot">~/.roam/ranks.log · live standings</div>
