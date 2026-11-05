@@ -2,6 +2,7 @@ package app.roam.android.viewmodel
 
 import android.app.Application
 import androidx.test.core.app.ApplicationProvider
+import androidx.lifecycle.viewModelScope
 import app.roam.android.data.repository.RoamRepository
 import app.roam.android.model.RoamUrl
 import app.roam.android.model.UserSettings
@@ -12,6 +13,7 @@ import io.mockk.mockk
 import java.io.IOException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.cancelChildren
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
@@ -57,6 +59,8 @@ class MainViewModelTest {
 
     @After
     fun tearDown() {
+        vm.viewModelScope.coroutineContext.cancelChildren()
+        org.robolectric.shadows.ShadowLooper.idleMainLooper()
         Dispatchers.resetMain()
     }
 
@@ -155,6 +159,7 @@ class MainViewModelTest {
     fun `roam transitions to Loaded on success`() = runTest {
         coEvery { repo.roam(any(), any(), any(), any()) } returns mockUrl
         vm.roam()
+        testDispatcher.scheduler.advanceUntilIdle()
         assertEquals(RoamState.Loaded(mockUrl), vm.state.value)
     }
 
@@ -162,6 +167,7 @@ class MainViewModelTest {
     fun `roam transitions to Exhausted when repository returns null`() = runTest {
         coEvery { repo.roam(any(), any(), any(), any()) } returns null
         vm.roam()
+        testDispatcher.scheduler.advanceUntilIdle()
         assertEquals(RoamState.Exhausted, vm.state.value)
     }
 
@@ -209,6 +215,7 @@ class MainViewModelTest {
     fun `roam shows offline message when IOException is thrown`() = runTest {
         coEvery { repo.roam(any(), any(), any(), any()) } throws IOException("timeout")
         vm.roam()
+        testDispatcher.scheduler.advanceUntilIdle()
         val state = vm.state.value
         assertTrue("Expected Error state", state is RoamState.Error)
         assertTrue(
@@ -228,18 +235,14 @@ class MainViewModelTest {
         coEvery { freshRepo.getUserSettings() } returns UserSettings()
         coEvery { freshRepo.roam(any(), any(), any(), any()) } returns mockUrl
 
-        // We can't easily wait for the IO prefetch thread in this Robolectric test
-        // without more complex setup, but we can verify that roam() eventually
-        // consumes from the queue if we can populate it.
-        
         val freshVm = MainViewModel(app, freshRepo)
         
-        // Since we can't easily control the background prefetch loop timing here,
-        // let's at least verify roam() calls repo.roam() if queue is empty.
         freshVm.roam()
+        testDispatcher.scheduler.advanceUntilIdle()
         
         assertTrue(freshVm.state.value is RoamState.Loaded)
         coVerify(atLeast = 1) { freshRepo.roam(any(), any(), any(), any()) }
+        freshVm.viewModelScope.coroutineContext.cancelChildren()
     }
 
     // ─── thumbsUp / thumbsDown ─────────────────────────────────────────────────
@@ -248,6 +251,7 @@ class MainViewModelTest {
     fun `thumbsUp sends positive rating when state is Loaded`() = runTest {
         coEvery { repo.roam(any(), any(), any(), any()) } returns mockUrl
         vm.roam()
+        testDispatcher.scheduler.advanceUntilIdle()
         assertEquals(RoamState.Loaded(mockUrl), vm.state.value)
 
         vm.thumbsUp(app)
@@ -259,6 +263,7 @@ class MainViewModelTest {
     fun `thumbsDown sends negative rating when state is Loaded`() = runTest {
         coEvery { repo.roam(any(), any(), any(), any()) } returns mockUrl
         vm.roam()
+        testDispatcher.scheduler.advanceUntilIdle()
         assertEquals(RoamState.Loaded(mockUrl), vm.state.value)
 
         vm.thumbsDown(app)
@@ -280,6 +285,7 @@ class MainViewModelTest {
     fun `saveForLater adds url to savedUrls`() = runTest {
         coEvery { repo.roam(any(), any(), any(), any()) } returns mockUrl
         vm.roam()
+        testDispatcher.scheduler.advanceUntilIdle()
         vm.onWebViewUrlChanged(mockUrl.url)
 
         vm.saveForLater()
@@ -291,6 +297,7 @@ class MainViewModelTest {
     fun `saveForLater shows savedConfirmation`() = runTest {
         coEvery { repo.roam(any(), any(), any(), any()) } returns mockUrl
         vm.roam()
+        testDispatcher.scheduler.advanceUntilIdle()
         vm.onWebViewUrlChanged(mockUrl.url)
 
         vm.saveForLater()
@@ -302,6 +309,7 @@ class MainViewModelTest {
     fun `removeSavedUrl removes the entry from savedUrls`() = runTest {
         coEvery { repo.roam(any(), any(), any(), any()) } returns mockUrl
         vm.roam()
+        testDispatcher.scheduler.advanceUntilIdle()
         vm.onWebViewUrlChanged(mockUrl.url)
         vm.saveForLater()
 

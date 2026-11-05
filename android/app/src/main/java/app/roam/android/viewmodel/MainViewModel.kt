@@ -41,6 +41,7 @@ import java.net.HttpURLConnection
 import java.net.URL
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -678,6 +679,13 @@ class MainViewModel(
     private val _warmQueueSize = MutableStateFlow(0)
     val warmQueueSize: StateFlow<Int> = _warmQueueSize.asStateFlow()
     private var prefetchJob: Job? = null
+    private var sessionStatusJob: Job? = null
+    private var connectivityJob: Job? = null
+
+    private fun updateQueueSizesLocked() {
+        _hotQueueSize.value = hotQueue.size
+        _warmQueueSize.value = warmQueue.size
+    }
 
     /** Current exclude-domain for the running prefill (updated without restarting). */
     @Volatile private var prefetchExcludeDomain: String? = null
@@ -1074,7 +1082,7 @@ class MainViewModel(
     private fun ensureStreamLoop() {
         streamJob?.cancel()
         streamJob = viewModelScope.launch {
-            while (true) {
+            while (isActive && systemMessageQueue.isNotEmpty()) {
                 delay(4_000)
                 if (systemMessageQueue.isNotEmpty()) {
                     systemMessageQueue.removeFirst()
@@ -1276,7 +1284,7 @@ class MainViewModel(
 
         // Continuously observe auth session so admin/mod panels unlock after sign-in
         // (MainViewModel is created before auth finishes) and clear on sign-out.
-        viewModelScope.launch {
+        sessionStatusJob = viewModelScope.launch {
             supabase.auth.sessionStatus.collect { status ->
                 when (status) {
                     is SessionStatus.Authenticated -> {
@@ -1322,7 +1330,7 @@ class MainViewModel(
         }
 
         // Observe connectivity; flush queued ratings when back online (14.9)
-        viewModelScope.launch {
+        connectivityJob = viewModelScope.launch {
             var prevOnline = true
             connectivityFlow(application).collect { online ->
                 val changed = online != prevOnline
@@ -1343,24 +1351,13 @@ class MainViewModel(
         // Preload sound effects so the first celebration has its audio ready.
         SoundManager.init(application)
 
-        // Publish queue sizes periodically so the diegetic deck's "READY n" readout
-        // stays fresh without touching every queue mutation site.
-        viewModelScope.launch {
-            while (true) {
-                val (hot, warm) = prefetchMutex.withLock { hotQueue.size to warmQueue.size }
-                _hotQueueSize.value = hot
-                _warmQueueSize.value = warm
-                delay(750)
-            }
-        }
-
-        // Periodically poll for new badge/level/challenge notifications. This catches
-        // events awarded server-side (e.g. challenge completion triggered by a DB trigger)
-        // that the app doesn't otherwise observe in the action that caused them.
-        viewModelScope.launch {
-            while (true) {
-                delay(60_000)
-                checkForNewCelebrations()
+        // Periodically poll for new badge/level/challenge notifications when signed in.
+        if (repo.hasSession()) {
+            viewModelScope.launch {
+                while (isActive) {
+                    delay(60_000)
+                    checkForNewCelebrations()
+                }
             }
         }
     }
@@ -2951,6 +2948,15 @@ class MainViewModel(
             if (result.ok) loadAdminReports()
             else showTransientToast(result.error ?: "Failed to delete")
         }
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        sessionStatusJob?.cancel()
+        connectivityJob?.cancel()
+        streamJob?.cancel()
+        prefetchJob?.cancel()
+        roamJob?.cancel()
     }
 
 }
