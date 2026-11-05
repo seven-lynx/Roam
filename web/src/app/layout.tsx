@@ -2,13 +2,23 @@
 import '@/lib/env';
 
 import type { Metadata, Viewport } from "next";
-import { Space_Grotesk, IBM_Plex_Mono, Silkscreen, Caveat } from "next/font/google";
+import { Geist, Geist_Mono, Space_Grotesk, IBM_Plex_Mono, Silkscreen, Caveat } from "next/font/google";
 import "./globals.css";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { AuthProvider } from "@/components/AuthProvider";
 import { WebsiteSchema } from "@/components/JsonLd";
 import { createClient } from "@/lib/supabase/server";
 import { EmbedGate } from "@/components/EmbedGate";
+
+const geistSans = Geist({
+  variable: "--font-geist-sans",
+  subsets: ["latin"],
+});
+
+const geistMono = Geist_Mono({
+  variable: "--font-geist-mono",
+  subsets: ["latin"],
+});
 
 const spaceGrotesk = Space_Grotesk({
   variable: "--font-space-grotesk",
@@ -35,7 +45,7 @@ const caveat = Caveat({
 
 export const metadata: Metadata = {
   title: { default: "Roam · Scan the forgotten web", template: "%s · Roam" },
-  description: "Roam is a wanderer's workstation for scanning the forgotten web. One press pulls up a random corner of the internet, rated by real people. Browser extension, Android app, and web.",
+  description: "Roam is a wanderer's workstation for scanning the forgotten web. Discover a random corner of the internet, rated by real people. Browser extension, Android app, and web.",
   icons: {
     icon: [
       { url: "/icon-16.png", sizes: "16x16", type: "image/png" },
@@ -75,8 +85,19 @@ export default async function RootLayout({
   return (
     <html
       lang="en"
-      className={`dark ${spaceGrotesk.variable} ${ibmPlexMono.variable} ${silkscreen.variable} ${caveat.variable} h-full antialiased`}
+      className={`${geistSans.variable} ${geistMono.variable} ${spaceGrotesk.variable} ${ibmPlexMono.variable} ${silkscreen.variable} ${caveat.variable} h-full antialiased`}
+      suppressHydrationWarning
     >
+      <head>
+        {/* Anti-FOUC: resolve the shell mode before first paint. ROAM-OS is always
+            dark (its palette lives on :root); Roam Classic follows the next-themes
+            `theme` key (light/dark) which ThemeProvider reconciles on hydration. */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var ui=localStorage.getItem("roam-webapp-theme");if(ui==="classic"){document.documentElement.setAttribute("data-ui","classic");var t=localStorage.getItem("theme");var dark=t==="dark"||(t!=="light"&&window.matchMedia("(prefers-color-scheme:dark)").matches);if(dark)document.documentElement.classList.add("dark");}else{document.documentElement.setAttribute("data-ui","roam-os");document.documentElement.classList.add("dark");}}catch(e){/* noop */}})()`,
+          }}
+        />
+      </head>
       <body className="h-full">
         <WebsiteSchema />
         <AuthProvider initialSession={session}>

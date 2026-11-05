@@ -148,6 +148,28 @@
   :focus-visible { outline: 2px solid var(--phosphor); outline-offset: 2px; }
 }
 
+/* ── Roam Classic (standalone web shell) ─────────────────── */
+/* When the classic shell is active the page scrolls normally and uses the
+   original Geist face + white/zinc palette. Light/dark follows the Tailwind
+   `dark` class toggled by next-themes (forced dark only for ROAM-OS). These
+   rules are intentionally outside any @layer so they beat the OS base styles. */
+html[data-ui='classic'] {
+  color-scheme: light;
+}
+html[data-ui='classic'].dark {
+  color-scheme: dark;
+}
+html[data-ui='classic'] body {
+  overflow: auto;
+  background: #ffffff;
+  color: #171717;
+  font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+}
+html[data-ui='classic'].dark body {
+  background: #09090b;
+  color: #ededed;
+}
+
 @layer components {
   /* Pixel/mono section kicker —  [ DIG ]  */
   .kicker {

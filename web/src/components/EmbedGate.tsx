@@ -1,8 +1,9 @@
 'use client';
 
-import { Suspense, useEffect, useState, type ReactNode } from 'react';
+import { Suspense, useCallback, useEffect, useState, type ReactNode } from 'react';
 import Link from 'next/link';
 import { usePathname, useSearchParams } from 'next/navigation';
+import { ThemeProvider } from 'next-themes';
 import { WorkstationShell } from '@/components/WorkstationShell';
 import { AppRouteWindow } from '@/components/AppRouteWindow';
 import { matchWindowRoute } from '@/lib/os-routes';
@@ -10,18 +11,43 @@ import { FlashlightCursor } from '@/components/FlashlightCursor';
 import { TerminalOverlay } from '@/components/TerminalOverlay';
 import { CookieBanner } from '@/components/CookieBanner';
 import { PageTransition } from '@/components/PageTransition';
+import { ClassicShell } from '@/components/ClassicShell';
+import { ShellModeContext } from '@/components/ShellModeContext';
+import type { WebappTheme } from '@/components/WorkstationContext';
+
+const SHELL_KEY = 'roam-webapp-theme';
 
 function Gate({ children }: { children: ReactNode }) {
   const params = useSearchParams();
   const pathname = usePathname();
-  // Defer the route→window coercion to the client so server rendering (and the
-  // hydration pass) still output the real page content for these public/SEO
-  // routes; deep-link coercion then happens one frame after mount.
+
+  // The shell decision is a client-side concern (persisted per device). The
+  // defer-to-client mount keeps SSR/hydration stable, and the anti-FOUC script
+  // in the root layout has already painted the right `data-ui` + `dark` state.
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
 
+  const [mode, setModeState] = useState<WebappTheme>('roam-os');
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(SHELL_KEY);
+      setModeState(saved === 'classic' ? 'classic' : 'roam-os');
+    } catch { /* ignore */ }
+  }, []);
+
+  const setMode = useCallback((m: WebappTheme) => {
+    setModeState(m);
+    try { localStorage.setItem(SHELL_KEY, m); } catch { /* ignore */ }
+    document.documentElement.dataset.ui = m;
+  }, []);
+
+  useEffect(() => {
+    document.documentElement.dataset.ui = mode;
+  }, [mode]);
+
   if (params.get('embed') === '1') {
-    // Bare render for pages loaded inside an app window: no OS shell, footer or
+    // Bare render for pages loaded inside an app window: no shell, footer or
     // overlays. The palette lives on :root, so the page still reads the theme.
     return <main id="main-content" className="embed-root">{children}</main>;
   }
@@ -37,15 +63,12 @@ function Gate({ children }: { children: ReactNode }) {
   // Internal app routes render as OS windows (not chrome-less full pages), so
   // they get a close button and still respond to "Show Desktop".
   const route = mounted ? matchWindowRoute(pathname) : null;
-  if (route) {
-    return (
-      <WorkstationShell overlays={overlays}>
-        <AppRouteWindow route={route} />
-      </WorkstationShell>
-    );
-  }
 
-  return (
+  const osShell = route ? (
+    <WorkstationShell overlays={overlays}>
+      <AppRouteWindow route={route} />
+    </WorkstationShell>
+  ) : (
     <WorkstationShell overlays={overlays}>
       <Suspense><PageTransition /></Suspense>
       <main id="main-content" className="min-h-full">
@@ -65,6 +88,20 @@ function Gate({ children }: { children: ReactNode }) {
         </nav>
       </footer>
     </WorkstationShell>
+  );
+
+  return (
+    <ShellModeContext.Provider value={{ mode, setMode }}>
+      {mode === 'classic' ? (
+        <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
+          <ClassicShell>{children}</ClassicShell>
+        </ThemeProvider>
+      ) : (
+        <ThemeProvider attribute="class" defaultTheme="dark" enableSystem forcedTheme="dark" disableTransitionOnChange>
+          {osShell}
+        </ThemeProvider>
+      )}
+    </ShellModeContext.Provider>
   );
 }
 

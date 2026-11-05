@@ -1,19 +1,29 @@
 'use client';
 
 import { useState } from 'react';
-import { useWorkstation } from '@/components/WorkstationContext';
-import { fetchRandomPageUrl } from '@/lib/random-page';
+import { createClient } from '@/lib/supabase/client';
 
 export function RandomPageButton() {
-  const { openUrl, openAppView } = useWorkstation();
   const [loading, setLoading] = useState(false);
 
   async function handleClick() {
     setLoading(true);
     try {
-      const url = await fetchRandomPageUrl();
-      if (url) openUrl({ url });
-      else openAppView('/collections', 'Collections');
+      const supabase = createClient();
+      // Fetch a random URL from the curated urls table
+      const { data } = await supabase
+        .from('urls')
+        .select('original_url')
+        .limit(1)
+        .order('RANDOM()' as never);
+      
+      if (data && data.length > 0 && data[0]?.original_url) {
+        window.open(data[0].original_url, '_blank', 'noopener,noreferrer');
+      } else {
+        window.open('https://roamtheweb.app/collections', '_blank');
+      }
+    } catch {
+      window.open('https://roamtheweb.app/collections', '_blank');
     } finally {
       setLoading(false);
     }
@@ -23,7 +33,7 @@ export function RandomPageButton() {
     <button
       onClick={handleClick}
       disabled={loading}
-      className="btn btn-secondary disabled:opacity-50"
+      className="inline-flex items-center justify-center rounded-full border border-amber-300 dark:border-amber-700 px-8 py-3 text-amber-700 dark:text-amber-300 font-semibold text-base hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-colors disabled:opacity-50"
     >
       {loading ? 'Loading…' : 'Try a random page 🎲'}
     </button>
