@@ -552,7 +552,13 @@ a[rel*="noopener"]:visited {
 .screen-scroll:focus-visible { outline: 2px solid var(--phosphor); outline-offset: -2px; }
 
 .embed-root {
-  min-height: 100vh;
+  height: 100vh;
+  height: 100dvh;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: var(--line-strong) transparent;
   background: var(--bg);
   color: var(--fg);
 }
