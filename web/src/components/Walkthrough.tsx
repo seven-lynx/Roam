@@ -6,7 +6,7 @@ import { useAuth } from '@/components/AuthProvider';
 import { useWorkstation, type WebappTheme } from '@/components/WorkstationContext';
 import { InterestPicker, type Category, type Subcategory } from '@/components/InterestPicker';
 import { saveUserInterests, type InterestMode } from '@/lib/interests';
-import { ThemeMockup } from '@/components/ThemeMockup';
+import Image from 'next/image';
 
 const USERNAME_RE = /^[a-z0-9_-]+$/;
 const STEPS = 5;
@@ -199,54 +199,69 @@ export function Walkthrough() {
           <div>
             <h1 style={h1}>Choose your theme</h1>
             <p style={sub}>You can switch anytime from the top-right of the status bar.</p>
-            {(
-              [
-                { id: 'classic', title: 'Roam Classic', desc: 'The minimal app. Clean, quiet — just Roam.' },
-                { id: 'roam-os', title: 'Roam-OS', desc: 'The full cyberdeck. CRT glow, control deck and all.' },
-              ] as const
-            ).map((t) => {
-              const active = themeChoice === t.id;
-              return (
-                <button
-                  key={t.id}
-                  type="button"
-                  onClick={() => setThemeChoice(t.id)}
-                  style={{
-                    display: 'block',
-                    width: '100%',
-                    textAlign: 'left',
-                    marginBottom: 16,
-                    borderRadius: 16,
-                    padding: 12,
-                    cursor: 'pointer',
-                    background: active ? 'rgba(89,179,174,0.12)' : 'rgba(15,31,36,0.35)',
-                    border: `1px solid ${active ? C.phosphor : C.line}`,
-                    color: C.fg,
-                  }}
-                >
-                  <div
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              {(
+                [
+                  {
+                    id: 'classic',
+                    title: 'Roam Classic',
+                    desc: 'The minimal app. Clean, quiet — just Roam.',
+                    shot: '/walkthrough/theme-roam-classic.webp',
+                  },
+                  {
+                    id: 'roam-os',
+                    title: 'Roam-OS',
+                    desc: 'The full cyberdeck. CRT glow, control deck and all.',
+                    shot: '/walkthrough/theme-roam-os.webp',
+                  },
+                ] as const
+              ).map((t) => {
+                const active = themeChoice === t.id;
+                return (
+                  <button
+                    key={t.id}
+                    type="button"
+                    onClick={() => setThemeChoice(t.id)}
                     style={{
-                      borderRadius: 12,
-                      padding: 14,
-                      background: 'rgba(4,10,10,0.5)',
-                      border: `1px solid ${active ? C.phosphorBright : C.line}`,
-                      marginBottom: 12,
+                      display: 'block',
+                      width: '100%',
+                      textAlign: 'left',
+                      borderRadius: 16,
+                      padding: 10,
+                      cursor: 'pointer',
+                      background: active ? 'rgba(89,179,174,0.12)' : 'rgba(15,31,36,0.35)',
+                      border: `1px solid ${active ? C.phosphor : C.line}`,
+                      color: C.fg,
                     }}
                   >
-                    <ThemeMockup theme={t.id} />
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <div>
-                      <div style={{ fontWeight: 700 }}>{t.title}</div>
-                      <div style={{ opacity: 0.6, fontSize: 13, marginTop: 2 }}>{t.desc}</div>
+                    <div
+                      style={{
+                        position: 'relative',
+                        aspectRatio: '16 / 9',
+                        borderRadius: 10,
+                        overflow: 'hidden',
+                        background: '#040a0a',
+                        border: `1px solid ${active ? C.phosphorBright : C.line}`,
+                        marginBottom: 10,
+                      }}
+                    >
+                      <Image
+                        src={t.shot}
+                        alt={`${t.title} preview`}
+                        fill
+                        sizes="(max-width: 520px) 44vw, 210px"
+                        style={{ objectFit: 'cover' }}
+                      />
                     </div>
-                    <span style={{ ...mono, fontSize: 12, color: active ? C.phosphor : C.muted }}>
+                    <div style={{ fontWeight: 700, fontSize: 14 }}>{t.title}</div>
+                    <div style={{ opacity: 0.6, fontSize: 12, marginTop: 2, lineHeight: 1.45 }}>{t.desc}</div>
+                    <div style={{ ...mono, fontSize: 11, letterSpacing: '0.1em', color: active ? C.phosphor : C.muted, marginTop: 8 }}>
                       {active ? '✓ SELECTED' : 'SELECT'}
-                    </span>
-                  </div>
-                </button>
-              );
-            })}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
           </div>
         )}
 

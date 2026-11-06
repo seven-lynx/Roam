@@ -1,8 +1,8 @@
 package app.roam.android.ui.screen
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -42,20 +42,16 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import app.roam.android.R
 import app.roam.android.ui.component.CategoryIconLabel
-import app.roam.android.ui.theme.Fog
-import app.roam.android.ui.theme.Gold
 import app.roam.android.ui.theme.IbmPlexMono
-import app.roam.android.ui.theme.LineColor
-import app.roam.android.ui.theme.Panel
-import app.roam.android.ui.theme.Panel2
 import app.roam.android.ui.theme.RoamThemeVariant
 import app.roam.android.ui.theme.ScreenBg
-import app.roam.android.ui.theme.TealBright
 import app.roam.android.viewmodel.MainViewModel
 
 private val USERNAME_REGEX = Regex("^[a-z0-9_-]+$")
@@ -270,15 +266,24 @@ private fun ThemeSlide(
             )
             .padding(12.dp),
     ) {
-        // Live miniature mockup — mirrors web ThemeMockup.tsx (no raster assets).
+        // Curated capture of the shell (masters in assets/Screenshots/, cut into
+        // res/drawable-nodpi). Portrait, fitted and centred.
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(10.dp))
                 .background(if (variant == RoamThemeVariant.ROAM_OS) ScreenBg else ClassicBg)
-                .padding(12.dp),
+                .padding(10.dp),
         ) {
-            ThemePreview(variant)
+            Image(
+                painter = painterResource(
+                    if (variant == RoamThemeVariant.ROAM_OS) R.drawable.walkthrough_theme_roam_os
+                    else R.drawable.walkthrough_theme_roam_classic,
+                ),
+                contentDescription = "$title preview",
+                contentScale = ContentScale.Fit,
+                modifier = Modifier.fillMaxWidth().height(260.dp),
+            )
         }
         Spacer(Modifier.height(10.dp))
         Row(
@@ -536,451 +541,8 @@ private fun FinalStep() {
     }
 }
 
-// ── Miniature theme mockups (mirror web ThemeMockup.tsx — no raster assets) ──
+// Roam Classic surface behind the theme-preview frame on the theme step.
 private val ClassicBg = Color(0xFF0D0D0E)
-private val ClassicPanel = Color(0xFF171718)
-private val ClassicInk = Color(0xFFECECEC)
-private val ClassicMuted = Color(0xFF9A9A9C)
-private val ClassicLine = Color(0x24FFFFFF)
-private val ClassicAccentInk = Color(0xFF06211C)
-
-@Composable
-private fun ThemePreview(variant: RoamThemeVariant) {
-    val os = variant == RoamThemeVariant.ROAM_OS
-    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        Column(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            PreviewLabel("Handheld", os)
-            Spacer(Modifier.height(5.dp))
-            if (os) OsHandheld() else ClassicHandheld()
-        }
-        Column(modifier = Modifier.fillMaxWidth()) {
-            PreviewLabel("Desktop", os)
-            Spacer(Modifier.height(5.dp))
-            if (os) OsDesktop() else ClassicDesktop()
-        }
-    }
-}
-
-@Composable
-private fun PreviewLabel(text: String, os: Boolean) {
-    Text(
-        text = text.uppercase(),
-        style = MaterialTheme.typography.labelSmall,
-        fontFamily = IbmPlexMono,
-        letterSpacing = 2.sp,
-        color = if (os) Fog else ClassicMuted,
-    )
-}
-
-@Composable
-private fun SignalBars(color: Color) {
-    Row(
-        verticalAlignment = Alignment.Bottom,
-        horizontalArrangement = Arrangement.spacedBy(2.dp),
-    ) {
-        listOf(3, 5, 7, 9).forEachIndexed { i, h ->
-            Box(
-                modifier = Modifier
-                    .size(width = 2.dp, height = h.dp)
-                    .background(color.copy(alpha = 0.35f + i * 0.22f)),
-            )
-        }
-    }
-}
-
-@Composable
-private fun MockDivider(color: Color) {
-    Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(color))
-}
-
-@Composable
-private fun OsHandheld() {
-    Column(
-        modifier = Modifier
-            .width(128.dp)
-            .clip(RoundedCornerShape(14.dp))
-            .background(ScreenBg)
-            .border(1.dp, LineColor, RoundedCornerShape(14.dp)),
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 9.dp, vertical = 6.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(
-                text = "ROAM-OS",
-                style = MaterialTheme.typography.labelSmall,
-                fontFamily = IbmPlexMono,
-                letterSpacing = 1.sp,
-                color = TealBright,
-            )
-            SignalBars(TealBright)
-        }
-        MockDivider(LineColor)
-        Column(
-            modifier = Modifier.fillMaxWidth().padding(7.dp),
-            verticalArrangement = Arrangement.spacedBy(5.dp),
-        ) {
-            Row(horizontalArrangement = Arrangement.spacedBy(5.dp)) {
-                OsTile(TealBright, Modifier.weight(1f))
-                OsTile(Gold, Modifier.weight(1f))
-            }
-            Row(horizontalArrangement = Arrangement.spacedBy(5.dp)) {
-                OsTile(TealBright, Modifier.weight(1f))
-                OsTile(TealBright, Modifier.weight(1f))
-            }
-        }
-        MockDivider(LineColor)
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(start = 9.dp, end = 9.dp, top = 6.dp, bottom = 9.dp),
-            horizontalArrangement = Arrangement.Center,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            OsDockKey(16.dp, false)
-            Spacer(Modifier.width(4.dp))
-            OsDockKey(36.dp, true)
-            Spacer(Modifier.width(4.dp))
-            OsDockKey(16.dp, false)
-        }
-    }
-}
-
-@Composable
-private fun OsTile(dot: Color, modifier: Modifier = Modifier) {
-    Box(
-        modifier = modifier
-            .height(40.dp)
-            .clip(RoundedCornerShape(5.dp))
-            .background(Panel2)
-            .border(1.dp, LineColor, RoundedCornerShape(5.dp)),
-        contentAlignment = Alignment.Center,
-    ) {
-        Box(
-            modifier = Modifier
-                .size(6.dp)
-                .clip(CircleShape)
-                .background(dot),
-        )
-    }
-}
-
-@Composable
-private fun OsDesktop() {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(10.dp))
-            .background(ScreenBg)
-            .border(1.dp, LineColor, RoundedCornerShape(10.dp)),
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 9.dp, vertical = 6.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                Text(
-                    text = "ROAM-OS",
-                    style = MaterialTheme.typography.labelSmall,
-                    fontFamily = IbmPlexMono,
-                    letterSpacing = 1.sp,
-                    color = TealBright,
-                )
-                Text(
-                    text = "~/roam/wander",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = Fog,
-                )
-            }
-            SignalBars(TealBright)
-        }
-        MockDivider(LineColor)
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(8.dp),
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
-        ) {
-            OsDesktopCard(TealBright, Modifier.weight(1f))
-            OsDesktopCard(Gold, Modifier.weight(1f))
-        }
-        MockDivider(LineColor)
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(start = 9.dp, end = 9.dp, top = 5.dp, bottom = 8.dp),
-            horizontalArrangement = Arrangement.Center,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            OsDockKey(18.dp, false)
-            Spacer(Modifier.width(5.dp))
-            OsDockKey(44.dp, true)
-            Spacer(Modifier.width(5.dp))
-            OsDockKey(18.dp, false)
-            Spacer(Modifier.width(5.dp))
-            OsDockKey(18.dp, false)
-        }
-    }
-}
-
-@Composable
-private fun OsDesktopCard(accent: Color, modifier: Modifier = Modifier) {
-    Column(
-        modifier = modifier
-            .height(42.dp)
-            .clip(RoundedCornerShape(5.dp))
-            .background(Panel)
-            .border(1.dp, LineColor, RoundedCornerShape(5.dp))
-            .padding(5.dp),
-    ) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth(0.48f)
-                .height(4.dp)
-                .clip(RoundedCornerShape(2.dp))
-                .background(accent),
-        )
-        Spacer(Modifier.height(4.dp))
-        Box(
-            modifier = Modifier
-                .fillMaxWidth(0.82f)
-                .height(3.dp)
-                .clip(RoundedCornerShape(2.dp))
-                .background(Fog),
-        )
-        Spacer(Modifier.height(3.dp))
-        Box(
-            modifier = Modifier
-                .fillMaxWidth(0.64f)
-                .height(3.dp)
-                .clip(RoundedCornerShape(2.dp))
-                .background(Fog),
-        )
-    }
-}
-
-@Composable
-private fun OsDockKey(width: Dp, filled: Boolean) {
-    val shape = RoundedCornerShape(3.dp)
-    val base = Modifier
-        .width(width)
-        .height(12.dp)
-        .clip(shape)
-        .background(if (filled) TealBright else Panel2)
-    Box(modifier = if (filled) base else base.border(1.dp, LineColor, shape))
-}
-
-// Classic
-
-@Composable
-private fun ClassicHandheld() {
-    Column(
-        modifier = Modifier
-            .width(128.dp)
-            .clip(RoundedCornerShape(14.dp))
-            .background(ClassicBg)
-            .border(1.dp, ClassicLine, RoundedCornerShape(14.dp)),
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 9.dp, vertical = 7.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(
-                text = "Roam",
-                style = MaterialTheme.typography.labelMedium,
-                fontWeight = FontWeight.Bold,
-                color = ClassicInk,
-            )
-            Box(
-                modifier = Modifier
-                    .size(12.dp)
-                    .clip(CircleShape)
-                    .background(TealBright),
-            )
-        }
-        MockDivider(ClassicLine)
-        Box(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 9.dp, vertical = 7.dp),
-            contentAlignment = Alignment.Center,
-        ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(16.dp)
-                    .clip(RoundedCornerShape(5.dp))
-                    .background(TealBright),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(
-                    text = "Roam",
-                    style = MaterialTheme.typography.labelSmall,
-                    fontWeight = FontWeight.Bold,
-                    color = ClassicAccentInk,
-                )
-            }
-        }
-        Column(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 9.dp),
-            verticalArrangement = Arrangement.spacedBy(5.dp),
-        ) {
-            repeat(3) { ClassicCardRow() }
-        }
-        MockDivider(ClassicLine)
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 9.dp, vertical = 9.dp),
-            horizontalArrangement = Arrangement.SpaceAround,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            ClassicDockTile(false)
-            ClassicDockTile(true)
-            ClassicDockTile(false)
-        }
-    }
-}
-
-@Composable
-private fun ClassicCardRow() {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(6.dp))
-            .background(ClassicPanel)
-            .border(1.dp, ClassicLine, RoundedCornerShape(6.dp))
-            .padding(6.dp),
-    ) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth(0.54f)
-                .height(4.dp)
-                .clip(RoundedCornerShape(2.dp))
-                .background(ClassicInk.copy(alpha = 0.9f)),
-        )
-        Spacer(Modifier.height(3.dp))
-        Box(
-            modifier = Modifier
-                .fillMaxWidth(0.88f)
-                .height(3.dp)
-                .clip(RoundedCornerShape(2.dp))
-                .background(ClassicMuted),
-        )
-        Spacer(Modifier.height(3.dp))
-        Box(
-            modifier = Modifier
-                .fillMaxWidth(0.68f)
-                .height(3.dp)
-                .clip(RoundedCornerShape(2.dp))
-                .background(ClassicMuted),
-        )
-    }
-}
-
-@Composable
-private fun ClassicDockTile(filled: Boolean) {
-    Box(
-        modifier = Modifier
-            .size(14.dp)
-            .clip(RoundedCornerShape(3.dp))
-            .background(if (filled) TealBright else ClassicMuted.copy(alpha = 0.45f)),
-    )
-}
-
-@Composable
-private fun ClassicDesktop() {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(10.dp))
-            .background(ClassicBg)
-            .border(1.dp, ClassicLine, RoundedCornerShape(10.dp)),
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 9.dp, vertical = 6.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(
-                text = "Roam Classic",
-                style = MaterialTheme.typography.labelMedium,
-                fontWeight = FontWeight.Bold,
-                color = ClassicInk,
-            )
-            Box(
-                modifier = Modifier
-                    .size(12.dp)
-                    .clip(CircleShape)
-                    .background(TealBright),
-            )
-        }
-        MockDivider(ClassicLine)
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(8.dp),
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
-            verticalAlignment = Alignment.Top,
-        ) {
-            Column(
-                modifier = Modifier
-                    .width(34.dp)
-                    .clip(RoundedCornerShape(5.dp))
-                    .background(ClassicPanel)
-                    .padding(5.dp),
-                verticalArrangement = Arrangement.spacedBy(4.dp),
-            ) {
-                repeat(4) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(4.dp)
-                            .clip(RoundedCornerShape(2.dp))
-                            .background(ClassicMuted),
-                    )
-                }
-            }
-            ClassicContentCard(Modifier.weight(1f), 0.58f, listOf(0.86f, 0.56f))
-            ClassicContentCard(Modifier.weight(1f), 0.50f, listOf(0.72f))
-        }
-    }
-}
-
-@Composable
-private fun ClassicContentCard(
-    modifier: Modifier = Modifier,
-    titleWidth: Float,
-    lines: List<Float>,
-) {
-    Column(
-        modifier = modifier
-            .clip(RoundedCornerShape(5.dp))
-            .background(ClassicPanel)
-            .border(1.dp, ClassicLine, RoundedCornerShape(5.dp))
-            .padding(5.dp),
-    ) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth(titleWidth)
-                .height(4.dp)
-                .clip(RoundedCornerShape(2.dp))
-                .background(ClassicInk.copy(alpha = 0.9f)),
-        )
-        Spacer(Modifier.height(4.dp))
-        lines.forEach { w ->
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth(w)
-                    .height(3.dp)
-                    .clip(RoundedCornerShape(2.dp))
-                    .background(ClassicMuted),
-            )
-            Spacer(Modifier.height(3.dp))
-        }
-    }
-}
 
 @Composable
 private fun StepIndicator(current: Int, total: Int) {

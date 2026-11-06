@@ -37,6 +37,10 @@ scripts/reports/offline/
 scripts/reports/.checkpoints/
 # Visual recording output (large screenshots/videos)
 artifacts/
+# Full-resolution capture masters (photographic, ~7 MB for the set). The
+# committed derivatives under web/public/walkthrough/ and res/drawable-nodpi/
+# are downscaled from these — see docs/VISUAL-RECORDING.md.
+assets/Screenshots/
 
 # Cache / generated data (large files)
 scripts/.cache/

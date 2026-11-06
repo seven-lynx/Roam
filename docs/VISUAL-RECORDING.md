@@ -177,6 +177,29 @@ will log you out).
 - **Selectors are text/`contentDescription`-based** (the app sets no
   `testTag`s), so they may need tuning if labels change. Use `maestro studio`
   to inspect the hierarchy and adjust `tapOn`/`assertVisible` values.
+- **Classic mode records nothing.** Every flow starts by asserting `Settings` and
+  then taps ROAM-OS row labels, so switching the shell to Roam Classic fails all
+  16 flows at their first assertion (`0/16`). To shoot a Classic screen, either
+  capture it by hand or use a dedicated flow written against the Classic labels.
+
+## Curated captures (walkthrough theme previews)
+
+The onboarding walkthrough's theme step shows one real capture per shell instead
+of a drawn mockup. Full-resolution captures are kept locally in
+`assets/Screenshots/` (gitignored — the set is ~7 MB of unresizable photo PNG);
+the committed derivatives are cut from them with `sharp`:
+
+| Master (`assets/Screenshots/`) | Derivative |
+|---|---|
+| `roamos-home.png` (web, 1920×1080) | `web/public/walkthrough/theme-roam-os.webp` (1200×675) |
+| `roam-classic-home.png` (web, 1920×1080) | `web/public/walkthrough/theme-roam-classic.webp` (1200×675) |
+| `android-discover.png` (1080×2400) | `android/app/src/main/res/drawable-nodpi/walkthrough_theme_roam_os.webp` (810×1800) |
+| `android-discover-classic.png` (1080×2400) | `android/app/src/main/res/drawable-nodpi/walkthrough_theme_roam_classic.webp` (810×1800) |
+
+Refresh by re-shooting the master (the recorders above, or a plain
+`adb shell screencap` for the handheld) and re-running the resize to the sizes in
+the table. Keep the derivatives under ~150 KB: `drawable-nodpi` is not
+density-scaled, so the full-resolution PNG would ship ~2.4 MB into the APK.
 
 ## CI
 
