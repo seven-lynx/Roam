@@ -416,8 +416,14 @@ export function WorkstationShell({
   }, []);
 
   // ── Inspect + camera ──────────────────────────────────────────
-  const setInspect = useCallback((on: boolean) => setInspectState(on), []);
-  const toggleInspect = useCallback(() => setInspectState((v) => !v), []);
+  // Entering inspect requests (and, if needed, mounts) the 3D scene: inspecting
+  // means looking at the deck itself, and the OS screen fades out while it is on,
+  // so there must be a machine behind it even if nothing warmed the scene first.
+  const setInspect = useCallback((on: boolean) => {
+    if (on) setDeckRequestedState(true);
+    setInspectState(on);
+  }, []);
+  const toggleInspect = useCallback(() => setInspect(!inspect), [inspect, setInspect]);
 
   const setCamera = useCallback((f: CameraFraming) => {
     const next = { zoom: clampZoom(f.zoom), panX: f.panX, panY: f.panY };

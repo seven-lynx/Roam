@@ -44,7 +44,7 @@ interface Category {
 /** START-MENU key menu: cascading category list with a flyout panel. */
 export function Launcher() {
   const {
-    launcherOpen, setLauncherOpen, openWindow, setInspect, openDeckLauncher, showAlert, showConfirm, handheld,
+    launcherOpen, setLauncherOpen, openWindow, setInspect, showAlert, showConfirm, handheld,
     openAppView, openUrl,
   } = useWorkstation();
   const { session } = useAuth();
@@ -99,7 +99,6 @@ export function Launcher() {
     setLauncherOpen(false);
     if (item.action === 'inspect') setInspect(true);
     if (item.action === 'roam') openWindow('scan');
-    if (item.action === 'deckview') openDeckLauncher();
     if (item.action === 'desktop' && pathname !== '/' && pathname !== '/desktop') router.push('/');
     if (item.action === 'settings') openWindow('settings');
     if (item.action === 'program' && item.program) openWindow(item.program as WindowId);
@@ -261,7 +260,6 @@ export function Launcher() {
         ) : (
           <Link href="/signup?mode=signin" className="launcher-footer-btn" data-tip="Log in" aria-label="Log in" onClick={() => setLauncherOpen(false)}>→</Link>
         )}
-        <button type="button" className="launcher-footer-btn" data-tip="Cyberdeck view" aria-label="Cyberdeck view" onClick={() => { click(); openDeckLauncher(); setLauncherOpen(false); }}>⛶</button>
         <button type="button" className="launcher-footer-btn" data-tip="Inspect" aria-label="Inspect" onClick={() => { click(); setInspect(true); setLauncherOpen(false); }}>⟳</button>
         <a href="mailto:support@roamtheweb.app" className="launcher-footer-btn" data-tip="Support" aria-label="Support">✉</a>
       </div>

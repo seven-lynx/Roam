@@ -105,8 +105,13 @@ const SYSTEM_WINDOWS: AppEntry[] = [
   { id: 'win-roll', label: 'GALLERY', file: 'roam roll', glyph: '◳', kind: 'window', group: 'System', window: 'roll' },
 ];
 
+/** Drawer-only system actions: no route, no window, just an in-OS effect. */
+const SYSTEM_ACTIONS: AppEntry[] = [
+  { id: 'sys-cyberdeck', label: 'CYBERDECK', file: 'roam deck', glyph: '⛶', kind: 'action', group: 'System', action: 'deckview' },
+];
+
 /** Every launchable surface, flattened for the searchable app drawer. */
-export const ALL_APPS: AppEntry[] = [...ROUTE_APPS, ...GROUP_APPS, ...SYSTEM_WINDOWS];
+export const ALL_APPS: AppEntry[] = [...ROUTE_APPS, ...GROUP_APPS, ...SYSTEM_WINDOWS, ...SYSTEM_ACTIONS];
 
 /** Case-insensitive search across label, flavor path and glyph. */
 export function filterApps(query: string): AppEntry[] {
@@ -143,7 +148,6 @@ export const HOME_APPS: AppEntry[] = [
   { id: 'home-comms', label: 'COMMS', file: 'roam comms', glyph: '☰', kind: 'window', group: 'System', window: 'feedback' },
   { id: 'home-config', label: 'CONFIG', file: '~/.roamrc', glyph: '⚙', kind: 'action', group: 'System', action: 'settings' },
   { id: 'home-refuel', label: 'REFUEL', file: 'roam refuel', glyph: '☕', kind: 'window', group: 'System', window: 'coffee' },
-  { id: 'home-cyberdeck', label: 'CYBERDECK', file: 'roam deck', glyph: '⛶', kind: 'action', group: 'System', action: 'deckview' },
   { id: 'home-roll', label: 'GALLERY', file: 'roam roll', glyph: '◳', kind: 'window', group: 'System', window: 'roll' },
   { id: 'home-readme', label: 'README', file: 'readme.txt', glyph: '✎', kind: 'window', group: 'System', window: 'readme' },
 ];
