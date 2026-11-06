@@ -330,10 +330,10 @@ export function Desktop() {
         )}
         {widgets.deckdiag && (
           <div
-            className="dw-wrap"
+            className="dw-wrap dw-wrap--fixed"
             ref={(el) => { widgetRefs.current.deckdiag = el; }}
             inert={covered.deckdiag}
-            style={{ width: 210, pointerEvents: covered.deckdiag ? 'none' : 'auto' }}
+            style={{ width: 210, height: 210, pointerEvents: covered.deckdiag ? 'none' : 'auto' }}
           >
             {WIDGETS.deckdiag}
           </div>

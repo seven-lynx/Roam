@@ -2,6 +2,15 @@
 
 All notable changes to the Roam web platform.
 
+## [2026-11-05] — Diagnostics nameplate
+### Changed
+- Lifted the deck-diagnostics title out of the circular disc into a normal widget header, renamed to `DIAGNOSTICS`, and docked the tile at the same 210px height as Sys.Telemetry and Rankings so all three sit flush along the top-right rail.
+- Fattened the rings: the default stroke goes from 9 to 16 viewBox units with the outer ring anchored to the rim and each ring claiming an equal slot, and the thickness slider now spans 10–18 (stored configs outside the range are clamped on load).
+- The ring configuration panel now floats over the tile instead of inside the disc, so its chamfered corners survive and all controls fit without scrolling; the readout gained clearance inside the fatter innermost ring.
+
+### Fixed
+- The `DECK DIAGNOSTICS` label was clipped by the disc's circular border — the header row overhung the chord of the circle by roughly 20px per side.
+
 ## [2026-11-02] — SUBSTRATE text adventure (Zork I port)
 ### Added
 - A sixth in-OS program, SUBSTRATE (`/roam/bin/SUBSTRATE`): a rebranded port of the MIT-licensed Infocom classic Zork I, running on the BSD-3-Clause `tszm` Z-machine interpreter. The story (`public/stories/zork1.z3`) ships unmodified; the intro/rubric text is rewritten at the renderer layer to the ROAM-OS lore ("descend to the substrate…").

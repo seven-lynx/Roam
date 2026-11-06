@@ -21,7 +21,7 @@ interface DeckRingConfig {
 const DEFAULT_CONFIG: DeckRingConfig = {
   bg: true,
   sweep: 240,
-  thickness: 9,
+  thickness: 16,
   load: true,
   hot: true,
   warm: true,
@@ -29,12 +29,24 @@ const DEFAULT_CONFIG: DeckRingConfig = {
 
 const SWEEP_PRESETS = [180, 240, 270, 360];
 
+/** Stroke width is in viewBox units; the slider spans this range. */
+const THICKNESS_MIN = 10;
+const THICKNESS_MAX = 18;
+
+const clampThickness = (n: unknown) => {
+  const v = typeof n === 'number' && Number.isFinite(n) ? Math.round(n) : DEFAULT_CONFIG.thickness;
+  return Math.max(THICKNESS_MIN, Math.min(THICKNESS_MAX, v));
+};
+
 function readConfig(): DeckRingConfig {
   try {
     const raw = localStorage.getItem(CONFIG_KEY);
     if (raw) {
       const parsed = JSON.parse(raw) as Partial<DeckRingConfig>;
-      return { ...DEFAULT_CONFIG, ...parsed };
+      const merged = { ...DEFAULT_CONFIG, ...parsed };
+      // Stored configs predate the fat-ring range; snap them into it so a
+      // returning user sees the same rings the sliders allow.
+      return { ...merged, thickness: clampThickness(merged.thickness) };
     }
   } catch {
     /* storage unavailable — fall through to defaults */
@@ -170,8 +182,8 @@ function RingConfigPanel({
         <span className="deck-diag-field-label">Thickness {cfg.thickness}</span>
         <input
           type="range"
-          min={6}
-          max={16}
+          min={THICKNESS_MIN}
+          max={THICKNESS_MAX}
           step={1}
           value={cfg.thickness}
           onChange={(e) => onUpdate({ thickness: Number(e.target.value) })}
@@ -242,32 +254,47 @@ export function DeckDiagnosticsWidget() {
   if (cfg.hot) rings.push({ key: 'hot', value: hot / NIXIE_MAX, label: 'HOT', digit: String(hot), color: 'var(--warn)' });
   if (cfg.warm) rings.push({ key: 'warm', value: warm / NIXIE_MAX, label: 'WARM', digit: String(warm), color: 'var(--accent)' });
 
-  // Concentric radii: outer → inner, spaced so the strokes never overlap.
-  const step = cfg.thickness + 9;
-  const outerR = 108 - cfg.thickness / 2;
-  const radiusAt = (i: number) => outerR - i * step;
+  // Concentric radii, laid out rim-anchored from the outside in. Strokes are
+  // painted on the path centreline, so a ring claims ±thickness/2 around its
+  // radius; RIM is the outermost edge the disc can hold without touching the
+  // tick band. Each ring owns one slot, so fat strokes never collide.
+  const RIM = 104;
+  const SLOT_GAP = 2;
+  const radiusAt = (i: number) => RIM - cfg.thickness / 2 - i * (cfg.thickness + SLOT_GAP);
 
   return (
     <div className={`widget deck-diag${cfg.bg ? '' : ' bg-off'}`}>
-      <div className="deck-diag-stage">
-        {menuOpen ? (
-          <RingConfigPanel cfg={cfg} onUpdate={update} onClose={() => setMenuOpen(false)} />
-        ) : (
-          <>
-            <svg className="deck-diag-rings" viewBox="0 0 220 220" aria-hidden="true">
-              <circle className="deck-diag-bezel" cx={CX} cy={CY} r={109} />
-              <circle className="deck-diag-ticks" cx={CX} cy={CY} r={100} />
-              {rings.map((ring, i) => (
-                <RingGauge
-                  key={ring.key}
-                  radius={radiusAt(i)}
-                  thickness={cfg.thickness}
-                  sweep={cfg.sweep}
-                  value={ring.value}
-                  color={ring.color}
-                />
-              ))}
-            </svg>
+      <div className="widget-head deck-diag-head">
+        <span className="widget-title">DIAGNOSTICS</span>
+        <button
+          type="button"
+          className={`deck-diag-menu${menuOpen ? ' is-open' : ''}`}
+          aria-label="Configure rings"
+          aria-expanded={menuOpen}
+          onPointerDown={(e) => e.stopPropagation()}
+          onClick={() => setMenuOpen((v) => !v)}
+        >
+          <GearIcon />
+        </button>
+      </div>
+
+      <div className="deck-diag-disc">
+        <div className="deck-diag-stage">
+          <svg className="deck-diag-rings" viewBox="0 0 220 220" aria-hidden="true">
+            <circle className="deck-diag-bezel" cx={CX} cy={CY} r={109} />
+            <circle className="deck-diag-ticks" cx={CX} cy={CY} r={106} />
+            {rings.map((ring, i) => (
+              <RingGauge
+                key={ring.key}
+                radius={radiusAt(i)}
+                thickness={cfg.thickness}
+                sweep={cfg.sweep}
+                value={ring.value}
+                color={ring.color}
+              />
+            ))}
+          </svg>
+          {!menuOpen && (
             <div className="deck-diag-center">
               <span className={`deck-diag-link ${linkClass}`}>LINK · {link}</span>
               <span className="deck-diag-metrics">
@@ -284,23 +311,13 @@ export function DeckDiagnosticsWidget() {
               </span>
               <span className="deck-diag-up">UP {formatUptime(uptime)}</span>
             </div>
-          </>
-        )}
-
-        <div className="deck-diag-top">
-          <span className="widget-title deck-diag-title">DECK DIAGNOSTICS</span>
-          <button
-            type="button"
-            className={`deck-diag-menu${menuOpen ? ' is-open' : ''}`}
-            aria-label="Configure rings"
-            aria-expanded={menuOpen}
-            onPointerDown={(e) => e.stopPropagation()}
-            onClick={() => setMenuOpen((v) => !v)}
-          >
-            <GearIcon />
-          </button>
+          )}
         </div>
       </div>
+
+      {/* The panel floats over the tile rather than inside the disc, whose
+          circular clip would shear off its chamfered corners. */}
+      {menuOpen && <RingConfigPanel cfg={cfg} onUpdate={update} onClose={() => setMenuOpen(false)} />}
     </div>
   );
 }
