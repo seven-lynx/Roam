@@ -383,4 +383,40 @@ class MainViewModelTest {
         assertFalse(freshVm.crtEffectsEnabled.value)
         assertFalse(freshVm.deviceFrameEnabled.value)
     }
+
+    // ─── Shell defaults & shell-scoped screen effects ───────────────────────────
+
+    @Test
+    fun `hardware embellishments are off by default`() {
+        assertFalse(vm.hardwareFxMaster.value)
+    }
+
+    @Test
+    fun `switching to Roam Classic disables screen effects`() {
+        vm.setThemeVariant(RoamThemeVariant.CLASSIC)
+        assertFalse(vm.crtEffectsEnabled.value)
+    }
+
+    @Test
+    fun `switching back to ROAM-OS re-enables screen effects`() {
+        vm.setThemeVariant(RoamThemeVariant.CLASSIC)
+        vm.setThemeVariant(RoamThemeVariant.ROAM_OS)
+        assertTrue(vm.crtEffectsEnabled.value)
+    }
+
+    @Test
+    fun `returning to ROAM-OS restores a screen-effects setting the user had switched off`() {
+        vm.setCrtEffectsEnabled(false)
+        vm.setThemeVariant(RoamThemeVariant.CLASSIC)
+        vm.setThemeVariant(RoamThemeVariant.ROAM_OS)
+        assertFalse(vm.crtEffectsEnabled.value)
+    }
+
+    @Test
+    fun `re-selecting the current shell keeps the screen-effects setting`() {
+        vm.setThemeVariant(RoamThemeVariant.CLASSIC)
+        vm.setCrtEffectsEnabled(true)
+        vm.setThemeVariant(RoamThemeVariant.CLASSIC)
+        assertTrue(vm.crtEffectsEnabled.value)
+    }
 }
