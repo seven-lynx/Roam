@@ -1,26 +1,18 @@
 package app.roam.android.ui.component
 
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.HelpOutline
 import androidx.compose.material.icons.automirrored.filled.Label
 import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.automirrored.filled.VolumeOff
 import androidx.compose.material.icons.automirrored.filled.VolumeUp
-import androidx.compose.material.icons.filled.AddTask
 import androidx.compose.material.icons.filled.Bedtime
 import androidx.compose.material.icons.filled.BlurOn
-import androidx.compose.material.icons.filled.CardGiftcard
-import androidx.compose.material.icons.filled.Collections
 import androidx.compose.material.icons.filled.Computer
-import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.EmojiEvents
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.GpsFixed
-import androidx.compose.material.icons.filled.Group
 import androidx.compose.material.icons.filled.LocalFireDepartment
-import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Menu
-import androidx.compose.material.icons.filled.MilitaryTech
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Psychology
 import androidx.compose.material.icons.filled.Public
@@ -32,7 +24,6 @@ import androidx.compose.material.icons.filled.SportsEsports
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.ThumbDown
 import androidx.compose.material.icons.filled.ThumbUp
-import androidx.compose.material.icons.filled.TravelExplore
 import androidx.compose.ui.graphics.vector.ImageVector
 import app.roam.android.model.Badge
 
@@ -65,24 +56,16 @@ object RoamOsIcons {
         else -> Icons.AutoMirrored.Filled.Label
     }
 
-    /** Badge → icon, keyed on badge category with an emoji fallback. */
-    fun forBadge(badge: Badge): ImageVector = when (badge.category) {
-        "exploration" -> Icons.Filled.TravelExplore
-        "collecting" -> Icons.Filled.Collections
-        "curating" -> Icons.Filled.Edit
-        "social" -> Icons.Filled.Group
-        "streaks" -> Icons.Filled.LocalFireDepartment
-        "contributing" -> Icons.Filled.AddTask
-        "curiosity" -> Icons.Filled.Favorite
-        "games" -> Icons.Filled.EmojiEvents
-        "secret" -> Icons.Filled.Lock
-        "milestone" -> Icons.Filled.MilitaryTech
-        "gift" -> Icons.Filled.CardGiftcard
-        else -> forEmoji(badge.icon)
-    }
+    /**
+     * Badge → icon. Delegates to [RoamBadgeGlyphs], the Android port of the
+     * webapp's per-slug glyph pack (web/src/lib/icons.ts), so Android shows the
+     * exact same badge icons as the web app (slug -> category -> default, + tier
+     * pips). Hidden/locked badges render the hidden question-mark medal.
+     */
+    fun forBadge(badge: Badge): ImageVector = RoamBadgeGlyphs.forBadge(badge)
 
-    /** Hidden (locked, un-revealed) badge glyph. */
-    val HiddenBadge: ImageVector get() = Icons.AutoMirrored.Filled.HelpOutline
+    /** Hidden (locked, un-revealed) badge glyph — web HIDDEN_GLYPH. */
+    val HiddenBadge: ImageVector get() = RoamBadgeGlyphs.hiddenGlyph
 
     /** Curated emoji → icon table with a trophy fallback. */
     fun forEmoji(emoji: String): ImageVector = when (emoji) {
