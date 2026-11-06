@@ -140,6 +140,9 @@ class MainViewModel(
     private val HARDWARE_COLOR_KEY = "hardware_color_scheme"
     private val MAX_HISTORY_ENTRIES = 100
 
+    /** Fail-open ceiling for the WebView reveal latch — see [beginPageLoad]. */
+    private val REVEAL_TIMEOUT_MS = 12_000L
+
     private val _state = MutableStateFlow<RoamState>(RoamState.Idle)
     val state: StateFlow<RoamState> = _state.asStateFlow()
 
@@ -171,10 +174,33 @@ class MainViewModel(
     private val _webViewReady = MutableStateFlow(true)
     val webViewReady: StateFlow<Boolean> = _webViewReady.asStateFlow()
 
-    private fun beginPageLoad() { _webViewReady.value = false }
+    /** Fail-open timer armed by [beginPageLoad] and cancelled by [onPageRevealed]. */
+    private var revealTimeoutJob: Job? = null
+
+    private fun beginPageLoad() {
+        _webViewReady.value = false
+        // The overlay is cleared only by the WebView's onPageCommitVisible /
+        // onPageFinished callbacks. Backgrounding or locking the screen mid-load lets
+        // the engine drop the load without firing either one, and the app then sits on
+        // the boot/scan screen until the process is killed. Fail open instead.
+        revealTimeoutJob?.cancel()
+        revealTimeoutJob = viewModelScope.launch {
+            delay(REVEAL_TIMEOUT_MS)
+            if (!_webViewReady.value) {
+                android.util.Log.w(
+                    "MainViewModel",
+                    "Reveal timed out after ${REVEAL_TIMEOUT_MS}ms — clearing the loading overlay",
+                )
+                _isTranslating.value = false
+                _webViewReady.value = true
+            }
+        }
+    }
 
     /** Called by the WebView when the target page is actually visible. */
     fun onPageRevealed() {
+        revealTimeoutJob?.cancel()
+        revealTimeoutJob = null
         _webViewReady.value = true
         _isTranslating.value = false
     }
@@ -1390,12 +1416,15 @@ class MainViewModel(
     fun roam(excludeDomain: String? = null) {
         haptic(getApplication())
         _userRating.value = 0
-        beginPageLoad()
 
         // ── Client-side debounce: ignore rapid-fire taps within 1 second ──────
+        // Latch the loading overlay only after the guard: a debounced tap used to
+        // arm the overlay and then return without ever starting a load, leaving the
+        // boot screen up until the process was killed.
         val now = System.currentTimeMillis()
         if (now - lastRoamMillis < 1000L) return
         lastRoamMillis = now
+        beginPageLoad()
         pushSystemMessage("SCANNING…")
 
         // Default to excluding the current domain so the bottom-bar Roam button

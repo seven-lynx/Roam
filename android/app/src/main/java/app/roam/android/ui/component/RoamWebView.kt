@@ -25,6 +25,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
@@ -231,6 +232,12 @@ fun RoamWebView(
     // True while the WebView is trying to recover from a killed renderer after
     // backgrounding. A watchdog below force-reloads if recovery stalls.
     var recovering by remember { mutableStateOf(false) }
+    // True between onPageStarted and the page committing. Chrome frequently drops an
+    // in-flight load when the app is backgrounded or the screen locks, and then no
+    // terminal callback ever fires — this flag lets ON_RESUME detect that case.
+    var pageInFlight by remember { mutableStateOf(false) }
+    // Bumped when the renderer dies so key(recreateNonce) builds a fresh WebView.
+    var recreateNonce by remember { mutableIntStateOf(0) }
     LaunchedEffect(url) {
         urlRef.value = url
         // Reset the error state whenever we get a new URL to try.
@@ -277,43 +284,72 @@ fun RoamWebView(
             when (event) {
                 Lifecycle.Event.ON_RESUME -> {
                     pausePending = false
-                    val wv = webViewRef.value ?: return@LifecycleEventObserver
+                    val wv = webViewRef.value
+                    if (wv == null) {
+                        // The renderer was killed while backgrounded and
+                        // onRenderProcessGone nulled the ref. pauseTimers() is
+                        // process-wide, so nothing ever un-paused the engine: every
+                        // later load stalled and the boot screen never cleared. Build a
+                        // fresh WebView instead of riding the dead one.
+                        recovering = true
+                        showSnapshot = true
+                        onRecovering(true)
+                        onLoadingChanged(true)
+                        recreateNonce++
+                        return@LifecycleEventObserver
+                    }
                     wv.onResume()
                     wv.resumeTimers()
                     // Re-assert system bars after resume — some OEMs / WebView versions
                     // leave them hidden after backgrounding during a page load.
                     ensureSystemBarsVisible(wv, darkModeRef.value)
-                    // If the renderer was killed while backgrounded, the WebView url is null.
-                    // Restore saved state first; fall back to reloading the current url.
-                    // Scroll restore happens in onPageFinished via the injected script +
-                    // Kotlin-side savedScrollY fallback.
                     if (wv.url.isNullOrEmpty()) {
+                        // Renderer survived but lost its page: restore, else reload.
+                        // Scroll restore happens in onPageFinished via the injected
+                        // script + Kotlin-side savedScrollY fallback.
                         showSnapshot = true
                         recovering = true
                         onRecovering(true)
+                        onLoadingChanged(true)
                         if (!savedState.isEmpty) {
                             wv.restoreState(savedState)
                         } else {
                             urlRef.value?.let { wv.loadUrl(it) }
                         }
-                    } else if (jsEnabled) {
-                        // Surviving-renderer case: no load/pageshow event fires, so
-                        // force-restore from localStorage, with Kotlin Y as fallback.
-                        val fallbackY = savedScrollY
-                        wv.post {
-                            wv.evaluateJavascript(
-                                "window.__roam_restoreScroll && window.__roam_restoreScroll($fallbackY)",
-                                null,
-                            )
-                            // Also force a direct scrollTo after a short delay in case the
-                            // page reflowed to top while backgrounded (common on OEM WebViews).
-                            if (fallbackY > 0) {
-                                wv.postDelayed({
-                                    wv.evaluateJavascript(
-                                        "if((window.scrollY||0)<${fallbackY / 2}){window.scrollTo(0,$fallbackY);}",
-                                        null,
-                                    )
-                                }, 300)
+                    } else if (pageInFlight) {
+                        // A load was in flight when we were backgrounded and the engine
+                        // dropped it without firing onPageFinished / onReceivedError.
+                        // Arm the recovery watchdog, which re-issues the load when
+                        // nothing commits — previously the reveal latch stayed shut and
+                        // the app sat on the boot screen until the process was killed.
+                        recovering = true
+                        onRecovering(true)
+                        onLoadingChanged(true)
+                    } else {
+                        // The page is already on screen and no load callback will fire:
+                        // on resume Chrome emits neither a load nor a persisted pageshow
+                        // event for an already-committed page. Release the loading latch
+                        // here so the overlay cannot outlive the resume.
+                        onLoadingChanged(false)
+                        onPageVisible()
+                        if (jsEnabled) {
+                            // Force-restore scroll from localStorage, Kotlin Y as fallback.
+                            val fallbackY = savedScrollY
+                            wv.post {
+                                wv.evaluateJavascript(
+                                    "window.__roam_restoreScroll && window.__roam_restoreScroll($fallbackY)",
+                                    null,
+                                )
+                                // Also force a direct scrollTo after a short delay in case the
+                                // page reflowed to top while backgrounded (common on OEM WebViews).
+                                if (fallbackY > 0) {
+                                    wv.postDelayed({
+                                        wv.evaluateJavascript(
+                                            "if((window.scrollY||0)<${fallbackY / 2}){window.scrollTo(0,$fallbackY);}",
+                                            null,
+                                        )
+                                    }, 300)
+                                }
                             }
                         }
                     }
@@ -410,11 +446,18 @@ fun RoamWebView(
     }
 
     Box(modifier = modifier) {
+    // Keyed on recreateNonce: onRenderProcessGone bumps it so a dead renderer is
+    // replaced by a brand-new WebView instead of being reused.
+    key(recreateNonce) {
     AndroidView(
         modifier = Modifier.fillMaxSize(),
         factory = { context ->
             try {
                 WebView(context).apply {
+                    // pauseTimers() is process-wide, so a paused (or dead) previous
+                    // instance can leave this new WebView unable to advance any load.
+                    // Clearing it here is idempotent and cheap.
+                    resumeTimers()
                     settings.apply {
                         @Suppress("SetJavaScriptEnabled")
                         javaScriptEnabled = jsEnabled
@@ -484,12 +527,16 @@ fun RoamWebView(
                                 redirectCount = 0
                                 lastRedirectHost = null
                             }
+                            // Remember that a load is in flight so ON_RESUME can tell a
+                            // dropped load (no terminal callback) from a settled page.
+                            pageInFlight = true
                             ensureSystemBarsVisible(view, darkModeRef.value)
                             onLoadingChanged(true)
                         }
 
                         override fun onPageFinished(view: WebView, loadedUrl: String) {
                             // Page loaded successfully — reset the counter
+                            pageInFlight = false
                             redirectCount = 0
                             lastRedirectHost = null
                             onUrlChanged(loadedUrl)
@@ -532,6 +579,21 @@ fun RoamWebView(
 
                         }
 
+                        // Fires as soon as the main frame commits, i.e. as soon as there is
+                        // something real on screen. Some OEM WebViews delay or skip
+                        // onPageFinished after a background/foreground cycle, so releasing
+                        // the loading overlay here keeps the boot screen from sticking.
+                        // about:blank is skipped — the WebView commits it on creation and
+                        // releasing there would reveal an empty page before the real load.
+                        override fun onPageCommitVisible(view: WebView, url: String) {
+                            if (url.isBlank() || url == "about:blank") return
+                            pageInFlight = false
+                            onLoadingChanged(false)
+                            onPageVisible()
+                            recovering = false
+                            onRecovering(false)
+                        }
+
                         override fun onReceivedError(
                             view: WebView,
                             request: WebResourceRequest,
@@ -540,20 +602,43 @@ fun RoamWebView(
                             if (request.isForMainFrame) {
                                 redirectCount = 0
                                 lastRedirectHost = null
+                                pageInFlight = false
                                 loadError = true
                                 onLoadingChanged(false)
+                                // Release the loading overlay so the "This page couldn't
+                                // load" box is reachable instead of sitting behind it.
+                                recovering = false
+                                onRecovering(false)
+                                onPageVisible()
                             }
                         }
-                        // The renderer process was killed. On some devices (Samsung One UI 6),
-                        // constructing a new WebView after renderer death throws
-                        // AndroidRuntimeException. Show the error UI instead of trying to
-                        // recreate the WebView — it recovers after a fresh roam.
+                        // The renderer process was killed — the usual cause is a long
+                        // background stint or a screen lock, where Android reclaims the
+                        // renderer under memory pressure. The dead WebView must be torn
+                        // down before a replacement can be built: reusing it throws
+                        // AndroidRuntimeException on some OEM builds and silently stalls
+                        // every later load, which is what stranded the app on the boot
+                        // screen until the process was restarted.
                         override fun onRenderProcessGone(view: WebView, detail: RenderProcessGoneDetail): Boolean {
                             Handler(Looper.getMainLooper()).post {
                                 webViewRef.value = null
-                                showSnapshot = false
-                                snapshotBitmap = null
-                                loadError = true
+                                pageInFlight = false
+                                // Drop the dead session so the factory does a real load
+                                // instead of restoreState() on a destroyed renderer.
+                                savedState.clear()
+                                // Keep the last captured viewport on screen so the
+                                // replacement WebView does not flash white.
+                                showSnapshot = snapshotBitmap != null
+                                // Deliberately not loadError=true — that path parks the UI
+                                // on "This page couldn't load" and waits for a manual tap.
+                                loadError = false
+                                (view.parent as? android.view.ViewGroup)?.removeView(view)
+                                runCatching { view.destroy() }
+                                recovering = true
+                                onRecovering(true)
+                                onLoadingChanged(true)
+                                // Forces key(recreateNonce) to build a fresh WebView.
+                                recreateNonce++
                             }
                             return true
                         }
@@ -655,6 +740,7 @@ fun RoamWebView(
             }
         },
     )
+    }
     if (showSnapshot) {
         snapshotBitmap?.let { bmp ->
             Image(
