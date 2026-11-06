@@ -2,61 +2,39 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { createClient } from '@/lib/supabase/client';
-
-type Period = 'weekly' | 'monthly' | 'all_time';
-
-interface Entry {
-  rank: number;
-  user_id: string;
-  username: string;
-  display_name: string | null;
-  avatar_url: string | null;
-  xp_total: number;
-  level: number;
-  badge_count: number;
-  streak_days: number;
-  xp_earned: number;
-}
-
-const periodLabels: Record<Period, string> = {
-  weekly: 'This Week',
-  monthly: 'This Month',
-  all_time: 'All Time',
-};
+import {
+  fetchLeaderboard,
+  LEADERBOARD_PERIODS,
+  PERIOD_LABELS,
+  type LeaderboardEntry,
+  type LeaderboardPeriod,
+} from '@/lib/leaderboard';
 
 export function RankingsClient() {
-  const [period, setPeriod] = useState<Period>('weekly');
-  const [entries, setEntries] = useState<Entry[]>([]);
+  const [period, setPeriod] = useState<LeaderboardPeriod>('weekly');
+  const [entries, setEntries] = useState<LeaderboardEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    async function fetchRankings() {
+    let cancelled = false;
+    async function load() {
       setLoading(true);
       setError(null);
       try {
-        const supabase = createClient();
-        const { data: { session } } = await supabase.auth.getSession();
-        const token = session?.access_token;
-        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-        const res = await fetch(
-          `${supabaseUrl}/functions/v1/leaderboard?period=${period}`,
-          {
-            headers: token ? { Authorization: `Bearer ${token}` } : {},
-          }
-        );
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || `HTTP ${res.status}: Failed to load rankings`);
-        setEntries(data?.entries ?? []);
+        const all = await fetchLeaderboard(period);
+        if (!cancelled) setEntries(all);
       } catch (e) {
         const msg = e instanceof Error ? e.message : 'Failed to load rankings';
-        setError(msg);
+        if (!cancelled) setError(msg);
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     }
-    fetchRankings();
+    load();
+    return () => {
+      cancelled = true;
+    };
   }, [period]);
 
   return (
@@ -68,7 +46,7 @@ export function RankingsClient() {
         </div>
 
         <div className="flex gap-2 mb-6">
-          {(Object.keys(periodLabels) as Period[]).map((p) => (
+          {LEADERBOARD_PERIODS.map((p) => (
             <button
               key={p}
               onClick={() => setPeriod(p)}
@@ -78,7 +56,7 @@ export function RankingsClient() {
                   : 'bg-panel-2 text-muted hover:bg-panel-3'
               }`}
             >
-              {periodLabels[p]}
+              {PERIOD_LABELS[p]}
             </button>
           ))}
         </div>

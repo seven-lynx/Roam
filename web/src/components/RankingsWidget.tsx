@@ -2,28 +2,14 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { createClient } from '@/lib/supabase/client';
 import { useWorkstation } from '@/components/WorkstationContext';
-
-type Period = 'weekly' | 'monthly' | 'all_time';
-
-interface Entry {
-  rank: number;
-  user_id: string;
-  username: string;
-  display_name: string | null;
-  xp_total: number;
-  level: number;
-  badge_count: number;
-  streak_days: number;
-  xp_earned: number;
-}
-
-const periodLabels: Record<Period, string> = {
-  weekly: 'This Week',
-  monthly: 'This Month',
-  all_time: 'All Time',
-};
+import {
+  fetchLeaderboard,
+  LEADERBOARD_PERIODS,
+  PERIOD_LABELS,
+  type LeaderboardEntry,
+  type LeaderboardPeriod,
+} from '@/lib/leaderboard';
 
 /**
  * Compact rankings widget for the desktop: top explorers with a period toggle.
@@ -32,27 +18,19 @@ const periodLabels: Record<Period, string> = {
  */
 export function RankingsWidget({ limit = 5 }: { limit?: number }) {
   const { openAppView } = useWorkstation();
-  const [period, setPeriod] = useState<Period>('weekly');
-  const [entries, setEntries] = useState<Entry[]>([]);
+  const [period, setPeriod] = useState<LeaderboardPeriod>('weekly');
+  const [entries, setEntries] = useState<LeaderboardEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
-    async function fetchRankings() {
+    async function load() {
       setLoading(true);
       setError(null);
       try {
-        const supabase = createClient();
-        const { data: { session } } = await supabase.auth.getSession();
-        const token = session?.access_token;
-        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-        const res = await fetch(`${supabaseUrl}/functions/v1/leaderboard?period=${period}`, {
-          headers: token ? { Authorization: `Bearer ${token}` } : {},
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || `HTTP ${res.status}: Failed to load rankings`);
-        if (!cancelled) setEntries((data?.entries ?? []).slice(0, limit));
+        const all = await fetchLeaderboard(period);
+        if (!cancelled) setEntries(all.slice(0, limit));
       } catch (e) {
         const msg = e instanceof Error ? e.message : 'Failed to load rankings';
         if (!cancelled) setError(msg);
@@ -60,7 +38,7 @@ export function RankingsWidget({ limit = 5 }: { limit?: number }) {
         if (!cancelled) setLoading(false);
       }
     }
-    fetchRankings();
+    load();
     return () => {
       cancelled = true;
     };
@@ -73,7 +51,7 @@ export function RankingsWidget({ limit = 5 }: { limit?: number }) {
       </div>
       <div className="widget-body">
         <div className="flex gap-1 mb-2">
-          {(Object.keys(periodLabels) as Period[]).map((p) => (
+          {LEADERBOARD_PERIODS.map((p) => (
             <button
               key={p}
               onClick={() => setPeriod(p)}
@@ -81,7 +59,7 @@ export function RankingsWidget({ limit = 5 }: { limit?: number }) {
                 period === p ? 'bg-panel-3 text-ink' : 'text-muted hover:bg-panel-2'
               }`}
             >
-              {periodLabels[p]}
+              {PERIOD_LABELS[p]}
             </button>
           ))}
         </div>

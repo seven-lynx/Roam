@@ -522,56 +522,66 @@ Save a URL to a private "saved for later" list.
 
 Fetches leaderboard rankings by XP for weekly, monthly, and all-time periods.
 
-**Endpoint:** `POST /functions/v1/leaderboard`
+**Endpoint:** `GET /functions/v1/leaderboard?period=weekly|monthly|all_time`
 
-**Authentication:** Required (Bearer token)
+**Authentication:** Optional. Deployed with the default `verify_jwt = true`, so the
+platform gateway rejects a request that carries no credentials with a **401**
+before the handler runs. Send the project key on `apikey` and either the user's
+session JWT or that same key on `Authorization`. Results are limited to public
+profiles, so the key exposes nothing extra.
 
-**Request Body:**
-```json
-{
-  "period": "weekly" | "monthly" | "all_time",
-  "limit": 50,
-  "offset": 0
-}
-```
+**Query Parameters:**
+| Param | Values | Default |
+|---|---|---|
+| `period` | `weekly`, `monthly`, `all_time` | `all_time` |
 
 **Response (200):**
 ```json
 {
-  "rankings": [
+  "period": "weekly",
+  "entries": [
     {
       "rank": 1,
       "user_id": "uuid",
       "username": "alice",
       "display_name": "Alice",
       "avatar_url": "https://...",
-      "xp": 15420,
+      "xp_total": 15420,
       "level": 12,
-      "badge_count": 15
+      "badge_count": 15,
+      "streak_days": 3,
+      "xp_earned": 220
     }
   ],
-  "total": 256
+  "updated_at": "2026-11-05T12:00:00.000Z"
 }
 ```
 
 **Error Responses:**
 - **400** — Invalid period (must be one of: weekly, monthly, all_time)
-- **401** — Unauthorized
-- **500** — Internal server error
+- **401** — Missing/invalid credentials (returned by the platform gateway, body is `{ "message": ... }`)
+- **500** — Internal server error (`{ "error": "Failed to fetch leaderboard" }`)
 
 **Details:**
-- **Weekly:** Resets every Monday at 00:00 UTC
-- **Monthly:** Resets on the 1st of each month
-- **All-time:** Cumulative XP since account creation
-- Rankings ordered by XP descending; ties broken by account creation date (older accounts rank higher)
-- The authenticated user's own rank is included even if outside the requested range
+- Backed by the `leaderboard_snapshots` table; a snapshot older than 1 hour is rebuilt on read
+- **Weekly/Monthly:** trailing 7/30 days of `xp_log` (rolling windows, not calendar periods)
+- **All-time:** cumulative `xp_log` since account creation
+- Top 100 are snapshotted, the endpoint returns the first 50 by rank
+- Private profiles (`is_public = false`) are excluded
+- `streak_days` is recomputed per entry via `get_effective_streak` (falls back to the stored column)
 
 **Example (Web):**
 ```typescript
-const { data } = await supabase.functions.invoke('leaderboard', {
-  body: { period: 'weekly', limit: 20 }
-});
-console.log(data.rankings);
+// web/src/lib/leaderboard.ts — always sends both headers so signed-out
+// visitors are not 401'd by the platform gateway.
+const supabase = createClient();
+const { data: { session } } = await supabase.auth.getSession();
+const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+const res = await fetch(
+  `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/leaderboard?period=weekly`,
+  { headers: { apikey: anonKey, Authorization: `Bearer ${session?.access_token ?? anonKey}` } },
+);
+const { entries } = await res.json();
 ```
 
 ---
@@ -1617,7 +1627,7 @@ console.log(`Active users (7d): ${stats.data.active_users_week}`);
 | `follow` | 30 | 1 minute (per authenticated user) |
 | `save-url` | 50 | 1 minute (per authenticated user) |
 | `share-url` | 50 | 1 minute (per authenticated user) |
-| `leaderboard` | 30 | 1 minute (per authenticated user) |
+| `leaderboard` | none | — (the snapshot rebuild is capped at once per hour per period) |
 | `feedback` | 5 | 10 minutes (per IP address) |
 | `report-url` | 20 | 10 minutes (per authenticated user) |
 | `report-engagement` | 60 | 1 minute (per authenticated user) |
