@@ -4,13 +4,17 @@ appId: app.roam.android
 ---
 - launchApp:
     clearState: false
+- startRecording: android-appearance
 - extendedWaitUntil:
     visible: "Settings"
     timeout: 30000
 - tapOn: "Settings"
-- extendedWaitUntil:
-    visible: "Display // Optics"
-    timeout: 10000
+- scrollUntilVisible:
+    element:
+      text: "Display // Optics"
+    direction: DOWN
+    timeout: 20000
 - tapOn: "Display // Optics"
 - waitForAnimationToEnd
 - takeScreenshot: android-appearance
+- stopRecording

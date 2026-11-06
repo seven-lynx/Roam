@@ -3,6 +3,7 @@ appId: app.roam.android
 ---
 - launchApp:
     clearState: false
+- startRecording: android-settings-hub
 - extendedWaitUntil:
     visible: "Settings"
     timeout: 30000
@@ -11,3 +12,4 @@ appId: app.roam.android
     visible: "account"
     timeout: 10000
 - takeScreenshot: android-settings-hub
+- stopRecording

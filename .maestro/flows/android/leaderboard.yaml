@@ -3,13 +3,17 @@ appId: app.roam.android
 ---
 - launchApp:
     clearState: false
+- startRecording: android-leaderboard
 - extendedWaitUntil:
     visible: "Settings"
     timeout: 30000
 - tapOn: "Settings"
-- extendedWaitUntil:
-    visible: "rankings"
-    timeout: 10000
+- scrollUntilVisible:
+    element:
+      text: "rankings"
+    direction: DOWN
+    timeout: 20000
 - tapOn: "rankings"
 - waitForAnimationToEnd
 - takeScreenshot: android-leaderboard
+- stopRecording

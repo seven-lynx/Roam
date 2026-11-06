@@ -3,6 +3,7 @@ appId: app.roam.android
 ---
 - launchApp:
     clearState: false
+- startRecording: android-badges
 - extendedWaitUntil:
     visible: "Settings"
     timeout: 30000
@@ -13,3 +14,4 @@ appId: app.roam.android
 - tapOn: "Badges"
 - waitForAnimationToEnd
 - takeScreenshot: android-badges
+- stopRecording

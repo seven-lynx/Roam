@@ -3,13 +3,17 @@ appId: app.roam.android
 ---
 - launchApp:
     clearState: false
+- startRecording: android-history
 - extendedWaitUntil:
     visible: "Settings"
     timeout: 30000
 - tapOn: "Settings"
-- extendedWaitUntil:
-    visible: "log"
-    timeout: 10000
+- scrollUntilVisible:
+    element:
+      text: "log"
+    direction: DOWN
+    timeout: 20000
 - tapOn: "log"
 - waitForAnimationToEnd
 - takeScreenshot: android-history
+- stopRecording

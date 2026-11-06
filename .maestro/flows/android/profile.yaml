@@ -3,6 +3,7 @@ appId: app.roam.android
 ---
 - launchApp:
     clearState: false
+- startRecording: android-profile
 - extendedWaitUntil:
     visible: "Settings"
     timeout: 30000
@@ -15,3 +16,4 @@ appId: app.roam.android
     visible: "Profile"
     timeout: 10000
 - takeScreenshot: android-profile
+- stopRecording

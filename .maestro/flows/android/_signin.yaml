@@ -13,6 +13,7 @@ appId: app.roam.android
 - inputText: ${ROAM_EMAIL}
 - tapOn: "Password"
 - inputText: ${ROAM_PASSWORD}
+- hideKeyboard
 - tapOn: "Sign In"
 - extendedWaitUntil:
     visible: "Settings"

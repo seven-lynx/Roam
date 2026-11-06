@@ -60,7 +60,9 @@ function flows() {
   }
   return readdirSync(FLOWS_DIR)
     .filter((f) => f.endsWith('.yaml') && !f.startsWith('_')) // subflows start with _
-    .sort();
+    // Run the signed-out onboarding flow last: it uses clearState (which logs
+    // out), so it must never run in the middle of the signed-in screen batch.
+    .sort((a, b) => (a === 'onboarding.yaml' ? 1 : b === 'onboarding.yaml' ? -1 : a.localeCompare(b)));
 }
 
 function maestroArgs(args) {
@@ -95,10 +97,12 @@ function main() {
     const outDir = path.join(args.out, name);
     mkdirSync(outDir, { recursive: true });
     console.log(`\n===== ${flow} =====`);
+    // On Windows the CLI is `maestro` -> `maestro.bat`, which CreateProcess can't
+    // launch without a shell; spawning through the shell lets cmd.exe resolve it.
     const res = spawnSync(
       'maestro',
       [...maestroArgs(args), path.join(FLOWS_DIR, flow), '--debug-output', outDir, '--flatten-debug-output'],
-      { stdio: 'inherit' },
+      { stdio: 'inherit', shell: process.platform === 'win32' },
     );
     if (res.status !== 0) {
       failed++;

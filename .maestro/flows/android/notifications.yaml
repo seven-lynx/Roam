@@ -3,13 +3,17 @@ appId: app.roam.android
 ---
 - launchApp:
     clearState: false
+- startRecording: android-notifications
 - extendedWaitUntil:
     visible: "Settings"
     timeout: 30000
 - tapOn: "Settings"
-- extendedWaitUntil:
-    visible: "alerts"
-    timeout: 10000
+- scrollUntilVisible:
+    element:
+      text: "alerts"
+    direction: DOWN
+    timeout: 20000
 - tapOn: "alerts"
 - waitForAnimationToEnd
 - takeScreenshot: android-notifications
+- stopRecording

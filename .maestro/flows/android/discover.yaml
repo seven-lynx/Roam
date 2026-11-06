@@ -4,8 +4,10 @@ appId: app.roam.android
 ---
 - launchApp:
     clearState: false
+- startRecording: android-discover
 - extendedWaitUntil:
     visible: "Settings"
     timeout: 30000
 - waitForAnimationToEnd
 - takeScreenshot: android-discover
+- stopRecording

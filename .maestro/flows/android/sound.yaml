@@ -4,13 +4,17 @@ appId: app.roam.android
 ---
 - launchApp:
     clearState: false
+- startRecording: android-sound
 - extendedWaitUntil:
     visible: "Settings"
     timeout: 30000
 - tapOn: "Settings"
-- extendedWaitUntil:
-    visible: "Audio // Channels"
-    timeout: 10000
+- scrollUntilVisible:
+    element:
+      text: "Audio // Channels"
+    direction: DOWN
+    timeout: 20000
 - tapOn: "Audio // Channels"
 - waitForAnimationToEnd
 - takeScreenshot: android-sound
+- stopRecording
