@@ -276,7 +276,8 @@ Ratings that fail due to no connectivity are pushed onto `pendingRatings`. `conn
 | Celebration animations | On | SharedPreferences |
 | Theme (Roam Classic / ROAM-OS) | ROAM-OS | SharedPreferences |
 | Device frame (ROAM-OS) | On | SharedPreferences |
-| CRT effects (ROAM-OS) | On | SharedPreferences |
+| CRT effects (ROAM-OS) | On, off while in Roam Classic | SharedPreferences |
+| Hardware embellishments (ROAM-OS) | Off | SharedPreferences |
 | Deck material texture | Plastic | SharedPreferences |
 | Deck layout / size / shape | Line / Medium / Round | SharedPreferences |
 | Deck button labels | Off | SharedPreferences |

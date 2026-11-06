@@ -105,6 +105,7 @@ class MainViewModel(
     private val CRT_VIGNETTE_KEY = "crt_vignette"
     private val CRT_FLICKER_KEY = "crt_flicker"
     private val CRT_FISHEYE_KEY = "crt_fisheye"
+    private val CRT_EFFECTS_RESTORE_KEY = "crt_effects_restore"  // screen-effect state to restore on return to ROAM-OS
     private val DEVICE_FRAME_KEY = "device_frame"
     private val SURROUND_MATCH_DECK_KEY = "surround_match_deck"
     private val WEAR_KEY = "wear_and_tear"
@@ -318,11 +319,29 @@ class MainViewModel(
     val themeVariant: StateFlow<RoamThemeVariant> = _themeVariant.asStateFlow()
 
     fun setThemeVariant(variant: RoamThemeVariant) {
+        val previous = _themeVariant.value
         _themeVariant.value = variant
         prefs.edit()
             .putString(APP_THEME_VARIANT_KEY, if (variant == RoamThemeVariant.ROAM_OS) "roam_os" else "classic")
             .apply()
+        if (previous != variant) syncScreenEffectsToShell(variant)
         AppIconManager.apply(getApplication(), variant == RoamThemeVariant.ROAM_OS)
+    }
+
+    /**
+     * Screen effects only exist on the ROAM-OS shell. Leaving for Roam Classic
+     * switches them off and remembers what the user had; coming back to ROAM-OS
+     * restores that setting.
+     */
+    private fun syncScreenEffectsToShell(variant: RoamThemeVariant) {
+        when (variant) {
+            RoamThemeVariant.CLASSIC -> {
+                prefs.edit().putBoolean(CRT_EFFECTS_RESTORE_KEY, _crtEffectsEnabled.value).apply()
+                setCrtEffectsEnabled(false)
+            }
+            RoamThemeVariant.ROAM_OS ->
+                setCrtEffectsEnabled(prefs.getBoolean(CRT_EFFECTS_RESTORE_KEY, true))
+        }
     }
 
     /** User preference: deck key layout ("trapezoid", "trapezoid_inverted", "line", "grid"). */
@@ -410,8 +429,8 @@ class MainViewModel(
         prefs.edit().putBoolean(HARDWARE_VACUUM_TUBE_KEY, enabled).apply()
     }
 
-    /** Master switch: show/hide all chassis embellishments at once. */
-    private val _hardwareFxMaster = MutableStateFlow(prefs.getBoolean(HARDWARE_FX_MASTER_KEY, true))
+    /** Master switch: show/hide all chassis embellishments at once (off by default). */
+    private val _hardwareFxMaster = MutableStateFlow(prefs.getBoolean(HARDWARE_FX_MASTER_KEY, false))
     val hardwareFxMaster: StateFlow<Boolean> = _hardwareFxMaster.asStateFlow()
 
     fun setHardwareFxMaster(enabled: Boolean) {

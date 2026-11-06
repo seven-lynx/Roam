@@ -9,6 +9,10 @@ All notable changes to the Roam Android app.
 - RELAY — a native Compose Snake game running inside a `RoamOsWindow`: a single-canvas board (one snapshot per ~110ms tick), swipe gestures or an on-screen D-pad (toggleable), a boot-time controls guide, an ABOUT/LICENSE drawer, and click/tick sound effects gated on the SFX toggle.
 - Unit tests for the program registry and swipe-steering resolver.
 
+### Changed
+- Hardware embellishments (antenna, nixie, activity LED, vacuum tube) are off by default on fresh installs; existing installs keep their saved choice.
+- Screen effects are scoped to the ROAM-OS shell: switching to Roam Classic turns them off and remembers the setting, and switching back to ROAM-OS restores it.
+
 ## [1.4.0] - 2026-10-29
 
 ### Added
