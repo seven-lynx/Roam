@@ -115,7 +115,12 @@
 
     <!-- Submit panel (expands on 👍 for unknown pages) -->
     <div id="panel-submit" class="panel" hidden>
-      <p class="panel-label">Add this page to Roam?</p>
+      <div class="signal-notice" role="status">
+        <p class="signal-notice-kicker">// uncharted signal</p>
+        <p class="signal-notice-title">SIGNAL FOUND</p>
+        <p class="signal-notice-body">This page isn&rsquo;t in ~/roam yet. You found it first — log it and every wanderer after you gets it too.</p>
+      </div>
+      <p class="panel-label">Pick a category</p>
       <div id="category-chips" class="chip-grid">
         <!-- populated dynamically by popup.ts from FALLBACK_CATEGORIES -->
       </div>

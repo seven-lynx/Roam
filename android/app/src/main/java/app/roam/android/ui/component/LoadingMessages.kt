@@ -1105,7 +1105,7 @@ private val messages = listOf(
     "Unfurling possibilities...",
     "Unfolding the truth...",
     "Unveiling the secret...",
-    "Uncovering hidden gems...",
+    "Uncovering hidden signals...",
     "Unearthing treasure...",
     "Unmasking the real internet...",
     "Peeling back the layers...",

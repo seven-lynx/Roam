@@ -266,7 +266,7 @@ app start
 
 | File | Tests | What's covered |
 |---|---|---|
-| `MainViewModelTest` | 26 | Initial state, sheet toggles, collection filter, language prefs, paywall pref, roam transitions (Loaded/Exhausted/Error/offline), prefetch cache, thumbsUp/thumbsDown rating + submit-sheet fallback, saveForLater/removeSavedUrl |
+| `MainViewModelTest` | 29 | Initial state, sheet toggles, collection filter, language prefs, paywall pref, roam transitions (Loaded/Exhausted/Error/offline), prefetch cache, thumbsUp/thumbsDown rating + submit-sheet fallback, `submitSignalFound` (upvote on an unknown URL vs. the COMMS submit path), saveForLater/removeSavedUrl |
 | `RoamRepositoryTest` | 11 | `rate()` input validation, `UserSettings` defaults, `RoamUrl` full/minimal/unknown-keys JSON deserialization |
 | `SwipeDirectionTest` | 15 | Threshold boundary (at/above/below), dominant-axis, 45° diagonal, upward swipe, zero drag, custom threshold |
 

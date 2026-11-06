@@ -45,7 +45,7 @@ The Next.js 16 web application for Roam. The web surface is the account-manageme
 - **Dead links tab** — review user-reported broken links
 
 ### Other
-- **URL submission** (`/submit`) — submit new URLs for moderation
+- **URL submission** (`/submit`) — submit new URLs for moderation; `?found=1&url=…` congratulates the operator on finding an uncharted page
 - **How It Works** (`/how-it-works`) — product tour
 - **Android app** (`/android`) — app landing page with Google Play link
 - **Browser extension** (`/extensions`) — extension landing page for Chrome & Firefox
@@ -71,7 +71,7 @@ The Next.js 16 web application for Roam. The web surface is the account-manageme
 | `/collections` | Client Component | No | Browse all public collections |
 | `/leaderboard` | Client Component | No | Weekly, monthly, and all-time XP rankings |
 | `/badges` | Client Component | No | Badge gallery with unlock details |
-| `/submit` | Client Component | No | Submit new URL for moderation |
+| `/submit` | Client Component | No | Submit new URL for moderation. `?url=` pre-fills the URL field; `?found=1` adds the diegetic "signal found" congratulations block (used when upvoting a page the catalog doesn't know) |
 | `/profile` | Server shell + Client island | Yes | View / edit profile, collections, and saved URLs |
 | `/settings` | Client Component | Yes | Preferences and account controls |
 | `/admin` | Server shell + Client Component | Yes (admin role) | Moderation queue + analytics |

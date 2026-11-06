@@ -162,8 +162,8 @@ export default function HowItWorks() {
               </h3>
               <p className="text-sm text-muted leading-relaxed">
                 Recently published pages get a mild boost; very old ones fade
-                gradually. You won&rsquo;t get stale content, but timeless gems
-                still surface.
+                gradually. You won&rsquo;t get stale content, but a buried signal
+                still surfaces.
               </p>
             </div>
           </div>

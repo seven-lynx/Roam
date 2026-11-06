@@ -1,6 +1,7 @@
 package app.roam.android.ui.component
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -12,6 +13,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -25,10 +27,53 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import app.roam.android.model.CategoryItem
+import app.roam.android.ui.theme.Bone
 import app.roam.android.ui.theme.Fog
+import app.roam.android.ui.theme.Gold
 import app.roam.android.ui.theme.LineColor
+import app.roam.android.ui.theme.Panel2
+
+/**
+ * Diegetic congratulations shown when the operator upvotes a page the catalog
+ * doesn't know yet. ROAM-OS speaks in its terminal register; Roam Classic gets
+ * the plainer web-app voice.
+ */
+@Composable
+private fun SubmitSignalNotice(isClassic: Boolean) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(8.dp))
+            .background(Panel2)
+            .border(1.dp, if (isClassic) LineColor else Gold, RoundedCornerShape(8.dp))
+            .padding(12.dp),
+    ) {
+        Text(
+            text = if (isClassic) "New signal" else "// uncharted signal",
+            style = MaterialTheme.typography.labelSmall,
+            color = Fog,
+        )
+        Spacer(modifier = Modifier.height(2.dp))
+        Text(
+            text = "SIGNAL FOUND",
+            style = MaterialTheme.typography.labelLarge,
+            color = if (isClassic) Bone else Gold,
+        )
+        Spacer(modifier = Modifier.height(4.dp))
+        Text(
+            text = if (isClassic) {
+                "Nobody has logged this page before. Good find, wanderer — add it and it's here for everyone who comes after you."
+            } else {
+                "This page isn't in ~/roam yet. You found it first — log it and every wanderer after you gets it too."
+            },
+            style = MaterialTheme.typography.bodySmall,
+            color = if (isClassic) Fog else Bone,
+        )
+    }
+}
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
@@ -38,6 +83,8 @@ fun SubmitBottomSheet(
     onSubmit: (url: String, categoryId: String) -> Unit,
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
+    signalFound: Boolean = false,
+    isClassic: Boolean = false,
 ) {
     var urlText by remember { mutableStateOf(url ?: "") }
     var selectedId by remember { mutableStateOf<String?>(null) }
@@ -51,6 +98,10 @@ fun SubmitBottomSheet(
                     .verticalScroll(rememberScrollState())
                     .padding(12.dp),
             ) {
+                if (signalFound) {
+                    SubmitSignalNotice(isClassic = isClassic)
+                    Spacer(modifier = Modifier.height(12.dp))
+                }
                 Text(
                     text = "// push a new page to the network",
                     style = MaterialTheme.typography.labelSmall,
@@ -69,7 +120,10 @@ fun SubmitBottomSheet(
                 Text(
                     text = "Pick a category",
                     style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                    // Fixed palette, not colorScheme: the window chrome above is a
+                    // hardcoded dark panel in both shells, so onSurface would go
+                    // near-black under Roam Classic's light scheme.
+                    color = Fog,
                 )
                 Spacer(modifier = Modifier.height(8.dp))
 

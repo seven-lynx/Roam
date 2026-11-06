@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { LoadingPage } from '@/components/UI';
+import { SubmitSignalNotice, useSubmitSignalVariant } from '@/components/SubmitSignalNotice';
 import { createClient } from '@/lib/supabase/client';
 import { useRequireAuth } from '@/lib/hooks';
 
@@ -23,9 +24,16 @@ const FALLBACK_CATEGORIES: Category[] = [
 export default function SubmitPage() {
   const { isReady } = useRequireAuth();
   const supabase = createClient();
-  const isEmbed = useSearchParams().get('embed') === '1';
+  const params = useSearchParams();
+  const isEmbed = params.get('embed') === '1';
+  // The upvote-on-an-unknown-page flow deep-links here with the page it just
+  // failed to find: `?found=1&url=…`. The notice congratulates the operator and
+  // the URL field arrives pre-filled so submitting is one tap.
+  const foundSignal = params.get('found') === '1';
+  const incomingUrl = params.get('url') ?? '';
+  const signalVariant = useSubmitSignalVariant();
 
-  const [url, setUrl] = useState('');
+  const [url, setUrl] = useState(incomingUrl);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [categoryId, setCategoryId] = useState('');
@@ -131,6 +139,12 @@ export default function SubmitPage() {
             Max 10 per hour.
           </p>
         </div>
+
+        {foundSignal && !success && (
+          <div className="mb-6">
+            <SubmitSignalNotice variant={signalVariant} />
+          </div>
+        )}
 
         {success ? (
           <div className="rounded-xl border border-ok border-ok bg-panel-2 bg-panel-2/30 px-6 py-8 flex flex-col items-center gap-4 text-center">

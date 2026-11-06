@@ -279,6 +279,29 @@ class MainViewModelTest {
         assertTrue(vm.showSubmitSheet.value)
     }
 
+    @Test
+    fun `thumbsUp on an unknown URL flags a found signal`() = runTest {
+        assertEquals(RoamState.Idle, vm.state.value)
+        vm.thumbsUp(app)
+        assertTrue(vm.submitSignalFound.value)
+    }
+
+    @Test
+    fun `openSubmitSheet from comms does not flag a found signal`() = runTest {
+        // The COMMS → Submit URL path is a plain submission, not a discovery.
+        vm.openSubmitSheet()
+        assertTrue(vm.showSubmitSheet.value)
+        assertFalse(vm.submitSignalFound.value)
+    }
+
+    @Test
+    fun `closeSubmitSheet clears the found-signal flag`() = runTest {
+        vm.thumbsUp(app)
+        vm.closeSubmitSheet()
+        assertFalse(vm.showSubmitSheet.value)
+        assertFalse(vm.submitSignalFound.value)
+    }
+
     // ─── saveForLater ──────────────────────────────────────────────────────────
 
     @Test

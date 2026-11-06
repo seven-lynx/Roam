@@ -37,6 +37,7 @@ export function Dock() {
     toggleInspect,
     browse,
     updateBrowse,
+    openAppView,
     showAlert,
     minimizeAll,
     restoreAll,
@@ -79,24 +80,43 @@ export function Dock() {
       router.push('/signup?mode=signin');
       return;
     }
-    if (!browse.urlId || browse.rated === value) return;
+    if (browse.rated === value) return;
+
+    // A page the catalog doesn't know yet has nothing to rate. Resolve it once
+    // (the catalog may hold it under a different URL key); if it really is
+    // uncharted, upvoting opens the submit screen so the operator can log it.
+    let urlId = browse.urlId;
+    let target = browse;
+    if (!urlId) {
+      if (value === -1) return;
+      const meta = await fetchUrlMeta(browse.url);
+      if (!meta) {
+        click();
+        openAppView(`/submit?found=1&url=${encodeURIComponent(browse.url)}`, 'Upload URL');
+        return;
+      }
+      urlId = meta.urlId;
+      target = { ...browse, ...meta };
+      updateBrowse(target);
+    }
 
     like();
-    const prev = { rated: browse.rated, upvotes: browse.upvotes ?? 0, downvotes: browse.downvotes ?? 0 };
-    updateBrowse({ ...browse, rated: value, upvotes: prev.upvotes, downvotes: prev.downvotes });
+    const prev = { rated: target.rated, upvotes: target.upvotes ?? 0, downvotes: target.downvotes ?? 0 };
+    updateBrowse({ ...target, urlId, rated: value, upvotes: prev.upvotes, downvotes: prev.downvotes });
 
-    const ok = await setRating(browse.urlId, session.user.id, value);
+    const ok = await setRating(urlId, session.user.id, value);
     const fresh = ok ? await fetchUrlMeta(browse.url) : null;
     if (ok && fresh) {
       updateBrowse({
-        ...browse,
+        ...target,
+        urlId,
         rated: value,
         upvotes: fresh.upvotes,
         downvotes: fresh.downvotes,
         wilsonScore: fresh.wilsonScore,
       });
     } else if (!ok) {
-      updateBrowse({ ...browse, ...prev });
+      updateBrowse({ ...target, ...prev });
     }
   };
 

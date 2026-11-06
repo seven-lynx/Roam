@@ -631,6 +631,7 @@ private fun DiscoverTab(
     val showConfigSheet by vm.showConfigSheet.collectAsState()
     val showCommsMenu by vm.showCommsMenu.collectAsState()
     val showSubmitSheet by vm.showSubmitSheet.collectAsState()
+    val submitSignalFound by vm.submitSignalFound.collectAsState()
     val showShareUrlSheet by vm.showShareUrlSheet.collectAsState()
     val adminModeEnabled by vm.adminModeEnabled.collectAsState()
     val prefetchWebView by vm.prefetchWebView.collectAsState()
@@ -1149,6 +1150,8 @@ private fun DiscoverTab(
                         onSubmit = { submittedUrl, categoryId -> vm.submitUrl(submittedUrl, categoryId) },
                         onDismiss = { vm.closeSubmitSheet() },
                         modifier = Modifier.fillMaxSize(),
+                        signalFound = submitSignalFound,
+                        isClassic = !isRoamOs,
                     )
                 }
 

@@ -226,6 +226,12 @@ class MainViewModel(
     private val _showSubmitSheet = MutableStateFlow(false)
     val showSubmitSheet: StateFlow<Boolean> = _showSubmitSheet.asStateFlow()
 
+    /** True when the submit sheet was opened by upvoting a page the catalog
+     *  doesn't know yet — the sheet then congratulates the operator on finding
+     *  a new signal. False for the ordinary COMMS → Submit URL path. */
+    private val _submitSignalFound = MutableStateFlow(false)
+    val submitSignalFound: StateFlow<Boolean> = _submitSignalFound.asStateFlow()
+
     /** Controls whether the config bottom sheet is visible */
     private val _showConfigSheet = MutableStateFlow(false)
     val showConfigSheet: StateFlow<Boolean> = _showConfigSheet.asStateFlow()
@@ -1714,7 +1720,8 @@ class MainViewModel(
     fun thumbsUp(context: Context) {
         if (!repo.hasSession()) return  // signed out — ignore
         val loaded = _state.value as? RoamState.Loaded ?: run {
-            // Unknown page — show submit sheet
+            // Unknown page — show submit sheet, congratulating the find
+            _submitSignalFound.value = true
             _showSubmitSheet.value = true
             return
         }
@@ -1857,8 +1864,8 @@ class MainViewModel(
         }
     }
 
-    fun openSubmitSheet() { _showSubmitSheet.value = true }
-    fun closeSubmitSheet() { _showSubmitSheet.value = false }
+    fun openSubmitSheet() { _submitSignalFound.value = false; _showSubmitSheet.value = true }
+    fun closeSubmitSheet() { _showSubmitSheet.value = false; _submitSignalFound.value = false }
     fun openConfigSheet() { _showConfigSheet.value = true; loadCollections() }
     fun closeConfigSheet() { _showConfigSheet.value = false }
 

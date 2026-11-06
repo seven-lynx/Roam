@@ -137,6 +137,36 @@ body {
   letter-spacing: 0.06em;
 }
 
+/* ── Signal-found notice (upvote on an unknown page) ────────────────────── */
+.signal-notice {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 10px;
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-sm);
+  background: var(--bg-panel);
+}
+.signal-notice-kicker {
+  font-size: 10px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+.signal-notice-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--accent);
+  letter-spacing: 0.06em;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+.signal-notice-body {
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--text);
+}
+
 /* ── Category chips ────────────────────────────────────────────────────── */
 .chip-grid {
   display: flex;
