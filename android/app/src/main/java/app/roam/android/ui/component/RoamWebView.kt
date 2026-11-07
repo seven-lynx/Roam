@@ -209,6 +209,7 @@ fun RoamWebView(
     onPageFinishedForPrefetch: () -> Unit = {},
     navCommandsFlow: Flow<WebNavCommand>? = null,
     clearCookiesFlow: Flow<Unit>? = null,
+    refocusKey: Int = 0,
 ) {
     var loadError by remember { mutableStateOf(value = false) }
     // Non-persisted Bundle for live session recovery only (renderer death while app
@@ -248,6 +249,14 @@ fun RoamWebView(
             savedScrollY = 0
             savedScrollUrl = url
         }
+    }
+    // Hand keyboard/focus back to the page when a ROAM-OS overlay closes (the deck's
+    // MENU key acting as a home key, the launcher, comms, the cartridge shelf). The
+    // WebView is a plain AndroidView, so it never reclaims focus on its own after a
+    // Compose overlay that took it goes away. Declared before the early returns so
+    // the effect is not skipped while the page is still loading.
+    LaunchedEffect(refocusKey) {
+        if (refocusKey > 0) webViewRef.value?.requestFocus()
     }
     // Snapshot of the last visible viewport — shown as an overlay while the page reloads
     // after renderer death, eliminating the white-screen flash.

@@ -9,13 +9,23 @@ import org.junit.Test
 class ProgramRegistryTest {
 
     @Test
-    fun `registry ships the four in-OS games in launcher order`() {
-        assertEquals(listOf("snake", "minesweeper", "tetris", "asteroids"), PROGRAMS.map { it.id })
+    fun `registry ships all five handheld programs in launcher order`() {
+        assertEquals(
+            listOf("snake", "minesweeper", "tetris", "asteroids", "frogger"),
+            PROGRAMS.map { it.id },
+        )
     }
 
     @Test
     fun `program ids are unique`() {
         assertEquals(PROGRAMS.size, PROGRAMS.map { it.id }.toSet().size)
+    }
+
+    @Test
+    fun `titles, paths and glyphs are unique`() {
+        assertEquals(PROGRAMS.size, PROGRAMS.map { it.title }.toSet().size)
+        assertEquals(PROGRAMS.size, PROGRAMS.map { it.file }.toSet().size)
+        assertEquals(PROGRAMS.size, PROGRAMS.map { it.glyph }.toSet().size)
     }
 
     @Test
@@ -36,5 +46,32 @@ class ProgramRegistryTest {
         assertNotNull(program("snake"))
         assertEquals("RELAY", program("snake")?.title)
         assertNull(program("unknown"))
+    }
+
+    @Test
+    fun `titles match the webapp registry`() {
+        assertEquals("RELAY", program("snake")?.title)
+        assertEquals("BOTFIELD", program("minesweeper")?.title)
+        assertEquals("COMPILER", program("tetris")?.title)
+        assertEquals("DEBRIS", program("asteroids")?.title)
+        assertEquals("FIREWALK", program("frogger")?.title)
+    }
+
+    @Test
+    fun `the zeli ports are Apache-2 and FIREWALK is MIT`() {
+        for (id in listOf("snake", "minesweeper", "tetris", "asteroids")) {
+            val p = requireNotNull(program(id))
+            assertEquals("Apache-2.0", p.license.spdx)
+            assertTrue(p.source.contains("zeli-web-games"))
+        }
+        assertEquals("MIT", requireNotNull(program("frogger")).license.spdx)
+    }
+
+    @Test
+    fun `every playable program has a game id for XP awards`() {
+        val slugs = GameId.entries.map { it.slug }.toSet()
+        PROGRAMS.forEach { p ->
+            assertTrue("no GameId for ${p.id}", p.id in slugs)
+        }
     }
 }

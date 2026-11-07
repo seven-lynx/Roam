@@ -1,6 +1,7 @@
 package app.roam.android.viewmodel
 
 import android.app.Application
+import android.content.Context
 import androidx.test.core.app.ApplicationProvider
 import androidx.lifecycle.viewModelScope
 import app.roam.android.data.repository.RoamRepository
@@ -13,7 +14,7 @@ import io.mockk.mockk
 import java.io.IOException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.cancelChildren
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
@@ -36,6 +37,12 @@ class MainViewModelTest {
     private lateinit var app: Application
     private lateinit var vm: MainViewModel
 
+    /** Every ViewModel this test built, so [tearDown] can stop its coroutines. */
+    private val createdViewModels = mutableListOf<MainViewModel>()
+
+    /** Session flag the mocked repository reports; see [setUp]. */
+    private var signedInSession = false
+
     private val mockUrl = RoamUrl(
         id = "url-123",
         url = "https://example.com",
@@ -45,21 +52,47 @@ class MainViewModelTest {
         subcategoryId = null,
     )
 
+    private fun newViewModel(repository: RoamRepository = repo): MainViewModel =
+        MainViewModel(app, repository).also { createdViewModels += it }
+
     @Before
     fun setUp() {
         Dispatchers.setMain(testDispatcher)
         app = ApplicationProvider.getApplicationContext()
+        // Prefetch must stay off for the whole class. startPrefillQueue() launches
+        // viewModelScope workers on Dispatchers.IO whose `while (true)` loops call
+        // roamBatch() forever; under a test scheduler they never idle, so leaked
+        // loops from earlier tests exhaust the worker heap (OutOfMemoryError) and
+        // every later test in this class fails. The pref is read in a property
+        // initialiser, so it has to be set before the ViewModel is constructed.
+        app.getSharedPreferences("roam_saved", Context.MODE_PRIVATE)
+            .edit()
+            .putBoolean("prefetch_webview", false)
+            .apply()
         repo = mockk(relaxed = true)
         coEvery { repo.getCategories() } returns emptyList()
         coEvery { repo.getUserSettings() } returns UserSettings()
-        // Prevent init's launchPrefetch from populating _prefetchedUrl with a relaxed mock
         coEvery { repo.roam(any(), any(), any(), any()) } returns null
-        vm = MainViewModel(app, repo)
+        // Belt and braces: an empty batch means even a restarted prefill worker
+        // backs off through delay() instead of spinning.
+        coEvery { repo.roamBatch(any(), any(), any(), any(), any(), any()) } returns emptyList()
+        // hasSession() must be false while the ViewModel is constructed: init
+        // launches `while (isActive) { delay(60_000); checkForNewCelebrations() }`
+        // when it is true, and advanceUntilIdle() would spin that endless loop
+        // forever on virtual time (OutOfMemoryError).
+        coEvery { repo.hasSession() } answers { signedInSession }
+        vm = newViewModel()
+        // Every test then behaves as a signed-in user: thumbsUp/thumbsDown and
+        // roam() both bail out early when hasSession() is false.
+        signedInSession = true
     }
 
     @After
     fun tearDown() {
-        vm.viewModelScope.coroutineContext.cancelChildren()
+        // Cancel every ViewModel the test created — including one that never
+        // became `vm` — so a failed setUp can't make tearDown throw.
+        createdViewModels.forEach { runCatching { it.viewModelScope.cancel() } }
+        createdViewModels.clear()
         org.robolectric.shadows.ShadowLooper.idleMainLooper()
         Dispatchers.resetMain()
     }
@@ -112,6 +145,39 @@ class MainViewModelTest {
         vm.openConfigSheet()
         vm.closeConfigSheet()
         assertFalse(vm.showConfigSheet.value)
+    }
+
+    // ─── Cartridge shelf (MENU key as home key) ────────────────────────────────
+
+    @Test
+    fun `initial programsOpen is false`() {
+        assertFalse(vm.programsOpen.value)
+    }
+
+    @Test
+    fun `openPrograms sets programsOpen to true and dismisses the launcher`() {
+        vm.openConfigSheet()
+        vm.openPrograms()
+        assertTrue(vm.programsOpen.value)
+        assertFalse(vm.showConfigSheet.value)
+    }
+
+    @Test
+    fun `closePrograms sets programsOpen to false`() {
+        vm.openPrograms()
+        vm.closePrograms()
+        assertFalse(vm.programsOpen.value)
+    }
+
+    @Test
+    fun `resetForNewSession closes the shelf and every overlay`() {
+        vm.openConfigSheet()
+        vm.openPrograms()
+        vm.openTranslatePicker()
+        vm.resetForNewSession()
+        assertFalse(vm.programsOpen.value)
+        assertFalse(vm.showConfigSheet.value)
+        assertFalse(vm.showTranslatePicker.value)
     }
 
     // ─── Collection filter ─────────────────────────────────────────────────────
@@ -230,19 +296,25 @@ class MainViewModelTest {
     fun `roam uses prefetch cache and does not re-enter Loading state`() = runTest {
         // Use an isolated repo so setUp's call counts don't affect coVerify
         val freshRepo = mockk<RoamRepository>(relaxed = true)
-        coEvery { freshRepo.hasSession() } returns true
+        // The session flag must be false *while the ViewModel is constructed*:
+        // init launches `while (isActive) { delay(60_000); checkForNewCelebrations() }`
+        // when hasSession() is true, and advanceUntilIdle() would then advance
+        // virtual time through that endless loop forever (OOM).
+        var signedIn = false
+        coEvery { freshRepo.hasSession() } answers { signedIn }
         coEvery { freshRepo.getCategories() } returns emptyList()
         coEvery { freshRepo.getUserSettings() } returns UserSettings()
         coEvery { freshRepo.roam(any(), any(), any(), any()) } returns mockUrl
 
-        val freshVm = MainViewModel(app, freshRepo)
-        
+        val freshVm = newViewModel(freshRepo)
+
+        // Now let roam() see an authenticated session.
+        signedIn = true
         freshVm.roam()
         testDispatcher.scheduler.advanceUntilIdle()
-        
+
         assertTrue(freshVm.state.value is RoamState.Loaded)
         coVerify(atLeast = 1) { freshRepo.roam(any(), any(), any(), any()) }
-        freshVm.viewModelScope.coroutineContext.cancelChildren()
     }
 
     // ─── thumbsUp / thumbsDown ─────────────────────────────────────────────────
@@ -255,6 +327,9 @@ class MainViewModelTest {
         assertEquals(RoamState.Loaded(mockUrl), vm.state.value)
 
         vm.thumbsUp(app)
+        // thumbsUp dispatches into viewModelScope; under StandardTestDispatcher the
+        // coroutine only runs when the scheduler is advanced.
+        testDispatcher.scheduler.advanceUntilIdle()
 
         coVerify { repo.rate("url-123", 1) }
     }
@@ -267,6 +342,7 @@ class MainViewModelTest {
         assertEquals(RoamState.Loaded(mockUrl), vm.state.value)
 
         vm.thumbsDown(app)
+        testDispatcher.scheduler.advanceUntilIdle()
 
         coVerify { repo.rate("url-123", -1) }
     }
@@ -276,6 +352,7 @@ class MainViewModelTest {
         // State is Idle — no URL loaded
         assertEquals(RoamState.Idle, vm.state.value)
         vm.thumbsUp(app)
+        testDispatcher.scheduler.advanceUntilIdle()
         assertTrue(vm.showSubmitSheet.value)
     }
 
@@ -283,6 +360,7 @@ class MainViewModelTest {
     fun `thumbsUp on an unknown URL flags a found signal`() = runTest {
         assertEquals(RoamState.Idle, vm.state.value)
         vm.thumbsUp(app)
+        testDispatcher.scheduler.advanceUntilIdle()
         assertTrue(vm.submitSignalFound.value)
     }
 
@@ -378,7 +456,7 @@ class MainViewModelTest {
         vm.setCrtEffectsEnabled(false)
         vm.setDeviceFrameEnabled(false)
 
-        val freshVm = MainViewModel(app, repo)
+        val freshVm = newViewModel()
         assertEquals(RoamThemeVariant.ROAM_OS, freshVm.themeVariant.value)
         assertFalse(freshVm.crtEffectsEnabled.value)
         assertFalse(freshVm.deviceFrameEnabled.value)

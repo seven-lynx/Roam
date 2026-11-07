@@ -2,6 +2,28 @@
 
 All notable changes to the Roam Android app.
 
+## [Unreleased]
+
+### Added
+- Cartridge shelf — the config sheet's "software shelf" tile is now **cartridges** (`PROGRAMS // CARTRIDGES`), listing the five ROAM-OS arcade programs the handheld ships: RELAY, BOTFIELD, COMPILER, DEBRIS and FIREWALK.
+- BOTFIELD — native Compose minesweeper: an eight-by-eight grid with ten buried bots, flood-fill sweeps, long-press or FLAG MODE to flag, and a bigger, denser board each level.
+- COMPILER — native Compose falling-shard game: a 10×20 board on one Canvas, seven shards, transport keys plus swipe, and a level every five compiled lines.
+- DEBRIS — native Compose drift through the debris field: Canvas ship and wreck, a hold-to-thrust D-pad or analog stick (toggleable), a FIRE key, and a new wave every level.
+- FIREWALK — native Compose perimeter crossing: rule-filter lanes, carrier packets across the dark static, five open ports per level.
+- Native game XP parity — the handheld now calls the `game-action` edge function exactly as the webapp does, so level clears (+10 XP), game wins (+100 XP) and post-cap game-over bonuses award the same ordinary Roam XP. Badges and level-ups arrive through the existing notification → celebration pipeline.
+- Shared program chrome — one boot-time controls guide, one READY / LEVEL CLEAR / LEVEL START / game-over overlay, and one analog stick across every program, mirroring the web components.
+- RELAY now runs the shared level loop (five packets per level, tightening tick) like the web game, instead of a single endless run.
+- Unit tests for the registry, the XP economy, the shared level loop, and every game's rule model (BOTFIELD, COMPILER, DEBRIS, FIREWALK).
+
+### Changed
+- Deck MENU key doubles as a home key — pressing it while the launcher, the COMMS menu, the translate picker, the cartridge shelf or a running program is on screen dismisses that overlay and returns focus to the page, instead of stacking another window on top. System back does the same, and the Roam / thumbs / Settings keys no longer leave a game running behind the tab they open.
+- BOTFIELD's shelf copy now matches the shipped board (ten bots on an eight-by-eight grid, not six on six).
+- Program paths use the Unix-style `/roam/bin/<PROGRAM>` flavour shared with the webapp.
+- The handheld ships no text adventures — the UNDERWEB program and its Kotlin parser/world port are gone, and SUBSTRATE's diegetic "not yet installed" stub is gone with the `requiresInstall` registry flag. The five arcade cartridges are the whole shelf.
+
+### Server
+- `game-action` now accepts `minesweeper`, so BOTFIELD awards XP and `win-botfield` / `gamer-all` are earnable on both surfaces.
+
 ## [1.5.0] - 2026-11-02
 
 ### Added

@@ -9,6 +9,9 @@ import app.roam.android.model.ChallengeData
 import app.roam.android.model.ChallengesResponse
 import app.roam.android.model.Collection
 import app.roam.android.model.CollectionItem
+import app.roam.android.model.GameId
+import app.roam.android.model.GameXpAward
+import app.roam.android.model.GameXpKind
 import app.roam.android.model.RoamUrl
 import app.roam.android.model.SavedUrl
 import app.roam.android.model.SubcategoryItem
@@ -253,6 +256,34 @@ class RoamRepository {
 
     @Serializable
     private data class RatingRow(val value: Int)
+
+    /**
+     * Calls POST /functions/v1/game-action — the single entry point for in-OS
+     * game XP. Mirrors `awardGameXp()` in `web/src/lib/game-xp.ts`: signed-in
+     * only, fire-and-forget, and resolves `null` whenever the award cannot be
+     * made, so a game never stalls or fails on a network hiccup.
+     */
+    suspend fun awardGameXp(
+        game: GameId,
+        kind: GameXpKind,
+        runId: String,
+        level: Int? = null,
+        score: Int? = null,
+    ): GameXpAward? {
+        if (runId.isBlank()) return null
+        if (!ensureAuthenticated()) return null
+        val body = buildJsonObject {
+            put("game", game.slug)
+            put("kind", kind.slug)
+            put("runId", runId)
+            level?.let { put("level", it) }
+            score?.let { put("score", it) }
+        }
+        return runCatching {
+            val response = supabase.functions.invoke("game-action", body = body)
+            json.decodeFromString<GameXpAward>(response.bodyAsText())
+        }.getOrNull()
+    }
 
     /** Returns the current user's rating (1 = up, -1 = down) for [urlId], or null if unrated. */
     suspend fun getUserRating(urlId: String): Int? {

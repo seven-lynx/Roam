@@ -50,6 +50,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.graphics.vector.ImageVector
 import app.roam.android.model.Collection
+import app.roam.android.model.PROGRAMS
 import app.roam.android.ui.theme.Bone
 import app.roam.android.ui.theme.Danger
 import app.roam.android.ui.theme.Fog
@@ -139,11 +140,11 @@ fun ProgramLauncher(
                         ProgramTile(Icons.Filled.Flag, "report", { onReportBrokenLink(); onClose() }, Modifier.weight(1f))
                     }
                     Spacer(Modifier.height(8.dp))
-                    ProgramTile(Icons.Filled.VideogameAsset, "shelf", { onOpenPrograms(); onClose() }, Modifier.fillMaxWidth())
+                    ProgramTile(Icons.Filled.VideogameAsset, "cartridges", { onOpenPrograms(); onClose() }, Modifier.fillMaxWidth())
                 }
                 Box(Modifier.fillMaxWidth().height(1.dp).background(LineColor))
                 Text(
-                    "pkgs: 8 · uid: wanderer · daemon: idle",
+                    "pkgs: ${PROGRAMS.size} · uid: wanderer · daemon: idle",
                     style = MaterialTheme.typography.labelSmall,
                     color = Fog,
                     modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
