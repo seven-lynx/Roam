@@ -84,7 +84,7 @@ fun DebrisProgram(
     val meta = remember { requireNotNull(program("asteroids")) { "DEBRIS missing from registry" } }
     val context = LocalContext.current
     val runId = rememberSaveable { makeRunId() }
-    val levels = rememberGameLevel(GameId.ASTEROIDS, runId, signedIn, onAward)
+    val levels = rememberGameLevel(GameId.ASTEROIDS, runId, signedIn, onAward, timeLimitFor = { l -> (45 - (l - 1) * 2).coerceAtLeast(20) })
 
     var running by rememberSaveable { mutableStateOf(false) }
     var stickMode by rememberSaveable { mutableStateOf(false) }
@@ -93,6 +93,7 @@ fun DebrisProgram(
     var left by remember { mutableStateOf(false) }
     var right by remember { mutableStateOf(false) }
     var thrust by remember { mutableStateOf(false) }
+    levels.getScore = { state.score }
 
     fun sfx(resId: Int) {
         if (soundEnabled) SoundManager.play(context, resId)
@@ -144,6 +145,7 @@ fun DebrisProgram(
                 DebrisPlayfield(
                     state = state,
                     level = levels.level,
+                    timeLeft = levels.timeLeft,
                     stickMode = stickMode,
                     onFire = { fire() },
                     onToggleMode = { stickMode = !stickMode },
@@ -185,6 +187,7 @@ fun DebrisProgram(
 private fun DebrisPlayfield(
     state: DebrisState,
     level: Int,
+    timeLeft: Int,
     stickMode: Boolean,
     onFire: () -> Unit,
     onToggleMode: () -> Unit,
@@ -200,6 +203,7 @@ private fun DebrisPlayfield(
             Text("LVL $level", style = MaterialTheme.typography.labelSmall, color = Fog)
             Text("SCORE ${state.score}", style = MaterialTheme.typography.labelSmall, color = Fog)
             Text("HULL ${state.lives}", style = MaterialTheme.typography.labelSmall, color = Fog)
+            Text("TIME ${formatGameTime(timeLeft)}", style = MaterialTheme.typography.labelSmall, color = Fog)
         }
         Spacer(Modifier.height(6.dp))
         Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
@@ -268,7 +272,7 @@ private fun DebrisPlayfield(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                AnalogStick(onHold = onHold, size = 96.dp, label = "Flight stick")
+                AnalogStick(onHold = onHold, label = "Flight stick")
                 ProgramActionKey("FIRE", onFire)
             }
         } else {
@@ -276,9 +280,9 @@ private fun DebrisPlayfield(
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                ProgramHoldKey("◀", { onPress(Steer.LEFT, true) }, { onPress(Steer.LEFT, false) }, width = 48.dp, height = 44.dp)
-                ProgramHoldKey("▲", { onPress(Steer.UP, true) }, { onPress(Steer.UP, false) }, width = 48.dp, height = 44.dp)
-                ProgramHoldKey("▶", { onPress(Steer.RIGHT, true) }, { onPress(Steer.RIGHT, false) }, width = 48.dp, height = 44.dp)
+                ProgramHoldKey("◀", { onPress(Steer.LEFT, true) }, { onPress(Steer.LEFT, false) })
+                ProgramHoldKey("▲", { onPress(Steer.UP, true) }, { onPress(Steer.UP, false) })
+                ProgramHoldKey("▶", { onPress(Steer.RIGHT, true) }, { onPress(Steer.RIGHT, false) })
                 ProgramActionKey("●", onFire)
             }
         }

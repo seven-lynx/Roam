@@ -97,7 +97,7 @@ val PROGRAMS: List<Program> = listOf(
         file = "/roam/bin/FIREWALK",
         glyph = "⚡",
         tagline = "Guide a probe packet through the perimeter: dodge shifting rule-filters, ride carrier packets across the dark static, and reach five open ports.",
-        controls = "SWIPE or D-PAD to hop",
+        controls = "SWIPE, D-PAD or STICK to hop",
         license = MIT,
         source = "original Roam-OS game (7 Lynx)",
     ),

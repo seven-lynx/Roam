@@ -71,11 +71,15 @@ import kotlin.math.sin
  * FIREWALK.EXE — guide a probe packet through the perimeter. A native Compose
  * port of the web `FroggerProgram`: shifting rule-filters kill the probe,
  * carrier packets ferry it across the dark static, and five open ports clear
- * the level.
+ * the level. Swipes steer the hop, and an on-screen D-pad or analog stick can
+ * be toggled, exactly as in DEBRIS.
  */
 
 /** One animation frame, matching the web's 60 fps drift speed. */
 private const val FIREWALK_FRAME_MS = 16L
+
+/** How long the analog stick holds a direction before the probe hops again. */
+internal const val FIREWALK_STICK_REPEAT_MS = 200L
 
 // Fixed phosphor palette (a self-contained vector program, like DEBRIS).
 private val BG = Color(0xFF0A1518)
@@ -91,6 +95,18 @@ private val PORT_FILLED = Color(0xFF7FE3D8)
 private val WALL = Color(0xFF2A2418)
 private val PROBE = Color(0xFF7FE3D8)
 
+/**
+ * The row/column delta for one hop in [steer]'s direction. Row 0 is the ports
+ * and the launch pad is the bottom row, so steering up is a negative row. One
+ * place for the convention shared by swipes, the D-pad and the analog stick.
+ */
+internal fun firewalkHopDelta(steer: Steer): Pair<Int, Int> = when (steer) {
+    Steer.UP -> 0 to -1
+    Steer.DOWN -> 0 to 1
+    Steer.LEFT -> -1 to 0
+    Steer.RIGHT -> 1 to 0
+}
+
 @Composable
 fun FirewalkProgram(
     soundEnabled: Boolean,
@@ -102,11 +118,14 @@ fun FirewalkProgram(
     val meta = remember { requireNotNull(program("frogger")) { "FIREWALK missing from registry" } }
     val context = LocalContext.current
     val runId = rememberSaveable { makeRunId() }
-    val levels = rememberGameLevel(GameId.FROGGER, runId, signedIn, onAward)
+    val levels = rememberGameLevel(GameId.FROGGER, runId, signedIn, onAward, timeLimitFor = { l -> (40 - (l - 1) * 2).coerceAtLeast(20) })
 
     var running by rememberSaveable { mutableStateOf(false) }
+    var stickMode by rememberSaveable { mutableStateOf(false) }
+    var stickHeld by remember { mutableStateOf<Steer?>(null) }
     var state by remember { mutableStateOf(newFirewalk(1)) }
     var laneLevel by remember { mutableIntStateOf(1) }
+    levels.getScore = { state.score }
 
     fun sfx(resId: Int) {
         if (soundEnabled) SoundManager.play(context, resId)
@@ -140,6 +159,11 @@ fun FirewalkProgram(
         levels.resetLevels()
     }
 
+    fun moveSteer(steer: Steer) {
+        val (dc, dr) = firewalkHopDelta(steer)
+        move(dc, dr)
+    }
+
     LaunchedEffect(levels.phase, levels.level, running) {
         if (!running) return@LaunchedEffect
         while (levels.isPlaying) {
@@ -165,6 +189,16 @@ fun FirewalkProgram(
         }
     }
 
+    // STICK mode: one hop the moment a direction is pushed, then keep hopping
+    // while it stays held — the repeat a held arrow key gives the web game.
+    LaunchedEffect(stickHeld, levels.phase) {
+        val direction = stickHeld ?: return@LaunchedEffect
+        while (levels.isPlaying) {
+            moveSteer(direction)
+            delay(FIREWALK_STICK_REPEAT_MS)
+        }
+    }
+
     RoamOsWindow(title = meta.title, onClose = onClose, modifier = modifier) {
         Box(Modifier.fillMaxSize()) {
             if (!running) {
@@ -186,19 +220,13 @@ fun FirewalkProgram(
                             color = Fog,
                         )
                         Text("RETRY ${state.lives}", style = MaterialTheme.typography.labelSmall, color = Fog)
+                        Text("TIME ${formatGameTime(levels.timeLeft)}", style = MaterialTheme.typography.labelSmall, color = Fog)
                     }
                     Spacer(Modifier.height(6.dp))
                     Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
                         FirewalkBoard(
                             state = state,
-                            onSwipe = { steer ->
-                                when (steer) {
-                                    Steer.UP -> move(0, -1)
-                                    Steer.DOWN -> move(0, 1)
-                                    Steer.LEFT -> move(-1, 0)
-                                    Steer.RIGHT -> move(1, 0)
-                                }
-                            },
+                            onSwipe = { steer -> moveSteer(steer) },
                             overlay = {
                                 ProgramOverlay(
                                     phase = levels.phase,
@@ -216,16 +244,20 @@ fun FirewalkProgram(
                         )
                     }
                     Spacer(Modifier.height(6.dp))
-                    ProgramDpad(
-                        onSteer = { steer ->
-                            when (steer) {
-                                Steer.UP -> move(0, -1)
-                                Steer.DOWN -> move(0, 1)
-                                Steer.LEFT -> move(-1, 0)
-                                Steer.RIGHT -> move(1, 0)
-                            }
-                        },
-                    )
+                    if (stickMode) {
+                        AnalogStick(
+                            onHold = { stickHeld = it },
+                            label = "Hop stick",
+                            size = 112.dp,
+                        )
+                    } else {
+                        ProgramDpad(onSteer = { steer -> moveSteer(steer) })
+                    }
+                    Spacer(Modifier.height(4.dp))
+                    ProgramActionKey(if (stickMode) "STICK ⇄ D-PAD" else "D-PAD ⇄ STICK") {
+                        stickMode = !stickMode
+                        stickHeld = null
+                    }
                 }
             }
         }

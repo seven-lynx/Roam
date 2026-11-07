@@ -12,8 +12,8 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * Covers the shared level loop — the Compose port of the web `useGameLevel`
- * hook: phases, XP awards and the win level.
+ * Covers the shared level loop - the Compose port of the web `useGameLevel`
+ * hook: phases, XP awards, the win level and the per-level clock.
  */
 class GameLevelTest {
 
@@ -27,6 +27,14 @@ class GameLevelTest {
         GameLevelController(GameId.SNAKE, "run-1") { _, kind, _, level, score ->
             recorder.awards += Award(kind, level, score)
         }.also { it.signedIn = signedIn }
+
+    /** Runs the READY -> START countdown into play. */
+    private fun GameLevelController.beginAndCountIn() {
+        begin()
+        assertEquals(GamePhase.START, phase)
+        repeat(COUNTDOWN_FROM + 1) { tickCountdown() }
+        assertEquals(GamePhase.PLAYING, phase)
+    }
 
     /** Clears the current level, then runs the countdown back into play. */
     private fun GameLevelController.clearAndContinue() {
@@ -46,18 +54,60 @@ class GameLevelTest {
     }
 
     @Test
-    fun `begin moves into play once`() {
+    fun `begin runs the level-one countdown into play`() {
         val levels = controller()
         levels.begin()
+        assertEquals(GamePhase.START, levels.phase)
+        assertEquals(COUNTDOWN_FROM, levels.countdown)
+        assertFalse(levels.isPlaying)
+        repeat(COUNTDOWN_FROM + 1) { levels.tickCountdown() }
         assertEquals(GamePhase.PLAYING, levels.phase)
         assertTrue(levels.isPlaying)
+    }
+
+    @Test
+    fun `the level clock arms on play and counts to zero`() {
+        val levels = controller()
+        levels.timeLimitFor = { 5 }
+        levels.beginAndCountIn()
+
+        assertEquals(5, levels.timeLeft)
+        repeat(4) { assertFalse(levels.tickTime()) }
+        assertEquals(1, levels.timeLeft)
+        assertTrue(levels.tickTime())
+        assertEquals(0, levels.timeLeft)
+        assertFalse(levels.tickTime())
+    }
+
+    @Test
+    fun `each level re-arms its own clock`() {
+        val levels = controller()
+        levels.timeLimitFor = { lvl -> lvl * 10 }
+        levels.beginAndCountIn()
+        assertEquals(10, levels.timeLeft)
+
+        levels.clearAndContinue()
+        assertEquals(2, levels.level)
+        assertEquals(20, levels.timeLeft)
+    }
+
+    @Test
+    fun `reset clears the clock`() {
+        val levels = controller()
+        levels.timeLimitFor = { 30 }
+        levels.beginAndCountIn()
+        assertEquals(30, levels.timeLeft)
+
+        levels.resetLevels()
+        assertEquals(0, levels.timeLeft)
+        assertEquals(GamePhase.READY, levels.phase)
     }
 
     @Test
     fun `clearing a level pays the flat level XP`() {
         val recorder = Recorder()
         val levels = controller(recorder = recorder)
-        levels.begin()
+        levels.beginAndCountIn()
         levels.completeLevel()
 
         assertEquals(GamePhase.COMPLETE, levels.phase)
@@ -70,7 +120,7 @@ class GameLevelTest {
     @Test
     fun `advance counts down into the next level`() {
         val levels = controller()
-        levels.begin()
+        levels.beginAndCountIn()
         levels.completeLevel()
         levels.advance()
 
@@ -88,7 +138,7 @@ class GameLevelTest {
     fun `clearing the win level also pays the win bonus`() {
         val recorder = Recorder()
         val levels = controller(recorder = recorder)
-        levels.begin()
+        levels.beginAndCountIn()
         repeat(WIN_LEVEL - 1) { levels.clearAndContinue() }
         assertEquals(WIN_LEVEL, levels.level)
         recorder.awards.clear()
@@ -104,7 +154,7 @@ class GameLevelTest {
     fun `game over pays nothing before the level cap`() {
         val recorder = Recorder()
         val levels = controller(recorder = recorder)
-        levels.begin()
+        levels.beginAndCountIn()
         levels.gameOver(900)
 
         assertEquals(GamePhase.OVER, levels.phase)
@@ -116,7 +166,7 @@ class GameLevelTest {
     fun `game over past the cap pays the score bonus`() {
         val recorder = Recorder()
         val levels = controller(recorder = recorder)
-        levels.begin()
+        levels.beginAndCountIn()
         repeat(XP_LEVEL_CAP) { levels.clearAndContinue() }
         assertTrue(levels.level > XP_LEVEL_CAP)
         // The cap loop above recorded 100 LEVEL awards (plus the WIN at level 10);
@@ -135,7 +185,7 @@ class GameLevelTest {
     fun `a guest plays the same run but earns nothing`() {
         val recorder = Recorder()
         val levels = controller(signedIn = false, recorder = recorder)
-        levels.begin()
+        levels.beginAndCountIn()
         levels.completeLevel()
 
         assertEquals(GamePhase.COMPLETE, levels.phase)
@@ -146,10 +196,10 @@ class GameLevelTest {
     @Test
     fun `reset returns to a fresh ready level one`() {
         val levels = controller()
-        levels.begin()
+        levels.beginAndCountIn()
         levels.completeLevel()
         levels.advance()
-        levels.begin()
+        levels.tickCountdown()
         levels.gameOver(0)
 
         levels.resetLevels()

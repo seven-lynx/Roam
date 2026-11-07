@@ -1,6 +1,5 @@
 package app.roam.android.data.repository
 
-import androidx.core.net.toUri
 import app.roam.android.data.supabase
 import app.roam.android.model.AppNotification
 import app.roam.android.model.Badge
@@ -24,7 +23,6 @@ import io.github.jan.supabase.postgrest.query.Columns
 import io.github.jan.supabase.postgrest.query.Order
 import io.ktor.client.call.body
 import io.ktor.client.statement.bodyAsText
-import io.ktor.http.headersOf
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
@@ -569,7 +567,7 @@ class RoamRepository {
      * within 30 days. No challenge credit, unlike reportUrl(). The server caps a
      * batch at 50 entries, so anything beyond that is dropped here.
      */
-    suspend fun reportUrlFailures(urlIds: Collection<String>) {
+    suspend fun reportUrlFailures(urlIds: List<String>) {
         if (urlIds.isEmpty()) return
         val entries = buildJsonArray {
             urlIds.take(50).forEach { id ->

@@ -60,8 +60,8 @@ import kotlin.math.hypot
 fun ProgramKey(
     label: String,
     modifier: Modifier = Modifier,
-    width: Dp = 46.dp,
-    height: Dp = 38.dp,
+    width: Dp = 56.dp,
+    height: Dp = 48.dp,
     tint: Color = Bone,
     onClick: () -> Unit,
 ) {
@@ -88,8 +88,8 @@ fun ProgramHoldKey(
     onDown: () -> Unit,
     onUp: () -> Unit,
     modifier: Modifier = Modifier,
-    width: Dp = 46.dp,
-    height: Dp = 38.dp,
+    width: Dp = 56.dp,
+    height: Dp = 48.dp,
 ) {
     Box(
         modifier
@@ -121,7 +121,7 @@ fun ProgramActionKey(label: String, onClick: () -> Unit, modifier: Modifier = Mo
             .background(Panel3)
             .border(1.dp, LineColor, RoundedCornerShape(6.dp))
             .clickable { onClick() }
-            .padding(horizontal = 16.dp, vertical = 8.dp),
+            .padding(horizontal = 20.dp, vertical = 12.dp),
     ) {
         Text(label, style = MaterialTheme.typography.labelMedium, color = TealBright)
     }
@@ -132,8 +132,8 @@ fun ProgramActionKey(label: String, onClick: () -> Unit, modifier: Modifier = Mo
 fun ProgramDpad(onSteer: (Steer) -> Unit, modifier: Modifier = Modifier) {
     Column(modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
         ProgramKey("▲") { onSteer(Steer.UP) }
-        Spacer(Modifier.height(4.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+        Spacer(Modifier.height(6.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             ProgramKey("◀") { onSteer(Steer.LEFT) }
             ProgramKey("▼") { onSteer(Steer.DOWN) }
             ProgramKey("▶") { onSteer(Steer.RIGHT) }
@@ -151,7 +151,7 @@ fun ProgramDpad(onSteer: (Steer) -> Unit, modifier: Modifier = Modifier) {
 fun AnalogStick(
     onHold: (Steer?) -> Unit,
     modifier: Modifier = Modifier,
-    size: Dp = 104.dp,
+    size: Dp = 128.dp,
     label: String = "Analog stick",
 ) {
     val density = LocalDensity.current

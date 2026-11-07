@@ -94,7 +94,7 @@ fun CompilerProgram(
     val meta = remember { requireNotNull(program("tetris")) { "COMPILER missing from registry" } }
     val context = LocalContext.current
     val runId = rememberSaveable { makeRunId() }
-    val levels = rememberGameLevel(GameId.TETRIS, runId, signedIn, onAward)
+    val levels = rememberGameLevel(GameId.TETRIS, runId, signedIn, onAward, timeLimitFor = { l -> (90 - (l - 1) * 5).coerceAtLeast(45) })
 
     var running by rememberSaveable { mutableStateOf(false) }
     var board by remember { mutableStateOf(emptyCompilerBoard()) }
@@ -103,6 +103,7 @@ fun CompilerProgram(
     var row by remember { mutableIntStateOf(0) }
     var col by remember { mutableIntStateOf(spawnColumn(COMPILER_SHAPES[shapeIdx])) }
     var lines by remember { mutableIntStateOf(0) }
+    levels.getScore = { lines }
 
     fun sfx(resId: Int) {
         if (soundEnabled) SoundManager.play(context, resId)
@@ -183,7 +184,7 @@ fun CompilerProgram(
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
                     Text(
-                        "LVL ${levels.level} · LINES $lines",
+                        "LVL ${levels.level} · LINES $lines · TIME ${formatGameTime(levels.timeLeft)}",
                         style = MaterialTheme.typography.labelSmall,
                         color = Fog,
                     )
@@ -221,10 +222,10 @@ fun CompilerProgram(
                     }
                     Spacer(Modifier.height(8.dp))
                     Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        ProgramKey("◀", width = 48.dp, height = 44.dp) { moveBy(-1) }
-                        ProgramKey("↻", width = 48.dp, height = 44.dp) { rotate() }
-                        ProgramKey("▼", width = 48.dp, height = 44.dp) { drop() }
-                        ProgramKey("▶", width = 48.dp, height = 44.dp) { moveBy(1) }
+                        ProgramKey("◀") { moveBy(-1) }
+                        ProgramKey("↻") { rotate() }
+                        ProgramKey("▼") { drop() }
+                        ProgramKey("▶") { moveBy(1) }
                     }
                 }
             }
