@@ -21,12 +21,20 @@ public repository.
 ## Development workflow
 
 ```bash
+git config core.hooksPath .githooks     # once per clone: rejects off-convention branch names
 git checkout -b feature/my-thing
 # make changes
 git commit -m "feat: describe the change"
 git push origin feature/my-thing
 # open a pull request
 ```
+
+Branch names are `<type>/<kebab-case>`, where `<type>` is one of `feature`,
+`feat`, `fix`, `chore`, `docs`, `test`, `refactor`, `perf`, `audit`, `build`,
+`ci`, or `release`. `scripts/check-rules.mjs` (R11) fails the pull request for
+anything else, and the `.githooks/pre-push` hook blocks it before it reaches the
+remote. If a tool or worktree session starts you on a generated branch name,
+rename it with `git branch -m <type>/<kebab>` **before** the first commit.
 
 Use the [pull request template](.github/pull_request_template.md) for every PR.
 Squash-merge to `main` with a Conventional Commits message
