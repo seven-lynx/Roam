@@ -57,6 +57,7 @@ export const LAUNCHER_GROUPS: LauncherGroup[] = [
     title: 'Explore',
     items: [
       { href: '/how-it-works', label: 'How It Works', file: 'man roam', glyph: '?' },
+      { href: '/help', label: 'Help & FAQ', file: 'man help', glyph: 'ℹ' },
       { href: '/stats', label: 'Stats', file: '~/.roam/stats.log', glyph: '≡' },
       { href: '/changelog', label: 'Changelog', file: '~/.roam/CHANGELOG', glyph: 'Δ' },
     ],

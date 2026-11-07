@@ -25,6 +25,7 @@ describe("os route registry", () => {
     expect(matchWindowRoute("/")).toBeNull();
     expect(matchWindowRoute("/desktop")).toBeNull();
     expect(matchWindowRoute("/how-it-works")).toBeNull();
+    expect(matchWindowRoute("/help")).toBeNull();
     expect(matchWindowRoute("/signup")).toBeNull();
     expect(matchWindowRoute("/privacy")).toBeNull();
     expect(matchWindowRoute("/admin")).toBeNull();
