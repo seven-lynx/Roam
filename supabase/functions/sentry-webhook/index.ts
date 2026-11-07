@@ -10,9 +10,27 @@
 // The function is deployed with verify_jwt=false (public), so it is protected
 // by a shared secret instead: SENTRY_WEBHOOK_SECRET. Sentry sends it as either
 // the `x-sentry-webhook-secret` header or the `secret` query parameter.
+//
+// Payload normalisation and the issue body builders live in `normalize.ts` so
+// they can be unit tested without this module's import-time env validation.
 import { corsHeaders } from '../_shared/cors.ts'
 import { validateRequired } from '../_shared/env.ts'
 import { initSentry } from '../_shared/sentry.ts'
+import {
+  asArray,
+  asNumber,
+  asObject,
+  asString,
+  buildBody,
+  buildTitle,
+  exceptionValues,
+  formatFrame,
+  normalize,
+  stackFrames,
+  tagsToObject,
+  timingSafeEqual,
+  type NormalizedIssue,
+} from './normalize.ts'
 
 const env = validateRequired(['SENTRY_WEBHOOK_SECRET', 'GITHUB_PAT'])
 const report = initSentry('sentry-webhook')
@@ -22,27 +40,6 @@ const GITHUB_REPO = Deno.env.get('GITHUB_REPO') ?? 'seven-lynx/Roam'
 // Optional. When set, issue webhooks are enriched with the latest event's stack
 // trace via Sentry's REST API (issue-alert webhooks already carry it inline).
 const SENTRY_AUTH_TOKEN = Deno.env.get('SENTRY_AUTH_TOKEN')
-
-interface NormalizedIssue {
-  sentryIssueId: string
-  title: string
-  level: string
-  platform: string
-  projectSlug: string
-  culprit: string | null
-  message: string
-  exceptionType: string | null
-  stackFrames: string[]
-  tags: Record<string, string>
-  release: string | null
-  url: string
-  firstSeen: string | null
-  lastSeen: string | null
-  count: string | null
-  userCount: number | null
-  substatus: string | null
-  triggeredRule: string | null
-}
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -93,147 +90,6 @@ Deno.serve(async (req) => {
   }
 })
 
-// ── Payload normalisation ────────────────────────────────────────────────────
-
-type JsonObject = Record<string, unknown>
-
-function asObject(v: unknown): JsonObject | null {
-  return typeof v === 'object' && v !== null ? (v as JsonObject) : null
-}
-
-function asString(v: unknown): string | null {
-  return typeof v === 'string' ? v : null
-}
-
-function asNumber(v: unknown): number | null {
-  return typeof v === 'number' && Number.isFinite(v) ? v : null
-}
-
-function asArray(v: unknown): unknown[] {
-  return Array.isArray(v) ? v : []
-}
-
-function normalize(payload: unknown): NormalizedIssue | null {
-  const root = asObject(payload)
-  const data = asObject(root?.['data'])
-  if (!root || !data) return null
-
-  const issueObj = asObject(data['issue'])
-  if (issueObj) return normalizeIssueWebhook(root, issueObj)
-
-  const eventObj = asObject(data['event'])
-  if (eventObj) return normalizeEventAlert(data, eventObj)
-
-  return null
-}
-
-function normalizeIssueWebhook(root: JsonObject, issue: JsonObject): NormalizedIssue | null {
-  const action = asString(root['action'])
-  const substatus = asString(issue['substatus'])
-  const isNew = action === 'created'
-  const isRegression =
-    action === 'unresolved' && (substatus === 'regressed' || substatus === 'escalating')
-  if (!isNew && !isRegression) return null
-
-  const metadata = asObject(issue['metadata'])
-  const project = asObject(issue['project'])
-
-  return {
-    sentryIssueId: issue['id'] != null ? String(issue['id']) : '',
-    title: asString(issue['title']) ?? 'Untitled Sentry issue',
-    level: asString(issue['level']) ?? 'error',
-    platform: asString(issue['platform']) ?? '',
-    projectSlug: asString(project?.['slug']) ?? '',
-    culprit: asString(issue['culprit']),
-    message: asString(metadata?.['value']) ?? asString(issue['title']) ?? '',
-    exceptionType: asString(metadata?.['type']),
-    stackFrames: [],
-    tags: {},
-    release: null,
-    url: asString(issue['web_url']) ?? asString(issue['permalink']) ?? '',
-    firstSeen: asString(issue['firstSeen']),
-    lastSeen: asString(issue['lastSeen']),
-    count: issue['count'] != null ? String(issue['count']) : null,
-    userCount: asNumber(issue['userCount']),
-    substatus,
-    triggeredRule: null,
-  }
-}
-
-function normalizeEventAlert(data: JsonObject, event: JsonObject): NormalizedIssue | null {
-  const sentryIssueId = event['issue_id'] != null ? String(event['issue_id']) : ''
-  if (!sentryIssueId) return null // metric alerts etc. — not our concern
-
-  const values = exceptionValues(event)
-  const frames = values.flatMap((v) => stackFrames(v))
-  const first = values[0]
-
-  return {
-    sentryIssueId,
-    title: asString(event['title']) ?? asString(first?.['value']) ?? 'Untitled Sentry issue',
-    level: asString(event['level']) ?? 'error',
-    platform: asString(event['platform']) ?? '',
-    projectSlug: extractProjectSlug(asString(event['url'])),
-    culprit: asString(event['culprit']),
-    message: asString(metadata(event)?.['value']) ?? asString(first?.['value']) ?? asString(event['title']) ?? '',
-    exceptionType: asString(metadata(event)?.['type']) ?? asString(first?.['type']),
-    stackFrames: frames.map(formatFrame),
-    tags: tagsToObject(event['tags']),
-    release: asString(event['release']),
-    url: asString(event['web_url']) ?? asString(event['issue_url']) ?? '',
-    firstSeen: null,
-    lastSeen: null,
-    count: null,
-    userCount: null,
-    substatus: null,
-    triggeredRule: asString(data['triggered_rule']),
-  }
-}
-
-function metadata(event: JsonObject): JsonObject | null {
-  return asObject(event['metadata'])
-}
-
-function exceptionValues(event: JsonObject): JsonObject[] {
-  const exception = asObject(event['exception'])
-  return asArray(exception?.['values'])
-    .map((v) => asObject(v))
-    .filter((v): v is JsonObject => v !== null)
-}
-
-function stackFrames(value: JsonObject): JsonObject[] {
-  const stacktrace = asObject(value['stacktrace'])
-  return asArray(stacktrace?.['frames'])
-    .map((f) => asObject(f))
-    .filter((f): f is JsonObject => f !== null)
-}
-
-function formatFrame(f: JsonObject): string {
-  const fn = asString(f['function']) ?? asString(f['raw_function'])
-  const file = asString(f['filename']) ?? asString(f['abs_path'])
-  const line = f['lineno'] != null ? `:${String(f['lineno'])}` : ''
-  const parts: string[] = []
-  if (file) parts.push(`${file}${line}`)
-  if (fn) parts.push(`in ${fn}`)
-  if (!f['in_app']) parts.push('[external]')
-  return parts.join(' ')
-}
-
-function tagsToObject(tags: unknown): Record<string, string> {
-  const out: Record<string, string> = {}
-  for (const t of asArray(tags)) {
-    const pair = asArray(t)
-    if (pair.length >= 2) out[String(pair[0])] = String(pair[1])
-  }
-  return out
-}
-
-function extractProjectSlug(url: string | null): string {
-  if (!url) return ''
-  const m = /\/projects\/[^/]+\/([^/]+)\//.exec(url)
-  return m ? m[1] : ''
-}
-
 // ── Optional stack-trace enrichment ─────────────────────────────────────────
 
 async function enrich(issue: NormalizedIssue): Promise<void> {
@@ -255,7 +111,7 @@ async function enrich(issue: NormalizedIssue): Promise<void> {
     const frames = values.flatMap((v) => stackFrames(v))
     if (frames.length > 0) issue.stackFrames = frames.map(formatFrame)
 
-    const md = metadata(ev)
+    const md = asObject(ev['metadata'])
     if (!issue.exceptionType) {
       issue.exceptionType = asString(values[0]?.['type']) ?? asString(md?.['type'])
     }
@@ -352,68 +208,7 @@ async function reopen(number: number, issue: NormalizedIssue): Promise<void> {
   })
 }
 
-// ── Markdown builders ───────────────────────────────────────────────────────
-
-function buildTitle(issue: NormalizedIssue): string {
-  const project = issue.projectSlug ? `${issue.projectSlug}: ` : ''
-  const base = issue.title || issue.message || 'Sentry error'
-  return `[Sentry] ${project}${truncate(base, 180)}`
-}
-
-function buildBody(issue: NormalizedIssue): string {
-  const rows = [
-    ['Level', `\`${issue.level}\``],
-    ['Platform', issue.platform || '—'],
-    ['Project', issue.projectSlug || '—'],
-    ['Release', issue.release ? `\`${issue.release}\`` : '—'],
-    ['First seen', issue.firstSeen ?? '—'],
-    ['Last seen', issue.lastSeen ?? '—'],
-    ['Events', issue.count ?? '—'],
-    ['Affected users', issue.userCount != null ? String(issue.userCount) : '—'],
-    ['Status', issue.substatus ?? issue.triggeredRule ?? '—'],
-  ]
-    .map(([k, v]) => `| ${k} | ${v} |`)
-    .join('\n')
-
-  const parts = [
-    `<!-- sentry-issue:${issue.sentryIssueId} -->`,
-    'New or regressed error reported by Sentry.',
-    '',
-    '| Field | Value |',
-    '| --- | --- |',
-    rows,
-  ]
-
-  if (issue.message) parts.push('', '### Message', '', '```', issue.message, '```')
-  if (issue.culprit) parts.push('', '### Culprit', '', '```', issue.culprit, '```')
-  if (issue.stackFrames.length > 0) {
-    parts.push('', '### Stack trace', '', '```', issue.stackFrames.slice(0, 25).join('\n'), '```')
-  }
-  if (Object.keys(issue.tags).length > 0) {
-    const tagRows = Object.entries(issue.tags)
-      .map(([k, v]) => `| \`${k}\` | ${v} |`)
-      .join('\n')
-    parts.push('', '### Tags', '', '| Key | Value |', '| --- | --- |', tagRows)
-  }
-  if (issue.url) parts.push('', `[View in Sentry](${issue.url})`)
-
-  return parts.join('\n')
-}
-
-function truncate(s: string, max: number): string {
-  return s.length > max ? `${s.slice(0, max - 1)}…` : s
-}
-
 // ── Helpers ─────────────────────────────────────────────────────────────────
-
-function timingSafeEqual(a: string, b: string): boolean {
-  const aBytes = new TextEncoder().encode(a)
-  const bBytes = new TextEncoder().encode(b)
-  if (aBytes.length !== bBytes.length) return false
-  let diff = 0
-  for (let i = 0; i < aBytes.length; i++) diff |= aBytes[i] ^ bBytes[i]
-  return diff === 0
-}
 
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
