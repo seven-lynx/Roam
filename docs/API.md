@@ -1602,6 +1602,8 @@ Receives Sentry webhooks and files a GitHub issue in `seven-lynx/Roam` for each 
 
 **Authentication:** Shared secret (`SENTRY_WEBHOOK_SECRET`) sent as the `x-sentry-webhook-secret` header or `secret` query parameter. Deployed with `verify_jwt = false`.
 
+**Enrichment:** Best-effort, never fatal. With `SENTRY_AUTH_TOKEN` set as a function secret, the latest event's stack trace, tags, `release` and exception type are folded into the issue body as a `### Stack trace` section. Without the secret the issue is filed body-only and the function logs a warning rather than failing. Issue-alert webhooks already carry the frames inline.
+
 **Response (200):**
 ```json
 { "ok": true, "created": true, "number": 123 }
