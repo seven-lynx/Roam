@@ -8,9 +8,11 @@ Preview migrations before applying them.
 
 ```bash
 cd supabase
-supabase db push --dry-run
-supabase migration list
+supabase db push --dry-run --remote
+supabase migration list --remote
 ```
+
+Both commands default to the **local** database from CLI v3 onward; `--remote` targets the linked project.
 
 Check that:
 - New tables enable RLS.
