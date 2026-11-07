@@ -74,10 +74,11 @@ jobs:
         with:
           deno-version: v2.x
 
+      # Pinned to the v3 line: v3 requires `--remote` on `db push` (see below).
       - name: Setup Supabase CLI
         uses: supabase/setup-cli@v1
         with:
-          version: latest
+          version: 3.0.0
 
       - name: Link staging Supabase project
         env:
@@ -134,8 +135,9 @@ jobs:
         env:
           DENO_DIR: ~/.cache/deno
 
+      # --remote is required from CLI v3; without it `db push` targets the local DB.
       - name: Preview migrations (dry-run)
-        run: supabase db push --dry-run
+        run: supabase db push --dry-run --remote
 
       # Executes roam() under the authenticated role's 8s timeout. Skipped by
       # default until staging is seeded with a test user + URLs; enable via the
@@ -156,9 +158,9 @@ jobs:
       - name: Apply migrations
         run: |
           if [ "${{ inputs.include_all }}" = "true" ]; then
-            supabase db push --include-all --yes
+            supabase db push --remote --include-all --yes
           else
-            supabase db push --yes
+            supabase db push --remote --yes
           fi
 
       - name: Deploy Edge Functions

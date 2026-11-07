@@ -55,10 +55,13 @@ jobs:
         with:
           deno-version: v2.x
 
+      # Pinned, not `latest`: the v3 major changed `db push`'s default target (see
+      # --remote below) and rejects the old `[inbucket]` config section, so tracking
+      # latest turned every deploy red without a line changing in this repo.
       - name: Setup Supabase CLI
         uses: supabase/setup-cli@v1
         with:
-          version: latest
+          version: 3.0.0
 
       # Link using a personal-access token (preferred over --password: the
       # CLI's pgx driver cannot authenticate DB passwords containing
@@ -119,8 +122,10 @@ jobs:
         env:
           DENO_DIR: ~/.cache/deno
 
+      # `--remote` is required from CLI v3: without it `db push` targets the local
+      # database and dies with ECONNREFUSED 127.0.0.1:54322 on a runner.
       - name: Preview migrations (dry-run)
-        run: supabase db push --dry-run
+        run: supabase db push --dry-run --remote
 
       # Executes roam() for real under the `authenticated` role's 8s timeout.
       # This is the gate that caught the Aug 2026 42P01 outage that was
@@ -133,11 +138,13 @@ jobs:
 
       # ── Deploy ───────────────────────────────────────────────────────────
       - name: Apply migrations
+        # --remote targets the linked project (v3 defaults to local); --yes accepts
+        # hosted changes, which v3 never takes from a prompt in a CI runner.
         run: |
           if [ "${{ inputs.include_all }}" = "true" ]; then
-            supabase db push --include-all
+            supabase db push --remote --include-all --yes
           else
-            supabase db push
+            supabase db push --remote --yes
           fi
 
       - name: Deploy Edge Functions
