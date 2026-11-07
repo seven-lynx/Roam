@@ -144,67 +144,65 @@ jobs:
           # token-only filter; default branch protection must allow this token.
           # Workflow path-filter rule: token-based (see dorny/paths-filter).
           token: ${{ secrets.GITHUB_TOKEN }}
-          filter: 'supabase/functions'
-          # Exclude the test directory — test-only PRs should not pay the
-          # deno check cost. Anything else under supabase/functions is in scope.
+          # Globs, not a hand-maintained list: the previous 28-entry list had
+          # silently dropped four functions (cron-notification-cleanup,
+          # game-action, roll-action, sentry-webhook), so PRs touching only
+          # those never ran the type check at all.
+          #
+          # An exclusion only wins over an inclusion with 'some-with-excludes';
+          # under the default 'some' any file matching any pattern counts as
+          # matched, so supabase/functions/_tests/** would still trigger the gate.
+          predicate-quantifier: 'some-with-excludes'
           filters: |
             edge:
-              - 'supabase/functions/_shared/**'
-              - 'supabase/functions/admin-moderation/**'
-              - 'supabase/functions/activity-feed/**'
-              - 'supabase/functions/beta-signup/**'
-              - 'supabase/functions/challenges/**'
-              - 'supabase/functions/collection/**'
-              - 'supabase/functions/cron-daily-challenges/**'
-              - 'supabase/functions/cron-secret-badges/**'
-              - 'supabase/functions/cron-streak-cleanup/**'
-              - 'supabase/functions/delete-user/**'
-              - 'supabase/functions/evaluate-badges/**'
-              - 'supabase/functions/export-user/**'
-              - 'supabase/functions/feedback/**'
-              - 'supabase/functions/follow/**'
-              - 'supabase/functions/leaderboard/**'
-              - 'supabase/functions/log-failed-urls/**'
-              - 'supabase/functions/profile/**'
-              - 'supabase/functions/push-notify/**'
-              - 'supabase/functions/rate/**'
-              - 'supabase/functions/report-engagement/**'
-              - 'supabase/functions/report-url/**'
-              - 'supabase/functions/roam/**'
-              - 'supabase/functions/roam-health-check/**'
-              - 'supabase/functions/save-url/**'
-              - 'supabase/functions/scrape-url/**'
-              - 'supabase/functions/send-bulk-email/**'
-              - 'supabase/functions/share-url/**'
-              - 'supabase/functions/submit-url/**'
+              - 'supabase/functions/**'
+              - '!supabase/functions/_tests/**'
+              - 'deno.json'
 
-      - name: Type-check Edge Functions
+      - name: Type-check each Edge Function in isolation
         if: steps.edge-fn-changes.outputs.edge == 'true'
-        # The previous version of this step masked real TS errors behind a
-        # broken path filter (commit 8c8dab2). With the filter fixed, this
-        # step actually runs `deno check` when edge function source changes.
+        # Every function is type-checked on its own, the way it is deployed. A
+        # shared helper that only resolves because a sibling function happened
+        # to be in the same program fails here — which is exactly how the
+        # `EdgeRuntime` global stayed invisible to `deno check <one function>`.
         #
         # Transient esm.sh 522s are retried once before failing. The retry is
         # intentionally narrow (one attempt) so a real type error doesn't get
         # masked by 30s of sleeps.
         run: |
-          set +e
-          deno check supabase/functions/**/*.ts > /tmp/deno.out 2>&1
-          DENO_RC=$?
-          set -e
-          if [ "$DENO_RC" -ne 0 ] && grep -q '522\|error sending request\|connection reset\|tls handshake' /tmp/deno.out; then
-            echo "Transient network error; retrying once after 10s."
+          set -uo pipefail
+          failed=""
+          for fn in supabase/functions/*/index.ts; do
+            log="/tmp/deno-$(basename "$(dirname "$fn")").log"
+            deno check "$fn" > "$log" 2>&1 || failed="$failed $fn"
+          done
+          # _shared has no import graph of its own, so check it as one program.
+          deno check supabase/functions/_shared/*.ts > /tmp/deno-shared.log 2>&1 \
+            || failed="$failed _shared"
+          if [ -n "$failed" ] && grep -lq '522\|error sending request\|connection reset\|tls handshake' /tmp/deno-*.log; then
+            echo "Transient network error; retrying failed checks once after 10s."
             sleep 10
-            deno check supabase/functions/**/*.ts > /tmp/deno.out 2>&1
-            DENO_RC=$?
+            retried=""
+            for fn in $failed; do
+              if [ "$fn" = "_shared" ]; then
+                deno check supabase/functions/_shared/*.ts > /tmp/deno-shared.log 2>&1 || retried="$retried _shared"
+              else
+                deno check "$fn" > "/tmp/deno-$(basename "$(dirname "$fn")").log" 2>&1 || retried="$retried $fn"
+              fi
+            done
+            failed="$retried"
           fi
-          if [ "$DENO_RC" -eq 0 ]; then
-            echo "deno check passed."
+          if [ -z "$failed" ]; then
+            echo "deno check passed for all edge functions."
             exit 0
           fi
-          echo "::group::deno check output"
-          cat /tmp/deno.out
-          echo "::endgroup::"
+          for fn in $failed; do
+            if [ "$fn" = "_shared" ]; then log=/tmp/deno-shared.log; else log="/tmp/deno-$(basename "$(dirname "$fn")").log"; fi
+            echo "::error::deno check failed: $fn"
+            echo "::group::$fn"
+            cat "$log"
+            echo "::endgroup::"
+          done
           exit 1
         env:
           DENO_DIR: ~/.cache/deno
