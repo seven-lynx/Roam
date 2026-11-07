@@ -10,6 +10,7 @@ All notable changes to the Roam Android app.
 - COMPILER — native Compose falling-shard game: a 10×20 board on one Canvas, seven shards, transport keys plus swipe, and a level every five compiled lines.
 - DEBRIS — native Compose drift through the debris field: Canvas ship and wreck, a hold-to-thrust D-pad or analog stick (toggleable), a FIRE key, and a new wave every level.
 - FIREWALK — native Compose perimeter crossing: rule-filter lanes, carrier packets across the dark static, five open ports per level.
+- FIREWALK also hops from an analog stick — a `D-PAD ⇄ STICK` toggle swaps the on-screen pad for a thumb stick that keeps hopping while a direction is held.
 - Native game XP parity — the handheld now calls the `game-action` edge function exactly as the webapp does, so level clears (+10 XP), game wins (+100 XP) and post-cap game-over bonuses award the same ordinary Roam XP. Badges and level-ups arrive through the existing notification → celebration pipeline.
 - Shared program chrome — one boot-time controls guide, one READY / LEVEL CLEAR / LEVEL START / game-over overlay, and one analog stick across every program, mirroring the web components.
 - RELAY now runs the shared level loop (five packets per level, tightening tick) like the web game, instead of a single endless run.
@@ -25,6 +26,9 @@ All notable changes to the Roam Android app.
 ### Fixed
 - Unit-test runs no longer report to Sentry. The Robolectric suite builds the real `RoamApplication`, so the SDK used to ship test-harness failures — a mocked repository exception, heap exhaustion, a mockk coroutine error — to the live project as if they were device crashes. Error reporting is now skipped whenever the process is a JVM test, and real devices and emulators report exactly as before.
 - The build rejects a `SENTRY_DSN` that points at the wrong Sentry project. A DSN's path segment is the project id, and copy-pasting one from another surface is how `ROAM-EXTENSION-J/K/M` filed Android test-harness failures under `roam-extension`; `local.properties` must now carry the Android project id (`4511314873090048`, `roam-android`) or the build stops with the mismatch named.
+
+- BOTFIELD's board rules now match real Minesweeper on the handheld: the opening sweep is guaranteed safe and opens an area, tapping a satisfied number chords its neighbours (detonating on a wrong flag), and the HUD shows the remaining bots (`total − flags`) instead of the total.
+- The deck's READY and BUFFER lights track the prefetch queues again. Both read `00` permanently once the queue-size publisher was dropped from the prefetch pipeline; the sizes are now republished under the prefetch lock whenever the queues change (a roam hit, a warm fill, a hot promotion, and every queue reset).
 
 ### Server
 - `game-action` now accepts `minesweeper`, so BOTFIELD awards XP and `win-botfield` / `gamer-all` are earnable on both surfaces.

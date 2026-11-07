@@ -39,9 +39,11 @@ import app.roam.android.model.BotCell
 import app.roam.android.model.GameId
 import app.roam.android.model.botfieldMines
 import app.roam.android.model.botfieldSize
+import app.roam.android.model.chordReveal
 import app.roam.android.model.countFlags
 import app.roam.android.model.countSwept
 import app.roam.android.model.createBotfield
+import app.roam.android.model.ensureFirstClickSafe
 import app.roam.android.model.floodReveal
 import app.roam.android.model.isBotfieldCleared
 import app.roam.android.model.makeRunId
@@ -89,14 +91,17 @@ fun BotfieldProgram(
     val meta = remember { requireNotNull(program("minesweeper")) { "BOTFIELD missing from registry" } }
     val context = LocalContext.current
     val runId = rememberSaveable { makeRunId() }
-    val levels = rememberGameLevel(GameId.MINESWEEPER, runId, signedIn, onAward)
+    val levels = rememberGameLevel(GameId.MINESWEEPER, runId, signedIn, onAward, timeLimitFor = { l -> min(180, 45 + (l - 1) * 10) })
 
     var running by rememberSaveable { mutableStateOf(false) }
     var flagMode by rememberSaveable { mutableStateOf(false) }
     var restartNonce by remember { mutableIntStateOf(0) }
+    // A level's first sweep is guaranteed safe; reset whenever a fresh board deals.
+    var firstSweep by remember(levels.level, restartNonce) { mutableStateOf(true) }
     var board by remember(levels.level, restartNonce) {
         mutableStateOf(createBotfield(botfieldSize(levels.level), botfieldMines(levels.level)))
     }
+    levels.getScore = { countSwept(board) }
 
     fun sfx(resId: Int) {
         if (soundEnabled) SoundManager.play(context, resId)
@@ -112,15 +117,40 @@ fun BotfieldProgram(
     fun sweep(row: Int, col: Int) {
         if (!levels.isPlaying) return
         val cell = board[row][col]
-        if (cell.flagged || cell.revealed) return
-        if (cell.mine) {
-            val exploded = revealAllBots(board)
+
+        // A revealed number chords: open its neighbours when the flags match.
+        if (cell.revealed) {
+            val result = chordReveal(board, row, col)
+            if (result.board === board) return
+            board = result.board
+            if (result.hitMine) {
+                sfx(R.raw.click_heavy)
+                levels.gameOver(countSwept(result.board))
+            } else if (isBotfieldCleared(result.board)) {
+                sfx(R.raw.generic_success)
+                levels.completeLevel()
+            } else {
+                sfx(R.raw.click)
+            }
+            return
+        }
+
+        if (cell.flagged) return
+
+        // The first sweep of a level is guaranteed safe and opens an area.
+        val start = if (firstSweep) ensureFirstClickSafe(board, row, col) else board
+        if (firstSweep) firstSweep = false
+
+        if (start[row][col].mine) {
+            // Defensive: ensureFirstClickSafe should have cleared this.
+            val exploded = revealAllBots(start)
             board = exploded
             sfx(R.raw.click_heavy)
             levels.gameOver(countSwept(exploded))
             return
         }
-        val next = floodReveal(board, row, col)
+
+        val next = floodReveal(start, row, col)
         board = next
         if (isBotfieldCleared(next)) {
             sfx(R.raw.generic_success)
@@ -148,6 +178,7 @@ fun BotfieldProgram(
                     board = board,
                     level = levels.level,
                     mines = botfieldMines(levels.level),
+                    timeLeft = levels.timeLeft,
                     flagMode = flagMode,
                     onToggleFlagMode = { flagMode = !flagMode },
                     onSweep = { r, c -> sweep(r, c) },
@@ -182,6 +213,7 @@ private fun BotfieldBoard(
     board: BotBoard,
     level: Int,
     mines: Int,
+    timeLeft: Int,
     flagMode: Boolean,
     onToggleFlagMode: () -> Unit,
     onSweep: (Int, Int) -> Unit,
@@ -197,7 +229,7 @@ private fun BotfieldBoard(
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Text(
-            "LVL $level · ● $mines · ⚑ $flags · $swept/${size * size - mines}",
+            "LVL $level · ● ${mines - flags} · ⚑ $flags · $swept/${size * size - mines} · TIME ${formatGameTime(timeLeft)}",
             style = MaterialTheme.typography.labelSmall,
             color = Fog,
             textAlign = TextAlign.Center,

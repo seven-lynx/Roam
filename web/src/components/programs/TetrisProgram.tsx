@@ -9,6 +9,7 @@ import { useGameKeys } from '@/components/programs/useGameKeys';
 import { useSwipeSteer } from '@/components/programs/useSwipeSteer';
 import { useGameLevel } from '@/components/programs/useGameLevel';
 import { GameLevelOverlay } from '@/components/programs/GameLevelOverlay';
+import { GameTimer } from '@/components/programs/GameTimer';
 import { PROGRAMS } from '@/lib/os-programs';
 import { makeRunId, WIN_LEVEL } from '@/lib/game-xp';
 import { click, beep } from '@/lib/sfx';
@@ -28,6 +29,11 @@ const MIN_DROP_MS = 200;
 /** Drop interval (ms) tightens as the level climbs. */
 function speedFor(level: number): number {
   return Math.max(MIN_DROP_MS, BASE_DROP_MS - (level - 1) * 30);
+}
+
+/** Seconds allowed per level — generous, tightening as the drop speeds up. */
+function compilerTimeLimit(level: number): number {
+  return Math.max(45, 90 - (level - 1) * 5);
 }
 
 const SHAPES: number[][][] = [
@@ -83,8 +89,16 @@ function CompilerGame() {
 
   const { session } = useAuth();
   const [runId] = useState(() => makeRunId());
-  const { level, phase, countdown, lastXp, levelRef, phaseRef, begin, completeLevel, gameOver, resetLevels } =
-    useGameLevel({ game: 'tetris', userId: session?.user.id ?? null, runId, winLevel: WIN_LEVEL });
+  const getScore = useCallback(() => linesRef.current, []);
+  const { level, phase, countdown, timeLeft, lastXp, levelRef, phaseRef, begin, completeLevel, gameOver, resetLevels } =
+    useGameLevel({
+      game: 'tetris',
+      userId: session?.user.id ?? null,
+      runId,
+      winLevel: WIN_LEVEL,
+      timeLimitFor: compilerTimeLimit,
+      getScore,
+    });
   const completeLevelRef = useRef(completeLevel);
   const gameOverRef = useRef(gameOver);
   useEffect(() => {
@@ -216,6 +230,12 @@ function CompilerGame() {
         LVL <span style={{ color: 'var(--accent)' }}>{level}</span>
         <span style={{ margin: '0 8px' }}>·</span>
         LINES <span style={{ color: 'var(--phosphor)' }}>{lines}</span>
+        {timeLeft > 0 && (
+          <>
+            <span style={{ margin: '0 8px' }}>·</span>
+            <GameTimer timeLeft={timeLeft} />
+          </>
+        )}
       </div>
 
       <ScaleToFit width={COLS * CELL} height={ROWS * CELL}>

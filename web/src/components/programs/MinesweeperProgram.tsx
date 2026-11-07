@@ -1,15 +1,35 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type MouseEvent as ReactMouseEvent,
+  type PointerEvent as ReactPointerEvent,
+} from 'react';
 import { useAuth } from '@/components/AuthProvider';
 import { useWorkstation } from '@/components/WorkstationContext';
 import { GameLevelOverlay } from '@/components/programs/GameLevelOverlay';
+import { GameTimer } from '@/components/programs/GameTimer';
 import { ProgramWindow } from '@/components/programs/ProgramWindow';
 import { ScaleToFit } from '@/components/programs/ScaleToFit';
 import { useGameLevel } from '@/components/programs/useGameLevel';
 import { PROGRAMS } from '@/lib/os-programs';
 import { makeRunId, WIN_LEVEL } from '@/lib/game-xp';
 import { beep, success } from '@/lib/sfx';
+import {
+  type Board,
+  chordReveal,
+  countFlags,
+  countSwept,
+  createBoard,
+  ensureFirstClickSafe,
+  floodReveal,
+  isCleared,
+  revealAllMines,
+  toggleFlag,
+} from '@/lib/minesweeper';
 
 /**
  * BOTFIELD — ten buried bots in an eight-by-eight grid. Adapted from
@@ -30,39 +50,9 @@ function minesFor(level: number): number {
   return BASE_MINES + (level - 1) * 5;
 }
 
-interface Cell {
-  mine: boolean;
-  revealed: boolean;
-  flagged: boolean;
-  count: number;
-}
-
-function createBoard(size: number, mines: number): Cell[][] {
-  const board: Cell[][] = Array.from({ length: size }, () =>
-    Array.from({ length: size }, () => ({ mine: false, revealed: false, flagged: false, count: 0 })),
-  );
-  let placed = 0;
-  while (placed < mines) {
-    const r = Math.floor(Math.random() * size);
-    const c = Math.floor(Math.random() * size);
-    if (!board[r][c].mine) {
-      board[r][c].mine = true;
-      placed++;
-    }
-  }
-  for (let r = 0; r < size; r++)
-    for (let c = 0; c < size; c++)
-      if (!board[r][c].mine) {
-        let cnt = 0;
-        for (let dr = -1; dr <= 1; dr++)
-          for (let dc = -1; dc <= 1; dc++) {
-            const nr = r + dr;
-            const nc = c + dc;
-            if (nr >= 0 && nr < size && nc >= 0 && nc < size && board[nr][nc].mine) cnt++;
-          }
-        board[r][c].count = cnt;
-      }
-  return board;
+/** Seconds allowed per level — the board grows each level, so the budget grows too. */
+function botfieldTimeLimit(level: number): number {
+  return Math.min(180, 45 + (level - 1) * 10);
 }
 
 const COUNT_COLORS = [
@@ -78,13 +68,28 @@ const COUNT_COLORS = [
 ];
 
 function BotfieldGame() {
-  const [board, setBoard] = useState<Cell[][]>(() => createBoard(sizeFor(1), minesFor(1)));
+  const [board, setBoard] = useState<Board>(() => createBoard(sizeFor(1), minesFor(1)));
   const [flagMode, setFlagMode] = useState(false);
+  // A level's first sweep is guaranteed safe; reset whenever a fresh board deals.
+  const [firstSweep, setFirstSweep] = useState(true);
+  // Latest board for the level clock's game-over score (updated after render).
+  const boardRef = useRef(board);
+  useEffect(() => {
+    boardRef.current = board;
+  }, [board]);
+  const getScore = useCallback(() => countSwept(boardRef.current), []);
 
   const { session } = useAuth();
   const [runId] = useState(() => makeRunId());
-  const { level, phase, countdown, lastXp, phaseRef, begin, completeLevel, gameOver, resetLevels } =
-    useGameLevel({ game: 'minesweeper', userId: session?.user.id ?? null, runId, winLevel: WIN_LEVEL });
+  const { level, phase, countdown, timeLeft, lastXp, phaseRef, begin, completeLevel, gameOver, resetLevels } =
+    useGameLevel({
+      game: 'minesweeper',
+      userId: session?.user.id ?? null,
+      runId,
+      winLevel: WIN_LEVEL,
+      timeLimitFor: botfieldTimeLimit,
+      getScore,
+    });
 
   const completeLevelRef = useRef(completeLevel);
   const gameOverRef = useRef(gameOver);
@@ -96,32 +101,10 @@ function BotfieldGame() {
   const size = sizeFor(level);
   const mines = minesFor(level);
 
-  const flood = (b: Cell[][], sr: number, sc: number): Cell[][] => {
-    const next = b.map((row) => row.map((cell) => ({ ...cell })));
-    const stack: Array<[number, number]> = [[sr, sc]];
-    while (stack.length) {
-      const [r, c] = stack.pop()!;
-      if (r < 0 || r >= size || c < 0 || c >= size) continue;
-      const cell = next[r][c];
-      if (cell.revealed || cell.flagged) continue;
-      cell.revealed = true;
-      if (cell.count === 0 && !cell.mine) {
-        for (let dr = -1; dr <= 1; dr++)
-          for (let dc = -1; dc <= 1; dc++) stack.push([r + dr, c + dc]);
-      }
-    }
-    return next;
-  };
-
-  const checkWin = (b: Cell[][]) => {
-    for (let r = 0; r < size; r++)
-      for (let c = 0; c < size; c++) if (!b[r][c].mine && !b[r][c].revealed) return false;
-    return true;
-  };
-
   // A new level (or a restart back to level 1) deals a fresh board.
   const dealBoard = useCallback((lvl: number) => {
     setBoard(createBoard(sizeFor(lvl), minesFor(lvl)));
+    setFirstSweep(true);
   }, []);
 
   useEffect(() => {
@@ -134,47 +117,128 @@ function BotfieldGame() {
     dealBoard(1);
   };
 
+  const flagCell = (r: number, c: number) => {
+    if (phaseRef.current !== 'playing') return;
+    setBoard((prev) => toggleFlag(prev, r, c));
+  };
+
   const sweep = (r: number, c: number) => {
     if (phaseRef.current !== 'playing') return;
-    if (board[r][c].flagged || board[r][c].revealed) return;
-    const next = board.map((row) => row.map((cell) => ({ ...cell })));
-    if (next[r][c].mine) {
-      const exploded = next.map((row) => row.map((cell) => (cell.mine ? { ...cell, revealed: true } : cell)));
-      setBoard(exploded);
-      beep();
-      const sweptClean = exploded.flat().filter((cell) => cell.revealed && !cell.mine).length;
-      gameOverRef.current(sweptClean);
+    const cell = board[r][c];
+
+    // A revealed number chords: open its neighbours when the flags match.
+    if (cell.revealed) {
+      const { board: after, hitMine } = chordReveal(board, r, c);
+      if (after === board) return; // not a satisfiable number
+      setBoard(after);
+      if (hitMine) {
+        beep();
+        gameOverRef.current(countSwept(after));
+        return;
+      }
+      if (isCleared(after)) {
+        success();
+        completeLevelRef.current();
+      }
       return;
     }
-    const revealed = flood(next, r, c);
+
+    if (cell.flagged) return;
+
+    // The first sweep of a level is guaranteed safe and opens an area.
+    const start = firstSweep ? ensureFirstClickSafe(board, r, c) : board;
+    if (firstSweep) setFirstSweep(false);
+
+    if (start[r][c].mine) {
+      // Defensive: ensureFirstClickSafe should have cleared this.
+      const exploded = revealAllMines(start);
+      setBoard(exploded);
+      beep();
+      gameOverRef.current(countSwept(exploded));
+      return;
+    }
+
+    const revealed = floodReveal(start, r, c);
     setBoard(revealed);
-    if (checkWin(revealed)) {
+    if (isCleared(revealed)) {
       success();
       completeLevelRef.current();
     }
   };
 
-  const flagCell = (r: number, c: number) => {
-    if (phaseRef.current !== 'playing') return;
-    if (board[r][c].revealed) return;
-    const next = board.map((row) => row.map((cell) => ({ ...cell })));
-    next[r][c].flagged = !next[r][c].flagged;
-    setBoard(next);
+  // Long-press flagging — the touch equivalent of right-click. A 450 ms hold on
+  // a cell toggles its flag; a plain tap sweeps (or flags in FLAG MODE).
+  const longPressTimer = useRef<number | null>(null);
+  const longPressFired = useRef(false);
+  const suppressContext = useRef(false);
+  const lastPointerType = useRef('mouse');
+
+  const clearLongPress = () => {
+    if (longPressTimer.current !== null) {
+      window.clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
+    }
   };
 
-  const flags = board.flat().filter((c) => c.flagged).length;
-  const swept = board.flat().filter((c) => c.revealed && !c.mine).length;
+  const onCellPointerDown = (r: number, c: number, e: ReactPointerEvent) => {
+    lastPointerType.current = e.pointerType;
+    longPressFired.current = false;
+    suppressContext.current = false;
+    clearLongPress();
+    // Only touch/pen long-press; the mouse uses right-click (contextmenu).
+    if (e.pointerType !== 'mouse' && e.button === 0) {
+      longPressTimer.current = window.setTimeout(() => {
+        longPressTimer.current = null;
+        longPressFired.current = true;
+        suppressContext.current = true;
+        flagCell(r, c);
+      }, 450);
+    }
+  };
+
+  const onCellContextMenu = (r: number, c: number, e: ReactMouseEvent) => {
+    e.preventDefault();
+    if (lastPointerType.current === 'mouse') {
+      flagCell(r, c);
+      return;
+    }
+    // Touch browsers may synthesise a contextmenu on long-press; ignore it if
+    // our own timer already flagged, otherwise treat it as the flag gesture.
+    if (suppressContext.current) return;
+    clearLongPress();
+    longPressFired.current = true;
+    flagCell(r, c);
+  };
+
+  const onCellClick = (r: number, c: number) => {
+    if (longPressFired.current) {
+      longPressFired.current = false;
+      return;
+    }
+    if (flagMode) flagCell(r, c);
+    else sweep(r, c);
+  };
+
+  const flags = countFlags(board);
+  const swept = countSwept(board);
+  const remaining = mines - flags;
 
   return (
     <div style={{ flex: '1 1 auto', minHeight: 0, width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
       <div style={{ fontFamily: 'var(--font-pixel)', fontSize: 12, letterSpacing: '0.08em', color: 'var(--muted)' }}>
         LVL <span style={{ color: 'var(--accent)' }}>{level}</span>
         <span style={{ margin: '0 6px' }}>·</span>
-        <span style={{ color: 'var(--danger)' }}>● {mines}</span> ·{' '}
+        <span style={{ color: 'var(--danger)' }}>● {remaining}</span> ·{' '}
         <span style={{ color: 'var(--accent)' }}>⚑ {flags}</span> ·{' '}
         <span style={{ color: 'var(--phosphor)' }}>
           {swept}/{size * size - mines}
         </span>
+        {timeLeft > 0 && (
+          <>
+            <span style={{ margin: '0 6px' }}>·</span>
+            <GameTimer timeLeft={timeLeft} />
+          </>
+        )}
       </div>
 
       <ScaleToFit width={size * CELL + 24} height={size * CELL + 24}>
@@ -197,8 +261,12 @@ function BotfieldGame() {
           return (
             <div
               key={idx}
-              onClick={() => (flagMode ? flagCell(r, c) : sweep(r, c))}
-              onContextMenu={(e) => { e.preventDefault(); flagCell(r, c); }}
+              onClick={() => onCellClick(r, c)}
+              onPointerDown={(e) => onCellPointerDown(r, c, e)}
+              onPointerUp={clearLongPress}
+              onPointerLeave={clearLongPress}
+              onPointerCancel={clearLongPress}
+              onContextMenu={(e) => onCellContextMenu(r, c, e)}
               style={{
                 width: CELL,
                 height: CELL,
@@ -208,7 +276,7 @@ function BotfieldGame() {
                 borderRadius: 4,
                 fontSize: 16,
                 fontWeight: 700,
-                cursor: cell.revealed ? 'default' : 'pointer',
+                cursor: !cell.revealed || (!cell.mine && cell.count > 0) ? 'pointer' : 'default',
                 userSelect: 'none',
                 touchAction: 'manipulation',
                 background: cell.revealed ? (cell.mine ? 'rgba(255,92,122,0.25)' : 'var(--panel-3)') : 'var(--panel)',
@@ -254,7 +322,7 @@ function BotfieldGame() {
           ⚑ {flagMode ? 'FLAG MODE' : 'FLAG'}
         </button>
         <span style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--muted)' }}>
-          {flagMode ? 'TAP to flag' : 'TAP to sweep'} · LONG-PRESS flag
+          {flagMode ? 'TAP to flag' : 'TAP to sweep'} · HOLD / RIGHT-CLICK flag
         </span>
       </div>
     </div>

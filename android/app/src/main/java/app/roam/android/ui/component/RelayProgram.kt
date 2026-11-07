@@ -100,12 +100,13 @@ fun RelayProgram(
     val meta = remember { requireNotNull(program("snake")) { "RELAY missing from registry" } }
     val context = LocalContext.current
     val runId = rememberSaveable { makeRunId() }
-    val levels = rememberGameLevel(GameId.SNAKE, runId, signedIn, onAward)
+    val levels = rememberGameLevel(GameId.SNAKE, runId, signedIn, onAward, timeLimitFor = { l -> max(15, 30 - (l - 1)) })
 
     var running by rememberSaveable { mutableStateOf(false) }
     var snapshot by remember { mutableStateOf(RelaySnapshot()) }
     var dir by remember { mutableStateOf(Pt(1, 0)) }
     var queued by remember { mutableStateOf<Pt?>(null) }
+    levels.getScore = { snapshot.score }
 
     fun sfx(resId: Int) {
         if (soundEnabled) SoundManager.play(context, resId)
@@ -180,6 +181,7 @@ fun RelayProgram(
                     Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         Text("LVL ${levels.level}", style = MaterialTheme.typography.labelSmall, color = Fog)
                         Text("PKT ${snapshot.score}", style = MaterialTheme.typography.labelSmall, color = Fog)
+                        Text("TIME ${formatGameTime(levels.timeLeft)}", style = MaterialTheme.typography.labelSmall, color = Fog)
                     }
                     Spacer(Modifier.height(8.dp))
                     Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {

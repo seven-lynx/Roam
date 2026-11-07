@@ -67,7 +67,7 @@ export const PROGRAMS: Record<ProgramId, Program> = {
     file: '/roam/bin/BOTFIELD',
     glyph: '▦',
     tagline: 'Ten bots are buried in an eight-by-eight grid. Sweep every clean sector; numbers count adjacent bots.',
-    controls: 'TAP sweep · ⚑ flag · LONG-PRESS flag',
+    controls: 'TAP sweep · ⚑ flag · HOLD / RIGHT-CLICK flag',
     license: APACHE_2,
     source: ZELI,
   },

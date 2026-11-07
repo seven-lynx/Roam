@@ -91,4 +91,77 @@ class BotfieldTest {
         val board = createBotfield(4, 99, Random(1))
         assertEquals(16, board.sumOf { row -> row.count { it.mine } })
     }
+
+    private fun boardFrom(rows: List<String>): BotBoard {
+        val size = rows.size
+        val cells = rows.map { row -> row.map { ch -> BotCell(mine = ch == '*') }.toMutableList() }.toMutableList()
+        for (r in 0 until size) {
+            for (c in 0 until size) {
+                if (cells[r][c].mine) continue
+                var n = 0
+                for (dr in -1..1) for (dc in -1..1) {
+                    val nr = r + dr
+                    val nc = c + dc
+                    if (nr in 0 until size && nc in 0 until size && cells[nr][nc].mine) n++
+                }
+                cells[r][c] = cells[r][c].copy(count = n)
+            }
+        }
+        return cells.map { it.toList() }
+    }
+
+    @Test
+    fun `the first sweep never hits a bot and opens an area`() {
+        for (seed in 0 until 40) {
+            val board = createBotfield(8, 10, Random(seed + 1))
+            val safe = ensureFirstClickSafe(board, 3, 3, Random(seed + 500))
+            for (dr in -1..1) for (dc in -1..1) {
+                val r = 3 + dr
+                val c = 3 + dc
+                if (r in 0 until 8 && c in 0 until 8) assertFalse("bot under $r,$c", safe[r][c].mine)
+            }
+            assertEquals(0, safe[3][3].count)
+            assertEquals(10, safe.sumOf { row -> row.count { it.mine } })
+            assertTrue(countSwept(floodReveal(safe, 3, 3)) > 1)
+        }
+    }
+
+    @Test
+    fun `chording opens neighbours when flags match the number`() {
+        val board = boardFrom(listOf("*.", "..")).map { it.toMutableList() }.toMutableList()
+        board[0][1] = board[0][1].copy(revealed = true)
+        board[0][0] = board[0][0].copy(flagged = true)
+        val result = chordReveal(board.map { it.toList() }, 0, 1)
+        assertFalse(result.hitMine)
+        assertTrue(result.board[1][0].revealed)
+        assertTrue(result.board[1][1].revealed)
+    }
+
+    @Test
+    fun `chording does nothing when flags do not match`() {
+        val board = boardFrom(listOf("*.", "..")).map { it.toMutableList() }.toMutableList()
+        board[0][1] = board[0][1].copy(revealed = true)
+        val frozen = board.map { it.toList() }
+        val result = chordReveal(frozen, 0, 1)
+        assertFalse(result.hitMine)
+        assertTrue(result.board === frozen)
+        assertFalse(result.board[1][0].revealed)
+    }
+
+    @Test
+    fun `chording detonates when a wrong flag leaves a real bot unmarked`() {
+        val board = boardFrom(listOf(".*", "..")).map { it.toMutableList() }.toMutableList()
+        board[0][0] = board[0][0].copy(revealed = true)
+        board[1][0] = board[1][0].copy(flagged = true)
+        val result = chordReveal(board.map { it.toList() }, 0, 0)
+        assertTrue(result.hitMine)
+        assertTrue(result.board[0][1].revealed)
+    }
+
+    @Test
+    fun `chording ignores a covered sector or a mine`() {
+        val board = boardFrom(listOf("*.", ".."))
+        assertTrue(chordReveal(board, 0, 1).board === board)
+        assertTrue(chordReveal(board, 0, 0).board === board)
+    }
 }

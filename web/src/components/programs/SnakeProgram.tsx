@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState, type CSSProperties } from 'react';
+import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react';
 import { useAuth } from '@/components/AuthProvider';
 import { useWorkstation } from '@/components/WorkstationContext';
 import { ProgramWindow } from '@/components/programs/ProgramWindow';
@@ -9,6 +9,7 @@ import { useGameKeys } from '@/components/programs/useGameKeys';
 import { useSwipeSteer } from '@/components/programs/useSwipeSteer';
 import { useGameLevel } from '@/components/programs/useGameLevel';
 import { GameLevelOverlay } from '@/components/programs/GameLevelOverlay';
+import { GameTimer } from '@/components/programs/GameTimer';
 import { AnalogStick } from '@/components/programs/AnalogStick';
 import { useControlMode } from '@/components/programs/useControlMode';
 import { PROGRAMS } from '@/lib/os-programs';
@@ -29,6 +30,11 @@ const MIN_SPEED = 68;
 /** Tick interval (ms) tightens as the level climbs. */
 function speedFor(level: number): number {
   return Math.max(MIN_SPEED, BASE_SPEED - (level - 1) * 8);
+}
+
+/** Seconds allowed for a level — generous, tightening slightly each level. */
+function snakeTimeLimit(level: number): number {
+  return Math.max(15, 30 - (level - 1));
 }
 
 type Pt = { x: number; y: number };
@@ -61,8 +67,16 @@ function RelayGame() {
   const { session } = useAuth();
   const [runId] = useState(() => makeRunId());
   const { mode, toggle } = useControlMode('roam-snake-control');
-  const { level, phase, countdown, lastXp, levelRef, phaseRef, begin, completeLevel, gameOver, resetLevels } =
-    useGameLevel({ game: 'snake', userId: session?.user.id ?? null, runId, winLevel: WIN_LEVEL });
+  const getScore = useCallback(() => state.current.score, []);
+  const { level, phase, countdown, timeLeft, lastXp, levelRef, phaseRef, begin, completeLevel, gameOver, resetLevels } =
+    useGameLevel({
+      game: 'snake',
+      userId: session?.user.id ?? null,
+      runId,
+      winLevel: WIN_LEVEL,
+      timeLimitFor: snakeTimeLimit,
+      getScore,
+    });
 
   // Latest callbacks so the fixed-effect loop never closes over a stale closure.
   const completeLevelRef = useRef(completeLevel);
@@ -176,6 +190,12 @@ function RelayGame() {
         LVL <span style={{ color: 'var(--accent)' }}>{level}</span>
         <span style={{ margin: '0 8px' }}>·</span>
         PKT <span style={{ color: 'var(--phosphor)' }}>{view.score}</span>
+        {timeLeft > 0 && (
+          <>
+            <span style={{ margin: '0 8px' }}>·</span>
+            <GameTimer timeLeft={timeLeft} />
+          </>
+        )}
       </div>
 
       <ScaleToFit width={GRID * CELL} height={GRID * CELL}>

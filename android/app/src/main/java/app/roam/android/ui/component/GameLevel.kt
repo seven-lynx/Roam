@@ -31,7 +31,7 @@ enum class GamePhase { READY, PLAYING, COMPLETE, START, OVER }
 private const val COMPLETE_MS = 1400L
 
 /** One step of the LEVEL START countdown. */
-private const val COUNTDOWN_STEP_MS = 700L
+private const val COUNTDOWN_STEP_MS = 1000L
 
 /** Countdown start value for the LEVEL START interstitial. */
 const val COUNTDOWN_FROM = 3
@@ -66,6 +66,16 @@ class GameLevelController(
     var lastXp by mutableIntStateOf(0)
         private set
 
+    /** Seconds left on the current level's clock (0 when no limit / not playing). */
+    var timeLeft by mutableIntStateOf(0)
+        private set
+
+    /** Per-level budget in seconds; null ⇒ no time limit. */
+    var timeLimitFor: ((Int) -> Int)? = null
+
+    /** Reads the current score so a timeout game-over is scored correctly. */
+    var getScore: (() -> Int)? = null
+
     /** Whether a user is signed in — guests play the same games but earn nothing. */
     var signedIn: Boolean = false
 
@@ -75,7 +85,9 @@ class GameLevelController(
     /** Start the current level from the initial READY screen. */
     fun begin() {
         if (phase != GamePhase.READY) return
-        phase = GamePhase.PLAYING
+        countdown = COUNTDOWN_FROM
+        timeLeft = timeLimitFor?.invoke(level) ?: 0
+        phase = GamePhase.START
     }
 
     /** Call when the current level's win condition is met. */
@@ -112,6 +124,7 @@ class GameLevelController(
     fun resetLevels() {
         level = 1
         countdown = COUNTDOWN_FROM
+        timeLeft = 0
         lastXp = 0
         phase = GamePhase.READY
     }
@@ -121,7 +134,20 @@ class GameLevelController(
         if (phase != GamePhase.COMPLETE) return
         level += 1
         countdown = COUNTDOWN_FROM
+        timeLeft = timeLimitFor?.invoke(level) ?: 0
         phase = GamePhase.START
+    }
+
+    /** Arms the level clock with the current level's budget (0 ⇒ no clock). */
+    internal fun armTimer() {
+        timeLeft = timeLimitFor?.invoke(level) ?: 0
+    }
+
+    /** One clock step; returns true when it just ran out. */
+    internal fun tickTime(): Boolean {
+        if (phase != GamePhase.PLAYING || timeLeft <= 0) return false
+        timeLeft -= 1
+        return timeLeft <= 0
     }
 
     /** One countdown step; ends the interstitial once it reaches zero. */
@@ -135,6 +161,14 @@ class GameLevelController(
     }
 }
 
+/** Human-readable level clock: `m:ss`, or `Ns` under a minute. */
+fun formatGameTime(seconds: Int): String {
+    if (seconds <= 0) return "0s"
+    val m = seconds / 60
+    val s = seconds % 60
+    return if (m > 0) "%d:%02d".format(m, s) else "${s}s"
+}
+
 /**
  * Remembers a [GameLevelController] and runs its interstitial timers. The
  * controller keeps running across recompositions; only the run identity
@@ -146,9 +180,11 @@ fun rememberGameLevel(
     runId: String,
     signedIn: Boolean,
     onAward: GameAward,
+    timeLimitFor: ((Int) -> Int)? = null,
 ): GameLevelController {
     val controller = remember(game, runId) { GameLevelController(game, runId, onAward) }
     controller.signedIn = signedIn
+    controller.timeLimitFor = timeLimitFor
 
     LaunchedEffect(controller.phase) {
         if (controller.phase == GamePhase.COMPLETE) {
@@ -161,6 +197,19 @@ fun rememberGameLevel(
         if (controller.phase == GamePhase.START) {
             delay(COUNTDOWN_STEP_MS)
             controller.tickCountdown()
+        }
+    }
+
+    // Arm the level clock whenever play begins.
+    LaunchedEffect(controller.phase) {
+        if (controller.phase == GamePhase.PLAYING) controller.armTimer()
+    }
+
+    // Tick the level clock once a second; end the run when it hits zero.
+    LaunchedEffect(controller.phase, controller.timeLeft) {
+        if (controller.phase == GamePhase.PLAYING && controller.timeLeft > 0) {
+            delay(1000L)
+            if (controller.tickTime()) controller.gameOver(controller.getScore?.invoke() ?: 0)
         }
     }
 

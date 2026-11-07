@@ -1,5 +1,6 @@
 package app.roam.android.model
 
+import kotlin.math.abs
 import kotlin.random.Random
 
 /**
@@ -114,3 +115,99 @@ fun countFlags(board: BotBoard): Int = board.sumOf { row -> row.count { it.flagg
 
 /** Number of clean sectors swept — the score shown on the overlay. */
 fun countSwept(board: BotBoard): Int = board.sumOf { row -> row.count { it.revealed && !it.mine } }
+
+/**
+ * Guarantees the first sweep of a level is safe and opens an area: any bot in
+ * the 3×3 around [row]/[col] is relocated to a random clean sector outside that
+ * zone, then the neighbour counts are rebuilt. Modern Minesweeper never lets the
+ * opening click hit a mine.
+ */
+fun ensureFirstClickSafe(board: BotBoard, row: Int, col: Int, random: Random = Random.Default): BotBoard {
+    val size = board.size
+    val cells = board.map { it.toMutableList() }.toMutableList()
+
+    var removed = 0
+    for (dr in -1..1) {
+        for (dc in -1..1) {
+            val r = row + dr
+            val c = col + dc
+            if (r in 0 until size && c in 0 until size && cells[r][c].mine) {
+                cells[r][c] = cells[r][c].copy(mine = false)
+                removed++
+            }
+        }
+    }
+
+    // Candidate clean sectors outside the safe zone to receive the moved bots.
+    val candidates = mutableListOf<Pair<Int, Int>>()
+    for (r in 0 until size) {
+        for (c in 0 until size) {
+            val inZone = abs(r - row) <= 1 && abs(c - col) <= 1
+            if (!inZone && !cells[r][c].mine) candidates.add(r to c)
+        }
+    }
+    var moved = 0
+    while (moved < removed && candidates.isNotEmpty()) {
+        val (r, c) = candidates.removeAt(random.nextInt(candidates.size))
+        cells[r][c] = cells[r][c].copy(mine = true)
+        moved++
+    }
+
+    // Recompute neighbour counts from the new layout.
+    for (r in 0 until size) {
+        for (c in 0 until size) {
+            if (cells[r][c].mine) {
+                cells[r][c] = cells[r][c].copy(count = 0)
+                continue
+            }
+            var neighbours = 0
+            for (dr in -1..1) {
+                for (dc in -1..1) {
+                    val nr = r + dr
+                    val nc = c + dc
+                    if (nr in 0 until size && nc in 0 until size && cells[nr][nc].mine) neighbours++
+                }
+            }
+            cells[r][c] = cells[r][c].copy(count = neighbours)
+        }
+    }
+    return cells.map { it.toList() }
+}
+
+/** Outcome of a chord: the resulting board and whether it set off a mine. */
+data class ChordResult(val board: BotBoard, val hitMine: Boolean)
+
+/**
+ * Chording: clicking an already-revealed number whose adjacent flags equal that
+ * number opens the remaining (unflagged) neighbours. If a flag is wrong and a
+ * real mine sits under one of those neighbours, the board detonates and
+ * [ChordResult.hitMine] is true (all mines revealed).
+ */
+fun chordReveal(board: BotBoard, row: Int, col: Int): ChordResult {
+    val size = board.size
+    val cell = board[row][col]
+    if (!cell.revealed || cell.mine || cell.count == 0) return ChordResult(board, false)
+
+    var adjacentFlags = 0
+    val toOpen = mutableListOf<Pair<Int, Int>>()
+    for (dr in -1..1) {
+        for (dc in -1..1) {
+            if (dr == 0 && dc == 0) continue
+            val r = row + dr
+            val c = col + dc
+            if (r !in 0 until size || c !in 0 until size) continue
+            val n = board[r][c]
+            when {
+                n.flagged -> adjacentFlags++
+                !n.revealed -> toOpen.add(r to c)
+            }
+        }
+    }
+
+    if (adjacentFlags != cell.count || toOpen.isEmpty()) return ChordResult(board, false)
+    if (toOpen.any { (r, c) -> board[r][c].mine }) return ChordResult(revealAllBots(board), true)
+
+    var next = board
+    for ((r, c) in toOpen) next = floodReveal(next, r, c)
+    return ChordResult(next, false)
+}
