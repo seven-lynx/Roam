@@ -70,8 +70,54 @@ jobs:
 
       # ── Pre-deploy gates ─────────────────────────────────────────────────
       # Each gate is a lesson learned from a past outage. Do not reorder.
-      - name: Type-check Edge Functions
-        run: deno check supabase/functions/**/*.ts
+      - name: Type-check each Edge Function in isolation
+        # Every function is type-checked on its own, the way it is deployed. The
+        # aggregate `deno check supabase/functions/**/*.ts` glob used to hide
+        # failures that only appear per function — a shared helper that resolves
+        # because a sibling function happened to be in the same program passes
+        # the glob and breaks at deploy time. Keep this block identical to the
+        # CI gate in ci.yml.
+        #
+        # Transient esm.sh 522s are retried once before failing. The retry is
+        # intentionally narrow (one attempt) so a real type error doesn't get
+        # masked by 30s of sleeps.
+        run: |
+          set -uo pipefail
+          failed=""
+          for fn in supabase/functions/*/index.ts; do
+            log="/tmp/deno-$(basename "$(dirname "$fn")").log"
+            deno check "$fn" > "$log" 2>&1 || failed="$failed $fn"
+          done
+          # _shared has no import graph of its own, so check it as one program.
+          deno check supabase/functions/_shared/*.ts > /tmp/deno-shared.log 2>&1 \
+            || failed="$failed _shared"
+          if [ -n "$failed" ] && grep -lq '522\|error sending request\|connection reset\|tls handshake' /tmp/deno-*.log; then
+            echo "Transient network error; retrying failed checks once after 10s."
+            sleep 10
+            retried=""
+            for fn in $failed; do
+              if [ "$fn" = "_shared" ]; then
+                deno check supabase/functions/_shared/*.ts > /tmp/deno-shared.log 2>&1 || retried="$retried _shared"
+              else
+                deno check "$fn" > "/tmp/deno-$(basename "$(dirname "$fn")").log" 2>&1 || retried="$retried $fn"
+              fi
+            done
+            failed="$retried"
+          fi
+          if [ -z "$failed" ]; then
+            echo "deno check passed for all edge functions."
+            exit 0
+          fi
+          for fn in $failed; do
+            if [ "$fn" = "_shared" ]; then log=/tmp/deno-shared.log; else log="/tmp/deno-$(basename "$(dirname "$fn")").log"; fi
+            echo "::error::deno check failed: $fn"
+            echo "::group::$fn"
+            cat "$log"
+            echo "::endgroup::"
+          done
+          exit 1
+        env:
+          DENO_DIR: ~/.cache/deno
 
       - name: Preview migrations (dry-run)
         run: supabase db push --dry-run
