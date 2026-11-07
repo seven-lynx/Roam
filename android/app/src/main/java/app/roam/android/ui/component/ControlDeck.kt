@@ -10,12 +10,6 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideOutHorizontally
-import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -29,6 +23,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.navigationBars
@@ -359,20 +354,19 @@ private fun SystemReadout(message: String, color: Color, speed: Int = 5, display
         )
     }
     val density = LocalDensity.current
-    val separatorPx = with(density) { 16.dp.toPx() }
-    val copyWidth = remember(message, eink) { textMeasurer.measure(AnnotatedString(message), style).size.width.toFloat() }
-    val tileWidth = (copyWidth + separatorPx).coerceAtLeast(1f)
+    val separatorPx = with(density) { READOUT_GAP.toPx() }
+    val copyWidth = remember(message, eink, style) {
+        textMeasurer.measure(AnnotatedString(message), style).size.width.toFloat()
+    }
+    val tileWidth = readoutTileWidth(copyWidth, separatorPx)
 
-    // Start with a fallback width so tiles never defaults to 2, preventing blank gaps.
+    // Seed from the screen width so the first frame already has tiles to draw;
+    // onSizeChanged refines it to the real strip width.
     val config = LocalConfiguration.current
     val fallbackWidth = with(density) { (config.screenWidthDp * 0.55f).dp.toPx().toInt() }
     var containerWidth by remember { mutableIntStateOf(fallbackWidth) }
-    val tiles = remember(containerWidth, tileWidth) {
-        ((containerWidth / tileWidth).toInt().coerceAtLeast(4) + 2)
-    }
-
-    val pxPerSec = 20f + speed.coerceIn(1, 10) * 8f
-    val loopMs = (tileWidth / pxPerSec * 1000f).toInt().coerceAtLeast(500)
+    val tiles = remember(containerWidth, tileWidth) { readoutTileCount(containerWidth.toFloat(), tileWidth) }
+    val loopMs = readoutLoopMs(tileWidth, speed)
 
     // Restart animation when tile count or speed changes so the stream never goes blank.
     val transition = key(speed, eink, tiles) { rememberInfiniteTransition(label = "readout-stream") }
@@ -395,16 +389,45 @@ private fun SystemReadout(message: String, color: Color, speed: Int = 5, display
                 Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 2.dp),
                 contentAlignment = Alignment.CenterStart,
             ) {
-                Row(Modifier.graphicsLayer { translationX = -t * tileWidth }) {
+                Row(
+                    Modifier
+                        // Unbounded so every tile lays out at its natural width: a
+                        // measured-to-fit Row collapses every copy after the first to
+                        // zero width and the strip blanks out mid-loop.
+                        .wrapContentWidth(unbounded = true, align = Alignment.Start)
+                        .graphicsLayer { translationX = -t * tileWidth },
+                ) {
                     repeat(tiles) {
                         Text(message, style = style, maxLines = 1, softWrap = false)
-                        Spacer(Modifier.width(16.dp))
+                        Spacer(Modifier.width(READOUT_GAP))
                     }
                 }
             }
         }
         Text("SYS", fontSize = 7.sp, color = Fog.copy(alpha = 0.75f), maxLines = 1)
     }
+}
+
+/** Gap after each marquee tile — the pitch between two messages in the stream. */
+private val READOUT_GAP = 16.dp
+
+/** One marquee tile: the message plus the gap that follows it. */
+internal fun readoutTileWidth(copyWidthPx: Float, gapPx: Float): Float =
+    (copyWidthPx + gapPx).coerceAtLeast(1f)
+
+/**
+ * Tiles needed to cover [containerWidthPx] plus one whole tile, so scrolling by
+ * exactly one tile width wraps without exposing a gap.
+ */
+internal fun readoutTileCount(containerWidthPx: Float, tileWidthPx: Float): Int {
+    if (containerWidthPx <= 0f || tileWidthPx <= 0f) return 2
+    return (containerWidthPx / tileWidthPx).toInt() + 2
+}
+
+/** Time to scroll one tile at [speed] 1..10 (Settings slider), floored at 500 ms. */
+internal fun readoutLoopMs(tileWidthPx: Float, speed: Int): Int {
+    val pxPerSec = 20f + speed.coerceIn(1, 10) * 8f
+    return (tileWidthPx / pxPerSec * 1000f).toInt().coerceAtLeast(500)
 }
 
 @Composable
