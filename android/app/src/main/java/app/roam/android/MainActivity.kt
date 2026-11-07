@@ -8,6 +8,7 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.core.net.toUri
 import androidx.lifecycle.lifecycleScope
 import app.roam.android.data.supabase
 import app.roam.android.ui.screen.CategoryOnboardingScreen
@@ -16,7 +17,6 @@ import app.roam.android.ui.screen.OnboardingScreen
 import app.roam.android.ui.screen.SplashScreen
 import app.roam.android.ui.screen.WalkthroughScreen
 import app.roam.android.ui.theme.RoamTheme
-import app.roam.android.ui.theme.RoamThemeVariant
 import app.roam.android.ui.theme.roamOsPalette
 import app.roam.android.viewmodel.AuthState
 import app.roam.android.viewmodel.AuthViewModel
@@ -52,7 +52,6 @@ class MainActivity : ComponentActivity() {
             val appTheme by mainVm.appTheme.collectAsState()
             val themeVariant by mainVm.themeVariant.collectAsState()
             val osColorScheme by mainVm.osColorScheme.collectAsState()
-            val webDarkMode by mainVm.webDarkMode.collectAsState()
             // Determine dark theme based on user's app theme preference.
             // "system" follows device setting, "dark" forces dark, "light" forces light.
             // Unauthenticated/loading states force dark for a polished splash/onboarding look.
@@ -106,7 +105,7 @@ class MainActivity : ComponentActivity() {
         handleDeepLink(intent)
     }
     private fun handleDeepLink(intent: Intent?) {
-        val uri = intent?.data ?: intent?.getStringExtra("notification_url")?.let { android.net.Uri.parse(it) } ?: return
+        val uri = intent?.data ?: intent?.getStringExtra("notification_url")?.toUri() ?: return
         val rawUri = uri.toString()
         if (rawUri == lastHandledAuthUri) {
             Log.d(TAG, "Skipping duplicate deep link: $rawUri")

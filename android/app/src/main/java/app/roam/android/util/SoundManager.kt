@@ -40,8 +40,6 @@ object SoundManager {
         enabledCategories = if (enabled) enabledCategories + category else enabledCategories - category
     }
 
-    fun isCategoryEnabled(category: Category) = category in enabledCategories
-
     /** Loads all SFX once. Safe to call repeatedly — subsequent calls are no-ops. */
     fun init(context: Context) {
         if (soundPool != null) return
