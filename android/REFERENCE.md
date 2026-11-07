@@ -40,7 +40,7 @@ Invoke-RestMethod "https://us.sentry.io/api/0/issues/<NUMERIC_ID>/" -Method Put 
 
 | Layer | Library | Version |
 |---|---|---|
-| Language | Kotlin | 2.2.10 |
+| Language | Kotlin | 2.1.10 |
 | UI | Jetpack Compose + Material3 | BOM `2024.12.01` → M3 `1.3.1` |
 | Navigation | `navigation-compose` | `2.8.4` |
 | Async | Kotlin Coroutines + Flow | bundled |

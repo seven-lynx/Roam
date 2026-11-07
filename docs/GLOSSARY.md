@@ -1,5 +1,7 @@
 # Glossary
 
+**Last Updated:** 2026-11-07
+
 Shared vocabulary for the product and the discovery scoring system. Where a term is defined more precisely elsewhere, the relevant doc is linked.
 
 ## Discovery & rating

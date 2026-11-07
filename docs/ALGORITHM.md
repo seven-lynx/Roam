@@ -1,5 +1,9 @@
 # Roam Algorithm (v17)
 
+**Last Updated:** 2026-11-07
+
+> **Version note:** This document describes the scoring model at **v17**. Production discovery currently runs **v31–v35** (see `supabase/CHANGELOG.md` and `extension/CHANGELOG.md` for the version history). The scoring formula (Wilson score, calibrated weight, freshness, exploration bonus) is unchanged; what changed is the candidate-pool sampling and the pool-empty guard, noted in §8.
+
 ## Compact form
 
 ```
@@ -130,10 +134,11 @@ The `+0.1` floor prevents zero-score URLs from being permanently buried.
 
 ## 8. Candidate pool — TABLESAMPLE + conditional fallback
 
-1. **Phase 1**: `TABLESAMPLE BERNOULLI(25)` — random ~25% of the table (~787k rows at current scale), no sequential scan
-2. **Phase 2** (conditional): only executed when Phase 1 finds no eligible URL — top **100** by `roam_score_static` for standard mode, top **50** for collection mode
+1. **Phase 1**: `TABLESAMPLE BERNOULLI(30)` — random ~30% of the table, no sequential scan (v35; was BERNOULLI(25) in v17)
+2. **Phase 2** (conditional): only executed when Phase 1 finds no eligible URL — top **500** by `roam_score_static` for standard mode, top **100** for collection mode (v35; was 100 / 50 in v17)
+3. **Pool-empty guard**: if both phases return no eligible URL, the query retries with a wider `BERNOULLI(30)` sample and relaxed filters rather than returning "you've seen everything" (added in v31–v35)
 
-Both phases apply: `approved = TRUE`, `wilson_score > -0.1`, language match, domain suppression, paywall opt-out, not already seen.
+Both phases apply: `approved = TRUE`, `wilson_score > -0.1`, language match, domain suppression, paywall opt-out, not already seen. The `roam_score_static` column is precomputed by a trigger on every vote and kept current, so the query avoids per-row arithmetic across the TABLESAMPLE pool.
 
 ---
 
