@@ -11,7 +11,14 @@
 
 import { createClient } from '@/lib/supabase/client';
 
-export type GameId = 'snake' | 'tetris' | 'asteroids' | 'frogger' | 'underweb' | 'substrate';
+export type GameId =
+  | 'snake'
+  | 'minesweeper'
+  | 'tetris'
+  | 'asteroids'
+  | 'frogger'
+  | 'underweb'
+  | 'substrate';
 
 /** Flat XP awarded for clearing a single level (levels 1..100). */
 export const LEVEL_XP = 10;
