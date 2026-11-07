@@ -1,5 +1,7 @@
 # Store Submission Guide
 
+**Last Updated:** 2026-11-07
+
 ## Overview
 
 This guide provides step-by-step instructions for submitting Roam to app and extension stores:
@@ -609,11 +611,11 @@ adb install-multiple app-release.apks
 
 ## Post-Submission Tracking
 
-| Store | Date Submitted | Expected Approval | Status | URL |
-|-------|---|---|---|---|
-| Chrome Web Store | | | | |
-| Firefox AMO | | | | |
-| Google Play | | | | |
+| Store | Status | Listing |
+|---|---|---|
+| Chrome Web Store | Live — published | Linked from the website |
+| Firefox AMO | Live — published | Linked from the website |
+| Google Play | Live — published | Linked from the website |
 
 ---
 

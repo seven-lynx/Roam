@@ -48,8 +48,8 @@ Roam is a single public repository — there is no separate private repo.
 Internal-only files (audit reports, offline seeder scripts, AI/agent notes,
 and secrets) are kept out of git via `.gitignore`:
 
-- `docs/` (internal design docs, incident retros) — except the public
-  reference docs that are explicitly allowlisted
+- `docs/` — all reference docs are committed and public; internal design
+  docs and incident retros are kept in `.roam-local/` (gitignored)
 - `scripts/` (seeder scripts, offline tooling) — except the CI
   rule-enforcement scripts that are explicitly allowlisted
 - `.roam-local/`, `.github/skills/`, `.github/copilot-instructions.md`,

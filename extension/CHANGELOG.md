@@ -2,6 +2,10 @@
 
 All notable changes to the Roam browser extension.
 
+## [Unreleased]
+
+No changes pending release. Recent cross-platform discovery work (algorithm v31–v35) is documented in the [0.5.0] entry above and in the web / Android changelogs.
+
 ## [0.5.0] - 2026-08-05
 
 ### Changed

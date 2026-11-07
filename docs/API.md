@@ -2,7 +2,7 @@
 
 Complete documentation of all Supabase Edge Functions and PostgreSQL RPC functions used by Roam clients.
 
-**Last Updated:** 2026-10-10  
+**Last Updated:** 2026-11-07  
 **Base URL:** `https://<PROJECT_ID>.supabase.co`  
 **Authentication:** Bearer token in `Authorization: Bearer <JWT>` header (except public endpoints)
 
@@ -38,6 +38,10 @@ Complete documentation of all Supabase Edge Functions and PostgreSQL RPC functio
   - [`cron-daily-challenges` — Daily challenge rotation (scheduled)](#cron-daily-challenges--daily-challenge-rotation-scheduled)
   - [`cron-secret-badges` — Daily secret badge check (scheduled)](#cron-secret-badges--daily-secret-badge-check-scheduled)
   - [`cron-streak-cleanup` — Reset stale streaks (scheduled)](#cron-streak-cleanup--reset-stale-streaks-scheduled)
+  - [`game-action` — Award in-OS game XP](#game-action--award-in-os-game-xp)
+  - [`cron-notification-cleanup` — Notification retention cleanup (scheduled)](#cron-notification-cleanup--notification-retention-cleanup-scheduled)
+  - [`roll-action` — Record a Cyberdeck Roll gallery action](#roll-action--record-a-cyberdeck-roll-gallery-action)
+  - [`sentry-webhook` — Sentry → GitHub issue bridge (webhook)](#sentry-webhook--sentry--github-issue-bridge-webhook)
 - [RPC Functions (Database)](#rpc-functions-database)
   - [`roam()` — Weighted-random URL discovery](#roam--weighted-random-url-discovery)
   - [`admin_url_stats()` — Fetch admin dashboard statistics](#admin_url_stats--fetch-admin-dashboard-statistics)
@@ -1531,6 +1535,65 @@ Runs on a schedule (every 6 hours) via Supabase cron. Resets `streak_days` to 0 
 
 ---
 
+### `cron-notification-cleanup` — Notification retention cleanup (scheduled)
+
+Runs daily via Supabase cron. Deletes `notifications` older than 90 days and
+`push_tokens` older than 180 days, keeping both tables bounded. Not client-facing.
+
+**Endpoint:** `POST /functions/v1/cron-notification-cleanup`
+
+**Authentication:** Optional `Authorization: Bearer <CRON_SECRET>` (enforced only when `CRON_SECRET` is set)
+
+**Response (200):**
+```json
+{
+  "success": true
+}
+```
+
+**Error Responses:**
+- **401** — Unauthorized (missing/invalid `CRON_SECRET`, when configured)
+- **500** — Cleanup failed
+
+---
+
+### `roll-action` — Record a Cyberdeck Roll gallery action
+
+Records a `user_actions` row for a Roll gallery interaction on the web ROAM-OS
+shell, then fires badge evaluation (fire-and-forget). Not used by Android.
+
+**Endpoint:** `POST /functions/v1/roll-action`
+
+**Authentication:** Required (user JWT)
+
+**Request Body:**
+```json
+{
+  "action_type": "wallpaper",
+  "metadata": { "deck": "main" }
+}
+```
+
+| Field | Type | Notes |
+|---|---|---|
+| `action_type` | string | `wallpaper` or `roll_rate` |
+| `metadata` | object | Optional; defaults to `{}` |
+
+**Response (200):**
+```json
+{
+  "success": true
+}
+```
+
+**Error Responses:**
+- **400** — Invalid JSON, or `action_type` is not `wallpaper`/`roll_rate`
+- **401** — Missing or invalid session
+- **405** — Method not allowed
+- **500** — Failed to record the action
+
+---
+
 ### `sentry-webhook` — Sentry → GitHub issue bridge (webhook)
 
 Receives Sentry webhooks and files a GitHub issue in `seven-lynx/Roam` for each new or regressed error. Deterministic plumbing — no model calls. Not a client-facing endpoint.
@@ -1557,7 +1620,7 @@ Called via `supabase.rpc()`, not HTTP. These are PostgreSQL functions that run s
 
 ### `roam()` — Weighted-random URL discovery
 
-Primary RPC function for URL discovery. Selects a weighted-random URL from the user's categories, excludes seen URLs, handles language filtering and paywall filtering. **Current version: v29.**
+Primary RPC function for URL discovery. Selects a weighted-random URL from the user's categories, excludes seen URLs, handles language filtering and paywall filtering. **Current version: v35.** (See `docs/ALGORITHM.md` for the scoring model; `supabase/CHANGELOG.md` for the version history.)
 
 **Call Signature:**
 ```sql
@@ -1648,6 +1711,93 @@ console.log(`Dead URLs: ${stats.data.dead_urls}`);
 console.log(`Avg Wilson: ${stats.data.avg_wilson_score.toFixed(3)}`);
 console.log(`Active users (7d): ${stats.data.active_users_week}`);
 ```
+
+### `apply_xp()` — The single XP writer
+
+The canonical XP primitive. Every XP award flows through this function; it is the **only** writer to `xp_log`. Service-role only — clients cannot call it directly.
+
+**Call Signature:**
+```sql
+SELECT * FROM public.apply_xp(
+  p_user_id uuid,
+  p_action text,
+  p_xp int,
+  p_metadata jsonb DEFAULT '{}',
+  p_idempotency_key text DEFAULT NULL
+)
+```
+
+| Parameter | Type | Notes |
+|---|---|---|
+| `p_user_id` | uuid | The user receiving the XP |
+| `p_action` | text | Action string (e.g. `rate`, `submit`, `game:snake:win`) |
+| `p_xp` | int | XP amount; clamped to `[1, 1000]` per call |
+| `p_metadata` | jsonb | Optional context (badge slug, challenge key, etc.) |
+| `p_idempotency_key` | text | 1-hour dedupe window; retries can't double-award |
+
+**Behavior:**
+- Inserts a row into `xp_log` (idempotent on `p_idempotency_key`)
+- Upserts `user_daily_activity.xp_earned`
+- Re-derives `profiles.xp_total = SUM(xp_log.xp_awarded)` and `profiles.level = calculate_level(xp_total)` — self-healing, drift can't accumulate
+- Emits a `level_up` notification when the level increases
+
+---
+
+### `award_xp()` — Fixed-lookup wrapper
+
+Looks the action's XP up in `xp_actions` and delegates to `apply_xp()`. Exposed to `authenticated` + `service_role`; `authenticated` callers may only award XP to themselves.
+
+**Call Signature:**
+```sql
+SELECT * FROM public.award_xp(
+  p_user_id uuid,
+  p_action text,
+  p_metadata jsonb DEFAULT '{}',
+  p_idempotency_key text DEFAULT NULL
+)
+```
+
+---
+
+### `grant_badge()` — Grant a badge to a user
+
+Awards a badge definition to a user, inserts into `user_badges`, awards the badge's `xp_reward` via `apply_xp()`, and syncs `profiles.badge_count`. Restricted to `service_role` only.
+
+---
+
+### `calculate_level(p_xp BIGINT)` — Level from XP
+
+Implements the level formula:
+
+```sql
+FLOOR(SQRT(p_xp::NUMERIC / 100))::INT + 1
+```
+
+Levels are uncapped in code; the product targets progression up to level 50 for display purposes.
+
+---
+
+### `get_effective_streak()` — Effective streak count
+
+Returns the user's current streak, checking whether the user's last activity was within 24 hours before returning the count. Used by the `profile` edge function.
+
+---
+
+### `ensure_user_challenges()` — Lazily seed user challenges
+
+Seeds challenge instances for a user on first read, so challenges auto-populate without waiting for the nightly `cron-daily-challenges` run. Called by the `challenges` edge function.
+
+---
+
+### `reset_stale_streaks()` — Reset stale streaks
+
+Resets `streak_days` to 0 for users whose last activity was more than 24 hours ago. Called by the `cron-streak-cleanup` edge function.
+
+---
+
+### `sync_profile_badge_count(p_user_id)` — Sync badge count
+
+Recomputes `profiles.badge_count = COUNT(user_badges)` where `unlocked_at IS NOT NULL` for the given user.
 
 ---
 

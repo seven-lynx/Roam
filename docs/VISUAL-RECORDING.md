@@ -1,5 +1,7 @@
 # Visual recording — every screen across Roam platforms
 
+**Last Updated:** 2026-11-07
+
 Automated capture of **screenshots + videos** for every screen of the Web app
 and the Android app. (iOS does not exist yet, and the browser extension is
 intentionally out of scope for now — see [Limitations](#limitations).)

@@ -14,6 +14,10 @@ This index is the entry point to the repository documentation. Start with the qu
 - [BADGE_SYSTEM_ARCHITECTURE.md](BADGE_SYSTEM_ARCHITECTURE.md) — XP economy and badge evaluation.
 - [GLOSSARY.md](GLOSSARY.md) — product and scoring terminology.
 - [STORE_SUBMISSION_GUIDE.md](STORE_SUBMISSION_GUIDE.md) — store listing material.
+- [VISUAL-RECORDING.md](VISUAL-RECORDING.md) — automated screenshot + video capture.
+- [DOCS.md](DOCS.md) — documentation conventions and contribution guidelines.
+
+**Last Updated:** 2026-11-07
 
 ## Reference docs
 
@@ -26,11 +30,16 @@ This index is the entry point to the repository documentation. Start with the qu
 | [BADGE_SYSTEM_ARCHITECTURE.md](BADGE_SYSTEM_ARCHITECTURE.md) | Badge system and XP economy |
 | [GLOSSARY.md](GLOSSARY.md) | Product and scoring terminology |
 | [STORE_SUBMISSION_GUIDE.md](STORE_SUBMISSION_GUIDE.md) | Store submission guide |
+| [TAG_SYSTEM.md](TAG_SYSTEM.md) | Tag graph: tables, deployment state, pending tag-boost work |
+| [SECRETS_AUDIT.md](SECRETS_AUDIT.md) | Secret inventory, rotation procedure, and scan coverage |
+| [VISUAL-RECORDING.md](VISUAL-RECORDING.md) | Automated screenshot/video capture for every web + Android screen |
 
 ## Component docs
 
 - [Supabase backend](../supabase/README.md) — schema and migration working notes.
 - [Web app](../web/README.md) — Next.js route map and UI spec.
+- [Android app](../android/README.md) — Kotlin + Compose native app reference.
+- [Browser extension](../extension/README.md) — Chrome + Firefox MV3 build and design.
 
 ## Governance & operations
 

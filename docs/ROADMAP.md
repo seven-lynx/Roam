@@ -1,5 +1,7 @@
 # Roam — Build Tasks & Learning Log
 
+**Last Updated:** 2026-11-07
+
 ---
 
 ## Quick Navigation
@@ -55,7 +57,7 @@
 **Immediate Next Steps:**
 1. Wire the tag system into `roam()` (`tag_boost` — Phase E)
 2. Complete remaining Stage 7 end-to-end testing
-3. Finish optional seeder/coverage work (see `docs/SEEDER_COVERAGE_GAP_REPORT.md`)
+3. Finish optional seeder/coverage work
 
 **Known Issues:** None blocking launch. Pre-launch testing (Stage 7) underway.
 

@@ -64,7 +64,7 @@ For speed, scoring is computed inline in the query, candidate URLs are fetched a
 
 **Gamification**
 - 335 badges across 11 categories (exploration, collecting, curating, social, streaks, contributing, curiosity, games, and more)
-- Level progression (1–100) with XP earned from rating, submitting, and discovering
+- Level progression from XP earned from rating, submitting, and discovering
 - Daily challenges — complete tasks like rating URLs, discovering pages, and exploring categories to earn bonus XP
 - Leaderboard — compete on weekly, monthly, and all-time XP rankings
 - Badge gallery with unlock details and progress tracking
@@ -162,7 +162,7 @@ Kotlin + Jetpack Compose + Supabase Kotlin SDK. Single-activity MVVM with `MainV
 ```
 roam/
 ├── supabase/
-│   ├── migrations/         # 179 migrations (full schema history)
+│   ├── migrations/         # full schema history
 │   └── functions/          # 31 Deno Edge Functions
 │       └── _shared/        # CORS, auth helpers, rate limiting, Sentry
 │

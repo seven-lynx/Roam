@@ -40,7 +40,9 @@ The discovery model is documented in [ALGORITHM.md](ALGORITHM.md). Its inputs â€
 - **Realtime** powers live features such as the activity feed and notifications.
 - **Cron-scheduled functions** run periodic jobs: `challenges`, `cron-daily-challenges`, `cron-secret-badges`, `cron-streak-cleanup`, `cron-notification-cleanup`, `roam-health-check`, and `evaluate-badges`.
 
-Schema changes are stored as numbered migrations in `supabase/migrations/` (179 at time of writing) and applied with `supabase db push`.
+**Last Updated:** 2026-11-07
+
+Schema changes are stored as numbered migrations in `supabase/migrations/` and applied with `supabase db push`.
 
 ## Clients
 
