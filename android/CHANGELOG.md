@@ -18,6 +18,7 @@ All notable changes to the Roam Android app.
 ### Changed
 - Deck MENU key doubles as a home key — pressing it while the launcher, the COMMS menu, the translate picker, the cartridge shelf or a running program is on screen dismisses that overlay and returns focus to the page, instead of stacking another window on top. System back does the same, and the Roam / thumbs / Settings keys no longer leave a game running behind the tab they open.
 - BOTFIELD's shelf copy now matches the shipped board (ten bots on an eight-by-eight grid, not six on six).
+- Prefetch stays off when it is switched off — changing focus mode, a focus category, a subcategory or the collection filter no longer restarts the background prefill workers behind a disabled prefetch toggle. The next roam still carries the new filter.
 - Program paths use the Unix-style `/roam/bin/<PROGRAM>` flavour shared with the webapp.
 - The handheld ships no text adventures — the UNDERWEB program and its Kotlin parser/world port are gone, and SUBSTRATE's diegetic "not yet installed" stub is gone with the `requiresInstall` registry flag. The five arcade cartridges are the whole shelf.
 

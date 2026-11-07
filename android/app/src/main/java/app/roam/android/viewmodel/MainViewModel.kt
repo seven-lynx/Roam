@@ -685,12 +685,13 @@ class MainViewModel(
         if (!enabled) {
             _focusCategoryId.value = null
             _focusSubcategoryId.value = null
-            // Cancel existing prefill, clear queues, and restart unfiltered refill
-            // so the first roam after disabling focus is fast (not a cold network call).
+            // Cancel existing prefill and clear the filtered queues. The unfiltered
+            // refill only restarts when prefetch is switched on: the workers are
+            // user-controlled and must never respawn behind a disabled prefetch.
             prefetchJob?.cancel()
             viewModelScope.launch {
                 prefetchMutex.withLock { hotQueue.clear(); warmQueue.clear() }
-                startPrefillQueue()
+                if (_prefetchWebView.value) startPrefillQueue()
             }
         }
         // When enabling: don't touch queues yet — they stay with the current
@@ -708,10 +709,11 @@ class MainViewModel(
             if (!_focusModeEnabled.value) _focusModeEnabled.value = true
             // Sequentially cancel → clear → restart to avoid the race between
             // the clear coroutine (Main) and startPrefillQueue (IO dispatcher).
+            // The restart stays behind the prefetch toggle, like roam() does.
             prefetchJob?.cancel()
             viewModelScope.launch {
                 prefetchMutex.withLock { hotQueue.clear(); warmQueue.clear() }
-                startPrefillQueue()
+                if (_prefetchWebView.value) startPrefillQueue()
             }
         }
     }
@@ -720,11 +722,12 @@ class MainViewModel(
         _focusSubcategoryId.value = subcategoryId
         if (_focusModeEnabled.value && _focusCategoryId.value != null) {
             // Same sequential pattern as setFocusCategory — cancel, clear, restart
-            // in a single coroutine to avoid the Main/IO dispatcher race.
+            // in a single coroutine to avoid the Main/IO dispatcher race. The restart
+            // stays behind the prefetch toggle, like roam() does.
             prefetchJob?.cancel()
             viewModelScope.launch {
                 prefetchMutex.withLock { hotQueue.clear(); warmQueue.clear() }
-                startPrefillQueue()
+                if (_prefetchWebView.value) startPrefillQueue()
             }
         }
     }
@@ -1916,7 +1919,9 @@ class MainViewModel(
         _activeCollectionId.value = collectionId
         prefetchJob?.cancel()
         viewModelScope.launch { prefetchMutex.withLock { hotQueue.clear(); warmQueue.clear() } }
-        startPrefillQueue()
+        // Prefetch is user-controlled: never restart the prefill workers when it is
+        // switched off. The next roam() carries the new filter anyway.
+        if (_prefetchWebView.value) startPrefillQueue()
     }
 
     /** Called when the WebView finishes rendering the current page. 
