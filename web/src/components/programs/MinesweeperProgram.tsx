@@ -1,10 +1,14 @@
 'use client';
 
-import { useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { useAuth } from '@/components/AuthProvider';
 import { useWorkstation } from '@/components/WorkstationContext';
+import { GameLevelOverlay } from '@/components/programs/GameLevelOverlay';
 import { ProgramWindow } from '@/components/programs/ProgramWindow';
 import { ScaleToFit } from '@/components/programs/ScaleToFit';
+import { useGameLevel } from '@/components/programs/useGameLevel';
 import { PROGRAMS } from '@/lib/os-programs';
+import { makeRunId, WIN_LEVEL } from '@/lib/game-xp';
 import { beep, success } from '@/lib/sfx';
 
 /**
@@ -74,12 +78,23 @@ const COUNT_COLORS = [
 ];
 
 function BotfieldGame() {
-  const [level, setLevel] = useState(1);
+  const [board, setBoard] = useState<Cell[][]>(() => createBoard(sizeFor(1), minesFor(1)));
+  const [flagMode, setFlagMode] = useState(false);
+
+  const { session } = useAuth();
+  const [runId] = useState(() => makeRunId());
+  const { level, phase, countdown, lastXp, phaseRef, begin, completeLevel, gameOver, resetLevels } =
+    useGameLevel({ game: 'minesweeper', userId: session?.user.id ?? null, runId, winLevel: WIN_LEVEL });
+
+  const completeLevelRef = useRef(completeLevel);
+  const gameOverRef = useRef(gameOver);
+  useEffect(() => {
+    completeLevelRef.current = completeLevel;
+    gameOverRef.current = gameOver;
+  });
+
   const size = sizeFor(level);
   const mines = minesFor(level);
-  const [board, setBoard] = useState<Cell[][]>(() => createBoard(sizeFor(1), minesFor(1)));
-  const [gameOver, setGameOver] = useState(false);
-  const [flagMode, setFlagMode] = useState(false);
 
   const flood = (b: Cell[][], sr: number, sc: number): Cell[][] => {
     const next = b.map((row) => row.map((cell) => ({ ...cell })));
@@ -104,35 +119,43 @@ function BotfieldGame() {
     return true;
   };
 
+  // A new level (or a restart back to level 1) deals a fresh board.
+  const dealBoard = useCallback((lvl: number) => {
+    setBoard(createBoard(sizeFor(lvl), minesFor(lvl)));
+  }, []);
+
+  useEffect(() => {
+    dealBoard(level);
+  }, [level, dealBoard]);
+
   const reset = () => {
-    setLevel(1);
-    setBoard(createBoard(sizeFor(1), minesFor(1)));
-    setGameOver(false);
+    resetLevels();
+    setFlagMode(false);
+    dealBoard(1);
   };
 
   const sweep = (r: number, c: number) => {
-    if (gameOver) return;
+    if (phaseRef.current !== 'playing') return;
     if (board[r][c].flagged || board[r][c].revealed) return;
     const next = board.map((row) => row.map((cell) => ({ ...cell })));
     if (next[r][c].mine) {
       const exploded = next.map((row) => row.map((cell) => (cell.mine ? { ...cell, revealed: true } : cell)));
       setBoard(exploded);
-      setGameOver(true);
       beep();
+      const sweptClean = exploded.flat().filter((cell) => cell.revealed && !cell.mine).length;
+      gameOverRef.current(sweptClean);
       return;
     }
     const revealed = flood(next, r, c);
     setBoard(revealed);
     if (checkWin(revealed)) {
       success();
-      const nextLevel = level + 1;
-      setLevel(nextLevel);
-      setBoard(createBoard(sizeFor(nextLevel), minesFor(nextLevel)));
+      completeLevelRef.current();
     }
   };
 
   const flagCell = (r: number, c: number) => {
-    if (gameOver) return;
+    if (phaseRef.current !== 'playing') return;
     if (board[r][c].revealed) return;
     const next = board.map((row) => row.map((cell) => ({ ...cell })));
     next[r][c].flagged = !next[r][c].flagged;
@@ -152,21 +175,21 @@ function BotfieldGame() {
         <span style={{ color: 'var(--phosphor)' }}>
           {swept}/{size * size - mines}
         </span>
-        {gameOver && <span style={{ color: 'var(--danger)' }}> — SECTOR COMPROMISED</span>}
       </div>
 
       <ScaleToFit width={size * CELL + 24} height={size * CELL + 24}>
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: `repeat(${size}, ${CELL}px)`,
-            gap: 2,
-            padding: 4,
-            background: 'var(--panel-2)',
-            borderRadius: 8,
-            border: gameOver ? '2px solid var(--danger)' : '1px solid var(--line)',
-          }}
-        >
+        <div style={{ position: 'relative' }}>
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: `repeat(${size}, ${CELL}px)`,
+              gap: 2,
+              padding: 4,
+              background: 'var(--panel-2)',
+              borderRadius: 8,
+              border: phase === 'over' ? '2px solid var(--danger)' : '1px solid var(--line)',
+            }}
+          >
         {board.flat().map((cell, idx) => {
           const r = Math.floor(idx / size);
           const c = idx % size;
@@ -196,6 +219,19 @@ function BotfieldGame() {
             </div>
           );
         })}
+          </div>
+          <GameLevelOverlay
+            phase={phase}
+            level={level}
+            countdown={countdown}
+            lastXp={lastXp}
+            signedIn={!!session}
+            overTitle="SECTOR COMPROMISED"
+            scoreLabel="SWEPT"
+            score={swept}
+            onStart={begin}
+            onRestart={reset}
+          />
         </div>
       </ScaleToFit>
 
@@ -220,11 +256,6 @@ function BotfieldGame() {
         <span style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--muted)' }}>
           {flagMode ? 'TAP to flag' : 'TAP to sweep'} · LONG-PRESS flag
         </span>
-        {gameOver && (
-          <button type="button" className="program-btn" onClick={reset}>
-            RESTART
-          </button>
-        )}
       </div>
     </div>
   );

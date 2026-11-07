@@ -1,0 +1,49 @@
+# Screenshot flow: Cartridges (Menu key -> config sheet -> PROGRAMS // CARTRIDGES).
+# NOTE: the deck MENU key exposes the "Menu" accessibility label; the shelf tile
+# is now labelled "cartridges".
+appId: app.roam.android
+---
+- launchApp:
+    clearState: false
+- startRecording: android-programs
+- extendedWaitUntil:
+    visible: "Roam"
+    timeout: 30000
+- tapOn: "Menu"
+- scrollUntilVisible:
+    element:
+      text: "cartridges"
+    direction: DOWN
+    timeout: 20000
+- tapOn: "cartridges"
+- waitForAnimationToEnd
+- takeScreenshot: android-programs
+- tapOn: "RELAY"
+- waitForAnimationToEnd
+- takeScreenshot: android-programs-relay
+- tapOn: "✕"
+- scrollUntilVisible:
+    element:
+      text: "BOTFIELD"
+    direction: DOWN
+    timeout: 20000
+- tapOn: "BOTFIELD"
+- waitForAnimationToEnd
+- takeScreenshot: android-programs-botfield
+- tapOn: "✕"
+- tapOn: "✕"
+# MENU doubles as a home key: reopening the shelf and pressing it again must land
+# back on the page rather than stacking another overlay over the cartridges.
+- tapOn: "Menu"
+- scrollUntilVisible:
+    element:
+      text: "cartridges"
+    direction: DOWN
+    timeout: 20000
+- tapOn: "cartridges"
+- waitForAnimationToEnd
+- tapOn: "Menu"
+- waitForAnimationToEnd
+- assertNotVisible: "PROGRAMS // CARTRIDGES"
+- takeScreenshot: android-programs-home
+- stopRecording

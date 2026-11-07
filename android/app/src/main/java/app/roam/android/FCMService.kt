@@ -21,6 +21,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeout
+import kotlin.time.Duration.Companion.seconds
 
 class FCMService : FirebaseMessagingService() {
 
@@ -73,7 +74,7 @@ class FCMService : FirebaseMessagingService() {
             // Wait up to 10 seconds for the session to become authenticated.
             // On cold starts, Supabase session restoration can take a few seconds.
             try {
-                withTimeout(10_000) {
+                withTimeout(10.seconds) {
                     supabase.auth.sessionStatus
                         .map { status -> status is SessionStatus.Authenticated }
                         .first { it }

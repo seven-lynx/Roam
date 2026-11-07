@@ -137,6 +137,9 @@ fun MainScreen(
     val backlightColorKey by vm.backlightColor.collectAsState()
     val soundEffectsEnabled by vm.soundEffectsEnabled.collectAsState()
     val showConfigSheet by vm.showConfigSheet.collectAsState()
+    val programsOpen by vm.programsOpen.collectAsState()
+    val showCommsMenu by vm.showCommsMenu.collectAsState()
+    val showTranslatePicker by vm.showTranslatePicker.collectAsState()
     val state by vm.state.collectAsState()
     val collections by vm.collections.collectAsState()
     val categories by vm.categories.collectAsState()
@@ -186,6 +189,23 @@ fun MainScreen(
     val submitToast by vm.submitToast.collectAsState()
     val celebration by vm.celebration.collectAsState()
 
+    // The deck's MENU key doubles as a home key on ROAM-OS: with any overlay on
+    // screen (launcher, comms, translate picker, the cartridge shelf or a running
+    // program) one press dismisses it and hands the screen back to the WebView.
+    // With nothing open it opens the launcher, as before.
+    val dismissOverlaysOrOpenLauncher: () -> Unit = {
+        when {
+            programsOpen -> vm.closePrograms()
+            showConfigSheet -> vm.closeConfigSheet()
+            showCommsMenu -> vm.closeCommsMenu()
+            showTranslatePicker -> vm.closeTranslatePicker()
+            else -> {
+                currentTab = RoamTab.Roam.route
+                vm.openConfigSheet()
+            }
+        }
+    }
+
     CompositionLocalProvider(
         LocalClickSound provides { vm.uiFeedback(R.raw.click_nav) },
         LocalHardwarePalette provides roamOsPalette(hardwareColorScheme),
@@ -210,25 +230,30 @@ fun MainScreen(
                     focusModeEnabled = focusModeEnabled,
                     userRating = userRating,
                     muted = !soundEffectsEnabled,
-                    menuOpen = showConfigSheet,
+                    menuOpen = showConfigSheet || programsOpen,
                     onRoam = {
+                        if (programsOpen) vm.closePrograms()
                         if (showConfigSheet) vm.closeConfigSheet()
                         if (state is RoamState.Loaded) vm.roam()
                     },
                     onThumbsUp = {
+                        if (programsOpen) vm.closePrograms()
                         if (showConfigSheet) vm.closeConfigSheet()
                         vm.thumbsUp(context)
                     },
                     onThumbsDown = {
+                        if (programsOpen) vm.closePrograms()
                         if (showConfigSheet) vm.closeConfigSheet()
                         vm.thumbsDown(context)
                     },
                     onNavigate = {
+                        if (programsOpen) vm.closePrograms()
                         if (showConfigSheet) vm.closeConfigSheet()
                         currentTab = it
                     },
-                    onOpenMenu = { if (showConfigSheet) vm.closeConfigSheet() else { currentTab = RoamTab.Roam.route; vm.openConfigSheet() } },
+                    onOpenMenu = dismissOverlaysOrOpenLauncher,
                     onOpenComms = {
+                        if (programsOpen) vm.closePrograms()
                         if (showConfigSheet) vm.closeConfigSheet()
                         currentTab = RoamTab.Roam.route
                         vm.toggleCommsMenu()
@@ -269,10 +294,24 @@ fun MainScreen(
                 modifier = Modifier.fillMaxSize(),
             ) {
                 Box(Modifier.fillMaxSize()) {
-            BackHandler(enabled = currentTab != RoamTab.Roam.route) {
-                currentTab = when (currentTab) {
-                    RoamTab.Appearance.route, RoamTab.Browser.route, RoamTab.Discovery.route, RoamTab.Effects.route -> RoamTab.SettingsHub.route
-                    else -> RoamTab.Roam.route
+            BackHandler(
+                // ROAM-OS overlays swallow back so an in-screen program can be
+                // left without finishing the activity. Classic theme keeps its
+                // old behaviour (back only walks the tab stack) because there the
+                // config sheet is a draggable bottom sheet, not a full-screen one.
+                enabled = currentTab != RoamTab.Roam.route ||
+                    (isRoamOs && (programsOpen || showConfigSheet || showCommsMenu || showTranslatePicker)),
+            ) {
+                when {
+                    // System back mirrors the deck's home key.
+                    isRoamOs && programsOpen -> vm.closePrograms()
+                    isRoamOs && showConfigSheet -> vm.closeConfigSheet()
+                    isRoamOs && showCommsMenu -> vm.closeCommsMenu()
+                    isRoamOs && showTranslatePicker -> vm.closeTranslatePicker()
+                    else -> currentTab = when (currentTab) {
+                        RoamTab.Appearance.route, RoamTab.Browser.route, RoamTab.Discovery.route, RoamTab.Effects.route -> RoamTab.SettingsHub.route
+                        else -> RoamTab.Roam.route
+                    }
                 }
             }
 
@@ -638,11 +677,14 @@ private fun DiscoverTab(
     val nextPrefetchUrl by vm.nextPrefetchUrl.collectAsState()
     val themeVariant by vm.themeVariant.collectAsState()
     val soundEffectsEnabled by vm.soundEffectsEnabled.collectAsState()
+    val isSignedIn by vm.isSignedIn.collectAsState()
     val isTranslating by vm.isTranslating.collectAsState()
     val translateLanguage by vm.translateLanguage.collectAsState()
     val webViewReady by vm.webViewReady.collectAsState()
     val showTranslatePicker by vm.showTranslatePicker.collectAsState()
-    var programsOpen by remember { mutableStateOf(false) }
+    // Hoisted into the ViewModel so the control deck (rendered above this tab, in
+    // MainScreen) can act as a home key and dismiss the shelf or a running program.
+    val programsOpen by vm.programsOpen.collectAsState()
     val isRoamOs = themeVariant == RoamThemeVariant.ROAM_OS
     val screenLabel = if (isRoamOs) when {
         showTranslatePicker -> "TRANSLATE // TARGET"
@@ -650,9 +692,19 @@ private fun DiscoverTab(
         showCommsMenu -> "COMMS // UPLINK"
         showShareUrlSheet -> "SHARE // LINK"
         showSubmitSheet -> "SUBMIT // URL"
-        programsOpen -> "PROGRAMS // SHELF"
+        programsOpen -> "PROGRAMS // CARTRIDGES"
         else -> null
     } else null
+
+    // Every ROAM-OS overlay that can sit on top of the page. When the last one
+    // closes, bump [refocusKey] so the WebView takes keyboard focus back — the
+    // deck's MENU key is a home key, and "home" means the page is ready to type in.
+    val overlayOpen = programsOpen || showConfigSheet || showCommsMenu ||
+        showTranslatePicker || showShareUrlSheet || showSubmitSheet
+    var refocusKey by remember { mutableStateOf(0) }
+    LaunchedEffect(overlayOpen) {
+        if (!overlayOpen) refocusKey++
+    }
 
     var initialRoamDone by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) {
@@ -1008,6 +1060,7 @@ private fun DiscoverTab(
                     onPageFinishedForPrefetch = { vm.onPageFinishedForPrefetch() },
                     navCommandsFlow = vm.webNavFlow,
                     clearCookiesFlow = vm.clearCookiesFlow,
+                    refocusKey = refocusKey,
                 )
 
                 if (showOverlay || scanFinishPending || resumeStandby) {
@@ -1104,7 +1157,7 @@ private fun DiscoverTab(
                         onNavForward = { vm.webNavForward() },
                         onNavReload = { vm.webNavReload() },
                         onReportBrokenLink = { vm.reportBrokenLink() },
-                        onOpenPrograms = { vm.closeConfigSheet(); programsOpen = true },
+                        onOpenPrograms = { vm.openPrograms() },
                         title = loaded?.roamUrl?.title,
                         description = loaded?.roamUrl?.description,
                         domain = rawUrl?.toUri()?.host?.removePrefix("www."),
@@ -1119,7 +1172,11 @@ private fun DiscoverTab(
                 if (isRoamOs && programsOpen) {
                     ProgramsScreen(
                         soundEnabled = soundEffectsEnabled,
-                        onClose = { programsOpen = false },
+                        signedIn = isSignedIn,
+                        onAward = { game, kind, runId, level, score ->
+                            vm.awardGameXp(game, kind, runId, level, score)
+                        },
+                        onClose = { vm.closePrograms() },
                         modifier = Modifier.fillMaxSize(),
                     )
                 }
