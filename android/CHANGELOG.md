@@ -15,6 +15,11 @@ All notable changes to the Roam Android app.
 
 ### Fixed
 - Deck system readout — the strip scrolls its messages continuously again instead of showing one clipped message and then sitting blank; the marquee lays every repeated tile out at full width and its tile maths is covered by unit tests.
+- Returning from the lock screen or another app no longer strands the app on the boot/scan screen. `ON_RESUME` in `RoamWebView` now releases the loading latch for an already-committed page (Chrome fires no load/pageshow event there), re-arms recovery when a load was dropped mid-flight, and bumps `recreateNonce` to rebuild the WebView when `onRenderProcessGone` reports a killed renderer — that path previously left the process-wide `pauseTimers()` pause in place, so every subsequent `loadUrl()` stalled with no terminal callback.
+- `MainViewModel.beginPageLoad()` arms a 12 s fail-open timer, so a missing reveal callback can never hold the overlay closed indefinitely; `onPageRevealed()` cancels it.
+- `roam()` latches the loading overlay only after its 1 s debounce guard — a debounced tap used to arm the overlay and return without starting a load.
+- `webViewLoading` in `DiscoverTab` is plain `remember` again; restoring `true` from saved state after process death drove `isRoaming` with no load in flight.
+- Main-frame load errors release the overlay so the "This page couldn't load" box is reachable instead of sitting behind the boot screen.
 
 ## [1.4.0] - 2026-10-29
 

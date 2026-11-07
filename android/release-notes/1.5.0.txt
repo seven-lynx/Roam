@@ -1,0 +1,5 @@
+What's new in 1.5.0:
+
+• In-device programs — A "software shelf" you can open from the config sheet. The programs run inside the handheld, mirroring the web's four shipped games (RELAY, BOTFIELD, COMPILER, DEBRIS).
+• RELAY — A game built into ROAM-OS: swipe or use the on-screen D-pad, with a boot-time controls guide, an ABOUT/LICENSE drawer, and click/tick sound effects that follow your SFX toggle.
+• Background return fix — Coming back from the lock screen or another app no longer leaves Roam stuck on the boot screen. The page reappears straight away, and if Android killed the page while you were away Roam rebuilds it and puts you back where you were.

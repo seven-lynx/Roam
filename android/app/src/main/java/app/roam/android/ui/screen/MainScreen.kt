@@ -677,7 +677,10 @@ private fun DiscoverTab(
     )
     val scope = rememberCoroutineScope()
 
-    var webViewLoading by rememberSaveable { mutableStateOf(false) }
+    // Not rememberSaveable: this is transient WebView state. Restoring `true` across
+    // process death would drive isRoaming with no load in flight and strand the UI on
+    // the boot/scan overlay.
+    var webViewLoading by remember { mutableStateOf(false) }
     var lastLoadedUrl by remember { mutableStateOf<String?>(null) }
     var loadingMessage by remember { mutableStateOf(pickRandomMessage(roamOs = isRoamOs)) }
     var webViewRecovering by remember { mutableStateOf(false) }
