@@ -28,6 +28,7 @@ All notable changes to the Roam Android app.
 - The build rejects a `SENTRY_DSN` that points at the wrong Sentry project. A DSN's path segment is the project id, and copy-pasting one from another surface is how `ROAM-EXTENSION-J/K/M` filed Android test-harness failures under `roam-extension`; `local.properties` must now carry the Android project id (`4511314873090048`, `roam-android`) or the build stops with the mismatch named.
 
 - BOTFIELD's board rules now match real Minesweeper on the handheld: the opening sweep is guaranteed safe and opens an area, tapping a satisfied number chords its neighbours (detonating on a wrong flag), and the HUD shows the remaining bots (`total − flags`) instead of the total.
+- The deck's READY and BUFFER lights track the prefetch queues again. Both read `00` permanently once the queue-size publisher was dropped from the prefetch pipeline; the sizes are now republished under the prefetch lock whenever the queues change (a roam hit, a warm fill, a hot promotion, and every queue reset).
 
 ### Server
 - `game-action` now accepts `minesweeper`, so BOTFIELD awards XP and `win-botfield` / `gamer-all` are earnable on both surfaces.

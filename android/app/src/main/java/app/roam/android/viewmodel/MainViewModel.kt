@@ -690,7 +690,7 @@ class MainViewModel(
             // user-controlled and must never respawn behind a disabled prefetch.
             prefetchJob?.cancel()
             viewModelScope.launch {
-                prefetchMutex.withLock { hotQueue.clear(); warmQueue.clear() }
+                prefetchMutex.withLock { clearQueuesLocked() }
                 if (_prefetchWebView.value) startPrefillQueue()
             }
         }
@@ -712,7 +712,7 @@ class MainViewModel(
             // The restart stays behind the prefetch toggle, like roam() does.
             prefetchJob?.cancel()
             viewModelScope.launch {
-                prefetchMutex.withLock { hotQueue.clear(); warmQueue.clear() }
+                prefetchMutex.withLock { clearQueuesLocked() }
                 if (_prefetchWebView.value) startPrefillQueue()
             }
         }
@@ -726,21 +726,25 @@ class MainViewModel(
             // stays behind the prefetch toggle, like roam() does.
             prefetchJob?.cancel()
             viewModelScope.launch {
-                prefetchMutex.withLock { hotQueue.clear(); warmQueue.clear() }
+                prefetchMutex.withLock { clearQueuesLocked() }
                 if (_prefetchWebView.value) startPrefillQueue()
             }
         }
     }
 
     // ── Prefetch queues ───────────────────────────────────────────────────────
-    // Hot queue  (HOT_TARGET = 10): HEAD-validated URLs served instantly on tap.
+    // Hot queue  (HOT_TARGET = 12): HEAD-validated URLs served instantly on tap.
     // Warm queue (WARM_TARGET = 15): fetched from the API but not yet validated.
     // Phase 2 validates URLs concurrently to maximize throughput.
 
     private val HOT_TARGET  = 12
     private val WARM_TARGET = 15
-    private val hotQueue    = ArrayDeque<RoamUrl>()
-    private val warmQueue   = ArrayDeque<RoamUrl>()
+
+    // `internal` (not private) so MainViewModelTest can seed the queues without
+    // standing up the IO prefill workers; production code mutates them only inside
+    // prefetchMutex.
+    internal val hotQueue    = ArrayDeque<RoamUrl>()
+    internal val warmQueue   = ArrayDeque<RoamUrl>()
     private val prefetchMutex = Mutex()
 
     /** Hot queue size (URLs validated and instantly servable) — exposed for the diegetic deck. */
@@ -754,9 +758,17 @@ class MainViewModel(
     private var sessionStatusJob: Job? = null
     private var connectivityJob: Job? = null
 
+    /** Publishes the queue sizes for the deck. Must be called with [prefetchMutex] held. */
     private fun updateQueueSizesLocked() {
         _hotQueueSize.value = hotQueue.size
         _warmQueueSize.value = warmQueue.size
+    }
+
+    /** Empties both queues and republishes the deck readout. Caller must hold [prefetchMutex]. */
+    private fun clearQueuesLocked() {
+        hotQueue.clear()
+        warmQueue.clear()
+        updateQueueSizesLocked()
     }
 
     /** Current exclude-domain for the running prefill (updated without restarting). */
@@ -1471,6 +1483,7 @@ class MainViewModel(
                         break
                     }
                 }
+                updateQueueSizesLocked()
                 result
             }
 
@@ -1694,6 +1707,7 @@ class MainViewModel(
                                         warmQueue.addLast(candidate)
                                     }
                                 }
+                                updateQueueSizesLocked()
                             }
                             delay(500) // Pace to avoid hammering
                         }
@@ -1717,7 +1731,11 @@ class MainViewModel(
                         // Pull a batch from warm to validate
                         val batch = prefetchMutex.withLock {
                             val size = minOf(4, warmQueue.size, HOT_TARGET - hotQueue.size)
-                            (1..size).mapNotNull { if (warmQueue.isNotEmpty()) warmQueue.removeFirst() else null }
+                            val pulled = (1..size).mapNotNull {
+                                if (warmQueue.isNotEmpty()) warmQueue.removeFirst() else null
+                            }
+                            updateQueueSizesLocked()
+                            pulled
                         }
 
                         if (batch.isNotEmpty()) {
@@ -1755,6 +1773,7 @@ class MainViewModel(
                                     }
                                 }
                                 hotFails = if (successCount > 0) 0 else hotFails + 1
+                                updateQueueSizesLocked()
 
                                 if (newlyCulled.isNotEmpty()) {
                                     viewModelScope.launch { runCatching { repo.reportUrlFailures(newlyCulled) } }
@@ -1926,7 +1945,7 @@ class MainViewModel(
     fun setCollectionFilter(collectionId: String?) {
         _activeCollectionId.value = collectionId
         prefetchJob?.cancel()
-        viewModelScope.launch { prefetchMutex.withLock { hotQueue.clear(); warmQueue.clear() } }
+        viewModelScope.launch { prefetchMutex.withLock { clearQueuesLocked() } }
         // Prefetch is user-controlled: never restart the prefill workers when it is
         // switched off. The next roam() carries the new filter anyway.
         if (_prefetchWebView.value) startPrefillQueue()
@@ -2386,7 +2405,7 @@ class MainViewModel(
     fun resetForNewSession() {
         roamJob?.cancel()
         prefetchJob?.cancel()
-        viewModelScope.launch { prefetchMutex.withLock { hotQueue.clear(); warmQueue.clear() } }
+        viewModelScope.launch { prefetchMutex.withLock { clearQueuesLocked() } }
         _state.value = RoamState.Idle
         _rawUrl.value = null
         _currentUrl.value = null
@@ -2415,7 +2434,7 @@ class MainViewModel(
         val categoryId = loaded?.roamUrl?.categoryId
         _activeCollectionId.value = null
         prefetchJob?.cancel()
-        viewModelScope.launch { prefetchMutex.withLock { hotQueue.clear(); warmQueue.clear() } }
+        viewModelScope.launch { prefetchMutex.withLock { clearQueuesLocked() } }
         _showConfigSheet.value = false
         viewModelScope.launch {
             _state.value = RoamState.Loading

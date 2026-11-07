@@ -317,6 +317,31 @@ class MainViewModelTest {
         coVerify(atLeast = 1) { freshRepo.roam(any(), any(), any(), any()) }
     }
 
+    @Test
+    fun `roam publishes queue sizes so the deck readouts do not stay at zero`() = runTest {
+        val warmUrl = RoamUrl(
+            id = "url-456",
+            url = "https://warm.example.org",
+            title = "Warm Domain",
+            description = null,
+            ogImageUrl = null,
+            subcategoryId = null,
+        )
+        // Seed the queues directly: roam() serves the hot entry instantly and
+        // leaves the warm one queued. Both sizes must reach the deck's
+        // READY/BUFFER readouts — they read 00 forever while the publisher was
+        // defined but never called.
+        vm.hotQueue.addLast(mockUrl)
+        vm.warmQueue.addLast(warmUrl)
+
+        vm.roam()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals(RoamState.Loaded(mockUrl), vm.state.value)
+        assertEquals("READY should track the drained hot queue", 0, vm.hotQueueSize.value)
+        assertEquals("BUFFER should track the queued warm entry", 1, vm.warmQueueSize.value)
+    }
+
     // ─── thumbsUp / thumbsDown ─────────────────────────────────────────────────
 
     @Test
