@@ -29,6 +29,7 @@ All notable changes to the Roam Android app.
 
 - BOTFIELD's board rules now match real Minesweeper on the handheld: the opening sweep is guaranteed safe and opens an area, tapping a satisfied number chords its neighbours (detonating on a wrong flag), and the HUD shows the remaining bots (`total − flags`) instead of the total.
 - The deck's READY and BUFFER lights track the prefetch queues again. Both read `00` permanently once the queue-size publisher was dropped from the prefetch pipeline; the sizes are now republished under the prefetch lock whenever the queues change (a roam hit, a warm fill, a hot promotion, and every queue reset).
+- The ROAM-OS scan overlay no longer flickers at the end of a page load. The "MOUNT COMPLETE" beat used to be armed from a post-composition effect keyed on the overlay's own visibility, so the overlay was torn down for a frame — flashing the live page — and then re-shown for its 500 ms. `MainViewModel.onPageRevealed()` now holds the reveal latch for the beat (`revealFinishing`), so the page appears once, after MOUNT COMPLETE; a failed load and a resume of an already-committed page still reveal immediately.
 
 ### Server
 - `game-action` now accepts `minesweeper`, so BOTFIELD awards XP and `win-botfield` / `gamer-all` are earnable on both surfaces.
