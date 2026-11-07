@@ -38,7 +38,7 @@ For speed, scoring is computed inline in the query, candidate URLs are fetched a
 
 **Discovery**
 - One button, filtered to your interests
-- 30-minute domain cooldown prevents seeing the same site twice in a row
+- 24-hour domain cooldown prevents seeing the same site twice in a row
 - Occasional adjacent topic in discovery mode — intentional serendipity
 - Focus mode lets you narrow discovery to specific topics or categories you select
 - Collection mode stays within a saved list
@@ -47,7 +47,7 @@ For speed, scoring is computed inline in the query, candidate URLs are fetched a
 - Topic affinity: upvoting a topic more often increases how frequently it appears (up to 2× weight; floor 0.4×). Downvoting doesn't hide a topic — it just dials the weight back slightly. Calibrated per subcategory.
 - Domain muting: two downvotes from the same domain triggers a 30-day auto-mute
 - Language filter, paywall opt-out
-- Subcategories: the system tracks your preferences within 72 subcategories across 8 category pillars for granular personalization
+- Subcategories: the system tracks your preferences within ~72 subcategories across 8 category pillars for granular personalization
 
 **Community**
 - URL submission with moderation queue and duplicate detection
@@ -132,7 +132,7 @@ Edge Functions (Deno) handle operations that need more than a simple query: `roa
 | `user_interest_scores` | Per-user, per-subcategory calibration weights |
 | `user_category_scores` | Per-user, per-category calibration (for unsegmented URLs) |
 | `interest_pair_scores` | Adjacent-category pair scoring for serendipity |
-| `user_domain_cooldowns` | 30-minute per-session domain cooldown |
+| `user_domain_cooldowns` | 24-hour per-session domain cooldown |
 | `user_suppressed_domains` | 30-day domain suppression (from repeated downvotes) |
 | `collections` / `collection_items` | User-saved lists |
 | `profiles` / `follows` | Social layer |
