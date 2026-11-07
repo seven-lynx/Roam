@@ -18,10 +18,11 @@ The following secrets are declared in `.env.example` (gitignored; copy to `.env`
 | `SENTRY_ORG`, `SENTRY_PROJECT` | Sentry org / project | `.env` / CI |
 | `CRON_SECRET` | Cron scheduler auth (cron-daily-challenges, cron-streak-cleanup, cron-secret-badges) | `.env` / edge function env |
 | `SENTRY_WEBHOOK_SECRET` | Sentry → GitHub webhook shared secret | `supabase secrets set` |
+| `SENTRY_DSN` | Edge Function error reporting (Sentry project `roam-supabase`) | `supabase secrets set` |
 | `GITHUB_PAT` | GitHub token for filed issues | `supabase secrets set` |
 | `GITHUB_REPO` | Target repo for filed issues (defaults to `seven-lynx/Roam`) | `supabase secrets set` |
 
-Edge-function secrets (`SENTRY_WEBHOOK_SECRET`, `GITHUB_PAT`, `FCM_SERVICE_ACCOUNT_JSON`, `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `RESEND_API_KEY`, `SAFE_BROWSING_API_KEY`) are set on the remote project via `supabase secrets set` and read from the function environment, not from `.env`.
+Edge-function secrets (`SENTRY_WEBHOOK_SECRET`, `SENTRY_DSN`, `GITHUB_PAT`, `FCM_SERVICE_ACCOUNT_JSON`, `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `RESEND_API_KEY`, `SAFE_BROWSING_API_KEY`) are set on the remote project via `supabase secrets set` and read from the function environment, not from `.env`.
 
 ## Rotation procedure
 

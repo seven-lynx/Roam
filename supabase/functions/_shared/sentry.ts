@@ -73,16 +73,27 @@ export function initSentry(releaseName?: string): ReportFn {
     const envelope = `${JSON.stringify({ event_id: eventId })}\n${JSON.stringify({ type: 'event' })}\n${JSON.stringify(envelopeBody)}\n`;
 
     try {
-      await fetch(
+      const response = await fetch(
         `https://${parsed.host}/api/${parsed.projectId}/envelope/`,
         {
           method: 'POST',
-          headers: { 'Content-Type': 'application/x-sentry-envelope' },
+          headers: {
+            'Content-Type': 'application/x-sentry-envelope',
+            // Sentry rejects an envelope post that carries no auth header (401), so the
+            // DSN's public key has to travel with the request.
+            'X-Sentry-Auth':
+              `Sentry sentry_version=7, sentry_client=roam-edge/1.0, sentry_key=${parsed.key}`,
+          },
           body: envelope,
         },
       );
+      // Delivery failures must never cascade into the function failing, but a silent
+      // 401 here is exactly how reporting can stay dark without anyone noticing.
+      if (!response.ok) {
+        console.error(`[sentry] envelope rejected: ${response.status}`);
+      }
     } catch {
-      // Sentry delivery failure must not cascade into the function failing
+      // Network failure: same rule as above — never break the function.
     }
   };
 }
