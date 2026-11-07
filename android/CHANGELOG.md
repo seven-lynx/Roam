@@ -21,6 +21,9 @@ All notable changes to the Roam Android app.
 - Program paths use the Unix-style `/roam/bin/<PROGRAM>` flavour shared with the webapp.
 - The handheld ships no text adventures — the UNDERWEB program and its Kotlin parser/world port are gone, and SUBSTRATE's diegetic "not yet installed" stub is gone with the `requiresInstall` registry flag. The five arcade cartridges are the whole shelf.
 
+### Fixed
+- Unit-test runs no longer report to Sentry. The Robolectric suite builds the real `RoamApplication`, so the SDK used to ship test-harness failures — a mocked repository exception, heap exhaustion, a mockk coroutine error — to the live project as if they were device crashes. Error reporting is now skipped whenever the process is a JVM test, and real devices and emulators report exactly as before.
+
 ### Server
 - `game-action` now accepts `minesweeper`, so BOTFIELD awards XP and `win-botfield` / `gamer-all` are earnable on both surfaces.
 
