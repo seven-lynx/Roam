@@ -1236,17 +1236,18 @@ These must be completed before any app store submission or launch is possible.
       - Compile: Android Kotlin compilation
       - Security: Trivy vulnerability scan, TruffleHog secret scanning
       - Coverage: Upload to Codecov
-      - **Blocks merge if tests fail** ?
-    - **deploy.yml**: Manual trigger on main branch (requires `[deploy]` in commit message or manual workflow dispatch)
-      - Deploy Supabase migrations: `supabase db push`
-      - Deploy Edge Functions: All 9 functions via `supabase functions deploy`
-      - Deploy web: Upload to Vercel using `vercel/action`
-      - Notify: Slack message on success
+      - **Does not block merge**: `main` has no branch protection, so a red run is advisory
+    - **deploy.yml**: `workflow_dispatch` only — no push or commit-message trigger. The `[deploy]` tag was removed after it caused production incidents (Hard Rule 1.1), and the `Production` environment's branch policy allows only `main`
+      - Pre-deploy gates: type-check every Edge Function in isolation, preview migrations with `db push --dry-run`, verify `roam()` under the authenticated role
+      - Deploy Supabase migrations: `supabase db push --remote`
+      - Deploy Edge Functions: All 30 functions via `supabase functions deploy`
+      - Post-deploy: poll `roam-health-check` until it returns green
+      - Deploy web: not this workflow — Vercel's own GitHub integration deploys on push to `main`
     - Requires GitHub Secrets setup (documented in workflow comments)
   - **Acceptance:** At least one workflow file exists and successfully runs tests on push, deployments are gated on test passage
   - **Details:** Two workflows:
-    - **ci.yml** (on push to any branch): Run tests (Jest, Vitest, Deno test), lint (ESLint, Kotlin), type check, build extension/APK
-    - **deploy.yml** (on push to main): Deploy web to Vercel, deploy Supabase migrations, deploy Edge Functions, upload extension to store
+    - **ci.yml** (on push and pull request to `main` or `develop`): Run tests (Jest, Vitest, Deno test), lint (ESLint, Kotlin), type check, build extension/APK
+    - **deploy.yml** (manual dispatch, `main` only): Deploy Supabase migrations and Edge Functions; the web app deploys through Vercel's own integration and the extension and Android app ship through the stores
   - **Minimum:** Pass all tests, prevent merge if tests fail, deploy to staging for PR review
   - **Acceptance:** At least one workflow file exists and successfully runs tests on push, deployments are gated on test passage
 

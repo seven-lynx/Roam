@@ -7,7 +7,13 @@ name: Deploy Supabase Migrations & Functions
 # see Hard Rule 1.1 (the `[deploy]` tag caused multiple production incidents).
 #
 # To run: Actions -> "Deploy Supabase Migrations & Functions" -> Run workflow.
-# The `production` environment enforces required reviewers before dispatch.
+# Always dispatch with --ref main: the `Production` environment's branch policy
+# allows only `main`, so any other ref is rejected before the first step runs.
+# There are deliberately no required reviewers — this repository has a single
+# admin, who can both approve their own run and bypass protection rules, so
+# reviewers would gate nothing. Revisit if a second maintainer joins. The
+# `staging` environment is left unrestricted on purpose: testing an unmerged
+# branch's migrations is what it is for.
 
 on:
   workflow_dispatch:
