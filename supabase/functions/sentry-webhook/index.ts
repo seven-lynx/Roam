@@ -93,7 +93,17 @@ Deno.serve(async (req) => {
 // ── Optional stack-trace enrichment ─────────────────────────────────────────
 
 async function enrich(issue: NormalizedIssue): Promise<void> {
-  if (issue.stackFrames.length > 0 || !SENTRY_AUTH_TOKEN) return
+  if (issue.stackFrames.length > 0) return
+  if (!SENTRY_AUTH_TOKEN) {
+    // Silent before this: an issue filed without a stack trace looked identical
+    // to a Sentry event that simply carried none, and ROAM-EXTENSION-M's body
+    // gave no clue that enrichment was off. Say it out loud instead.
+    console.warn(
+      'sentry-webhook: SENTRY_AUTH_TOKEN unset — filing without a stack trace',
+      issue.sentryIssueId,
+    )
+    return
+  }
 
   const base = sentryApiBase(issue.url)
   if (!base) return
@@ -102,7 +112,12 @@ async function enrich(issue: NormalizedIssue): Promise<void> {
     const res = await fetch(`${base}/issues/${issue.sentryIssueId}/events/latest/`, {
       headers: { Authorization: `Bearer ${SENTRY_AUTH_TOKEN}` },
     })
-    if (!res.ok) return
+    if (!res.ok) {
+      // Same silence problem on the other exit: an expired token (401) used to
+      // look exactly like an event that carried no frames.
+      console.warn('sentry-webhook: enrichment fetch failed', res.status)
+      return
+    }
 
     const ev = asObject(await res.json())
     if (!ev) return

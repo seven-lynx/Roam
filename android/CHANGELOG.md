@@ -24,6 +24,7 @@ All notable changes to the Roam Android app.
 
 ### Fixed
 - Unit-test runs no longer report to Sentry. The Robolectric suite builds the real `RoamApplication`, so the SDK used to ship test-harness failures — a mocked repository exception, heap exhaustion, a mockk coroutine error — to the live project as if they were device crashes. Error reporting is now skipped whenever the process is a JVM test, and real devices and emulators report exactly as before.
+- The build rejects a `SENTRY_DSN` that points at the wrong Sentry project. A DSN's path segment is the project id, and copy-pasting one from another surface is how `ROAM-EXTENSION-J/K/M` filed Android test-harness failures under `roam-extension`; `local.properties` must now carry the Android project id (`4511314873090048`, `roam-android`) or the build stops with the mismatch named.
 
 ### Server
 - `game-action` now accepts `minesweeper`, so BOTFIELD awards XP and `win-botfield` / `gamer-all` are earnable on both surfaces.

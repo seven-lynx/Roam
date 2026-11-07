@@ -14,6 +14,22 @@ if (localPropertiesFile.exists()) {
     localPropertiesFile.inputStream().use { localProperties.load(it) }
 }
 
+// A DSN's path segment IS the Sentry project id, so a DSN copied from another
+// surface silently files Android crashes in the wrong project — that is how
+// ROAM-EXTENSION-J/K/M landed in roam-extension instead of roam-android.
+// local.properties is the only DSN source and CI has none, so this check only
+// ever fires on a local build: fail it rather than misfile.
+val sentryDsn = localProperties["SENTRY_DSN"] as String? ?: ""
+val expectedSentryProjectId = "4511314873090048" // roam-android
+val sentryDsnProjectId = sentryDsn.trimEnd('/').substringAfterLast('/')
+if (sentryDsn.isNotEmpty() && sentryDsnProjectId != expectedSentryProjectId) {
+    throw GradleException(
+        "local.properties SENTRY_DSN points at Sentry project '$sentryDsnProjectId', but the " +
+            "Android app must report to $expectedSentryProjectId (roam-android). A DSN's path " +
+            "segment is the Sentry project id."
+    )
+}
+
 android {
     namespace = "app.roam.android"
     compileSdk = 36

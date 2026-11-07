@@ -2,6 +2,10 @@
 
 All notable changes to the Roam Supabase backend (PostgreSQL schema, Row-Level Security, and Deno Edge Functions).
 
+## [2026-11-07] — Sentry issue bodies keep their stack traces
+### Fixed
+- `sentry-webhook` says so when enrichment is off instead of returning silently. A missing `SENTRY_AUTH_TOKEN` and a non-OK event fetch each log a warning now, so an issue filed without a `### Stack trace` section is one log line away from the cause instead of a mystery in the issue body (issue #19).
+
 ## [2026-11-07] — Supabase CLI v3 compatibility
 ### Fixed
 - `config.toml` uses the `[local_smtp]` section instead of the removed `[inbucket]` one. The CLI renamed it in v2.108.0 and rejects the old name outright, so the deploy workflow's migration dry-run failed before Edge Functions could be deployed.
