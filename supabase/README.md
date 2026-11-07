@@ -12,7 +12,7 @@ Roam's backend runs on Supabase and provides authentication, the PostgreSQL sche
 ## Current responsibilities
 
 - Serve the discovery RPC that the app clients call to get a URL
-- 31 Deno Edge Functions for complex operations: `activity-feed`, `admin-moderation`, `beta-signup`, `challenges`, `collection`, `cron-daily-challenges`, `cron-notification-cleanup`, `cron-secret-badges`, `cron-streak-cleanup`, `delete-user`, `evaluate-badges`, `export-user`, `feedback`, `follow`, `game-action`, `leaderboard`, `log-failed-urls`, `profile`, `push-notify`, `rate`, `report-engagement`, `report-url`, `roll-action`, `roam`, `roam-health-check`, `save-url`, `scrape-url`, `send-bulk-email`, `sentry-webhook`, `share-url`, `submit-url`
+- 30 Deno Edge Functions for complex operations: `activity-feed`, `admin-moderation`, `beta-signup`, `challenges`, `collection`, `cron-daily-challenges`, `cron-notification-cleanup`, `cron-secret-badges`, `cron-streak-cleanup`, `delete-user`, `evaluate-badges`, `export-user`, `feedback`, `follow`, `game-action`, `leaderboard`, `profile`, `push-notify`, `rate`, `report-engagement`, `report-url`, `roll-action`, `roam`, `roam-health-check`, `save-url`, `scrape-url`, `send-bulk-email`, `sentry-webhook`, `share-url`, `submit-url`
 - Persist users, URLs, ratings, collections, follows, saved URLs, push tokens, notifications, and moderation data
 - Enforce access control with RLS instead of client-side trust
 - Keep the public HTTP API documented: see [docs/API.md](../docs/API.md)

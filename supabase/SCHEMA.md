@@ -6,7 +6,7 @@ High-level reference for the core tables. This is a summary — [`supabase/migra
 
 | Table | Purpose |
 |---|---|
-| `urls` | All discovered pages — URL, title, description, votes, scores, source |
+| `urls` | All discovered pages — URL, title, description, votes, scores, source. Retired rows carry `inactive` + `inactive_since` and are filtered out of `roam()` |
 | `ratings` | Per-user up/down votes |
 | `url_ratings` | Aggregated rating state per URL |
 | `seen_urls` | Which URLs a user has already been served |
@@ -38,6 +38,7 @@ High-level reference for the core tables. This is a summary — [`supabase/migra
 | `moderation_queue` | Submitted URLs pending review |
 | `moderation_audit_log` | Immutable log of admin moderation decisions |
 | `url_reports` | User reports of broken/dead links |
+| `url_failure_reports` | One row per (URL, reporter) failure aggregate — drives threshold retirement via `report_url_failures()` |
 | `push_tokens` / `notifications` | Push notification infrastructure |
 | `beta_signups` / `feedback` | Waitlist signups and in-app feedback |
 

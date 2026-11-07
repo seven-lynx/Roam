@@ -60,13 +60,18 @@ Deno.serve(async (req) => {
 
   if (updateErr) return json({ error: updateErr.message }, 500)
 
-  // Log the report
+  // Log the report. One row per (url, reporter) — the unique index added in
+  // 20261107184451_url_failure_tracking.sql makes a repeat report a no-op
+  // instead of growing the audit table (and posting a 23505 to the client).
   const { error: reportErr } = await admin
     .from('url_reports')
-    .insert({
-      url_id: urlId,
-      user_id: user.id,
-    })
+    .upsert(
+      {
+        url_id: urlId,
+        user_id: user.id,
+      },
+      { onConflict: 'url_id,user_id', ignoreDuplicates: true },
+    )
 
   if (reportErr) {
     console.error('report-url insert failed:', reportErr.message)

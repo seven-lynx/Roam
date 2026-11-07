@@ -22,7 +22,6 @@ Complete documentation of all Supabase Edge Functions and PostgreSQL RPC functio
   - [`leaderboard` — Fetch leaderboard rankings](#leaderboard--fetch-leaderboard-rankings)
   - [`feedback` — Submit feedback](#feedback--submit-feedback)
   - [`report-url` — Report broken link](#report-url--report-broken-link)
-  - [`log-failed-urls` — Log failed URLs](#log-failed-urls--log-failed-urls)
   - [`report-engagement` — Report dwell time and skip status](#report-engagement--report-dwell-time-and-skip-status)
   - [`activity-feed` — Following activity feed](#activity-feed--following-activity-feed)
   - [`admin-moderation` — Admin moderation queue](#admin-moderation--admin-moderation-queue)
@@ -45,6 +44,7 @@ Complete documentation of all Supabase Edge Functions and PostgreSQL RPC functio
 - [RPC Functions (Database)](#rpc-functions-database)
   - [`roam()` — Weighted-random URL discovery](#roam--weighted-random-url-discovery)
   - [`admin_url_stats()` — Fetch admin dashboard statistics](#admin_url_stats--fetch-admin-dashboard-statistics)
+  - [`report_url_failures()` — Record URL failures and retire repeat offenders](#report_url_failures--record-url-failures-and-retire-repeat-offenders)
 - [Error Codes](#error-codes)
 - [Rate Limiting](#rate-limiting)
 - [Examples](#examples)
@@ -833,49 +833,6 @@ supabase.functions.invoke("report-url", buildJsonObject {
 })
 // Then call roam() to skip to the next URL
 ```
-
----
-
-### `log-failed-urls` — Log failed URLs
-
-Extension/app internal endpoint: batch log failed URLs for moderation review.
-
-**Endpoint:** `POST /functions/v1/log-failed-urls`
-
-**Authentication:** Gateway JWT only. Deployed with the default `verify_jwt = true`, so the platform rejects a request that carries no credentials; the handler itself reads no caller identity and writes with the service role. Treat it as an internal endpoint — it cannot tell its callers apart.
-
-**Request Body:**
-```json
-{
-  "failed_urls": [
-    {
-      "url": "https://example.com/404",
-      "failure_reason": "HTTP 404",
-      "retry_count": 3,
-      "timestamp": "2026-05-01T12:00:00Z"
-    }
-  ]
-}
-```
-
-**Response (200):**
-```json
-{
-  "success": true,
-  "logged_count": 5
-}
-```
-
-**Error Responses:**
-- **400** — Invalid JSON, or `failed_urls` is missing or empty
-- **401** — Rejected by the platform gateway (`verify_jwt`); the handler never issues one itself
-- **500** — Failed to insert into `moderation_queue`
-
-**Notes:**
-- Inserts failed URLs into `moderation_queue` with `status = 'auto_flagged'`
-- Rows are upserted on `url` with duplicates ignored, so `logged_count` counts the entries submitted, not the rows actually created
-- Admin can review and determine if URLs should be hidden or removed
-- Helps identify broken/slow pages in the content pool
 
 ---
 
@@ -1815,6 +1772,42 @@ Resets `streak_days` to 0 for users whose last activity was more than 24 hours a
 ### `sync_profile_badge_count(p_user_id)` — Sync badge count
 
 Recomputes `profiles.badge_count = COUNT(user_badges)` where `unlocked_at IS NOT NULL` for the given user.
+
+---
+
+### `report_url_failures(p_entries)` — Record URL failures and retire repeat offenders
+
+Batch failure logging with threshold-based retirement. This replaced the `log-failed-urls` Edge Function (removed — it never wrote successfully and had no caller; see issue #48). Unlike an Edge Function, identity comes from `auth.uid()`, so a call without a user JWT fails instead of silently writing as the service role.
+
+**Call Signature:**
+```sql
+SELECT report_url_failures(p_entries jsonb) RETURNS jsonb
+```
+
+**Parameters:**
+- `p_entries` — JSON array of `{ url_id, fail_count?, reason? }`. Max 50 entries. `fail_count` defaults to 1 and is clamped to 50 per entry; `reason` is truncated to 200 chars. Entries with malformed or unknown `url_id` are skipped individually rather than failing the batch.
+
+**Returns:**
+```json
+{ "ok": true, "logged": 3, "retired": 1 }
+```
+`tripped` is present instead of a retirement when a guard fires: `"batch_cap"` or `"daily_cap"`.
+
+**Behaviour:**
+- Upserts one row per `(url_id, auth.uid())` into `url_failure_reports` — the composite primary key is the duplicate suppression, so storage grows with distinct (URL, reporter) pairs, not with failure events.
+- Retires a URL (`urls.inactive = TRUE`) when it has **≥ 2 distinct reporters and ≥ 3 total failures within 30 days**. `urls.inactive_since` is stamped by trigger; `roam()` already filters inactive URLs, so no second write or cron is involved.
+- Only the URLs **in the calling batch** are evaluated. The check is a primary-key scan over each URL's reporters, never a table-wide aggregate.
+
+**Guards (blast radius):**
+- At most **25** retirements per call, and **500** per UTC day across the pool. On breach the failure rows are still written, the retirement is skipped, and a `WARNING` is logged.
+- No server-side re-verification: a low threshold plus reversibility is cheaper and more accurate than one HEAD request from a single IP. False positives are restored via `admin-moderation` `restore`, which also clears `inactive_since`.
+
+**Errors:**
+- `28000` — no authenticated user (`auth.uid()` is null)
+- `22023` — `p_entries` is not a JSON array, or longer than 50 entries
+- Not callable by `anon` — execute is granted to `authenticated` only
+
+**Clients:** Android — `RoamRepository.reportUrlFailures()`, batched once per warm-queue validation cycle (one call per cycle, not one per culled URL). The extension has no URL validator today, so it reports nothing; its `webNavigation.onErrorOccurred` events should be queued and flushed through this same RPC if a validator is added.
 
 ---
 

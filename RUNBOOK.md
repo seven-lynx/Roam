@@ -142,6 +142,11 @@ Non-additive migrations (DROP, ALTER TYPE, …) must document a rollback here.
 - Change: Adds `profiles.walkthrough_completed_at timestamptz` and backfills existing accounts to `created_at` so they skip the scripted onboarding walkthrough.
 - Rollback: None required — additive (`ALTER TABLE ... ADD COLUMN IF NOT EXISTS` + UPDATE). To reverse: `ALTER TABLE public.profiles DROP COLUMN walkthrough_completed_at;`
 
+### 20261107184451_url_failure_tracking.sql
+- Change: Adds `public.url_failure_reports` (primary key `(url_id, user_id)`) and the `report_url_failures(jsonb)` SECURITY DEFINER RPC, plus `urls.inactive_since` maintained by `handle_urls_inactive_since()` so the 500-retirements-per-day cap is a single indexed query. Also dedupes `url_reports` and adds the unique `(url_id, user_id)` index that the `report-url` upsert now depends on, and schedules `delete-old-url-failure-reports` (03:30 UTC, 180-day purge). Replaces the deleted `log-failed-urls` Edge Function.
+- Rollback: Redeploy the pre-upsert `report-url` first — it fails with "no unique or exclusion constraint matching the ON CONFLICT specification" the moment `uq_url_reports_url_user` is dropped. Then: `DROP FUNCTION IF EXISTS public.report_url_failures(jsonb); DROP TABLE IF EXISTS public.url_failure_reports; DROP TRIGGER IF EXISTS trg_urls_inactive_since_ins ON public.urls; DROP TRIGGER IF EXISTS trg_urls_inactive_since ON public.urls; DROP FUNCTION IF EXISTS public.handle_urls_inactive_since(); ALTER TABLE public.urls DROP COLUMN IF EXISTS inactive_since; DROP INDEX IF EXISTS public.uq_url_reports_url_user; SELECT cron.unschedule('delete-old-url-failure-reports');`
+- Irreversible: the `url_reports` dedupe deletes duplicate rows. They are not recoverable; only write this migration off if the retired pairs can be re-collected from clients.
+
 ## How to cut an entry
 
 When to write an entry:
