@@ -1,6 +1,6 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
-import type { User } from '@supabase/supabase-js'
+import { isAuthSessionMissingError, type User } from '@supabase/supabase-js'
 import { logError } from '@/lib/logger'
 
 const PROTECTED_ROUTES = ['/profile', '/settings', '/submit']
@@ -36,10 +36,16 @@ export async function middleware(request: NextRequest) {
       const { data: { user: authUser }, error: authError } = await supabase.auth.getUser();
       if (!authError && authUser) {
         user = authUser;
-      } else if (authError) {
+      } else if (authError && !isAuthSessionMissingError(authError)) {
+        // A missing session is the normal state for anonymous visitors, and this
+        // middleware runs on every non-static request — logging it filed one Sentry
+        // error per anonymous page view (issue #55 / ROAM-WEB-4). Report only a
+        // genuine auth failure, and keep enough context to identify it: the sanitizer
+        // drops any key it does not whitelist (see lib/logger.ts).
         logError('middleware', 'Supabase auth.getUser() returned error', {
-          errorCode: (authError as { code?: string }).code,
-          errorStatus: (authError as { status?: number }).status,
+          reason: authError.name,
+          errorCode: authError.code,
+          errorStatus: authError.status,
         });
       }
     } catch (error) {

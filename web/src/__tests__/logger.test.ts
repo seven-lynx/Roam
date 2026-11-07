@@ -279,7 +279,7 @@ describe('Logger (lib/logger)', () => {
       debugSpy.mockRestore()
     })
 
-    it('should allow safe keys: statusCode, count, duration, retry, attempt, reason, category, type, action', () => {
+    it('should allow safe keys: statusCode, code, status, count, duration, retry, attempt, reason, category, type, action', () => {
       setDevEnv()
       const debugSpy = jest.spyOn(console, 'debug').mockImplementation(() => {})
       const { logDebug } = require('@/lib/logger')
@@ -294,6 +294,8 @@ describe('Logger (lib/logger)', () => {
         category: 'science',
         type: 'fetch',
         action: 'roam',
+        errorCode: 'bad_jwt',
+        errorStatus: 403,
       })
 
       const callArgs = debugSpy.mock.calls[0] as unknown[]
@@ -307,6 +309,9 @@ describe('Logger (lib/logger)', () => {
       expect(context).toHaveProperty('category', 'science')
       expect(context).toHaveProperty('type', 'fetch')
       expect(context).toHaveProperty('action', 'roam')
+      // Auth error identity — without this the middleware's Sentry events carried `{}`.
+      expect(context).toHaveProperty('errorCode', 'bad_jwt')
+      expect(context).toHaveProperty('errorStatus', 403)
       debugSpy.mockRestore()
     })
 

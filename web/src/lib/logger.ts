@@ -62,7 +62,7 @@ function sanitizeContext(context?: Record<string, unknown>): Record<string, unkn
   if (!context) return {};
 
   const safe: Record<string, unknown> = {};
-  const SAFE_KEYS = ['statuscode', 'count', 'duration', 'retry', 'attempt', 'reason', 'category', 'type', 'action'];
+  const SAFE_KEYS = ['statuscode', 'code', 'status', 'count', 'duration', 'retry', 'attempt', 'reason', 'category', 'type', 'action'];
   const UNSAFE_KEYS = ['email', 'password', 'token', 'secret', 'userId', 'id', 'url', 'response', 'body', 'payload'];
 
   for (const [key, value] of Object.entries(context)) {

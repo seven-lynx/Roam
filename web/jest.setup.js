@@ -53,10 +53,18 @@ jest.mock('next/link', () => {
   return { __esModule: true, default: MockLink };
 })
 
-// Mock Supabase
-jest.mock('@supabase/supabase-js', () => ({
-  createClient: jest.fn(),
-}))
+// Mock Supabase. `createClient` stays a stub (tests never touch the network), but the
+// real auth-error helpers are kept: middleware has to tell an anonymous visitor
+// (AuthSessionMissingError — returned, not thrown) from a genuine auth failure.
+jest.mock('@supabase/supabase-js', () => {
+  const actual = jest.requireActual('@supabase/supabase-js');
+  return {
+    createClient: jest.fn(),
+    isAuthSessionMissingError: actual.isAuthSessionMissingError,
+    AuthSessionMissingError: actual.AuthSessionMissingError,
+    AuthApiError: actual.AuthApiError,
+  }
+})
 
 jest.mock('@supabase/ssr', () => ({
   createServerClient: jest.fn(() => ({ auth: {}, from: jest.fn() })),

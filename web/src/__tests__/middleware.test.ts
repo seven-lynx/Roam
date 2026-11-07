@@ -291,15 +291,19 @@ describe('Middleware', () => {
       errorSpy.mockRestore();
     });
 
-    it('should handle auth.getUser returning an error gracefully', async () => {
+    it('should treat a missing session as anonymous traffic, not an error (issue #55)', async () => {
       setEnv();
+
+      const { AuthSessionMissingError } = require('@supabase/supabase-js');
 
       jest.doMock('@supabase/ssr', () => ({
         createServerClient: jest.fn(() => ({
           auth: {
+            // auth-js RETURNS this (it does not throw) when the visitor carries no
+            // session cookie — the normal state for anonymous traffic.
             getUser: jest.fn().mockResolvedValue({
               data: { user: null },
-              error: { code: 'AUTH_ERROR', status: 500 },
+              error: new AuthSessionMissingError(),
             }),
           },
         })),
@@ -308,6 +312,55 @@ describe('Middleware', () => {
       const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
 
       const { NextResponse } = require('next/server');
+      const redirectSpy = jest.spyOn(NextResponse, 'redirect');
+      const nextSpy = jest.spyOn(NextResponse, 'next');
+
+      const publicRequest = {
+        nextUrl: { pathname: '/', href: 'http://localhost:3000/' },
+        cookies: { getAll: jest.fn().mockReturnValue([]), set: jest.fn() },
+        url: 'http://localhost:3000/',
+      };
+      const protectedRequest = {
+        nextUrl: { pathname: '/profile', href: 'http://localhost:3000/profile' },
+        cookies: { getAll: jest.fn().mockReturnValue([]), set: jest.fn() },
+        url: 'http://localhost:3000/profile',
+      };
+
+      const { middleware } = require('@/middleware');
+      const publicResult = await middleware(publicRequest);
+
+      // No Sentry error per anonymous page view.
+      expect(errorSpy).not.toHaveBeenCalled();
+      expect(publicResult).toBeDefined();
+      expect(redirectSpy).not.toHaveBeenCalled();
+      expect(nextSpy).toHaveBeenCalled();
+
+      // Protection still applies to anonymous visitors.
+      await middleware(protectedRequest);
+      expect(redirectSpy).toHaveBeenCalled();
+
+      nextSpy.mockRestore();
+      redirectSpy.mockRestore();
+      errorSpy.mockRestore();
+    });
+
+    it('should report a genuine auth failure with identifying context', async () => {
+      setEnv();
+
+      const { AuthApiError } = require('@supabase/supabase-js');
+
+      jest.doMock('@supabase/ssr', () => ({
+        createServerClient: jest.fn(() => ({
+          auth: {
+            getUser: jest.fn().mockResolvedValue({
+              data: { user: null },
+              error: new AuthApiError('invalid JWT', 403, 'bad_jwt'),
+            }),
+          },
+        })),
+      }));
+
+      const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
 
       const mockRequest = {
         nextUrl: {
@@ -325,6 +378,16 @@ describe('Middleware', () => {
       const result = await middleware(mockRequest);
 
       expect(result).toBeDefined();
+      expect(errorSpy).toHaveBeenCalled();
+
+      // Context survives sanitizeContext, so the Sentry event can be diagnosed.
+      const context = errorSpy.mock.calls[0][1] as Record<string, unknown>;
+      expect(context).toEqual({
+        reason: 'AuthApiError',
+        errorCode: 'bad_jwt',
+        errorStatus: 403,
+      });
+
       errorSpy.mockRestore();
     });
   });
