@@ -16,6 +16,8 @@ import {
   buildTitle,
   formatFrame,
   normalize,
+  redactSecrets,
+  tagsToObject,
   timingSafeEqual,
   type NormalizedIssue,
 } from '../sentry-webhook/normalize.ts'
@@ -231,4 +233,122 @@ Deno.test('buildTitle - project-prefixed and bounded', () => {
   assertEquals(title.startsWith('[Sentry] roam-web: '), true)
   assertEquals(title.endsWith('…'), true)
   assertEquals(title.length <= '[Sentry] roam-web: '.length + 180, true)
+})
+
+// ── Redaction ───────────────────────────────────────────────────────────────
+
+const JWT = 'eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJhNTU5YTRiZSJ9.c2lnbmF0dXJlLWhlcmU'
+const APIKEY = 'sb_publishable_TESTKEY0000000000000000'
+
+/** The shape an Android `UnauthorizedRestException` carries: a header dump. */
+const HEADER_DUMP = [
+  '{"error":"Failed to record rating"}',
+  'URL: https://example.supabase.co/functions/v1/rate',
+  `Headers: [Authorization=[Bearer ${JWT}], x-region=[any, any], apikey=[${APIKEY}], X-Client-Info=[supabase-kt/3.0.2], Accept=[application/json]]`,
+  'Http Method: POST',
+  'Reporter: joel.coleman@example.com',
+].join('\n')
+
+Deno.test('redactSecrets - strips every credential class', () => {
+  const cases: Array<[string, string]> = [
+    [`Bearer ${JWT}`, 'Bearer [redacted]'],
+    [JWT, '[redacted-jwt]'],
+    [`apikey=[${APIKEY}]`, 'apikey=[redacted-key]'],
+    [APIKEY, '[redacted-key]'],
+    ['password=hunter2hunter2', 'password=[redacted]'],
+    ['refresh_token=abcd1234', 'refresh_token=[redacted]'],
+    [`Authorization=[Bearer ${JWT}]`, 'Authorization=[Bearer [redacted]]'],
+    ['joel.coleman@example.com', '[redacted-email]'],
+  ]
+  for (const [input, expected] of cases) assertEquals(redactSecrets(input), expected, input)
+})
+
+Deno.test('redactSecrets - is idempotent', () => {
+  const once = redactSecrets(HEADER_DUMP)
+  assertEquals(redactSecrets(once), once)
+})
+
+Deno.test('redactSecrets - leaves ordinary error text and URLs alone', () => {
+  const keep = [
+    '[ERROR] [middleware] Supabase auth.getUser() returned error',
+    'HTTP request to https://example.supabase.co/auth/v1/token?grant_type=pkce (POST) failed',
+    'x-region=[any, any], Accept=[application/json]',
+    'TypeError: cannot read property "x" of undefined',
+  ]
+  for (const s of keep) assertEquals(redactSecrets(s), s)
+})
+
+Deno.test('buildBody - an exception that dumps its headers publishes no credential', () => {
+  const payload = issueWebhook('created')
+  payload.data.issue.metadata.value = HEADER_DUMP
+  const body = buildBody(required(payload))
+
+  // Credentials are gone…
+  assert(!body.includes('eyJ'), 'JWT leaked into the body')
+  assert(!body.includes('sb_publishable'), 'apikey leaked into the body')
+  assert(!body.includes('joel.coleman@example.com'), 'email leaked into the body')
+  // …their placeholders, and the diagnostic value, are not.
+  assertStringIncludes(body, 'Bearer [redacted]')
+  assertStringIncludes(body, 'apikey=[redacted-key]')
+  assertStringIncludes(body, 'Reporter: [redacted-email]')
+  assertStringIncludes(body, 'URL: https://example.supabase.co/functions/v1/rate')
+  assertStringIncludes(body, 'x-region=[any, any]')
+})
+
+Deno.test('buildTitle - a credential in the title is redacted', () => {
+  const payload = issueWebhook('created')
+  payload.data.issue.title = `UnauthorizedRestException: token=${JWT}`
+  assertEquals(
+    buildTitle(required(payload)),
+    '[Sentry] roam-web: UnauthorizedRestException: token=[redacted-jwt]'
+  )
+})
+
+Deno.test('buildBody - tag and stack-frame values are redacted too', () => {
+  const payload = eventAlert()
+  payload.data.event.tags = [['url', 'https://example.test/page?token=abcd1234']]
+  payload.data.event.exception.values[0].stacktrace.frames = [
+    {
+      filename: 'https://cdn.example.test/app.js?token=abcd1234',
+      lineno: 1,
+      function: 'f',
+      in_app: true,
+    },
+  ]
+  const body = buildBody(required(payload))
+
+  assertStringIncludes(body, '| `url` | https://example.test/page?token=[redacted] |')
+  assertStringIncludes(body, 'https://cdn.example.test/app.js?token=[redacted]:1 in f')
+  assert(!body.includes('abcd1234'))
+})
+
+// ── Tags ────────────────────────────────────────────────────────────────────
+
+Deno.test('tagsToObject - accepts webhook pairs and events-API objects', () => {
+  assertEquals(
+    tagsToObject([
+      ['environment', 'production'],
+      { key: 'device', value: 'SM-G998U' },
+      { key: 'no_value' },
+      'nonsense',
+      null,
+    ]),
+    { environment: 'production', device: 'SM-G998U', no_value: '' }
+  )
+})
+
+Deno.test('normalize - events-API tag objects reach the body', () => {
+  // Enrichment fetches the events API, which returns { key, value }; before this
+  // the Tags section silently never rendered for an enriched issue.
+  const payload = eventAlert()
+  payload.data.event.tags = [{ key: 'device', value: 'SM-G998U' }]
+  const issue = required(payload)
+  assertEquals(issue.tags, { device: 'SM-G998U' })
+  assertStringIncludes(buildBody(issue), '| `device` | SM-G998U |')
+})
+
+Deno.test('buildBody - a pipe in a tag value cannot break the table', () => {
+  const payload = eventAlert()
+  payload.data.event.tags = [['note', 'a|b']]
+  assertStringIncludes(buildBody(required(payload)), '| `note` | a\\|b |')
 })
