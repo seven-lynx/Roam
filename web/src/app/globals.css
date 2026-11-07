@@ -2438,12 +2438,20 @@ button.gadget:active { transform: translateY(1px) scale(0.98); }
   align-items: flex-start;
 }
 .desktop-widgets--bottom {
-  top: auto;
-  bottom: 60px;
+  /* Cap the showcase so it can never ride up into the top cluster: the top rail
+     starts at 48px and its tiles are 210px tall, so 270px + a 12px gap is the
+     earliest it may begin. It still hugs the bottom on tall screens. */
+  top: 270px;
+  bottom: 56px;
   align-items: flex-end;
+  /* `safe` falls back to start alignment if the tile ever overflows the capped
+     box, so the header stays reachable instead of being clipped off the top. */
+  justify-content: safe flex-end;
 }
 .desktop-widgets--top {
   bottom: auto;
+  /* 48px clears the 40px status bar (41px with its border) by 7px. */
+  top: 48px;
   flex-direction: row;
   align-items: flex-start;
   overflow: visible;
