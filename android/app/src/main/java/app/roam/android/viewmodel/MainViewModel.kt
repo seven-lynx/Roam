@@ -18,6 +18,9 @@ import app.roam.android.model.ChallengeData
 import app.roam.android.model.SubcategoryItem
 import app.roam.android.model.Collection
 import app.roam.android.model.CollectionItem
+import app.roam.android.model.GameId
+import app.roam.android.model.GameXpAward
+import app.roam.android.model.GameXpKind
 import app.roam.android.model.RoamUrl
 import app.roam.android.model.SavedUrl
 import app.roam.android.model.UrlHistoryEntry
@@ -263,6 +266,13 @@ class MainViewModel(
     private val _showConfigSheet = MutableStateFlow(false)
     val showConfigSheet: StateFlow<Boolean> = _showConfigSheet.asStateFlow()
 
+    /** True while the ROAM-OS cartridge shelf (`PROGRAMS // CARTRIDGES`) or one
+     *  of its running programs is on screen. Lives here rather than inside
+     *  [DiscoverTab] so the control deck sits above it: the deck's MENU key acts
+     *  as a home key and can dismiss the overlay. */
+    private val _programsOpen = MutableStateFlow(false)
+    val programsOpen: StateFlow<Boolean> = _programsOpen.asStateFlow()
+
     /** Whether admin features are unlocked in the config bottom sheet.
      *  Persists in-memory until the app process is killed or the user signs out.
      *  Not written to SharedPreferences — ephemeral by design. */
@@ -286,6 +296,14 @@ class MainViewModel(
      *  Set on session load; cleared on sign-out. Not persisted. */
     private val _isModerator = MutableStateFlow(false)
     val isModerator: StateFlow<Boolean> = _isModerator.asStateFlow()
+
+    /**
+     * True while a Supabase session is authenticated. Gates in-OS game XP: a
+     * guest plays exactly the same games but earns nothing, matching the web's
+     * `GUEST SESSION` behaviour. Not persisted.
+     */
+    private val _isSignedIn = MutableStateFlow(false)
+    val isSignedIn: StateFlow<Boolean> = _isSignedIn.asStateFlow()
 
     /**
      * Reads app_metadata.role from the current session and unlocks admin/mod panels.
@@ -1339,11 +1357,13 @@ class MainViewModel(
             supabase.auth.sessionStatus.collect { status ->
                 when (status) {
                     is SessionStatus.Authenticated -> {
+                        _isSignedIn.value = true
                         checkUserRole()
                         fetchUnreadNotificationCount()
                     }
                     is SessionStatus.NotAuthenticated,
                     is SessionStatus.RefreshFailure -> {
+                        _isSignedIn.value = false
                         _adminModeEnabled.value = false
                         _moderatorModeEnabled.value = false
                         _isModerator.value = false
@@ -1462,8 +1482,8 @@ class MainViewModel(
                 // so the UI can start warming it in an invisible WebView right now.
                 if (_prefetchWebView.value) {
                     _nextPrefetchUrl.value = prefetchMutex.withLock { hotQueue.firstOrNull()?.url }
+                    startPrefillQueue(excludeDomain = extractDomain(prefetched.url))
                 }
-                startPrefillQueue(excludeDomain = extractDomain(prefetched.url))
                 return@launch
             }
 
@@ -1536,7 +1556,11 @@ class MainViewModel(
                     playSfx(R.raw.load_complete)
                     persistLastUrl(roamUrl.url, roamUrl.title)
                     recordUrlVisit(roamUrl.url, roamUrl.title ?: roamUrl.url)
-                    startPrefillQueue(excludeDomain = extractDomain(roamUrl.url))
+                    // Prefetch is user-controlled: never restart the prefill workers
+                    // when it is switched off.
+                    if (_prefetchWebView.value) {
+                        startPrefillQueue(excludeDomain = extractDomain(roamUrl.url))
+                    }
                     loadChallenges()
                     checkForNewCelebrations()
                 }
@@ -1917,6 +1941,15 @@ class MainViewModel(
     fun openConfigSheet() { _showConfigSheet.value = true; loadCollections() }
     fun closeConfigSheet() { _showConfigSheet.value = false }
 
+    /** Opens the cartridge shelf, dismissing the launcher it was reached from. */
+    fun openPrograms() {
+        _showConfigSheet.value = false
+        _programsOpen.value = true
+    }
+
+    /** Leaves the cartridge shelf — and any running program — back to the page. */
+    fun closePrograms() { _programsOpen.value = false }
+
     fun toggleCommsMenu() { _showCommsMenu.value = !_showCommsMenu.value }
     fun closeCommsMenu() { _showCommsMenu.value = false }
 
@@ -2026,6 +2059,29 @@ class MainViewModel(
         showTransientToast("Removed from saved")
         viewModelScope.launch {
             runCatching { repo.unsaveUrl(url) }
+        }
+    }
+
+    /**
+     * Awards in-OS game XP through the unified `game-action` edge function —
+     * the same entry point the webapp uses, so XP, badge evaluation and
+     * level-up celebrations are identical on both surfaces.
+     *
+     * Fire-and-forget: awards are idempotent per `runId`, so a game never waits
+     * on (or fails because of) the network. Badges and level-ups arrive through
+     * the notification pipeline that [CelebrationEvent] already consumes.
+     */
+    fun awardGameXp(
+        game: GameId,
+        kind: GameXpKind,
+        runId: String,
+        level: Int? = null,
+        score: Int? = null,
+        onAwarded: ((GameXpAward) -> Unit)? = null,
+    ) {
+        viewModelScope.launch {
+            val award = repo.awardGameXp(game, kind, runId, level, score) ?: return@launch
+            onAwarded?.invoke(award)
         }
     }
 
@@ -2323,6 +2379,14 @@ class MainViewModel(
         _currentUrl.value = null
         _nextPrefetchUrl.value = null
         _userRating.value = 0
+        // Drop any ROAM-OS overlay so the next sign-in lands on the page, not on
+        // a cartridge shelf left open by the previous session.
+        _showConfigSheet.value = false
+        _programsOpen.value = false
+        _showCommsMenu.value = false
+        _showTranslatePicker.value = false
+        _showSubmitSheet.value = false
+        _showShareUrlSheet.value = false
         _adminModeEnabled.value = false
         _moderatorModeEnabled.value = false
         _isModerator.value = false

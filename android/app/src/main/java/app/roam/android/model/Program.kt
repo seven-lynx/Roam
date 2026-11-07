@@ -2,11 +2,12 @@ package app.roam.android.model
 
 /**
  * ROAM-OS in-device "programs" — the small, self-contained games that live
- * inside the handheld's simulated screen. Mirrors `web/src/lib/os-programs.ts`
- * so the two platforms ship the same software shelf.
+ * inside the handheld's simulated screen. Mirrors the arcade programs in
+ * `web/src/lib/os-programs.ts`; the handheld ships no text adventures.
  *
- * Each game is adapted from the Apache-2.0 `zeli-web-games` collection (see
- * THIRD_PARTY_NOTICES.md) and reskinned to the Roam palette.
+ * Each program is adapted from the Apache-2.0 `zeli-web-games` collection (see
+ * THIRD_PARTY_NOTICES.md) and reskinned to the Roam palette; FIREWALK is an
+ * original Roam-OS program.
  */
 
 /** License/attribution for a program's original source. */
@@ -42,12 +43,18 @@ val APACHE_2 = ProgramLicense(
 
 val ZELI_SOURCE = "zeli-web-games (github.com/hajunho/zeli-web-games)"
 
+val MIT = ProgramLicense(
+    name = "MIT License",
+    spdx = "MIT",
+    url = "https://opensource.org/licenses/MIT",
+)
+
 /** The shipped ROAM-OS programs, in launcher order. */
 val PROGRAMS: List<Program> = listOf(
     Program(
         id = "snake",
         title = "RELAY",
-        file = "C:\\ROAM\\PROGRAMS\\RELAY.EXE",
+        file = "/roam/bin/RELAY",
         glyph = "≋",
         tagline = "A signal serpent. Swallow relay packets to grow the link — never cross your own line.",
         controls = "SWIPE or D-PAD to steer",
@@ -57,17 +64,17 @@ val PROGRAMS: List<Program> = listOf(
     Program(
         id = "minesweeper",
         title = "BOTFIELD",
-        file = "C:\\ROAM\\PROGRAMS\\BOTFIELD.EXE",
+        file = "/roam/bin/BOTFIELD",
         glyph = "▦",
-        tagline = "Six bots are buried in a six-by-six grid. Sweep every clean sector; numbers count adjacent bots.",
-        controls = "TAP sweep · LONG-PRESS flag",
+        tagline = "Ten bots are buried in an eight-by-eight grid. Sweep every clean sector; numbers count adjacent bots.",
+        controls = "TAP sweep · LONG-PRESS or FLAG MODE to flag",
         license = APACHE_2,
         source = ZELI_SOURCE,
     ),
     Program(
         id = "tetris",
         title = "COMPILER",
-        file = "C:\\ROAM\\PROGRAMS\\COMPILER.EXE",
+        file = "/roam/bin/COMPILER",
         glyph = "▥",
         tagline = "Falling data shards. Full lines compile out. Do not stack past the top.",
         controls = "← → move · ↑ rotate · ↓ drop",
@@ -77,12 +84,22 @@ val PROGRAMS: List<Program> = listOf(
     Program(
         id = "asteroids",
         title = "DEBRIS",
-        file = "C:\\ROAM\\PROGRAMS\\DEBRIS.EXE",
+        file = "/roam/bin/DEBRIS",
         glyph = "✦",
         tagline = "The dead web left wreckage behind. Drift the debris field and clear it.",
-        controls = "← → rotate · ↑ thrust · TAP fire",
+        controls = "D-PAD or STICK to steer · FIRE",
         license = APACHE_2,
         source = ZELI_SOURCE,
+    ),
+    Program(
+        id = "frogger",
+        title = "FIREWALK",
+        file = "/roam/bin/FIREWALK",
+        glyph = "⚡",
+        tagline = "Guide a probe packet through the perimeter: dodge shifting rule-filters, ride carrier packets across the dark static, and reach five open ports.",
+        controls = "SWIPE or D-PAD to hop",
+        license = MIT,
+        source = "original Roam-OS game (7 Lynx)",
     ),
 )
 

@@ -31,6 +31,11 @@ ROAM-OS ships a small set of in-device "programs" (web games) under
 | `COMPILER` (tetris) | `src/games/arcade/MiniTetris.jsx` | Reskinned + relabeled; refactored into TypeScript; added restart + keyboard scoping. |
 | `DEBRIS` (asteroids) | `src/games/arcade/Asteroids.jsx` | Reskinned + relabeled; refactored into TypeScript; added restart + keyboard scoping. |
 
+The Android app reimplements the same four ports natively in Kotlin/Compose
+(`android/app/src/main/java/app/roam/android/model/`, `.../ui/component/`), plus
+the original Roam-OS program FIREWALK. The same Apache-2.0 attribution applies
+to those ports.
+
 ### Apache License 2.0
 
 The games are licensed under the Apache License 2.0. You may obtain a copy of
