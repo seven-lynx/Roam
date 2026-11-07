@@ -842,7 +842,7 @@ Extension/app internal endpoint: batch log failed URLs for moderation review.
 
 **Endpoint:** `POST /functions/v1/log-failed-urls`
 
-**Authentication:** Required (Bearer token)
+**Authentication:** Gateway JWT only. Deployed with the default `verify_jwt = true`, so the platform rejects a request that carries no credentials; the handler itself reads no caller identity and writes with the service role. Treat it as an internal endpoint — it cannot tell its callers apart.
 
 **Request Body:**
 ```json
@@ -862,17 +862,18 @@ Extension/app internal endpoint: batch log failed URLs for moderation review.
 ```json
 {
   "success": true,
-  "inserted_count": 5
+  "logged_count": 5
 }
 ```
 
 **Error Responses:**
-- **400** — Invalid input
-- **401** — Unauthorized
-- **500** — Internal server error
+- **400** — Invalid JSON, or `failed_urls` is missing or empty
+- **401** — Rejected by the platform gateway (`verify_jwt`); the handler never issues one itself
+- **500** — Failed to insert into `moderation_queue`
 
 **Notes:**
 - Inserts failed URLs into `moderation_queue` with `status = 'auto_flagged'`
+- Rows are upserted on `url` with duplicates ignored, so `logged_count` counts the entries submitted, not the rows actually created
 - Admin can review and determine if URLs should be hidden or removed
 - Helps identify broken/slow pages in the content pool
 
@@ -1254,13 +1255,17 @@ if (confirm('Are you sure? This cannot be undone.')) {
 **Response (200):**
 ```json
 {
-  "ok": true
+  "ok": true,
+  "message": "You're on the list!"
 }
 ```
 
+A duplicate email is not an error: it also returns **200**, with `message` set to `"You're already on the list!"`.
+
 **Error Responses:**
-- **400** — Invalid email format
-- **409** — Email already registered on the waitlist
+- **400** — Invalid JSON, or an invalid email address
+- **405** — Method not allowed
+- **429** — Rate limited
 - **500** — Internal server error
 
 **Details:**
@@ -1460,6 +1465,8 @@ Triggered by a Supabase Database Webhook when a row is inserted into the `notifi
 ```
 
 **Error Responses:**
+- **400** — Invalid JSON, or a missing `user_id`, `title`, or `body`
+- **405** — Method not allowed
 - **500** — Internal server error
 
 ---
@@ -1495,9 +1502,13 @@ Runs once per day (00:00 UTC) via Supabase cron. Creates global challenge instan
 
 **Endpoint:** `POST /functions/v1/cron-daily-challenges`
 
-**Authentication:** Service role (`SUPABASE_SERVICE_ROLE_KEY`)
+**Authentication:** Optional `Authorization: Bearer <CRON_SECRET>` (enforced only when `CRON_SECRET` is set); the run itself writes with `SUPABASE_SERVICE_ROLE_KEY`
 
 **Response (200):** JSON status of the rotation run.
+
+**Error Responses:**
+- **401** — Unauthorized (missing/invalid `CRON_SECRET`, when configured)
+- **500** — Rotation run failed
 
 ---
 
@@ -1507,9 +1518,13 @@ Runs once per day via Supabase cron. Evaluates date-based, time-based, holiday, 
 
 **Endpoint:** `POST /functions/v1/cron-secret-badges`
 
-**Authentication:** Service role (`SUPABASE_SERVICE_ROLE_KEY`)
+**Authentication:** Optional `Authorization: Bearer <CRON_SECRET>` (enforced only when `CRON_SECRET` is set); the run itself writes with `SUPABASE_SERVICE_ROLE_KEY`
 
 **Response (200):** JSON status of the badge check run.
+
+**Error Responses:**
+- **401** — Unauthorized (missing/invalid `CRON_SECRET`, when configured)
+- **500** — Badge check failed
 
 ---
 
