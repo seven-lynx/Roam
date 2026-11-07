@@ -21,7 +21,7 @@ High-level reference for the core tables. This is a summary — [`supabase/migra
 | `user_interest_scores` | Per-user, per-subcategory calibration weights |
 | `user_category_scores` | Per-user, per-category calibration (for unsegmented URLs) |
 | `interest_pair_scores` | Adjacent-category pair scoring for serendipity |
-| `user_domain_cooldowns` | 30-minute per-session domain cooldown |
+| `user_domain_cooldowns` | 24-hour per-session domain cooldown |
 | `user_suppressed_domains` | 30-day domain suppression (from repeated downvotes) |
 | `user_subcategory_affinity` | Per-user subcategory affinity |
 | `user_tag_weights` | Per-user tag weights |
