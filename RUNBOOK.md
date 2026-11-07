@@ -23,10 +23,14 @@ and CI. Incident resolutions cite them by number.
 | 1.9 | Edge functions are server-authoritative for gamification | `supabase/functions/_tests/user-actions-rls.test.ts` |
 | 1.10 | Android release keystore and Firebase service-account keys stay out of the repo | `.gitignore`; `secrets-scan.yml` |
 
-`scripts/check-rules.mjs` IDs are not 1:1 with Hard Rule numbers: R1–R10 cover
-commit tags, attribution, secrets, `.skip` migrations, duplicate component
-filenames, `proxy.ts`, the v31 `array_agg(u.*)` warning (R7), an uncommented empty
-`catch {}` (R8), `as any` casts (R9), and `contains(fromJSON(...))` predicates (R10).
+`scripts/check-rules.mjs` IDs are not 1:1 with Hard Rule numbers: R1–R9 cover the
+Hard Rules themselves — commit tags, attribution, secrets, `.skip` migrations,
+duplicate component filenames, `proxy.ts`, the v31 `array_agg(u.*)` warning (R7),
+an uncommented empty `catch {}` (R8), and `as any` casts (R9). R10
+(`contains(fromJSON(...))` predicates, see 1.6½) and R11 (`<type>/<kebab>` branch
+names, Process Rule 2.1 in `RULES.md`) enforce process rules rather than Hard
+Rules. R11 also runs locally through `.githooks/pre-push` — register the hook once
+per clone with `git config core.hooksPath .githooks`.
 
 ## Operational framework
 
