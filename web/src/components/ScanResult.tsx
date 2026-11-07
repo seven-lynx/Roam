@@ -1,3 +1,5 @@
+'use client';
+
 import type { RefObject } from 'react';
 import { extractDomain } from '@/lib/url-utils';
 import { useWorkstation } from '@/components/WorkstationContext';
