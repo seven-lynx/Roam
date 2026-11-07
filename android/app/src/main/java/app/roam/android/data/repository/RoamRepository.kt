@@ -561,13 +561,31 @@ class RoamRepository {
         supabase.functions.invoke("report-url", body = body)
     }
 
-    /** Reports a URL as auto-detected dead (prefetch HEAD cull). No challenge credit. */
-    suspend fun reportUrlAuto(urlId: String) {
-        val body = buildJsonObject {
-            put("url_id", urlId)
-            put("auto", true)
+    /**
+     * Reports auto-detected dead links (prefetch HEAD cull) in one batch.
+     *
+     * Calls the report_url_failures() RPC, which records one row per (url, user)
+     * and only retires a URL once >= 2 distinct users have logged >= 3 failures
+     * within 30 days. No challenge credit, unlike reportUrl(). The server caps a
+     * batch at 50 entries, so anything beyond that is dropped here.
+     */
+    suspend fun reportUrlFailures(urlIds: Collection<String>) {
+        if (urlIds.isEmpty()) return
+        val entries = buildJsonArray {
+            urlIds.take(50).forEach { id ->
+                add(
+                    buildJsonObject {
+                        put("url_id", id)
+                        put("fail_count", 1)
+                        put("reason", "prefetch_head_failed")
+                    },
+                )
+            }
         }
-        supabase.functions.invoke("report-url", body = body)
+        supabase.postgrest.rpc(
+            function = "report_url_failures",
+            parameters = buildJsonObject { put("p_entries", entries) },
+        )
     }
 
     /**

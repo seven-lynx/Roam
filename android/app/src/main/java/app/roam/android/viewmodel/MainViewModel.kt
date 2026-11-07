@@ -1727,6 +1727,9 @@ class MainViewModel(
 
                             prefetchMutex.withLock {
                                 var successCount = 0
+                                // Batched: one report_url_failures() call per
+                                // validation cycle instead of one per culled URL.
+                                val newlyCulled = mutableListOf<String>()
                                 validationResults.forEach { (url, reachability) ->
                                     val domain = extractDomain(url.url)
                                     val domainInHot = domain != null && hotQueue.any { extractDomain(it.url) == domain }
@@ -1738,19 +1741,24 @@ class MainViewModel(
                                         deadLinkFailures.remove(url.id)
                                     } else if (reachability == Reachability.UNREACHABLE) {
                                         // Track genuine failures so dead pages can be
-                                        // culled from the backend later.
+                                        // culled on the backend once enough distinct
+                                        // users have hit them.
                                         val fails = (deadLinkFailures[url.id] ?: 0) + 1
                                         if (fails >= DEAD_LINK_FAILURE_THRESHOLD) {
                                             deadLinkFailures.remove(url.id)
                                             culledUrlIds.add(url.id)
+                                            newlyCulled.add(url.id)
                                             android.util.Log.i("MainViewModel", "Culling dead link after $fails HEAD failures: ${url.url}")
-                                            viewModelScope.launch { runCatching { repo.reportUrlAuto(url.id) } }
                                         } else {
                                             deadLinkFailures[url.id] = fails
                                         }
                                     }
                                 }
                                 hotFails = if (successCount > 0) 0 else hotFails + 1
+
+                                if (newlyCulled.isNotEmpty()) {
+                                    viewModelScope.launch { runCatching { repo.reportUrlFailures(newlyCulled) } }
+                                }
                             }
                         }
                         

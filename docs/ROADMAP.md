@@ -676,9 +676,9 @@ Background worker maintains a prefetch queue to minimize wait times when users c
 
   Implemented `startRefillLoop()` in `queueManager.ts` running every 5s, checks if `hot_count + warming_count < REFILL_THRESHOLD` (5), calls `refillQueue()` to fetch needed URLs. `refillQueue()` calls `fetchFreshUrls(needed)` which invokes `roam()` RPC with `category_filter: categoryFilter`. New URLs added to warming queue for background validation. `updateCategoryFilter(newCategoryIds)` clears queue completely and refetches to ensure all new URLs match user's updated preferences. `categoryFilter` tracked in memory, passed to RPC on each refill.
 
-- [x] **5.11e** Log failed URLs for moderation — maintain a `failed_urls` list in `chrome.storage.local` with `{ url, failure_reason, timestamp, retry_count }`; periodically (every 100 failed URLs or on sign-out) send batch to new `POST /log-failed-urls` Edge Function which inserts rows into `moderation_queue` with `status: 'auto_flagged'` for admin review; helps identify consistently broken/slow pages
+- [ ] **5.11e** Log failed URLs for moderation — **abandoned, replaced.** Originally: maintain a `failed_urls` list in `chrome.storage.local` with `{ url, failure_reason, timestamp, retry_count }`; periodically (every 100 failed URLs or on sign-out) send batch to new `POST /log-failed-urls` Edge Function which inserts rows into `moderation_queue` with `status: 'auto_flagged'` for admin review; helps identify consistently broken/slow pages
 
-  Implemented `logFailedUrl()` in `queue.ts` which loads FAILED_URLS_KEY from storage, appends `{url, failure_reason, timestamp, retry_count}`, and saves back. Triggers batch send every 100 failures. `sendFailedUrlBatch()` posts to `/functions/v1/log-failed-urls` with Supabase auth. Edge Function (Deno) at `supabase/functions/log-failed-urls/index.ts` accepts batch, inserts into `moderation_queue` with `status = 'auto_flagged'` and failure reason logged. `cleanupOnSignOut()` calls `sendFailedUrlBatch()` before clearing queue, ensuring no losses on logout. Admin sees auto-flagged entries in moderation UI for pattern analysis.
+  The `log-failed-urls` Edge Function was never functional and never called: it wrote `submitted_by_id` and `status = 'auto_flagged'` to `moderation_queue`, neither of which exists there, and upserted on a column with no unique constraint, so every invocation returned 500. The `queue.ts` / `queueManager.ts` extension layer described here (`logFailedUrl()`, `sendFailedUrlBatch()`, `cleanupOnSignOut()`) was removed along with the rest of the extension validation queue. Replaced by the `report_url_failures()` RPC: clients send one batch of `{url_id, fail_count, reason}` entries, one row per (URL, reporter) lands in `url_failure_reports`, and a URL is retired when ≥2 distinct users and ≥3 failures accumulate within 30 days. See `docs/API.md`. Other entries in this file that mention `log-failed-urls` are historical records of the original plan.
 
 - [x] **5.12** Build the Config panel — the scrollable section that expands below the 4 main controls; organised into two blocks: (1) **Current page actions**: Add to collection (dropdown of user's collections + "+ New collection" option), Save for later, Share/Copy link; (2) **Roam mode**: Roam within [category] chip, Roam a collection (dropdown activating collection Roam mode), Manage collections (opens `/u/username` in new tab), Category preferences (opens `/join` in new tab), Sign out
 
@@ -1001,7 +1001,7 @@ Final checks before making the app public.
   - **Files:** `android/gradlew`
   - File already existed — `android/gradlew` is a proper POSIX shell script (`#!/bin/sh`) with full Gradle wrapper logic. CI passes on `ubuntu-latest` (verified via GitHub Actions). Task was a false open.
 
-- [x] **9.22** Fix `sendFailedUrlBatch` silent failure — currently if the POST to `/log-failed-urls` fails, failed URLs are silently discarded with no retry and no Sentry capture; implement exponential backoff retry and capture the error to Sentry on final failure so moderation data is not lost
+- [x] **9.22** Fix `sendFailedUrlBatch` silent failure — **obsoleted:** the extension queue layer that owned `sendFailedUrlBatch` (`queue.ts`) was removed, so there is no silent-failure path left to fix. Failure reporting is now batched through the `report_url_failures()` RPC in `supabase/migrations/20261107184451_url_failure_tracking.sql`.
   - **Severity:** HIGH
   - **Files:** `extension/src/lib/queue.ts` (~L307�320)
 
@@ -1038,10 +1038,10 @@ Final checks before making the app public.
   - **Severity:** MEDIUM
   - **Files:** `supabase/functions/collection/index.ts` (L131�147)
 
-- [x] **9.30** Fix export syntax in `log-failed-urls` Edge Function — the function may use module export syntax incompatible with the Supabase Deno runtime; verify the function is callable end-to-end with a test invocation and fix any syntax issues
+- [ ] **9.30** Fix export syntax in `log-failed-urls` Edge Function — **obsoleted, function deleted.** `Deno.serve(async (req: Request) => {...})` was the correct entry point, but the function was never callable end-to-end for a different reason: it inserted `submitted_by_id` and `status = 'auto_flagged'` into `moderation_queue` (neither exists) and upserted on a non-unique column. Replaced by the `report_url_failures()` RPC — see issue #48 and `docs/API.md`.
   - **Severity:** MEDIUM
   - **Files:** `supabase/functions/log-failed-urls/index.ts`
-  - Verified: function already uses `Deno.serve(async (req: Request) => {...})` — the correct modern Supabase Deno runtime entry point. No export syntax issues. No changes needed.
+  - Verified: `Deno.serve(...)` was indeed the correct entry point — but the function was never callable end-to-end, because every insert into `moderation_queue` failed on schema mismatches (`submitted_by_id`, `status = 'auto_flagged'`, upsert on a non-unique `url`). It has been deleted; failure tracking moved to the `report_url_failures()` RPC.
 
 - [x] **9.31** Add response validation in queue manager — `queueManager.ts` adds URLs to the queue without validating the shape of the RPC response; malformed or partial responses could corrupt queue state; add a runtime schema check before inserting into storage
   - **Severity:** MEDIUM

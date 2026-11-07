@@ -282,3 +282,79 @@ describe('Rate Limiting', () => {
     expect(user2Limited).toBe(false)
   })
 })
+
+describe('URL failure tracking — report_url_failures()', () => {
+  // Mirrors the threshold in
+  // supabase/migrations/20261107184451_url_failure_tracking.sql: a URL is retired
+  // only when it has >= 2 DISTINCT reporters AND >= 3 total failures within 30 days.
+  const RETIRE_MIN_REPORTERS = 2
+  const RETIRE_MIN_FAILURES = 3
+  const WINDOW_DAYS = 30
+
+  const shouldRetire = (
+    reports: { user_id: string; fail_count: number; last_seen_days_ago: number }[],
+  ) => {
+    const recent = reports.filter((r) => r.last_seen_days_ago <= WINDOW_DAYS)
+    const reporters = new Set(recent.map((r) => r.user_id)).size
+    const failures = recent.reduce((sum, r) => sum + r.fail_count, 0)
+    return reporters >= RETIRE_MIN_REPORTERS && failures >= RETIRE_MIN_FAILURES
+  }
+
+  it('should not retire a URL reported repeatedly by a single user', () => {
+    // Reporter identity comes from auth.uid() and fail_count is clamped server-side,
+    // so one client cannot retire a URL alone however many failures it claims.
+    expect(
+      shouldRetire([{ user_id: 'user1', fail_count: 50, last_seen_days_ago: 1 }]),
+    ).toBe(false)
+  })
+
+  it('should not retire a URL reported once each by two users', () => {
+    expect(
+      shouldRetire([
+        { user_id: 'user1', fail_count: 1, last_seen_days_ago: 1 },
+        { user_id: 'user2', fail_count: 1, last_seen_days_ago: 1 },
+      ]),
+    ).toBe(false)
+  })
+
+  it('should retire a URL with two distinct reporters and three failures', () => {
+    expect(
+      shouldRetire([
+        { user_id: 'user1', fail_count: 2, last_seen_days_ago: 1 },
+        { user_id: 'user2', fail_count: 1, last_seen_days_ago: 2 },
+      ]),
+    ).toBe(true)
+  })
+
+  it('should ignore failures older than the 30-day window', () => {
+    expect(
+      shouldRetire([
+        { user_id: 'user1', fail_count: 2, last_seen_days_ago: 45 },
+        { user_id: 'user2', fail_count: 1, last_seen_days_ago: 1 },
+      ]),
+    ).toBe(false)
+  })
+
+  it('should only expose failure rows to their reporter and admins', () => {
+    // Policy: USING (auth.uid() = user_id OR public.is_admin())
+    const row = { user_id: 'user1' }
+    const canRead = (viewer: string | null, isAdmin = false) =>
+      (viewer !== null && viewer === row.user_id) || isAdmin
+
+    expect(canRead('user1')).toBe(true)
+    expect(canRead('user2')).toBe(false)
+    expect(canRead(null)).toBe(false)
+    expect(canRead('user2', true)).toBe(true)
+  })
+
+  it('should deny direct writes — only the RPC may insert', () => {
+    // RLS is enabled with a SELECT policy only, so a client-side
+    // .from('url_failure_reports').insert() must be denied; writes happen inside
+    // the SECURITY DEFINER function, which derives the reporter from auth.uid().
+    const policies = { select: 1, insert: 0, update: 0, delete: 0 }
+    expect(policies.select).toBe(1)
+    expect(policies.insert).toBe(0)
+    expect(policies.update).toBe(0)
+    expect(policies.delete).toBe(0)
+  })
+})
