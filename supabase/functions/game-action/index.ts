@@ -12,7 +12,7 @@ import { corsHeaders } from '../_shared/cors.ts'
 const LEVEL_XP = 10
 const WIN_XP = 100
 
-const GAMES = new Set(['snake', 'tetris', 'asteroids', 'frogger', 'underweb', 'substrate'])
+const GAMES = new Set(['snake', 'minesweeper', 'tetris', 'asteroids', 'frogger', 'underweb', 'substrate'])
 
 /** Game-over bonus: min(500, floor(score / 10)). */
 function gameOverXp(score: number): number {

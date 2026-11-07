@@ -1,4 +1,4 @@
-import { LEVEL_XP, WIN_XP, WIN_LEVEL, XP_LEVEL_CAP, gameOverXp, makeRunId } from '@/lib/game-xp';
+import { LEVEL_XP, WIN_XP, WIN_LEVEL, XP_LEVEL_CAP, gameOverXp, makeRunId, type GameId } from '@/lib/game-xp';
 
 describe('game-xp economy', () => {
   it('awards a flat 10 XP per level', () => {
@@ -37,5 +37,21 @@ describe('game-xp economy', () => {
 
   it('generates a non-empty run id', () => {
     expect(makeRunId().length).toBeGreaterThan(0);
+  });
+
+  it('accepts every shipped program as an awardable game id', () => {
+    // Must stay in sync with the GAMES allow-list in
+    // supabase/functions/game-action/index.ts — an id missing there is a 400.
+    const ids: GameId[] = [
+      'snake',
+      'minesweeper',
+      'tetris',
+      'asteroids',
+      'frogger',
+      'underweb',
+      'substrate',
+    ];
+    expect(new Set(ids).size).toBe(ids.length);
+    expect(ids).toContain('minesweeper');
   });
 });

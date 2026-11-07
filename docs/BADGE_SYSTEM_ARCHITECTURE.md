@@ -106,7 +106,7 @@ The `game-action` edge function is the single entry for in-OS game XP. It record
 
 ### Arcade "win" definition
 
-The four arcade games (RELAY / COMPILER / DEBRIS / FIREWALK) are endless, so a **win** is defined as clearing **level 10** (`WIN_LEVEL` in `web/src/lib/game-xp.ts`), which is near each game's difficulty cap. The text adventures (UNDERWEB / SUBSTRATE) emit `win` on completing the adventure. BOTFIELD (minesweeper) is not yet built, so `win-botfield` is seeded but not earnable.
+The five level games (RELAY / BOTFIELD / COMPILER / DEBRIS / FIREWALK) are endless, so a **win** is defined as clearing **level 10** (`WIN_LEVEL` in `web/src/lib/game-xp.ts`), which is near each game's difficulty cap. The text adventures (UNDERWEB / SUBSTRATE) emit `win` on completing the adventure, so all seven `win-*` badges and the `gamer-all` ladder are earnable.
 
 ---
 

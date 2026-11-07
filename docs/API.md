@@ -1337,6 +1337,60 @@ Returns the authenticated user's active (unexpired) challenge instances with cur
 
 ---
 
+### `game-action` — Award in-OS game XP
+
+The single entry point for ROAM-OS game XP. Records a `user_actions` row
+(`action_type = 'game'`), awards ordinary Roam XP via `apply_xp()` with the action
+string `game:<id>:<kind>`, and fires badge evaluation. There is no separate game
+XP economy — game XP, level-ups and game badges all flow through the same ledger.
+
+Called by both the webapp (`web/src/lib/game-xp.ts`) and the Android app
+(`RoamRepository.awardGameXp`).
+
+**Endpoint:** `POST /functions/v1/game-action`
+
+**Authentication:** Required (user JWT)
+
+**Request Body:**
+```json
+{
+  "game": "snake",
+  "kind": "level",
+  "runId": "7f2c…",
+  "level": 3
+}
+```
+
+| Field | Type | Notes |
+|---|---|---|
+| `game` | string | One of `snake`, `minesweeper`, `tetris`, `asteroids`, `frogger`, `underweb`, `substrate` |
+| `kind` | string | `level` \| `over` \| `win` |
+| `runId` | string | Stable per-run id; makes awards idempotent |
+| `level` | number | Required for `level`; optional context for `over` |
+| `score` | number | Required for `over` |
+
+**XP:** `level` → 10 · `win` → 100 · `over` → `min(500, floor(score / 10))` (awarded
+only by the client past level 100).
+
+**Response (200):**
+```json
+{
+  "success": true,
+  "xpAwarded": 10,
+  "newLevel": 7,
+  "newXpTotal": 1420
+}
+```
+
+A duplicate award (same `runId` + `kind` + `level`) returns `xpAwarded: 0`.
+
+**Error Responses:**
+- **400** — Unknown `game`, invalid `kind`, or missing `runId`
+- **401** — Missing or invalid session
+- **405** — Method not allowed
+
+---
+
 ### `evaluate-badges` — Evaluate and award badges
 
 The canonical badge evaluator (replaces the legacy SQL `evaluate_badges()` RPC). Computes a user's activity stats, compares them against 335 badge definitions, and awards any newly earned badges plus their XP. Called fire-and-forget by other edge functions after user actions, and by the badge-repair tooling.
