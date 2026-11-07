@@ -204,6 +204,36 @@ function checkDeployTagInCommits() {
 }
 checkDeployTagInCommits();
 
+// ─── R11: Branch names follow <type>/<kebab> ───────────────────────────────
+// Applies to the branch being pushed or opened as a pull request, never to a
+// file. Editors and harnesses sometimes create branches with their own prefix;
+// those names are published in PR history and break the one-concern-per-branch
+// convention in Process Rule 2.1. The allowlist is deliberately positive: an
+// unrecognised prefix fails rather than a blocklist of known prefixes.
+// CI supplies GITHUB_HEAD_REF on pull_request and GITHUB_REF_NAME on push.
+const BRANCH_ALLOWED =
+  /^(feature|feat|fix|chore|docs|test|refactor|perf|audit|build|ci|release)\/[a-z0-9][a-z0-9._-]*$/;
+const BRANCH_PASSTHROUGH = new Set(['', 'HEAD', 'main', 'develop']);
+
+function currentBranchName() {
+  const fromCi = process.env.GITHUB_HEAD_REF || process.env.GITHUB_REF_NAME || '';
+  if (fromCi) return fromCi.trim();
+  try {
+    return execSync('git rev-parse --abbrev-ref HEAD', { encoding: 'utf8' }).trim();
+  } catch {
+    return '';
+  }
+}
+
+function checkBranchName() {
+  const name = currentBranchName();
+  if (BRANCH_PASSTHROUGH.has(name)) return; // main push, detached HEAD, no repo
+  if (BRANCH_ALLOWED.test(name)) return;
+  fail('R11', 'git branch', null,
+    `branch name "${name}" does not match <type>/<kebab> (feature|feat|fix|chore|docs|test|refactor|perf|audit|build|ci|release) - see Process Rule 2.1`);
+}
+checkBranchName();
+
 // ─── R2: No attribution of automated authorship ────────────────────────────
 // `supabase/migrations/_superseded/` holds historical snapshots that
 // legitimately reference the tooling that authored them (or the context used
