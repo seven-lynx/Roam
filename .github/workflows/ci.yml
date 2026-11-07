@@ -27,6 +27,7 @@ jobs:
       extension: ${{ steps.filter.outputs.extension }}
       android: ${{ steps.filter.outputs.android }}
       supabase: ${{ steps.filter.outputs.supabase }}
+      migrations: ${{ steps.filter.outputs.migrations }}
     steps:
       - uses: actions/checkout@v5
       - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d
@@ -49,6 +50,43 @@ jobs:
             supabase:
               - 'supabase/migrations/**'
               - 'supabase/functions/**'
+            migrations:
+              - 'supabase/migrations/**'
+              - 'supabase/config.toml'
+
+  # Replay the entire migration history against a scratch database. Without this
+  # a migration that only works on an already-migrated project passes CI and
+  # fails for every new contributor. Issue #50: 20261103000001_roll_badges.sql
+  # seeded a category the June CHECK rejected, because the file had been edited
+  # AFTER it was applied (651668a). Content edits to applied migrations are
+  # invisible to `db push --dry-run` and to check-migrations.mjs (both compare
+  # version numbers, not file contents), so only a full replay catches them.
+  supabase-migrations:
+    name: Validate Migrations
+    needs: changed-paths
+    if: needs.changed-paths.outputs.migrations == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    concurrency:
+      group: supabase-migrations-${{ github.ref }}-${{ github.event.pull_request.number || github.sha }}
+      cancel-in-progress: true
+    steps:
+      - uses: actions/checkout@v5
+
+      # Pinned, not `latest`: the v3 major changed `db push`'s default target and
+      # rejects the old `[inbucket]` config section (same pin as deploy.yml).
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: 3.0.0
+
+      - name: Replay all migrations against a scratch database
+        # --no-seed is explicit rather than load-bearing: config.toml points
+        # [db.seed] at ./seed.sql, which does not exist, so seeding is a no-op
+        # either way.
+        run: |
+          supabase start
+          supabase db reset --local --no-seed
 
   lint-and-test:
     name: Lint & Test
