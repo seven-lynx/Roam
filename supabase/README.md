@@ -145,5 +145,5 @@ is skipped when `user_settings.email_notifications` is false.
 - [Changelog](./CHANGELOG.md) — notable schema, RLS, and Edge Function changes
 - [API reference](../docs/API.md) — full request/response contracts for all functions
 - [ROADMAP](../docs/ROADMAP.md) — build history and upcoming work
-- [CONTEXT](../docs/CONTEXT.md) — current-state briefing and architectural decisions
+- CONTEXT — current-state briefing and architectural decisions (maintainer-local; not committed to this repository)
 - [Main project README](../README.md) — architecture overview and development setup

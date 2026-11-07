@@ -860,7 +860,7 @@ Final checks before making the app public.
 
 ## Stage 9 — Pre-Submission Quality & Security Audit (2026-04-30) {#stage-9--pre-submission-quality--security-audit}
 
-**Audit Source:** Comprehensive codebase audit covering extension, Android, web, Supabase, documentation, configuration, and deployment readiness. See [docs/AUDIT_REPORT.md](docs/AUDIT_REPORT.md) for full details.
+**Audit Source:** Comprehensive codebase audit covering extension, Android, web, Supabase, documentation, configuration, and deployment readiness. The original `docs/AUDIT_REPORT.md` is not retained in this repository; the findings below are the surviving record of it.
 
 **Submission Status:** ? **All CRITICAL blockers resolved.** Remaining blockers before store submission: 9.10 (OAuth testing).
 
@@ -2000,7 +2000,7 @@ Ground-up polish of the Android app. The existing Compose + MVVM foundation is s
 
 - [x] **14.11** Tests: `MainViewModelTest` (prefetch, roam, rate flows with MockK), `RoamRepositoryTest` (network layer with fake Supabase). ~SwipeGestureTest and Paparazzi screenshot tests cancelled alongside 14.2/14.3.~
 
-**Discovery pipeline performance audit + Tier 1 fixes (May 5, 2026):** Deep analysis of the roam() function revealed three critical issues: (1) three correlated NOT EXISTS subqueries inside TABLESAMPLE running ~945k index lookups per call, growing worse with usage; (2) user_interest_scores LEFT JOINed on every TABLESAMPLE row redundantly; (3) Android HEAD-validating every prefetched URL over mobile adding up to 30s cold-start latency. Fixed all three: roam() v14 pre-loads all exclusion sets and the interest score map as arrays at function start (3 sequential reads instead of 945k lookups); roam() v15 widens TABLESAMPLE to 25% to reduce Phase 2 fallback frequency; Android collapsed the hot/warm two-tier queue to a single direct prefetch queue with no HEAD validation and no 300ms inter-fetch delay. Expected improvement: 2–8s typical latency → 300–600ms; cold-start worst case 35s → sub-1s. Audit and improvement plan saved in `docs/DISCOVERY_PIPELINE_AUDIT.md` and `docs/DISCOVERY_PIPELINE_IMPROVEMENTS.md`.
+**Discovery pipeline performance audit + Tier 1 fixes (May 5, 2026):** Deep analysis of the roam() function revealed three critical issues: (1) three correlated NOT EXISTS subqueries inside TABLESAMPLE running ~945k index lookups per call, growing worse with usage; (2) user_interest_scores LEFT JOINed on every TABLESAMPLE row redundantly; (3) Android HEAD-validating every prefetched URL over mobile adding up to 30s cold-start latency. Fixed all three: roam() v14 pre-loads all exclusion sets and the interest score map as arrays at function start (3 sequential reads instead of 945k lookups); roam() v15 widens TABLESAMPLE to 25% to reduce Phase 2 fallback frequency; Android collapsed the hot/warm two-tier queue to a single direct prefetch queue with no HEAD validation and no 300ms inter-fetch delay. Expected improvement: 2–8s typical latency → 300–600ms; cold-start worst case 35s → sub-1s. The audit and the improvement plan themselves are retained in the maintainer's local workspace and are not committed to this repository.
 
 ---
 
