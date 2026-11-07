@@ -13,6 +13,9 @@ All notable changes to the Roam Android app.
 - Hardware embellishments (antenna, nixie, activity LED, vacuum tube) are off by default on fresh installs; existing installs keep their saved choice.
 - Screen effects are scoped to the ROAM-OS shell: switching to Roam Classic turns them off and remembers the setting, and switching back to ROAM-OS restores it.
 
+### Fixed
+- Deck system readout — the strip scrolls its messages continuously again instead of showing one clipped message and then sitting blank; the marquee lays every repeated tile out at full width and its tile maths is covered by unit tests.
+
 ## [1.4.0] - 2026-10-29
 
 ### Added
