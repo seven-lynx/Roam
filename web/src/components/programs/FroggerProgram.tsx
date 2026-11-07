@@ -9,6 +9,7 @@ import { useGameKeys } from '@/components/programs/useGameKeys';
 import { useSwipeSteer } from '@/components/programs/useSwipeSteer';
 import { useGameLevel } from '@/components/programs/useGameLevel';
 import { GameLevelOverlay } from '@/components/programs/GameLevelOverlay';
+import { GameTimer } from '@/components/programs/GameTimer';
 import { PROGRAMS } from '@/lib/os-programs';
 import { makeRunId, WIN_LEVEL } from '@/lib/game-xp';
 import { click, beep, success } from '@/lib/sfx';
@@ -28,6 +29,11 @@ const H = ROWS * CELL;
 const START_COL = 6;
 const GOAL_COLS = [1, 3, 5, 7, 9];
 const GOAL_COUNT = GOAL_COLS.length;
+
+/** Seconds allowed per level — reach the ports before the clock runs out. */
+function firewalkTimeLimit(level: number): number {
+  return Math.max(20, 40 - (level - 1) * 2);
+}
 
 type RowKind = 'goal' | 'buffer' | 'filter' | 'static' | 'start';
 
@@ -134,8 +140,16 @@ function FirewalkGame() {
 
   const { session } = useAuth();
   const [runId] = useState(() => makeRunId());
-  const { level, phase, countdown, lastXp, levelRef, phaseRef, begin, completeLevel, gameOver, resetLevels } =
-    useGameLevel({ game: 'frogger', userId: session?.user.id ?? null, runId, winLevel: WIN_LEVEL });
+  const getScore = useCallback(() => state.current.score, []);
+  const { level, phase, countdown, timeLeft, lastXp, levelRef, phaseRef, begin, completeLevel, gameOver, resetLevels } =
+    useGameLevel({
+      game: 'frogger',
+      userId: session?.user.id ?? null,
+      runId,
+      winLevel: WIN_LEVEL,
+      timeLimitFor: firewalkTimeLimit,
+      getScore,
+    });
 
   const completeLevelRef = useRef(completeLevel);
   const gameOverRef = useRef(gameOver);
@@ -422,6 +436,7 @@ function FirewalkGame() {
         <span style={{ color: 'var(--muted)' }}>
           RETRY <span style={{ color: 'var(--danger)' }}>{'■'.repeat(Math.max(0, hud.lives))}</span>
         </span>
+        <GameTimer timeLeft={timeLeft} />
       </div>
 
       <ScaleToFit width={W} height={H}>

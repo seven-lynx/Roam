@@ -6,7 +6,7 @@ import { awardGameXp, gameOverXp, LEVEL_XP, WIN_XP, XP_LEVEL_CAP, type GameId } 
 export type LevelPhase = 'ready' | 'playing' | 'complete' | 'start' | 'over';
 
 const COUNTDOWN_FROM = 3;
-const COUNTDOWN_STEP_MS = 700;
+const COUNTDOWN_STEP_MS = 1000;
 const COMPLETE_MS = 1400;
 
 export interface UseGameLevelOptions {
@@ -17,6 +17,10 @@ export interface UseGameLevelOptions {
   runId: string;
   /** Arcade games have no end; clearing this level also awards the flat WIN_XP. */
   winLevel?: number;
+  /** Seconds allowed for a level (1-based). Absent/0 ⇒ no time limit. */
+  timeLimitFor?: (level: number) => number;
+  /** Current score, read when the clock expires so the game-over is scored. */
+  getScore?: () => number;
 }
 
 export interface GameLevelController {
@@ -25,6 +29,8 @@ export interface GameLevelController {
   phase: LevelPhase;
   /** Countdown value while `phase === 'start'`. */
   countdown: number;
+  /** Seconds left on the current level's clock (0 when no limit / not playing). */
+  timeLeft: number;
   /** Most recent XP award (level clear or game over), for display. */
   lastXp: number;
   /** Ref mirrors of `level` / `phase` for reading inside a rAF/interval loop. */
@@ -47,16 +53,19 @@ export interface GameLevelController {
  * and to apply per-level difficulty.
  */
 export function useGameLevel(opts: UseGameLevelOptions): GameLevelController {
-  const { game, userId, runId, winLevel } = opts;
+  const { game, userId, runId, winLevel, timeLimitFor, getScore } = opts;
 
   const [level, setLevel] = useState(1);
   const [phase, setPhase] = useState<LevelPhase>('ready');
   const [countdown, setCountdown] = useState(COUNTDOWN_FROM);
+  const [timeLeft, setTimeLeft] = useState(0);
   const [lastXp, setLastXp] = useState(0);
 
   const levelRef = useRef(1);
   const phaseRef = useRef<LevelPhase>('ready');
   const timers = useRef<number[]>([]);
+  // The armed limit for the current level; 0 means the clock is not running.
+  const armedRef = useRef(0);
 
   const clearTimers = useCallback(() => {
     timers.current.forEach((t) => window.clearTimeout(t));
@@ -72,13 +81,16 @@ export function useGameLevel(opts: UseGameLevelOptions): GameLevelController {
     clearTimers();
     levelRef.current = 1;
     setLevel(1);
+    setTimeLeft(0);
+    armedRef.current = 0;
     setLastXp(0);
     setPhaseBoth('ready');
   }, [clearTimers, setPhaseBoth]);
 
   const begin = useCallback(() => {
     if (phaseRef.current !== 'ready') return;
-    setPhaseBoth('playing');
+    setCountdown(COUNTDOWN_FROM);
+    setPhaseBoth('start');
   }, [setPhaseBoth]);
 
   const completeLevel = useCallback(
@@ -148,8 +160,42 @@ export function useGameLevel(opts: UseGameLevelOptions): GameLevelController {
     return () => window.clearTimeout(t);
   }, [phase, countdown, setPhaseBoth]);
 
+  // Per-level clock: arms when play begins, ticks once a second, and ends the
+  // run when it reaches zero. Re-arms for each new level; cleared otherwise.
+  useEffect(() => {
+    if (phase !== 'playing') {
+      armedRef.current = 0;
+      return;
+    }
+    if (armedRef.current === 0) {
+      const limit = timeLimitFor ? timeLimitFor(level) : 0;
+      armedRef.current = limit;
+      if (limit > 0) setTimeLeft(limit);
+      return;
+    }
+    if (timeLeft <= 0) {
+      armedRef.current = 0;
+      gameOver(getScore ? getScore() : 0);
+      return;
+    }
+    const t = window.setTimeout(() => setTimeLeft((v) => v - 1), 1000);
+    return () => window.clearTimeout(t);
+  }, [phase, level, timeLeft, gameOver, timeLimitFor, getScore]);
+
   // Clear any pending interstitial timers on unmount.
   useEffect(() => clearTimers, [clearTimers]);
 
-  return { level, phase, countdown, lastXp, levelRef, phaseRef, begin, completeLevel, gameOver, resetLevels };
+  return {
+    level,
+    phase,
+    countdown,
+    timeLeft,
+    lastXp,
+    levelRef,
+    phaseRef,
+    begin,
+    completeLevel,
+    gameOver,
+    resetLevels,
+  };
 }

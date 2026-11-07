@@ -9,6 +9,7 @@ import { useGameKeys } from '@/components/programs/useGameKeys';
 import { useSwipeSteer } from '@/components/programs/useSwipeSteer';
 import { useGameLevel } from '@/components/programs/useGameLevel';
 import { GameLevelOverlay } from '@/components/programs/GameLevelOverlay';
+import { GameTimer } from '@/components/programs/GameTimer';
 import { AnalogStick } from '@/components/programs/AnalogStick';
 import { useControlMode } from '@/components/programs/useControlMode';
 import { PROGRAMS } from '@/lib/os-programs';
@@ -25,6 +26,11 @@ import type { Steer } from '@/lib/steer';
 
 const W = 480;
 const H = 560;
+
+/** Seconds allowed per level — clear the wave before the clock runs out. */
+function debrisTimeLimit(level: number): number {
+  return Math.max(20, 45 - (level - 1) * 2);
+}
 
 interface Rock {
   x: number;
@@ -91,8 +97,16 @@ function DebrisGame() {
   const { session } = useAuth();
   const [runId] = useState(() => makeRunId());
   const { mode, toggle } = useControlMode('roam-asteroids-control');
-  const { level, phase, countdown, lastXp, levelRef, phaseRef, begin, completeLevel, gameOver, resetLevels } =
-    useGameLevel({ game: 'asteroids', userId: session?.user.id ?? null, runId, winLevel: WIN_LEVEL });
+  const getScore = useCallback(() => state.current.score, []);
+  const { level, phase, countdown, timeLeft, lastXp, levelRef, phaseRef, begin, completeLevel, gameOver, resetLevels } =
+    useGameLevel({
+      game: 'asteroids',
+      userId: session?.user.id ?? null,
+      runId,
+      winLevel: WIN_LEVEL,
+      timeLimitFor: debrisTimeLimit,
+      getScore,
+    });
   const completeLevelRef = useRef(completeLevel);
   const gameOverRef = useRef(gameOver);
   useEffect(() => {
@@ -313,6 +327,7 @@ function DebrisGame() {
         <span style={{ color: 'var(--muted)' }}>
           HULL <span style={{ color: 'var(--danger)' }}>{'■'.repeat(Math.max(0, hud.lives))}</span>
         </span>
+        <GameTimer timeLeft={timeLeft} />
       </div>
 
       <ScaleToFit width={W} height={H}>

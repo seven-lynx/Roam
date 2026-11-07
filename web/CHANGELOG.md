@@ -2,6 +2,19 @@
 
 All notable changes to the Roam web platform.
 
+## [2026-11-07] — Per-level game clocks and a rebuildable BOTFIELD
+### Added
+- A per-level clock in the arcade programs. `useGameLevel` takes `timeLimitFor(level)` and `getScore()`, arms a `timeLeft` budget when play begins and ends the run — scored — when that budget expires. The new `GameTimer` chip renders the clock in each game's HUD and turns red for the last five seconds. RELAY tightens from 30 s a level, COMPILER from 90 s, and BOTFIELD's board grows, so its budget grows with it.
+- `lib/minesweeper.ts` — the BOTFIELD rules as pure data and functions: mine layout with a guaranteed-safe opening sweep, flood-fill reveal, adjacency counts, flag toggling and chording. `MinesweeperProgram.tsx` is now a thin shell over them, and the Android port mirrors the same rules.
+- Unit tests for the board rules (`minesweeper.test.ts`) and for the level loop's clock (`use-game-level.test.ts`).
+
+### Changed
+- The LEVEL START interstitial counts down for real: `begin()` enters the 3–2–1 `start` phase instead of dropping straight into play, and each step lasts 1000 ms rather than 700 ms.
+- BOTFIELD flags with HOLD or a right-click, its HUD counts the bots still buried instead of the total, and the controls line says so.
+
+### Fixed
+- BOTFIELD's opening sweep is guaranteed safe and opens an area, and tapping a revealed number chords its neighbours when the flags around it match — a wrong flag detonates it.
+
 ## [2026-11-07] — Launcher menu tidied
 ### Changed
 - Dropped the duplicate Cyberdeck view entry from the launcher menu: neither the START-MENU System group row nor the footer `⛶` control opens MOUNT DECK any more. Deck mode stays reachable from Config, the deck controls window and the `deck` shell command, and All Apps keeps a CYBERDECK tile in its System group.
