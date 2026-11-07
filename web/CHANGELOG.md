@@ -2,6 +2,10 @@
 
 All notable changes to the Roam web platform.
 
+## [2026-11-07] — Auth errors only when auth actually fails
+### Fixed
+- A logged-out visit no longer files an error: the request middleware read the "no session" answer from Supabase auth as a failure and reported it, so every anonymous page view produced one error event. Only a genuine auth failure is reported now, and the report carries the error name, code and status — the log sanitizer used to drop all three before the event left the process.
+
 ## [2026-11-07] — Desktop widget rail spacing
 ### Changed
 - Shortened the "This month's picks" showcase tile from roughly 530px to 380px: the cover image is a fixed 150px banner strip (it was a 16:9 frame at ~286px), and the info chip, controls row and bottom gradient lost a notch of padding. The tile no longer reaches the telemetry · rankings · diagnostics row above it.
