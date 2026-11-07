@@ -31,6 +31,7 @@ This index is the entry point to the repository documentation. Start with the qu
 | [GLOSSARY.md](GLOSSARY.md) | Product and scoring terminology |
 | [STORE_SUBMISSION_GUIDE.md](STORE_SUBMISSION_GUIDE.md) | Store submission guide |
 | [TAG_SYSTEM.md](TAG_SYSTEM.md) | Tag graph: tables, deployment state, pending tag-boost work |
+| [HELP_FAQ.md](HELP_FAQ.md) | User help and FAQ: accounts, discovery, collections, profiles, platforms |
 | [SECRETS_AUDIT.md](SECRETS_AUDIT.md) | Secret inventory, rotation procedure, and scan coverage |
 | [VISUAL-RECORDING.md](VISUAL-RECORDING.md) | Automated screenshot/video capture for every web + Android screen |
 
