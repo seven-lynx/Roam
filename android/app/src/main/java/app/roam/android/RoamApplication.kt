@@ -29,7 +29,11 @@ class RoamApplication : Application() {
         // Initialise Sentry error tracking.
         // DSN is injected from local.properties at build time via BuildConfig.
         // If SENTRY_DSN is empty (e.g. local dev without a key), Sentry is a no-op.
-        if (BuildConfig.SENTRY_DSN.isNotEmpty()) {
+        // JVM unit tests never report: Robolectric instantiates this class on the host,
+        // so without the guard the SDK ships test-harness failures — mocked exceptions,
+        // heap exhaustion, mockk coroutine errors — to the live project as if they were
+        // crash reports from a device (ROAM-EXTENSION-J/K/M).
+        if (BuildConfig.SENTRY_DSN.isNotEmpty() && !isRunningUnitTest()) {
             try {
                 SentryAndroid.init(this) { options ->
                     options.dsn = BuildConfig.SENTRY_DSN
@@ -102,6 +106,15 @@ class RoamApplication : Application() {
             override fun onActivityDestroyed(activity: android.app.Activity) {}
         })
     }
+
+    /**
+     * True when this process is a JVM unit test. Robolectric — the only runner here that
+     * builds the real [RoamApplication] off-device — sits on the host classpath, so the
+     * probe succeeds under `testDebugUnitTest` and fails on every device and emulator.
+     * Reporting has to stay off there; see the note above [SentryAndroid.init].
+     */
+    private fun isRunningUnitTest(): Boolean =
+        runCatching { Class.forName("org.robolectric.Robolectric") }.isSuccess
 
     private fun applyThemeIcon() {
         val roamOs = getSharedPreferences("roam_saved", Context.MODE_PRIVATE)
