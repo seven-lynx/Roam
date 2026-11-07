@@ -124,7 +124,12 @@ jobs:
 
       # `--remote` is required from CLI v3: without it `db push` targets the local
       # database and dies with ECONNREFUSED 127.0.0.1:54322 on a runner.
+      # v3 reads the access token from the environment; it no longer reuses what
+      # `supabase link` stored, so every command that reaches the Management API
+      # (db push, functions deploy) has to be handed it here.
       - name: Preview migrations (dry-run)
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
         run: supabase db push --dry-run --remote
 
       # Executes roam() for real under the `authenticated` role's 8s timeout.
@@ -140,6 +145,8 @@ jobs:
       - name: Apply migrations
         # --remote targets the linked project (v3 defaults to local); --yes accepts
         # hosted changes, which v3 never takes from a prompt in a CI runner.
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
         run: |
           if [ "${{ inputs.include_all }}" = "true" ]; then
             supabase db push --remote --include-all --yes
@@ -149,7 +156,9 @@ jobs:
 
       - name: Deploy Edge Functions
         if: inputs.deploy_functions
-        run: supabase functions deploy
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: supabase functions deploy --yes
 
       # ── Post-deploy verification ─────────────────────────────────────────
       - name: Poll roam-health-check until green

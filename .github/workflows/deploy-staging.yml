@@ -136,7 +136,10 @@ jobs:
           DENO_DIR: ~/.cache/deno
 
       # --remote is required from CLI v3; without it `db push` targets the local DB.
+      # The token must be in the environment too — v3 does not reuse the one `link` stored.
       - name: Preview migrations (dry-run)
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.STAGING_SUPABASE_ACCESS_TOKEN }}
         run: supabase db push --dry-run --remote
 
       # Executes roam() under the authenticated role's 8s timeout. Skipped by
@@ -156,6 +159,8 @@ jobs:
 
       # ── Deploy ───────────────────────────────────────────────────────────
       - name: Apply migrations
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.STAGING_SUPABASE_ACCESS_TOKEN }}
         run: |
           if [ "${{ inputs.include_all }}" = "true" ]; then
             supabase db push --remote --include-all --yes
@@ -165,7 +170,9 @@ jobs:
 
       - name: Deploy Edge Functions
         if: inputs.deploy_functions
-        run: supabase functions deploy
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.STAGING_SUPABASE_ACCESS_TOKEN }}
+        run: supabase functions deploy --yes
 
       # ── Post-deploy verification ─────────────────────────────────────────
       - name: Poll roam-health-check until green
