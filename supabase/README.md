@@ -102,6 +102,9 @@ supabase functions deploy sentry-webhook
 2. The function files an issue on `created` / `unresolved`+`regressed`. It is
    idempotent per Sentry issue: repeated deliveries do not create duplicates
    (dedup key is `sentry-issue:<id>` in the issue body).
+3. Bodies are redacted before filing — bearer tokens, JWTs, Supabase keys,
+   `key=value` credentials and email addresses never reach the (public) repo.
+   See **Redaction** in `docs/API.md`.
 
 ## `push-notify` database webhook
 

@@ -158,8 +158,15 @@ export function formatFrame(f: JsonObject): string {
 export function tagsToObject(tags: unknown): Record<string, string> {
   const out: Record<string, string> = {}
   for (const t of asArray(tags)) {
+    // Issue and alert webhooks send [key, value] pairs…
     const pair = asArray(t)
-    if (pair.length >= 2) out[String(pair[0])] = String(pair[1])
+    if (pair.length >= 2) {
+      out[String(pair[0])] = String(pair[1])
+      continue
+    }
+    // …while the events API the enrichment step fetches returns { key, value }.
+    const obj = asObject(t)
+    if (obj && obj['key'] != null) out[String(obj['key'])] = String(obj['value'] ?? '')
   }
   return out
 }
@@ -170,11 +177,50 @@ export function extractProjectSlug(url: string | null): string {
   return m ? m[1] : ''
 }
 
+// ── Redaction ───────────────────────────────────────────────────────────────
+
+/**
+ * Credentials and PII are stripped before any string can reach a GitHub issue.
+ * The repo is public, so anything Sentry echoes back is public too: an Android
+ * `UnauthorizedRestException` dumps the failed call's request headers, and those
+ * carry the user's live bearer token, their email and the project apikey.
+ *
+ * Rules run in order — specific credential shapes first, the generic `key=value`
+ * sweep last. The `(?!\[)` guard makes the generic rule skip values that are
+ * *already* a placeholder, which is what keeps the whole function idempotent.
+ */
+const REDACTION_RULES: ReadonlyArray<readonly [RegExp, string]> = [
+  [/Bearer\s+[A-Za-z0-9._~+/=-]+/gi, 'Bearer [redacted]'],
+  [/\beyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\b/g, '[redacted-jwt]'],
+  // Optional surrounding brackets so `apikey=[sb_publishable_x]` collapses to
+  // `apikey=[redacted-key]` instead of double-bracketing.
+  [/\[?sb_(?:publishable|secret)_[A-Za-z0-9_-]+\]?/g, '[redacted-key]'],
+  // `(^|[^A-Za-z])` rather than `\b`: `refresh_token=` and `client_secret=`
+  // have no word boundary before the keyword, and `\b` would skip them.
+  [
+    /(^|[^A-Za-z])(apikey|api[_-]?key|password|passwd|secret|token|authorization)=+(?!\[)[^\s,\]\[:]{4,}/gi,
+    '$1$2=[redacted]',
+  ],
+  [/\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b/g, '[redacted-email]'],
+]
+
+export function redactSecrets(value: string): string {
+  let out = value
+  for (const [pattern, replacement] of REDACTION_RULES) out = out.replace(pattern, replacement)
+  return out
+}
+
+/** Redact, then flatten anything that would break a markdown table cell. */
+function mdCell(value: string): string {
+  return redactSecrets(value).replace(/\r?\n/g, ' ').replace(/\|/g, '\\|')
+}
+
 // ── Markdown builders ───────────────────────────────────────────────────────
 
 export function buildTitle(issue: NormalizedIssue): string {
   const project = issue.projectSlug ? `${issue.projectSlug}: ` : ''
-  const base = issue.title || issue.message || 'Sentry error'
+  // Redact before truncating: a clipped token is still a token.
+  const base = redactSecrets(issue.title || issue.message || 'Sentry error')
   return `[Sentry] ${project}${truncate(base, 180)}`
 }
 
@@ -190,7 +236,7 @@ export function buildBody(issue: NormalizedIssue): string {
     ['Affected users', issue.userCount != null ? String(issue.userCount) : '—'],
     ['Status', issue.substatus ?? issue.triggeredRule ?? '—'],
   ]
-    .map(([k, v]) => `| ${k} | ${v} |`)
+    .map(([k, v]) => `| ${k} | ${mdCell(String(v))} |`)
     .join('\n')
 
   const parts = [
@@ -202,14 +248,15 @@ export function buildBody(issue: NormalizedIssue): string {
     rows,
   ]
 
-  if (issue.message) parts.push('', '### Message', '', '```', issue.message, '```')
-  if (issue.culprit) parts.push('', '### Culprit', '', '```', issue.culprit, '```')
+  if (issue.message) parts.push('', '### Message', '', '```', redactSecrets(issue.message), '```')
+  if (issue.culprit) parts.push('', '### Culprit', '', '```', redactSecrets(issue.culprit), '```')
   if (issue.stackFrames.length > 0) {
-    parts.push('', '### Stack trace', '', '```', issue.stackFrames.slice(0, 25).join('\n'), '```')
+    const frames = issue.stackFrames.slice(0, 25).map(redactSecrets)
+    parts.push('', '### Stack trace', '', '```', frames.join('\n'), '```')
   }
   if (Object.keys(issue.tags).length > 0) {
     const tagRows = Object.entries(issue.tags)
-      .map(([k, v]) => `| \`${k}\` | ${v} |`)
+      .map(([k, v]) => `| \`${k}\` | ${mdCell(v)} |`)
       .join('\n')
     parts.push('', '### Tags', '', '| Key | Value |', '| --- | --- |', tagRows)
   }

@@ -2,6 +2,13 @@
 
 All notable changes to the Roam Supabase backend (PostgreSQL schema, Row-Level Security, and Deno Edge Functions).
 
+## [2026-11-07] — Sentry issue bodies never carry credentials
+### Security
+- `sentry-webhook` redacts issue titles, messages, culprits, stack frames and tag values before filing: bearer tokens, JWTs, `sb_publishable_*` / `sb_secret_*` keys, generic `key=` credentials (`apikey`, `token`, `password`, `secret`, `authorization`) and email addresses. An `UnauthorizedRestException` from the Android and extension clients echoes the failed call's full request headers — including a live user session token and their email — and `seven-lynx/Roam` is public. Found while backfilling issues #55–#61; none of those leaked (checked before filing). Redaction is idempotent, so already-redacted text passes through unchanged.
+### Fixed
+- `tagsToObject` accepts the `[{ key, value }]` shape the events API returns as well as webhook `[key, value]` pairs, so an enriched issue now actually renders its `### Tags` table instead of silently omitting the section.
+- Markdown table cells escape `|` and collapse newlines, so a tag or release containing a pipe can no longer break the field or tag tables.
+
 ## [2026-11-07] — Sentry issue bodies keep their stack traces
 ### Fixed
 - `sentry-webhook` says so when enrichment is off instead of returning silently. A missing `SENTRY_AUTH_TOKEN` and a non-OK event fetch each log a warning now, so an issue filed without a `### Stack trace` section is one log line away from the cause instead of a mystery in the issue body (issue #19).
