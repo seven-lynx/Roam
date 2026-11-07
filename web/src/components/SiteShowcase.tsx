@@ -61,7 +61,7 @@ export function SiteShowcase() {
           <span className="widget-title">This month&apos;s picks</span>
         </div>
         <div className="widget-body animate-pulse">
-          <div className="aspect-video bg-panel-3 mb-4" />
+          <div className="h-[150px] bg-panel-3 mb-4" />
           <div className="h-5 w-3/4 bg-panel-3 mb-2" />
           <div className="h-4 w-1/3 bg-panel-3" />
         </div>
@@ -101,7 +101,7 @@ export function SiteShowcase() {
         className="block w-full text-left"
       >
         {/* OG Image */}
-        <div className="aspect-video bg-panel-3 relative overflow-hidden">
+        <div className="h-[150px] bg-panel-3 relative overflow-hidden">
           {site.og_image_url ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
@@ -116,11 +116,11 @@ export function SiteShowcase() {
             </div>
           )}
           {/* Gradient overlay at bottom */}
-          <div className="absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-screen/50 to-transparent" />
+          <div className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-screen/50 to-transparent" />
         </div>
 
         {/* Info */}
-        <div className="widget-chip p-5 mt-2">
+        <div className="widget-chip p-4 mt-2">
           <h3 className="text-lg font-semibold text-ink truncate">
             {site.title || site.original_url}
           </h3>
@@ -138,7 +138,7 @@ export function SiteShowcase() {
 
       {/* Controls */}
       {sites.length > 1 && (
-        <div className="flex items-center justify-between px-5 pb-4">
+        <div className="flex items-center justify-between px-5 pb-3">
           {/* Dot nav */}
           <div className="flex items-center gap-1.5">
             {sites.map((_, i) => (

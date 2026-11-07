@@ -2,6 +2,12 @@
 
 All notable changes to the Roam web platform.
 
+## [2026-11-07] — Desktop widget rail spacing
+### Changed
+- Shortened the "This month's picks" showcase tile from roughly 530px to 380px: the cover image is a fixed 150px banner strip (it was a 16:9 frame at ~286px), and the info chip, controls row and bottom gradient lost a notch of padding. The tile no longer reaches the telemetry · rankings · diagnostics row above it.
+- Lifted that top row 8px toward the status bar — its rail now starts at 48px instead of 56px, leaving 7px of clearance under the 40px bar.
+- The bottom rail is capped at 270px so the showcase can never climb into the top cluster on a short viewport; on tall screens it still hugs the bottom-right.
+
 ## [2026-11-07] — Per-level game clocks and a rebuildable BOTFIELD
 ### Added
 - A per-level clock in the arcade programs. `useGameLevel` takes `timeLimitFor(level)` and `getScore()`, arms a `timeLeft` budget when play begins and ends the run — scored — when that budget expires. The new `GameTimer` chip renders the clock in each game's HUD and turns red for the last five seconds. RELAY tightens from 30 s a level, COMPILER from 90 s, and BOTFIELD's board grows, so its budget grows with it.
