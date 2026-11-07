@@ -97,7 +97,6 @@ export const LAUNCHER_GROUPS: LauncherGroup[] = [
       { action: 'desktop', label: 'Desktop', file: 'roam desktop', glyph: '⌂' },
       { external: 'https://github.com/seven-lynx/roam', label: '7 Lynx', file: 'github.com/seven-lynx', glyph: '7' },
       { action: 'inspect', label: 'Inspect the deck', file: 'roam inspect', glyph: '⟳' },
-      { action: 'deckview', label: 'Cyberdeck view', file: 'roam deck', glyph: '⛶' },
       { href: '/signup?mode=signin', label: 'Log in', file: 'roam login', auth: false, glyph: '→' },
       { href: '/signup', label: 'Get started', file: 'roam init', auth: false, glyph: '✦' },
       { href: '/support-roam', label: 'Support Roam', file: 'support.txt', glyph: '♥' },

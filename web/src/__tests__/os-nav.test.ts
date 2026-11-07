@@ -20,6 +20,18 @@ describe('os-nav', () => {
     launcher.forEach((h) => expect(primary.has(h)).toBe(false));
   });
 
+  it('no longer offers a Cyberdeck view entry in the launcher', () => {
+    const actions = LAUNCHER_GROUPS.flatMap((g) => g.items.map((i) => i.action));
+    expect(actions).not.toContain('deckview');
+    const labels = LAUNCHER_GROUPS.flatMap((g) => g.items.map((i) => i.label));
+    expect(labels).not.toContain('Cyberdeck view');
+  });
+
+  it('keeps the deck inspect entry in the System group', () => {
+    const system = LAUNCHER_GROUPS.find((g) => g.title === 'System');
+    expect(system?.items.some((i) => i.action === 'inspect')).toBe(true);
+  });
+
   it('matches the home key only on the exact root path', () => {
     expect(isActivePath('/', '/')).toBe(true);
     expect(isActivePath('/badges', '/')).toBe(false);

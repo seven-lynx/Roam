@@ -25,9 +25,17 @@ describe('os-apps registry', () => {
     expect(filterApps('   ')).toHaveLength(ALL_APPS.length);
   });
 
-  it('lays out the handheld home screen with eight singles and two folders', () => {
-    expect(HOME_APPS).toHaveLength(8);
+  it('lays out the handheld home screen with seven singles and two folders', () => {
+    expect(HOME_APPS).toHaveLength(7);
     expect(HOME_FOLDERS.map((f) => f.id)).toEqual(['games', 'links']);
+  });
+
+  it('keeps the cyberdeck off the home screen but reachable from the app drawer', () => {
+    expect(HOME_APPS.map((a) => a.label)).not.toContain('CYBERDECK');
+    const deck = ALL_APPS.filter((a) => a.action === 'deckview');
+    expect(deck).toHaveLength(1);
+    expect(deck[0].label).toBe('CYBERDECK');
+    expect(filterApps('cyberdeck').map((a) => a.label)).toContain('CYBERDECK');
   });
 
   it('packs the games and links folders with their expected apps', () => {

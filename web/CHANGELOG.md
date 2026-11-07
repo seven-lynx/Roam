@@ -2,6 +2,11 @@
 
 All notable changes to the Roam web platform.
 
+## [2026-11-07] — Launcher menu tidied
+### Changed
+- Dropped the duplicate Cyberdeck view entry from the launcher menu: neither the START-MENU System group row nor the footer `⛶` control opens MOUNT DECK any more. Deck mode stays reachable from Config, the deck controls window and the `deck` shell command, and All Apps keeps a CYBERDECK tile in its System group.
+- Inspect now requests (and, if the scene is cold, mounts) the 3D scene when it is entered from the launcher, the dock, quick settings or Config, so there is always a machine behind the OS screen while it fades out.
+
 ## [2026-11-05] — Diagnostics nameplate
 ### Changed
 - Lifted the deck-diagnostics title out of the circular disc into a normal widget header, renamed to `DIAGNOSTICS`, and docked the tile at the same 210px height as Sys.Telemetry and Rankings so all three sit flush along the top-right rail.
