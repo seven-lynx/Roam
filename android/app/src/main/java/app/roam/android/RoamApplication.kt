@@ -41,7 +41,7 @@ class RoamApplication : Application() {
                     // - HttpRequestException with DNS failure messages — ROAM-ANDROID-Q/6/H
                     //   These are transient network conditions the app already handles gracefully.
                     // Real app-thrown exceptions still reach Sentry via Sentry.captureException().
-                    options.beforeSend = io.sentry.SentryOptions.BeforeSendCallback { event, hint ->
+                    options.beforeSend = io.sentry.SentryOptions.BeforeSendCallback { event, _ ->
                         val exc = event.exceptions?.firstOrNull()
                         val excType = exc?.type
                         val excValue = exc?.value ?: ""

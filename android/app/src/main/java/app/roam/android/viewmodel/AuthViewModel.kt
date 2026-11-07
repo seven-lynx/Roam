@@ -14,6 +14,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
+import kotlin.time.Duration.Companion.milliseconds
 
 sealed interface AuthState {
     /** Still determining — show a splash/loading indicator */
@@ -88,7 +89,7 @@ class AuthViewModel(
             }
 
             Log.w(TAG, "Onboarding check attempt ${attempt + 1} failed; retrying", result.exceptionOrNull())
-            delay(250)
+            delay(250.milliseconds)
         }
 
         // Fail open to the main app if onboarding status cannot be fetched after retries.
