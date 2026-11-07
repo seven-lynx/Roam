@@ -1,0 +1,5 @@
+{
+  "compilerOptions": {
+    "types": ["./supabase/functions/_shared/deno-globals.d.ts"]
+  }
+}
