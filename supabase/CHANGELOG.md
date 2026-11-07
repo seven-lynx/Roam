@@ -2,9 +2,10 @@
 
 All notable changes to the Roam Supabase backend (PostgreSQL schema, Row-Level Security, and Deno Edge Functions).
 
-## [2026-11-07] — Local email-testing config
+## [2026-11-07] — Supabase CLI v3 compatibility
 ### Fixed
 - `config.toml` uses the `[local_smtp]` section instead of the removed `[inbucket]` one. The CLI renamed it in v2.108.0 and rejects the old name outright, so the deploy workflow's migration dry-run failed before Edge Functions could be deployed.
+- `auth.email.enable_signup` / `auth.sms.enable_signup` became `auth.email.enabled` / `auth.sms.enabled`, ahead of their removal in CLI v4.
 
 ## [2026-10-24] — Home stats
 ### Added
