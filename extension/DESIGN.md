@@ -249,17 +249,16 @@ or in `background/handlers/`.
 
 | Message type | Handler | Notes |
 |---|---|---|
-| `GET_STATE` | `getState()` | Returns `{ signedIn, email, userId }` from current session |
+| `GET_STATE` | `getState()` | Returns `{ signedIn, email, userId, version }` from current session |
 | `SIGN_IN_GOOGLE` | `signInWithOAuth('google')` | Opens the authorize URL in one new tab (deduped via the `auth_flow` marker); returns `signedIn: false` immediately |
-| `SIGN_IN_GITHUB` | `signInWithOAuth('github')` | Same pattern |
 | `SIGN_IN_EMAIL` | `signInWithEmail()` | Direct password auth |
 | `SIGN_UP_EMAIL` | `signUpWithEmail()` | Returns `needsVerification: bool` |
 | `EXCHANGE_CODE` | `exchangeCode()` | PKCE code → session (called from callback.ts) |
 | `SAVE_SESSION` | `saveSession()` | Implicit grant tokens → session (called from callback.ts) |
 | `SIGN_OUT` | `signOut()` | Calls `clearAuthStorage()` to wipe all session keys |
 | `GET_CATEGORIES` | `getCategories()` | 20-minute in-memory TTL cache; falls back to FALLBACK_CATEGORIES |
-| `GET_USER_CATEGORIES` | `getUserCategories()` | Reads `user_categories` table |
-| `SET_USER_CATEGORIES` | `setUserCategories()` | Delete-then-insert into `user_categories` |
+| `GET_USER_INTERESTS` | `getUserInterests()` | Reads the user's saved pillar and topic selections |
+| `SET_USER_INTERESTS` | `setUserInterests()` | Replaces the user's saved pillar and topic selections |
 | `ROAM` | `roam()` | Cache-first. Calls `prefetchNext()` on cache hit. |
 | `ROAM_COLLECTION` | `roamCollection()` | Live call with `collection_id`. No prefetch. |
 | `ROAM_CATEGORY` | `roamCategory()` | Live call with `category_id`. No prefetch. |
@@ -396,7 +395,7 @@ On `DOMContentLoaded`:
 2. `boot()` — sends `GET_STATE` to SW.
    - `signedIn: false` → show `state-signedout`.
    - `signedIn: true` → `checkAndRouteAfterSignIn()`:
-     - Parallel fetch: `GET_USER_CATEGORIES` + `GET_CATEGORIES`.
+     - Parallel fetch: `GET_USER_INTERESTS` + `GET_CATEGORIES`.
      - `selectedIds.length > 0` → populate chips + show `state-main`.
      - `selectedIds.length === 0` → populate chips + show `state-categories` (first-time onboarding).
 
@@ -452,34 +451,71 @@ navigate tab → close popup
 
 ### 8.1 Types
 
+The union below is copied from `src/lib/messages.ts`, which is the source of truth. Keep this block in step when a type is added or removed.
+
 ```typescript
 export type Request = 
   | { type: 'GET_STATE' }
   | { type: 'SIGN_IN_GOOGLE' }
-  | { type: 'SIGN_IN_GITHUB' }
   | { type: 'SIGN_IN_EMAIL'; email: string; password: string }
   | { type: 'SIGN_UP_EMAIL'; email: string; password: string }
-  | { type: 'EXCHANGE_CODE'; code: string }
-  | { type: 'SAVE_SESSION'; accessToken: string; refreshToken: string }
-  | { type: 'SIGN_OUT' }
   | { type: 'GET_CATEGORIES' }
-  | { type: 'GET_USER_CATEGORIES' }
-  | { type: 'SET_USER_CATEGORIES'; categoryIds: string[] }
-  | { type: 'ROAM'; collectionId?: string }
+  | { type: 'GET_USER_INTERESTS' }
+  | { type: 'GET_USER_SETTINGS' }
+  | { type: 'SET_USER_INTERESTS'; pillarIds: string[]; topicIds: string[] }
+  | { type: 'GET_ALL_SUBCATEGORIES' }
+  | { type: 'SIGN_OUT' }
+  | { type: 'ROAM'; categoryId?: string; subcategoryId?: string }
   | { type: 'ROAM_COLLECTION'; collectionId: string }
   | { type: 'ROAM_CATEGORY'; categoryId: string }
   | { type: 'RATE'; url_id: string; vote: 1 | -1 }
   | { type: 'CHECK_URL'; url: string }
-  | { type: 'SUBMIT_URL'; url: string; categoryId: string }
-  | { type: 'SAVE_LATER'; url: string }
+  | { type: 'SUBMIT_URL'; url: string; categoryId: string; subcategoryId?: string }
+  | { type: 'SAVE_LATER'; url: string; title?: string }
+  | { type: 'GET_SAVED_URLS' }
+  | { type: 'REMOVE_SAVED_URL'; savedUrlId: string }
   | { type: 'SET_PAYWALL_PREF'; skip: boolean }
   | { type: 'SET_LANGUAGE_PREF'; languages: string[] }
+  | { type: 'SET_DISCOVERY_MODE'; mode: 'discovery' | 'deep_dive' }
+  | { type: 'SET_AUTO_TRANSLATE'; enabled: boolean }
   | { type: 'GET_COLLECTIONS' }
   | { type: 'CREATE_COLLECTION'; name: string }
   | { type: 'ADD_URL_TO_COLLECTION'; url: string; collectionId: string }
+  | { type: 'EXCHANGE_CODE'; code: string }
+  | { type: 'SAVE_SESSION'; accessToken: string; refreshToken: string }
   | { type: 'GET_PROFILE' }
   | { type: 'SEND_FEEDBACK'; message: string; email?: string; platform: string }
-  | { type: 'REPORT_URL'; url_id: string };
+  | { type: 'REPORT_URL'; url_id: string }
+  | { type: 'SET_PROFILE_PUBLIC'; isPublic: boolean }
+  | { type: 'SHARE_URL_WITH_USER'; url: string; recipientId: string }
+  | { type: 'GET_SHARE_RECIPIENTS'; search?: string }
+  | { type: 'FOLLOW_USER'; userId: string }
+  | { type: 'UNFOLLOW_USER'; userId: string }
+  | { type: 'GET_FOLLOWERS' }
+  | { type: 'GET_FOLLOWING' }
+  | { type: 'GET_ACTIVITY_FEED'; limit?: number }
+  | { type: 'GET_PROFILE_PUBLIC' }
+  | { type: 'REPORT_ENGAGEMENT'; url_id: string; dwell_ms: number; skipped: boolean }
+  | { type: 'GET_NOTIFICATIONS' }
+  | { type: 'GET_UNREAD_COUNT' }
+  | { type: 'MARK_NOTIFICATIONS_READ' }
+  | { type: 'DELETE_NOTIFICATION'; notificationId: string }
+  | { type: 'MARK_NOTIFICATION_READ'; notificationId: string }
+  | { type: 'CLEAR_NOTIFICATIONS' }
+  | { type: 'GET_BADGES' }
+  | { type: 'GET_CHALLENGES' }
+  | { type: 'GET_URL_HISTORY'; limit?: number }
+  | { type: 'CLEAR_URL_HISTORY' }
+  | { type: 'DELETE_COLLECTION'; collectionId: string }
+  | { type: 'RENAME_COLLECTION'; collectionId: string; name: string }
+  | { type: 'UPDATE_COLLECTION_PUBLIC'; collectionId: string; isPublic: boolean }
+  | { type: 'GET_PROFILE_STATS' }
+  | { type: 'GET_MY_PROFILE' }
+  | { type: 'SET_PROFILE_FIELDS'; displayName: string; bio: string }
+  | { type: 'CLAIM_USERNAME'; username: string }
+  | { type: 'CHANGE_PASSWORD'; currentPassword: string; newPassword: string }
+  | { type: 'SET_DESKTOP_NOTIFICATIONS'; enabled: boolean }
+  | { type: 'GET_SUBCATEGORIES_FOR_CATEGORY'; categoryId: string };
 
 export type Response<T = unknown> =
   | { ok: true; data: T }
