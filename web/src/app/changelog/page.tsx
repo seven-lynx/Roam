@@ -80,6 +80,17 @@ const ANDROID_ENTRIES: Entry[] = [
 
 const EXTENSION_ENTRIES: Entry[] = [
   {
+    version: "0.6.0",
+    date: "2026-11-08",
+    items: [
+      "ROAM-OS popup theme, with a Display panel for the theme switcher and CRT static/flicker.",
+      "Desktop notifications for follows, shares, badge unlocks, level-ups and challenges.",
+      "Community screen — activity feed, followers and following, with unfollow in place.",
+      "Collections, profile editing and username claim inside the popup, plus level, XP and streak.",
+      "Saved pages no longer expire, sign-in opens one tab, and Edge Function calls work on Firefox again.",
+    ],
+  },
+  {
     version: "0.5.0",
     date: "2026-08-05",
     items: [
