@@ -7,13 +7,18 @@
 //   import './sentry';   ← must be the very first import
 
 import * as Sentry from '@sentry/browser';
+import { isExtensionContext } from './extension-context';
 
 declare const __SENTRY_DSN__: string;
 declare const __SENTRY_RELEASE__: string;
 
 const dsn = typeof __SENTRY_DSN__ !== 'undefined' ? __SENTRY_DSN__ : '';
 
-if (dsn) {
+// Reporting is gated on the extension context as well as the DSN. The DSN is baked
+// into every non-watch build, so without this check a dist/ page opened from disk
+// files production issues tagged environment=production and platform=extension-chrome
+// that no installed extension can reproduce (issue #75).
+if (dsn && isExtensionContext()) {
   Sentry.init({
     dsn,
     release: typeof __SENTRY_RELEASE__ !== 'undefined' ? __SENTRY_RELEASE__ : undefined,

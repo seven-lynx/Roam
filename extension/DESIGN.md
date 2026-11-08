@@ -489,6 +489,8 @@ export type Response<T = unknown> =
 
 Retries once with a 300ms pause between attempts. This handles the common case where Chrome has terminated the SW and needs a moment to restart it before the second attempt lands. Both failures are captured to Sentry. The returned error on double failure is user-facing and safe to display.
 
+One case is not retried: a page with no extension runtime at all (`isExtensionContext()` in `extension-context.ts` returns false). A built `popup.html` opened over `file://` has no `chrome` global, so every attempt would throw `ReferenceError` and the retry could never succeed. The call returns `{ ok: false, error: 'Roam is not running as an installed extension.' }` on the first attempt and captures nothing — before that guard those loads filed phantom production issues (issue #75).
+
 ---
 
 ## 9. Environment & Build
@@ -540,6 +542,8 @@ Firefox builds differ in two ways (`build.mjs:109-128,177-191`): the upload is s
 
 The DSN string itself is still inlined: `env.ts:12` reads `__SENTRY_DSN__` for startup validation, so `background.js` contains it even though no SDK code ships. That is expected, not a leak.
 
+`Sentry.init()` is gated on the extension context as well as the DSN (`isExtensionContext()` in `sentry.ts`). Because the DSN is inlined into every non-watch build, an ungated init meant a `dist/` page opened from disk reported to the production project tagged `environment=production` and `platform=extension-chrome` — events no installed extension could reproduce (issue #75). Loading a built page outside the extension now reports nothing, the same outcome as a Firefox build: use the console.
+
 ---
 
 ## 10. Error Handling
@@ -553,12 +557,14 @@ The DSN string itself is still inlined: `env.ts:12` reads `__SENTRY_DSN__` for s
 | Per-message failures | `dispatch()` wrapper logs non-expected failures to Sentry |
 | Popup unhandled rejections | `window.addEventListener('unhandledrejection', ...)` → Sentry |
 | sendToBackground failure | Returns `{ ok: false, error: '...' }` after 2 attempts; captured to Sentry |
+| No extension runtime | Returns `{ ok: false, error: 'Roam is not running as an installed extension.' }` on the first attempt; never captured |
 
 ### 10.2 What goes to Sentry vs. what is shown to the user
 
 - **Sentry:** unexpected errors, failed API calls, SW crashes, double-send failures.
 - **User:** human-readable error string from the `{ ok: false, error }` response. Never internal IDs, stack traces, or raw Supabase error codes.
 - **Expected failures (not to Sentry):** wrong password (`SIGN_IN_EMAIL`), unverified email (`SIGN_UP_EMAIL`), no profile yet (`GET_PROFILE`).
+- **Never to Sentry:** anything from a page with no extension runtime — a `dist/` page opened over `file://`, a preview harness, or a tab whose extension context was invalidated (issue #75).
 
 ---
 

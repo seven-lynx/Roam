@@ -469,7 +469,7 @@ async function boot() {
   console.log('[roam-popup] Booting, checking session state');
   const res = await sendToBackground<StateData>({ type: 'GET_STATE' });
   console.log('[roam-popup] Boot GET_STATE response:', res);
-  if (!res.ok) { showError(res.error); return; }
+  if (!res.ok) { showError(res.error, 'boot'); return; }
   if (!res.data.signedIn) {
     showState('signedout');
     return;
@@ -522,7 +522,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!res.ok) {
       buttons.forEach((id) => (el<HTMLButtonElement>(id).disabled = false));
       el('auth-waiting').hidden = true;
-      showError(res.error);
+      showError(res.error, 'sign-in');
       return;
     }
 
@@ -681,7 +681,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     roamBtn.disabled = false;
     roamBtn.textContent = 'Roam';
-    if (!res.ok) { showError(res.error); return; }
+    if (!res.ok) { showError(res.error, 'roam'); return; }
     if (!res.data?.url) { showState('noresults'); return; }
     if (tab?.id) chrome.tabs.update(tab.id, { url: res.data.url });
     window.close();
@@ -695,7 +695,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const url = tab?.url ?? '';
     if (!url) return;
     const check = await sendToBackground<CheckUrlData>({ type: 'CHECK_URL', url });
-    if (!check.ok) { showError(check.error); return; }
+    if (!check.ok) { showError(check.error, 'upvote'); return; }
     if (check.data.known && check.data.url_id) {
       await Promise.all([
         flashDone,
@@ -729,7 +729,7 @@ document.addEventListener('DOMContentLoaded', () => {
       });
     }
     const roamRes = await roamPromise;
-    if (!roamRes.ok) { showError(roamRes.error); return; }
+    if (!roamRes.ok) { showError(roamRes.error, 'downvote'); return; }
     if (!roamRes.data?.url) { showState('noresults'); return; }
     if (tab?.id) chrome.tabs.update(tab.id, { url: roamRes.data.url });
     window.close();
@@ -907,7 +907,7 @@ document.addEventListener('DOMContentLoaded', () => {
           if (!next || next === col.name) { cancel(); return; }
           settled = true;
           const renameRes = await sendToBackground({ type: 'RENAME_COLLECTION', collectionId: col.id, name: next });
-          if (!renameRes.ok) { showError(renameRes.error); return; }
+          if (!renameRes.ok) { showError(renameRes.error, 'rename-collection'); return; }
           await renderCollectionsScreen();
         };
         input.addEventListener('keydown', (ev) => {
@@ -919,7 +919,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
       actions.appendChild(collectionAction(col.is_public ? 'Make private' : 'Make public', async () => {
         const updateRes = await sendToBackground({ type: 'UPDATE_COLLECTION_PUBLIC', collectionId: col.id, isPublic: !col.is_public });
-        if (!updateRes.ok) { showError(updateRes.error); return; }
+        if (!updateRes.ok) { showError(updateRes.error, 'collection-visibility'); return; }
         await renderCollectionsScreen();
       }));
 
@@ -942,7 +942,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         window.clearTimeout(disarm);
         const delRes = await sendToBackground({ type: 'DELETE_COLLECTION', collectionId: col.id });
-        if (!delRes.ok) { showError(delRes.error); return; }
+        if (!delRes.ok) { showError(delRes.error, 'delete-collection'); return; }
         await renderCollectionsScreen();
       }, 'collection-action--danger');
       actions.appendChild(del);
@@ -1058,7 +1058,7 @@ document.addEventListener('DOMContentLoaded', () => {
     for (const user of following.data) {
       followingList.appendChild(personRow(user, async () => {
         const res = await sendToBackground({ type: 'UNFOLLOW_USER', userId: user.id });
-        if (!res.ok) { showError(res.error); return; }
+        if (!res.ok) { showError(res.error, 'unfollow'); return; }
         await renderPeopleTab();
       }));
     }
@@ -1269,11 +1269,11 @@ document.addEventListener('DOMContentLoaded', () => {
       const name = prompt('Collection name:');
       if (!name) return;
       const res = await sendToBackground<Collection>({ type: 'CREATE_COLLECTION', name });
-      if (!res.ok) { showError(res.error ?? "Couldn't create collection."); return; }
+      if (!res.ok) { showError(res.error ?? "Couldn't create collection.", 'create-collection'); return; }
       const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
       if (!tab?.url) return;
       const addRes = await sendToBackground({ type: 'ADD_URL_TO_COLLECTION', url: tab.url, collectionId: res.data.id });
-      if (addRes.ok) { showToast('✓ Added to collection'); setTimeout(() => window.close(), 1500); } else { showError(addRes.error ?? "Couldn't add to collection."); }
+      if (addRes.ok) { showToast('✓ Added to collection'); setTimeout(() => window.close(), 1500); } else { showError(addRes.error ?? "Couldn't add to collection.", 'add-to-collection'); }
     });
 
     const anchor = el<HTMLButtonElement>('btn-add-collection');
@@ -1285,7 +1285,7 @@ document.addEventListener('DOMContentLoaded', () => {
           const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
           if (!tab?.url) return;
           const res = await sendToBackground({ type: 'ADD_URL_TO_COLLECTION', url: tab.url, collectionId: col.id });
-          if (res.ok) { showToast('✓ Added to collection'); setTimeout(() => window.close(), 1500); } else { showError(res.error ?? "Couldn't add to collection."); }
+          if (res.ok) { showToast('✓ Added to collection'); setTimeout(() => window.close(), 1500); } else { showError(res.error ?? "Couldn't add to collection.", 'add-to-collection'); }
         },
       })),
       newColBtn
@@ -1354,7 +1354,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const btn = (e.target as HTMLElement).closest<HTMLElement>('.saved-item-remove');
     if (!btn?.dataset.id) return;
     const res = await sendToBackground<null>({ type: 'REMOVE_SAVED_URL', savedUrlId: btn.dataset.id });
-    if (!res.ok) { showError(res.error); return; }
+    if (!res.ok) { showError(res.error, 'remove-saved'); return; }
     btn.closest('.saved-item')?.remove();
     if (!el('saved-list').children.length) el('saved-empty').hidden = false;
   });
@@ -1392,7 +1392,7 @@ document.addEventListener('DOMContentLoaded', () => {
           if (shareRes.ok) {
             window.close();
           } else {
-            showError(shareRes.error ?? "Couldn't share this URL.");
+            showError(shareRes.error ?? "Couldn't share this URL.", 'share-url');
           }
         },
       }))
@@ -1415,14 +1415,14 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!url) return;
     const check = await sendToBackground<CheckUrlData>({ type: 'CHECK_URL', url });
     if (!check.ok || !check.data.category_id) {
-      showError('Couldn\'t determine a category for this page. Try a different one.');
+      showError('Couldn\'t determine a category for this page. Try a different one.', 'roam-category');
       return;
     }
     const res = await sendToBackground<RoamData>({
       type: 'ROAM_CATEGORY',
       categoryId: check.data.category_id,
     });
-    if (!res.ok) { showError(res.error); return; }
+    if (!res.ok) { showError(res.error, 'roam-category'); return; }
     if (!res.data?.url) { showState('noresults'); return; }
     if (tab?.id) chrome.tabs.update(tab.id, { url: res.data.url });
     window.close();
@@ -1431,7 +1431,7 @@ document.addEventListener('DOMContentLoaded', () => {
   el('btn-roam-collection').addEventListener('click', async () => {
     await loadCollectionsForDropdown();
     if (loadedCollections.length === 0) {
-      showError('No collections yet. Create one from the web app.');
+      showError('No collections yet. Create one from the web app.', 'roam-collection');
       return;
     }
     const anchor = el<HTMLButtonElement>('btn-roam-collection');
@@ -1439,7 +1439,7 @@ document.addEventListener('DOMContentLoaded', () => {
       label: `${col.name} (${col.item_count})`,
       onPick: async () => {
         const res = await sendToBackground<RoamData>({ type: 'ROAM_COLLECTION', collectionId: col.id });
-        if (!res.ok) { showError(res.error); return; }
+        if (!res.ok) { showError(res.error, 'roam-collection'); return; }
         if (!res.data?.url) { showState('noresults'); return; }
         const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
         if (tab?.id) chrome.tabs.update(tab.id, { url: res.data.url });
@@ -1536,7 +1536,7 @@ document.addEventListener('DOMContentLoaded', () => {
     btn.textContent = 'Reported ✓ — skipping…';
     showPanel(null);
     const roamRes = await sendToBackground<RoamData>({ type: 'ROAM' });
-    if (!roamRes.ok) { showError(roamRes.error); return; }
+    if (!roamRes.ok) { showError(roamRes.error, 'roam'); return; }
     if (!roamRes.data?.url) { showState('noresults'); return; }
     if (tab?.id) chrome.tabs.update(tab.id, { url: roamRes.data.url });
     window.close();
@@ -1893,7 +1893,7 @@ document.addEventListener('DOMContentLoaded', () => {
       .map((c) => c.dataset.lang)
       .filter((code): code is string => typeof code === 'string' && code.length > 0);
     const res = await sendToBackground({ type: 'SET_LANGUAGE_PREF', languages });
-    if (!res.ok) showError(res.error);
+    if (!res.ok) showError(res.error, 'set-language');
   });
 
   // ── Toggle: Public profile ────────────────────────────────────────────────
