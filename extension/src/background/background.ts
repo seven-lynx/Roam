@@ -13,6 +13,7 @@ import { addLocalSaved, normaliseLocalSaved, removeLocalSaved } from '../lib/loc
 import { NOTIFY_ALARM, handleNotificationClick, pollNotifications, registerNotificationAlarm, setDesktopNotifications } from './notify';
 import { followUser, unfollowUser, getFollowers, getFollowing, getActivityFeed } from './social';
 import { getMyProfile, setProfileFields, claimUsername } from './profile';
+import { changePassword } from './account';
 
 declare const __SUPABASE_URL__: string;
 
@@ -407,6 +408,7 @@ async function _dispatch(req: Request): Promise<Response> {
     case 'GET_MY_PROFILE':        return getMyProfile();
     case 'SET_PROFILE_FIELDS':    return setProfileFields(req.displayName, req.bio);
     case 'CLAIM_USERNAME':        return claimUsername(req.username);
+    case 'CHANGE_PASSWORD':       return changePassword(req.currentPassword, req.newPassword);
     case 'GET_PROFILE_STATS':     return getProfileStats();
     case 'SEND_FEEDBACK':         return sendFeedback(req.message, req.email, req.platform);
     case 'REPORT_URL':            return reportUrl(req.url_id);
@@ -450,10 +452,10 @@ async function getState(): Promise<Response<StateData>> {
       return { ok: true, data: { signedIn: false } };
     }
     if (!refreshed.session) return { ok: true, data: { signedIn: false } };
-    return { ok: true, data: { signedIn: true, email: refreshed.session.user.email, userId: refreshed.session.user.id } };
+    return { ok: true, data: { signedIn: true, email: refreshed.session.user.email, userId: refreshed.session.user.id, provider: refreshed.session.user.app_metadata?.provider ?? 'email' } };
   }
 
-  return { ok: true, data: { signedIn: true, email: session.user.email, userId: session.user.id } };
+  return { ok: true, data: { signedIn: true, email: session.user.email, userId: session.user.id, provider: session.user.app_metadata?.provider ?? 'email' } };
 }
 
 async function signInWithOAuth(provider: 'google'): Promise<Response<StateData>> {
@@ -559,7 +561,7 @@ function parseAuthRedirect(url: string): { accessToken?: string; refreshToken?: 
 async function signInWithEmail(email: string, password: string): Promise<Response<StateData>> {
   const { data, error } = await getSupabase().auth.signInWithPassword({ email, password });
   if (error) return { ok: false, error: error.message };
-  return { ok: true, data: { signedIn: true, email: data.user?.email, userId: data.user?.id } };
+  return { ok: true, data: { signedIn: true, email: data.user?.email, userId: data.user?.id, provider: data.user?.app_metadata?.provider ?? 'email' } };
 }
 
 async function signUpWithEmail(email: string, password: string): Promise<Response<{ needsVerification: boolean }>> {

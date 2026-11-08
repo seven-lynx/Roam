@@ -61,6 +61,7 @@ export type Request =
   | { type: 'GET_MY_PROFILE' }
   | { type: 'SET_PROFILE_FIELDS'; displayName: string; bio: string }
   | { type: 'CLAIM_USERNAME'; username: string }
+  | { type: 'CHANGE_PASSWORD'; currentPassword: string; newPassword: string }
   | { type: 'SET_DESKTOP_NOTIFICATIONS'; enabled: boolean }
   | { type: 'GET_SUBCATEGORIES_FOR_CATEGORY'; categoryId: string };
 
@@ -72,6 +73,8 @@ export interface StateData {
   signedIn: boolean;
   email?: string;
   userId?: string;
+  /** Auth provider reported by Supabase ('email', 'google', …). */
+  provider?: string;
 }
 
 export interface RoamData {

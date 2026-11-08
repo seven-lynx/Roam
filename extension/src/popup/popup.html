@@ -370,6 +370,30 @@
         <p class="feedback-count"><span id="bio-chars">0</span> / 200</p>
       </div>
 
+      <div class="panel-section">
+        <h3 class="panel-section-title">Security</h3>
+        <div id="profile-security" hidden>
+          <div class="profile-field">
+            <label class="panel-label" for="input-current-password">Current password</label>
+            <input id="input-current-password" type="password" class="form-input" autocomplete="current-password" />
+          </div>
+          <div class="profile-field">
+            <label class="panel-label" for="input-new-password">New password</label>
+            <input id="input-new-password" type="password" class="form-input" autocomplete="new-password" />
+          </div>
+          <div class="profile-field">
+            <label class="panel-label" for="input-confirm-password">Confirm new password</label>
+            <input id="input-confirm-password" type="password" class="form-input" autocomplete="new-password" />
+          </div>
+          <button id="btn-change-password" class="btn-primary">Update password</button>
+          <p id="password-error" class="auth-error" hidden></p>
+          <p id="password-success" class="profile-success" hidden>Password updated.</p>
+        </div>
+        <p id="profile-security-note" class="profile-note" hidden>You sign in with Google, so the password lives with Google.</p>
+      </div>
+
+      <button id="btn-web-account" class="btn-secondary">Data export & account deletion ↗</button>
+
       <p id="profile-error" class="auth-error" hidden></p>
       <p id="profile-success" class="profile-success" hidden>Saved.</p>
       <button id="btn-save-profile" class="btn-primary">Save profile</button>

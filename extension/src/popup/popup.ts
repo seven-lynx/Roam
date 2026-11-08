@@ -7,6 +7,7 @@ import type { StateData, RoamData, CheckUrlData, Collection, CategoryItem, Profi
 import { FALLBACK_CATEGORIES, LANGUAGES, DEFAULT_LANGUAGE, ENGAGEMENT_MAX_DWELL_MS } from '../lib/constants';
 import { notificationLink, notificationText, recentCelebration } from '../lib/notifications';
 import { activityLink, activityText, relativeTime } from '../lib/social';
+import { validatePassword } from '../lib/validate';
 
 // ── Global error capture ───────────────────────────────────────────────────
 window.addEventListener('unhandledrejection', (event) => {
@@ -1013,7 +1014,10 @@ document.addEventListener('DOMContentLoaded', () => {
     err.hidden = true;
     el('profile-success').hidden = true;
 
-    const res = await sendToBackground<MyProfileData>({ type: 'GET_MY_PROFILE' });
+    const [res, state] = await Promise.all([
+      sendToBackground<MyProfileData>({ type: 'GET_MY_PROFILE' }),
+      sendToBackground<StateData>({ type: 'GET_STATE' }),
+    ]);
     if (!res.ok) {
       err.textContent = res.error;
       err.hidden = false;
@@ -1042,6 +1046,12 @@ document.addEventListener('DOMContentLoaded', () => {
     el<HTMLInputElement>('input-display-name').value = me.display_name ?? '';
     el<HTMLTextAreaElement>('input-bio').value = me.bio ?? '';
     el('bio-chars').textContent = String((me.bio ?? '').length);
+
+    // Password change is only meaningful for email accounts; an unknown provider
+    // falls back to showing it rather than hiding the feature silently.
+    const isEmailAccount = !state.ok || (state.data.provider ?? 'email') === 'email';
+    el('profile-security').hidden = !isEmailAccount;
+    el('profile-security-note').hidden = isEmailAccount;
   }
 
   function openProfileScreen(): void {
@@ -1107,6 +1117,49 @@ document.addEventListener('DOMContentLoaded', () => {
     const username = el<HTMLInputElement>('input-username').value.trim();
     if (!username) return;
     chrome.tabs.create({ url: `https://roamtheweb.app/u/${username}` });
+    window.close();
+  });
+
+  // ── Security: password change ─────────────────────────────────────────────
+  el('btn-change-password').addEventListener('click', async () => {
+    const err = el('password-error');
+    const success = el('password-success');
+    const btn = el<HTMLButtonElement>('btn-change-password');
+    err.hidden = true;
+    success.hidden = true;
+
+    const current = el<HTMLInputElement>('input-current-password').value;
+    const next = el<HTMLInputElement>('input-new-password').value;
+    const confirm = el<HTMLInputElement>('input-confirm-password').value;
+
+    if (next !== confirm) {
+      err.textContent = 'The new passwords do not match.';
+      err.hidden = false;
+      return;
+    }
+    const ruleError = validatePassword(next);
+    if (ruleError) {
+      err.textContent = ruleError;
+      err.hidden = false;
+      return;
+    }
+
+    btn.disabled = true;
+    const res = await sendToBackground({ type: 'CHANGE_PASSWORD', currentPassword: current, newPassword: next });
+    btn.disabled = false;
+    if (!res.ok) {
+      err.textContent = res.error;
+      err.hidden = false;
+      return;
+    }
+    el<HTMLInputElement>('input-current-password').value = '';
+    el<HTMLInputElement>('input-new-password').value = '';
+    el<HTMLInputElement>('input-confirm-password').value = '';
+    success.hidden = false;
+  });
+
+  el('btn-web-account').addEventListener('click', () => {
+    chrome.tabs.create({ url: 'https://roamtheweb.app/settings' });
     window.close();
   });
 
