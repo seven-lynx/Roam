@@ -1,12 +1,14 @@
 'use client';
 
-import { useEffect, useRef, type CSSProperties, type PointerEvent, type ReactNode } from 'react';
+import { useEffect, useLayoutEffect, useRef, type CSSProperties, type PointerEvent, type ReactNode } from 'react';
 import { useWorkstation, TOP_BAR_H, DOCK_H, type WindowId, type WindowRect } from '@/components/WorkstationContext';
 import { click } from '@/lib/sfx';
 
 interface WindowProps {
   id: WindowId;
   icon?: ReactNode;
+  /** Size the window to its content on open — no scrollbar, no dead space. */
+  fitContent?: boolean;
   children: ReactNode;
 }
 
@@ -15,16 +17,49 @@ interface WindowProps {
  * close, and z-order focus. Position and view state live in the workstation
  * context; this component only renders chrome and reports pointer gestures.
  */
-export function Window({ id, icon, children }: WindowProps) {
+export function Window({ id, icon, children, fitContent }: WindowProps) {
   const { windows, screenRef, focusWindow, minimizeWindow, toggleMaximize, closeWindow, moveWindow, handheld } = useWorkstation();
   const win = windows[id];
   const ref = useRef<HTMLElement>(null);
   const drag = useRef<{ px: number; py: number; ox: number; oy: number } | null>(null);
   const resize = useRef<{ dir: string; px: number; py: number; r: WindowRect } | null>(null);
+  // Fit-to-content runs once per open so it never fights a manual resize.
+  const fitted = useRef(false);
 
   useEffect(() => {
     ref.current?.focus({ preventScroll: true });
   }, []);
+
+  // Content-fit: when `fitContent` is set, grow/shrink the window in the layout
+  // phase (before paint, so there is no visible snap) to exactly hold its content
+  // — no scrollbar and no dead space — then re-center it vertically in the work
+  // area. The natural content height is the scroll area's child (which carries
+  // the padding), whose offsetHeight is independent of the window's size.
+  useLayoutEffect(() => {
+    if (!fitContent || !win || win.minimized || win.maximized || handheld) return;
+    if (fitted.current) return;
+    const section = ref.current;
+    if (!section) return;
+    const barEl = section.querySelector('.window-bar') as HTMLElement | null;
+    const scrollEl = section.querySelector('.window-scroll') as HTMLElement | null;
+    if (!barEl || !scrollEl) return;
+    const contentEl = scrollEl.firstElementChild as HTMLElement | null;
+    const barH = barEl.offsetHeight;
+    const contentH = contentEl ? contentEl.offsetHeight : scrollEl.scrollHeight;
+    const el = screenRef.current;
+    const sh = el ? el.clientHeight : window.innerHeight;
+    const MIN_H = 240;
+    const maxH = Math.max(MIN_H, sh - TOP_BAR_H - DOCK_H);
+    const targetH = Math.min(Math.max(MIN_H, barH + contentH + 2), maxH);
+    fitted.current = true;
+    if (Math.abs(win.rect.h - targetH) <= 1) return;
+    const maxY = Math.max(TOP_BAR_H, sh - DOCK_H - targetH);
+    const y = Math.min(
+      Math.max(TOP_BAR_H, Math.round(TOP_BAR_H + (sh - TOP_BAR_H - DOCK_H - targetH) / 2)),
+      maxY,
+    );
+    moveWindow(id, { ...win.rect, y, h: targetH });
+  }, [fitContent, win, handheld, screenRef, moveWindow, id]);
 
   if (!win || win.minimized) return null;
 

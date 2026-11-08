@@ -7,8 +7,6 @@ import {
   WINDOW_DEFAULTS,
   BRIGHTNESS_MIN,
   BRIGHTNESS_MAX,
-  TOP_BAR_H,
-  DOCK_H,
   MAX_OPEN_WINDOWS,
   DEFAULT_CAMERA,
   CAMERA_ZOOM_MIN,
@@ -63,6 +61,7 @@ import { UnderwebProgram } from '@/components/programs/UnderwebProgram';
 import { SubstrateProgram } from '@/components/programs/SubstrateProgram';
 import { DECK_VERSION } from '@/lib/deck-framing';
 import { resetWallpaper } from '@/lib/wallpaper';
+import { computeOpenRect } from '@/lib/window-geometry';
 import type { ArtVariant } from '@/lib/art';
 
 const FX_KEY = 'roam-fx';
@@ -82,6 +81,10 @@ const CAMERA_ZOOM_KEY = 'roam-deck-zoom';
 const CAMERA_PAN_KEY = 'roam-deck-pan';
 const CAMERA_FIT_KEY = 'roam-deck-fit';
 const WINDOW_LAYOUT_KEY = 'roam-window-layout';
+const WINDOW_LAYOUT_VERSION_KEY = 'roam-window-layout-version';
+// Bump when a window's default geometry changes and previously-saved rects must
+// be discarded once so existing users see the new default.
+const WINDOW_LAYOUT_VERSION = '2';
 const DECK_VERSION_KEY = 'roam-deck-version';
 
 // ── CRT barrel distortion ───────────────────────────────────────────────
@@ -307,6 +310,21 @@ export function WorkstationShell({
         }
       } catch {
         /* corrupt layout: keep defaults */
+      }
+
+      // One-time migration: the README's default geometry now sits left of
+      // center and is content-fitted, so drop any geometry saved before this
+      // change once — the new default then applies. Later drags/resizes persist.
+      try {
+        if (localStorage.getItem(WINDOW_LAYOUT_VERSION_KEY) !== WINDOW_LAYOUT_VERSION) {
+          if (layoutRef.current.readme) {
+            delete layoutRef.current.readme;
+            localStorage.setItem(WINDOW_LAYOUT_KEY, JSON.stringify(layoutRef.current));
+          }
+          localStorage.setItem(WINDOW_LAYOUT_VERSION_KEY, WINDOW_LAYOUT_VERSION);
+        }
+      } catch {
+        /* storage unavailable: skip migration */
       }
 
       // Restore the calibrated deck camera framing + saved fit (moved here from
@@ -538,29 +556,12 @@ export function WorkstationShell({
     setWindows((prev) => {
       const existing = prev[id];
       const def = WINDOW_DEFAULTS[id];
-      const saved = layoutRef.current[id];
       const el = screenRef.current;
       const sw = el ? el.clientWidth : window.innerWidth;
       const sh = el ? el.clientHeight : window.innerHeight;
-      // Clamp into the work area (below the status bar, above the dock).
-      const w = Math.max(240, Math.min(saved?.rect.w ?? def.w, sw));
-      const h = Math.max(160, Math.min(saved?.rect.h ?? def.h, sh - TOP_BAR_H - DOCK_H));
-      const maxX = Math.max(0, sw - w);
-      const maxY = Math.max(TOP_BAR_H, sh - DOCK_H - h);
-      const rect = saved?.rect
-        ? {
-            x: Math.min(Math.max(0, saved.rect.x), maxX),
-            y: Math.min(Math.max(TOP_BAR_H, saved.rect.y), maxY),
-            w,
-            h,
-          }
-        : {
-            x: Math.max(0, Math.round((sw - w) / 2)),
-            y: Math.max(TOP_BAR_H, Math.round(TOP_BAR_H + (sh - TOP_BAR_H - DOCK_H - h) / 2)),
-            w,
-            h,
-          };
-      const maximized = saved?.maximized ?? !!def.maximized;
+      // Clamp into the work area (below the status bar, above the dock); windows
+      // with a `left` anchor open off-center rather than dead-center.
+      const { rect, maximized } = computeOpenRect(def, layoutRef.current[id], sw, sh);
       const z = ++zRef.current;
 
       let next = { ...prev };

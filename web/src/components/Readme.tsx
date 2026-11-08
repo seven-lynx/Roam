@@ -56,7 +56,7 @@ export function Readme() {
   if (!isOpen('readme')) return null;
 
   return (
-    <Window id="readme" icon={<span aria-hidden="true">✎</span>}>
+    <Window id="readme" icon={<span aria-hidden="true">✎</span>} fitContent>
       <div className="window-scroll">
         <div className="p-5 flex flex-col gap-5">
           <div className="border-b border-line pb-4">

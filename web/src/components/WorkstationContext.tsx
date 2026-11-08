@@ -29,7 +29,7 @@ export type Windows = Partial<Record<WindowId, WindowView>>;
 /** Default title + size for each window. `maximized` windows open full-screen. */
 export const WINDOW_DEFAULTS: Record<
   WindowId,
-  { title: string; w: number; h: number; maximized?: boolean }
+  { title: string; w: number; h: number; maximized?: boolean; anchor?: 'center' | 'left' }
 > = {
   launcher: { title: 'PROGRAMS', w: 720, h: 360 },
   scan: { title: 'ROAM', w: 760, h: 560, maximized: true },
@@ -43,7 +43,7 @@ export const WINDOW_DEFAULTS: Record<
   info: { title: 'ROAM INFO', w: 720, h: 560 },
   coffee: { title: 'REFUEL', w: 560, h: 320 },
   roll: { title: 'GALLERY', w: 560, h: 640 },
-  readme: { title: 'README', w: 680, h: 720 },
+  readme: { title: 'README', w: 680, h: 720, anchor: 'left' },
   snake: { title: PROGRAMS.snake.title, w: 560, h: 640 },
   minesweeper: { title: PROGRAMS.minesweeper.title, w: 520, h: 600 },
   tetris: { title: PROGRAMS.tetris.title, w: 420, h: 640 },
