@@ -323,6 +323,18 @@ second or two, that no second callback tab is left behind, and that reopening th
 shows the signed-in state. On the error path, **Close** goes through
 `chrome.tabs.remove` — a tab the extension opened cannot close itself with `window.close()`.
 
+### X9 — An unreachable Edge Function is explained
+
+Set the Network panel to **Offline** and click Roam. Three attempts run (~500 ms apart), then the
+popup shows "Couldn't reach Roam's servers. Check your connection and try again." — never the
+SDK's "Failed to send a request to the Edge Function". The console carries one
+`[roam] edge unreachable:` warning with the underlying cause (`NetworkError when attempting to
+fetch resource.`). Back online, Roam navigates as usual.
+
+CORS is a different failure that used to wear the same copy: if the console shows
+`Cross-Origin Request Blocked … does not match`, the deployed functions predate the
+`moz-extension://` echo in `_shared/cors.ts` — redeploy before blaming the client.
+
 ### X8 — AMO validator parity
 
 `pnpm dlx web-ext lint --source-dir=extension/dist-firefox` must produce no errors. Compare

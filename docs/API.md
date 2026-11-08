@@ -55,6 +55,14 @@ Complete documentation of all Supabase Edge Functions and PostgreSQL RPC functio
 
 All Edge Functions are accessed at: `https://<PROJECT_ID>.supabase.co/functions/v1/<function_name>`
 
+**CORS.** A response echoes the caller's origin only when it is allowlisted: the web origins
+(`roamtheweb.app`, `www.roamtheweb.app`, `*.vercel.app`, `localhost:3000`) and any
+`chrome-extension://` or `moz-extension://` origin. The extension echo is load-bearing —
+Firefox subjects a `host_permissions` request to CORS, so a fixed web origin in
+`Access-Control-Allow-Origin` makes every extension call fail before a body is read
+(surfaced by supabase-js as `FunctionsFetchError`, "Failed to send a request to the Edge
+Function"). Unknown origins get an empty header. See `supabase/functions/_shared/cors.ts`.
+
 ### `roam` — Get discovery URL
 
 Returns a single weighted-random unseen URL matching the user's category preferences and language settings. Supports batch requests for prefetching.
