@@ -512,7 +512,7 @@ document.addEventListener('DOMContentLoaded', () => {
   el('btn-back-auth').addEventListener('click', () => showState('signedout'));
   el('btn-back-email').addEventListener('click', () => showState('auth'));
 
-  // ── Auth: Google OAuth ────────────────────────────────────────────────────
+  // ── Auth: Google OAuth ───────────────────────────────────────────────────
   async function startOAuthFlow() {
     const buttons = ['btn-auth-google', 'btn-auth-email'];
     buttons.forEach((id) => (el<HTMLButtonElement>(id).disabled = true));
@@ -526,14 +526,9 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
-    const pollInterval = setInterval(async () => {
-      const state = await sendToBackground<StateData>({ type: 'GET_STATE' });
-      if (state.ok && state.data.signedIn) {
-        clearInterval(pollInterval);
-        await checkAndRouteAfterSignIn();
-      }
-    }, 500);
-    setTimeout(() => clearInterval(pollInterval), 5 * 60 * 1000);
+    // The sign-in tab is open - get this popup out of the way. Signed-in state is
+    // read from GET_STATE the next time the popup opens, so there is no polling.
+    window.close();
   }
 
   el('btn-auth-google').addEventListener('click', () => startOAuthFlow());
