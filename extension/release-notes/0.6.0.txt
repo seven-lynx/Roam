@@ -1,0 +1,12 @@
+What's new in 0.6.0:
+
+• ROAM-OS look — a retro-futuristic theme for the popup, with a Display panel to switch between ROAM-OS and Classic and to turn CRT static and flicker on or off.
+• Notifications — follows, shares, badge unlocks, level-ups and challenge completions arrive as desktop notifications (opt-in), and tapping one opens the same place the web bell does.
+• Community — the people you follow, their latest finds, and your follower and following lists, all inside the popup.
+• Collections — rename, delete, share, and set public or private without leaving the browser.
+• Your profile — claim a username, edit your display name and bio, change your password, and see your level, XP and streak.
+• Saved pages no longer expire — anything saved while signed out is kept and synced to your account the next time the saved list loads.
+• Sign-in opens a single tab instead of two windows.
+• Firefox can reach Roam's servers again, and a Roam call that never gets out now says so plainly and retries once.
+• Small fixes — settings load with your real values, badge and challenge counters count what's unlocked, duplicate removals in the saved list are gone, and "Translate this page" is a one-shot action again.
+• Companion Android app v1.6.0 — the arcade cartridge shelf and the reworked control deck.

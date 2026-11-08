@@ -4,6 +4,8 @@ All notable changes to the Roam browser extension.
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-11-08
+
 ### Fixed
 - Saved pages no longer expire after 30 days, and pages saved while signed out are listed locally instead of disappearing; they are pushed to the account the next time the saved list loads.
 - Notification taps now mark the item read **and** open its target (shared URL, badge, level-up, challenge, follower profile), matching web and Android.
@@ -29,7 +31,7 @@ All notable changes to the Roam browser extension.
 - Desktop notifications (opt-in, `desktop_notifications` toggle) for follows, shares, badge unlocks, level-ups and challenge completions. Unread notifications are polled on a 5-minute `chrome.alarms` schedule and a tap opens the same target the web bell uses. Unlocks that land while the popup is closed also show as a toast on the next open.
 - Community screen: the activity feed for the people you follow, plus follower/following lists with unfollow. Follow and unfollow call the `follow` function, so social XP and badge evaluation still run server side.
 - You screen: one-time username claim, editable display name and bio, and password change for email accounts (re-authenticates first, as the web settings page does).
-- Unit coverage for notification payloads, watermark selection, activity wording and input validation, plus the OAuth tab flow — the `auth_flow` TTL and shape check, the in-flight dedupe, and focus/relink behaviour (122 tests total).
+- Unit coverage for notification payloads, watermark selection, activity wording and input validation, plus the OAuth tab flow — the `auth_flow` TTL and shape check, the in-flight dedupe, and focus/relink behaviour (128 tests total).
 
 ### Changed
 - Popup colours are semantic tokens now (`--danger`, `--ok`, `--info`, `--accent-ink`) instead of hardcoded hex, so both themes colour error and success states correctly; accent-backed buttons pick an ink colour that stays legible on gold. `--text-secondary` is finally defined — it was referenced once and resolved to nothing.

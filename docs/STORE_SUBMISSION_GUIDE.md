@@ -17,6 +17,22 @@ This guide provides step-by-step instructions for submitting Roam to app and ext
 
 ---
 
+## Version bump (both extension stores)
+
+The version lives in three files, and all three must agree before an upload:
+
+- `extension/package.json`
+- `extension/manifest.json`
+- `extension/manifest.firefox.json`
+
+Bump them together (currently `0.6.0`), add the matching
+`extension/release-notes/<version>.txt` for the store's "what's new" field, and cut the
+`[Unreleased]` block in `extension/CHANGELOG.md` into a dated section. A version that has
+already been uploaded cannot be reused, so bump even when re-uploading the same code.
+Rebuild with `pnpm build` (Chrome) or `pnpm build -- --firefox` — never hand-edit `dist/`.
+
+---
+
 ## Part 1: Chrome Web Store
 
 ### 1.1 Prerequisites
@@ -290,14 +306,9 @@ Do not reuse `dist/` — the Chrome manifest is the wrong one for AMO.
 
 **Step 5: Submit for Review**
 1. Click "Submit for review"
-2. Add version notes:
-   ```
-   Version 1.0.0 - Initial release
-   - Browse curated web collections
-   - Rate URLs for recommendations
-   - Create personal collections
-   - Cross-platform sync with web app
-   ```
+2. Add version notes — copy the contents of `extension/release-notes/<version>.txt`
+   (one file per release, written from the matching `extension/CHANGELOG.md` section).
+   The current release is `extension/release-notes/0.6.0.txt`.
 3. Agree to policies
 4. Click "Submit"
 
