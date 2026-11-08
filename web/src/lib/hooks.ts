@@ -155,3 +155,26 @@ export function useIsMobile() {
   }, []);
   return isMobile;
 }
+
+/**
+ * True while the viewport is taller than it is wide. SSR-safe in the same way as
+ * `useIsMobile`: portrait reads as `false` on the first render, then syncs.
+ *
+ * Used to decide which wallpaper set the shell shows — a rotated phone is over
+ * the 767px handheld breakpoint, so landscape falls back to the desktop art.
+ */
+export function useIsPortrait() {
+  const [isPortrait, setIsPortrait] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia('(orientation: portrait)');
+    const update = () => setIsPortrait(mq.matches);
+    update();
+    if (typeof mq.addEventListener === 'function') {
+      mq.addEventListener('change', update);
+      return () => mq.removeEventListener('change', update);
+    }
+    mq.addListener(update);
+    return () => mq.removeListener(update);
+  }, []);
+  return isPortrait;
+}

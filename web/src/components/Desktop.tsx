@@ -8,7 +8,8 @@ import { SiteShowcase } from '@/components/SiteShowcase';
 import { RankingsWidget } from '@/components/RankingsWidget';
 import { TelemetryWidget } from '@/components/TelemetryWidget';
 import { DeckDiagnosticsWidget } from '@/components/DeckDiagnosticsWidget';
-import { useWallpaper, applyRandomWallpaper, WALLPAPER_CYCLE_MS } from '@/lib/wallpaper';
+import { useIsPortrait } from '@/lib/hooks';
+import { useWallpaper, applyRandomWallpaper, applyRandomMobileWallpaper, WALLPAPER_CYCLE_MS } from '@/lib/wallpaper';
 import { HOME_APPS, HOME_FOLDERS, type HomeFolder } from '@/lib/os-apps';
 import { useAppLauncher } from '@/lib/use-app-launcher';
 
@@ -121,7 +122,11 @@ export function Desktop() {
   const [folderOpen, setFolderOpen] = useState<string | null>(null);
   const [page, setPage] = useState(0);
   const pagerRef = useRef<HTMLDivElement>(null);
-  const wallpaper = useWallpaper();
+  // Portrait handheld shell → the mobile art set. Landscape (which is over the
+  // 767px handheld breakpoint) and the desktop shell → the deck wallpapers.
+  const isPortrait = useIsPortrait();
+  const mobileSurface = handheld && isPortrait;
+  const wallpaper = useWallpaper(mobileSurface ? 'mobile' : 'desktop');
   const widgetRefs = useRef<Record<string, HTMLDivElement | null>>({
     showcase: null,
     rankings: null,
@@ -130,13 +135,14 @@ export function Desktop() {
   });
   const [covered, setCovered] = useState<Record<string, boolean>>({});
 
-  // Shuffle the wallpaper folder while in cycle mode (the default).
+  // Shuffle the matching wallpaper folder while in cycle mode (the default).
   useEffect(() => {
     if (wallpaper.mode !== 'cycle') return;
-    applyRandomWallpaper();
-    const id = setInterval(applyRandomWallpaper, WALLPAPER_CYCLE_MS);
+    const shuffle = mobileSurface ? applyRandomMobileWallpaper : applyRandomWallpaper;
+    shuffle();
+    const id = setInterval(shuffle, WALLPAPER_CYCLE_MS);
     return () => clearInterval(id);
-  }, [wallpaper.mode]);
+  }, [wallpaper.mode, mobileSurface]);
   // Deactivate widgets that sit underneath an open window: compute overlap
   // between each widget's box and every visible window rect, then apply `inert`.
   useLayoutEffect(() => {
