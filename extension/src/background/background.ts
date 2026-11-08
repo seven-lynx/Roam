@@ -10,6 +10,7 @@ import type { Request, Response, StateData, RoamData, CheckUrlData, CategoryItem
 import { getSupabase, clearAuthStorage } from '../lib/supabase';
 import { FALLBACK_CATEGORIES } from '../lib/constants';
 import { addLocalSaved, normaliseLocalSaved, removeLocalSaved } from '../lib/local-saved';
+import { EDGE_UNREACHABLE_MESSAGE, isRetryableEdgeFailure } from '../lib/edge-error';
 import { getDomain, normalizeUrl } from '../lib/url';
 import { getCollections, createCollection, addUrlToCollection, deleteCollection, renameCollection, updateCollectionPublic } from './handlers/collections';
 import { getUserSettings, setPaywallPref, setLanguagePref, setDiscoveryMode, setAutoTranslate, maybeTranslate } from './handlers/preferences';
@@ -58,9 +59,11 @@ async function withRetry<T>(fn: () => Promise<T>, maxAttempts = 3, baseDelay = 5
     } catch (err) {
       lastError = err;
       if (attempt >= maxAttempts) break;
-      // Only retry on network/timeout errors, not 4xx
+      // Only retry on network/timeout errors, not 4xx. The SDK's own wording
+      // ("Failed to send a request to the Edge Function") contains none of these
+      // words, so its retryable classes are matched by name instead.
       const msg = (err instanceof Error ? err.message : String(err)).toLowerCase();
-      if (msg.includes('timeout') || msg.includes('fetch') || msg.includes('network') || msg.includes('abort')) {
+      if (isRetryableEdgeFailure(err) || msg.includes('timeout') || msg.includes('fetch') || msg.includes('network') || msg.includes('abort')) {
         await new Promise(r => setTimeout(r, baseDelay * attempt));
         continue;
       }
@@ -176,7 +179,7 @@ async function fillPrefetch(): Promise<void> {
   for (let i = 0; i < needed; i++) {
     const body: Record<string, unknown> = {};
     if (recentDomains.length > 0) body.exclude_domains = recentDomains;
-    promises.push(callRoamApi(body));
+    promises.push(callRoamApi(body, 1));
   }
 
   const results = await Promise.allSettled(promises);
@@ -471,7 +474,7 @@ async function setUserInterests(pillarIds: string[], topicIds: string[]): Promis
 }
 
 // ── Roam ──────────────────────────────────────────────────────────────────────
-async function callRoamApi(body: Record<string, unknown> = {}): Promise<Response<RoamData>> {
+async function callRoamApi(body: Record<string, unknown> = {}, maxAttempts = 3): Promise<Response<RoamData>> {
   const recentDomains = await getRecentDomains();
 
   const mergedBody = { ...body };
@@ -484,6 +487,9 @@ async function callRoamApi(body: Record<string, unknown> = {}): Promise<Response
     const supabase = getSupabase();
     const { data, error } = await supabase.functions.invoke('roam', { body: mergedBody });
     if (error) {
+      // No response at all (DNS, TLS, a reset connection, a CORS rejection): throw it
+      // so withRetry() can make another attempt instead of returning it as final.
+      if (isRetryableEdgeFailure(error)) throw error;
       type FnError = { context?: { status?: number; json?: () => Promise<{ error?: string }> } };
       const fnErr = error as FnError;
       const status = fnErr.context?.status;
@@ -505,6 +511,17 @@ async function callRoamApi(body: Record<string, unknown> = {}): Promise<Response
     }
     return result;
   } catch (err) {
+    if (isRetryableEdgeFailure(err)) {
+      // `context` carries the raw fetch error — the only place the real cause (DNS,
+      // TLS, CORS, reset connection) is visible, and in the Firefox build the console
+      // is the only signal we get: Sentry is stubbed out there.
+      const cause = (err as { context?: unknown }).context;
+      console.warn('[roam] edge unreachable:', cause instanceof Error ? cause.message : (err instanceof Error ? err.message : String(err)));
+      // A user-initiated roam is worth reporting; the prefetch passes maxAttempts = 1
+      // and must never flood Sentry during an outage.
+      if (maxAttempts > 1) Sentry.captureException(err, { tags: { context: 'roam-unreachable' } });
+      return { ok: false, error: EDGE_UNREACHABLE_MESSAGE };
+    }
     return { ok: false, error: err instanceof Error ? err.message : 'Discovery failed. Please try again.' };
   }
 }

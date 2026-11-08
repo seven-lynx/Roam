@@ -272,7 +272,7 @@ or in `background/handlers/`.
 
 - **No background loops.** No `setInterval`, no `while (true)`. The SW must be stateless between activations.
 - **No URL validation.** Approved DB content doesn't need HTTP validation; no-cors makes it impossible anyway.
-- **No complex retry orchestration.** Sentry captures failures. Retry is the user's responsibility (clicking Roam again).
+- **One bounded retry, and only for "no answer".** `callRoamApi()` runs through `withRetry()` (3 attempts, 500 ms backoff) and only for `FunctionsFetchError` / `FunctionsRelayError` — classified by name in `lib/edge-error.ts`, because the SDK's wording contains none of the words the retry predicate looks for. A function that answered (4xx/5xx, including the 404 that means the pool is empty) is never retried, and prefetch calls are single-attempt. Everything else is still the user's job: click Roam again.
 
 ---
 
