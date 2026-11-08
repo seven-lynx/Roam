@@ -1246,7 +1246,7 @@ These must be completed before any app store submission or launch is possible.
     - Requires GitHub Secrets setup (documented in workflow comments)
   - **Acceptance:** At least one workflow file exists and successfully runs tests on push, deployments are gated on test passage
   - **Details:** Two workflows:
-    - **ci.yml** (on push and pull request to `main` or `develop`): Run tests (Jest, Vitest, Deno test), lint (ESLint, Kotlin), type check, build extension/APK
+    - **ci.yml** (on push and pull request to `main` or `develop`): Run tests (Jest, Vitest, Deno test), lint (ESLint, Kotlin, Deno for the Edge Function suites), type check, build extension/APK
     - **deploy.yml** (manual dispatch, `main` only): Deploy Supabase migrations and Edge Functions; the web app deploys through Vercel's own integration and the extension and Android app ship through the stores
   - **Minimum:** Pass all tests, prevent merge if tests fail, deploy to staging for PR review
   - **Acceptance:** At least one workflow file exists and successfully runs tests on push, deployments are gated on test passage

@@ -4,61 +4,12 @@
  * timeout handling, safe URL pass-through.
  */
 
-import { assertEquals, assert, assertThrows, assertStringIncludes } from "https://deno.land/std@0.208.0/assert/mod.ts"
-
-// Safe Browsing check implementation (mirrored from submit-url/index.ts)
-async function checkSafeBrowsing(url: string, apiKey: string): Promise<{ safe: boolean; error?: string }> {
-  try {
-    const res = await fetch(
-      `https://safebrowsing.googleapis.com/v4/threatMatches:find?key=${apiKey}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          client: { clientId: 'roam', clientVersion: '1.0' },
-          threatInfo: {
-            threatTypes: [
-              'MALWARE',
-              'SOCIAL_ENGINEERING',
-              'UNWANTED_SOFTWARE',
-              'POTENTIALLY_HARMFUL_APPLICATION',
-            ],
-            platformTypes: ['ANY_PLATFORM'],
-            threatEntryTypes: ['URL'],
-            threatEntries: [{ url }],
-          },
-        }),
-      },
-    )
-
-    // Check for HTTP-level errors from the Safe Browsing API
-    if (!res.ok) {
-      const errorBody = await res.text()
-      console.error(`Safe Browsing API error: ${res.status} ${res.statusText}`, { url, status: res.status, body: errorBody.slice(0, 200) })
-      return {
-        safe: false,
-        error: `Safe Browsing API returned ${res.status}; service may be temporarily unavailable`,
-      }
-    }
-
-    const data = await res.json()
-    // Empty or absent matches array means the URL is clean
-    const isSafe = !data.matches || data.matches.length === 0
-    return { safe: isSafe }
-  } catch (err) {
-    const errorMsg = err instanceof Error ? err.message : String(err)
-    console.error('Safe Browsing API network error', { url, error: errorMsg })
-    return {
-      safe: false,
-      error: `Network error contacting Safe Browsing API: ${errorMsg}`,
-    }
-  }
-}
+import { assertEquals, assert, assertStringIncludes } from "@std/assert"
 
 // Mock for testing (simulates Safe Browsing API responses)
-let mockApiResponses: Map<string, { ok: boolean; status: number; body: unknown }> = new Map()
+const mockApiResponses: Map<string, { ok: boolean; status: number; body: unknown }> = new Map()
 
-async function mockCheckSafeBrowsing(url: string, apiKey: string): Promise<{ safe: boolean; error?: string }> {
+function mockCheckSafeBrowsing(url: string, apiKey: string): { safe: boolean; error?: string } {
   // Simulate network error if API key is empty
   if (!apiKey) {
     return {
@@ -81,7 +32,7 @@ async function mockCheckSafeBrowsing(url: string, apiKey: string): Promise<{ saf
   }
 
   // Check if response body has matches
-  const data = mockResponse.body as any
+  const data = mockResponse.body as { matches?: unknown[] }
   const isSafe = !data.matches || data.matches.length === 0
   return { safe: isSafe }
 }
