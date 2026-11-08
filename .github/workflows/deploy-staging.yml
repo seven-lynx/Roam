@@ -145,8 +145,13 @@ jobs:
       # Executes roam() under the authenticated role's 8s timeout. Skipped by
       # default until staging is seeded with a test user + URLs; enable via the
       # `verify_rpc` input (Hard Rule 1.6).
-      - name: Verify roam() RPC under authenticated role
+      #
+      # Pre-flight, therefore advisory (`continue-on-error`): it measures the
+      # currently deployed function, which the pending migration may be about
+      # to fix. The blocking check is the post-migration step below.
+      - name: Verify roam() RPC under authenticated role (pre-flight, advisory)
         if: inputs.verify_rpc
+        continue-on-error: true
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.STAGING_SUPABASE_ACCESS_TOKEN }}
           SUPABASE_URL: ${{ vars.STAGING_SUPABASE_URL }}
@@ -166,6 +171,19 @@ jobs:
             supabase db push --remote --include-all --yes
           else
             supabase db push --remote --yes
+          fi
+
+      # Blocking. Judges the function this run just shipped.
+      - name: Verify roam() RPC under authenticated role (post-migration)
+        if: inputs.verify_rpc
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.STAGING_SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_URL: ${{ vars.STAGING_SUPABASE_URL }}
+        run: |
+          if [ -n "${{ vars.STAGING_ROAM_TEST_USER_ID }}" ]; then
+            node scripts/verify-roam-rpc.mjs --user "${{ vars.STAGING_ROAM_TEST_USER_ID }}"
+          else
+            node scripts/verify-roam-rpc.mjs
           fi
 
       - name: Deploy Edge Functions
