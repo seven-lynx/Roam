@@ -3,8 +3,9 @@
 import '../lib/sentry'; // must be first — initialises Sentry if SENTRY_DSN is set
 import { Sentry } from '../lib/sentry';
 import { sendToBackground } from '../lib/messages';
-import type { StateData, RoamData, CheckUrlData, Collection, CategoryItem, ProfileData, SubcategoryItem, SavedUrlItem, ChallengeData, BadgeData } from '../lib/messages';
-import { FALLBACK_CATEGORIES } from '../lib/constants';
+import type { StateData, RoamData, CheckUrlData, Collection, CategoryItem, ProfileData, SubcategoryItem, SavedUrlItem, ChallengeData, BadgeData, NotificationItem, ProfileStatsData, UserSettingsData } from '../lib/messages';
+import { FALLBACK_CATEGORIES, LANGUAGES, DEFAULT_LANGUAGE, ENGAGEMENT_MAX_DWELL_MS } from '../lib/constants';
+import { notificationLink, notificationText } from '../lib/notifications';
 
 // ── Global error capture ───────────────────────────────────────────────────
 window.addEventListener('unhandledrejection', (event) => {
@@ -27,7 +28,9 @@ function el<T extends HTMLElement>(id: string): T {
   return e as T;
 }
 
-type AppState = 'signedout' | 'auth' | 'email-auth' | 'categories' | 'error' | 'noresults' | 'main' | 'feedback' | 'saved' | 'notifications' | 'history' | 'challenges' | 'badges';
+type AppState = 'signedout' | 'auth' | 'email-auth' | 'categories' | 'error' | 'noresults' | 'main' | 'feedback' | 'saved' | 'notifications' | 'history' | 'challenges' | 'badges' | 'collections';
+
+const ALL_STATES: AppState[] = ['signedout', 'auth', 'email-auth', 'categories', 'error', 'noresults', 'main', 'feedback', 'saved', 'notifications', 'history', 'challenges', 'badges', 'collections'];
 
 // Report engagement on the previous URL before requesting the next Roam.
 async function reportCurrentEngagement(): Promise<void> {
@@ -37,12 +40,16 @@ async function reportCurrentEngagement(): Promise<void> {
     if (!current) return;
     chrome.storage.session.remove('current_url').catch(() => {});
     const dwellMs = Date.now() - current.served_at;
+    // The popup closes straight after a roam, so a sample still present on the
+    // next open is stale (browser or tab left idle). Drop it rather than
+    // reporting an inflated dwell as a genuine view.
+    if (!Number.isFinite(dwellMs) || dwellMs > ENGAGEMENT_MAX_DWELL_MS) return;
     sendToBackground({ type: 'REPORT_ENGAGEMENT', url_id: current.url_id, dwell_ms: dwellMs, skipped: dwellMs < 3000 });
   } catch { /* never block */ }
 }
 
 function showState(name: AppState) {
-  for (const s of ['signedout', 'auth', 'email-auth', 'categories', 'error', 'noresults', 'main', 'feedback', 'saved', 'notifications', 'history', 'challenges', 'badges'] as const) {
+  for (const s of ALL_STATES) {
     el(`state-${s}`).hidden = s !== name;
   }
 }
@@ -186,11 +193,10 @@ async function refreshStatus(): Promise<void> {
 }
 
 async function checkAndRouteAfterSignIn(): Promise<void> {
-  const [interests, allCats, allSubcats, sessionPrefs] = await Promise.all([
+  const [interests, allCats, allSubcats] = await Promise.all([
     sendToBackground<{ mode: 'pillars' | 'topics'; pillarIds: string[]; topicIds: string[] }>({ type: 'GET_USER_INTERESTS' }),
     sendToBackground<CategoryItem[]>({ type: 'GET_CATEGORIES' }),
     sendToBackground<SubcategoryItem[]>({ type: 'GET_ALL_SUBCATEGORIES' }),
-    chrome.storage.session.get(['auto_translate']),
   ]);
   const categoryItems = allCats.ok && allCats.data.length > 0 ? allCats.data : FALLBACK_CATEGORIES;
   loadedCategories = categoryItems;
@@ -274,7 +280,7 @@ function populateCategoryChips(selectedIds: string[], categories: CategoryItem[]
 
 // ── "You" section — notifications, badges, stats ──────────────────────────────
 async function loadYouSection() {
-  // Notifications count
+  // Notifications count (unread only)
   sendToBackground<number>({ type: 'GET_UNREAD_COUNT' }).then(res => {
     if (res.ok && res.data > 0) {
       const chip = el('notif-count-chip');
@@ -282,30 +288,80 @@ async function loadYouSection() {
       chip.hidden = false;
     }
   });
-  // Badges count
+  // Badges count — unlocked only, matching the gallery header
   sendToBackground<BadgeData[]>({ type: 'GET_BADGES' }).then(res => {
-    if (res.ok && res.data.length > 0) {
+    if (!res.ok) return;
+    const unlocked = res.data.filter((b) => b.is_unlocked).length;
+    if (unlocked > 0) {
       const chip = el('badge-count-chip');
-      chip.textContent = String(res.data.length);
+      chip.textContent = String(unlocked);
       chip.hidden = false;
     }
   });
-  // Challenges count
+  // Challenges count — active (incomplete) only
   sendToBackground<ChallengeData[]>({ type: 'GET_CHALLENGES' }).then(res => {
-    if (res.ok && res.data.length > 0) {
+    if (!res.ok) return;
+    const active = res.data.filter((c) => !c.completed_at).length;
+    if (active > 0) {
       const chip = el('challenge-count-chip');
-      chip.textContent = String(res.data.length);
+      chip.textContent = String(active);
       chip.hidden = false;
     }
   });
-  // Profile stats
-  sendToBackground<{ roamed: number; submitted: number }>({ type: 'GET_PROFILE_STATS' }).then(res => {
-    if (res.ok) {
-      el('stat-roamed').textContent = String(res.data.roamed ?? 0);
-      el('stat-submitted').textContent = String(res.data.submitted ?? 0);
-      el('stats-row').hidden = false;
-    }
+  // Gamification + counters
+  sendToBackground<ProfileStatsData>({ type: 'GET_PROFILE_STATS' }).then(res => {
+    if (!res.ok) return;
+    el('stat-level').textContent = String(res.data.level ?? 1);
+    el('stat-xp').textContent = String(res.data.xp_total ?? 0);
+    el('stat-roamed').textContent = String(res.data.roamed ?? 0);
+    el('stat-submitted').textContent = String(res.data.submitted ?? 0);
+    el('stat-streak').textContent = String(res.data.streak_days ?? 0);
+    el('stats-row').hidden = false;
   });
+  void hydratePreferences();
+}
+
+function renderLanguageChips(selected: string[]): void {
+  const container = el('language-chips');
+  container.textContent = '';
+  for (const lang of LANGUAGES) {
+    const btn = document.createElement('button');
+    const isEnglish = lang.code === DEFAULT_LANGUAGE;
+    btn.className = 'chip' + (selected.includes(lang.code) ? ' selected' : '') + (isEnglish ? ' chip--locked' : '');
+    btn.dataset.lang = lang.code;
+    btn.textContent = lang.label;
+    // English is always included by the backend language filter.
+    btn.disabled = isEnglish;
+    container.appendChild(btn);
+  }
+}
+
+/** Fills the settings controls from server truth so they reflect reality. */
+async function hydratePreferences(): Promise<void> {
+  const [settings, profile, publicState, local] = await Promise.all([
+    sendToBackground<UserSettingsData>({ type: 'GET_USER_SETTINGS' }),
+    sendToBackground<ProfileData>({ type: 'GET_PROFILE' }),
+    sendToBackground<{ is_public: boolean; username: string }>({ type: 'GET_PROFILE_PUBLIC' }),
+    chrome.storage.local.get(['auto_translate', 'translate_language']),
+  ]);
+
+  const prefs: UserSettingsData = settings.ok
+    ? settings.data
+    : { skip_paywalled: false, discovery_mode: 'discovery', preferred_languages: [DEFAULT_LANGUAGE] };
+
+  el<HTMLInputElement>('toggle-paywall').checked = prefs.skip_paywalled;
+  el<HTMLInputElement>('toggle-deep-dive').checked = prefs.discovery_mode === 'deep_dive';
+  el<HTMLInputElement>('toggle-auto-translate').checked = local.auto_translate === true;
+  el<HTMLSelectElement>('select-translate-lang').value = (local.translate_language as string) || DEFAULT_LANGUAGE;
+  renderLanguageChips(prefs.preferred_languages);
+
+  if (publicState.ok) el<HTMLInputElement>('toggle-public-profile').checked = publicState.data.is_public;
+
+  // New OAuth users have no username yet — surface the claim prompt instead of
+  // silently copying a broken /u/undefined link (web gates on the same field).
+  const hasUsername = profile.ok && !!profile.data.username;
+  el('btn-claim-username').hidden = hasUsername;
+  el('btn-copy-profile-link').hidden = !hasUsername;
 }
 
 async function boot() {
@@ -688,6 +744,118 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
+  // ── Collections screen (rename / delete / visibility) ─────────────────────
+  function collectionAction(label: string, onClick: () => void, extraClass?: string): HTMLButtonElement {
+    const btn = document.createElement('button');
+    btn.className = 'collection-action' + (extraClass ? ` ${extraClass}` : '');
+    btn.textContent = label;
+    btn.addEventListener('click', (e) => { e.stopPropagation(); onClick(); });
+    return btn;
+  }
+
+  async function renderCollectionsScreen(): Promise<void> {
+    const list = el('collections-list');
+    const empty = el('collections-empty');
+    const err = el('collections-error');
+    list.textContent = '';
+    empty.hidden = true;
+    err.hidden = true;
+
+    const res = await sendToBackground<Collection[]>({ type: 'GET_COLLECTIONS' });
+    if (!res.ok) {
+      err.textContent = res.error;
+      err.hidden = false;
+      return;
+    }
+    loadedCollections = res.data;
+    if (res.data.length === 0) {
+      empty.hidden = false;
+      return;
+    }
+
+    for (const col of res.data) {
+      const row = document.createElement('div');
+      row.className = 'collection-row';
+
+      const name = document.createElement('div');
+      name.className = 'collection-name';
+      name.textContent = col.name;
+      const meta = document.createElement('div');
+      meta.className = 'collection-meta';
+      meta.textContent = `${col.item_count} item${col.item_count === 1 ? '' : 's'}${col.is_public ? ' · public' : ''}`;
+      name.appendChild(meta);
+
+      const actions = document.createElement('div');
+      actions.className = 'collection-actions';
+
+      actions.appendChild(collectionAction('Rename', () => {
+        if (row.querySelector('.collection-rename')) return;
+        const input = document.createElement('input');
+        input.className = 'collection-rename';
+        input.type = 'text';
+        input.maxLength = 60;
+        input.value = col.name;
+        row.replaceChild(input, name);
+        input.focus();
+        input.select();
+        let settled = false;
+        const cancel = () => {
+          if (settled) return;
+          settled = true;
+          if (input.parentNode === row) row.replaceChild(name, input);
+        };
+        const commit = async () => {
+          if (settled) return;
+          const next = input.value.trim();
+          if (!next || next === col.name) { cancel(); return; }
+          settled = true;
+          const renameRes = await sendToBackground({ type: 'RENAME_COLLECTION', collectionId: col.id, name: next });
+          if (!renameRes.ok) { showError(renameRes.error); return; }
+          await renderCollectionsScreen();
+        };
+        input.addEventListener('keydown', (ev) => {
+          if (ev.key === 'Enter') { ev.preventDefault(); void commit(); }
+          if (ev.key === 'Escape') { ev.preventDefault(); cancel(); }
+        });
+        input.addEventListener('blur', () => { void commit(); });
+      }));
+
+      actions.appendChild(collectionAction(col.is_public ? 'Make private' : 'Make public', async () => {
+        const updateRes = await sendToBackground({ type: 'UPDATE_COLLECTION_PUBLIC', collectionId: col.id, isPublic: !col.is_public });
+        if (!updateRes.ok) { showError(updateRes.error); return; }
+        await renderCollectionsScreen();
+      }));
+
+      if (col.is_public) {
+        actions.appendChild(collectionAction('Copy link', async () => {
+          await navigator.clipboard.writeText(`https://roamtheweb.app/c/${col.slug}`);
+          showToast('Link copied');
+        }));
+      }
+
+      // Two-tap delete — popups cannot use window.confirm reliably.
+      let armed = false;
+      let disarm: number | undefined;
+      const del = collectionAction('Delete', async () => {
+        if (!armed) {
+          armed = true;
+          del.textContent = 'Confirm?';
+          disarm = window.setTimeout(() => { armed = false; del.textContent = 'Delete'; }, 3000);
+          return;
+        }
+        window.clearTimeout(disarm);
+        const delRes = await sendToBackground({ type: 'DELETE_COLLECTION', collectionId: col.id });
+        if (!delRes.ok) { showError(delRes.error); return; }
+        await renderCollectionsScreen();
+      }, 'collection-action--danger');
+      actions.appendChild(del);
+
+      row.appendChild(name);
+      row.appendChild(actions);
+      list.appendChild(row);
+    }
+  }
+
   el('btn-add-collection').addEventListener('click', async () => {
     await loadCollectionsForDropdown();
 
@@ -783,19 +951,19 @@ document.addEventListener('DOMContentLoaded', () => {
         row.appendChild(remove);
         list.appendChild(row);
       }
-      list.addEventListener('click', async (e) => {
-        const btn = (e.target as HTMLElement).closest('.saved-item-remove') as HTMLElement | null;
-        if (!btn?.dataset.id) return;
-        const id = btn.dataset.id;
-        const res2 = await sendToBackground<null>({ type: 'REMOVE_SAVED_URL', savedUrlId: id });
-        if (res2.ok) {
-          const row = list.querySelector(`[data-id="${id}"]`) as HTMLElement | null;
-          if (row) row.remove();
-          if (!list.children.length) empty.hidden = false;
-        }
-      });
     }
     showState('saved');
+  });
+
+  // Single delegated handler: the list is re-rendered on every open, so binding
+  // a listener per render would stack duplicate handlers on the same element.
+  el('saved-list').addEventListener('click', async (e) => {
+    const btn = (e.target as HTMLElement).closest<HTMLElement>('.saved-item-remove');
+    if (!btn?.dataset.id) return;
+    const res = await sendToBackground<null>({ type: 'REMOVE_SAVED_URL', savedUrlId: btn.dataset.id });
+    if (!res.ok) { showError(res.error); return; }
+    btn.closest('.saved-item')?.remove();
+    if (!el('saved-list').children.length) el('saved-empty').hidden = false;
   });
 
   el('btn-back-saved').addEventListener('click', () => showState('main'));
@@ -918,6 +1086,17 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   el('btn-manage-collections').addEventListener('click', () => {
+    showPanel(null);
+    showState('collections');
+    void renderCollectionsScreen();
+  });
+
+  el('btn-back-collections').addEventListener('click', () => {
+    showPanel('config');
+    showState('main');
+  });
+
+  el('btn-web-collections').addEventListener('click', () => {
     chrome.tabs.create({ url: 'https://roamtheweb.app/profile' });
     window.close();
   });
@@ -1028,19 +1207,30 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // ── Notifications ─────────────────────────────────────────────────────────
   el('btn-notifications').addEventListener('click', async () => {
-    const res = await sendToBackground<any[]>({ type: 'GET_NOTIFICATIONS' });
+    const res = await sendToBackground<NotificationItem[]>({ type: 'GET_NOTIFICATIONS' });
     const list = el('notif-list');
     const empty = el('notif-empty');
     list.textContent = '';
     if (res.ok && res.data.length > 0) {
       empty.hidden = true;
       for (const n of res.data) {
+        const link = notificationLink(n);
         const row = document.createElement('div');
-        row.className = 'notif-item' + (n.read ? '' : ' notif-item--unread');
+        row.className = 'notif-item' + (n.read ? '' : ' notif-item--unread') + (link ? ' notif-item--link' : '');
         row.dataset.id = n.id;
         const text = document.createElement('div');
         text.className = 'notif-text';
-        text.textContent = n.message || n.body || n.type || 'Notification';
+        const { title, body } = notificationText(n);
+        const titleEl = document.createElement('div');
+        titleEl.className = 'notif-title';
+        titleEl.textContent = title;
+        text.appendChild(titleEl);
+        if (body) {
+          const bodyEl = document.createElement('div');
+          bodyEl.className = 'notif-body';
+          bodyEl.textContent = body;
+          text.appendChild(bodyEl);
+        }
         const time = document.createElement('div');
         time.className = 'notif-time';
         try { time.textContent = new Date(n.created_at).toLocaleDateString(); } catch { time.textContent = ''; }
@@ -1057,12 +1247,18 @@ document.addEventListener('DOMContentLoaded', () => {
           if (!list.children.length) empty.hidden = false;
           if (wasUnread) decrementUnreadChip();
         });
-        // Tapping an unread notification marks it read.
+        // Tapping marks it read and, when the notification carries a target,
+        // opens the same place the web app would (share, badge, profile, …).
         row.addEventListener('click', async () => {
-          if (!row.classList.contains('notif-item--unread')) return;
-          await sendToBackground({ type: 'MARK_NOTIFICATION_READ', notificationId: n.id });
-          row.classList.remove('notif-item--unread');
-          decrementUnreadChip();
+          if (row.classList.contains('notif-item--unread')) {
+            await sendToBackground({ type: 'MARK_NOTIFICATION_READ', notificationId: n.id });
+            row.classList.remove('notif-item--unread');
+            decrementUnreadChip();
+          }
+          if (link) {
+            chrome.tabs.create({ url: link });
+            window.close();
+          }
         });
         row.appendChild(text);
         row.appendChild(del);
@@ -1295,10 +1491,16 @@ document.addEventListener('DOMContentLoaded', () => {
     el('history-empty').hidden = false;
   });
 
-  // ── Language selector auto-save ───────────────────────────────────────────
-  el('select-discovery-lang').addEventListener('change', () => {
-    const lang = el<HTMLSelectElement>('select-discovery-lang').value;
-    sendToBackground({ type: 'SET_DISCOVERY_LANGUAGE', language: lang });
+  // ── Discovery languages (multi-select chips) ──────────────────────────────
+  el('language-chips').addEventListener('click', async (e) => {
+    const chip = (e.target as HTMLElement).closest<HTMLButtonElement>('.chip');
+    if (!chip || chip.disabled || !chip.dataset.lang) return;
+    chip.classList.toggle('selected');
+    const languages = Array.from(el('language-chips').querySelectorAll<HTMLButtonElement>('.chip.selected'))
+      .map((c) => c.dataset.lang)
+      .filter((code): code is string => typeof code === 'string' && code.length > 0);
+    const res = await sendToBackground({ type: 'SET_LANGUAGE_PREF', languages });
+    if (!res.ok) showError(res.error);
   });
 
   // ── Toggle: Public profile ────────────────────────────────────────────────
@@ -1311,6 +1513,39 @@ document.addEventListener('DOMContentLoaded', () => {
   el('toggle-paywall').addEventListener('change', () => {
     const checked = el<HTMLInputElement>('toggle-paywall').checked;
     sendToBackground({ type: 'SET_PAYWALL_PREF', skip: checked });
+  });
+
+  // ── Toggle: Deep dive discovery ───────────────────────────────────────────
+  el('toggle-deep-dive').addEventListener('change', () => {
+    const checked = el<HTMLInputElement>('toggle-deep-dive').checked;
+    sendToBackground({ type: 'SET_DISCOVERY_MODE', mode: checked ? 'deep_dive' : 'discovery' });
+  });
+
+  // ── Toggle: Always translate roamed pages ─────────────────────────────────
+  el('toggle-auto-translate').addEventListener('change', () => {
+    const checked = el<HTMLInputElement>('toggle-auto-translate').checked;
+    sendToBackground({ type: 'SET_AUTO_TRANSLATE', enabled: checked });
+  });
+
+  // ── Translate target language ─────────────────────────────────────────────
+  {
+    const select = el<HTMLSelectElement>('select-translate-lang');
+    for (const lang of LANGUAGES) {
+      const opt = document.createElement('option');
+      opt.value = lang.code;
+      opt.textContent = lang.label;
+      select.appendChild(opt);
+    }
+    select.value = DEFAULT_LANGUAGE;
+    select.addEventListener('change', () => {
+      void chrome.storage.local.set({ translate_language: select.value });
+    });
+  }
+
+  // ── Claim username (new OAuth users have none yet) ────────────────────────
+  el('btn-claim-username').addEventListener('click', () => {
+    chrome.tabs.create({ url: 'https://roamtheweb.app/profile' });
+    window.close();
   });
 
   // ── Toggle: Focus mode ────────────────────────────────────────────────────
@@ -1357,16 +1592,14 @@ document.addEventListener('DOMContentLoaded', () => {
     window.close();
   });
 
-  // ── Translate toggle ──────────────────────────────────────────────────────
+  // ── Translate this page (one-shot, does not change the persisted setting) ──
   el('btn-translate-page').addEventListener('click', async () => {
-    await sendToBackground({ type: 'SET_AUTO_TRANSLATE', enabled: true });
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    if (tab?.url) {
-      const lang = await chrome.storage.local.get('translate_language');
-      const tl = (lang.translate_language as string) ?? 'en';
-      const translated = `https://translate.google.com/translate?sl=auto&tl=${tl}&u=${encodeURIComponent(tab.url)}`;
-      chrome.tabs.update(tab.id!, { url: translated });
-    }
+    if (!tab?.id || !tab.url) return;
+    const lang = await chrome.storage.local.get('translate_language');
+    const tl = (lang.translate_language as string) || DEFAULT_LANGUAGE;
+    const translated = `https://translate.google.com/translate?sl=auto&tl=${tl}&u=${encodeURIComponent(tab.url)}`;
+    chrome.tabs.update(tab.id, { url: translated });
     window.close();
   });
 });

@@ -1024,3 +1024,55 @@ body {
   background: #3b82f6;
   border-radius: 2px;
 }
+
+/* ── Collections screen ────────────────────────────────────────────────── */
+.collections-body { display: flex; flex-direction: column; gap: 8px; padding: 10px 12px 14px; }
+.collections-header { display: flex; align-items: center; gap: 8px; }
+.collections-title { font-size: 14px; font-weight: 600; color: var(--text); }
+.collections-list { display: flex; flex-direction: column; gap: 6px; }
+.collections-empty,
+.collections-error { font-size: 12px; color: var(--text-muted); text-align: center; padding: 8px 0; }
+.collections-error { color: #f87171; }
+.collection-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-panel);
+}
+.collection-name { font-size: 13px; color: var(--text); }
+.collection-meta { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+.collection-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+.collection-action {
+  font-size: 11px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: background var(--transition), color var(--transition);
+}
+.collection-action:hover { background: var(--bg-hover); color: var(--text); }
+.collection-action--danger { color: #f87171; border-color: rgba(248, 113, 113, 0.4); }
+.collection-action--danger:hover { background: rgba(248, 113, 113, 0.12); color: #f87171; }
+.collection-rename {
+  width: 100%;
+  font-size: 13px;
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--accent);
+  background: var(--bg-panel);
+  color: var(--text);
+}
+
+/* ── Notification rows ─────────────────────────────────────────────────── */
+.notif-item--link { cursor: pointer; }
+.notif-item--link:hover { background: var(--bg-hover); }
+.notif-title { font-size: 12px; font-weight: 600; color: var(--text); }
+.notif-body { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+
+/* ── Language chips ────────────────────────────────────────────────────── */
+.chip--locked { opacity: 0.55; cursor: not-allowed; }

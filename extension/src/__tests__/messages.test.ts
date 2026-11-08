@@ -42,4 +42,16 @@ describe('Message protocol types', () => {
       expect(msg.languages).toEqual(['en', 'fr'])
     }
   })
+
+  it('Request.GET_USER_SETTINGS takes no fields', () => {
+    const msg: Request = { type: 'GET_USER_SETTINGS' }
+    expect(msg.type).toBe('GET_USER_SETTINGS')
+  })
+
+  it('Request.SET_DISCOVERY_MODE only accepts the two modes', () => {
+    const deep: Request = { type: 'SET_DISCOVERY_MODE', mode: 'deep_dive' }
+    const standard: Request = { type: 'SET_DISCOVERY_MODE', mode: 'discovery' }
+    expect(deep.type).toBe('SET_DISCOVERY_MODE')
+    expect(standard.type).toBe('SET_DISCOVERY_MODE')
+  })
 })

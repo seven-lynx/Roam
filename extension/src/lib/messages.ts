@@ -8,14 +8,12 @@ export type Request =
   | { type: 'SIGN_IN_EMAIL'; email: string; password: string }
   | { type: 'SIGN_UP_EMAIL'; email: string; password: string }
   | { type: 'GET_CATEGORIES' }
-  | { type: 'GET_USER_CATEGORIES' }
-  | { type: 'SET_USER_CATEGORIES'; categoryIds: string[] }
   | { type: 'GET_USER_INTERESTS' }
+  | { type: 'GET_USER_SETTINGS' }
   | { type: 'SET_USER_INTERESTS'; pillarIds: string[]; topicIds: string[] }
   | { type: 'GET_ALL_SUBCATEGORIES' }
   | { type: 'SIGN_OUT' }
   | { type: 'ROAM'; categoryId?: string; subcategoryId?: string }
-  | { type: 'GET_SUBCATEGORIES'; categoryId: string }
   | { type: 'ROAM_COLLECTION'; collectionId: string }
   | { type: 'ROAM_CATEGORY'; categoryId: string }
   | { type: 'RATE'; url_id: string; vote: 1 | -1 }
@@ -55,7 +53,6 @@ export type Request =
   | { type: 'RENAME_COLLECTION'; collectionId: string; name: string }
   | { type: 'UPDATE_COLLECTION_PUBLIC'; collectionId: string; isPublic: boolean }
   | { type: 'GET_PROFILE_STATS' }
-  | { type: 'SET_DISCOVERY_LANGUAGE'; language: string }
   | { type: 'GET_SUBCATEGORIES_FOR_CATEGORY'; categoryId: string };
 
 export type Response<T = unknown> =
@@ -89,8 +86,37 @@ export interface CategoryItem {
   icon: string;
 }
 
-export interface UserCategoriesData {
-  categoryIds: string[];
+/** Server-side preferences from public.user_settings (one row per user). */
+export interface UserSettingsData {
+  skip_paywalled: boolean;
+  discovery_mode: 'discovery' | 'deep_dive';
+  preferred_languages: string[];
+}
+
+export interface ProfileStatsData {
+  roamed: number;
+  submitted: number;
+  level: number;
+  xp_total: number;
+  streak_days: number;
+  max_streak: number;
+}
+
+export interface NotificationItem {
+  id: string;
+  type: string;
+  title: string | null;
+  body: string | null;
+  data: Record<string, unknown> | null;
+  read: boolean;
+  created_at: string;
+}
+
+/** A saved page held in chrome.storage.local while the user is signed out. */
+export interface LocalSavedUrl {
+  url: string;
+  title: string;
+  savedAt: number;
 }
 
 export interface UserInterestsData {

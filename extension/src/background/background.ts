@@ -6,9 +6,10 @@
 
 import { Sentry } from '../lib/sentry';
 import { validateEnvironment } from '../lib/env';
-import type { Request, Response, StateData, RoamData, CheckUrlData, Collection, CategoryItem, ProfileData, SubcategoryItem, SavedUrlItem, ChallengeData, BadgeData } from '../lib/messages';
+import type { Request, Response, StateData, RoamData, CheckUrlData, Collection, CategoryItem, ProfileData, SubcategoryItem, SavedUrlItem, ChallengeData, BadgeData, UserSettingsData, ProfileStatsData, NotificationItem, LocalSavedUrl } from '../lib/messages';
 import { getSupabase, clearAuthStorage } from '../lib/supabase';
-import { FALLBACK_CATEGORIES } from '../lib/constants';
+import { FALLBACK_CATEGORIES, DEFAULT_LANGUAGE } from '../lib/constants';
+import { addLocalSaved, normaliseLocalSaved, removeLocalSaved } from '../lib/local-saved';
 
 declare const __SUPABASE_URL__: string;
 
@@ -27,6 +28,8 @@ const RATING_FLUSH_BATCH = 10; // max ratings to flush at once
 const CURRENT_URL_KEY = 'current_url';  // { url_id: string, served_at: number }
 const URL_HISTORY_KEY = 'extension_url_history';
 const MAX_HISTORY_ENTRIES = 100;
+const LOCAL_SAVED_KEY = 'saved_urls';
+const SAVED_URLS_LIMIT = 200; // server-side list cap (web/Android show the full set)
 
 // Deduplicates concurrent prefetch calls within a single SW activation.
 let prefetchInFlight: Promise<void> | null = null;
@@ -341,7 +344,7 @@ chrome.runtime.onMessage.addListener(
 async function dispatch(req: Request): Promise<Response> {
   const result = await _dispatch(req);
   if (!result.ok) {
-    const expected = new Set(['SIGN_IN_EMAIL', 'SIGN_UP_EMAIL', 'GET_PROFILE']);
+    const expected = new Set(['SIGN_IN_EMAIL', 'SIGN_UP_EMAIL', 'GET_PROFILE', 'GET_PROFILE_PUBLIC']);
     if (!expected.has(req.type)) {
       Sentry.captureMessage(`[bg] ${req.type} failed: ${result.error}`, { level: 'error', tags: { messageType: req.type } });
     }
@@ -359,9 +362,8 @@ async function _dispatch(req: Request): Promise<Response> {
     case 'SAVE_SESSION':          return saveSession(req.accessToken, req.refreshToken);
     case 'SIGN_OUT':              return signOut();
     case 'GET_CATEGORIES':        return getCategories();
-    case 'GET_USER_CATEGORIES':   return getUserCategories();
-    case 'SET_USER_CATEGORIES':   return setUserCategories(req.categoryIds);
     case 'GET_USER_INTERESTS':    return getUserInterests();
+    case 'GET_USER_SETTINGS':     return getUserSettings();
     case 'SET_USER_INTERESTS':    return setUserInterests(req.pillarIds, req.topicIds);
     case 'GET_ALL_SUBCATEGORIES': return getAllSubcategories();
     case 'ROAM':                  return roam(req.categoryId, req.subcategoryId);
@@ -377,7 +379,6 @@ async function _dispatch(req: Request): Promise<Response> {
     case 'SET_LANGUAGE_PREF':     return setLanguagePref(req.languages);
     case 'SET_DISCOVERY_MODE':    return setDiscoveryMode(req.mode);
     case 'SET_AUTO_TRANSLATE':    return setAutoTranslate(req.enabled);
-    case 'SET_DISCOVERY_LANGUAGE': return setDiscoveryLanguage(req.language);
     case 'GET_COLLECTIONS':       return getCollections();
     case 'CREATE_COLLECTION':     return createCollection(req.name);
     case 'ADD_URL_TO_COLLECTION': return addUrlToCollection(req.url, req.collectionId);
@@ -388,7 +389,6 @@ async function _dispatch(req: Request): Promise<Response> {
     case 'GET_PROFILE_STATS':     return getProfileStats();
     case 'SEND_FEEDBACK':         return sendFeedback(req.message, req.email, req.platform);
     case 'REPORT_URL':            return reportUrl(req.url_id);
-    case 'GET_SUBCATEGORIES':     return getSubcategories(req.categoryId);
     case 'GET_SUBCATEGORIES_FOR_CATEGORY': return getSubcategories(req.categoryId);
     case 'SET_PROFILE_PUBLIC':    return setProfilePublic(req.isPublic);
     case 'GET_PROFILE_PUBLIC':    return getProfilePublic();
@@ -582,27 +582,6 @@ async function getCategories(): Promise<Response<CategoryItem[]>> {
   return { ok: true, data: FALLBACK_CATEGORIES };
 }
 
-async function getUserCategories(): Promise<Response<{ categoryIds: string[] }>> {
-  const session = (await getSupabase().auth.getSession()).data.session;
-  if (!session) return { ok: false, error: "You're not signed in. Please sign in and try again." };
-  const { data, error } = await getSupabase().from('user_categories').select('category_id').eq('user_id', session.user.id);
-  if (error) return { ok: false, error: "Couldn't load your categories. Please try again." };
-  return { ok: true, data: { categoryIds: (data || []).map((r: any) => r.category_id) } };
-}
-
-async function setUserCategories(categoryIds: string[]): Promise<Response<null>> {
-  const session = (await getSupabase().auth.getSession()).data.session;
-  if (!session) return { ok: false, error: "You're not signed in. Please sign in and try again." };
-  const { error: delError } = await getSupabase().from('user_categories').delete().eq('user_id', session.user.id);
-  if (delError) return { ok: false, error: "Couldn't save your categories. Please try again." };
-  if (categoryIds.length > 0) {
-    const rows = categoryIds.map((id) => ({ user_id: session.user.id, category_id: id }));
-    const { error: insError } = await getSupabase().from('user_categories').insert(rows);
-    if (insError) return { ok: false, error: "Couldn't save your categories. Please try again." };
-  }
-  return { ok: true, data: null };
-}
-
 async function getUserInterests(): Promise<Response<{ mode: 'pillars' | 'topics'; pillarIds: string[]; topicIds: string[] }>> {
   const session = (await getSupabase().auth.getSession()).data.session;
   if (!session) return { ok: false, error: "You're not signed in. Please sign in and try again." };
@@ -611,13 +590,14 @@ async function getUserInterests(): Promise<Response<{ mode: 'pillars' | 'topics'
     .select('category_id, subcategory_id')
     .eq('user_id', session.user.id);
   if (error) return { ok: false, error: "Couldn't load your interests. Please try again." };
-  const rows = data || [];
-  const topicRows = rows.filter((r: any) => r.subcategory_id !== null);
-  const pillarRows = rows.filter((r: any) => r.subcategory_id === null);
+  type InterestRow = { category_id: string; subcategory_id: string | null };
+  const rows = (data ?? []) as InterestRow[];
+  const topicRows = rows.filter((r) => r.subcategory_id !== null);
+  const pillarRows = rows.filter((r) => r.subcategory_id === null);
   if (topicRows.length > 0) {
-    return { ok: true, data: { mode: 'topics', pillarIds: [], topicIds: topicRows.map((r: any) => r.subcategory_id) } };
+    return { ok: true, data: { mode: 'topics', pillarIds: [], topicIds: topicRows.map((r) => r.subcategory_id as string) } };
   }
-  return { ok: true, data: { mode: 'pillars', pillarIds: pillarRows.map((r: any) => r.category_id), topicIds: [] } };
+  return { ok: true, data: { mode: 'pillars', pillarIds: pillarRows.map((r) => r.category_id), topicIds: [] } };
 }
 
 async function getAllSubcategories(): Promise<Response<SubcategoryItem[]>> {
@@ -720,7 +700,6 @@ async function roam(categoryId?: string, subcategoryId?: string): Promise<Respon
       prefetchNext();
       void recordUrlVisit(cached.url, cached.title || cached.url); // fire-and-forget — don't block the response
       const translatedUrl = await maybeTranslate(cached.url);
-      await chrome.storage.session.set({ auto_translate: false });
       return { ok: true, data: { ...cached, url: translatedUrl } };
     }
 
@@ -731,7 +710,6 @@ async function roam(categoryId?: string, subcategoryId?: string): Promise<Respon
         prefetchNext();
         void recordUrlVisit(cached2.url, cached2.title || cached2.url); // fire-and-forget — don't block the response
         const translatedUrl2 = await maybeTranslate(cached2.url);
-        await chrome.storage.session.set({ auto_translate: false });
         return { ok: true, data: { ...cached2, url: translatedUrl2 } };
       }
     }
@@ -747,7 +725,6 @@ async function roam(categoryId?: string, subcategoryId?: string): Promise<Respon
     // Store current URL for engagement tracking (Phase 1 — skip + dwell)
     chrome.storage.session.set({ [CURRENT_URL_KEY]: { url_id: live.data.id, served_at: Date.now() } }).catch(() => {});
     const translatedUrl = await maybeTranslate(live.data.url);
-    await chrome.storage.session.set({ auto_translate: false });
     return { ok: true, data: { ...live.data, url: translatedUrl } };
   }
   return live;
@@ -831,39 +808,76 @@ async function submitUrl(url: string, categoryId: string, subcategoryId?: string
 }
 
 // ── Save for later ────────────────────────────────────────────────────────────
+/** Local ids are prefixed so the popup can route removal without a server hit. */
+const LOCAL_SAVED_ID_PREFIX = 'local:';
+
+function localSavedItem(entry: LocalSavedUrl): SavedUrlItem {
+  return {
+    id: `${LOCAL_SAVED_ID_PREFIX}${entry.url}`,
+    url: entry.url,
+    title: entry.title || entry.url,
+    saved_at: entry.savedAt ? new Date(entry.savedAt).toISOString() : '',
+  };
+}
+
+async function readLocalSaved(): Promise<LocalSavedUrl[]> {
+  const storage = await chrome.storage.local.get(LOCAL_SAVED_KEY);
+  return normaliseLocalSaved(storage[LOCAL_SAVED_KEY]);
+}
+
 async function saveLater(url: string, title?: string): Promise<Response<null>> {
+  const entry: LocalSavedUrl = { url, title: title ?? '', savedAt: Date.now() };
   const session = (await getSupabase().auth.getSession()).data.session;
   if (session) {
     const { error } = await getSupabase()
       .from('saved_urls')
       .upsert(
-        { user_id: session.user.id, url, title: title ?? '' },
+        { user_id: session.user.id, url, title: entry.title },
         { onConflict: 'user_id,url' }
       );
     if (!error) return { ok: true, data: null };
   }
-  const storage = await chrome.storage.local.get('saved_urls');
-  const saved = (storage.saved_urls || []) as string[];
-  if (!saved.includes(url)) { saved.push(url); await chrome.storage.local.set({ saved_urls: saved }); }
+  // Signed out, or the server write failed: keep the page locally so it is not lost.
+  const local = addLocalSaved(await readLocalSaved(), entry);
+  await chrome.storage.local.set({ [LOCAL_SAVED_KEY]: local });
   return { ok: true, data: null };
+}
+
+/** Pushes pages saved while signed out into the server table, then clears them. */
+async function flushLocalSaved(userId: string): Promise<void> {
+  const local = await readLocalSaved();
+  if (local.length === 0) return;
+  const rows = local.map((e) => ({ user_id: userId, url: e.url, title: e.title }));
+  const { error } = await getSupabase()
+    .from('saved_urls')
+    .upsert(rows, { onConflict: 'user_id,url' });
+  if (!error) await chrome.storage.local.remove(LOCAL_SAVED_KEY);
 }
 
 async function getSavedUrls(): Promise<Response<SavedUrlItem[]>> {
   const session = (await getSupabase().auth.getSession()).data.session;
-  if (!session) return { ok: true, data: [] };
-  const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+  if (!session) {
+    const local = await readLocalSaved();
+    return { ok: true, data: local.map(localSavedItem) };
+  }
+  await flushLocalSaved(session.user.id);
   const { data, error } = await getSupabase()
     .from('saved_urls')
     .select('id, url, title, saved_at')
     .eq('user_id', session.user.id)
-    .gt('saved_at', since)
     .order('saved_at', { ascending: false })
-    .limit(50);
+    .limit(SAVED_URLS_LIMIT);
   if (error) return { ok: false, error: error.message };
   return { ok: true, data: (data ?? []) as SavedUrlItem[] };
 }
 
 async function removeSavedUrl(savedUrlId: string): Promise<Response<null>> {
+  if (savedUrlId.startsWith(LOCAL_SAVED_ID_PREFIX)) {
+    const url = savedUrlId.slice(LOCAL_SAVED_ID_PREFIX.length);
+    const local = removeLocalSaved(await readLocalSaved(), url);
+    await chrome.storage.local.set({ [LOCAL_SAVED_KEY]: local });
+    return { ok: true, data: null };
+  }
   const session = (await getSupabase().auth.getSession()).data.session;
   if (!session) return { ok: false, error: 'Not signed in.' };
   const { error } = await getSupabase()
@@ -876,6 +890,36 @@ async function removeSavedUrl(savedUrlId: string): Promise<Response<null>> {
 }
 
 // ── Preferences ───────────────────────────────────────────────────────────────
+/** Server-side discovery preferences — used to hydrate the popup's controls. */
+async function getUserSettings(): Promise<Response<UserSettingsData>> {
+  const defaults: UserSettingsData = {
+    skip_paywalled: false,
+    discovery_mode: 'discovery',
+    preferred_languages: [DEFAULT_LANGUAGE],
+  };
+  const session = (await getSupabase().auth.getSession()).data.session;
+  if (!session) return { ok: true, data: defaults };
+  const { data, error } = await getSupabase()
+    .from('user_settings')
+    .select('skip_paywalled, discovery_mode, preferred_languages')
+    .eq('user_id', session.user.id)
+    .maybeSingle();
+  if (error) return { ok: true, data: defaults };
+  const row = data as { skip_paywalled?: boolean; discovery_mode?: string; preferred_languages?: string[] } | null;
+  if (!row) return { ok: true, data: defaults };
+  return {
+    ok: true,
+    data: {
+      skip_paywalled: row.skip_paywalled ?? false,
+      discovery_mode: row.discovery_mode === 'deep_dive' ? 'deep_dive' : 'discovery',
+      preferred_languages:
+        row.preferred_languages && row.preferred_languages.length > 0
+          ? row.preferred_languages
+          : [DEFAULT_LANGUAGE],
+    },
+  };
+}
+
 async function setPaywallPref(skip: boolean): Promise<Response<null>> {
   const session = (await getSupabase().auth.getSession()).data.session;
   if (!session) return { ok: false, error: "You're not signed in. Please sign in and try again." };
@@ -888,7 +932,8 @@ async function setPaywallPref(skip: boolean): Promise<Response<null>> {
 async function setLanguagePref(languages: string[]): Promise<Response<null>> {
   const session = (await getSupabase().auth.getSession()).data.session;
   if (!session) return { ok: false, error: "You're not signed in. Please sign in and try again." };
-  const langs = languages.length > 0 ? languages : ['en'];
+  // English is always included — matches the web language filter.
+  const langs = Array.from(new Set([...languages.filter(Boolean), DEFAULT_LANGUAGE]));
   await chrome.storage.local.set({ preferred_languages: langs });
   const { error } = await getSupabase().from('user_settings').upsert({ user_id: session.user.id, preferred_languages: langs }, { onConflict: 'user_id' });
   if (error) console.warn('[roam] setLanguagePref DB error:', error.message);
@@ -904,28 +949,17 @@ async function setDiscoveryMode(mode: 'discovery' | 'deep_dive'): Promise<Respon
   return { ok: true, data: null };
 }
 
-async function setDiscoveryLanguage(language: string): Promise<Response<null>> {
-  const session = (await getSupabase().auth.getSession()).data.session;
-  if (!session) return { ok: false, error: "You're not signed in. Please sign in and try again." };
-  await chrome.storage.local.set({ preferred_languages: [language] });
-  const { error } = await getSupabase().from('user_settings').upsert({ user_id: session.user.id, preferred_languages: [language] }, { onConflict: 'user_id' });
-  if (error) console.warn('[roam] setDiscoveryLanguage DB error:', error.message);
-  return { ok: true, data: null };
-}
-
 async function setAutoTranslate(enabled: boolean): Promise<Response<null>> {
-  await chrome.storage.session.set({ auto_translate: enabled });
+  // Persisted (not session) — matches Android's auto-translate setting.
+  await chrome.storage.local.set({ auto_translate: enabled });
   return { ok: true, data: null };
 }
 
 // ── Translate URL helper ──────────────────────────────────────────────────────
 async function maybeTranslate(url: string): Promise<string> {
-  const [session, local] = await Promise.all([
-    chrome.storage.session.get('auto_translate'),
-    chrome.storage.local.get('translate_language'),
-  ]);
-  if (!session.auto_translate) return url;
-  const targetLang = (local.translate_language as string) ?? 'en';
+  const local = await chrome.storage.local.get(['auto_translate', 'translate_language']);
+  if (!local.auto_translate) return url;
+  const targetLang = (local.translate_language as string) || DEFAULT_LANGUAGE;
   return `https://translate.google.com/translate?sl=auto&tl=${targetLang}&u=${encodeURIComponent(url)}`;
 }
 
@@ -935,7 +969,8 @@ async function getCollections(): Promise<Response<Collection[]>> {
   if (!session) return { ok: false, error: "You're not signed in. Please sign in and try again." };
   const { data, error } = await getSupabase().from('collections').select('id,name,slug,is_public,item_count:collection_items(count)').eq('user_id', session.user.id).order('name');
   if (error) return { ok: false, error: error.message };
-  const collections = (data || []).map((c: any) => ({ id: c.id, name: c.name, slug: c.slug, is_public: c.is_public, item_count: Array.isArray(c.item_count) && c.item_count[0]?.count ? c.item_count[0].count : 0 }));
+  type CollectionRow = { id: string; name: string; slug: string; is_public: boolean; item_count?: { count: number }[] | null };
+  const collections = ((data ?? []) as CollectionRow[]).map((c) => ({ id: c.id, name: c.name, slug: c.slug, is_public: c.is_public, item_count: c.item_count?.[0]?.count ?? 0 }));
   return { ok: true, data: collections };
 }
 
@@ -1017,17 +1052,35 @@ async function getProfile(): Promise<Response<ProfileData>> {
   return { ok: true, data: { username: data.username } };
 }
 
-async function getProfileStats(): Promise<Response<{ roamed: number; submitted: number }>> {
+async function getProfileStats(): Promise<Response<ProfileStatsData>> {
   const session = (await getSupabase().auth.getSession()).data.session;
   if (!session) return { ok: false, error: 'Not signed in.' };
+  const empty: ProfileStatsData = { roamed: 0, submitted: 0, level: 1, xp_total: 0, streak_days: 0, max_streak: 0 };
   const { data: stats, error } = await getSupabase()
     .from('profiles')
-    .select('roamed_count, submitted_count')
+    .select('roamed_count, submitted_count, xp_total, level, streak_days, max_streak')
     .eq('id', session.user.id)
     .single();
-  if (error || !stats) return { ok: true, data: { roamed: 0, submitted: 0 } };
-  const profileStats = stats as { roamed_count?: number; submitted_count?: number };
-  return { ok: true, data: { roamed: profileStats.roamed_count ?? 0, submitted: profileStats.submitted_count ?? 0 } };
+  if (error || !stats) return { ok: true, data: empty };
+  const row = stats as {
+    roamed_count?: number | null;
+    submitted_count?: number | null;
+    xp_total?: number | null;
+    level?: number | null;
+    streak_days?: number | null;
+    max_streak?: number | null;
+  };
+  return {
+    ok: true,
+    data: {
+      roamed: row.roamed_count ?? 0,
+      submitted: row.submitted_count ?? 0,
+      level: row.level ?? 1,
+      xp_total: row.xp_total ?? 0,
+      streak_days: row.streak_days ?? 0,
+      max_streak: row.max_streak ?? 0,
+    },
+  };
 }
 
 // ── Feedback & moderation ─────────────────────────────────────────────────────
@@ -1161,7 +1214,7 @@ async function getShareRecipients(search?: string): Promise<Response<ShareRecipi
 }
 
 // ── Notifications ─────────────────────────────────────────────────────────────
-async function getNotifications(): Promise<Response<any[]>> {
+async function getNotifications(): Promise<Response<NotificationItem[]>> {
   const session = (await getSupabase().auth.getSession()).data.session;
   if (!session) return { ok: false, error: 'Not signed in.' };
   const { data, error } = await getSupabase()
@@ -1171,7 +1224,7 @@ async function getNotifications(): Promise<Response<any[]>> {
     .order('created_at', { ascending: false })
     .limit(30);
   if (error) return { ok: false, error: error.message };
-  return { ok: true, data: data ?? [] };
+  return { ok: true, data: (data ?? []) as NotificationItem[] };
 }
 
 async function getUnreadNotificationCount(): Promise<Response<number>> {
