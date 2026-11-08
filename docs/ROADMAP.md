@@ -2314,3 +2314,34 @@ These tasks are derived from the comprehensive codebase audit conducted 2026-05-
   - **Effort:** 1 hour
   - **Details:** Document Supabase Pro tier cost ($25/month), storage projection, cron-job health check monitoring, backup strategy
   - **Reference:** AUDIT_REPORT.md Section 7 (Infrastructure & DevOps)
+
+---
+
+## Extension Parity Follow-Up (2026-11-07 audit) {#extension-parity-follow-up}
+
+The popup-level defects and the dead message surface from the extension audit are fixed (collections
+management, discovery mode, multi-language filtering, persisted translate, actionable notifications,
+gamification counters, signed-out saved pages). The items below need new permissions, new UI surfaces,
+or a product decision, and remain open.
+
+- [ ] **EXT.1** XP, level and streak moments in the extension
+  - **Severity:** MEDIUM — gamification ships on web and Android; the popup only shows counters
+  - **Details:** React to `evaluate-badges` / `game-action` output, celebrate badge unlocks and level-ups after a rating or submission, and show level progress beside the stats row
+  - **Files:** `extension/src/background/background.ts`, `extension/src/popup/popup.ts`
+
+- [ ] **EXT.2** Desktop notifications for follows, shares, badge unlocks and challenges
+  - **Severity:** MEDIUM — notifications are only visible while the popup is open
+  - **Details:** MV3 extensions cannot receive Web Push. Requires `notifications` + `alarms` permissions (with a new row in the `extension/RULES.md` permissions table, per rule E.4), a `chrome.alarms` poll of `GET_UNREAD_COUNT`, and `chrome.notifications.create`
+  - **Files:** `extension/manifest.json`, `extension/manifest.firefox.json`, `extension/src/background/background.ts`, `extension/RULES.md`
+
+- [ ] **EXT.3** Social graph inside the popup (follow, followers/following, activity feed)
+  - **Severity:** MEDIUM — currently a link-out to `/following`; the `follow` and `activity-feed` Edge Functions already exist
+  - **Files:** `extension/src/lib/messages.ts`, `extension/src/background/background.ts`, `extension/src/popup/popup.ts`
+
+- [ ] **EXT.4** Profile editing and public profile view
+  - **Severity:** LOW — username, display name, bio and avatar are read-only in the popup while web and Android edit them
+  - **Files:** `extension/src/background/background.ts`, `extension/src/popup/popup.ts`
+
+- [ ] **EXT.5** Account lifecycle (password change, data export, account deletion)
+  - **Severity:** LOW — the popup deep-links to `/settings`; decide whether the extension should own any of this
+  - **Files:** `extension/src/popup/popup.ts`

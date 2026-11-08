@@ -4,7 +4,22 @@ All notable changes to the Roam browser extension.
 
 ## [Unreleased]
 
-No changes pending release. Recent cross-platform discovery work (algorithm v31–v35) is documented in the [0.5.0] entry above and in the web / Android changelogs.
+### Fixed
+- Saved pages no longer expire after 30 days, and pages saved while signed out are listed locally instead of disappearing; they are pushed to the account the next time the saved list loads.
+- Notification taps now mark the item read **and** open its target (shared URL, badge, level-up, challenge, follower profile), matching web and Android.
+- Badge and challenge chips count unlocked badges and active challenges instead of every row in the table.
+- Settings controls (public profile, skip paywalled, deep-dive mode, always-translate, discovery languages) hydrate from the account on open instead of always rendering unchecked/English.
+- Duplicate click listeners no longer stack on the saved-pages list each time it opens, which fired repeated removals.
+- "Translate this page" is a clean one-shot action again; "Always translate roamed pages" is a separate persisted setting.
+- New Google sign-ups see a "Claim your username" row instead of copying a broken `/u/undefined` profile link.
+- Stale engagement samples (popup closed before the next roam) are dropped rather than reported as long dwells.
+- Removed dead message types and handlers (`GET_USER_CATEGORIES`, `SET_USER_CATEGORIES`, `GET_SUBCATEGORIES`, `SET_DISCOVERY_LANGUAGE`) and the stale `lib/debug.ts`, which described the retired URL-queue architecture. Every remaining request type is reachable from a UI surface.
+
+### Added
+- Collections screen in the popup — rename, delete (two-tap confirm), make public/private, copy public link — backed by the existing `collection` Edge Function actions.
+- Deep-dive discovery toggle and multi-language filtering, both persisted to `user_settings.preferred_languages` / `discovery_mode`.
+- Level, XP, day streak and roamed/submitted counters in the "You" section.
+- Unit coverage for notification link derivation and the signed-out saved-page buffer (21 tests).
 
 ## [0.5.0] - 2026-08-05
 

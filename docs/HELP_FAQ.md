@@ -125,6 +125,14 @@ Danger Zone (data export & account deletion).
   pages you visit.
 - Prefetch cache (`chrome.storage.session`) for near-instant navigation.
 - It detects and rates the page you're currently viewing.
+- Save for later, collections (create, rename, delete, make public, copy link),
+  share-with-a-friend, feedback, and broken-link reports. Pages saved while
+  signed out are kept locally and pushed to your account the next time the saved
+  list loads.
+- Badges, challenges, level, XP and day streak, with notifications that open the
+  same page the web app would.
+- Discovery settings: focus mode, deep-dive mode, paywalled-site skipping,
+  multi-language filtering, and optional page translation.
 - Published: Chrome Web Store and Firefox AMO.
 
 **Android app**

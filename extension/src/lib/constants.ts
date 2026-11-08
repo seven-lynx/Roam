@@ -14,3 +14,28 @@ export const FALLBACK_CATEGORIES: CategoryItem[] = [
   { id: 'c1000000-0000-0000-0000-000000000007', name: 'People & Places',  icon: '🌍' },
   { id: 'c1000000-0000-0000-0000-000000000008', name: 'Mind & Body',      icon: '🧠' },
 ];
+
+// Content languages offered for discovery filtering and translation.
+// Mirrors web/src/app/settings/SettingsClient.tsx (LANGUAGES) plus Arabic,
+// which the popup has always offered.
+export const LANGUAGES: { code: string; label: string }[] = [
+  { code: 'en', label: 'English' },
+  { code: 'fr', label: 'Français' },
+  { code: 'de', label: 'Deutsch' },
+  { code: 'it', label: 'Italiano' },
+  { code: 'es', label: 'Español' },
+  { code: 'pt', label: 'Português' },
+  { code: 'nl', label: 'Nederlands' },
+  { code: 'pl', label: 'Polski' },
+  { code: 'ar', label: 'العربية' },
+  { code: 'ja', label: '日本語' },
+  { code: 'zh', label: '中文' },
+  { code: 'ru', label: 'Русский' },
+  { code: 'ko', label: '한국어' },
+];
+
+/** English is always included by the backend language filter. */
+export const DEFAULT_LANGUAGE = 'en';
+
+/** Stale engagement samples (popup closed before the next roam) are dropped. */
+export const ENGAGEMENT_MAX_DWELL_MS = 30 * 60 * 1000;

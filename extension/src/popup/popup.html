@@ -151,7 +151,7 @@
         <h3 class="panel-section-title">Roam mode</h3>
         <button id="btn-roam-category"   class="panel-row">Roam within this category</button>
         <button id="btn-roam-collection" class="panel-row">Roam a collection…</button>
-        <button id="btn-manage-collections" class="panel-row">Manage collections ↗</button>
+        <button id="btn-manage-collections" class="panel-row">Manage collections</button>
         <div class="panel-row panel-row--toggle">
           <span>Focus mode</span>
           <label class="toggle">
@@ -163,6 +163,13 @@
           <button id="btn-focus-category" class="panel-row">Category: Any</button>
           <button id="btn-focus-subcategory" class="panel-row" hidden>Topic: All</button>
         </div>
+        <div class="panel-row panel-row--toggle">
+          <span>Deep dive mode</span>
+          <label class="toggle">
+            <input type="checkbox" id="toggle-deep-dive" />
+            <span class="toggle-track"></span>
+          </label>
+        </div>
       </section>
 
       <section class="panel-section">
@@ -171,7 +178,12 @@
         <button id="btn-challenges" class="panel-row">Challenges <span id="challenge-count-chip" class="count-chip" hidden>0</span></button>
         <button id="btn-badges"      class="panel-row">Badges <span id="badge-count-chip" class="count-chip" hidden>0</span></button>
         <button id="btn-history" class="panel-row">History</button>
-        <div id="stats-row" class="stats-row" hidden>Roamed: <span id="stat-roamed">0</span> · Submitted: <span id="stat-submitted">0</span></div>
+        <div id="stats-row" class="stats-row" hidden>
+          Lv <span id="stat-level">1</span> · <span id="stat-xp">0</span> XP ·
+          Roamed: <span id="stat-roamed">0</span> ·
+          Submitted: <span id="stat-submitted">0</span> ·
+          🔥 <span id="stat-streak">0</span>
+        </div>
       </section>
 
       <section class="panel-section">
@@ -184,6 +196,7 @@
           </label>
         </div>
         <button id="btn-copy-profile-link" class="panel-row">Copy profile link</button>
+        <button id="btn-claim-username" class="panel-row" hidden>Claim your username ↗</button>
         <div class="panel-row panel-row--toggle">
           <span>Skip paywalled sites</span>
           <label class="toggle">
@@ -191,25 +204,20 @@
             <span class="toggle-track"></span>
           </label>
         </div>
+        <div class="panel-row panel-row--toggle">
+          <span>Always translate roamed pages</span>
+          <label class="toggle">
+            <input type="checkbox" id="toggle-auto-translate" />
+            <span class="toggle-track"></span>
+          </label>
+        </div>
         <button id="btn-translate-page" class="panel-row">Translate this page</button>
         <div class="panel-row panel-row--languages">
-          <span>Discovery language</span>
-          <select id="select-discovery-lang" class="lang-select">
-            <option value="ar">العربية</option>
-            <option value="zh">中文</option>
-            <option value="nl">Nederlands</option>
-            <option value="en" selected>English</option>
-            <option value="fr">Français</option>
-            <option value="de">Deutsch</option>
-            <option value="it">Italiano</option>
-            <option value="ja">日本語</option>
-            <option value="ko">한국어</option>
-            <option value="pl">Polski</option>
-            <option value="pt">Português</option>
-            <option value="ru">Русский</option>
-            <option value="es">Español</option>
-          </select>
+          <span>Translate to</span>
+          <select id="select-translate-lang" class="lang-select"></select>
         </div>
+        <p class="panel-label">Discovery languages</p>
+        <div id="language-chips" class="chip-grid"></div>
         <button id="btn-category-prefs" class="panel-row">Category preferences ↗</button>
         <button id="btn-report-url"      class="panel-row">Report broken link</button>
         <button id="btn-send-feedback"   class="panel-row">Send feedback</button>
@@ -323,6 +331,20 @@
       <p id="badges-empty" class="badges-empty" hidden>No badges yet.</p>
       <p id="badges-error" class="badges-error" hidden></p>
       <button id="btn-web-badges" class="btn-secondary">Open full gallery ↗</button>
+    </div>
+  </div>
+
+  <!-- ── Collections state ──────────────────────────────────────────────── -->
+  <div id="state-collections" class="state" hidden>
+    <div class="collections-body">
+      <div class="collections-header">
+        <button id="btn-back-collections" class="btn-back">← Back</button>
+        <p class="collections-title">Collections</p>
+      </div>
+      <div id="collections-list" class="collections-list"></div>
+      <p id="collections-empty" class="collections-empty" hidden>No collections yet.</p>
+      <p id="collections-error" class="collections-error" hidden></p>
+      <button id="btn-web-collections" class="btn-secondary">Open in web app ↗</button>
     </div>
   </div>
 
