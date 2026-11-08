@@ -2,7 +2,7 @@
 
 All notable changes to the Roam Android app.
 
-## [Unreleased]
+## [1.6.0] - 2026-11-07
 
 ### Added
 - Cartridge shelf — the config sheet's "software shelf" tile is now **cartridges** (`PROGRAMS // CARTRIDGES`), listing the five ROAM-OS arcade programs the handheld ships: RELAY, BOTFIELD, COMPILER, DEBRIS and FIREWALK.
