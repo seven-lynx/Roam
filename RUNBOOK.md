@@ -4,6 +4,8 @@ Operational incidents, their root causes, and resolutions. Add an entry for
 every production incident and for every non-additive migration (rollback
 procedures live here).
 
+_Last reviewed: 2026-11-07._
+
 ## Hard Rules
 
 Hard Rules are project-wide invariants enforced by `scripts/check-rules.mjs`
