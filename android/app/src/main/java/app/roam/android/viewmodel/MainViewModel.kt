@@ -21,6 +21,7 @@ import app.roam.android.model.CollectionItem
 import app.roam.android.model.GameId
 import app.roam.android.model.GameXpAward
 import app.roam.android.model.GameXpKind
+import app.roam.android.model.LevelSystem
 import app.roam.android.model.RoamUrl
 import app.roam.android.model.SavedUrl
 import app.roam.android.model.UrlHistoryEntry
@@ -639,7 +640,12 @@ class MainViewModel(
         val raw = _rawUrl.value ?: return
         val toTranslated = !isTranslated
         _currentUrl.value = if (toTranslated) translateUrl(raw) else raw
-        if (toTranslated) { _isTranslating.value = true; beginPageLoad() }
+        if (toTranslated) {
+            _isTranslating.value = true
+            beginPageLoad()
+        } else {
+            pushSystemMessage("SOURCE RESTORED // RAW SIGNAL")
+        }
     }
 
     /** Translates the current page to [targetLang]. Uses the persisted preference. */
@@ -651,6 +657,7 @@ class MainViewModel(
         _currentUrl.value = translateUrl(raw)
         _isTranslating.value = true
         beginPageLoad()
+        pushSystemMessage("TRANSLATOR ENGAGED // ${DeckReadout.truncateName(targetLang.uppercase(), 8)}")
     }
 
     /** User preference: enable JavaScript in the WebView (default on) */
@@ -679,7 +686,10 @@ class MainViewModel(
     private val _clearCookiesChannel = Channel<Unit>(Channel.CONFLATED)
     val clearCookiesFlow = _clearCookiesChannel.receiveAsFlow()
 
-    fun clearCookies() { _clearCookiesChannel.trySend(Unit) }
+    fun clearCookies() {
+        _clearCookiesChannel.trySend(Unit)
+        pushSystemMessage("COOKIE JAR WIPED // COLD HANDSHAKE")
+    }
 
     /** User preference: target language for Google Translate (default: English) */
     private val _translateLanguage = MutableStateFlow(prefs.getString(TRANSLATE_LANG_KEY, "en") ?: "en")
@@ -753,6 +763,7 @@ class MainViewModel(
                 prefetchMutex.withLock { clearQueuesLocked() }
                 if (_prefetchWebView.value) startPrefillQueue()
             }
+            pushSystemMessage("FOCUS RELEASED // FULL SWEEP")
         }
         // When enabling: don't touch queues yet — they stay with the current
         // (possibly unfiltered) contents. setFocusCategory() will clear + refill
@@ -767,6 +778,7 @@ class MainViewModel(
         if (categoryId != null) {
             // Activate focus mode if picking a category while mode was toggled on
             if (!_focusModeEnabled.value) _focusModeEnabled.value = true
+            pushSystemMessage("FOCUS LOCK // SIGNAL NARROWED")
             // Sequentially cancel → clear → restart to avoid the race between
             // the clear coroutine (Main) and startPrefillQueue (IO dispatcher).
             // The restart stays behind the prefetch toggle, like roam() does.
@@ -1129,21 +1141,12 @@ class MainViewModel(
         }
     }
 
-    private val FLAVOR_MESSAGES = listOf(
-        "ROAM-OS // STANDBY",
-        "SIGNAL LOCK — AWAITING INPUT",
-        "idle // waiting for roam",
-        "uptime nominal",
-        "phosphor array calibrated",
-        "queue nominal // no packets",
-        "sweep idle // tap ROAM",
-        "net uplink stable",
-        "cache warm // ready",
-        "no new transmissions",
-    )
-
     // ── System-message readout (deck pager/marquee) ──────────────────────
-    private val _systemMessage = MutableStateFlow(streamFor(emptyList()))
+    // Copy and stream formatting live in DeckReadout so the deck's text can be
+    // unit-tested without an emulator; this class only feeds it live state.
+    private val _systemMessage = MutableStateFlow(
+        DeckReadout.stream(emptyList(), DeckReadout.BASE_FLAVOR.first())
+    )
     val systemMessage: StateFlow<String> = _systemMessage.asStateFlow()
 
     /** Deck readout scroll/advance speed (1 = slow, 10 = fast). */
@@ -1152,6 +1155,18 @@ class MainViewModel(
 
     private val systemMessageQueue = ArrayDeque<String>()
     private var streamJob: Job? = null
+
+    /** Line currently on the strip, so the next idle pick never repeats it. */
+    private var lastFlavor: String? = null
+
+    /** How long one queued message holds the strip before the next scrolls on. */
+    private val READOUT_DRAIN_MS = 4_000L
+
+    /** Ambient idle rotation, used only while nothing is queued. */
+    private val READOUT_IDLE_MS = 12_000L
+
+    /** Idle rotation stops after this many ticks (~96 s) — see [ensureStreamLoop]. */
+    private val READOUT_IDLE_TICKS = 8
 
     fun setSystemMessageSpeed(value: Int) {
         _systemMessageSpeed.value = value.coerceIn(1, 10)
@@ -1218,29 +1233,80 @@ class MainViewModel(
         if (systemMessageQueue.lastOrNull() == message) return
         systemMessageQueue.addLast(message)
         while (systemMessageQueue.size > 12) systemMessageQueue.removeFirst()
-        _systemMessage.value = streamFor(systemMessageQueue.toList())
+        renderSystemReadout()
         ensureStreamLoop()
     }
 
-    /** Advances the readout: one message per window, flavor rotates when idle. */
+    /**
+     * Advances the readout: one queued message per [READOUT_DRAIN_MS], then a
+     * bounded window of idle telemetry so the flavor pool keeps cycling instead
+     * of freezing on the last line. The window is deliberately bounded — an
+     * endless `delay` loop here makes Robolectric's `advanceUntilIdle()` spin
+     * forever (see `MainViewModelTest`), and it stops the strip churning once
+     * the operator has gone quiet.
+     */
     private fun ensureStreamLoop() {
         streamJob?.cancel()
         streamJob = viewModelScope.launch {
             while (isActive && systemMessageQueue.isNotEmpty()) {
-                delay(4_000)
+                delay(READOUT_DRAIN_MS)
                 if (systemMessageQueue.isNotEmpty()) {
                     systemMessageQueue.removeFirst()
                 }
-                _systemMessage.value = streamFor(systemMessageQueue.toList())
+                renderSystemReadout()
+            }
+            var ticks = 0
+            while (isActive && systemMessageQueue.isEmpty() && ticks < READOUT_IDLE_TICKS) {
+                delay(READOUT_IDLE_MS)
+                if (systemMessageQueue.isNotEmpty()) return@launch
+                renderSystemReadout()
+                ticks++
             }
         }
     }
 
-    /** Builds the stream: dots separate each message and fill idle time. */
-    private fun streamFor(messages: List<String>): String {
-        val dots = " · · · · "
-        val body = if (messages.isEmpty()) FLAVOR_MESSAGES.random() else messages.joinToString(dots)
-        return dots + body + dots
+    /** Re-renders the strip: queued messages first, otherwise a fresh idle line. */
+    private fun renderSystemReadout() {
+        val queued = systemMessageQueue.toList()
+        _systemMessage.value = DeckReadout.stream(
+            messages = queued,
+            flavor = if (queued.isEmpty()) nextIdleFlavor() else (lastFlavor ?: ""),
+        )
+    }
+
+    /** Next idle line, never repeating the one currently on the strip. */
+    private fun nextIdleFlavor(): String {
+        val flavor = DeckReadout.nextFlavor(DeckReadout.idleMessages(deckStatus()), lastFlavor)
+        lastFlavor = flavor
+        return flavor
+    }
+
+    /**
+     * Snapshot of what the deck is allowed to report. Everything here is real
+     * app state, phrased diegetically by [DeckReadout.idleMessages].
+     */
+    private fun deckStatus(): DeckStatus {
+        val profile = _profile.value
+        val level = profile?.level ?: 0
+        val xpToNext = if (profile != null && level > 0) {
+            (LevelSystem.xpForLevel(level + 1) - profile.xpTotal).coerceAtLeast(0L)
+        } else {
+            null
+        }
+        return DeckStatus(
+            signedIn = _isSignedIn.value,
+            online = _isOnline.value,
+            savedCount = _savedUrls.value.size,
+            unreadCount = _unreadNotificationCount.value,
+            hotQueueSize = _hotQueueSize.value,
+            warmQueueSize = _warmQueueSize.value,
+            level = level,
+            streakDays = profile?.streakDays ?: 0,
+            xpToNextLevel = xpToNext,
+            focusActive = _focusModeEnabled.value,
+            collectionActive = _activeCollectionId.value != null,
+            translating = _isTranslating.value,
+        )
     }
 
     private val celebrationQueue = ArrayDeque<CelebrationEvent>()
@@ -1404,6 +1470,8 @@ class MainViewModel(
     private val pendingRatings = ArrayDeque<PendingRating>()
 
     init {
+        // Seed the SYS strip with a real reading before anything is queued.
+        renderSystemReadout()
         ensureStreamLoop()
         viewModelScope.launch {
             runCatching { repo.getCategories() }
@@ -1885,6 +1953,7 @@ class MainViewModel(
             // Unknown page — show submit sheet, congratulating the find
             _submitSignalFound.value = true
             _showSubmitSheet.value = true
+            pushSystemMessage("UNCHARTED SIGNAL // FILE THE FIND")
             return
         }
         if (_userRating.value == 1) return  // already up-voted — no-op
@@ -2125,7 +2194,8 @@ class MainViewModel(
         val urlId = if (isOnDiscoveredPage) (_state.value as? RoamState.Loaded)?.roamUrl?.id else null
         val entry = SavedUrl(url = url, title = title)
         val current = _savedUrls.value
-        if (current.none { it.url == url }) {
+        val isNew = current.none { it.url == url }
+        if (isNew) {
             val updated = listOf(entry) + current   // Newest first
             _savedUrls.value = updated
             persistSavedUrls(updated)
@@ -2135,6 +2205,10 @@ class MainViewModel(
             runCatching { repo.saveUrl(url, title, urlId) }
         }
         _savedConfirmation.value = true
+        pushSystemMessage(
+            if (isNew) "CLIPPING STOWED // ${_savedUrls.value.size} FILED"
+            else "ALREADY FILED // ARCHIVE HOLDS IT"
+        )
         playSfx(R.raw.save_url)
         loadChallenges()
         checkForNewCelebrations()
@@ -2149,6 +2223,7 @@ class MainViewModel(
         _savedUrls.value = updated
         persistSavedUrls(updated)
         showTransientToast("Removed from saved")
+        pushSystemMessage("CLIPPING PULLED // ${updated.size} LEFT")
         viewModelScope.launch {
             runCatching { repo.unsaveUrl(url) }
         }
@@ -2183,6 +2258,7 @@ class MainViewModel(
         val excludeDomain = extractDomain(_rawUrl.value)
         _showConfigSheet.value = false
         _reportConfirmation.value = true
+        pushSystemMessage("DEAD LINK REPORTED // NEXT SWEEP")
         viewModelScope.launch {
             // Fire the report in the background — don't wait for it before showing next page
             launch { runCatching { repo.reportUrl(urlId) } }
@@ -2218,6 +2294,7 @@ class MainViewModel(
         _selectedCollection.value = collection
         _collectionItems.value = emptyList()
         _collectionItemsLoading.value = true
+        pushSystemMessage("COLLECTION STREAM // ${DeckReadout.truncateName(collection.name)}")
         viewModelScope.launch {
             runCatching { _collectionItems.value = repo.getCollectionItems(collection.id) }
             _collectionItemsLoading.value = false
@@ -2291,6 +2368,7 @@ class MainViewModel(
             }
             createResult.onSuccess {
                 showTransientToast("Created collection '$name'")
+                pushSystemMessage("COLLECTION FORGED // ${DeckReadout.truncateName(name)}")
             }
             // Reload so item_count and sort order are accurate after creation + inserts.
             runCatching { _collections.value = repo.getCollections() }
@@ -2325,6 +2403,7 @@ class MainViewModel(
             }
             result.onSuccess {
                 showTransientToast("Created collection '$name'")
+                pushSystemMessage("COLLECTION FORGED // ${DeckReadout.truncateName(name)}")
             }
             runCatching { _collections.value = repo.getCollections() }
             _showAddToCollection.value = false
@@ -2349,6 +2428,7 @@ class MainViewModel(
         // Optimistic removal so the UI updates instantly.
         val previous = _collections.value
         _collections.value = previous.filter { it.id != collectionId }
+        pushSystemMessage("COLLECTION SCRUBBED FROM ARCHIVE")
         viewModelScope.launch {
             val result = runCatching { repo.deleteCollection(collectionId) }
             result.onFailure { e ->
@@ -2409,11 +2489,15 @@ class MainViewModel(
 
     /** Marks all notifications as read and clears the unread count. */
     fun markAllNotificationsRead() {
+        val cleared = _unreadNotificationCount.value
         _unreadNotificationCount.value = 0
         _notifications.value = _notifications.value.map { it.copy(read = true) }
         viewModelScope.launch {
             runCatching { repo.markAllNotificationsRead() }
         }
+        pushSystemMessage(
+            if (cleared > 0) "TRAY READ // $cleared LOGGED" else "TRAY ALREADY CLEAN"
+        )
     }
 
     /** Deletes a single notification locally and on the server. */
@@ -2444,6 +2528,7 @@ class MainViewModel(
         viewModelScope.launch {
             runCatching { repo.deleteAllNotifications() }
         }
+        pushSystemMessage("TRAY EMPTIED // CARRIER QUIET")
     }
 
     fun showTransientToast(message: String) {
@@ -2488,12 +2573,14 @@ class MainViewModel(
         _isModerator.value = false
         // Clear the persisted last URL so the next sign-in starts fresh
         prefs.edit().remove(LAST_URL_KEY).remove(LAST_URL_TITLE_KEY).apply()
+        pushSystemMessage("SESSION SEALED // CARRIER DROPPED")
     }
 
     fun roamWithinCategory() {
         if (!repo.hasSession()) return  // signed out — ignore
         _userRating.value = 0
         beginPageLoad()
+        pushSystemMessage("SWEEP RETUNED TO CATEGORY")
         val loaded = _state.value as? RoamState.Loaded
         val categoryId = loaded?.roamUrl?.categoryId
         _activeCollectionId.value = null
@@ -2709,6 +2796,7 @@ class MainViewModel(
                 val parentMap = subcats.associate { it.id to it.categoryId }
                 repo.saveUserInterests(pillars, topics, parentMap)
                 _interestsDirty.value = false
+                pushSystemMessage("INTEREST VECTOR UPDATED // SWEEP RETUNED")
             }
             _interestsSaving.value = false
         }
@@ -2718,18 +2806,23 @@ class MainViewModel(
 
     private fun flushPendingRatings() {
         viewModelScope.launch {
+            var flushed = 0
             pendingRatingsMutex.withLock {
                 if (pendingRatings.isEmpty()) return@withLock
                 val snapshot = pendingRatings.toList()
                 pendingRatings.clear()
                 snapshot.forEach { pending ->
                     runCatching { repo.rate(pending.urlId, pending.value) }
+                        .onSuccess { flushed++ }
                         .onFailure { e ->
                             // Re-queue only if still offline; drop other errors
                             if (isOfflineError(e)) pendingRatings.addLast(pending)
                             else Sentry.captureException(e)
                         }
                 }
+            }
+            if (flushed > 0) {
+                pushSystemMessage("$flushed QUEUED RATINGS FLUSHED // UPLINK CLEAN")
             }
         }
     }
@@ -2794,6 +2887,7 @@ class MainViewModel(
     fun clearUrlHistory() {
         _urlHistory.value = emptyList()
         prefs.edit().remove(URL_HISTORY_KEY).apply()
+        pushSystemMessage("TRACE LOG PURGED // CLEAN SLATE")
     }
 
     private fun loadUrlHistory(): List<UrlHistoryEntry> {
@@ -2940,6 +3034,7 @@ class MainViewModel(
                         _publicProfile.value = current.copy(followerCount = current.followerCount + 1)
                     }
                     _followerCount.value = _followerCount.value + 1
+                    pushSystemMessage("RELAY LINKED // FOLLOWING")
                 }
                 .onFailure { showTransientToast("Couldn't follow: ${it.message}") }
             _followLoading.value = false
@@ -2958,6 +3053,7 @@ class MainViewModel(
                         _publicProfile.value = current.copy(followerCount = current.followerCount - 1)
                     }
                     if (_followerCount.value > 0) _followerCount.value = _followerCount.value - 1
+                    pushSystemMessage("RELAY SEVERED // LINK CLOSED")
                 }
                 .onFailure { showTransientToast("Couldn't unfollow: ${it.message}") }
             _followLoading.value = false
@@ -2992,6 +3088,7 @@ class MainViewModel(
             runCatching { repo.shareUrl(recipientId, loaded.roamUrl.id, loaded.roamUrl.url) }
                 .onSuccess {
                     showTransientToast("Sent!")
+                    pushSystemMessage("SIGNAL RELAYED TO CONTACT")
                     closeShareUrlSheet()
                 }
                 .onFailure { showTransientToast("Couldn't send: ${it.message}") }
@@ -3125,6 +3222,7 @@ class MainViewModel(
             if (result.ok) {
                 loadAdminQueue()
                 loadAdminStats()
+                pushSystemMessage("SUBMISSION APPROVED // ARCHIVE GREW")
             } else {
                 showTransientToast(result.error ?: "Failed to approve")
             }
@@ -3139,6 +3237,7 @@ class MainViewModel(
             if (result.ok) {
                 loadAdminQueue()
                 loadAdminStats()
+                pushSystemMessage("SUBMISSION REJECTED // FILED AWAY")
             } else {
                 showTransientToast(result.error ?: "Failed to reject")
             }
@@ -3150,8 +3249,12 @@ class MainViewModel(
             _adminActionLoading.value = true
             val result = repo.restoreReportedLink(urlId)
             _adminActionLoading.value = false
-            if (result.ok) loadAdminReports()
-            else showTransientToast(result.error ?: "Failed to restore")
+            if (result.ok) {
+                loadAdminReports()
+                pushSystemMessage("LINK RESTORED TO THE WIRE")
+            } else {
+                showTransientToast(result.error ?: "Failed to restore")
+            }
         }
     }
 
@@ -3160,8 +3263,12 @@ class MainViewModel(
             _adminActionLoading.value = true
             val result = repo.deleteReportedLink(urlId)
             _adminActionLoading.value = false
-            if (result.ok) loadAdminReports()
-            else showTransientToast(result.error ?: "Failed to delete")
+            if (result.ok) {
+                loadAdminReports()
+                pushSystemMessage("LINK BURNED // REMOVED")
+            } else {
+                showTransientToast(result.error ?: "Failed to delete")
+            }
         }
     }
 

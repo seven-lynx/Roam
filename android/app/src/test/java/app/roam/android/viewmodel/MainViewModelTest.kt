@@ -634,4 +634,32 @@ class MainViewModelTest {
         vm.setThemeVariant(RoamThemeVariant.CLASSIC)
         assertTrue(vm.crtEffectsEnabled.value)
     }
+
+    // ─── Deck system readout ───────────────────────────────────────────────────
+
+    @Test
+    fun `deck readout shows a diegetic line before anything is queued`() {
+        val strip = vm.systemMessage.value
+        assertFalse("the strip should never launch blank", strip.isBlank())
+        assertTrue(strip.startsWith(DeckReadout.SEPARATOR))
+        assertTrue(strip.endsWith(DeckReadout.SEPARATOR))
+    }
+
+    @Test
+    fun `deck readout drains its queue and then stops rotating`() = runTest {
+        vm.pushSystemMessage("SCANNING…")
+        assertTrue(
+            "the queued message should reach the strip immediately",
+            vm.systemMessage.value.contains("SCANNING…"),
+        )
+
+        // Drain (4 s) plus the whole bounded idle window (READOUT_IDLE_TICKS × 12 s).
+        // An unbounded rotation loop here would never let advanceUntilIdle return.
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        val strip = vm.systemMessage.value
+        assertFalse("the strip should not blank out while idle", strip.isBlank())
+        assertFalse("the queued message should have scrolled off", strip.contains("SCANNING…"))
+        assertTrue(strip.startsWith(DeckReadout.SEPARATOR))
+    }
 }
