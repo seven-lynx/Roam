@@ -174,7 +174,9 @@ jobs:
       # helper does element matching on arrays, not glob matching) and silently
       # disabled this step on every PR. Using dorny/paths-filter does actual
       # glob matching and runs deno check only when an edge function source file
-      # is touched. Tests under _tests/ are excluded.
+      # is touched. Tests under _tests/ are excluded from `edge` so a test-only
+      # PR skips the type check, and included in `tests` so it still runs the
+      # suite below.
       - name: Detect changes in edge function source
         id: edge-fn-changes
         uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d
@@ -195,6 +197,9 @@ jobs:
             edge:
               - 'supabase/functions/**'
               - '!supabase/functions/_tests/**'
+              - 'deno.json'
+            tests:
+              - 'supabase/functions/**'
               - 'deno.json'
 
       - name: Type-check each Edge Function in isolation
@@ -242,6 +247,21 @@ jobs:
             echo "::endgroup::"
           done
           exit 1
+        env:
+          DENO_DIR: ~/.cache/deno
+
+      # `deno check` proves the functions compile, not that they behave, and
+      # nothing ran the suites in _tests/ — which is how the sentry-webhook dedup
+      # regression (#101) shipped green.
+      #
+      # --no-lock: three suites import deno.land/std asserts that the tracked
+      # deno.lock does not pin, so a locked run rewrites the lockfile.
+      # No permission flags: the two live-DB suites (user_actions RLS, challenges
+      # auto-populate) ignore themselves when SUPABASE_URL is unset, which is the
+      # case here — they need `supabase start` and a seeded test user.
+      - name: Test Edge Functions
+        if: steps.edge-fn-changes.outputs.tests == 'true'
+        run: deno test --no-lock supabase/functions/_tests/
         env:
           DENO_DIR: ~/.cache/deno
 

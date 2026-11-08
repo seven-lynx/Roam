@@ -31,9 +31,11 @@ Deno.test('URL Normalization - Hostname Lowercasing', () => {
     'https://example.com/path'
   )
 
+  // Only the host is case-insensitive (RFC 3986 6.2.2.1); the path is
+  // case-sensitive and must survive as written.
   assertEquals(
     normalizeUrl('https://ExAmPle.CoM/Path'),
-    'https://example.com/path'
+    'https://example.com/Path'
   )
 })
 
@@ -130,7 +132,9 @@ Deno.test('URL Normalization - Complex Edge Cases', () => {
   // Comprehensive example with multiple transformations
   const complex = 'HTTP://WWW.EXAMPLE.COM:443/path/?utm_source=google&id=123#section'
   const normalized = normalizeUrl(complex)
-  assertEquals(normalized, 'https://example.com:443/path?id=123')
+  // :443 is the default https port and is dropped; the non-default port
+  // asserted below is preserved.
+  assertEquals(normalized, 'https://example.com/path?id=123')
 
   // Port should be preserved
   assertEquals(

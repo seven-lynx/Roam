@@ -519,9 +519,11 @@ Deno.test("Integration: Authentication required for private operations", async (
 })
 
 Deno.test("Integration: Invalid JSON request body returns 400", () => {
-  // Valid JSON
+  // Valid JSON parses back to the original object, compared by value. The
+  // previous form compared two freshly created closures, which are never equal,
+  // so this test could not pass.
   const validJson = JSON.stringify({ url: "https://example.com" })
-  assertEquals(() => JSON.parse(validJson), () => ({ url: "https://example.com" }))
+  assertEquals(JSON.parse(validJson), { url: "https://example.com" })
 
   // Invalid JSON
   const invalidJson = "{ url: https://example.com }"  // Missing quotes
