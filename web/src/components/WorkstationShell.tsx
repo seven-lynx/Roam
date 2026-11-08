@@ -61,7 +61,7 @@ import { UnderwebProgram } from '@/components/programs/UnderwebProgram';
 import { SubstrateProgram } from '@/components/programs/SubstrateProgram';
 import { DECK_VERSION } from '@/lib/deck-framing';
 import { resetWallpaper } from '@/lib/wallpaper';
-import { computeOpenRect } from '@/lib/window-geometry';
+import { computeOpenRect, measureWorkArea } from '@/lib/window-geometry';
 import type { ArtVariant } from '@/lib/art';
 
 const FX_KEY = 'roam-fx';
@@ -556,9 +556,7 @@ export function WorkstationShell({
     setWindows((prev) => {
       const existing = prev[id];
       const def = WINDOW_DEFAULTS[id];
-      const el = screenRef.current;
-      const sw = el ? el.clientWidth : window.innerWidth;
-      const sh = el ? el.clientHeight : window.innerHeight;
+      const { sw, sh } = measureWorkArea(screenRef.current);
       // Clamp into the work area (below the status bar, above the dock); windows
       // with a `left` anchor open off-center rather than dead-center.
       const { rect, maximized } = computeOpenRect(def, layoutRef.current[id], sw, sh);
