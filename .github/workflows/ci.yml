@@ -141,9 +141,9 @@ jobs:
         run: pnpm test:ci
 
       # Extension layer
-      - name: Lint extension
+      - name: Type check extension
         working-directory: ./extension
-        run: pnpm lint || echo "No linter configured yet"
+        run: pnpm typecheck
 
       - name: Build extension
         working-directory: ./extension

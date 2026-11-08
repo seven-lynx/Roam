@@ -4,6 +4,10 @@
  * that reference chrome.* can be imported without crashing.
  */
 
+// Imported rather than left ambient: tsconfig sets `types: ["chrome"]`, so vitest's
+// globals are not in scope here (and should not be in scope for shipped src/ either).
+import { beforeEach } from 'vitest'
+
 const localStore: Record<string, unknown> = {}
 const sessionStore: Record<string, unknown> = {}
 

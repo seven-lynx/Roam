@@ -537,6 +537,9 @@ pnpm build          # → node build.mjs
 
 # Production (Firefox)
 pnpm build -- --firefox  # → node build.mjs --firefox
+
+# Production (Chrome) with source maps kept local, nothing uploaded to Sentry
+pnpm build -- --no-upload  # → node build.mjs --no-upload
 ```
 
 ### 9.3 Entry points
@@ -553,9 +556,9 @@ Static files (HTML, CSS, icons, manifest) are copied as-is by `copyStatics()`.
 
 ### 9.4 Source maps & Sentry
 
-Production Chrome builds upload source maps to Sentry via `@sentry/esbuild-plugin` and then delete the `.map` files from `dist/` so they are not included in the store submission zip.
+Production Chrome builds upload source maps to Sentry via `@sentry/esbuild-plugin` and then delete the `.map` files from `dist/` so they are not included in the store submission zip. The upload targets the release named in `package.json`, so a local build would publish maps for uncommitted code over the shipped release; `--no-upload` skips the plugin and leaves the `.map` files in `dist/` for local debugging.
 
-Firefox builds differ in two ways (`build.mjs:109-128,177-191`): the upload is skipped, and `src/lib/sentry.ts` is replaced at bundle time by a no-op stub (`src/lib/sentry-firefox-stub.ts`), which tree-shakes `@sentry/browser` out entirely. The `.map` files therefore stay in `dist-firefox/` and in `roam-extension-firefox.zip`, and **Firefox builds report nothing to Sentry** — use the console when testing them.
+Firefox builds differ in two ways (`build.mjs:120-139,182-210`): the upload is skipped, and `src/lib/sentry.ts` is replaced at bundle time by a no-op stub (`src/lib/sentry-firefox-stub.ts`), which tree-shakes `@sentry/browser` out entirely. The `.map` files therefore stay in `dist-firefox/` and in `roam-extension-firefox.zip`, and **Firefox builds report nothing to Sentry** — use the console when testing them.
 
 The DSN string itself is still inlined: `env.ts:12` reads `__SENTRY_DSN__` for startup validation, so `background.js` contains it even though no SDK code ships. That is expected, not a leak.
 
