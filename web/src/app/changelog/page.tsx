@@ -11,6 +11,28 @@ type Entry = { version: string; date: string; items: string[] };
 
 const ANDROID_ENTRIES: Entry[] = [
   {
+    version: "1.6.0",
+    date: "2026-11-07",
+    items: [
+      "Cartridge shelf — five arcade programs now ship on the handheld: RELAY, BOTFIELD, COMPILER, DEBRIS, and FIREWALK.",
+      "Per-level clocks and one shared READY / LEVEL START / LEVEL CLEAR overlay across the whole shelf, and FIREWALK hops from an analog stick as well as a d-pad.",
+      "Arcade XP is real Roam XP — +10 a level clear, +100 a win, plus the post-cap game-over bonus — awarded through the same path the webapp uses, so badges and level-ups arrive as usual.",
+      "BOTFIELD plays like real minesweeper: a guaranteed-safe opening sweep, chording on a satisfied number, and a header that counts the bots still buried.",
+      "The MENU key doubles as a home key — it closes an open overlay instead of stacking another window on top.",
+      "Fixed — the boot overlay no longer flickers at page reveal, the READY and BUFFER lights track the prefetch queues again, the system message strip scrolls properly, and returning from the lock screen no longer strands you on the boot screen.",
+    ],
+  },
+  {
+    version: "1.5.0",
+    date: "2026-11-02",
+    items: [
+      "Programs — a software shelf reachable from the config sheet, with RELAY, a native snake game and a boot-time controls guide.",
+      "Hardware flourishes (antenna, nixie, activity LED, vacuum tube) are off on fresh installs.",
+      "Screen effects are scoped to ROAM-OS: switching to Roam Classic turns them off, and switching back restores your saved choice.",
+      "Fixed — the deck readout marquee lays every tile out at full width, and resuming from the lock screen no longer strands the app on the boot screen.",
+    ],
+  },
+  {
     version: "1.4.0",
     date: "2026-10-29",
     items: [
