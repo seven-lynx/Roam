@@ -168,9 +168,8 @@ chrome.storage.session.get(null, r => console.log(r));
 chrome.storage.local.clear(); chrome.storage.session.clear();
 ```
 
-The `DEBUG.*` helpers in `src/lib/debug.ts` are **not available**: that module is not an
-esbuild entry point and nothing imports it, so `window.DEBUG` is never defined. Use the
-snippets above.
+The old `DEBUG.*` helpers are gone: `src/lib/debug.ts` was deleted as stale (it described the
+retired URL queue) and nothing else attaches `window.DEBUG`. Use the snippets above.
 
 ---
 

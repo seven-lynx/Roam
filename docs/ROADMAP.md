@@ -2346,3 +2346,7 @@ last stage of the service-worker split.
 - [ ] **EXT.6** Finish the service-worker split (rule E.3)
   - Collections, notifications and preferences handlers now live in `background/handlers/`, and URL normalisation in `lib/url.ts`; `background.ts` is ~1,100 lines. The auth flow, the prefetch/discovery core, and the interests/saved/profile-stats handlers still need modules of their own.
   - **Files:** `extension/src/background/background.ts`
+
+- [x] **EXT.7** Sign-in runs in one tab (rule E.5)
+  - `signInWithOAuth()` no longer calls `chrome.identity.launchWebAuthFlow`. The authorize URL opens in a single `chrome.tabs.create` tab with `redirectTo: chrome.runtime.getURL('callback.html')`, and `callback.ts` hands the PKCE code to the service worker, so the redirect lands back inside the extension instead of on the web app's cookie session. The launch is deduped on an in-flight promise plus the `auth_flow` marker in `chrome.storage.session`, so a retry, a double click, or a reopened popup focuses the open tab rather than opening a second one. `identity` is gone from both manifests, leaving `tabs`, `storage`, `alarms` and `notifications`. `chrome-extension://<ID>/callback.html` has to be listed in Supabase `Redirect URLs` before the flow completes.
+  - **Files:** `extension/src/background/background.ts`, `extension/src/callback/callback.ts`, `extension/src/popup/popup.ts`, `extension/manifest.json`, `extension/manifest.firefox.json`

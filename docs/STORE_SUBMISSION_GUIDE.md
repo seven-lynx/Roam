@@ -235,7 +235,7 @@ Do not reuse `dist/` — the Chrome manifest is the wrong one for AMO.
 - `browser_specific_settings.gecko.data_collection_permissions` — mandatory for new AMO
   submissions since 2025-11-03; this add-on declares `required: ["browsingActivity"]`
 - `background.scripts` (Firefox does not support `background.service_worker`)
-- Permissions equal to the Chrome build (`tabs`, `storage`, `identity`,
+- Permissions equal to the Chrome build (`tabs`, `storage`, `alarms`, `notifications`,
   `host_permissions: https://*.supabase.co/*`), and **no** `commands` block
 
 ### 2.4 Submit to Firefox Add-ons (AMO)
@@ -281,7 +281,6 @@ Do not reuse `dist/` — the Chrome manifest is the wrong one for AMO.
      - "tabs" — needed to submit current tab URL
      - "activeTab" — access current page context
      - "storage" — keep the sign-in session and the prefetch queue locally
-     - "identity" — Google sign-in through the browser's OAuth window
      - "alarms" — schedule the 5-minute notification check (no background loop)
      - "notifications" — show the user's own follows, shares, badge and challenge activity as a desktop notification; nothing is shown unless the user turns the toggle on
      - "host_permissions: https://*.supabase.co/*" — the app's API

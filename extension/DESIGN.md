@@ -62,13 +62,12 @@ targets `firefox121` (`build.mjs:50-51,134`). The differences that matter:
 - **`chrome.storage.session`** is supported (Firefox 115+; this manifest requires 140), so the
   prefetch cache keeps the same semantics as Chrome, and the mirror in `storage.local` still
   restores the queue after a browser restart.
-- **`identity` is supported and declared.** Both manifests request `identity`, and
-  `signInWithOAuth()` uses `chrome.identity.launchWebAuthFlow` when it is available
-  (`background.ts:458`). The catch is that Firefox only resolves that promise on the extension's
-  own redirect URL (`identity.getRedirectURL()` → `https://<uuid>.extensions.allizom.org/`), while
-  the code redirects to the web app (`background.ts:443`), so the flow normally falls through to
-  the tab + `callback.html` path (`background.ts:505-508`). Keep `identity` in both manifests;
-  removing it only changes which error path is taken.
+- **OAuth is a plain tab, not an identity window.** Neither manifest requests `identity`:
+  `signInWithOAuth()` opens the authorize URL with `chrome.tabs.create` and
+  `redirectTo: chrome.runtime.getURL('callback.html')` (`background.ts:480`), so Firefox lands back
+  on `moz-extension://<uuid>/callback.html` and `callback.ts` hands the code to the SW (rule E.5).
+  A temporary install is assigned a new UUID each time it is loaded, so that exact callback URL has
+  to be in Supabase's Redirect URLs before the flow will complete.
 - **No `commands` key.** Firefox does not expose `chrome.commands` to this build, so the
   `Ctrl+Shift+R` shortcut exists only in Chrome and the listener is guarded
   (`background.ts:314-315`).
@@ -88,7 +87,7 @@ targets `firefox121` (`build.mjs:50-51,134`). The differences that matter:
 extension/
 ├── build.mjs                  ← esbuild pipeline (Chrome + Firefox, watch mode)
 ├── manifest.json              ← Chrome MV3 manifest
-├── manifest.firefox.json      ← Firefox MV3 manifest (gecko block, background.scripts, no commands; same identity permission)
+├── manifest.firefox.json      ← Firefox MV3 manifest (gecko block, background.scripts, no commands, no identity permission)
 ├── package.json
 ├── tsconfig.json
 ├── vitest.config.ts
