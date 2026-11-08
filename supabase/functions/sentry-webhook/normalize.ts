@@ -115,7 +115,7 @@ export function normalizeEventAlert(data: JsonObject, event: JsonObject): Normal
     exceptionType: asString(metadata(event)?.['type']) ?? asString(first?.['type']),
     stackFrames: frames.map(formatFrame),
     tags: tagsToObject(event['tags']),
-    release: asString(event['release']),
+    release: releaseVersion(event['release']),
     url: asString(event['web_url']) ?? asString(event['issue_url']) ?? '',
     firstSeen: null,
     lastSeen: null,
@@ -130,9 +130,29 @@ function metadata(event: JsonObject): JsonObject | null {
   return asObject(event['metadata'])
 }
 
+/**
+ * Exceptions arrive in two different shapes and both have to parse:
+ *
+ * - webhook payloads carry the exception inline at the top level (`exception.values`);
+ * - the REST `…/events/latest/` response that `enrich()` fetches has **no** top-level
+ *   `exception` at all — it nests the same data under `entries[]` as
+ *   `{ type: 'exception', data: { values } }`.
+ *
+ * Reading only the top-level key is why every enriched issue filed from 2026-11-07
+ * onwards arrived with no `### Stack trace` section even though the token was valid
+ * and the fetch succeeded (issue #93).
+ */
 export function exceptionValues(event: JsonObject): JsonObject[] {
-  const exception = asObject(event['exception'])
-  return asArray(exception?.['values'])
+  const inline = asObject(event['exception'])
+  const entry = asArray(event['entries'])
+    .map((e) => asObject(e))
+    .find((e) => e?.['type'] === 'exception')
+
+  const values = asArray(inline?.['values']).length > 0
+    ? inline?.['values']
+    : asObject(entry?.['data'])?.['values']
+
+  return asArray(values)
     .map((v) => asObject(v))
     .filter((v): v is JsonObject => v !== null)
 }
@@ -153,6 +173,15 @@ export function formatFrame(f: JsonObject): string {
   if (fn) parts.push(`in ${fn}`)
   if (!f['in_app']) parts.push('[external]')
   return parts.join(' ')
+}
+
+/**
+ * `release` is a bare string in webhook payloads but an object (`{ version }`) in the
+ * events API, where `asString` alone yields null — leaving the body's `Release` row
+ * empty on every enriched issue.
+ */
+export function releaseVersion(value: unknown): string | null {
+  return asString(value) ?? asString(asObject(value)?.['version'])
 }
 
 export function tagsToObject(tags: unknown): Record<string, string> {
