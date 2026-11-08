@@ -141,7 +141,16 @@ jobs:
       # Executes roam() for real under the `authenticated` role's 8s timeout.
       # This is the gate that caught the Aug 2026 42P01 outage that was
       # invisible in Sentry (Hard Rule 1.6).
-      - name: Verify roam() RPC under authenticated role
+      #
+      # Pre-flight, therefore advisory (`continue-on-error`): it can only
+      # measure the function that is currently deployed, which may be exactly
+      # what the pending migration is about to fix. On 2026-11-08 production's
+      # `roam()` spent 19s in its exhaustion branch (issue #85); failing here
+      # halted the run before `Apply migrations` could ship v36, and every
+      # dispatch deadlocked on the same slow call. The verdict is still printed
+      # and annotated, but the blocking check is the post-migration one below.
+      - name: Verify roam() RPC under authenticated role (pre-flight, advisory)
+        continue-on-error: true
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
@@ -159,6 +168,15 @@ jobs:
           else
             supabase db push --remote --yes
           fi
+
+      # Blocking. Runs against the migrations just applied, so it judges the
+      # function this run actually shipped instead of the one it replaced.
+      # This is the step that enforces Hard Rule 1.6 for discovery.
+      - name: Verify roam() RPC under authenticated role (post-migration)
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+        run: node scripts/verify-roam-rpc.mjs
 
       - name: Deploy Edge Functions
         if: inputs.deploy_functions
