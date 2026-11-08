@@ -35,7 +35,12 @@ const ENV_VARS = {
     type: 'string',
     required: true,
     description: 'Supabase anonymous public key',
-    minLength: 100,
+    // Same two formats as the service role key: the legacy anon JWT (~200 chars) or the
+    // newer sb_publishable_… key, which is legitimately shorter than the old minimum.
+    accept: [
+      { minLength: 100 },
+      { prefix: 'sb_publishable_', minLength: 30 },
+    ],
   },
   'NEXT_PUBLIC_SENTRY_DSN': {
     type: 'string',
@@ -49,7 +54,12 @@ const ENV_VARS = {
     type: 'string',
     required: true,
     description: 'Supabase service role key (KEEP PRIVATE)',
-    minLength: 100,
+    // Supabase issues two formats: the legacy service_role JWT (~200 chars) and the
+    // newer sb_secret_… key, which is legitimately shorter than the old minimum.
+    accept: [
+      { minLength: 100 },
+      { prefix: 'sb_secret_', minLength: 30 },
+    ],
   },
   'SENTRY_AUTH_TOKEN': {
     type: 'string',
@@ -58,18 +68,18 @@ const ENV_VARS = {
   },
 };
 
+// Paths below are relative to web/.
 const FILES_TO_CHECK = [
   'package.json',
   'tsconfig.json',
   'next.config.ts',
-  'pnpm-lock.yaml',
 ];
 
-const IMPORTANT_FILES = [
-  'src/app/page.tsx',
-  'src/app/dashboard/page.tsx',
-  'src/lib/supabase.ts',
-  '.env.local',
+// Paths below are relative to the repo root. pnpm-lock.yaml is not in web/ because the
+// workspace spans ./, web/ and extension/, and only the root lockfile is real.
+const ROOT_FILES_TO_CHECK = [
+  'package.json',
+  'pnpm-lock.yaml',
 ];
 
 class EnvValidator {
@@ -154,6 +164,19 @@ class EnvValidator {
         return;
       }
 
+      // Validate against the accepted shapes, for a variable that has more than one.
+      // A truncated paste satisfies neither and is still rejected.
+      if (config.accept && !config.accept.some(rule =>
+        (!rule.prefix || value.startsWith(rule.prefix)) && value.length >= rule.minLength
+      )) {
+        const expected = config.accept
+          .map(rule => (rule.prefix ? `${rule.prefix}… (min ${rule.minLength})` : `min ${rule.minLength} chars`))
+          .join(' or ');
+        this.addError('envVars', `${varName} does not match an accepted format (${expected})`);
+        this.log(`  Unexpected format: ${varName}`, 'error');
+        return;
+      }
+
       // Validate length if minLength provided
       if (config.minLength && value.length < config.minLength) {
         this.addError('envVars', `${varName} is too short (min: ${config.minLength})`);
@@ -172,21 +195,22 @@ class EnvValidator {
     });
   }
 
+  /** Report one required file, resolved against the directory it is expected in. */
+  checkFile(baseDir, file) {
+    if (fs.existsSync(path.join(baseDir, file))) {
+      this.addSuccess('files');
+      this.log(`  ✓ ${file}`, 'success');
+    } else {
+      this.addError('files', `Missing file: ${file}`);
+      this.log(`  Missing: ${file}`, 'error');
+    }
+  }
+
   validateFiles() {
     this.log('\nChecking required files...', 'info');
 
-    const webDir = path.join(rootDir, 'web');
-
-    FILES_TO_CHECK.forEach(file => {
-      const filePath = path.join(webDir, file);
-      if (fs.existsSync(filePath)) {
-        this.addSuccess('files');
-        this.log(`  ✓ ${file}`, 'success');
-      } else {
-        this.addError('files', `Missing file: ${file}`);
-        this.log(`  Missing: ${file}`, 'error');
-      }
-    });
+    FILES_TO_CHECK.forEach(file => this.checkFile(path.join(rootDir, 'web'), file));
+    ROOT_FILES_TO_CHECK.forEach(file => this.checkFile(rootDir, file));
 
     // Check if .env.local in .gitignore
     const gitignorePath = path.join(rootDir, '.gitignore');
@@ -261,9 +285,18 @@ class EnvValidator {
   validateSecrets() {
     this.log('\nChecking for exposed secrets...', 'info');
 
+    // Supabase clients live in web/src/lib/supabase/ — a directory, not a single file.
+    // Pointing at the old single-file path made this scan silently skip the client.
+    const supabaseLibDir = path.join(rootDir, 'web', 'src', 'lib', 'supabase');
+    const supabaseModules = fs.existsSync(supabaseLibDir)
+      ? fs.readdirSync(supabaseLibDir)
+          .filter(name => name.endsWith('.ts'))
+          .map(name => path.join(supabaseLibDir, name))
+      : [];
+
     const filesToCheck = [
       path.join(rootDir, 'web', 'src', 'app', 'page.tsx'),
-      path.join(rootDir, 'web', 'src', 'lib', 'supabase.ts'),
+      ...supabaseModules,
     ];
 
     const secretPatterns = [
