@@ -22,11 +22,16 @@ import {
   asObject,
   asString,
   buildBody,
+  buildRegressionComment,
   buildTitle,
+  decideAction,
   exceptionValues,
   formatFrame,
   normalize,
+  regressionMarker,
   releaseVersion,
+  searchQuery,
+  shouldComment,
   stackFrames,
   tagsToObject,
   timingSafeEqual,
@@ -76,11 +81,25 @@ Deno.serve(async (req) => {
 
     const existing = await findExisting(issue.sentryIssueId)
     if (existing) {
-      if (existing.state === 'open') {
-        return json({ ok: true, skipped: true, reason: 'already_open', number: existing.number }, 200)
+      const action = decideAction(existing, issue)
+
+      if (action === 'reopen') {
+        await reopen(existing.number, issue)
+        return json({ ok: true, reopened: true, number: existing.number }, 200)
       }
-      await reopen(existing.number, issue)
-      return json({ ok: true, reopened: true, number: existing.number }, 200)
+      if (action === 'comment') {
+        // A regression of a still-open error. Reporting it on the thread is the
+        // whole point: without this the webhook acknowledged and dropped every
+        // occurrence after the first one filed the issue (#101).
+        const posted = await commentRegression(existing.number, issue)
+        return posted
+          ? json({ ok: true, commented: true, number: existing.number }, 200)
+          : json(
+            { ok: true, skipped: true, reason: 'duplicate_regression', number: existing.number },
+            200,
+          )
+      }
+      return json({ ok: true, skipped: true, reason: 'already_open', number: existing.number }, 200)
     }
 
     const created = await createIssue(issue)
@@ -131,6 +150,10 @@ async function enrich(issue: NormalizedIssue): Promise<void> {
     const ev = asObject(await res.json())
     if (!ev) return
 
+    // The regression-comment marker keys off this: it is what tells a Sentry retry
+    // of the same webhook apart from a genuinely new occurrence.
+    issue.eventID = asString(ev['eventID']) ?? asString(ev['event_id'])
+
     const values = exceptionValues(ev)
     const frames = values.flatMap((v) => stackFrames(v))
     if (frames.length > 0) issue.stackFrames = frames.map(formatFrame)
@@ -176,9 +199,21 @@ async function gh(path: string, init: RequestInit = {}): Promise<Response> {
 }
 
 async function findExisting(sentryIssueId: string): Promise<{ number: number; state: string } | null> {
-  const q = encodeURIComponent(`repo:${GITHUB_REPO} type:issue in:body "sentry-issue:${sentryIssueId}"`)
-  const res = await gh(`/search/issues?q=${q}&per_page=1`)
-  if (!res.ok) return null
+  const q = encodeURIComponent(searchQuery(GITHUB_REPO, sentryIssueId))
+  // `sort=created&order=asc` is not cosmetic: GitHub scores search results itself,
+  // and two hits for the same group came back tied at 1.0 in *different* orders a
+  // few hours apart. `items[0]` is only a usable dedupe key if the order is pinned.
+  const res = await gh(`/search/issues?q=${q}&sort=created&order=asc&per_page=5`)
+  if (!res.ok) {
+    // A failing search is not "no match". Returning null here used to send the
+    // caller straight to createIssue, filing the same group a second time — and the
+    // search API carries its own, far smaller quota, so a regression storm is
+    // exactly when it trips. Throw instead: the handler answers 502 and Sentry
+    // retries rather than the repo growing a duplicate.
+    throw new Error(
+      `GitHub search failed: HTTP ${res.status}: ${(await res.text()).slice(0, 400)}`,
+    )
+  }
 
   const data = asObject(await res.json())
   const item = asObject(asArray(data?.['items'])[0])
@@ -198,8 +233,10 @@ async function createIssue(issue: NormalizedIssue): Promise<{ number: number }> 
     method: 'POST',
     body: JSON.stringify({ title, body, labels }),
   })
+  let labelled = true
   if (res.status === 422) {
     // Labels may not exist on the repo yet; retry without them.
+    labelled = false
     res = await gh(`/repos/${GITHUB_REPO}/issues`, {
       method: 'POST',
       body: JSON.stringify({ title, body }),
@@ -212,6 +249,24 @@ async function createIssue(issue: NormalizedIssue): Promise<{ number: number }> 
   const data = asObject(await res.json())
   const number = data ? asNumber(data['number']) : null
   if (number == null) throw new Error('GitHub create issue returned no issue number')
+
+  if (!labelled) {
+    // The dedupe query is scoped to `label:sentry`, so an issue filed without the
+    // label is invisible to it and the group gets filed again next time. The title
+    // prefix still catches that case, but restore the label where we can.
+    const patched = await gh(`/repos/${GITHUB_REPO}/issues/${number}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ labels }),
+    })
+    if (!patched.ok) {
+      console.warn(
+        'sentry-webhook: filed without the sentry label; dedupe relies on the title prefix',
+        number,
+        patched.status,
+      )
+    }
+  }
+
   return { number }
 }
 
@@ -224,12 +279,57 @@ async function reopen(number: number, issue: NormalizedIssue): Promise<void> {
     throw new Error(`GitHub reopen failed: HTTP ${stateRes.status}: ${(await stateRes.text()).slice(0, 400)}`)
   }
 
-  await gh(`/repos/${GITHUB_REPO}/issues/${number}/comments`, {
+  const comment = await gh(`/repos/${GITHUB_REPO}/issues/${number}/comments`, {
     method: 'POST',
     body: JSON.stringify({
       body: `Sentry reports this error has regressed (level \`${issue.level}\`). Reopened automatically.`,
     }),
   })
+  if (!comment.ok) {
+    // The reopen itself landed, so answering 502 costs nothing: Sentry retries, the
+    // retry finds the issue open and takes the regression-comment path instead,
+    // which recovers the note. Swallowing it left the issue reopened and mute.
+    throw new Error(
+      `GitHub reopen comment failed: HTTP ${comment.status}: ${(await comment.text()).slice(0, 400)}`,
+    )
+  }
+}
+
+/**
+ * Records a regression on an issue that is already open. Returns whether a comment
+ * was actually written — a Sentry retry of the same event, or a group flapping
+ * inside the cooldown, is acknowledged without touching the thread.
+ */
+async function commentRegression(number: number, issue: NormalizedIssue): Promise<boolean> {
+  const marker = regressionMarker(issue)
+
+  const lastRes = await gh(
+    `/repos/${GITHUB_REPO}/issues/${number}/comments?per_page=1&sort=created&direction=desc`,
+  )
+  if (!lastRes.ok) {
+    throw new Error(
+      `GitHub comment lookup failed: HTTP ${lastRes.status}: ${(await lastRes.text()).slice(0, 400)}`,
+    )
+  }
+
+  const newest = asObject(asArray(await lastRes.json())[0])
+  const last = newest
+    ? { body: asString(newest['body']) ?? '', createdAt: asString(newest['created_at']) }
+    : null
+  if (!shouldComment(last, marker, Date.now())) return false
+
+  // The id matters: it is the only record of which event the note describes, and
+  // Sentry's own issue page is the thing being replaced here.
+  const res = await gh(`/repos/${GITHUB_REPO}/issues/${number}/comments`, {
+    method: 'POST',
+    body: JSON.stringify({ body: buildRegressionComment(issue) }),
+  })
+  if (!res.ok) {
+    throw new Error(
+      `GitHub regression comment failed: HTTP ${res.status}: ${(await res.text()).slice(0, 400)}`,
+    )
+  }
+  return true
 }
 
 // ── Helpers ─────────────────────────────────────────────────────────────────

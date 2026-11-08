@@ -1,9 +1,10 @@
 /**
  * Tests for the Sentry → GitHub bridge payload helpers.
  * Verifies: dispatch across both Sentry webhook shapes, the reopen rule
- * (regressed/escalating) versus the ignore rule (resolved/assigned), inline
- * stack-frame parsing and `[external]` marking, the shared-secret comparison,
- * and the body markers that dedupe and the degraded-pipeline check rely on.
+ * (regressed/escalating) versus the ignore rule (resolved/assigned), the dedup
+ * decision once a group already has an issue (create / reopen / comment / skip),
+ * inline stack-frame parsing and `[external]` marking, the shared-secret
+ * comparison, and the body markers the degraded-pipeline check relies on.
  *
  * `normalize.ts` is imported directly and has no imports of its own on purpose:
  * `index.ts` validates env and registers `Deno.serve` at import time, so only
@@ -13,12 +14,17 @@
 import { assert, assertEquals, assertStringIncludes } from "https://deno.land/std@0.208.0/assert/mod.ts"
 import {
   buildBody,
+  buildRegressionComment,
   buildTitle,
+  decideAction,
   exceptionValues,
   formatFrame,
   normalize,
   redactSecrets,
+  regressionMarker,
   releaseVersion,
+  searchQuery,
+  shouldComment,
   stackFrames,
   tagsToObject,
   timingSafeEqual,
@@ -167,6 +173,9 @@ Deno.test('normalize - issue webhook, action=created', () => {
   assertEquals(issue.userCount, 0)
   assertEquals(issue.substatus, 'new')
   assertEquals(issue.triggeredRule, null)
+  assertEquals(issue.isRegression, false)
+  // Issue webhooks carry no event id — enrichment supplies one later.
+  assertEquals(issue.eventID, null)
   // Issue webhooks carry no frames — enrichment fills them in later.
   assertEquals(issue.stackFrames.length, 0)
   assertEquals(issue.tags, {})
@@ -176,6 +185,7 @@ Deno.test('normalize - unresolved + regressed/escalating reopens, the rest is ig
   for (const substatus of ['regressed', 'escalating']) {
     const issue = required(issueWebhook('unresolved', substatus))
     assertEquals(issue.substatus, substatus)
+    assertEquals(issue.isRegression, true)
     assertEquals(issue.sentryIssueId, ISSUE_ID)
   }
 
@@ -216,6 +226,8 @@ Deno.test('normalize - event_alert parses inline frames and tags', () => {
   assertEquals(issue.firstSeen, null)
   assertEquals(issue.count, null)
   assertEquals(issue.substatus, null)
+  // An alert says an event tripped a rule; it is not a regression report.
+  assertEquals(issue.isRegression, false)
 })
 
 Deno.test('normalize - event_alert without issue_id (metric alert) is ignored', () => {
@@ -460,3 +472,107 @@ Deno.test('buildBody - a pipe in a tag value cannot break the table', () => {
   payload.data.event.tags = [['note', 'a|b']]
   assertStringIncludes(buildBody(required(payload)), '| `note` | a\\|b |')
 })
+
+// ── Dedup decisions (issue #101) ─────────────────────────────────────────────
+//
+// What the bridge does on the second and later webhook for a group used to be
+// three inline lines in `Deno.serve`: matched issue open → acknowledge and drop.
+// A regression of a still-open error therefore never reached GitHub, and the
+// lookup that found the issue was unscoped, so a hand-filed issue quoting the
+// `sentry-issue:<id>` marker could take the slot. Both are pinned here.
+
+Deno.test('searchQuery - scopes the lookup to issues the webhook filed', () => {
+  const q = searchQuery('seven-lynx/Roam', ISSUE_ID)
+
+  assertStringIncludes(q, 'repo:seven-lynx/Roam')
+  assertStringIncludes(q, `in:body "sentry-issue:${ISSUE_ID}"`)
+  // Both keys: the label is what `createIssue` applies, the title prefix is what
+  // survives the 422 path where the label could not be applied at all.
+  assertStringIncludes(q, 'label:sentry')
+  assertStringIncludes(q, 'in:title "[Sentry]"')
+})
+
+Deno.test('decideAction - create, reopen, comment, skip', () => {
+  const regression = required(issueWebhook('unresolved', 'regressed'))
+  const created = required(issueWebhook('created'))
+
+  assertEquals(decideAction(null, created), 'create')
+  assertEquals(decideAction({ number: 55, state: 'closed' }, regression), 'reopen')
+  // The defect this fixes: an open tracker used to swallow the regression.
+  assertEquals(decideAction({ number: 55, state: 'open' }, regression), 'comment')
+  // Sentry re-delivering `created` for a group we already track says nothing new.
+  assertEquals(decideAction({ number: 55, state: 'open' }, created), 'skip')
+})
+
+Deno.test('normalize - the event id survives both payload shapes', () => {
+  // Enrichment fills the issue-webhook case from the events API, not the payload.
+  assertEquals(required(issueWebhook('created')).eventID, null)
+
+  const payload = eventAlert()
+  payload.data.event.event_id = 'b72cb2571486469901c02d14c5a4ed70'
+  assertEquals(required(payload).eventID, 'b72cb2571486469901c02d14c5a4ed70')
+})
+
+Deno.test('regressionMarker - event id when known, count/lastSeen otherwise', () => {
+  const enriched = required(issueWebhook('unresolved', 'regressed'))
+  enriched.eventID = 'abc123'
+  assertEquals(regressionMarker(enriched), '<!-- sentry-regression:event:abc123 -->')
+
+  const plain = required(issueWebhook('unresolved', 'regressed'))
+  assertEquals(
+    regressionMarker(plain),
+    '<!-- sentry-regression:count:2:2026-11-01T07:56:00Z -->',
+  )
+})
+
+Deno.test('shouldComment - a retry or a flapping group does not comment', () => {
+  const issue = required(issueWebhook('unresolved', 'regressed'))
+  issue.eventID = 'abc123'
+  const marker = regressionMarker(issue)
+  const now = Date.parse('2026-11-08T21:37:18Z')
+  const quietSince = (body: string, createdAt?: string | null) => ({ body, createdAt: createdAt ?? null })
+
+  // Nothing on the thread yet.
+  assert(shouldComment(null, marker, now))
+  // Somebody else's comment is not a reason to stay quiet.
+  assert(shouldComment(quietSince('me too', '2026-11-08T21:00:00Z'), marker, now))
+  // Sentry retrying the identical webhook.
+  assert(!shouldComment(quietSince(`note\n\n${marker}`, '2026-11-08T20:00:00Z'), marker, now))
+  // A different occurrence inside the cooldown: the group is flapping.
+  assert(!shouldComment(quietSince('<!-- sentry-regression:event:older -->', '2026-11-08T21:00:00Z'), marker, now))
+  // …but past the window it is news again.
+  assert(shouldComment(quietSince('<!-- sentry-regression:event:older -->', '2026-11-08T06:00:00Z'), marker, now))
+  // An unparseable timestamp must not silence a real regression.
+  assert(shouldComment(quietSince('<!-- sentry-regression:event:older -->'), marker, now))
+})
+
+Deno.test('buildRegressionComment - carries the marker, the facts, and the link', () => {
+  const issue = required(issueWebhook('unresolved', 'regressed'))
+  issue.eventID = 'abc123'
+  issue.release = '2ae071e'
+  issue.count = '41'
+  issue.userCount = 7
+  // Environment is a tag, not a field of the normalised issue.
+  issue.tags = { environment: 'production' }
+
+  const comment = buildRegressionComment(issue)
+
+  assertStringIncludes(comment, '<!-- sentry-regression:event:abc123 -->')
+  assertStringIncludes(comment, '| Status | `regressed` |')
+  assertStringIncludes(comment, '| Events | 41 |')
+  assertStringIncludes(comment, '| Affected users | 7 |')
+  assertStringIncludes(comment, '| Release | `2ae071e` |')
+  assertStringIncludes(comment, '| Environment | production |')
+  assertStringIncludes(comment, `[View in Sentry](${issue.url})`)
+})
+
+Deno.test('buildRegressionComment - a credential in a tag value stays off GitHub', () => {
+  const issue = required(issueWebhook('unresolved', 'regressed'))
+  issue.tags = { environment: `Authorization=[Bearer ${JWT}]` }
+
+  const comment = buildRegressionComment(issue)
+
+  assert(!comment.includes(JWT), 'JWT leaked into the regression comment')
+  assertStringIncludes(comment, 'Bearer [redacted]')
+})
+

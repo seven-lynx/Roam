@@ -1584,15 +1584,23 @@ Receives Sentry webhooks and files a GitHub issue in `seven-lynx/Roam` for each 
 
 **Redaction:** Every free-text field — title, message, culprit, stack frames, tag values — is scrubbed before it reaches GitHub. Bearer tokens, JWTs, `sb_publishable_*` / `sb_secret_*` keys, generic `key=` credentials (`apikey`, `token`, `password`, `secret`, `authorization`, …) and email addresses are replaced with placeholders such as `Bearer [redacted]` or `[redacted-email]`; credential values already redacted pass through unchanged. The repo is public, and a client exception can echo the failed request's headers — including a live session token — so nothing Sentry hands over is published verbatim.
 
-**Response (200):**
+**Dedup:** One GitHub issue per Sentry group. The tracking issue is found by searching for `label:sentry` **and** the `[Sentry]` title prefix **and** the `sentry-issue:<id>` body marker, ordered `sort=created&order=asc`. Both keys have to agree so a hand-filed issue that merely quotes the marker in its body cannot take the slot — issue #87 did exactly that and outranked the real tracking issue. The explicit order matters because GitHub scores search results itself and breaks ties arbitrarily, so `items[0]` is otherwise unstable between two queries whose hits both score 1.0. A failed search answers 502 rather than "no match": creating on a failed lookup files the same group twice, and the search API carries a far smaller quota than the rest of the REST surface.
+
+**Regressions:** When a group's tracking issue is still open, a `regressed`/`escalating` webhook is commented onto that thread instead of being dropped — substatus, level, event count, affected users, first/last seen, release and the `environment` tag, under a `<!-- sentry-regression:… -->` marker. A retry of the same event (same marker), or a further occurrence inside a 6-hour cooldown, is acknowledged without commenting, so a flapping group cannot fill the thread. A plain `created` re-delivery for a group that already has an open issue is still a no-op.
+
+**Response (200):** one of
 ```json
 { "ok": true, "created": true, "number": 123 }
+{ "ok": true, "reopened": true, "number": 123 }
+{ "ok": true, "commented": true, "number": 123 }
+{ "ok": true, "skipped": true, "reason": "already_open", "number": 123 }
 ```
+`reason` is `ignored` when the payload was not a new or regressed issue, `already_open` for a re-delivery on an open tracker, and `duplicate_regression` when the regression was already on the thread.
 
 **Error Responses:**
 - **401** — Missing/invalid shared secret
 - **400** — Invalid JSON
-- **502** — GitHub API failure (Sentry retries on non-2xx)
+- **502** — GitHub API failure on any of create, search, reopen or comment (Sentry retries on non-2xx)
 
 ---
 
