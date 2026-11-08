@@ -5,9 +5,11 @@ import android.content.Context
 import androidx.test.core.app.ApplicationProvider
 import androidx.lifecycle.viewModelScope
 import app.roam.android.data.repository.RoamRepository
+import app.roam.android.model.Collection
 import app.roam.android.model.RoamUrl
 import app.roam.android.model.UserSettings
 import app.roam.android.ui.theme.RoamThemeVariant
+import io.mockk.clearAllMocks
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
@@ -93,6 +95,10 @@ class MainViewModelTest {
         // became `vm` — so a failed setUp can't make tearDown throw.
         createdViewModels.forEach { runCatching { it.viewModelScope.cancel() } }
         createdViewModels.clear()
+        // MockK holds every mock and stub it has ever created. One relaxed repository
+        // mock per test is enough to exhaust the 2 GB test heap by the end of this class
+        // (it died at test 46/52 on an otherwise clean tree), so drop them here.
+        clearAllMocks()
         org.robolectric.shadows.ShadowLooper.idleMainLooper()
         Dispatchers.resetMain()
     }
@@ -309,7 +315,16 @@ class MainViewModelTest {
             .edit()
             .putString("app_theme_variant", "classic")
             .apply()
-        val classicVm = newViewModel()
+        // Build it with the session off, then sign in for roam(): constructing a
+        // ViewModel while a session exists starts init's 60 s celebration loop, and this
+        // test's runTest drain then advances virtual time through it until the heap dies.
+        // That runaway is what took out the last tests of this class on a clean tree.
+        signedInSession = false
+        val classicVm = try {
+            newViewModel()
+        } finally {
+            signedInSession = true
+        }
         coEvery { repo.roam(any(), any(), any(), any()) } returns mockUrl
         classicVm.roam()
         testDispatcher.scheduler.runCurrent()
@@ -676,5 +691,157 @@ class MainViewModelTest {
         assertFalse("the strip should not blank out while idle", strip.isBlank())
         assertFalse("the queued message should have scrolled off", strip.contains("SCANNING…"))
         assertTrue(strip.startsWith(DeckReadout.SEPARATOR))
+    }
+
+    // --- Last-page restore and pool-id guards (#89) -----------------------------
+
+    /** Writes the cold-start prefs a previous session would have left behind. */
+    private fun seedLastPage(lastUrl: String, lastTitle: String? = null, lastId: String? = null) {
+        val editor = app.getSharedPreferences("roam_saved", Context.MODE_PRIVATE).edit()
+            .putString("last_url", lastUrl)
+        if (lastTitle != null) editor.putString("last_url_title", lastTitle)
+        if (lastId != null) editor.putString("last_url_id", lastId) else editor.remove("last_url_id")
+        editor.apply()
+    }
+
+    /**
+     * Builds the ViewModel the way a cold start does: prefs already seeded, session
+     * present *while* `init` runs. `init` then starts the 60 s celebration loop, so
+     * callers must drive this with `runCurrent()`, never `advanceUntilIdle()`.
+     */
+    private fun newColdStartViewModel(): MainViewModel {
+        signedInSession = true
+        return newViewModel()
+    }
+
+    @Test
+    fun `a restored page carries the url id the last session saved`() {
+        seedLastPage("https://example.com", "Example Domain", "url-123")
+        val coldVm = newColdStartViewModel()
+
+        val state = coldVm.state.value
+        assertTrue("the last page should be restored, was $state", state is RoamState.Loaded)
+        val loaded = state as RoamState.Loaded
+        assertEquals("url-123", loaded.roamUrl.id)
+        assertEquals("https://example.com", loaded.roamUrl.url)
+        assertEquals("Example Domain", loaded.roamUrl.title)
+    }
+
+    @Test
+    fun `a restored page without a stored id resolves one from the pool`() {
+        seedLastPage("https://example.com", "Example Domain")
+        coEvery { repo.checkUrl("https://example.com") } returns RoamUrl(
+            id = "url-123",
+            url = "https://example.com",
+            categoryId = "cat-1",
+        )
+        // No runTest: the cold-start init loop is live, so drive the scheduler by hand
+        // and never advance virtual time through it.
+        val coldVm = newColdStartViewModel()
+        testDispatcher.scheduler.runCurrent()
+
+        val loaded = coldVm.state.value as RoamState.Loaded
+        assertEquals("the rehydrated page must carry the real id", "url-123", loaded.roamUrl.id)
+        assertEquals(
+            "checkUrl() selects no title, so the persisted one must survive",
+            "Example Domain",
+            loaded.roamUrl.title,
+        )
+        assertEquals(
+            "the resolved id must be persisted for the next cold start",
+            "url-123",
+            app.getSharedPreferences("roam_saved", Context.MODE_PRIVATE).getString("last_url_id", null),
+        )
+    }
+
+    @Test
+    fun `a restored page that is not in the pool keeps its placeholder state`() {
+        seedLastPage("https://roamtheweb.app/profile")
+        coEvery { repo.checkUrl(any()) } returns null
+        // No runTest for the same reason as the rehydration case above.
+        val coldVm = newColdStartViewModel()
+        testDispatcher.scheduler.runCurrent()
+
+        val state = coldVm.state.value
+        assertTrue("the page must still be shown, was $state", state is RoamState.Loaded)
+        assertTrue("no id may be invented", (state as RoamState.Loaded).roamUrl.id.isBlank())
+    }
+
+    @Test
+    fun `navigateTo resolves and persists the pool id of the page it opens`() = runTest {
+        coEvery { repo.checkUrl("https://example.com") } returns RoamUrl(
+            id = "url-123",
+            url = "https://example.com",
+        )
+        vm.navigateTo("https://example.com")
+        testDispatcher.scheduler.runCurrent()
+
+        assertEquals("url-123", (vm.state.value as RoamState.Loaded).roamUrl.id)
+        val prefs = app.getSharedPreferences("roam_saved", Context.MODE_PRIVATE)
+        assertEquals("url-123", prefs.getString("last_url_id", null))
+        assertEquals("https://example.com", prefs.getString("last_url", null))
+    }
+
+    @Test
+    fun `navigateTo never replaces the last pool page with an internal one`() = runTest {
+        seedLastPage("https://pool.example/page", "Pool page", "url-999")
+        coEvery { repo.checkUrl(any()) } returns null
+
+        vm.navigateTo("https://roamtheweb.app/profile")
+        testDispatcher.scheduler.runCurrent()
+
+        val prefs = app.getSharedPreferences("roam_saved", Context.MODE_PRIVATE)
+        assertEquals(
+            "the last pool page must survive a visit to an app page",
+            "https://pool.example/page",
+            prefs.getString("last_url", null),
+        )
+        assertEquals("url-999", prefs.getString("last_url_id", null))
+    }
+
+    @Test
+    fun `reporting a page with no pool id posts nothing and claims nothing`() = runTest {
+        coEvery { repo.checkUrl(any()) } returns null
+        vm.navigateTo("https://not-in-pool.example/x")
+        testDispatcher.scheduler.runCurrent()
+
+        vm.reportBrokenLink()
+        testDispatcher.scheduler.runCurrent()
+
+        coVerify(exactly = 0) { repo.reportUrl(any()) }
+        assertFalse(
+            "no DEAD LINK confirmation may be shown for a report that was not sent",
+            vm.reportConfirmation.value,
+        )
+    }
+
+    @Test
+    fun `adding a page with no pool id to a collection does not call the function`() = runTest {
+        coEvery { repo.checkUrl(any()) } returns null
+        vm.navigateTo("https://not-in-pool.example/x")
+        testDispatcher.scheduler.runCurrent()
+
+        vm.addCurrentUrlToCollection("col-1")
+        testDispatcher.scheduler.runCurrent()
+
+        coVerify(exactly = 0) { repo.addUrlToCollection(any(), any()) }
+    }
+
+    @Test
+    fun `creating a collection from a page with no pool id never posts a blank url id`() = runTest {
+        coEvery { repo.checkUrl(any()) } returns null
+        coEvery { repo.createCollection("Later") } returns Collection(
+            id = "col-1",
+            name = "Later",
+            slug = "later",
+        )
+        vm.navigateTo("https://not-in-pool.example/x")
+        testDispatcher.scheduler.runCurrent()
+
+        vm.createCollectionAndAdd("Later")
+        testDispatcher.scheduler.runCurrent()
+
+        coVerify(exactly = 1) { repo.createCollection("Later") }
+        coVerify(exactly = 0) { repo.addUrlToCollection(any(), any()) }
     }
 }

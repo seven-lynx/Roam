@@ -23,6 +23,11 @@ class RoamRepositoryTest {
         require((value == 1) || (value == -1))
     }
 
+    /** Mirrors the blank-id guard in [RoamRepository.rate] / reportUrl / addUrlToCollection. */
+    private fun validateUrlId(urlId: String) {
+        require(urlId.isNotBlank()) { "url_id required" }
+    }
+
     // ─── Input validation ──────────────────────────────────────────────────────
 
     @Test
@@ -43,6 +48,23 @@ class RoamRepositoryTest {
     @Test(expected = IllegalArgumentException::class)
     fun `rate value 2 fails require check`() {
         validateRateValue(2)
+    }
+
+    // --- Blank url id rejection (#89) -------------------------------------------
+
+    @Test
+    fun `a real url id passes the guard`() {
+        validateUrlId("a559a4be-05c3-46c7-9497-23d49bbeaa5f")
+    }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun `a blank url id fails the guard`() {
+        validateUrlId("")
+    }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun `a whitespace url id fails the guard`() {
+        validateUrlId("   ")
     }
 
     // ─── Model defaults ────────────────────────────────────────────────────────

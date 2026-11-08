@@ -123,6 +123,7 @@ class MainViewModel(
     private val BACKLIGHT_COLOR_KEY = "backlight_color"
     private val LAST_URL_KEY = "last_url"
     private val LAST_URL_TITLE_KEY = "last_url_title"
+    private val LAST_URL_ID_KEY = "last_url_id"
     private val SOUND_EFFECTS_KEY = "sound_effects"
     private val SOUND_VOLUME_KEY = "sound_volume"          // 0..100
     private val SOUND_DECK_KEY = "sound_deck"
@@ -1698,7 +1699,7 @@ class MainViewModel(
                     _state.value = RoamState.Loaded(roamUrl)
                     _userRating.value = roamUrl.userRating ?: 0
                     playSfx(R.raw.load_complete)
-                    persistLastUrl(roamUrl.url, roamUrl.title)
+                    persistLastUrl(roamUrl.url, roamUrl.title, roamUrl.id)
                     recordUrlVisit(roamUrl.url, roamUrl.title ?: roamUrl.url)
                     // Prefetch is user-controlled: never restart the prefill workers
                     // when it is switched off.
@@ -2268,6 +2269,14 @@ class MainViewModel(
         val urlId = loaded.roamUrl.id
         val excludeDomain = extractDomain(_rawUrl.value)
         _showConfigSheet.value = false
+        if (urlId.isBlank()) {
+            // Placeholder page (restore / navigateTo): report-url answers 400 for a
+            // blank url_id and the runCatching below hid it, so the app announced a
+            // report that never happened. Say so and move on instead.
+            pushSystemMessage("NO POOL ID // REPORT SKIPPED")
+            viewModelScope.launch { roam(excludeDomain = excludeDomain) }
+            return
+        }
         _reportConfirmation.value = true
         pushSystemMessage("DEAD LINK REPORTED // NEXT SWEEP")
         viewModelScope.launch {
@@ -2328,8 +2337,12 @@ class MainViewModel(
         beginPageLoad()
         _rawUrl.value = url
         _currentUrl.value = url
-        _state.value = RoamState.Loaded(RoamUrl(id = "", url = url))
-        persistLastUrl(url, null)
+        val placeholder = RoamUrl(id = "", url = url)
+        _state.value = RoamState.Loaded(placeholder)
+        // Resolve the pool row before persisting, so report/save/rate work on a page
+        // opened from history or a notification — and so an internal page
+        // (roamtheweb.app) never becomes what the next cold start restores.
+        rehydratePlaceholderPage(placeholder)
     }
 
     /**
@@ -2388,8 +2401,17 @@ class MainViewModel(
 
     fun addCurrentUrlToCollection(collectionId: String) {
         val loaded = _state.value as? RoamState.Loaded ?: return
+        val urlId = loaded.roamUrl.id
         viewModelScope.launch {
-            runCatching { repo.addUrlToCollection(collectionId, loaded.roamUrl.id) }
+            if (urlId.isBlank()) {
+                // The collection function rejects a blank url_id with a 400; the
+                // runCatching below swallowed it and the toast still said "Added to X".
+                showTransientToast("This page isn't in the pool — couldn't add it")
+                _showAddToCollection.value = false
+                closeConfigSheet()
+                return@launch
+            }
+            runCatching { repo.addUrlToCollection(collectionId, urlId) }
             runCatching { _collections.value = repo.getCollections() }
             // Find and show the collection name in the success message
             val collectionName = _collections.value.firstOrNull { it.id == collectionId }?.name
@@ -2406,7 +2428,10 @@ class MainViewModel(
         viewModelScope.launch {
             val result = runCatching {
                 val col = repo.createCollection(name)
-                if (loaded != null) repo.addUrlToCollection(col.id, loaded.roamUrl.id)
+                // Only attach a page that carries a pool id: the collection function
+                // 400s on a blank one, which used to read as "couldn't create".
+                loaded?.roamUrl?.id?.takeIf { it.isNotBlank() }
+                    ?.let { repo.addUrlToCollection(col.id, it) }
             }
             result.onFailure { e ->
                 Sentry.captureException(e)
@@ -2583,7 +2608,7 @@ class MainViewModel(
         _moderatorModeEnabled.value = false
         _isModerator.value = false
         // Clear the persisted last URL so the next sign-in starts fresh
-        prefs.edit().remove(LAST_URL_KEY).remove(LAST_URL_TITLE_KEY).apply()
+        prefs.edit().remove(LAST_URL_KEY).remove(LAST_URL_TITLE_KEY).remove(LAST_URL_ID_KEY).apply()
         pushSystemMessage("SESSION SEALED // CARRIER DROPPED")
     }
 
@@ -2924,12 +2949,17 @@ class MainViewModel(
         prefs.edit().putString(SAVED_KEY, savedUrlsJson.encodeToString(list)).apply()
     }
 
-    /** Persists the last-viewed URL and title so it can be restored after process death. */
-    private fun persistLastUrl(url: String, title: String?) {
-        prefs.edit()
+    /** Persists the last-viewed pool page so it can be restored after process death.
+     *  [id] is the point: a restored state without it cannot rate, report or save the
+     *  page (report-url and collection answer 400 for a blank id and the caller
+     *  swallowed it), so it is stored beside the url instead of being rebuilt blank. */
+    private fun persistLastUrl(url: String, title: String?, id: String?) {
+        val editor = prefs.edit()
             .putString(LAST_URL_KEY, url)
             .putString(LAST_URL_TITLE_KEY, title ?: url)
-            .apply()
+        // Pair the id with its url or drop it — never carry a stale one forward.
+        if (!id.isNullOrBlank()) editor.putString(LAST_URL_ID_KEY, id) else editor.remove(LAST_URL_ID_KEY)
+        editor.apply()
     }
 
     /** Restores the last-viewed URL from SharedPreferences if one exists.
@@ -2938,10 +2968,51 @@ class MainViewModel(
     private fun restoreLastUrlIfAvailable() {
         val url = prefs.getString(LAST_URL_KEY, null) ?: return
         val title = prefs.getString(LAST_URL_TITLE_KEY, url) ?: url
+        val id = prefs.getString(LAST_URL_ID_KEY, null).orEmpty()
         _rawUrl.value = url
         _currentUrl.value = url
-        _state.value = RoamState.Loaded(RoamUrl(id = "", url = url, title = title))
-        android.util.Log.d("MainViewModel", "Restored last URL from prefs: $url")
+        val restored = RoamUrl(id = id, url = url, title = title)
+        _state.value = RoamState.Loaded(restored)
+        val idLabel = id.ifBlank { "none" }
+        android.util.Log.d("MainViewModel", "Restored last URL from prefs: $url (id=$idLabel)")
+        if (id.isBlank()) {
+            // Prefs written before LAST_URL_ID_KEY existed (builds <= 1.6.0+36) have no
+            // id; resolve one so the page's actions work instead of no-oping.
+            rehydratePlaceholderPage(restored)
+        }
+    }
+
+    /**
+     * Resolves [url] to its row in the `urls` table so a placeholder page can act on a
+     * real id. [RoamRepository.checkUrl] selects id/url/category_id only — no title —
+     * so callers keep the title they already had.
+     */
+    private suspend fun resolvePoolUrl(url: String): RoamUrl? =
+        runCatching { repo.checkUrl(url) }.getOrNull()
+
+    /**
+     * Upgrades [placeholder] — a [RoamState.Loaded] page carrying no id, from
+     * [restoreLastUrlIfAvailable] or [navigateTo] — to a real pool row, and persists the
+     * id so the next cold start starts with one.
+     *
+     * The state is replaced only while that same page is still on screen: a roam that
+     * lands first must win. A URL that no longer resolves (left the pool, or an internal
+     * roamtheweb.app page) is left alone — it is never persisted as the last page, so an
+     * app page cannot be what the next launch restores.
+     */
+    private fun rehydratePlaceholderPage(placeholder: RoamUrl) {
+        val url = placeholder.url
+        if (url.isBlank()) return
+        viewModelScope.launch {
+            val known = resolvePoolUrl(url) ?: return@launch
+            val current = (_state.value as? RoamState.Loaded)?.roamUrl ?: return@launch
+            if (current.id.isNotBlank() || current.url != url) return@launch
+            _state.value = RoamState.Loaded(
+                current.copy(id = known.id, categoryId = known.categoryId),
+            )
+            persistLastUrl(current.url, current.title, known.id)
+            refreshUserRating()
+        }
     }
 
     private fun extractDomain(url: String?): String? {
