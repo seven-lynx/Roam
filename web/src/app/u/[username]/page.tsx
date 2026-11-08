@@ -165,7 +165,7 @@ export default async function PublicProfilePage({ params }: Props) {
                 <li key={col.id}>
                   <Link href={`/collections/${col.slug}`} className="flex items-center justify-between px-4 py-3 rounded-lg border border-line hover:bg-panel-2 transition-colors group">
                     <span className="text-sm font-medium text-ink">{col.name}</span>
-                    <span className="text-xs text-muted group-hover:text-muted group-hover:text-s => s >= 800 ? 'ink' : 'muted' transition-colors">View →</span>
+                    <span className="text-xs text-muted group-hover:text-ink transition-colors">View →</span>
                   </Link>
                 </li>
               ))}

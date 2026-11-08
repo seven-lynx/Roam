@@ -929,6 +929,10 @@ button.gadget:active { transform: translateY(1px) scale(0.98); }
      `overflow: clip`; `contain: paint` guarantees it and pins fixed/absolute
      descendants to this window. */
   overflow: hidden;
+  /* A wheel/touch gesture that reaches the end of an in-window scroller must
+     never chain outward: the window keeps its own scroll, the OS page keeps
+     its own. */
+  overscroll-behavior: contain;
   contain: paint;
   isolation: isolate;
   min-width: 0;
@@ -955,6 +959,13 @@ button.gadget:active { transform: translateY(1px) scale(0.98); }
   align-items: center;
   gap: 0.5rem;
   flex: 0 0 auto;
+  /* Pinned chrome. Flex order alone keeps the bar above the body, but only for
+     as long as nothing scrolls the window's box — a sticky bar is the hard
+     guarantee that the title, minimize/maximize and the close button stay
+     reachable no matter which ancestor scrolls. */
+  position: sticky;
+  top: 0;
+  z-index: 2;
   padding: 0.35rem 0.5rem;
   background: linear-gradient(180deg, var(--panel-3), var(--panel-2));
   border-bottom: 1px solid var(--line);
@@ -992,6 +1003,7 @@ button.gadget:active { transform: translateY(1px) scale(0.98); }
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  overscroll-behavior: contain;
 }
 .window-scroll { flex: 1 1 auto; min-height: 0; min-width: 0; max-height: 100%; overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain; }
 .terminal-input {
@@ -1984,7 +1996,7 @@ button.gadget:active { transform: translateY(1px) scale(0.98); }
 }
 .roll-btn:hover { color: var(--phosphor); border-color: var(--phosphor); }
 .roll-nav { flex: 0 0 auto; min-width: 2.4rem; }
-.browser-frame { position: relative; flex: 1 1 auto; min-height: 0; background: #fff; }
+.browser-frame { position: relative; flex: 1 1 auto; min-height: 0; background: #fff; overscroll-behavior: contain; }
 .browser-iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; background: #fff; }
 .browser-loading {
   position: absolute;
@@ -2132,10 +2144,19 @@ button.gadget:active { transform: translateY(1px) scale(0.98); }
   padding: 0.5rem;
 }
 
-/* Keep the start menu inside the screen on short desktop viewports. */
+/* Keep the start menu inside the screen on short desktop viewports. The head is
+   pinned to the top of the scrollport so the menu title and the "Esc to close"
+   hint never scroll out of reach. */
 .screen[data-layout='desktop'] .launcher-dropdown {
   max-height: calc(100% - 3rem);
   overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.screen[data-layout='desktop'] .launcher-dropdown > .launcher-dropdown-head {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--panel);
 }
 @keyframes start-in {
   from { opacity: 0; transform: translateY(-6px) scale(0.985); }
@@ -3009,6 +3030,7 @@ button.gadget:active { transform: translateY(1px) scale(0.98); }
   min-height: 0;
   min-width: 0;
   overflow: hidden;
+  overscroll-behavior: contain;
   display: flex;
   align-items: stretch;
   padding: 0.6rem;
@@ -3721,18 +3743,31 @@ button.gadget:active { transform: translateY(1px) scale(0.98); }
   left: 0;
   right: 0;
   z-index: 49;
+  display: flex;
+  flex-direction: column;
   background: var(--panel);
   border-bottom: 1px solid var(--line-strong);
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.55);
   animation: shade-in 0.18s ease-out;
   max-height: calc(100% - 44px);
+  /* The shade clips; only `.quick-settings-scroll` scrolls, so the handle, the
+     title and the close button stay pinned at the top of the sheet. */
+  overflow: hidden;
+}
+.quick-settings-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
   overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: var(--line-strong) transparent;
 }
 @keyframes shade-in {
   from { transform: translateY(-100%); }
   to { transform: translateY(0); }
 }
 .quick-settings-handle {
+  flex: 0 0 auto;
   width: 40px;
   height: 4px;
   border-radius: 9999px;
@@ -3740,6 +3775,7 @@ button.gadget:active { transform: translateY(1px) scale(0.98); }
   margin: 8px auto 4px;
 }
 .quick-settings-head {
+  flex: 0 0 auto;
   display: flex;
   align-items: center;
   gap: 0.5rem;
