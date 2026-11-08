@@ -681,6 +681,7 @@ private fun DiscoverTab(
     val isTranslating by vm.isTranslating.collectAsState()
     val translateLanguage by vm.translateLanguage.collectAsState()
     val webViewReady by vm.webViewReady.collectAsState()
+    val revealFinishing by vm.revealFinishing.collectAsState()
     val showTranslatePicker by vm.showTranslatePicker.collectAsState()
     // Hoisted into the ViewModel so the control deck (rendered above this tab, in
     // MainScreen) can act as a home key and dismiss the shelf or a running program.
@@ -742,23 +743,11 @@ private fun DiscoverTab(
             (currentUrl == loaded?.roamUrl?.url && (webViewLoading || (currentUrl != lastLoadedUrl)))
     val showOverlay = rawUrl == null || !webViewReady || webViewRecovering
 
-    // ROAM-OS scan finish: hold the scan overlay one short beat after a
-    // successful load so the sequence plays "MOUNT COMPLETE" before the page is
-    // revealed, rather than being cut off the instant the WebView finishes.
-    var scanActive by remember { mutableStateOf(false) }
-    var scanFinishPending by remember { mutableStateOf(false) }
-    val latestState by rememberUpdatedState(state)
-    LaunchedEffect(showOverlay) {
-        if (showOverlay) {
-            scanActive = true
-            scanFinishPending = false
-        } else if (scanActive && isRoamOs && latestState is RoamState.Loaded) {
-            scanActive = false
-            scanFinishPending = true
-            delay(500)
-            scanFinishPending = false
-        }
-    }
+    // ROAM-OS scan finish: the scan overlay holds one short beat after the page
+    // commits so the sequence plays "MOUNT COMPLETE" before the page is revealed.
+    // The hold lives in MainViewModel (revealFinishing) because a beat armed here
+    // would only start after this frame had already composed the overlay away —
+    // flashing a frame of live page between the two loading screens.
     LaunchedEffect(showOverlay) {
         if (showOverlay) {
             loadingMessage = pickRandomMessage(roamOs = isRoamOs)
@@ -1055,7 +1044,7 @@ private fun DiscoverTab(
                     onUrlChanged = { vm.onWebViewUrlChanged(it) },
                     onLoadError = { vm.roam() },
                     onLoadingChanged = { loading -> webViewLoading = loading; if (!loading) { lastLoadedUrl = currentUrl; resumeStandby = false; vm.clearTranslating() } },
-                    onPageVisible = { webViewLoading = false; lastLoadedUrl = currentUrl; resumeStandby = false; vm.onPageRevealed() },
+                    onPageVisible = { playFinishBeat -> webViewLoading = false; lastLoadedUrl = currentUrl; resumeStandby = false; vm.onPageRevealed(playFinishBeat = playFinishBeat) },
                     onRecovering = { recovering -> webViewRecovering = recovering },
                     onPageFinishedForPrefetch = { vm.onPageFinishedForPrefetch() },
                     navCommandsFlow = vm.webNavFlow,
@@ -1063,7 +1052,7 @@ private fun DiscoverTab(
                     refocusKey = refocusKey,
                 )
 
-                if (showOverlay || scanFinishPending || resumeStandby) {
+                if (showOverlay || resumeStandby) {
                     Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background), contentAlignment = Alignment.Center) {
                         when {
                             state is RoamState.Error -> {
@@ -1111,10 +1100,10 @@ private fun DiscoverTab(
                                 if (isRoamOs) {
                                     if (isTranslating) {
                                         TranslateLoading(language = translateLanguage, soundEnabled = soundEffectsEnabled)
-                                    } else if (isRoaming || scanFinishPending) {
+                                    } else if (isRoaming || revealFinishing) {
                                         BootScanLoading(
                                             message = loadingMessage.text,
-                                            finishing = scanFinishPending,
+                                            finishing = revealFinishing,
                                             soundEnabled = soundEffectsEnabled,
                                         )
                                     } else {

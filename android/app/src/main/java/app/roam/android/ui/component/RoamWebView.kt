@@ -204,7 +204,7 @@ fun RoamWebView(
     onUrlChanged: (String) -> Unit = {},
     onLoadError: () -> Unit = {},
     onLoadingChanged: (Boolean) -> Unit = {},
-    onPageVisible: () -> Unit = {},
+    onPageVisible: (playFinishBeat: Boolean) -> Unit = {},
     onRecovering: (Boolean) -> Unit = {},
     onPageFinishedForPrefetch: () -> Unit = {},
     navCommandsFlow: Flow<WebNavCommand>? = null,
@@ -340,7 +340,8 @@ fun RoamWebView(
                         // event for an already-committed page. Release the loading latch
                         // here so the overlay cannot outlive the resume.
                         onLoadingChanged(false)
-                        onPageVisible()
+                        // Already on screen — no beat, reveal immediately.
+                        onPageVisible(false)
                         if (jsEnabled) {
                             // Force-restore scroll from localStorage, Kotlin Y as fallback.
                             val fallbackY = savedScrollY
@@ -553,7 +554,7 @@ fun RoamWebView(
                             onLoadingChanged(false)
                             showSnapshot = false
                             snapshotBitmap = null
-                            onPageVisible()
+                            onPageVisible(true)
                             recovering = false
                             onRecovering(false)
                             onPageFinishedForPrefetch()
@@ -598,7 +599,7 @@ fun RoamWebView(
                             if (url.isBlank() || url == "about:blank") return
                             pageInFlight = false
                             onLoadingChanged(false)
-                            onPageVisible()
+                            onPageVisible(true)
                             recovering = false
                             onRecovering(false)
                         }
@@ -618,7 +619,9 @@ fun RoamWebView(
                                 // load" box is reachable instead of sitting behind it.
                                 recovering = false
                                 onRecovering(false)
-                                onPageVisible()
+                                // Failed load — reveal at once so the "couldn't load"
+                                // box is reachable instead of sitting behind the beat.
+                                onPageVisible(false)
                             }
                         }
                         // The renderer process was killed — the usual cause is a long

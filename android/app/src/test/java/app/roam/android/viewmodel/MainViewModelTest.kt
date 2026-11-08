@@ -275,6 +275,118 @@ class MainViewModelTest {
         assertEquals("https://new-page.com", vm.currentUrl.value)
     }
 
+    // ─── Loading overlay reveal latch ──────────────────────────────────────────
+
+    @Test
+    fun `onPageRevealed holds the ROAM-OS finish beat with the overlay still up`() = runTest {
+        coEvery { repo.roam(any(), any(), any(), any()) } returns mockUrl
+        vm.roam()
+        // runCurrent, not advanceUntilIdle: the 12 s fail-open reveal timer must
+        // not fire, or it would open the latch this test is asserting stays shut.
+        testDispatcher.scheduler.runCurrent()
+        assertEquals(RoamState.Loaded(mockUrl), vm.state.value)
+        assertFalse("roam() must close the reveal latch", vm.webViewReady.value)
+
+        vm.onPageRevealed()
+
+        assertFalse("the page must stay covered for the beat", vm.webViewReady.value)
+        assertTrue("the finish beat must be playing", vm.revealFinishing.value)
+
+        testDispatcher.scheduler.advanceTimeBy(300)
+        testDispatcher.scheduler.runCurrent()
+        assertFalse("the beat is not over yet", vm.webViewReady.value)
+
+        testDispatcher.scheduler.advanceTimeBy(300)
+        testDispatcher.scheduler.runCurrent()
+        assertTrue("the page is revealed once the beat ends", vm.webViewReady.value)
+        assertFalse(vm.revealFinishing.value)
+    }
+
+    @Test
+    fun `onPageRevealed reveals immediately on the classic theme`() = runTest {
+        // The finish beat is a ROAM-OS scan-screen flourish; classic reveals at once.
+        app.getSharedPreferences("roam_saved", Context.MODE_PRIVATE)
+            .edit()
+            .putString("app_theme_variant", "classic")
+            .apply()
+        val classicVm = newViewModel()
+        coEvery { repo.roam(any(), any(), any(), any()) } returns mockUrl
+        classicVm.roam()
+        testDispatcher.scheduler.runCurrent()
+        assertEquals(RoamState.Loaded(mockUrl), classicVm.state.value)
+
+        classicVm.onPageRevealed()
+
+        assertTrue(classicVm.webViewReady.value)
+        assertFalse(classicVm.revealFinishing.value)
+
+        // Restore the shipped default so a later test that builds a ViewModel
+        // still gets the ROAM-OS scan overlay.
+        app.getSharedPreferences("roam_saved", Context.MODE_PRIVATE)
+            .edit()
+            .putString("app_theme_variant", "roam_os")
+            .apply()
+    }
+
+    @Test
+    fun `a second reveal callback does not restart the finish beat`() = runTest {
+        coEvery { repo.roam(any(), any(), any(), any()) } returns mockUrl
+        vm.roam()
+        testDispatcher.scheduler.runCurrent()
+
+        vm.onPageRevealed()
+        testDispatcher.scheduler.advanceTimeBy(300)
+        testDispatcher.scheduler.runCurrent()
+        // onPageFinished lands right after onPageCommitVisible on a real device.
+        vm.onPageRevealed()
+        testDispatcher.scheduler.advanceTimeBy(300)
+        testDispatcher.scheduler.runCurrent()
+
+        assertTrue("the beat must not outlive its original 500 ms", vm.webViewReady.value)
+        assertFalse(vm.revealFinishing.value)
+    }
+
+    @Test
+    fun `a failed load reveals at once, even mid-beat`() = runTest {
+        coEvery { repo.roam(any(), any(), any(), any()) } returns mockUrl
+        vm.roam()
+        testDispatcher.scheduler.runCurrent()
+        vm.onPageRevealed()
+        assertTrue(vm.revealFinishing.value)
+
+        // onReceivedError during the beat — the "couldn't load" box must be
+        // reachable immediately instead of waiting out the scan.
+        vm.onPageRevealed(playFinishBeat = false)
+
+        assertTrue(vm.webViewReady.value)
+        assertFalse(vm.revealFinishing.value)
+
+        // The cancelled beat must not fire afterwards.
+        testDispatcher.scheduler.advanceTimeBy(600)
+        testDispatcher.scheduler.runCurrent()
+        assertTrue(vm.webViewReady.value)
+        assertFalse(vm.revealFinishing.value)
+    }
+
+    @Test
+    fun `a new page load cancels a playing finish beat`() = runTest {
+        coEvery { repo.roam(any(), any(), any(), any()) } returns mockUrl
+        vm.roam()
+        testDispatcher.scheduler.runCurrent()
+        vm.onPageRevealed()
+        assertTrue(vm.revealFinishing.value)
+
+        // Translating re-arms the latch; the stale beat must not reveal the page
+        // that is now loading.
+        vm.toggleTranslation()
+        assertFalse(vm.revealFinishing.value)
+        assertFalse(vm.webViewReady.value)
+
+        testDispatcher.scheduler.advanceTimeBy(600)
+        testDispatcher.scheduler.runCurrent()
+        assertFalse("the cancelled beat must not open the latch", vm.webViewReady.value)
+    }
+
     // ─── IOException → offline error message ──────────────────────────────────
 
     @Test

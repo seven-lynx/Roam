@@ -146,6 +146,14 @@ class MainViewModel(
     /** Fail-open ceiling for the WebView reveal latch — see [beginPageLoad]. */
     private val REVEAL_TIMEOUT_MS = 12_000L
 
+    /**
+     * How long the ROAM-OS overlay holds a committed page before revealing it.
+     * The scan screen needs one beat to play "MOUNT COMPLETE" with the overlay
+     * still up; re-showing the overlay *after* the reveal instead leaves a frame
+     * of live page between the two loading screens, which reads as a flicker.
+     */
+    private val FINISH_BEAT_MS = 500L
+
     private val _state = MutableStateFlow<RoamState>(RoamState.Idle)
     val state: StateFlow<RoamState> = _state.asStateFlow()
 
@@ -180,8 +188,21 @@ class MainViewModel(
     /** Fail-open timer armed by [beginPageLoad] and cancelled by [onPageRevealed]. */
     private var revealTimeoutJob: Job? = null
 
+    /** Holds a committed page back for one beat so ROAM-OS can play MOUNT COMPLETE. */
+    private var revealHoldJob: Job? = null
+
+    /** True while that finish beat is playing with the loading overlay still up. */
+    private val _revealFinishing = MutableStateFlow(false)
+    val revealFinishing: StateFlow<Boolean> = _revealFinishing.asStateFlow()
+
     private fun beginPageLoad() {
         _webViewReady.value = false
+        // A new navigation outranks a finish beat that is still playing — the
+        // beat's trailing `_webViewReady = true` would otherwise reveal the page
+        // we just started loading.
+        revealHoldJob?.cancel()
+        revealHoldJob = null
+        _revealFinishing.value = false
         // The overlay is cleared only by the WebView's onPageCommitVisible /
         // onPageFinished callbacks. Backgrounding or locking the screen mid-load lets
         // the engine drop the load without firing either one, and the app then sits on
@@ -194,14 +215,53 @@ class MainViewModel(
                     "MainViewModel",
                     "Reveal timed out after ${REVEAL_TIMEOUT_MS}ms — clearing the loading overlay",
                 )
+                revealHoldJob?.cancel()
+                revealHoldJob = null
+                _revealFinishing.value = false
                 _isTranslating.value = false
                 _webViewReady.value = true
             }
         }
     }
 
-    /** Called by the WebView when the target page is actually visible. */
-    fun onPageRevealed() {
+    /**
+     * Called by the WebView when the target page is actually visible.
+     *
+     * On ROAM-OS the reveal is held for [FINISH_BEAT_MS] so the scan overlay can
+     * play its MOUNT COMPLETE beat before the page appears. The overlay stays up
+     * for the whole beat: revealing first and covering the page again flashes a
+     * frame of live content between the two loading screens.
+     *
+     * [playFinishBeat] is false for a failed load and for a resume of an
+     * already-committed page, both of which must reveal immediately.
+     */
+    fun onPageRevealed(playFinishBeat: Boolean = true) {
+        // onPageCommitVisible and onPageFinished both land here; the second one
+        // must not restart the beat.
+        if (playFinishBeat && _revealFinishing.value) return
+        if (playFinishBeat &&
+            _themeVariant.value == RoamThemeVariant.ROAM_OS &&
+            _state.value is RoamState.Loaded
+        ) {
+            // The fail-open timer stays armed through the beat: if the hold job
+            // below never completes, the 12 s ceiling still opens the latch.
+            _revealFinishing.value = true
+            revealHoldJob = viewModelScope.launch {
+                delay(FINISH_BEAT_MS)
+                revealHoldJob = null
+                revealTimeoutJob?.cancel()
+                revealTimeoutJob = null
+                _revealFinishing.value = false
+                _isTranslating.value = false
+                _webViewReady.value = true
+            }
+            return
+        }
+        // Immediate reveal — a failed load, or a resume of a page that is already
+        // on screen. Drop any beat still playing so it cannot fire out of order.
+        revealHoldJob?.cancel()
+        revealHoldJob = null
+        _revealFinishing.value = false
         revealTimeoutJob?.cancel()
         revealTimeoutJob = null
         _webViewReady.value = true
@@ -2411,6 +2471,10 @@ class MainViewModel(
         _currentUrl.value = null
         _nextPrefetchUrl.value = null
         _userRating.value = 0
+        // Drop any finish beat left playing from the previous session.
+        revealHoldJob?.cancel()
+        revealHoldJob = null
+        _revealFinishing.value = false
         // Drop any ROAM-OS overlay so the next sign-in lands on the page, not on
         // a cartridge shelf left open by the previous session.
         _showConfigSheet.value = false
