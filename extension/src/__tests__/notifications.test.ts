@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { notificationLink, notificationText } from '../lib/notifications';
+import { notificationLink, notificationText, notificationPayload, latestCreatedAt, pickNewNotifications, recentCelebration } from '../lib/notifications';
 import type { NotificationItem } from '../lib/messages';
 
 function notif(overrides: Partial<NotificationItem> = {}): NotificationItem {
@@ -78,5 +78,95 @@ describe('notificationText', () => {
 
   it('treats an empty title as missing', () => {
     expect(notificationText(notif({ title: '' })).title).toBe('url_approved');
+  });
+});
+
+describe('notificationPayload', () => {
+  it('uses the body as the message', () => {
+    expect(notificationPayload(notif({ title: 'Badge unlocked', body: 'Explorer badge' }))).toEqual({
+      title: 'Badge unlocked',
+      message: 'Explorer badge',
+    });
+  });
+
+  it('falls back to the title when there is no body', () => {
+    expect(notificationPayload(notif({ title: 'Badge unlocked', body: null }))).toEqual({
+      title: 'Badge unlocked',
+      message: 'Badge unlocked',
+    });
+  });
+
+  it('caps long text for the OS notification surface', () => {
+    const payload = notificationPayload(notif({ title: 'x'.repeat(200), body: 'y'.repeat(400) }));
+    expect(payload.title).toHaveLength(120);
+    expect(payload.message).toHaveLength(240);
+  });
+});
+
+describe('latestCreatedAt', () => {
+  it('returns the newest parseable timestamp', () => {
+    expect(
+      latestCreatedAt([
+        notif({ created_at: '2026-01-01T10:00:00.000Z' }),
+        notif({ created_at: '2026-01-01T12:00:00.000Z' }),
+        notif({ created_at: 'not-a-date' }),
+      ]),
+    ).toBe('2026-01-01T12:00:00.000Z');
+  });
+
+  it('returns null when nothing parses', () => {
+    expect(latestCreatedAt([])).toBeNull();
+    expect(latestCreatedAt([notif({ created_at: 'nope' })])).toBeNull();
+  });
+});
+
+describe('pickNewNotifications', () => {
+  const items = [
+    notif({ id: 'c', created_at: '2026-01-01T12:00:00.000Z' }),
+    notif({ id: 'b', created_at: '2026-01-01T11:00:00.000Z' }),
+    notif({ id: 'a', created_at: '2026-01-01T10:00:00.000Z' }),
+  ];
+
+  it('returns everything (capped) when there is no watermark', () => {
+    expect(pickNewNotifications(items, null).map((n) => n.id)).toEqual(['c', 'b', 'a']);
+    expect(pickNewNotifications(items, null, 2).map((n) => n.id)).toEqual(['c', 'b']);
+  });
+
+  it('returns only items newer than the watermark', () => {
+    expect(pickNewNotifications(items, '2026-01-01T10:30:00.000Z').map((n) => n.id)).toEqual(['c', 'b']);
+  });
+
+  it('returns nothing when the watermark is the newest item', () => {
+    expect(pickNewNotifications(items, '2026-01-01T12:00:00.000Z')).toEqual([]);
+  });
+
+  it('treats an unparseable watermark as absent', () => {
+    expect(pickNewNotifications(items, 'nope', 1).map((n) => n.id)).toEqual(['c']);
+  });
+});
+
+describe('recentCelebration', () => {
+  const now = Date.parse('2026-01-01T12:00:00.000Z');
+  const recent = '2026-01-01T11:59:00.000Z';
+
+  it('returns a recent unread unlock', () => {
+    const item = notif({ type: 'badge_unlocked', created_at: '2026-01-01T11:55:00.000Z' });
+    expect(recentCelebration([item], now)?.id).toBe('n1');
+  });
+
+  it('ignores unlocks older than the window', () => {
+    const item = notif({ type: 'badge_unlocked', created_at: '2026-01-01T11:00:00.000Z' });
+    expect(recentCelebration([item], now)).toBeNull();
+  });
+
+  it('ignores read notifications and non-celebration types', () => {
+    expect(recentCelebration([notif({ type: 'badge_unlocked', read: true, created_at: recent })], now)).toBeNull();
+    expect(recentCelebration([notif({ type: 'url_approved', created_at: recent })], now)).toBeNull();
+  });
+
+  it('honours a custom window', () => {
+    const item = notif({ type: 'level_up', created_at: '2026-01-01T11:59:30.000Z' });
+    expect(recentCelebration([item], now, 60_000)).not.toBeNull();
+    expect(recentCelebration([item], now, 10_000)).toBeNull();
   });
 });

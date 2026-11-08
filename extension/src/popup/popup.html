@@ -188,6 +188,7 @@
 
       <section class="panel-section">
         <h3 class="panel-section-title">Account</h3>
+        <button id="btn-profile" class="panel-row">Edit profile</button>
         <div class="panel-row panel-row--toggle">
           <span>Public profile</span>
           <label class="toggle">
@@ -201,6 +202,13 @@
           <span>Skip paywalled sites</span>
           <label class="toggle">
             <input type="checkbox" id="toggle-paywall" />
+            <span class="toggle-track"></span>
+          </label>
+        </div>
+        <div class="panel-row panel-row--toggle">
+          <span>Desktop notifications</span>
+          <label class="toggle">
+            <input type="checkbox" id="toggle-desktop-notifications" />
             <span class="toggle-track"></span>
           </label>
         </div>
@@ -226,7 +234,7 @@
       <section class="panel-section">
         <h3 class="panel-section-title">Open in web app</h3>
         <button id="btn-web-leaderboard" class="panel-row">Leaderboard ↗</button>
-        <button id="btn-web-following"   class="panel-row">Following & activity ↗</button>
+        <button id="btn-community"       class="panel-row">Community</button>
         <button id="btn-web-settings"    class="panel-row">Settings ↗</button>
       </section>
 
@@ -331,6 +339,92 @@
       <p id="badges-empty" class="badges-empty" hidden>No badges yet.</p>
       <p id="badges-error" class="badges-error" hidden></p>
       <button id="btn-web-badges" class="btn-secondary">Open full gallery ↗</button>
+    </div>
+  </div>
+
+  <!-- ── Profile state ──────────────────────────────────────────────────── -->
+  <div id="state-profile" class="state" hidden>
+    <div class="profile-body">
+      <div class="profile-header">
+        <button id="btn-back-profile" class="btn-back">← Back</button>
+        <p class="profile-title">You</p>
+      </div>
+      <p id="profile-summary" class="profile-summary"></p>
+
+      <div class="profile-field">
+        <label class="panel-label" for="input-username">Username</label>
+        <input id="input-username" type="text" class="form-input" placeholder="pick_a_username" maxlength="20" />
+        <button id="btn-claim-username-submit" class="btn-primary" hidden>Claim username</button>
+      </div>
+
+      <button id="btn-view-public-profile" class="panel-row" hidden>View public profile ↗</button>
+
+      <div class="profile-field">
+        <label class="panel-label" for="input-display-name">Display name</label>
+        <input id="input-display-name" type="text" class="form-input" maxlength="40" placeholder="Optional" />
+      </div>
+
+      <div class="profile-field">
+        <label class="panel-label" for="input-bio">Bio</label>
+        <textarea id="input-bio" class="feedback-textarea" rows="3" maxlength="200" placeholder="What do you roam for?"></textarea>
+        <p class="feedback-count"><span id="bio-chars">0</span> / 200</p>
+      </div>
+
+      <div class="panel-section">
+        <h3 class="panel-section-title">Security</h3>
+        <div id="profile-security" hidden>
+          <div class="profile-field">
+            <label class="panel-label" for="input-current-password">Current password</label>
+            <input id="input-current-password" type="password" class="form-input" autocomplete="current-password" />
+          </div>
+          <div class="profile-field">
+            <label class="panel-label" for="input-new-password">New password</label>
+            <input id="input-new-password" type="password" class="form-input" autocomplete="new-password" />
+          </div>
+          <div class="profile-field">
+            <label class="panel-label" for="input-confirm-password">Confirm new password</label>
+            <input id="input-confirm-password" type="password" class="form-input" autocomplete="new-password" />
+          </div>
+          <button id="btn-change-password" class="btn-primary">Update password</button>
+          <p id="password-error" class="auth-error" hidden></p>
+          <p id="password-success" class="profile-success" hidden>Password updated.</p>
+        </div>
+        <p id="profile-security-note" class="profile-note" hidden>You sign in with Google, so the password lives with Google.</p>
+      </div>
+
+      <button id="btn-web-account" class="btn-secondary">Data export & account deletion ↗</button>
+
+      <p id="profile-error" class="auth-error" hidden></p>
+      <p id="profile-success" class="profile-success" hidden>Saved.</p>
+      <button id="btn-save-profile" class="btn-primary">Save profile</button>
+    </div>
+  </div>
+
+  <!-- ── Community state ────────────────────────────────────────────────── -->
+  <div id="state-community" class="state" hidden>
+    <div class="community-body">
+      <div class="community-header">
+        <button id="btn-back-community" class="btn-back">← Back</button>
+        <p class="community-title">Community</p>
+      </div>
+      <div class="community-tabs">
+        <button id="tab-activity" class="auth-tab auth-tab--active">Activity</button>
+        <button id="tab-people" class="auth-tab">People</button>
+      </div>
+      <div id="community-activity">
+        <div id="activity-list" class="community-list"></div>
+        <p id="activity-empty" class="community-empty" hidden>No activity yet — follow people to see what they find.</p>
+      </div>
+      <div id="community-people" hidden>
+        <p class="community-subhead">Followers</p>
+        <div id="followers-list" class="community-list"></div>
+        <p id="followers-empty" class="community-empty" hidden>No followers yet.</p>
+        <p class="community-subhead">Following</p>
+        <div id="following-list" class="community-list"></div>
+        <p id="following-empty" class="community-empty" hidden>You aren't following anyone yet.</p>
+        <button id="btn-find-people" class="btn-secondary">Find people ↗</button>
+      </div>
+      <p id="community-error" class="community-error" hidden></p>
     </div>
   </div>
 

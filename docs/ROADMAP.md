@@ -2319,29 +2319,30 @@ These tasks are derived from the comprehensive codebase audit conducted 2026-05-
 
 ## Extension Parity Follow-Up (2026-11-07 audit) {#extension-parity-follow-up}
 
-The popup-level defects and the dead message surface from the extension audit are fixed (collections
-management, discovery mode, multi-language filtering, persisted translate, actionable notifications,
-gamification counters, signed-out saved pages). The items below need new permissions, new UI surfaces,
-or a product decision, and remain open.
+Popup-level defects, the dead message surface, notifications, the social graph, profile editing and
+password change have shipped. Two items remain: the parts of EXT.5 that belong on the web, and the
+last stage of the service-worker split.
 
-- [ ] **EXT.1** XP, level and streak moments in the extension
-  - **Severity:** MEDIUM — gamification ships on web and Android; the popup only shows counters
-  - **Details:** React to `evaluate-badges` / `game-action` output, celebrate badge unlocks and level-ups after a rating or submission, and show level progress beside the stats row
-  - **Files:** `extension/src/background/background.ts`, `extension/src/popup/popup.ts`
+- [x] **EXT.1** XP, level and streak moments in the extension
+  - Delivered as a desktop notification for `badge_unlocked` / `level_up` / `challenge_complete`, plus a toast on the next popup open for an unlock that landed in the last 15 minutes. The popup closes immediately after a rating, so an in-popup celebration at rating time is not possible.
+  - **Files:** `extension/src/lib/notifications.ts`, `extension/src/background/notify.ts`, `extension/src/popup/popup.ts`
 
-- [ ] **EXT.2** Desktop notifications for follows, shares, badge unlocks and challenges
-  - **Severity:** MEDIUM — notifications are only visible while the popup is open
-  - **Details:** MV3 extensions cannot receive Web Push. Requires `notifications` + `alarms` permissions (with a new row in the `extension/RULES.md` permissions table, per rule E.4), a `chrome.alarms` poll of `GET_UNREAD_COUNT`, and `chrome.notifications.create`
-  - **Files:** `extension/manifest.json`, `extension/manifest.firefox.json`, `extension/src/background/background.ts`, `extension/RULES.md`
+- [x] **EXT.2** Desktop notifications for follows, shares, badge unlocks and challenges
+  - `alarms` + `notifications` permissions added to both manifests and documented in the `extension/RULES.md` permissions table (rule E.4). The poll is a 5-minute alarm created on install/start-up and when the toggle is enabled, so waking the service worker never pushes the next fire back.
+  - **Files:** `extension/manifest.json`, `extension/manifest.firefox.json`, `extension/src/background/notify.ts`, `extension/RULES.md`
 
-- [ ] **EXT.3** Social graph inside the popup (follow, followers/following, activity feed)
-  - **Severity:** MEDIUM — currently a link-out to `/following`; the `follow` and `activity-feed` Edge Functions already exist
-  - **Files:** `extension/src/lib/messages.ts`, `extension/src/background/background.ts`, `extension/src/popup/popup.ts`
+- [x] **EXT.3** Social graph inside the popup
+  - Community screen with the activity feed (`activity-feed`) and follower/following lists; unfollow from the list. Follow calls the `follow` function so social XP and badge evaluation still run.
+  - **Files:** `extension/src/background/social.ts`, `extension/src/lib/social.ts`, `extension/src/popup/popup.ts`
 
-- [ ] **EXT.4** Profile editing and public profile view
-  - **Severity:** LOW — username, display name, bio and avatar are read-only in the popup while web and Android edit them
-  - **Files:** `extension/src/background/background.ts`, `extension/src/popup/popup.ts`
+- [x] **EXT.4** Profile editing and public profile view
+  - You screen: one-time username claim, editable display name and bio, level/XP/streak summary, and a link to the public profile.
+  - **Files:** `extension/src/background/profile.ts`, `extension/src/lib/validate.ts`
 
-- [ ] **EXT.5** Account lifecycle (password change, data export, account deletion)
-  - **Severity:** LOW — the popup deep-links to `/settings`; decide whether the extension should own any of this
-  - **Files:** `extension/src/popup/popup.ts`
+- [ ] **EXT.5** Account lifecycle — password change shipped; export and deletion stay on the web
+  - Password change is in the You screen and re-authenticates before rotating the password. Data export needs an authenticated file download (a `downloads` permission or a hosted page) and account deletion is irreversible, so both remain behind the web settings Danger Zone, linked from the screen.
+  - **Files:** `extension/src/background/account.ts`
+
+- [ ] **EXT.6** Finish the service-worker split (rule E.3)
+  - Collections, notifications and preferences handlers now live in `background/handlers/`, and URL normalisation in `lib/url.ts`; `background.ts` is ~1,100 lines. The auth flow, the prefetch/discovery core, and the interests/saved/profile-stats handlers still need modules of their own.
+  - **Files:** `extension/src/background/background.ts`

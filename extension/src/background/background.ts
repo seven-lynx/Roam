@@ -6,10 +6,18 @@
 
 import { Sentry } from '../lib/sentry';
 import { validateEnvironment } from '../lib/env';
-import type { Request, Response, StateData, RoamData, CheckUrlData, Collection, CategoryItem, ProfileData, SubcategoryItem, SavedUrlItem, ChallengeData, BadgeData, UserSettingsData, ProfileStatsData, NotificationItem, LocalSavedUrl } from '../lib/messages';
+import type { Request, Response, StateData, RoamData, CheckUrlData, CategoryItem, ProfileData, SubcategoryItem, SavedUrlItem, ChallengeData, BadgeData, ProfileStatsData, LocalSavedUrl } from '../lib/messages';
 import { getSupabase, clearAuthStorage } from '../lib/supabase';
-import { FALLBACK_CATEGORIES, DEFAULT_LANGUAGE } from '../lib/constants';
+import { FALLBACK_CATEGORIES } from '../lib/constants';
 import { addLocalSaved, normaliseLocalSaved, removeLocalSaved } from '../lib/local-saved';
+import { getDomain, normalizeUrl } from '../lib/url';
+import { getCollections, createCollection, addUrlToCollection, deleteCollection, renameCollection, updateCollectionPublic } from './handlers/collections';
+import { getUserSettings, setPaywallPref, setLanguagePref, setDiscoveryMode, setAutoTranslate, maybeTranslate } from './handlers/preferences';
+import { getNotifications, getUnreadNotificationCount, markNotificationsRead, deleteNotification, markNotificationRead, clearNotifications } from './handlers/notifications';
+import { NOTIFY_ALARM, handleNotificationClick, pollNotifications, registerNotificationAlarm, setDesktopNotifications } from './notify';
+import { followUser, unfollowUser, getFollowers, getFollowing, getActivityFeed } from './social';
+import { getMyProfile, setProfileFields, claimUsername } from './profile';
+import { changePassword } from './account';
 
 declare const __SUPABASE_URL__: string;
 
@@ -39,47 +47,6 @@ const MIN_PREFETCH_INTERVAL = 30 * 1000; // 30 seconds between prefetches
 // Focus mode context — tracked so fillPrefetch() can fill with filtered URLs
 // when the user has a category or subcategory filter active.
 let focusContext: { categoryId?: string; subcategoryId?: string } | null = null;
-
-// ── URL normaliser ────────────────────────────────────────────────────────────
-//
-// NOTE: This is the browser-extension copy of the URL normalisation logic.
-// The canonical Deno version lives at:
-//   supabase/functions/_shared/normalise.ts
-// The Node.js (seeder) version is at:
-//   scripts/lib/seed.js (see its header comment for cross-ref)
-//
-// ALL THREE COPIES MUST BE KEPT IN SYNC when adding new tracking params or
-// normalisation rules. The extension cannot import the Deno module (it runs in
-// a browser service worker), so this stand-alone implementation is intentional.
-//
-function normalizeUrl(raw: string): string | null {
-  try {
-    const u = new URL(raw);
-    if (!['http:', 'https:'].includes(u.protocol)) return null;
-    u.protocol = 'https:';
-    u.hostname = u.hostname.toLowerCase();
-    if (u.hostname.startsWith('www.')) u.hostname = u.hostname.slice(4);
-    // Canonical tracking-param strip list — keep in sync with:
-    // - Android: MainViewModel.normalizeUrl() (trackingKeys set)
-    // - Web: web/src/lib/constants.ts (TRACKING_PARAMS export)
-    const STRIP = ['utm_source','utm_medium','utm_campaign','utm_term','utm_content','utm_id','fbclid','gclid','ref','source','mc_cid','mc_eid'];
-    STRIP.forEach((p) => u.searchParams.delete(p));
-    u.hash = '';
-    if (u.pathname !== '/' && u.pathname.endsWith('/')) u.pathname = u.pathname.slice(0, -1);
-    return u.toString();
-  } catch { return null; }
-}
-
-function getDomain(url: string): string | null {
-  try {
-    const u = new URL(url);
-    let domain = u.hostname.toLowerCase();
-    if (domain.startsWith('www.')) domain = domain.slice(4);
-    const parts = domain.split('.');
-    if (parts.length >= 3) return parts.slice(-2).join('.');
-    return domain;
-  } catch { return null; }
-}
 
 // ── Retry helper ──────────────────────────────────────────────────────────────
 async function withRetry<T>(fn: () => Promise<T>, maxAttempts = 3, baseDelay = 500): Promise<T> {
@@ -307,12 +274,27 @@ self.addEventListener('error', (event) => {
 // Restore persistent prefetch on SW startup so the first roam() call after a
 // browser restart hits cache instead of waiting for a cold network round-trip.
 restorePersistentPrefetch().finally(() => prefetchNext());
-chrome.runtime.onStartup.addListener(() => { prefetchNext(); });
-chrome.runtime.onInstalled.addListener(() => { prefetchNext(); });
+chrome.runtime.onStartup.addListener(() => { prefetchNext(); registerNotificationAlarm(); });
+chrome.runtime.onInstalled.addListener(() => { prefetchNext(); registerNotificationAlarm(); });
 chrome.runtime.onConnect.addListener((_port) => {
   prefetchNext();
   flushPendingRatings(); // flush ratings whenever popup opens
 });
+
+// Desktop notifications are alarm-driven (rule E.2: no background loops).
+// The alarm is created on install/start-up and when the toggle is turned on —
+// never at module scope, because re-creating it resets the next fire time and
+// would starve the poll.
+if (chrome.alarms?.onAlarm) {
+  chrome.alarms.onAlarm.addListener((alarm) => {
+    if (alarm.name === NOTIFY_ALARM) void pollNotifications();
+  });
+}
+if (chrome.notifications?.onClicked) {
+  chrome.notifications.onClicked.addListener((desktopId) => {
+    void handleNotificationClick(desktopId);
+  });
+}
 
 // Keyboard shortcut: Roam without opening popup (Chrome only — Firefox doesn't expose chrome.commands)
 if (chrome.commands) {
@@ -386,14 +368,24 @@ async function _dispatch(req: Request): Promise<Response> {
     case 'RENAME_COLLECTION':     return renameCollection(req.collectionId, req.name);
     case 'UPDATE_COLLECTION_PUBLIC': return updateCollectionPublic(req.collectionId, req.isPublic);
     case 'GET_PROFILE':           return getProfile();
+    case 'GET_MY_PROFILE':        return getMyProfile();
+    case 'SET_PROFILE_FIELDS':    return setProfileFields(req.displayName, req.bio);
+    case 'CLAIM_USERNAME':        return claimUsername(req.username);
+    case 'CHANGE_PASSWORD':       return changePassword(req.currentPassword, req.newPassword);
     case 'GET_PROFILE_STATS':     return getProfileStats();
     case 'SEND_FEEDBACK':         return sendFeedback(req.message, req.email, req.platform);
     case 'REPORT_URL':            return reportUrl(req.url_id);
     case 'GET_SUBCATEGORIES_FOR_CATEGORY': return getSubcategories(req.categoryId);
     case 'SET_PROFILE_PUBLIC':    return setProfilePublic(req.isPublic);
+    case 'SET_DESKTOP_NOTIFICATIONS': return setDesktopNotifications(req.enabled);
     case 'GET_PROFILE_PUBLIC':    return getProfilePublic();
     case 'SHARE_URL_WITH_USER':   return shareUrlWithUser(req.url, req.recipientId);
     case 'GET_SHARE_RECIPIENTS':  return getShareRecipients(req.search);
+    case 'FOLLOW_USER':           return followUser(req.userId);
+    case 'UNFOLLOW_USER':         return unfollowUser(req.userId);
+    case 'GET_FOLLOWERS':         return getFollowers();
+    case 'GET_FOLLOWING':         return getFollowing();
+    case 'GET_ACTIVITY_FEED':     return getActivityFeed(req.limit);
     case 'REPORT_ENGAGEMENT':     return reportEngagement(req.url_id, req.dwell_ms, req.skipped);
     case 'GET_NOTIFICATIONS':     return getNotifications();
     case 'GET_UNREAD_COUNT':      return getUnreadNotificationCount();
@@ -423,10 +415,10 @@ async function getState(): Promise<Response<StateData>> {
       return { ok: true, data: { signedIn: false } };
     }
     if (!refreshed.session) return { ok: true, data: { signedIn: false } };
-    return { ok: true, data: { signedIn: true, email: refreshed.session.user.email, userId: refreshed.session.user.id } };
+    return { ok: true, data: { signedIn: true, email: refreshed.session.user.email, userId: refreshed.session.user.id, provider: refreshed.session.user.app_metadata?.provider ?? 'email' } };
   }
 
-  return { ok: true, data: { signedIn: true, email: session.user.email, userId: session.user.id } };
+  return { ok: true, data: { signedIn: true, email: session.user.email, userId: session.user.id, provider: session.user.app_metadata?.provider ?? 'email' } };
 }
 
 async function signInWithOAuth(provider: 'google'): Promise<Response<StateData>> {
@@ -532,7 +524,7 @@ function parseAuthRedirect(url: string): { accessToken?: string; refreshToken?: 
 async function signInWithEmail(email: string, password: string): Promise<Response<StateData>> {
   const { data, error } = await getSupabase().auth.signInWithPassword({ email, password });
   if (error) return { ok: false, error: error.message };
-  return { ok: true, data: { signedIn: true, email: data.user?.email, userId: data.user?.id } };
+  return { ok: true, data: { signedIn: true, email: data.user?.email, userId: data.user?.id, provider: data.user?.app_metadata?.provider ?? 'email' } };
 }
 
 async function signUpWithEmail(email: string, password: string): Promise<Response<{ needsVerification: boolean }>> {
@@ -889,149 +881,6 @@ async function removeSavedUrl(savedUrlId: string): Promise<Response<null>> {
   return { ok: true, data: null };
 }
 
-// ── Preferences ───────────────────────────────────────────────────────────────
-/** Server-side discovery preferences — used to hydrate the popup's controls. */
-async function getUserSettings(): Promise<Response<UserSettingsData>> {
-  const defaults: UserSettingsData = {
-    skip_paywalled: false,
-    discovery_mode: 'discovery',
-    preferred_languages: [DEFAULT_LANGUAGE],
-  };
-  const session = (await getSupabase().auth.getSession()).data.session;
-  if (!session) return { ok: true, data: defaults };
-  const { data, error } = await getSupabase()
-    .from('user_settings')
-    .select('skip_paywalled, discovery_mode, preferred_languages')
-    .eq('user_id', session.user.id)
-    .maybeSingle();
-  if (error) return { ok: true, data: defaults };
-  const row = data as { skip_paywalled?: boolean; discovery_mode?: string; preferred_languages?: string[] } | null;
-  if (!row) return { ok: true, data: defaults };
-  return {
-    ok: true,
-    data: {
-      skip_paywalled: row.skip_paywalled ?? false,
-      discovery_mode: row.discovery_mode === 'deep_dive' ? 'deep_dive' : 'discovery',
-      preferred_languages:
-        row.preferred_languages && row.preferred_languages.length > 0
-          ? row.preferred_languages
-          : [DEFAULT_LANGUAGE],
-    },
-  };
-}
-
-async function setPaywallPref(skip: boolean): Promise<Response<null>> {
-  const session = (await getSupabase().auth.getSession()).data.session;
-  if (!session) return { ok: false, error: "You're not signed in. Please sign in and try again." };
-  await chrome.storage.local.set({ skip_paywalled: skip });
-  const { error } = await getSupabase().from('user_settings').upsert({ user_id: session.user.id, skip_paywalled: skip }, { onConflict: 'user_id' });
-  if (error) console.warn('[roam] setPaywallPref DB error:', error.message);
-  return { ok: true, data: null };
-}
-
-async function setLanguagePref(languages: string[]): Promise<Response<null>> {
-  const session = (await getSupabase().auth.getSession()).data.session;
-  if (!session) return { ok: false, error: "You're not signed in. Please sign in and try again." };
-  // English is always included — matches the web language filter.
-  const langs = Array.from(new Set([...languages.filter(Boolean), DEFAULT_LANGUAGE]));
-  await chrome.storage.local.set({ preferred_languages: langs });
-  const { error } = await getSupabase().from('user_settings').upsert({ user_id: session.user.id, preferred_languages: langs }, { onConflict: 'user_id' });
-  if (error) console.warn('[roam] setLanguagePref DB error:', error.message);
-  return { ok: true, data: null };
-}
-
-async function setDiscoveryMode(mode: 'discovery' | 'deep_dive'): Promise<Response<null>> {
-  const session = (await getSupabase().auth.getSession()).data.session;
-  if (!session) return { ok: false, error: "You're not signed in. Please sign in and try again." };
-  await chrome.storage.local.set({ discovery_mode: mode });
-  const { error } = await getSupabase().from('user_settings').upsert({ user_id: session.user.id, discovery_mode: mode }, { onConflict: 'user_id' });
-  if (error) console.warn('[roam] setDiscoveryMode DB error:', error.message);
-  return { ok: true, data: null };
-}
-
-async function setAutoTranslate(enabled: boolean): Promise<Response<null>> {
-  // Persisted (not session) — matches Android's auto-translate setting.
-  await chrome.storage.local.set({ auto_translate: enabled });
-  return { ok: true, data: null };
-}
-
-// ── Translate URL helper ──────────────────────────────────────────────────────
-async function maybeTranslate(url: string): Promise<string> {
-  const local = await chrome.storage.local.get(['auto_translate', 'translate_language']);
-  if (!local.auto_translate) return url;
-  const targetLang = (local.translate_language as string) || DEFAULT_LANGUAGE;
-  return `https://translate.google.com/translate?sl=auto&tl=${targetLang}&u=${encodeURIComponent(url)}`;
-}
-
-// ── Collections ───────────────────────────────────────────────────────────────
-async function getCollections(): Promise<Response<Collection[]>> {
-  const session = (await getSupabase().auth.getSession()).data.session;
-  if (!session) return { ok: false, error: "You're not signed in. Please sign in and try again." };
-  const { data, error } = await getSupabase().from('collections').select('id,name,slug,is_public,item_count:collection_items(count)').eq('user_id', session.user.id).order('name');
-  if (error) return { ok: false, error: error.message };
-  type CollectionRow = { id: string; name: string; slug: string; is_public: boolean; item_count?: { count: number }[] | null };
-  const collections = ((data ?? []) as CollectionRow[]).map((c) => ({ id: c.id, name: c.name, slug: c.slug, is_public: c.is_public, item_count: c.item_count?.[0]?.count ?? 0 }));
-  return { ok: true, data: collections };
-}
-
-async function createCollection(name: string): Promise<Response<Collection>> {
-  const session = (await getSupabase().auth.getSession()).data.session;
-  if (!session) return { ok: false, error: "You're not signed in. Please sign in and try again." };
-  const { data, error } = await getSupabase().functions.invoke('collection', {
-    body: { action: 'create', name },
-  });
-  if (error) return { ok: false, error: error.message };
-  if (data?.error) return { ok: false, error: data.error };
-  if (!data?.id) return { ok: false, error: "Couldn't create collection." };
-  return { ok: true, data: { id: data.id, name: data.name, slug: data.slug, is_public: data.is_public, item_count: 0 } };
-}
-
-async function addUrlToCollection(url: string, collectionId: string): Promise<Response<null>> {
-  const normalized = normalizeUrl(url);
-  if (!normalized) return { ok: false, error: "That doesn't look like a valid URL." };
-  const { data: urlData, error: urlError } = await getSupabase().from('urls').select('id').eq('url', normalized).eq('approved', true).maybeSingle();
-  if (urlError) return { ok: false, error: "Couldn't add to collection. Please try again." };
-  let urlId = urlData?.id;
-  if (!urlId) {
-    const { data: newUrl, error: createError } = await getSupabase().from('urls').insert({ url: normalized, original_url: normalized, approved: false, source: 'user_submission' }).select('id').single();
-    if (createError) return { ok: false, error: "Couldn't add to collection. Please try again." };
-    urlId = newUrl.id;
-  }
-  const { data, error: addError } = await getSupabase().functions.invoke('collection', {
-    body: { action: 'add_item', collection_id: collectionId, url_id: urlId },
-  });
-  if (addError) return { ok: false, error: addError.message };
-  if (data?.error) {
-    if (data.error.includes('already in collection')) return { ok: true, data: null };
-    return { ok: false, error: data.error };
-  }
-  return { ok: true, data: null };
-}
-
-async function deleteCollection(collectionId: string): Promise<Response<null>> {
-  const session = (await getSupabase().auth.getSession()).data.session;
-  if (!session) return { ok: false, error: 'Not signed in.' };
-  const { error } = await getSupabase().from('collections').delete().eq('id', collectionId).eq('user_id', session.user.id);
-  if (error) return { ok: false, error: error.message };
-  return { ok: true, data: null };
-}
-
-async function renameCollection(collectionId: string, name: string): Promise<Response<null>> {
-  const session = (await getSupabase().auth.getSession()).data.session;
-  if (!session) return { ok: false, error: 'Not signed in.' };
-  const { error } = await getSupabase().from('collections').update({ name }).eq('id', collectionId).eq('user_id', session.user.id);
-  if (error) return { ok: false, error: error.message };
-  return { ok: true, data: null };
-}
-
-async function updateCollectionPublic(collectionId: string, isPublic: boolean): Promise<Response<null>> {
-  const session = (await getSupabase().auth.getSession()).data.session;
-  if (!session) return { ok: false, error: 'Not signed in.' };
-  const { error } = await getSupabase().from('collections').update({ is_public: isPublic }).eq('id', collectionId).eq('user_id', session.user.id);
-  if (error) return { ok: false, error: error.message };
-  return { ok: true, data: null };
-}
-
 // ── Subcategories ─────────────────────────────────────────────────────────────
 async function getSubcategories(categoryId: string): Promise<Response<SubcategoryItem[]>> {
   const { data, error } = await getSupabase()
@@ -1211,79 +1060,6 @@ async function getShareRecipients(search?: string): Promise<Response<ShareRecipi
   if (error) return { ok: false, error: error.message };
   if (data?.error) return { ok: false, error: data.error };
   return { ok: true, data: (data?.recipients ?? []) as ShareRecipient[] };
-}
-
-// ── Notifications ─────────────────────────────────────────────────────────────
-async function getNotifications(): Promise<Response<NotificationItem[]>> {
-  const session = (await getSupabase().auth.getSession()).data.session;
-  if (!session) return { ok: false, error: 'Not signed in.' };
-  const { data, error } = await getSupabase()
-    .from('notifications')
-    .select('*')
-    .eq('user_id', session.user.id)
-    .order('created_at', { ascending: false })
-    .limit(30);
-  if (error) return { ok: false, error: error.message };
-  return { ok: true, data: (data ?? []) as NotificationItem[] };
-}
-
-async function getUnreadNotificationCount(): Promise<Response<number>> {
-  const session = (await getSupabase().auth.getSession()).data.session;
-  if (!session) return { ok: true, data: 0 };
-  const { count, error } = await getSupabase()
-    .from('notifications')
-    .select('*', { count: 'exact', head: true })
-    .eq('user_id', session.user.id)
-    .eq('read', false);
-  if (error) return { ok: true, data: 0 };
-  return { ok: true, data: count ?? 0 };
-}
-
-async function markNotificationsRead(): Promise<Response<null>> {
-  const session = (await getSupabase().auth.getSession()).data.session;
-  if (!session) return { ok: false, error: 'Not signed in.' };
-  const { error } = await getSupabase()
-    .from('notifications')
-    .update({ read: true })
-    .eq('user_id', session.user.id)
-    .eq('read', false);
-  if (error) return { ok: false, error: error.message };
-  return { ok: true, data: null };
-}
-
-async function deleteNotification(notificationId: string): Promise<Response<null>> {
-  const session = (await getSupabase().auth.getSession()).data.session;
-  if (!session) return { ok: false, error: 'Not signed in.' };
-  const { error } = await getSupabase()
-    .from('notifications')
-    .delete()
-    .eq('id', notificationId)
-    .eq('user_id', session.user.id);
-  if (error) return { ok: false, error: error.message };
-  return { ok: true, data: null };
-}
-
-async function markNotificationRead(notificationId: string): Promise<Response<null>> {
-  const session = (await getSupabase().auth.getSession()).data.session;
-  if (!session) return { ok: false, error: 'Not signed in.' };
-  const { error } = await getSupabase()
-    .from('notifications')
-    .update({ read: true })
-    .eq('id', notificationId)
-    .eq('user_id', session.user.id);
-  if (error) return { ok: false, error: error.message };
-  return { ok: true, data: null };
-}
-
-async function clearNotifications(): Promise<Response<null>> {
-  const session = (await getSupabase().auth.getSession()).data.session;
-  if (!session) return { ok: false, error: 'Not signed in.' };
-  const { error } = await getSupabase()
-    .from('notifications')
-    .delete()
-    .eq('user_id', session.user.id);
-  if (error) return { ok: false, error: error.message };
-  return { ok: true, data: null };
 }
 
 // ── Badges ────────────────────────────────────────────────────────────────────

@@ -37,6 +37,11 @@ export type Request =
   | { type: 'SET_PROFILE_PUBLIC'; isPublic: boolean }
   | { type: 'SHARE_URL_WITH_USER'; url: string; recipientId: string }
   | { type: 'GET_SHARE_RECIPIENTS'; search?: string }
+  | { type: 'FOLLOW_USER'; userId: string }
+  | { type: 'UNFOLLOW_USER'; userId: string }
+  | { type: 'GET_FOLLOWERS' }
+  | { type: 'GET_FOLLOWING' }
+  | { type: 'GET_ACTIVITY_FEED'; limit?: number }
   | { type: 'GET_PROFILE_PUBLIC' }
   | { type: 'REPORT_ENGAGEMENT'; url_id: string; dwell_ms: number; skipped: boolean }
   | { type: 'GET_NOTIFICATIONS' }
@@ -53,6 +58,11 @@ export type Request =
   | { type: 'RENAME_COLLECTION'; collectionId: string; name: string }
   | { type: 'UPDATE_COLLECTION_PUBLIC'; collectionId: string; isPublic: boolean }
   | { type: 'GET_PROFILE_STATS' }
+  | { type: 'GET_MY_PROFILE' }
+  | { type: 'SET_PROFILE_FIELDS'; displayName: string; bio: string }
+  | { type: 'CLAIM_USERNAME'; username: string }
+  | { type: 'CHANGE_PASSWORD'; currentPassword: string; newPassword: string }
+  | { type: 'SET_DESKTOP_NOTIFICATIONS'; enabled: boolean }
   | { type: 'GET_SUBCATEGORIES_FOR_CATEGORY'; categoryId: string };
 
 export type Response<T = unknown> =
@@ -63,6 +73,8 @@ export interface StateData {
   signedIn: boolean;
   email?: string;
   userId?: string;
+  /** Auth provider reported by Supabase ('email', 'google', …). */
+  provider?: string;
 }
 
 export interface RoamData {
@@ -102,6 +114,19 @@ export interface ProfileStatsData {
   max_streak: number;
 }
 
+export interface MyProfileData {
+  username: string | null;
+  display_name: string | null;
+  bio: string | null;
+  avatar_url: string | null;
+  is_public: boolean;
+  level: number;
+  xp_total: number;
+  streak_days: number;
+  roamed: number;
+  submitted: number;
+}
+
 export interface NotificationItem {
   id: string;
   type: string;
@@ -135,6 +160,25 @@ export interface Collection {
   slug: string;
   is_public: boolean;
   item_count: number;
+}
+
+export interface FollowUser {
+  id: string;
+  username: string;
+  display_name: string | null;
+  avatar_url: string | null;
+}
+
+export interface ActivityItem {
+  id: string;
+  username: string;
+  display_name: string | null;
+  activity_type: string;
+  subject_title: string | null;
+  subject_url: string | null;
+  badge_name: string | null;
+  collection_slug: string | null;
+  created_at: string;
 }
 
 export interface SavedUrlItem {
