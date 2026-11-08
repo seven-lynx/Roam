@@ -8,6 +8,18 @@ import { FALLBACK_CATEGORIES, LANGUAGES, DEFAULT_LANGUAGE, ENGAGEMENT_MAX_DWELL_
 import { notificationLink, notificationText, recentCelebration } from '../lib/notifications';
 import { activityLink, activityText, relativeTime } from '../lib/social';
 import { validatePassword } from '../lib/validate';
+import {
+  applyTheme,
+  resolveFx,
+  resolveTheme,
+  DEFAULT_UI_FX,
+  DEFAULT_UI_THEME,
+  FLICKER_KEY,
+  FX_KEY,
+  STATIC_KEY,
+  THEME_KEY,
+} from '../lib/ui-theme';
+import type { UiFx, UiTheme } from '../lib/ui-theme';
 
 // ── Global error capture ───────────────────────────────────────────────────
 window.addEventListener('unhandledrejection', (event) => {
@@ -34,6 +46,26 @@ type AppState = 'signedout' | 'auth' | 'email-auth' | 'categories' | 'error' | '
 
 const ALL_STATES: AppState[] = ['signedout', 'auth', 'email-auth', 'categories', 'error', 'noresults', 'main', 'feedback', 'saved', 'notifications', 'history', 'challenges', 'badges', 'collections', 'community', 'profile'];
 
+// ROAM-OS status-bar labels — short and upper-case, the way the OS shell reads.
+const STATE_TITLES: Record<AppState, string> = {
+  signedout: 'NO SESSION',
+  auth: 'SIGN IN',
+  'email-auth': 'SIGN IN',
+  categories: 'CATEGORIES',
+  error: 'SIGNAL LOST',
+  noresults: 'END OF LINE',
+  main: 'DISCOVER',
+  feedback: 'FEEDBACK',
+  saved: 'SAVED',
+  notifications: 'NOTIFICATIONS',
+  history: 'HISTORY',
+  challenges: 'CHALLENGES',
+  badges: 'BADGES',
+  collections: 'COLLECTIONS',
+  community: 'COMMUNITY',
+  profile: 'YOU',
+};
+
 // Report engagement on the previous URL before requesting the next Roam.
 async function reportCurrentEngagement(): Promise<void> {
   try {
@@ -54,6 +86,64 @@ function showState(name: AppState) {
   for (const s of ALL_STATES) {
     el(`state-${s}`).hidden = s !== name;
   }
+  // The OS bar names the screen you're on, as the web shell does.
+  const title = document.getElementById('os-title');
+  if (title) title.textContent = STATE_TITLES[name];
+}
+
+// ── Appearance (ROAM-OS theme + CRT layers) ───────────────────────────────────
+// Popup-only. The overlay in popup.html is the only place these effects paint —
+// nothing here reaches the page the user is browsing.
+let uiTheme: UiTheme = DEFAULT_UI_THEME;
+let uiFx: UiFx = DEFAULT_UI_FX;
+
+function paintAppearance(): void {
+  applyTheme(uiTheme, uiFx, document.documentElement);
+  el<HTMLInputElement>('toggle-roam-os').checked = uiTheme === 'roam_os';
+  el<HTMLInputElement>('toggle-crt').checked = uiFx.effects;
+  el<HTMLInputElement>('toggle-crt-static').checked = uiFx.crtStatic;
+  el<HTMLInputElement>('toggle-crt-flicker').checked = uiFx.flicker;
+  // The animated layers hang off the master switch: dim and disable them rather
+  // than letting them sit in a state that paints nothing.
+  const masterOff = !uiFx.effects;
+  for (const id of ['toggle-crt-static', 'toggle-crt-flicker']) {
+    el<HTMLInputElement>(id).disabled = masterOff;
+    el(id).closest('.panel-row')?.classList.toggle('panel-row--muted', masterOff);
+  }
+}
+
+async function initAppearance(): Promise<void> {
+  try {
+    // popup.html already ships data-theme="roam-os", so this read can only
+    // downgrade to Classic — the one case that repaints after first paint.
+    const stored = await chrome.storage.local.get([THEME_KEY, FX_KEY, STATIC_KEY, FLICKER_KEY]);
+    uiTheme = resolveTheme(stored[THEME_KEY]);
+    uiFx = resolveFx(stored);
+  } catch { /* keep the defaults */ }
+  paintAppearance();
+
+  el('toggle-roam-os').addEventListener('change', () => {
+    uiTheme = el<HTMLInputElement>('toggle-roam-os').checked ? 'roam_os' : 'classic';
+    paintAppearance();
+    void chrome.storage.local.set({ [THEME_KEY]: uiTheme });
+  });
+  el('toggle-crt').addEventListener('change', () => {
+    uiFx = { ...uiFx, effects: el<HTMLInputElement>('toggle-crt').checked };
+    paintAppearance();
+    void chrome.storage.local.set({ [FX_KEY]: uiFx.effects });
+  });
+  el('toggle-crt-static').addEventListener('change', () => {
+    uiFx = { ...uiFx, crtStatic: el<HTMLInputElement>('toggle-crt-static').checked };
+    paintAppearance();
+    void chrome.storage.local.set({ [STATIC_KEY]: uiFx.crtStatic });
+  });
+  el('toggle-crt-flicker').addEventListener('change', () => {
+    uiFx = { ...uiFx, flicker: el<HTMLInputElement>('toggle-crt-flicker').checked };
+    paintAppearance();
+    void chrome.storage.local.set({ [FLICKER_KEY]: uiFx.flicker });
+  });
+
+  el('btn-os-close').addEventListener('click', () => window.close());
 }
 
 function flashButton(id: string, type: 'up' | 'down'): Promise<void> {
@@ -391,6 +481,7 @@ async function boot() {
 document.addEventListener('DOMContentLoaded', () => {
   try { chrome.runtime.connect({ name: 'popup-keepalive' }); } catch { /* ignore */ }
 
+  initAppearance();
   boot();
 
   // ── Sign in button ───────────────────────────────────────────────────────────

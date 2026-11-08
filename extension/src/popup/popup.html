@@ -1,12 +1,24 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="roam-os" data-fx="on" data-static="off" data-flicker="off">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Roam</title>
+  <link rel="stylesheet" href="theme.css" />
   <link rel="stylesheet" href="popup.css" />
 </head>
 <body>
+
+  <!-- ── ROAM-OS status bar ─────────────────────────────────────────── -->
+  <header class="os-bar">
+    <span class="os-led" aria-hidden="true"></span>
+    <span class="os-brand">ROAM-OS</span>
+    <span class="os-sep" aria-hidden="true">│</span>
+    <span id="os-title" class="os-title">DISCOVER</span>
+    <span class="os-spacer"></span>
+    <button id="btn-os-close" type="button" class="os-key os-key--close" title="Close" aria-label="Close">✕</button>
+  </header>
+
 
   <!-- ── Signed-out state ───────────────────────────────────────────── -->
   <div id="state-signedout" class="state" hidden>
@@ -239,7 +251,40 @@
       </section>
 
       <section class="panel-section">
-        <h3 class="panel-section-title">Account</h3>
+        <h3 class="panel-section-title">Display</h3>
+        <div class="panel-row panel-row--toggle">
+          <span>ROAM-OS theme</span>
+          <label class="toggle">
+            <input type="checkbox" id="toggle-roam-os" />
+            <span class="toggle-track"></span>
+          </label>
+        </div>
+        <div class="panel-row panel-row--toggle">
+          <span>CRT effects</span>
+          <label class="toggle">
+            <input type="checkbox" id="toggle-crt" />
+            <span class="toggle-track"></span>
+          </label>
+        </div>
+        <div class="panel-row panel-row--toggle">
+          <span>CRT static</span>
+          <label class="toggle">
+            <input type="checkbox" id="toggle-crt-static" />
+            <span class="toggle-track"></span>
+          </label>
+        </div>
+        <div class="panel-row panel-row--toggle">
+          <span>CRT flicker</span>
+          <label class="toggle">
+            <input type="checkbox" id="toggle-crt-flicker" />
+            <span class="toggle-track"></span>
+          </label>
+        </div>
+        <p class="panel-hint">Effects stay inside this popup — never on the page you're browsing.</p>
+      </section>
+
+      <section class="panel-section">
+        <h3 class="panel-section-title">Session</h3>
         <button id="btn-signout"        class="panel-row panel-row--danger">Sign out</button>
       </section>
 
@@ -440,6 +485,15 @@
       <p id="collections-error" class="collections-error" hidden></p>
       <button id="btn-web-collections" class="btn-secondary">Open in web app ↗</button>
     </div>
+  </div>
+
+  <!-- Popup-only CRT layers. Never mounted on callback.html or any host page. -->
+  <div class="crt" aria-hidden="true">
+    <span class="crt-scanlines"></span>
+    <span class="crt-grain"></span>
+    <span class="crt-vignette"></span>
+    <span class="crt-static"></span>
+    <span class="crt-flicker"></span>
   </div>
 
   <script src="popup.js"></script>

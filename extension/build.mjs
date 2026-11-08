@@ -51,12 +51,18 @@ function copyStatics() {
   copyFileSync(resolve(__dirname, manifestSrc),               resolve(outdir, 'manifest.json'));
   copyFileSync(resolve(__dirname, 'src/popup/popup.html'),     resolve(outdir, 'popup.html'));
   copyFileSync(resolve(__dirname, 'src/popup/popup.css'),      resolve(outdir, 'popup.css'));
+  copyFileSync(resolve(__dirname, 'src/theme.css'),            resolve(outdir, 'theme.css'));
   copyFileSync(resolve(__dirname, 'src/callback/callback.html'), resolve(outdir, 'callback.html'));
   for (const size of [16, 32, 48, 128]) {
     copyFileSync(
       resolve(__dirname, `icons/icon-${size}.png`),
       resolve(outdir, `icon-${size}.png`)
     );
+  }
+  // Bundled ROAM-OS faces, copied flat so theme.css can reference them by bare
+  // filename and createZip()'s flat-file sweep picks them up unchanged.
+  for (const font of ['space-grotesk.ttf', 'ibm-plex-mono-regular.ttf', 'ibm-plex-mono-medium.ttf']) {
+    copyFileSync(resolve(__dirname, `fonts/${font}`), resolve(outdir, font));
   }
 }
 
