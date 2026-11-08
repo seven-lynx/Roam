@@ -206,5 +206,18 @@ sentry {
 
     autoUploadProguardMapping.set(hasSentryInfo)
     includeProguardMapping.set(true)
-    uploadNativeSymbols.set(false)
+    // Native debug symbols are what make a SIGSEGV symbolicate in Sentry instead of
+    // arriving as `synthetic: true` / `in_frame_mix: system-only`. Java/Kotlin
+    // crashes only need the R8 mapping above, but anything sentry-native catches
+    // needs these files, and the plugin ships them nowhere by default (issue #94).
+    //
+    // `debugSymbolLevel = "FULL"` (:68) does not cover this — it only fills the
+    // native-symbol zip inside the Play AAB, so Play gets symbols and Sentry does not.
+    //
+    // Gated on `hasSentryInfo` for the same reason as the mapping upload: with no
+    // token/org/project the task would have nothing to authenticate with, so the
+    // build stays a no-op instead of failing. There is no Android CI, so this only
+    // takes effect for a local release build whose `local.properties` (or env)
+    // carries all three — CI never provides them.
+    uploadNativeSymbols.set(hasSentryInfo)
 }

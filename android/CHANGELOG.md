@@ -2,6 +2,11 @@
 
 All notable changes to the Roam Android app.
 
+## [Unreleased]
+
+### Fixed
+- Native crashes now symbolicate in Sentry. `uploadNativeSymbols` was hard-coded off, so the crash handler ran and reported (the SDK's `mechanism.type` was `signalhandler`) but Sentry never received the native symbol files and could only store a frame-less `synthetic` / `system-only` event — `ROAM-ANDROID-15`, a `SIGSEGV` in 1.6.0, named no library, symbol or path and had to be closed as `needs-data`. The flag is now tied to the same `hasSentryInfo` gate as the R8 mapping upload, so a build that carries `SENTRY_AUTH_TOKEN`, `SENTRY_ORG` and `SENTRY_PROJECT` uploads symbols and a build without them stays a no-op instead of failing. `debugSymbolLevel = "FULL"` never covered this: it only fills the native-symbol zip inside the Play AAB, so Play got symbols and Sentry did not. Existing events are not reprocessed — symbolication starts with the next locally built release (issue #94).
+
 ## [1.6.0] - 2026-11-07
 
 ### Added
