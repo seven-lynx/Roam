@@ -244,13 +244,13 @@ export function ProfileClient({ userId, email, profile, allCategories, allSubcat
               <div className="flex items-center gap-3 mt-4">
                 <Link
                   href={`/u/${profile.username}`}
-                  className="text-xs text-muted hover:text-ink hover:text-s => s >= 800 ? 'ink' : 'muted' transition-colors"
+                  className="text-xs text-muted hover:text-ink transition-colors"
                 >
                   View public profile ↗
                 </Link>
                 <button
                   onClick={copyProfileLink}
-                  className="text-xs text-muted hover:text-ink hover:text-s => s >= 800 ? 'ink' : 'muted' transition-colors"
+                  className="text-xs text-muted hover:text-ink transition-colors"
                 >
                   Copy link 🔗
                 </button>
@@ -262,7 +262,7 @@ export function ProfileClient({ userId, email, profile, allCategories, allSubcat
           <div className="flex items-center gap-2 shrink-0">
             <Link
               href="/settings"
-              className="rounded-lg border border-line px-4 py-2 text-sm font-medium text-muted hover:bg-panel-2 hover:bg-panel-2 transition-colors"
+              className="rounded-lg border border-line px-4 py-2 text-sm font-medium text-muted hover:bg-panel-2 transition-colors"
             >
               Settings
             </Link>
@@ -306,7 +306,7 @@ export function ProfileClient({ userId, email, profile, allCategories, allSubcat
               </h2>
               <Link
                 href="/badges"
-                className="text-xs text-muted hover:text-ink hover:text-s => s >= 800 ? 'ink' : 'muted' transition-colors"
+                className="text-xs text-muted hover:text-ink transition-colors"
               >
                 View all badges →
               </Link>
@@ -347,7 +347,7 @@ export function ProfileClient({ userId, email, profile, allCategories, allSubcat
                   onClick={togglePrivacy}
                   disabled={privacyLoading}
                   className={`shrink-0 relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                    isPublic ? 'bg-panel bg-panel' : 'bg-panel-3 bg-panel-3'
+                    isPublic ? 'bg-ok' : 'bg-panel-3'
                   } disabled:opacity-50`}
                   aria-label={isPublic ? 'Make profile private' : 'Make profile public'}
                 >
@@ -396,7 +396,7 @@ export function ProfileClient({ userId, email, profile, allCategories, allSubcat
                     <button
                       onClick={saveBio}
                       disabled={bioLoading}
-                      className="text-sm bg-panel bg-panel text-ink text-ink px-4 py-1.5 rounded-lg font-medium hover:opacity-90 disabled:opacity-50 transition-opacity"
+                      className="text-sm bg-accent text-ink px-4 py-1.5 rounded-lg font-medium hover:opacity-90 disabled:opacity-50 transition-opacity"
                     >
                       {bioLoading ? 'Saving…' : 'Save'}
                     </button>
@@ -429,7 +429,7 @@ export function ProfileClient({ userId, email, profile, allCategories, allSubcat
                 <button
                   onClick={saveInterests}
                   disabled={interestsSaving}
-                  className="text-sm bg-panel bg-panel text-ink text-ink px-5 py-2 rounded-lg font-medium hover:opacity-90 disabled:opacity-50 transition-opacity"
+                  className="text-sm bg-accent text-ink px-5 py-2 rounded-lg font-medium hover:opacity-90 disabled:opacity-50 transition-opacity"
                 >
                   {interestsSaving ? 'Saving…' : 'Save interests'}
                 </button>
