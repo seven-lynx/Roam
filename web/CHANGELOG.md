@@ -2,6 +2,11 @@
 
 All notable changes to the Roam web platform.
 
+## [2026-11-08] — A stale refresh token is not an auth failure
+### Fixed
+- A returning visitor whose refresh token Supabase had already rotated no longer files an error: the middleware read `refresh_token_not_found` as a genuine auth failure, reported it, and left the dead cookie in place so every later request paid for a refresh that could never succeed. The stale cookie is expired on the way out now, and the same goes for `refresh_token_already_used`, `session_not_found` and `session_expired`.
+- An error logged without an `Error` object now carries its tags and context into the event. `captureMessage` was called with a bare level, so the error code, status and reason stayed behind in a console breadcrumb — where scrubbing reduced them to `[Filtered]`, which is why the reported event named neither the cause nor the visitor's state.
+
 ## [2026-11-07] — Auth errors only when auth actually fails
 ### Fixed
 - A logged-out visit no longer files an error: the request middleware read the "no session" answer from Supabase auth as a failure and reported it, so every anonymous page view produced one error event. Only a genuine auth failure is reported now, and the report carries the error name, code and status — the log sanitizer used to drop all three before the event left the process.
