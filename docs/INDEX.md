@@ -17,7 +17,7 @@ This index is the entry point to the repository documentation. Start with the qu
 - [VISUAL-RECORDING.md](VISUAL-RECORDING.md) — automated screenshot + video capture.
 - [DOCS.md](DOCS.md) — documentation conventions and contribution guidelines.
 
-**Last Updated:** 2026-11-07
+**Last Updated:** 2026-11-08
 
 ## Reference docs
 
@@ -41,6 +41,8 @@ This index is the entry point to the repository documentation. Start with the qu
 - [Web app](../web/README.md) — Next.js route map and UI spec.
 - [Android app](../android/README.md) — Kotlin + Compose native app reference.
 - [Browser extension](../extension/README.md) — Chrome + Firefox MV3 build and design.
+- [Extension testing](../extension/TESTING.md) — manual QA flows (Chrome-first).
+- [Firefox testing](../extension/TESTING-FIREFOX.md) — Firefox build, install, debug, and sign-off checklist.
 
 ## Governance & operations
 

@@ -1,6 +1,8 @@
 # Roam Extension Testing Guide
 
-Complete guide for testing the Roam browser extension during development. Covers setup, manual testing flows, and debugging.
+Complete guide for testing the Roam browser extension during development. Covers setup, manual testing flows, and debugging. For the Firefox build, the Firefox-only behaviours, and the checks Chrome cannot cover, use [TESTING-FIREFOX.md](TESTING-FIREFOX.md).
+
+**Last Updated:** 2026-11-08
 
 ---
 
@@ -10,11 +12,12 @@ Complete guide for testing the Roam browser extension during development. Covers
 
 ```bash
 cd extension
-npm install
-npm run build
+pnpm install
+pnpm build              # Chrome  → extension/dist/
+pnpm build -- --firefox # Firefox → extension/dist-firefox/
 ```
 
-This creates `extension/dist/` with the compiled popup and background service worker.
+This creates the dist folder with the compiled popup, background bundle, and callback page. The build reads `SUPABASE_URL` and `SUPABASE_ANON_KEY` from the **repo-root** `.env` and fails fast if either is missing.
 
 ### 2. Load in Chrome
 
@@ -26,8 +29,9 @@ This creates `extension/dist/` with the compiled popup and background service wo
 
 ### 3. Load in Firefox
 
-> **Build Firefox dist first:** `cd extension && node build.mjs --firefox`
+> **Build Firefox dist first:** `pnpm build -- --firefox` (from `extension/`).
 > This creates `extension/dist-firefox/` with the Firefox manifest.
+> Full Firefox procedure: [TESTING-FIREFOX.md](TESTING-FIREFOX.md).
 
 1. Open `about:debugging#/runtime/this-firefox`
 2. Click **Load Temporary Add-on…**
@@ -35,36 +39,46 @@ This creates `extension/dist/` with the compiled popup and background service wo
 4. Note the **Internal UUID** — shown in the extension's details under "Internal UUID"
    (looks like `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx`)
 
-> **Note:** When loaded temporarily, Firefox assigns a random UUID each session.
-> For a stable UUID (needed for a registered Supabase redirect URL), use a **signed** extension via Firefox AMO. After signing, the UUID stabilises and can be pre-registered.
+> **Note:** Temporary add-ons are removed when Firefox restarts; click **Reload** after each rebuild.
+> The add-on ID is fixed (`roam@roamtheweb.app`, `manifest.firefox.json:9`), so the identity used by
+> `chrome.runtime.getURL()` is stable across reloads in the same profile.
 
 ### 4. Configure Supabase redirect URLs
 
-Add both redirect URLs to Supabase:
+The OAuth flow finishes **inside the extension**. `signInWithOAuth()` passes
+`redirectTo: chrome.runtime.getURL('callback.html')` (`background.ts`), the authorize URL
+opens in one new tab, and Supabase redirects back to that extension page. `callback.ts`
+hands the PKCE code to the service worker, then lands the tab on
+`https://roamtheweb.app/profile`.
 
-1. Go to **Supabase → Authentication → URL Configuration → Redirect URLs**
-2. Add the **Chrome** redirect URL:
-   ```
-   chrome-extension://<EXTENSION_ID>/callback.html
-   ```
-   Replace `<EXTENSION_ID>` with the ID from step 2 (e.g. `chrome-extension://abcdefghijklmnopqrstuvwxyzabcdef/callback.html`)
-3. Add the **Firefox** redirect URL:
-   ```
-   moz-extension://<FIREFOX_INTERNAL_UUID>/callback.html
-   ```
-   Replace `<FIREFOX_INTERNAL_UUID>` with the UUID from step 3
-4. Save both entries
+That extension URL must be trusted by Supabase. If it is not, Supabase falls back to the
+site URL, the code never reaches the extension, and sign-in silently does nothing:
 
-> **Tip:** If the callback page shows "No authorization code found", it will display the exact URL it expects — copy that URL and add it to Supabase.
+1. Go to **Supabase > Authentication > URL Configuration > Redirect URLs**
+2. Add the build's own callback URL:
+   Chrome `chrome-extension://<EXTENSION_ID>/callback.html` (ID from step 2),
+   Firefox `moz-extension://<FIREFOX_INTERNAL_UUID>/callback.html`
+   (UUID from step 3 - per-install for temporary add-ons)
+3. Keep `https://roamtheweb.app/auth/callback` - the web app and the email-verification
+   link (`signUpWithEmail`) still use it
+
+> **Tip:** If the callback page shows "No authorization code found", it displays the exact
+> URL it expects - copy that URL into Supabase.
+>
+> **Extension ID:** an unpacked Chrome build derives its ID from the folder path, so moving
+> the folder invalidates the allowlist entry. Re-read the ID from `chrome://extensions`.
 
 ### 5. Set environment variables
 
 Create a `.env` file at the **repo root** (not inside `extension/`):
 
 ```
-SUPABASE_URL=https://yrhckctwtdjowulfuaqc.supabase.co
+SUPABASE_URL=https://<your-project>.supabase.co
 SUPABASE_ANON_KEY=<your_anon_key>
 ```
+
+`SENTRY_DSN` is optional; Firefox builds stub Sentry out entirely, so no Sentry token is needed.
+
 
 ---
 
@@ -100,7 +114,7 @@ Right-click the popup → **Inspect** opens a separate DevTools for popup code.
 
 **Precondition:** Not signed in (popup shows sign-in button)
 
-> **Firefox note:** Ensure `moz-extension://<UUID>/callback.html` is added to Supabase Redirect URLs (see Setup → Step 4). The UUID shown in `about:debugging` is per-session for temporary add-ons; use a signed AMO build for a stable UUID.
+> **Firefox note:** the flow redirects to `https://roamtheweb.app/auth/callback` (see Setup → Step 4) and, on Firefox, normally completes through the tab fallback rather than `launchWebAuthFlow`. Check [TESTING-FIREFOX.md](TESTING-FIREFOX.md) §6 F1 and §7 X2 for the console sequence to expect.
 
 **Steps:**
 
@@ -434,13 +448,16 @@ Use this checklist to verify all features work together:
 
 ## Next Steps
 
-After all Chrome tests pass, repeat in Firefox:
+Once the Chrome flows pass, run the Firefox suite: [TESTING-FIREFOX.md](TESTING-FIREFOX.md).
+It covers the Firefox build and install paths, the Firefox-only behaviours (event page
+lifecycle, OAuth path selection, HEAD reachability, no keyboard command, stubbed Sentry),
+the flow-by-flow expectations, and the sign-off checklist.
 
-1. Build Firefox dist: `node build.mjs --firefox`
-2. Load `dist-firefox/manifest.json` as a Temporary Add-on in `about:debugging`
-3. Note the Internal UUID and add `moz-extension://<UUID>/callback.html` to Supabase Redirect URLs
-4. Repeat all flows above — behavior is identical to Chrome
-5. Test on multiple Google/GitHub accounts
-6. Test with multiple collections and URLs
-7. Stress test: rapid Roam clicks (should navigate to different URLs each time)
-8. Long-running test: leave extension running 30+ minutes, open popup and verify prefetch still works
+Additional cross-browser stress passes worth doing on both builds:
+
+1. Test on multiple Google accounts (including one that has never used Roam)
+2. Test with multiple collections and URLs
+3. Stress test: rapid Roam clicks (each click should navigate somewhere new)
+4. Long-running test: leave the extension idle 30+ minutes, then open the popup and verify
+   Roam still resolves
+
