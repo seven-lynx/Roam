@@ -77,7 +77,7 @@ SUPABASE_URL=https://<your-project>.supabase.co
 SUPABASE_ANON_KEY=<your_anon_key>
 ```
 
-`SENTRY_DSN` is optional; Firefox builds stub Sentry out entirely, so no Sentry token is needed.
+`SENTRY_DSN` is optional; Firefox builds stub Sentry out entirely, so no Sentry token is needed. Chrome builds do report, but only from a real extension context — opening `dist/popup.html` straight from the filesystem reports nothing (issue #75), so read the DevTools console for that.
 
 
 ---

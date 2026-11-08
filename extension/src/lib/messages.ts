@@ -1,6 +1,7 @@
 // messages.ts — Type-safe message protocol between popup and background SW
 
 import { Sentry } from './sentry';
+import { isExtensionContext } from './extension-context';
 
 export type Request =
   | { type: 'GET_STATE' }
@@ -242,6 +243,15 @@ export interface BadgeData {
  *  Retries once if the SW was just woken from sleep, and captures any
  *  Chrome runtime errors (e.g. "Service worker response timeout") to Sentry. */
 export async function sendToBackground<T = unknown>(req: Request): Promise<Response<T>> {
+  // Without an extension runtime there is no background worker to reach at all, so a
+  // retry cannot help and capturing the ReferenceError would only file the phantom
+  // issue described in #75. Report it plainly and leave the popup on its error state.
+  if (!isExtensionContext()) {
+    return {
+      ok: false,
+      error: 'Roam is not running as an installed extension.',
+    } as Response<T>;
+  }
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
       if (attempt > 0) {
