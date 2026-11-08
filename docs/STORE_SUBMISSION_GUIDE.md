@@ -284,6 +284,11 @@ npm run build:firefox
    - Provide justification for each:
      - "tabs" — needed to submit current tab URL
      - "activeTab" — access current page context
+     - "storage" — keep the sign-in session and the prefetch queue locally
+     - "identity" — Google sign-in through the browser's OAuth window
+     - "alarms" — schedule the 5-minute notification check (no background loop)
+     - "notifications" — show the user's own follows, shares, badge and challenge activity as a desktop notification; nothing is shown unless the user turns the toggle on
+     - "host_permissions: https://*.supabase.co/*" — the app's API
 
 5. **Abuse & Licensing:**
    - License: Mozilla Public License (MPL-2.0)

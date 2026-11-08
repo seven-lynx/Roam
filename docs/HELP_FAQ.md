@@ -131,6 +131,10 @@ Danger Zone (data export & account deletion).
   list loads.
 - Badges, challenges, level, XP and day streak, with notifications that open the
   same page the web app would.
+- Desktop notifications (opt-in) for follows, shares and unlocks, plus a
+  Community tab with your activity feed, followers and following.
+- Profile editing: claim a username, set a display name and bio, and change your
+  password on email accounts.
 - Discovery settings: focus mode, deep-dive mode, paywalled-site skipping,
   multi-language filtering, and optional page translation.
 - Published: Chrome Web Store and Firefox AMO.
