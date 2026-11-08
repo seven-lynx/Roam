@@ -38,6 +38,8 @@ const URL_HISTORY_KEY = 'extension_url_history';
 const MAX_HISTORY_ENTRIES = 100;
 const LOCAL_SAVED_KEY = 'saved_urls';
 const SAVED_URLS_LIMIT = 200; // server-side list cap (web/Android show the full set)
+const AUTH_FLOW_KEY = 'auth_flow';      // { tabId, windowId, startedAt } of the open sign-in tab
+const AUTH_FLOW_TTL = 5 * 60 * 1000;    // a stale marker never blocks a fresh sign-in
 
 // Deduplicates concurrent prefetch calls within a single SW activation.
 let prefetchInFlight: Promise<void> | null = null;
@@ -421,103 +423,82 @@ async function getState(): Promise<Response<StateData>> {
   return { ok: true, data: { signedIn: true, email: session.user.email, userId: session.user.id, provider: session.user.app_metadata?.provider ?? 'email' } };
 }
 
-async function signInWithOAuth(provider: 'google'): Promise<Response<StateData>> {
-  // Try launchWebAuthFlow first (popup, no tab needed). Falls back to
-  // tab + callback.html if identity API is unavailable or fails.
-  console.log('[roam] signInWithOAuth: starting flow for', provider);
+// ── OAuth (Google) ─────────────────────────────────────────────────────────
+//
+// Tab-based flow, no identity window. The Supabase authorize URL opens in ONE new
+// tab and Supabase redirects back to this extension's own callback.html, which
+// hands the PKCE code to the SW. The web app's /auth/callback must NOT be used as
+// redirectTo - that exchange runs against the website's cookie session, so the
+// extension never receives a session and the user is just left looking at the site.
 
+interface AuthFlowState {
+  tabId: number;
+  windowId: number;
+  startedAt: number;
+}
+
+/** The sign-in tab already open for this browser profile, if any. */
+async function getPendingAuthFlow(): Promise<AuthFlowState | null> {
+  const stored = await chrome.storage.session.get(AUTH_FLOW_KEY);
+  const flow = stored[AUTH_FLOW_KEY] as AuthFlowState | undefined;
+  if (!flow || Date.now() - flow.startedAt >= AUTH_FLOW_TTL) return null;
+  return flow;
+}
+
+// Deduplicates concurrent requests inside one SW activation: sendToBackground()
+// retries once when the SW is slow to wake, and a double click sends two messages.
+// Either would otherwise open two sign-in tabs.
+let authLaunchInFlight: Promise<Response<StateData>> | null = null;
+
+function signInWithOAuth(provider: 'google'): Promise<Response<StateData>> {
+  const existing = authLaunchInFlight;
+  if (existing) return existing;
+  const launch = launchOAuthTab(provider).finally(() => { authLaunchInFlight = null; });
+  authLaunchInFlight = launch;
+  return launch;
+}
+
+async function launchOAuthTab(provider: 'google'): Promise<Response<StateData>> {
   try {
-    // Use the stable web app callback URL instead of the ephemeral extension
-    // origin. Firefox "Load Temporary Add-on" generates a random UUID per install,
-    // making the extension origin impossible to whitelist in Supabase's Redirect
-    // URLs. The web app's /auth/callback is already trusted by Supabase and works
-    // with launchWebAuthFlow regardless of origin (it captures any final URL).
-    const redirectTo = 'https://roamtheweb.app/auth/callback';
-    console.log('[roam] signInWithOAuth: using redirectTo =', redirectTo);
+    // A sign-in tab is still open (second click, popup reopened mid-flow, retry):
+    // focus it instead of opening another one.
+    const pending = await getPendingAuthFlow();
+    if (pending) {
+      try {
+        await chrome.tabs.update(pending.tabId, { active: true });
+        await chrome.windows.update(pending.windowId, { focused: true }).catch(() => {});
+        return { ok: true, data: { signedIn: false } };
+      } catch {
+        await chrome.storage.session.remove(AUTH_FLOW_KEY); // that tab is gone
+      }
+    }
 
+    // Extension-origin redirect so the code lands back inside the extension, where
+    // callback.ts can send EXCHANGE_CODE to this SW. Requires
+    // chrome-extension://<ID>/callback.html in Supabase: Authentication >
+    // URL Configuration > Redirect URLs (see extension/TESTING.md section 4).
+    const redirectTo = chrome.runtime.getURL('callback.html');
     const { data, error } = await getSupabase().auth.signInWithOAuth({
       provider,
       options: { redirectTo, skipBrowserRedirect: true },
     });
     if (error || !data.url) {
-      console.error('[roam] signInWithOAuth: supabase error', error);
       Sentry.captureException(error || new Error('signInWithOAuth returned no URL'), { tags: { context: `signInWith_${provider}` } });
       return { ok: false, error: 'Could not open the sign-in page. Please try again.' };
     }
-    console.log('[roam] signInWithOAuth: got OAuth URL, length =', data.url.length);
 
-    // Path 1: launchWebAuthFlow (Chrome identity API or Firefox identity)
-    if (chrome.identity?.launchWebAuthFlow) {
-      console.log('[roam] signInWithOAuth: trying launchWebAuthFlow');
-      try {
-        // 120s timeout — launcWebAuthFlow can hang indefinitely if the user
-        // closes the auth window or the redirect is rejected server-side.
-        const resultUrl = await Promise.race([
-          chrome.identity.launchWebAuthFlow({
-            url: data.url,
-            interactive: true,
-          }),
-          new Promise<string>((_, reject) =>
-            setTimeout(() => reject(new Error('Auth flow timed out')), 120_000),
-          ),
-        ]);
-        console.log('[roam] signInWithOAuth: launchWebAuthFlow returned', resultUrl ? 'URL' : 'null');
-
-        if (resultUrl) {
-          const parsed = parseAuthRedirect(resultUrl);
-          console.log('[roam] signInWithOAuth: parsed redirect — accessToken:', !!parsed.accessToken, 'refreshToken:', !!parsed.refreshToken, 'code:', !!parsed.code);
-
-          if (parsed.accessToken && parsed.refreshToken) {
-            const { error: sessionErr } = await getSupabase().auth.setSession({
-              access_token: parsed.accessToken,
-              refresh_token: parsed.refreshToken,
-            });
-            if (sessionErr) {
-              console.error('[roam] signInWithOAuth: setSession error', sessionErr);
-              Sentry.captureException(sessionErr, { tags: { context: `signInWith_${provider}` } });
-              return { ok: false, error: sessionErr.message };
-            }
-            const session = (await getSupabase().auth.getSession()).data.session;
-            console.log('[roam] signInWithOAuth: success via launchWebAuthFlow, email =', session?.user.email);
-            return { ok: true, data: { signedIn: true, email: session?.user.email, userId: session?.user.id } };
-          }
-
-          if (parsed.code) {
-            console.log('[roam] signInWithOAuth: got code, exchanging');
-            return exchangeCode(parsed.code);
-          }
-
-          console.warn('[roam] signInWithOAuth: launchWebAuthFlow returned URL but no tokens');
-        }
-      } catch (flowErr) {
-        console.warn('[roam] signInWithOAuth: launchWebAuthFlow error, falling back to tab', flowErr);
-      }
+    const tab = await chrome.tabs.create({ url: data.url, active: true });
+    if (typeof tab.id === 'number') {
+      const flow: AuthFlowState = { tabId: tab.id, windowId: tab.windowId, startedAt: Date.now() };
+      await chrome.storage.session.set({ [AUTH_FLOW_KEY]: flow });
     }
 
-    // Path 2: fallback — open tab + wait for callback.html to save the session
-    console.log('[roam] signInWithOAuth: falling back to tab + callback');
-    await chrome.tabs.create({ url: data.url });
-    return { ok: true, data: { signedIn: false } }; // popup will poll for session
+    // callback.html takes over from here; the popup closes and reads GET_STATE on
+    // its next open.
+    return { ok: true, data: { signedIn: false } };
   } catch (err) {
-    console.error('[roam] signInWithOAuth: unexpected error', err);
     Sentry.captureException(err, { tags: { context: `signInWith_${provider}` } });
     return { ok: false, error: 'Could not open the sign-in page. Please try again.' };
-  }
-}
-
-/** Extracts access_token, refresh_token, or code from a redirect URL. */
-function parseAuthRedirect(url: string): { accessToken?: string; refreshToken?: string; code?: string } {
-  try {
-    const u = new URL(url);
-    const hash = u.hash.slice(1);
-    const hashParams = new URLSearchParams(hash);
-    return {
-      accessToken: hashParams.get('access_token') || u.searchParams.get('access_token') || undefined,
-      refreshToken: hashParams.get('refresh_token') || u.searchParams.get('refresh_token') || undefined,
-      code: u.searchParams.get('code') || hashParams.get('code') || undefined,
-    };
-  } catch {
-    return {};
   }
 }
 

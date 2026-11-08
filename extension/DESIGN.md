@@ -1,7 +1,7 @@
 # Roam Extension — Technical Design
 
 **Version:** 2.0 (rebuild)  
-**Last updated:** 2026-06-02  
+**Last updated:** 2026-11-08  
 **Scope:** Chrome MV3 + Firefox MV3 (shared codebase, two manifests)
 
 ---
@@ -52,11 +52,32 @@ Session storage is the right home for the prefetch cache. If the browser restart
 
 ### 2.4 Firefox differences
 
-Firefox implements MV3 with some gaps:
-- `chrome.storage.session` is supported from Firefox 115.
-- `background.scripts` array in the manifest is required in addition to `service_worker` for Firefox compatibility; the build handles this.
-- `identity` permission (used for Chrome's `chrome.identity` API) is not available in Firefox. The extension uses Supabase OAuth redirects instead of `chrome.identity`, so this is not a blocker — but `identity` must be absent from `manifest.firefox.json`.
-- The `browser_specific_settings.gecko` block in `manifest.firefox.json` specifies `strict_min_version: "140.0"` and the extension ID `roam@roamtheweb.app`.
+Firefox ships the same codebase from `manifest.firefox.json`; the build swaps the manifest and
+targets `firefox121` (`build.mjs:50-51,134`). The differences that matter:
+
+- **Background context.** Firefox only supports `background.scripts` (an event page), never
+  `background.service_worker`, so the Firefox manifest declares `"scripts": ["background.js"]` with
+  `"type": "module"`. An event page is not terminated on Chrome's ~30 s timer, but it must still be
+  event-driven — no long-lived loops.
+- **`chrome.storage.session`** is supported (Firefox 115+; this manifest requires 140), so the
+  prefetch cache keeps the same semantics as Chrome, and the mirror in `storage.local` still
+  restores the queue after a browser restart.
+- **OAuth is a plain tab, not an identity window.** Neither manifest requests `identity`:
+  `signInWithOAuth()` opens the authorize URL with `chrome.tabs.create` and
+  `redirectTo: chrome.runtime.getURL('callback.html')` (`background.ts:480`), so Firefox lands back
+  on `moz-extension://<uuid>/callback.html` and `callback.ts` hands the code to the SW (rule E.5).
+  A temporary install is assigned a new UUID each time it is loaded, so that exact callback URL has
+  to be in Supabase's Redirect URLs before the flow will complete.
+- **No `commands` key.** Firefox does not expose `chrome.commands` to this build, so the
+  `Ctrl+Shift+R` shortcut exists only in Chrome and the listener is guarded
+  (`background.ts:314-315`).
+- **Sentry is stubbed out.** `build.mjs` replaces `src/lib/sentry.ts` with a no-op so the
+  `@sentry/browser` bundle (and the `innerHTML` usage AMO reviewers flag) never ships. Firefox
+  builds report nothing; the console is the only diagnostic surface.
+- **`browser_specific_settings.gecko`** pins the add-on ID `roam@roamtheweb.app`,
+  `strict_min_version: "140.0"`, the `gecko_android` floor of `142.0`, and the
+  `data_collection_permissions` block AMO has required for new submissions since 2025-11-03.
+
 
 ---
 
@@ -66,7 +87,7 @@ Firefox implements MV3 with some gaps:
 extension/
 ├── build.mjs                  ← esbuild pipeline (Chrome + Firefox, watch mode)
 ├── manifest.json              ← Chrome MV3 manifest
-├── manifest.firefox.json      ← Firefox MV3 manifest (adds gecko block, removes identity)
+├── manifest.firefox.json      ← Firefox MV3 manifest (gecko block, background.scripts, no commands, no identity permission)
 ├── package.json
 ├── tsconfig.json
 ├── vitest.config.ts
@@ -186,7 +207,7 @@ When `ROAM_COLLECTION` or `ROAM_CATEGORY` is called, the same `lastRoamDomain` e
 | Message type | Handler | Notes |
 |---|---|---|
 | `GET_STATE` | `getState()` | Returns `{ signedIn, email, userId }` from current session |
-| `SIGN_IN_GOOGLE` | `signInWithOAuth('google')` | Opens callback.html tab; returns `signedIn: false` immediately |
+| `SIGN_IN_GOOGLE` | `signInWithOAuth('google')` | Opens the authorize URL in one new tab (deduped via the `auth_flow` marker); returns `signedIn: false` immediately |
 | `SIGN_IN_GITHUB` | `signInWithOAuth('github')` | Same pattern |
 | `SIGN_IN_EMAIL` | `signInWithEmail()` | Direct password auth |
 | `SIGN_UP_EMAIL` | `signUpWithEmail()` | Returns `needsVerification: bool` |
@@ -247,45 +268,53 @@ A singleton `SupabaseClient` instantiated once per SW activation via the lazy `g
 
 OAuth is the most complex flow because it spans three contexts: the SW, the popup, and a callback tab.
 
-### 6.1 Google / GitHub OAuth sequence
+### 6.1 Google OAuth sequence
 
 ```
-Popup                        SW (background.ts)          callback.html tab
-  │                               │                             │
-  │──SIGN_IN_GOOGLE───────────────▶                             │
-  │                               │ signInWithOAuth('google')   │
-  │                               │ supabase.auth.signInWithOAuth(...)
-  │                               │ → returns {url: 'https://accounts.google.com/...'}
-  │                               │ chrome.tabs.create({ url })──────────────────▶
-  │◀──{ ok:true, signedIn:false }──│                             │
-  │                               │                    [user completes OAuth]
-  │ [polling GET_STATE every 500ms]                             │
-  │                               │                    callback.html loads with:
-  │                               │                    #access_token=...&refresh_token=...
-  │                               │                    OR ?code=...
-  │                               │                             │
-  │                               │◀──SAVE_SESSION / EXCHANGE_CODE
-  │                               │ session stored to chrome.storage.local
-  │                               │──{ ok:true, signedIn:true }──▶
-  │                               │                    tab.close()
-  │ [GET_STATE returns signedIn:true]
-  │ checkAndRouteAfterSignIn()
+Popup                         SW (background.ts)            sign-in tab
+  |                                |                            |
+  |--SIGN_IN_GOOGLE--------------->|                            |
+  |                                | signInWithOAuth('google')  |
+  |                                | auth_flow marker pending?  |
+  |                                |   yes -> focus that tab, return
+  |                                | supabase.auth.signInWithOAuth({ redirectTo: callback.html })
+  |                                | -> { url: 'https://accounts.google.com/...' }
+  |                                | chrome.tabs.create({ url })-------------------->|
+  |                                | record auth_flow { tabId, windowId, startedAt }
+  |<--{ ok: true, signedIn: false }-|                            |
+  | window.close()                 |                   [user completes OAuth]
+  |                                |                   supabase.co redirects to
+  |                                |                   chrome-extension://<id>/callback.html?code=...
+  |                                |<--EXCHANGE_CODE-----------|
+  |                                | session stored in chrome.storage.local
+  |                                |--{ ok: true }------------->|
+  |                                |                   auth_flow cleared, then
+  |                                |                   location.replace('/profile')
 ```
+
+Only one sign-in tab can exist. `signInWithOAuth()` reuses an in-flight promise and the
+`auth_flow` marker (5-minute TTL), so a retry from `sendToBackground`, a double click, or a
+popup reopened mid-flow focuses the tab that is already open instead of launching another.
 
 ### 6.2 callback.ts
 
-`callback.ts` runs in the popup context of `callback.html`. It:
-1. Reads `location.hash` for `access_token` + `refresh_token` (implicit grant; Supabase default for extensions).
-2. Reads `location.search` for `code` (PKCE flow fallback).
-3. Sends `SAVE_SESSION` or `EXCHANGE_CODE` to the SW via `chrome.runtime.sendMessage`.
-4. On success, closes itself with `window.close()` after a 1-second delay.
-5. On error, shows the error message inline (the tab remains open so the user can read it).
+`callback.ts` runs as a tab on `callback.html`. It:
+1. Reads `location.search` for `code` (PKCE) and `location.hash` for `access_token` +
+   `refresh_token` (implicit grant).
+2. Sends `EXCHANGE_CODE` or `SAVE_SESSION` to the SW via `chrome.runtime.sendMessage`.
+3. On success, removes the `auth_flow` marker and navigates the tab to
+   `https://roamtheweb.app/profile`. It never calls `window.close()` - a tab the extension
+   opened cannot close itself.
+4. On error, shows the message inline with a button that closes the tab through
+   `chrome.tabs.remove`.
 
-The 10-second timeout on the `sendMessage` call guards against the SW not responding (e.g. first-ever activation where Chrome needs extra time to start it).
+The 10-second timeout on the `sendMessage` call guards against the SW not responding (e.g.
+first-ever activation where Chrome needs extra time to start it).
 
-### 6.3 Popup polling
+### 6.3 Popup behaviour during OAuth
 
-After initiating OAuth, the popup polls `GET_STATE` every 500ms for up to 5 minutes. When `signedIn` becomes true, it stops polling and calls `checkAndRouteAfterSignIn()`. This is intentionally simple — no `chrome.storage.onChanged` listener, no event bus.
+The popup closes itself (`window.close()`) as soon as the sign-in tab is open. Signed-in
+state is read from `GET_STATE` the next time the popup opens, so there is no polling timer.
 
 ---
 
@@ -453,7 +482,7 @@ pnpm dev            # → node build.mjs --watch
 pnpm build          # → node build.mjs
 
 # Production (Firefox)
-pnpm build:firefox  # → node build.mjs --firefox
+pnpm build -- --firefox  # → node build.mjs --firefox
 ```
 
 ### 9.3 Entry points
@@ -470,7 +499,11 @@ Static files (HTML, CSS, icons, manifest) are copied as-is by `copyStatics()`.
 
 ### 9.4 Source maps & Sentry
 
-Production Chrome builds upload source maps to Sentry via `@sentry/esbuild-plugin` and then delete the `.map` files from `dist/` so they are not included in the store submission zip. Firefox builds skip the upload (Sentry source maps are Chrome-specific in this project's configuration).
+Production Chrome builds upload source maps to Sentry via `@sentry/esbuild-plugin` and then delete the `.map` files from `dist/` so they are not included in the store submission zip.
+
+Firefox builds differ in two ways (`build.mjs:109-128,177-191`): the upload is skipped, and `src/lib/sentry.ts` is replaced at bundle time by a no-op stub (`src/lib/sentry-firefox-stub.ts`), which tree-shakes `@sentry/browser` out entirely. The `.map` files therefore stay in `dist-firefox/` and in `roam-extension-firefox.zip`, and **Firefox builds report nothing to Sentry** — use the console when testing them.
+
+The DSN string itself is still inlined: `env.ts:12` reads `__SENTRY_DSN__` for startup validation, so `background.js` contains it even though no SDK code ships. That is expected, not a leak.
 
 ---
 
@@ -552,7 +585,7 @@ See `TESTING.md` for the full manual QA checklist. Key flows:
 11. **Report link** — click report, confirm text shows, navigates to next URL.
 12. **Feedback** — open form, submit, see success message, auto-return to main.
 13. **Sign out** — click sign out, see signed-out state, reopen shows same.
-14. **Firefox parity** — load `dist-firefox/` in Firefox, repeat flows 1–5.
+14. **Firefox parity** — build with `pnpm build -- --firefox`, load `dist-firefox/manifest.json` as a temporary add-on in `about:debugging`, then run the checklist in `TESTING-FIREFOX.md`.
 
 ---
 
@@ -601,3 +634,4 @@ and `data-flicker` on `<html>` so CSS alone decides. It never mounts on
 and no `web_accessible_resources` entry was added. The gating attributes are
 static in the HTML so the first paint is already correct; the async storage read
 can only ever downgrade to Classic.
+

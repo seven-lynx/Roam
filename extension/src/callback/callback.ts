@@ -1,5 +1,11 @@
-// callback.ts — OAuth callback handler
-// Extracts the session from the redirect URL hash
+// callback.ts - OAuth callback handler
+//
+// Runs as a tab on chrome-extension://<id>/callback.html after Supabase redirects
+// back from Google. It hands the PKCE code (or the implicit-grant tokens) to the
+// service worker, then lands that same tab on the web app's profile page.
+
+const PROFILE_URL = 'https://roamtheweb.app/profile';
+const AUTH_FLOW_KEY = 'auth_flow';
 
 const urlParams = new URLSearchParams(location.hash.slice(1) || location.search.slice(1));
 const accessToken = urlParams.get('access_token');
@@ -10,102 +16,91 @@ const errorMsg = urlParams.get('error_description') || urlParams.get('error');
 const errorDiv = document.getElementById('error')!;
 const closeBtn = document.getElementById('closeBtn')!;
 const spinner = document.getElementById('spinner')!;
+const headingEl = document.getElementById('heading')!;
+const subtitleEl = document.getElementById('subtitle')!;
 
-async function handleCallback() {
+/** One round-trip to the SW; rejects instead of hanging if it never answers. */
+async function askBackground(payload: Record<string, unknown>): Promise<{ ok: boolean; error?: string }> {
+  const timeout = new Promise<never>((_resolve, reject) =>
+    setTimeout(() => reject(new Error('Service worker response timeout')), 10000)
+  );
+  return Promise.race([
+    chrome.runtime.sendMessage(payload),
+    timeout,
+  ]) as Promise<{ ok: boolean; error?: string }>;
+}
+
+/** Clears the pending-flow marker and sends this tab to the web app. */
+async function finishSignIn(): Promise<void> {
+  try {
+    await chrome.storage.session.remove(AUTH_FLOW_KEY);
+  } catch { /* best effort - an expired marker is ignored by signInWithOAuth */ }
+  spinner.style.display = 'none';
+  headingEl.textContent = 'Signed in';
+  subtitleEl.textContent = "You're all set - taking you to your profile.";
+  setTimeout(() => { location.replace(PROFILE_URL); }, 400);
+}
+
+async function handleCallback(): Promise<void> {
   if (errorMsg) {
     showError(errorMsg);
     return;
   }
 
-  // If we have access_token + refresh_token, Supabase sent the session directly
+  // Supabase sent the session directly (implicit grant)
   if (accessToken && refreshToken) {
     try {
-      console.log('[roam-callback] Session received directly from OAuth redirect');
-      const timeoutPromise = new Promise((_resolve, reject) =>
-        setTimeout(() => reject(new Error('Service worker response timeout')), 10000)
-      );
-      const response = (await Promise.race([
-        chrome.runtime.sendMessage({
-          type: 'SAVE_SESSION',
-          accessToken,
-          refreshToken,
-        }),
-        timeoutPromise,
-      ])) as { ok: boolean; error?: string };
-
-      console.log('[roam-callback] Save session response:', response);
+      const response = await askBackground({ type: 'SAVE_SESSION', accessToken, refreshToken });
       if (!response.ok) {
         showError(response.error || 'Unknown error during session save');
-      } else {
-        console.log('[roam-callback] Session saved, closing tab in 1s');
-        notifySignInComplete();
-        spinner.style.display = 'none';
-        setTimeout(() => {
-          window.close();
-        }, 1000);
+        return;
       }
+      await finishSignIn();
     } catch (err) {
       showError((err as Error).message);
     }
     return;
   }
 
-  // Otherwise, try to exchange a code if present
+  // PKCE: exchange the authorization code for a session
   if (code) {
     try {
-      console.log('[roam-callback] Exchanging code for session:', code);
-      const timeoutPromise = new Promise((_resolve, reject) =>
-        setTimeout(() => reject(new Error('Service worker response timeout')), 10000)
-      );
-      const response = (await Promise.race([
-        chrome.runtime.sendMessage({
-          type: 'EXCHANGE_CODE',
-          code,
-        }),
-        timeoutPromise,
-      ])) as { ok: boolean; error?: string };
-
-      console.log('[roam-callback] Exchange response:', response);
+      const response = await askBackground({ type: 'EXCHANGE_CODE', code });
       if (!response.ok) {
         showError(response.error || 'Unknown error during code exchange');
-      } else {
-        console.log('[roam-callback] Session established, closing tab in 1s');
-        notifySignInComplete();
-        spinner.style.display = 'none';
-        setTimeout(() => {
-          window.close();
-        }, 1000);
+        return;
       }
+      await finishSignIn();
     } catch (err) {
       showError((err as Error).message);
     }
     return;
   }
 
-  // No session data or code found
-  showError('No authorization code found. Make sure you added the extension callback URL to Supabase Authentication → URL Configuration. The URL should be: ' + chrome.runtime.getURL('callback.html'));
+  showError(
+    'No authorization code found. Add this URL to Supabase > Authentication > URL Configuration > Redirect URLs: ' +
+    chrome.runtime.getURL('callback.html')
+  );
 }
 
-// Notifies the popup that sign-in is complete using postMessage, so even if
-// window.close() fails (Firefox), the popup can detect the completed auth.
-function notifySignInComplete() {
-  try {
-    if (window.opener && !window.opener.closed) {
-      window.opener.postMessage({ type: 'ROAM_OAUTH_DONE' }, '*');
-    }
-  } catch { /* best effort */ }
-}
-
-function showError(message: string) {
-  console.log('[roam-callback] Error:', message);
+function showError(text: string): void {
   spinner.style.display = 'none';
-  errorDiv.textContent = message;
+  headingEl.textContent = 'Sign-in failed';
+  subtitleEl.textContent = 'The extension could not finish signing you in.';
+  errorDiv.textContent = text;
   errorDiv.classList.add('show');
   closeBtn.classList.add('show');
-
-  closeBtn.addEventListener('click', () => {
-    window.close();
-  });
 }
+
+// A tab opened by the extension cannot close itself with window.close(), so the
+// tab is closed through the tabs API instead.
+closeBtn.addEventListener('click', async () => {
+  const tab = await chrome.tabs.getCurrent();
+  if (tab?.id !== undefined) {
+    await chrome.tabs.remove(tab.id);
+    return;
+  }
+  window.close();
+});
 
 handleCallback();

@@ -40,7 +40,6 @@
   "permissions": [
     "tabs",
     "storage",
-    "identity",
     "alarms",
     "notifications"
   ],

@@ -14,6 +14,8 @@ All notable changes to the Roam browser extension.
 - New Google sign-ups see a "Claim your username" row instead of copying a broken `/u/undefined` profile link.
 - Stale engagement samples (popup closed before the next roam) are dropped rather than reported as long dwells.
 - Removed dead message types and handlers (`GET_USER_CATEGORIES`, `SET_USER_CATEGORIES`, `GET_SUBCATEGORIES`, `SET_DISCOVERY_LANGUAGE`) and the stale `lib/debug.ts`, which described the retired URL-queue architecture. Every remaining request type is reachable from a UI surface.
+- Sign-in opens one new tab instead of an `identity` window followed by a second tab. The OAuth redirect now returns to the extension's own `callback.html` (`chrome-extension://<ID>/callback.html` must be listed in Supabase > Authentication > URL Configuration > Redirect URLs), the launch is deduped so a retry or double click cannot open a second tab, and the callback tab lands on `roamtheweb.app/profile`.
+- Unused `identity` permission removed from both manifests; `tabs`, `storage`, `alarms` and `notifications` are the whole permission set now (rule E.4).
 
 ### Added
 - ROAM-OS theme for the popup — phosphor-teal and gold on abyss, Space Grotesk and IBM Plex Mono bundled, a status bar that names the current screen, and an opt-in CRT overlay. Effects paint inside the popup only: never on the OAuth tab and never on the page being browsed.

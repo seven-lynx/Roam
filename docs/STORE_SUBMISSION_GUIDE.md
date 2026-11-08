@@ -1,6 +1,6 @@
 # Store Submission Guide
 
-**Last Updated:** 2026-11-07
+**Last Updated:** 2026-11-08
 
 ## Overview
 
@@ -23,7 +23,7 @@ This guide provides step-by-step instructions for submitting Roam to app and ext
 
 - [ ] Chrome developer account created: https://chrome.google.com/webstore/developer/dashboard
 - [ ] Payment method on file ($5 fee)
-- [ ] Extension built and tested: `npm run build` (in `/extension`)
+- [ ] Extension built and tested: `pnpm build` (in `/extension`)
 - [ ] Icon/screenshots prepared (see 1.2)
 
 ### 1.2 Required Assets
@@ -104,27 +104,26 @@ reference; until then, this section is the source of truth.)
 ```bash
 cd extension
 
-# Install dependencies
-npm install
+# Install dependencies (pnpm only — this repo does not use npm or yarn)
+pnpm install
 
 # Build production
-npm run build
+pnpm build
 
-# Output: dist/ folder (ready for upload)
-ls -la dist/
+# Output: dist/ (unpacked upload folder) + dist/roam-extension.zip (the upload artifact)
 ```
+
+The build fails fast if `SUPABASE_URL` / `SUPABASE_ANON_KEY` are missing from the **repo-root** `.env`.
 
 **Expected Files in `dist/`:**
 ```
 dist/
 ├── manifest.json
-├── background.js
-├── callback.html
-├── callback.js
-├── popup.html
-├── popup.js
-├── popup.css
-└── (assets, images, etc.)
+├── background.js (+ .js.map)
+├── callback.html, callback.js (+ .js.map)
+├── popup.html, popup.js (+ .js.map), popup.css
+├── icon-16.png, icon-32.png, icon-48.png, icon-128.png
+└── roam-extension.zip
 ```
 
 ### 1.4 Submit to Chrome Web Store
@@ -137,12 +136,8 @@ dist/
 **Step 2: Create Item**
 1. Click "Create new item"
 2. Select "Upload a package" (.zip file)
-3. Create zip from `dist/`:
-   ```bash
-   cd extension
-   zip -r roam-extension.zip dist/
-   ```
-4. Upload `roam-extension.zip`
+3. Use `extension/dist/roam-extension.zip` — the build already produces it with `manifest.json` at the zip root. Only if you need to rebuild it by hand, zip the **contents** of `dist/`, not the folder: `cd extension/dist; zip -r ../roam-extension.zip .`
+4. Upload the zip
 5. Click "Upload"
 
 **Step 3: Fill Store Listing**
@@ -196,7 +191,7 @@ dist/
 
 - [ ] Firefox Developer Account created: https://addons.mozilla.org
 - [ ] Email verified
-- [ ] Extension built: `npm run build`
+- [ ] Extension built: `pnpm build -- --firefox`
 - [ ] Icon and screenshots prepared (same as Chrome, but Firefox-specific sizes acceptable)
 
 ### 2.2 Required Assets
@@ -226,17 +221,22 @@ dist/
 ```bash
 cd extension
 
-# Build for Firefox (if using manifest-firefox.json)
-npm run build:firefox
-
-# Output: dist-firefox/ folder
-# Or reuse dist/ if compatible
+# Build for Firefox — swaps in manifest.firefox.json, stubs Sentry out,
+# and emits dist-firefox/roam-extension-firefox.zip (the upload artifact)
+pnpm build -- --firefox
 ```
 
-**Firefox Manifest Requirements:**
-- `manifest_version`: 2 or 3 (3 preferred)
-- Permissions match Chrome (or more restrictive)
-- No license required for store
+Do not reuse `dist/` — the Chrome manifest is the wrong one for AMO.
+
+**Firefox Manifest Requirements (already satisfied by `manifest.firefox.json`):**
+- `manifest_version`: 3
+- `browser_specific_settings.gecko.id` — `roam@roamtheweb.app` (AMO requires an ID for signing)
+- `browser_specific_settings.gecko.strict_min_version` — `140.0`
+- `browser_specific_settings.gecko.data_collection_permissions` — mandatory for new AMO
+  submissions since 2025-11-03; this add-on declares `required: ["browsingActivity"]`
+- `background.scripts` (Firefox does not support `background.service_worker`)
+- Permissions equal to the Chrome build (`tabs`, `storage`, `alarms`, `notifications`,
+  `host_permissions: https://*.supabase.co/*`), and **no** `commands` block
 
 ### 2.4 Submit to Firefox Add-ons (AMO)
 
@@ -251,12 +251,8 @@ npm run build:firefox
 3. Choose "On this website" (Firefox only)
 
 **Step 3: Upload**
-1. Drag & drop .zip file or browse
-2. Create zip from `dist/` or `dist-firefox/`:
-   ```bash
-   cd extension
-   zip -r roam-firefox.zip dist/
-   ```
+1. Drag & drop the zip or browse
+2. Use `extension/dist-firefox/roam-extension-firefox.zip` (the build produces it; `manifest.json` sits at the zip root). To rebuild by hand: `cd extension/dist-firefox; zip -r ../roam-firefox.zip .`
 3. Upload and wait for validation
 4. If validation errors, fix and reupload
 
@@ -271,8 +267,8 @@ npm run build:firefox
    - Category: Productivity
 
 2. **Compatibility Tab:**
-   - Minimum Firefox version: 100 (or lower if tested)
-   - Android compatible: Yes (if tested)
+   - Minimum Firefox version: 140 (matches `strict_min_version` in `manifest.firefox.json`)
+   - Android compatible: Yes — `gecko_android.strict_min_version` is 142
 
 3. **Graphics Tab:**
    - Icon (128×128): Upload
@@ -285,7 +281,6 @@ npm run build:firefox
      - "tabs" — needed to submit current tab URL
      - "activeTab" — access current page context
      - "storage" — keep the sign-in session and the prefetch queue locally
-     - "identity" — Google sign-in through the browser's OAuth window
      - "alarms" — schedule the 5-minute notification check (no background loop)
      - "notifications" — show the user's own follows, shares, badge and challenge activity as a desktop notification; nothing is shown unless the user turns the toggle on
      - "host_permissions: https://*.supabase.co/*" — the app's API
@@ -574,7 +569,7 @@ adb install-multiple app-release.apks
 
 ### Chrome Web Store
 
-- [ ] Extension builds: `npm run build`
+- [ ] Extension builds: `pnpm build`
 - [ ] manifest.json valid
 - [ ] Icons prepared (128×128)
 - [ ] Screenshots ready (1280×800, 2-5 recommended)
@@ -586,8 +581,8 @@ adb install-multiple app-release.apks
 
 ### Firefox Add-ons
 
-- [ ] Extension builds: `npm run build`
-- [ ] Firefox manifest compatible
+- [ ] Extension builds: `pnpm build -- --firefox`
+- [ ] Firefox manifest compatible (`background.scripts`, gecko id, `data_collection_permissions`)
 - [ ] Icons prepared (128×128)
 - [ ] Screenshots ready
 - [ ] Store listing text complete
