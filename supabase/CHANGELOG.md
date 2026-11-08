@@ -2,7 +2,12 @@
 
 All notable changes to the Roam Supabase backend (PostgreSQL schema, Row-Level Security, and Deno Edge Functions).
 
-## [2026-11-07] — Sentry issue bodies never carry credentials
+## [2026-11-08] — Sentry issue bodies keep their stack traces after the payload change
+### Fixed
+- `sentry-webhook` reads the exception from the shape the events API actually returns. `exceptionValues` only looked at a top-level `exception` key, which webhook payloads carry but `…/events/latest/` does not — it nests the same data under `entries[]` as `{ type: 'exception', data: { values } }`. Enrichment therefore fetched a valid event, parsed zero frames, and filed the issue without a `### Stack trace` section on its **silent** exit, so the #43 warnings never fired and the outage read as a rotated `SENTRY_AUTH_TOKEN`. The secret was correct throughout: its published digest matches `sha256` of the working token, and the same token read 15 frames off issue #71's event while the GitHub issue showed none (issue #93).
+- `release` is read as either a string (webhooks) or `{ version }` (events API), so an enriched issue's `Release` row is no longer permanently empty.
+- The third enrichment exit — an issue URL that yields no API base — now logs a `sentry-webhook:` warning like the other two, instead of returning silently.
+
 ### Security
 - `sentry-webhook` redacts issue titles, messages, culprits, stack frames and tag values before filing: bearer tokens, JWTs, `sb_publishable_*` / `sb_secret_*` keys, generic `key=` credentials (`apikey`, `token`, `password`, `secret`, `authorization`) and email addresses. An `UnauthorizedRestException` from the Android and extension clients echoes the failed call's full request headers — including a live user session token and their email — and `seven-lynx/Roam` is public. Found while backfilling issues #55–#61; none of those leaked (checked before filing). Redaction is idempotent, so already-redacted text passes through unchanged.
 ### Fixed

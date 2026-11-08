@@ -26,6 +26,7 @@ import {
   exceptionValues,
   formatFrame,
   normalize,
+  releaseVersion,
   stackFrames,
   tagsToObject,
   timingSafeEqual,
@@ -106,7 +107,15 @@ async function enrich(issue: NormalizedIssue): Promise<void> {
   }
 
   const base = sentryApiBase(issue.url)
-  if (!base) return
+  if (!base) {
+    // The third silent exit. No parseable permalink means there is no API host to
+    // ask, so the issue is filed body-only — say it, for the same reason as above.
+    console.warn(
+      'sentry-webhook: cannot derive the Sentry API base — filing without a stack trace',
+      issue.sentryIssueId,
+    )
+    return
+  }
 
   try {
     const res = await fetch(`${base}/issues/${issue.sentryIssueId}/events/latest/`, {
@@ -134,7 +143,7 @@ async function enrich(issue: NormalizedIssue): Promise<void> {
       issue.message = asString(md?.['value']) ?? asString(values[0]?.['value']) ?? issue.message
     }
     if (Object.keys(issue.tags).length === 0) issue.tags = tagsToObject(ev['tags'])
-    if (!issue.release) issue.release = asString(ev['release'])
+    if (!issue.release) issue.release = releaseVersion(ev['release'])
   } catch (e) {
     // Enrichment is best-effort; never block issue creation on it.
     console.warn('sentry-webhook: enrichment failed', e)

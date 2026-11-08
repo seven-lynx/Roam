@@ -14,9 +14,12 @@ import { assert, assertEquals, assertStringIncludes } from "https://deno.land/st
 import {
   buildBody,
   buildTitle,
+  exceptionValues,
   formatFrame,
   normalize,
   redactSecrets,
+  releaseVersion,
+  stackFrames,
   tagsToObject,
   timingSafeEqual,
   type NormalizedIssue,
@@ -89,6 +92,54 @@ function eventAlert(): any {
         },
       },
     },
+  }
+}
+
+/**
+ * The shape `GET /api/0/issues/<id>/events/latest/` returns — what `enrich()` fetches.
+ * Trimmed to the keys the bridge reads, but structurally exact: the exception sits
+ * under `entries[]` (there is no top-level `exception`), `tags` are `{ key, value }`
+ * objects, and `release` is an object. Copied from a real payload on 2026-11-08.
+ */
+// deno-lint-ignore no-explicit-any
+function restEvent(): any {
+  return {
+    eventID: 'b72cb2571486469901c02d14c5a4ed70',
+    platform: 'java',
+    metadata: {
+      type: 'UnauthorizedRestException',
+      value: '{"error":"Failed to record rating"}',
+    },
+    entries: [
+      {
+        type: 'exception',
+        data: {
+          values: [
+            {
+              type: 'UnauthorizedRestException',
+              value: '{"error":"Failed to record rating"}',
+              stacktrace: {
+                frames: [
+                  { filename: 'ZygoteInit.java', function: 'main', in_app: false },
+                  {
+                    filename: 'app/src/main/java/app/roam/data/RoamRepository.kt',
+                    lineno: 119,
+                    function: 'recordRating',
+                    in_app: true,
+                  },
+                ],
+              },
+            },
+          ],
+        },
+      },
+      { type: 'breadcrumbs', data: { values: [] } },
+    ],
+    tags: [
+      { key: 'environment', value: 'production' },
+      { key: 'release', value: 'app.roam.android@1.4.0+35' },
+    ],
+    release: { id: 2080575488, version: 'app.roam.android@1.4.0+35', status: 'open' },
   }
 }
 
@@ -180,6 +231,63 @@ Deno.test('normalize - project slug is read from the /projects/<org>/<slug>/ pat
   const payload = eventAlert()
   payload.data.event.url = `https://7-lynx.sentry.io/issues/${ALERT_ISSUE_ID}/`
   assertEquals(required(payload).projectSlug, '')
+})
+
+// ── Enrichment shapes (issue #93) ───────────────────────────────────────────
+//
+// The events API nests the exception under `entries[]`; only webhook payloads put it
+// at the top level. Reading just the top-level key silently filed every enriched
+// issue with no stack trace, so both shapes are pinned here.
+
+Deno.test('exceptionValues - reads the REST entries[] shape enrichment fetches', () => {
+  const event = restEvent()
+  assertEquals(event.exception, undefined)
+
+  const values = exceptionValues(event)
+  assertEquals(values.length, 1)
+  assertEquals(values[0]['type'], 'UnauthorizedRestException')
+  assertEquals(
+    values.flatMap(stackFrames).map(formatFrame),
+    [
+      'ZygoteInit.java in main [external]',
+      'app/src/main/java/app/roam/data/RoamRepository.kt:119 in recordRating',
+    ]
+  )
+
+  // The inline webhook shape still parses unchanged.
+  assertEquals(exceptionValues(eventAlert().data.event).length, 1)
+
+  // A native crash with no frames must stay empty rather than throw.
+  const frameLess = { entries: [{ type: 'exception', data: { values: [{ type: 'SIGSEGV' }] } }] }
+  assertEquals(exceptionValues(frameLess).length, 1)
+  assertEquals(exceptionValues(frameLess).flatMap(stackFrames).length, 0)
+
+  // Neither shape present.
+  assertEquals(exceptionValues({}), [])
+})
+
+Deno.test('releaseVersion - object from the events API, string from webhooks', () => {
+  assertEquals(releaseVersion('1b404c8'), '1b404c8')
+  assertEquals(releaseVersion({ version: 'app.roam.android@1.4.0+35' }), 'app.roam.android@1.4.0+35')
+  assertEquals(releaseVersion(null), null)
+  assertEquals(releaseVersion({}), null)
+  assertEquals(releaseVersion(undefined), null)
+})
+
+Deno.test('buildBody - an issue enriched from the events API renders its stack trace', () => {
+  // What enrich() does to an issue-webhook payload, minus the network call.
+  const event = restEvent()
+  const issue = required(issueWebhook('created'))
+  issue.stackFrames = exceptionValues(event).flatMap(stackFrames).map(formatFrame)
+  issue.tags = tagsToObject(event.tags)
+  issue.release = releaseVersion(event.release)
+
+  const body = buildBody(issue)
+  assertStringIncludes(body, '### Stack trace')
+  assertStringIncludes(body, 'app/src/main/java/app/roam/data/RoamRepository.kt:119 in recordRating')
+  assertStringIncludes(body, '### Tags')
+  assertStringIncludes(body, '| `environment` | production |')
+  assertStringIncludes(body, '| Release | `app.roam.android@1.4.0+35` |')
 })
 
 Deno.test('formatFrame - absolute paths, raw_function, external marking', () => {
