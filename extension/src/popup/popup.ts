@@ -5,7 +5,7 @@ import { Sentry } from '../lib/sentry';
 import { sendToBackground } from '../lib/messages';
 import type { StateData, RoamData, CheckUrlData, Collection, CategoryItem, ProfileData, SubcategoryItem, SavedUrlItem, ChallengeData, BadgeData, NotificationItem, ProfileStatsData, UserSettingsData } from '../lib/messages';
 import { FALLBACK_CATEGORIES, LANGUAGES, DEFAULT_LANGUAGE, ENGAGEMENT_MAX_DWELL_MS } from '../lib/constants';
-import { notificationLink, notificationText } from '../lib/notifications';
+import { notificationLink, notificationText, recentCelebration } from '../lib/notifications';
 
 // ── Global error capture ───────────────────────────────────────────────────
 window.addEventListener('unhandledrejection', (event) => {
@@ -318,6 +318,14 @@ async function loadYouSection() {
     el('stat-streak').textContent = String(res.data.streak_days ?? 0);
     el('stats-row').hidden = false;
   });
+  // Surface an unlock that landed while the popup was closed — the popup shuts
+  // immediately after a rating, so this is the only place a celebration shows.
+  sendToBackground<NotificationItem[]>({ type: 'GET_NOTIFICATIONS' }).then(res => {
+    if (!res.ok) return;
+    const item = recentCelebration(res.data, Date.now());
+    if (!item) return;
+    showToast(`🏅 ${notificationText(item).title}`);
+  });
   void hydratePreferences();
 }
 
@@ -342,7 +350,7 @@ async function hydratePreferences(): Promise<void> {
     sendToBackground<UserSettingsData>({ type: 'GET_USER_SETTINGS' }),
     sendToBackground<ProfileData>({ type: 'GET_PROFILE' }),
     sendToBackground<{ is_public: boolean; username: string }>({ type: 'GET_PROFILE_PUBLIC' }),
-    chrome.storage.local.get(['auto_translate', 'translate_language']),
+    chrome.storage.local.get(['auto_translate', 'translate_language', 'desktop_notifications']),
   ]);
 
   const prefs: UserSettingsData = settings.ok
@@ -352,6 +360,7 @@ async function hydratePreferences(): Promise<void> {
   el<HTMLInputElement>('toggle-paywall').checked = prefs.skip_paywalled;
   el<HTMLInputElement>('toggle-deep-dive').checked = prefs.discovery_mode === 'deep_dive';
   el<HTMLInputElement>('toggle-auto-translate').checked = local.auto_translate === true;
+  el<HTMLInputElement>('toggle-desktop-notifications').checked = local.desktop_notifications === true;
   el<HTMLSelectElement>('select-translate-lang').value = (local.translate_language as string) || DEFAULT_LANGUAGE;
   renderLanguageChips(prefs.preferred_languages);
 
@@ -1519,6 +1528,12 @@ document.addEventListener('DOMContentLoaded', () => {
   el('toggle-deep-dive').addEventListener('change', () => {
     const checked = el<HTMLInputElement>('toggle-deep-dive').checked;
     sendToBackground({ type: 'SET_DISCOVERY_MODE', mode: checked ? 'deep_dive' : 'discovery' });
+  });
+
+  // ── Toggle: Desktop notifications ─────────────────────────────────────────
+  el('toggle-desktop-notifications').addEventListener('change', () => {
+    const checked = el<HTMLInputElement>('toggle-desktop-notifications').checked;
+    sendToBackground({ type: 'SET_DESKTOP_NOTIFICATIONS', enabled: checked });
   });
 
   // ── Toggle: Always translate roamed pages ─────────────────────────────────

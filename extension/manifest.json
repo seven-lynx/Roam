@@ -40,7 +40,9 @@
   "permissions": [
     "tabs",
     "storage",
-    "identity"
+    "identity",
+    "alarms",
+    "notifications"
   ],
 
   "host_permissions": [

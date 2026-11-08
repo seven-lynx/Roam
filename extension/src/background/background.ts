@@ -10,6 +10,7 @@ import type { Request, Response, StateData, RoamData, CheckUrlData, Collection, 
 import { getSupabase, clearAuthStorage } from '../lib/supabase';
 import { FALLBACK_CATEGORIES, DEFAULT_LANGUAGE } from '../lib/constants';
 import { addLocalSaved, normaliseLocalSaved, removeLocalSaved } from '../lib/local-saved';
+import { NOTIFY_ALARM, handleNotificationClick, pollNotifications, registerNotificationAlarm, setDesktopNotifications } from './notify';
 
 declare const __SUPABASE_URL__: string;
 
@@ -307,12 +308,27 @@ self.addEventListener('error', (event) => {
 // Restore persistent prefetch on SW startup so the first roam() call after a
 // browser restart hits cache instead of waiting for a cold network round-trip.
 restorePersistentPrefetch().finally(() => prefetchNext());
-chrome.runtime.onStartup.addListener(() => { prefetchNext(); });
-chrome.runtime.onInstalled.addListener(() => { prefetchNext(); });
+chrome.runtime.onStartup.addListener(() => { prefetchNext(); registerNotificationAlarm(); });
+chrome.runtime.onInstalled.addListener(() => { prefetchNext(); registerNotificationAlarm(); });
 chrome.runtime.onConnect.addListener((_port) => {
   prefetchNext();
   flushPendingRatings(); // flush ratings whenever popup opens
 });
+
+// Desktop notifications are alarm-driven (rule E.2: no background loops).
+// The alarm is created on install/start-up and when the toggle is turned on —
+// never at module scope, because re-creating it resets the next fire time and
+// would starve the poll.
+if (chrome.alarms?.onAlarm) {
+  chrome.alarms.onAlarm.addListener((alarm) => {
+    if (alarm.name === NOTIFY_ALARM) void pollNotifications();
+  });
+}
+if (chrome.notifications?.onClicked) {
+  chrome.notifications.onClicked.addListener((desktopId) => {
+    void handleNotificationClick(desktopId);
+  });
+}
 
 // Keyboard shortcut: Roam without opening popup (Chrome only — Firefox doesn't expose chrome.commands)
 if (chrome.commands) {
@@ -391,6 +407,7 @@ async function _dispatch(req: Request): Promise<Response> {
     case 'REPORT_URL':            return reportUrl(req.url_id);
     case 'GET_SUBCATEGORIES_FOR_CATEGORY': return getSubcategories(req.categoryId);
     case 'SET_PROFILE_PUBLIC':    return setProfilePublic(req.isPublic);
+    case 'SET_DESKTOP_NOTIFICATIONS': return setDesktopNotifications(req.enabled);
     case 'GET_PROFILE_PUBLIC':    return getProfilePublic();
     case 'SHARE_URL_WITH_USER':   return shareUrlWithUser(req.url, req.recipientId);
     case 'GET_SHARE_RECIPIENTS':  return getShareRecipients(req.search);

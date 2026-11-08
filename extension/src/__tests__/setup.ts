@@ -36,6 +36,16 @@ const chromeMock = {
     query: async () => [],
     create: async () => ({}),
   },
+  alarms: {
+    create: (...args: unknown[]) => { void args; },
+    clear: async (...args: unknown[]) => { void args; return true; },
+    onAlarm: { addListener: (...args: unknown[]) => { void args; } },
+  },
+  notifications: {
+    create: (...args: unknown[]) => { void args; return 'notification-id'; },
+    clear: (...args: unknown[]) => { void args; },
+    onClicked: { addListener: (...args: unknown[]) => { void args; } },
+  },
 }
 
 // Expose as a global so any source file using `chrome.*` resolves correctly.

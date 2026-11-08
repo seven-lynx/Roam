@@ -53,6 +53,7 @@ export type Request =
   | { type: 'RENAME_COLLECTION'; collectionId: string; name: string }
   | { type: 'UPDATE_COLLECTION_PUBLIC'; collectionId: string; isPublic: boolean }
   | { type: 'GET_PROFILE_STATS' }
+  | { type: 'SET_DESKTOP_NOTIFICATIONS'; enabled: boolean }
   | { type: 'GET_SUBCATEGORIES_FOR_CATEGORY'; categoryId: string };
 
 export type Response<T = unknown> =
