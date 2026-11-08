@@ -2,7 +2,7 @@
 // Body (optional): { collection_id?, exclude_domain?, category_id?, subcategory_id? }
 // Returns a single URL row, or 404 when pool is exhausted.
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-import { corsHeaders } from '../_shared/cors.ts'
+import { getCorsHeaders } from '../_shared/cors.ts'
 import { initSentry } from '../_shared/sentry.ts'
 // `EdgeRuntime` is a non-standard global that Supabase exposes on edge
 // function hosts (see supabase/functions/_shared/deno-globals.d.ts for the
@@ -41,6 +41,14 @@ function recordSuccess(): void {
 }
 
 Deno.serve(async (req) => {
+  // Extension callers arrive from their own origin; echo it back (see _shared/cors.ts).
+  const corsHeaders = getCorsHeaders(req.headers.get('origin'))
+  const json = (body: unknown, status = 200, extraHeaders?: Record<string, string>) =>
+    new Response(JSON.stringify(body), {
+      status,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json', ...extraHeaders },
+    })
+
   if (req.method === 'OPTIONS') {
     return new Response('ok', { status: 200, headers: corsHeaders })
   }
@@ -248,9 +256,3 @@ Deno.serve(async (req) => {
     return json({ error: 'Discovery failed. Please try again.', retryable: true }, 503)
   }
 })
-function json(body: unknown, status = 200, extraHeaders?: Record<string, string>) {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { ...corsHeaders, 'Content-Type': 'application/json', ...extraHeaders },
-  })
-}

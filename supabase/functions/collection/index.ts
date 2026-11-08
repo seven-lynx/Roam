@@ -9,7 +9,7 @@
 //   remove_item  — { action, collection_id, url_id }
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-import { corsHeaders } from '../_shared/cors.ts'
+import { getCorsHeaders } from '../_shared/cors.ts'
 import { awardXpAndEvaluate } from '../_shared/gamification.ts'
 
 const COLLECTION_ITEM_CAP = 10_000
@@ -22,6 +22,14 @@ function validateName(name: string): { valid: boolean; error?: string } {
 }
 
 Deno.serve(async (req) => {
+  // Extension callers arrive from their own origin; echo it back (see _shared/cors.ts).
+  const corsHeaders = getCorsHeaders(req.headers.get('origin'))
+  const json = (data: unknown, status = 200) =>
+    new Response(JSON.stringify(data), {
+      status,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    })
+
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
   if (req.method !== 'POST') return json({ error: 'Method not allowed' }, 405)
 
@@ -212,10 +220,3 @@ Deno.serve(async (req) => {
 
   return json({ error: 'Unknown action' }, 400)
 })
-
-function json(data: unknown, status = 200) {
-  return new Response(JSON.stringify(data), {
-    status,
-    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-  })
-}

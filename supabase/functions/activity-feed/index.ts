@@ -3,9 +3,17 @@
 // Shows recent activity from users they follow who have public profiles.
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-import { corsHeaders } from '../_shared/cors.ts'
+import { getCorsHeaders } from '../_shared/cors.ts'
 
 Deno.serve(async (req) => {
+  // Extension callers arrive from their own origin; echo it back (see _shared/cors.ts).
+  const corsHeaders = getCorsHeaders(req.headers.get('origin'))
+  const json = (body: unknown, status = 200) =>
+    new Response(JSON.stringify(body), {
+      status,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    })
+
   if (req.method === 'OPTIONS') return json('ok', 200)
 
   const supabase = createClient(
@@ -35,10 +43,3 @@ Deno.serve(async (req) => {
 
   return json({ activities: data ?? [], has_more: (data ?? []).length === limit })
 })
-
-function json(body: unknown, status = 200) {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-  })
-}
