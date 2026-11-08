@@ -1076,3 +1076,72 @@ body {
 
 /* ── Language chips ────────────────────────────────────────────────────── */
 .chip--locked { opacity: 0.55; cursor: not-allowed; }
+
+/* ── Community screen ──────────────────────────────────────────────────── */
+.community-body { display: flex; flex-direction: column; gap: 8px; padding: 10px 12px 14px; }
+.community-header { display: flex; align-items: center; gap: 8px; }
+.community-title { font-size: 14px; font-weight: 600; color: var(--text); }
+.community-tabs { display: flex; gap: 4px; }
+.community-list { display: flex; flex-direction: column; gap: 4px; }
+.community-subhead {
+  font-size: 11px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  margin-top: 6px;
+}
+.community-empty { font-size: 12px; color: var(--text-muted); text-align: center; padding: 8px 0; }
+.community-error { font-size: 12px; color: #f87171; padding: 4px 0; }
+
+.activity-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px;
+  width: 100%;
+  padding: 6px 8px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+  font-size: 12px;
+  transition: background var(--transition);
+}
+.activity-row:hover { background: var(--bg-hover); }
+.activity-name { font-weight: 600; color: var(--text); }
+.activity-text { flex: 1; min-width: 0; color: var(--text-muted); }
+.activity-time { font-size: 10px; color: var(--text-muted); }
+
+.person-row { display: flex; align-items: center; gap: 6px; padding: 4px 0; }
+.person-profile {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 4px 6px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+  transition: background var(--transition);
+}
+.person-profile:hover { background: var(--bg-hover); }
+.person-name { font-size: 12px; font-weight: 600; }
+.person-meta { font-size: 11px; color: var(--text-muted); }
+.person-action {
+  font-size: 11px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: background var(--transition), color var(--transition);
+}
+.person-action:hover { background: var(--bg-hover); color: var(--text); }
+

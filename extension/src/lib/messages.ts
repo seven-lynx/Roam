@@ -37,6 +37,11 @@ export type Request =
   | { type: 'SET_PROFILE_PUBLIC'; isPublic: boolean }
   | { type: 'SHARE_URL_WITH_USER'; url: string; recipientId: string }
   | { type: 'GET_SHARE_RECIPIENTS'; search?: string }
+  | { type: 'FOLLOW_USER'; userId: string }
+  | { type: 'UNFOLLOW_USER'; userId: string }
+  | { type: 'GET_FOLLOWERS' }
+  | { type: 'GET_FOLLOWING' }
+  | { type: 'GET_ACTIVITY_FEED'; limit?: number }
   | { type: 'GET_PROFILE_PUBLIC' }
   | { type: 'REPORT_ENGAGEMENT'; url_id: string; dwell_ms: number; skipped: boolean }
   | { type: 'GET_NOTIFICATIONS' }
@@ -136,6 +141,25 @@ export interface Collection {
   slug: string;
   is_public: boolean;
   item_count: number;
+}
+
+export interface FollowUser {
+  id: string;
+  username: string;
+  display_name: string | null;
+  avatar_url: string | null;
+}
+
+export interface ActivityItem {
+  id: string;
+  username: string;
+  display_name: string | null;
+  activity_type: string;
+  subject_title: string | null;
+  subject_url: string | null;
+  badge_name: string | null;
+  collection_slug: string | null;
+  created_at: string;
 }
 
 export interface SavedUrlItem {

@@ -3,9 +3,10 @@
 import '../lib/sentry'; // must be first — initialises Sentry if SENTRY_DSN is set
 import { Sentry } from '../lib/sentry';
 import { sendToBackground } from '../lib/messages';
-import type { StateData, RoamData, CheckUrlData, Collection, CategoryItem, ProfileData, SubcategoryItem, SavedUrlItem, ChallengeData, BadgeData, NotificationItem, ProfileStatsData, UserSettingsData } from '../lib/messages';
+import type { StateData, RoamData, CheckUrlData, Collection, CategoryItem, ProfileData, SubcategoryItem, SavedUrlItem, ChallengeData, BadgeData, NotificationItem, ProfileStatsData, UserSettingsData, FollowUser, ActivityItem } from '../lib/messages';
 import { FALLBACK_CATEGORIES, LANGUAGES, DEFAULT_LANGUAGE, ENGAGEMENT_MAX_DWELL_MS } from '../lib/constants';
 import { notificationLink, notificationText, recentCelebration } from '../lib/notifications';
+import { activityLink, activityText, relativeTime } from '../lib/social';
 
 // ── Global error capture ───────────────────────────────────────────────────
 window.addEventListener('unhandledrejection', (event) => {
@@ -28,9 +29,9 @@ function el<T extends HTMLElement>(id: string): T {
   return e as T;
 }
 
-type AppState = 'signedout' | 'auth' | 'email-auth' | 'categories' | 'error' | 'noresults' | 'main' | 'feedback' | 'saved' | 'notifications' | 'history' | 'challenges' | 'badges' | 'collections';
+type AppState = 'signedout' | 'auth' | 'email-auth' | 'categories' | 'error' | 'noresults' | 'main' | 'feedback' | 'saved' | 'notifications' | 'history' | 'challenges' | 'badges' | 'collections' | 'community';
 
-const ALL_STATES: AppState[] = ['signedout', 'auth', 'email-auth', 'categories', 'error', 'noresults', 'main', 'feedback', 'saved', 'notifications', 'history', 'challenges', 'badges', 'collections'];
+const ALL_STATES: AppState[] = ['signedout', 'auth', 'email-auth', 'categories', 'error', 'noresults', 'main', 'feedback', 'saved', 'notifications', 'history', 'challenges', 'badges', 'collections', 'community'];
 
 // Report engagement on the previous URL before requesting the next Roam.
 async function reportCurrentEngagement(): Promise<void> {
@@ -865,6 +866,147 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
+  // ── Community: activity feed + follow lists ───────────────────────────────
+  function personRow(user: FollowUser, onAction: (() => void) | null): HTMLElement {
+    const row = document.createElement('div');
+    row.className = 'person-row';
+
+    const profile = document.createElement('button');
+    profile.className = 'person-profile';
+    const name = document.createElement('span');
+    name.className = 'person-name';
+    name.textContent = user.display_name || user.username;
+    const meta = document.createElement('span');
+    meta.className = 'person-meta';
+    meta.textContent = `@${user.username}`;
+    profile.appendChild(name);
+    profile.appendChild(meta);
+    profile.addEventListener('click', () => {
+      chrome.tabs.create({ url: `https://roamtheweb.app/u/${user.username}` });
+      window.close();
+    });
+    row.appendChild(profile);
+
+    if (onAction) {
+      const action = document.createElement('button');
+      action.className = 'person-action';
+      action.textContent = 'Unfollow';
+      action.addEventListener('click', onAction);
+      row.appendChild(action);
+    }
+    return row;
+  }
+
+  async function renderActivityTab(): Promise<void> {
+    const list = el('activity-list');
+    const empty = el('activity-empty');
+    const err = el('community-error');
+    list.textContent = '';
+    empty.hidden = true;
+    err.hidden = true;
+
+    const res = await sendToBackground<ActivityItem[]>({ type: 'GET_ACTIVITY_FEED', limit: 30 });
+    if (!res.ok) {
+      err.textContent = res.error;
+      err.hidden = false;
+      return;
+    }
+    if (res.data.length === 0) {
+      empty.hidden = false;
+      return;
+    }
+
+    for (const item of res.data) {
+      const link = activityLink(item);
+      const row = document.createElement('button');
+      row.className = 'activity-row';
+
+      const name = document.createElement('span');
+      name.className = 'activity-name';
+      name.textContent = item.display_name || item.username;
+
+      const text = document.createElement('span');
+      text.className = 'activity-text';
+      text.textContent = activityText(item);
+
+      const time = document.createElement('span');
+      time.className = 'activity-time';
+      time.textContent = relativeTime(item.created_at);
+
+      row.appendChild(name);
+      row.appendChild(text);
+      row.appendChild(time);
+      row.addEventListener('click', () => {
+        if (!link) return;
+        chrome.tabs.create({ url: link });
+        window.close();
+      });
+      list.appendChild(row);
+    }
+  }
+
+  async function renderPeopleTab(): Promise<void> {
+    const followersList = el('followers-list');
+    const followingList = el('following-list');
+    const followersEmpty = el('followers-empty');
+    const followingEmpty = el('following-empty');
+    const err = el('community-error');
+    followersList.textContent = '';
+    followingList.textContent = '';
+    followersEmpty.hidden = true;
+    followingEmpty.hidden = true;
+    err.hidden = true;
+
+    const [followers, following] = await Promise.all([
+      sendToBackground<FollowUser[]>({ type: 'GET_FOLLOWERS' }),
+      sendToBackground<FollowUser[]>({ type: 'GET_FOLLOWING' }),
+    ]);
+    if (!followers.ok) { err.textContent = followers.error; err.hidden = false; return; }
+    if (!following.ok) { err.textContent = following.error; err.hidden = false; return; }
+
+    followersEmpty.hidden = followers.data.length > 0;
+    followingEmpty.hidden = following.data.length > 0;
+
+    for (const user of followers.data) followersList.appendChild(personRow(user, null));
+    for (const user of following.data) {
+      followingList.appendChild(personRow(user, async () => {
+        const res = await sendToBackground({ type: 'UNFOLLOW_USER', userId: user.id });
+        if (!res.ok) { showError(res.error); return; }
+        await renderPeopleTab();
+      }));
+    }
+  }
+
+  function setCommunityTab(tab: 'activity' | 'people'): void {
+    const isActivity = tab === 'activity';
+    el('tab-activity').classList.toggle('auth-tab--active', isActivity);
+    el('tab-people').classList.toggle('auth-tab--active', !isActivity);
+    el('community-activity').hidden = !isActivity;
+    el('community-people').hidden = isActivity;
+    if (isActivity) void renderActivityTab();
+    else void renderPeopleTab();
+  }
+
+  el('btn-community').addEventListener('click', () => {
+    showPanel(null);
+    showState('community');
+    el('community-error').hidden = true;
+    setCommunityTab('activity');
+  });
+
+  el('tab-activity').addEventListener('click', () => setCommunityTab('activity'));
+  el('tab-people').addEventListener('click', () => setCommunityTab('people'));
+
+  el('btn-back-community').addEventListener('click', () => {
+    showPanel('config');
+    showState('main');
+  });
+
+  el('btn-find-people').addEventListener('click', () => {
+    chrome.tabs.create({ url: 'https://roamtheweb.app/people' });
+    window.close();
+  });
+
   el('btn-add-collection').addEventListener('click', async () => {
     await loadCollectionsForDropdown();
 
@@ -1596,10 +1738,6 @@ document.addEventListener('DOMContentLoaded', () => {
   // ── Web app links ─────────────────────────────────────────────────────────
   el('btn-web-leaderboard').addEventListener('click', () => {
     chrome.tabs.create({ url: 'https://roamtheweb.app/leaderboard' });
-    window.close();
-  });
-  el('btn-web-following').addEventListener('click', () => {
-    chrome.tabs.create({ url: 'https://roamtheweb.app/following' });
     window.close();
   });
   el('btn-web-settings').addEventListener('click', () => {

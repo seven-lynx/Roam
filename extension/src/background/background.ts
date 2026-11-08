@@ -11,6 +11,7 @@ import { getSupabase, clearAuthStorage } from '../lib/supabase';
 import { FALLBACK_CATEGORIES, DEFAULT_LANGUAGE } from '../lib/constants';
 import { addLocalSaved, normaliseLocalSaved, removeLocalSaved } from '../lib/local-saved';
 import { NOTIFY_ALARM, handleNotificationClick, pollNotifications, registerNotificationAlarm, setDesktopNotifications } from './notify';
+import { followUser, unfollowUser, getFollowers, getFollowing, getActivityFeed } from './social';
 
 declare const __SUPABASE_URL__: string;
 
@@ -411,6 +412,11 @@ async function _dispatch(req: Request): Promise<Response> {
     case 'GET_PROFILE_PUBLIC':    return getProfilePublic();
     case 'SHARE_URL_WITH_USER':   return shareUrlWithUser(req.url, req.recipientId);
     case 'GET_SHARE_RECIPIENTS':  return getShareRecipients(req.search);
+    case 'FOLLOW_USER':           return followUser(req.userId);
+    case 'UNFOLLOW_USER':         return unfollowUser(req.userId);
+    case 'GET_FOLLOWERS':         return getFollowers();
+    case 'GET_FOLLOWING':         return getFollowing();
+    case 'GET_ACTIVITY_FEED':     return getActivityFeed(req.limit);
     case 'REPORT_ENGAGEMENT':     return reportEngagement(req.url_id, req.dwell_ms, req.skipped);
     case 'GET_NOTIFICATIONS':     return getNotifications();
     case 'GET_UNREAD_COUNT':      return getUnreadNotificationCount();

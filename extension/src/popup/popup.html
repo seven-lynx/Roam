@@ -233,7 +233,7 @@
       <section class="panel-section">
         <h3 class="panel-section-title">Open in web app</h3>
         <button id="btn-web-leaderboard" class="panel-row">Leaderboard ↗</button>
-        <button id="btn-web-following"   class="panel-row">Following & activity ↗</button>
+        <button id="btn-community"       class="panel-row">Community</button>
         <button id="btn-web-settings"    class="panel-row">Settings ↗</button>
       </section>
 
@@ -338,6 +338,34 @@
       <p id="badges-empty" class="badges-empty" hidden>No badges yet.</p>
       <p id="badges-error" class="badges-error" hidden></p>
       <button id="btn-web-badges" class="btn-secondary">Open full gallery ↗</button>
+    </div>
+  </div>
+
+  <!-- ── Community state ────────────────────────────────────────────────── -->
+  <div id="state-community" class="state" hidden>
+    <div class="community-body">
+      <div class="community-header">
+        <button id="btn-back-community" class="btn-back">← Back</button>
+        <p class="community-title">Community</p>
+      </div>
+      <div class="community-tabs">
+        <button id="tab-activity" class="auth-tab auth-tab--active">Activity</button>
+        <button id="tab-people" class="auth-tab">People</button>
+      </div>
+      <div id="community-activity">
+        <div id="activity-list" class="community-list"></div>
+        <p id="activity-empty" class="community-empty" hidden>No activity yet — follow people to see what they find.</p>
+      </div>
+      <div id="community-people" hidden>
+        <p class="community-subhead">Followers</p>
+        <div id="followers-list" class="community-list"></div>
+        <p id="followers-empty" class="community-empty" hidden>No followers yet.</p>
+        <p class="community-subhead">Following</p>
+        <div id="following-list" class="community-list"></div>
+        <p id="following-empty" class="community-empty" hidden>You aren't following anyone yet.</p>
+        <button id="btn-find-people" class="btn-secondary">Find people ↗</button>
+      </div>
+      <p id="community-error" class="community-error" hidden></p>
     </div>
   </div>
 
