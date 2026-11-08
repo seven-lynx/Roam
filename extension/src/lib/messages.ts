@@ -58,6 +58,9 @@ export type Request =
   | { type: 'RENAME_COLLECTION'; collectionId: string; name: string }
   | { type: 'UPDATE_COLLECTION_PUBLIC'; collectionId: string; isPublic: boolean }
   | { type: 'GET_PROFILE_STATS' }
+  | { type: 'GET_MY_PROFILE' }
+  | { type: 'SET_PROFILE_FIELDS'; displayName: string; bio: string }
+  | { type: 'CLAIM_USERNAME'; username: string }
   | { type: 'SET_DESKTOP_NOTIFICATIONS'; enabled: boolean }
   | { type: 'GET_SUBCATEGORIES_FOR_CATEGORY'; categoryId: string };
 
@@ -106,6 +109,19 @@ export interface ProfileStatsData {
   xp_total: number;
   streak_days: number;
   max_streak: number;
+}
+
+export interface MyProfileData {
+  username: string | null;
+  display_name: string | null;
+  bio: string | null;
+  avatar_url: string | null;
+  is_public: boolean;
+  level: number;
+  xp_total: number;
+  streak_days: number;
+  roamed: number;
+  submitted: number;
 }
 
 export interface NotificationItem {

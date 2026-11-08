@@ -12,6 +12,7 @@ import { FALLBACK_CATEGORIES, DEFAULT_LANGUAGE } from '../lib/constants';
 import { addLocalSaved, normaliseLocalSaved, removeLocalSaved } from '../lib/local-saved';
 import { NOTIFY_ALARM, handleNotificationClick, pollNotifications, registerNotificationAlarm, setDesktopNotifications } from './notify';
 import { followUser, unfollowUser, getFollowers, getFollowing, getActivityFeed } from './social';
+import { getMyProfile, setProfileFields, claimUsername } from './profile';
 
 declare const __SUPABASE_URL__: string;
 
@@ -403,6 +404,9 @@ async function _dispatch(req: Request): Promise<Response> {
     case 'RENAME_COLLECTION':     return renameCollection(req.collectionId, req.name);
     case 'UPDATE_COLLECTION_PUBLIC': return updateCollectionPublic(req.collectionId, req.isPublic);
     case 'GET_PROFILE':           return getProfile();
+    case 'GET_MY_PROFILE':        return getMyProfile();
+    case 'SET_PROFILE_FIELDS':    return setProfileFields(req.displayName, req.bio);
+    case 'CLAIM_USERNAME':        return claimUsername(req.username);
     case 'GET_PROFILE_STATS':     return getProfileStats();
     case 'SEND_FEEDBACK':         return sendFeedback(req.message, req.email, req.platform);
     case 'REPORT_URL':            return reportUrl(req.url_id);

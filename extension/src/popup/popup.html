@@ -188,6 +188,7 @@
 
       <section class="panel-section">
         <h3 class="panel-section-title">Account</h3>
+        <button id="btn-profile" class="panel-row">Edit profile</button>
         <div class="panel-row panel-row--toggle">
           <span>Public profile</span>
           <label class="toggle">
@@ -338,6 +339,40 @@
       <p id="badges-empty" class="badges-empty" hidden>No badges yet.</p>
       <p id="badges-error" class="badges-error" hidden></p>
       <button id="btn-web-badges" class="btn-secondary">Open full gallery ↗</button>
+    </div>
+  </div>
+
+  <!-- ── Profile state ──────────────────────────────────────────────────── -->
+  <div id="state-profile" class="state" hidden>
+    <div class="profile-body">
+      <div class="profile-header">
+        <button id="btn-back-profile" class="btn-back">← Back</button>
+        <p class="profile-title">You</p>
+      </div>
+      <p id="profile-summary" class="profile-summary"></p>
+
+      <div class="profile-field">
+        <label class="panel-label" for="input-username">Username</label>
+        <input id="input-username" type="text" class="form-input" placeholder="pick_a_username" maxlength="20" />
+        <button id="btn-claim-username-submit" class="btn-primary" hidden>Claim username</button>
+      </div>
+
+      <button id="btn-view-public-profile" class="panel-row" hidden>View public profile ↗</button>
+
+      <div class="profile-field">
+        <label class="panel-label" for="input-display-name">Display name</label>
+        <input id="input-display-name" type="text" class="form-input" maxlength="40" placeholder="Optional" />
+      </div>
+
+      <div class="profile-field">
+        <label class="panel-label" for="input-bio">Bio</label>
+        <textarea id="input-bio" class="feedback-textarea" rows="3" maxlength="200" placeholder="What do you roam for?"></textarea>
+        <p class="feedback-count"><span id="bio-chars">0</span> / 200</p>
+      </div>
+
+      <p id="profile-error" class="auth-error" hidden></p>
+      <p id="profile-success" class="profile-success" hidden>Saved.</p>
+      <button id="btn-save-profile" class="btn-primary">Save profile</button>
     </div>
   </div>
 

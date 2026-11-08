@@ -3,7 +3,7 @@
 import '../lib/sentry'; // must be first — initialises Sentry if SENTRY_DSN is set
 import { Sentry } from '../lib/sentry';
 import { sendToBackground } from '../lib/messages';
-import type { StateData, RoamData, CheckUrlData, Collection, CategoryItem, ProfileData, SubcategoryItem, SavedUrlItem, ChallengeData, BadgeData, NotificationItem, ProfileStatsData, UserSettingsData, FollowUser, ActivityItem } from '../lib/messages';
+import type { StateData, RoamData, CheckUrlData, Collection, CategoryItem, ProfileData, SubcategoryItem, SavedUrlItem, ChallengeData, BadgeData, NotificationItem, ProfileStatsData, UserSettingsData, FollowUser, ActivityItem, MyProfileData } from '../lib/messages';
 import { FALLBACK_CATEGORIES, LANGUAGES, DEFAULT_LANGUAGE, ENGAGEMENT_MAX_DWELL_MS } from '../lib/constants';
 import { notificationLink, notificationText, recentCelebration } from '../lib/notifications';
 import { activityLink, activityText, relativeTime } from '../lib/social';
@@ -29,9 +29,9 @@ function el<T extends HTMLElement>(id: string): T {
   return e as T;
 }
 
-type AppState = 'signedout' | 'auth' | 'email-auth' | 'categories' | 'error' | 'noresults' | 'main' | 'feedback' | 'saved' | 'notifications' | 'history' | 'challenges' | 'badges' | 'collections' | 'community';
+type AppState = 'signedout' | 'auth' | 'email-auth' | 'categories' | 'error' | 'noresults' | 'main' | 'feedback' | 'saved' | 'notifications' | 'history' | 'challenges' | 'badges' | 'collections' | 'community' | 'profile';
 
-const ALL_STATES: AppState[] = ['signedout', 'auth', 'email-auth', 'categories', 'error', 'noresults', 'main', 'feedback', 'saved', 'notifications', 'history', 'challenges', 'badges', 'collections', 'community'];
+const ALL_STATES: AppState[] = ['signedout', 'auth', 'email-auth', 'categories', 'error', 'noresults', 'main', 'feedback', 'saved', 'notifications', 'history', 'challenges', 'badges', 'collections', 'community', 'profile'];
 
 // Report engagement on the previous URL before requesting the next Roam.
 async function reportCurrentEngagement(): Promise<void> {
@@ -1007,6 +1007,109 @@ document.addEventListener('DOMContentLoaded', () => {
     window.close();
   });
 
+  // ── Profile: username, display name, bio ──────────────────────────────────
+  async function renderProfileScreen(): Promise<void> {
+    const err = el('profile-error');
+    err.hidden = true;
+    el('profile-success').hidden = true;
+
+    const res = await sendToBackground<MyProfileData>({ type: 'GET_MY_PROFILE' });
+    if (!res.ok) {
+      err.textContent = res.error;
+      err.hidden = false;
+      return;
+    }
+    const me = res.data;
+    el('profile-summary').textContent =
+      `Lv ${me.level} · ${me.xp_total} XP · 🔥 ${me.streak_days} · Roamed ${me.roamed} · Submitted ${me.submitted}`;
+
+    const usernameInput = el<HTMLInputElement>('input-username');
+    const claimBtn = el('btn-claim-username-submit');
+    const viewBtn = el('btn-view-public-profile');
+    if (me.username) {
+      usernameInput.value = me.username;
+      usernameInput.disabled = true;
+      claimBtn.hidden = true;
+      viewBtn.hidden = false;
+      viewBtn.textContent = `View @${me.username} ↗`;
+    } else {
+      usernameInput.value = '';
+      usernameInput.disabled = false;
+      claimBtn.hidden = false;
+      viewBtn.hidden = true;
+    }
+
+    el<HTMLInputElement>('input-display-name').value = me.display_name ?? '';
+    el<HTMLTextAreaElement>('input-bio').value = me.bio ?? '';
+    el('bio-chars').textContent = String((me.bio ?? '').length);
+  }
+
+  function openProfileScreen(): void {
+    showPanel(null);
+    showState('profile');
+    void renderProfileScreen();
+  }
+
+  el('btn-profile').addEventListener('click', openProfileScreen);
+
+  el('btn-back-profile').addEventListener('click', () => {
+    showPanel('config');
+    showState('main');
+  });
+
+  el('input-bio').addEventListener('input', () => {
+    el('bio-chars').textContent = String(el<HTMLTextAreaElement>('input-bio').value.length);
+  });
+
+  el('btn-claim-username-submit').addEventListener('click', async () => {
+    const err = el('profile-error');
+    const btn = el<HTMLButtonElement>('btn-claim-username-submit');
+    btn.disabled = true;
+    err.hidden = true;
+
+    const res = await sendToBackground<{ username: string }>({
+      type: 'CLAIM_USERNAME',
+      username: el<HTMLInputElement>('input-username').value.trim(),
+    });
+    btn.disabled = false;
+    if (!res.ok) {
+      err.textContent = res.error;
+      err.hidden = false;
+      return;
+    }
+    await renderProfileScreen();
+    el('profile-success').hidden = false;
+  });
+
+  el('btn-save-profile').addEventListener('click', async () => {
+    const btn = el<HTMLButtonElement>('btn-save-profile');
+    const err = el('profile-error');
+    const success = el('profile-success');
+    btn.disabled = true;
+    err.hidden = true;
+    success.hidden = true;
+
+    const res = await sendToBackground({
+      type: 'SET_PROFILE_FIELDS',
+      displayName: el<HTMLInputElement>('input-display-name').value,
+      bio: el<HTMLTextAreaElement>('input-bio').value,
+    });
+    btn.disabled = false;
+    if (!res.ok) {
+      err.textContent = res.error;
+      err.hidden = false;
+      return;
+    }
+    success.hidden = false;
+  });
+
+  el('btn-view-public-profile').addEventListener('click', () => {
+    const username = el<HTMLInputElement>('input-username').value.trim();
+    if (!username) return;
+    chrome.tabs.create({ url: `https://roamtheweb.app/u/${username}` });
+    window.close();
+  });
+
   el('btn-add-collection').addEventListener('click', async () => {
     await loadCollectionsForDropdown();
 
@@ -1701,8 +1804,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // ── Claim username (new OAuth users have none yet) ────────────────────────
   el('btn-claim-username').addEventListener('click', () => {
-    chrome.tabs.create({ url: 'https://roamtheweb.app/profile' });
-    window.close();
+    openProfileScreen();
+    el<HTMLInputElement>('input-username').focus();
   });
 
   // ── Toggle: Focus mode ────────────────────────────────────────────────────
