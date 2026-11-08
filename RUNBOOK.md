@@ -12,7 +12,7 @@ and CI. Incident resolutions cite them by number.
 | Rule | Title | Enforced by |
 |---|---|---|
 | 1.1 | Reject `[deploy]` / `[ship]` / `[prod]` / `[release]` commit-message tags | `scripts/check-rules.mjs` (R1) |
-| 1.2 | No attribution of automated authorship | `scripts/check-rules.mjs` (R2) |
+| 1.2 | No provenance notes in committed files (comments, docs, commit messages) | `scripts/check-rules.mjs` (R2) |
 | 1.3 | No hardcoded secret prefixes | `scripts/check-rules.mjs` (R3); `secrets-scan.yml` |
 | 1.4 | No `.skip` migrations in the active directory; move to `_superseded/` | `scripts/check-rules.mjs` (R4) |
 | 1.5 | Every env var is documented in the matching `.env.example` | review; `web/src/lib/env.ts` fails the build when a required var is missing |
@@ -24,7 +24,7 @@ and CI. Incident resolutions cite them by number.
 | 1.10 | Android release keystore and Firebase service-account keys stay out of the repo | `.gitignore`; `secrets-scan.yml` |
 
 `scripts/check-rules.mjs` IDs are not 1:1 with Hard Rule numbers: R1–R9 cover the
-Hard Rules themselves — commit tags, attribution, secrets, `.skip` migrations,
+Hard Rules themselves — commit tags, provenance notes, secrets, `.skip` migrations,
 duplicate component filenames, `proxy.ts`, the v31 `array_agg(u.*)` warning (R7),
 an uncommented empty `catch {}` (R8), and `as any` casts (R9). R10
 (`contains(fromJSON(...))` predicates, see 1.6½) and R11 (`<type>/<kebab>` branch

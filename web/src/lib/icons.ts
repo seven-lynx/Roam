@@ -65,7 +65,7 @@ export const HIDDEN_GLYPH: IconDef = g(
   '<circle cx="12" cy="12" r="9"/><path d="M9.7 9.4a2.4 2.4 0 1 1 3.3 2.2c-.9.4-1 .9-1 1.7"/><path d="M12 16.4h.01"/>',
 );
 
-// ── Extra glyphs (available for specific badges / future GPT handoff) ─────
+// ── Extra glyphs (available for specific badges / future icon handoff) ────
 const CLOCK: IconDef = g('<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.2 1.8"/>');
 const REFRESH: IconDef = g('<path d="M20 12a8 8 0 1 1-3-6.3"/><path d="M20 3v5h-5"/>');
 

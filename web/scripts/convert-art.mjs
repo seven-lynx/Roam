@@ -1,5 +1,5 @@
 /**
- * One-time asset pipeline: convert GPT-generated JPEGs (isolated objects on a
+ * One-time asset pipeline: convert source JPEGs (isolated objects on a
  * near-black background) into keyed, web-optimized WebP under
  * web/public/desk/<slug>-<variant>.webp.
  *

@@ -1,8 +1,8 @@
 /**
  * Photorealistic desk-art registry.
  *
- * The GPT-generated hardware is stored as keyed WebP under `/public/desk/`,
- * produced by `scripts/convert-art.mjs` (one-time, kept for reproducibility).
+ * The hardware renders are stored as keyed WebP under `/public/desk/`,
+ * produced by `web/scripts/convert-art.mjs` (one-time, kept for reproducibility).
  * Every slug has two variants (`'a' | 'b'`); the active variant is a user
  * setting surfaced through `WorkstationContext`.
  */
