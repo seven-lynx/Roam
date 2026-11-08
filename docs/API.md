@@ -162,16 +162,14 @@ Records a user's vote (thumbs up/down) on a URL. Automatically updates the URL's
 **Response (200):**
 ```json
 {
-  "success": true,
-  "rating_id": "uuid",
-  "url_id": "uuid"
+  "success": true
 }
 ```
 
 **Error Responses:**
-- **400** — Invalid `url_id` or `value` (must be ±1)
+- **400** — `value` is not ±1, or `url_id` is not a UUID
 - **401** — Unauthorized
-- **404** — URL not found
+- **409** — `url_id` does not exist (the `ratings.url_id` foreign key rejected it)
 - **500** — Internal server error
 
 **Notes:**

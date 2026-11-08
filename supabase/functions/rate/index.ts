@@ -6,6 +6,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { getCorsHeaders } from '../_shared/cors.ts'
 import { awardXpAndEvaluate } from '../_shared/gamification.ts'
+import { isUuid } from '../_shared/rate-input.ts'
 
 Deno.serve(async (req) => {
   // Extension callers arrive from their own origin; echo it back (see _shared/cors.ts).
@@ -39,13 +40,31 @@ Deno.serve(async (req) => {
   if (typeof url_id !== 'string' || (value !== 1 && value !== -1)) {
     return json({ error: 'url_id (string) and value (1 or -1) required' }, 400)
   }
+  // A malformed id used to reach Postgres and come back as 22P02, which this
+  // handler reported as a generic 500 (ROAM-ANDROID-5 / -16: the Android
+  // placeholder states post url_id=""). Reject it before the write.
+  if (!isUuid(url_id)) {
+    return json({ error: 'url_id must be a uuid' }, 400)
+  }
 
   const { error: upsertErr } = await supabase
     .from('ratings')
     .upsert({ user_id: user.id, url_id, value }, { onConflict: 'user_id,url_id' })
 
   if (upsertErr) {
-    console.error('rate upsert failed:', upsertErr.message)
+    // Log the whole PostgrestError — `message` alone hid this cause for three
+    // months across 74 events. code/details/hint are what identify the fault.
+    console.error('rate upsert failed:', JSON.stringify({
+      code: upsertErr.code,
+      message: upsertErr.message,
+      details: upsertErr.details,
+      hint: upsertErr.hint,
+      url_id,
+    }))
+    // 23503 = foreign key violation: the url_id does not exist in `urls`.
+    if (upsertErr.code === '23503') {
+      return json({ error: 'Unknown url_id' }, 409)
+    }
     return json({ error: 'Failed to record rating' }, 500)
   }
 

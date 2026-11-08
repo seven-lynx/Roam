@@ -494,6 +494,21 @@ class MainViewModelTest {
     }
 
     @Test
+    fun `thumbsUp does not rate a placeholder page with no id`() = runTest {
+        // navigateTo() loads internal pages into a Loaded state whose RoamUrl carries
+        // no id. Posting that id is a 400 from the rate function (ROAM-ANDROID-5 /
+        // -16), so a placeholder must be treated like an unknown page.
+        vm.navigateTo("https://example.com/help")
+        assertEquals("", (vm.state.value as RoamState.Loaded).roamUrl.id)
+
+        vm.thumbsUp(app)
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        coVerify(exactly = 0) { repo.rate(any(), any()) }
+        assertTrue(vm.showSubmitSheet.value)
+    }
+
+    @Test
     fun `thumbsUp on an unknown URL flags a found signal`() = runTest {
         assertEquals(RoamState.Idle, vm.state.value)
         vm.thumbsUp(app)

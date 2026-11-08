@@ -1956,6 +1956,15 @@ class MainViewModel(
             pushSystemMessage("UNCHARTED SIGNAL // FILE THE FIND")
             return
         }
+        if (loaded.roamUrl.id.isBlank()) {
+            // Placeholder pages (navigateTo, restoreLastUrlIfAvailable) are Loaded
+            // with an empty id. There is nothing to rate, and posting it is a 400
+            // from the rate function — ROAM-ANDROID-5 / -16, 75 events.
+            _submitSignalFound.value = true
+            _showSubmitSheet.value = true
+            pushSystemMessage("UNCHARTED SIGNAL // FILE THE FIND")
+            return
+        }
         if (_userRating.value == 1) return  // already up-voted — no-op
         _userRating.value = 1
         _upvoteCount.value = (_upvoteCount.value + 1) % 100
@@ -1992,7 +2001,9 @@ class MainViewModel(
         pushSystemMessage("RATED DOWN // NEXT")
         viewModelScope.launch {
             haptic(context)
-            if (loaded != null) {
+            // A placeholder page (navigateTo, restoreLastUrlIfAvailable) has no id to
+            // rate; down-voting still advances to the next page.
+            if (loaded != null && loaded.roamUrl.id.isNotBlank()) {
                 // Fire the rating in the background — don't wait for it before showing next page
                 launch {
                     val result = runCatching { repo.rate(loaded.roamUrl.id, -1) }
