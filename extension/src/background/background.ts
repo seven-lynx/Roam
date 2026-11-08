@@ -11,6 +11,7 @@ import { getSupabase, clearAuthStorage } from '../lib/supabase';
 import { FALLBACK_CATEGORIES } from '../lib/constants';
 import { addLocalSaved, normaliseLocalSaved, removeLocalSaved } from '../lib/local-saved';
 import { EDGE_UNREACHABLE_MESSAGE, isRetryableEdgeFailure } from '../lib/edge-error';
+import { dispatchReport, unknownMessageTypeResponse } from '../lib/dispatch-report';
 import { getDomain, normalizeUrl } from '../lib/url';
 import { getCollections, createCollection, addUrlToCollection, deleteCollection, renameCollection, updateCollectionPublic } from './handlers/collections';
 import { getUserSettings, setPaywallPref, setLanguagePref, setDiscoveryMode, setAutoTranslate, maybeTranslate } from './handlers/preferences';
@@ -330,9 +331,9 @@ chrome.runtime.onMessage.addListener(
 async function dispatch(req: Request): Promise<Response> {
   const result = await _dispatch(req);
   if (!result.ok) {
-    const expected = new Set(['SIGN_IN_EMAIL', 'SIGN_UP_EMAIL', 'GET_PROFILE', 'GET_PROFILE_PUBLIC']);
-    if (!expected.has(req.type)) {
-      Sentry.captureMessage(`[bg] ${req.type} failed: ${result.error}`, { level: 'error', tags: { messageType: req.type } });
+    const decision = dispatchReport(req.type, result);
+    if (decision.report) {
+      Sentry.captureMessage(`[bg] ${req.type} failed: ${result.error}`, { level: decision.level, tags: { messageType: req.type } });
     }
   }
   return result;
@@ -401,7 +402,7 @@ async function _dispatch(req: Request): Promise<Response> {
     case 'GET_CHALLENGES':        return getChallenges();
     case 'GET_URL_HISTORY':       return getUrlHistory(req.limit);
     case 'CLEAR_URL_HISTORY':     return clearUrlHistory();
-    default:                      return { ok: false, error: 'Something went wrong. Please try again.' };
+    default:                      return unknownMessageTypeResponse();
   }
 }
 

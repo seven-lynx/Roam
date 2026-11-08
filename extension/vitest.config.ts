@@ -12,6 +12,7 @@ export default defineConfig({
       __SUPABASE_ANON_KEY__: '"test-anon-key"',
       __SENTRY_DSN__: '""',
       __SENTRY_RELEASE__: '"test"',
+      __EXTENSION_VERSION__: '"test"',
       __ENVIRONMENT__: '"test"',
     },
   },

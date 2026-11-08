@@ -68,7 +68,9 @@ export type Request =
 
 export type Response<T = unknown> =
   | { ok: true; data: T }
-  | { ok: false; error: string };
+  // `code` is a machine-readable failure reason, set only by the dispatcher, so a
+  // caller can tell version skew from a real handler failure (issue #105).
+  | { ok: false; error: string; code?: string };
 
 export interface StateData {
   signedIn: boolean;
@@ -76,6 +78,9 @@ export interface StateData {
   userId?: string;
   /** Auth provider reported by Supabase ('email', 'google', …). */
   provider?: string;
+  /** Build-time version of the worker that answered, so the popup can spot a worker
+   *  left behind by a previous build (issue #105). */
+  version?: string;
 }
 
 export interface RoamData {

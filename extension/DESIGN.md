@@ -193,13 +193,21 @@ The `getSupabase()` call is lazy (first call creates the client). The Supabase c
 
 ```
 chrome.runtime.onMessage
-  → dispatch(req)          — wraps _dispatch; sends failed non-expected types to Sentry
+  → dispatch(req)          — wraps _dispatch; routes a failure through dispatchReport()
     → _dispatch(req)       — switch on req.type, returns Response<T>
 ```
 
-All handlers return `{ ok: true, data: T }` or `{ ok: false, error: string }`. The `error` string is always user-facing (no stack traces, no internal IDs).
+All handlers return `{ ok: true, data: T }` or `{ ok: false, error: string; code?: string }`. The `error` string is always user-facing (no stack traces, no internal IDs). `code` is set only by the dispatcher.
 
-Expected failure types that are NOT sent to Sentry: `SIGN_IN_EMAIL`, `SIGN_UP_EMAIL`, `GET_PROFILE` — these fail in normal operation (wrong password, no profile yet).
+`dispatchReport()` (`lib/dispatch-report.ts`) decides whether a failure reaches Sentry and at what level:
+
+| Failure | Reported | Level |
+| --- | --- | --- |
+| `SIGN_IN_EMAIL`, `SIGN_UP_EMAIL`, `GET_PROFILE`, `GET_PROFILE_PUBLIC` | no | — |
+| Unrecognised `req.type` (`code: 'UNKNOWN_MESSAGE_TYPE'`) | yes | `warning` |
+| Every other handler failure | yes | `error` |
+
+Expected failure types are left unreported because they fail in normal operation (wrong password, no profile yet). An unrecognised type is version skew, not a handler bug: the running worker is older than the popup that sent the message, so it is reported at `warning` to keep it out of the error stream while still leaving a trace (issue #105).
 
 ### 4.4 Prefetch design
 
@@ -475,7 +483,7 @@ export type Request =
 
 export type Response<T = unknown> =
   | { ok: true; data: T }
-  | { ok: false; error: string };
+  | { ok: false; error: string; code?: string };
 ```
 
 ### 8.2 Adding a new message type
@@ -490,6 +498,15 @@ export type Response<T = unknown> =
 Retries once with a 300ms pause between attempts. This handles the common case where Chrome has terminated the SW and needs a moment to restart it before the second attempt lands. Both failures are captured to Sentry. The returned error on double failure is user-facing and safe to display.
 
 One case is not retried: a page with no extension runtime at all (`isExtensionContext()` in `extension-context.ts` returns false). A built `popup.html` opened over `file://` has no `chrome` global, so every attempt would throw `ReferenceError` and the retry could never succeed. The call returns `{ ok: false, error: 'Roam is not running as an installed extension.' }` on the first attempt and captures nothing — before that guard those loads filed phantom production issues (issue #75).
+
+### 8.4 Version handshake
+
+The popup document is re-read from disk every time it opens; an MV3 service worker can outlive a rebuild and keep answering from the previous bundle. When that happens the worker meets request types it has no `case` for, and before the handshake it answered with a user-facing string indistinguishable from a real failure.
+
+- `build.mjs` injects `__EXTENSION_VERSION__` (the same value as `sentryRelease`) into every bundle, and empties `outdir` before writing so no stale artifact survives a rebuild.
+- `lib/version.ts` exposes it as `BUILD_VERSION`, plus `isStaleWorker(workerVersion)`. An absent version counts as stale — that worker predates the handshake.
+- `getState()` returns `version` in `StateData`, which is the worker's own `BUILD_VERSION`.
+- `boot()` and `renderProfileScreen()` compare the two. A mismatch captures a `warning` tagged `context: version-skew` and toasts "Roam was updated. Close and reopen the extension." instead of leaving the user with a silent failure.
 
 ---
 
