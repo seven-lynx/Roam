@@ -245,6 +245,9 @@ class RoamRepository {
      */
     suspend fun rate(urlId: String, value: Int) {
         require(value == 1 || value == -1)
+        // No placeholder page may reach the wire with a blank id: rate answers 400
+        // for it, and a swallowed 400 is how #89 hid for months.
+        require(urlId.isNotBlank()) { "url_id required" }
         val body = buildJsonObject {
             put("url_id", urlId)
             put("value", value)
@@ -445,6 +448,9 @@ class RoamRepository {
      * Adds a URL to a collection by URL ID.
      */
     suspend fun addUrlToCollection(collectionId: String, urlId: String) {
+        // collection/index.ts:150 answers 400 for a blank url_id; reject it here so no
+        // caller can post one and then claim the page was added.
+        require(urlId.isNotBlank()) { "url_id required" }
         val body = buildJsonObject {
             put("action", "add_item")
             put("collection_id", collectionId)
@@ -553,6 +559,8 @@ class RoamRepository {
      * Reports a URL as broken/dead. Sets urls.inactive = TRUE on the server.
      */
     suspend fun reportUrl(urlId: String) {
+        // report-url/index.ts:34 answers 400 for a blank url_id — reject before the wire.
+        require(urlId.isNotBlank()) { "url_id required" }
         val body = buildJsonObject {
             put("url_id", urlId)
         }
@@ -1017,7 +1025,10 @@ class RoamRepository {
         val body = buildJsonObject {
             put("action", "share")
             put("recipient_id", recipientId)
-            put("url_id", urlId)
+            // A page outside the pool has no id; share-url resolves one from `url`
+            // (index.ts:65-80), so send the id only when it is real — the same shape
+            // saveUrl() already uses for its optional url_id.
+            urlId.takeIf { it.isNotBlank() }?.let { put("url_id", it) }
             put("url", url)
         }
         supabase.functions.invoke("share-url", body = body)
