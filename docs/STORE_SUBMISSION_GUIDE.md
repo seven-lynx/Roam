@@ -161,13 +161,12 @@ dist/
 
 **Step 5: Submit for Review**
 1. Review all details one more time
-2. Ensure manifest.json has:
+2. Ensure manifest.json declares:
    ```json
-   "name": "Roam - Discover & Rate Web Content",
-   "version": "1.0.0",
    "manifest_version": 3,
-   "permissions": ["tabs", "activeTab"],
-   "host_permissions": ["https://roamtheweb.app/*"]
+   "permissions": ["tabs", "storage", "alarms", "notifications"],
+   "host_permissions": ["https://*.supabase.co/*"],
+   "web_accessible_resources": [{ "resources": ["callback.html"], "matches": ["https://*.supabase.co/*"] }]
    ```
 3. Click "Submit for review"
 4. Extension moves to "In review" status
@@ -279,7 +278,6 @@ Do not reuse `dist/` — the Chrome manifest is the wrong one for AMO.
    - Review requested permissions
    - Provide justification for each:
      - "tabs" — needed to submit current tab URL
-     - "activeTab" — access current page context
      - "storage" — keep the sign-in session and the prefetch queue locally
      - "alarms" — schedule the 5-minute notification check (no background loop)
      - "notifications" — show the user's own follows, shares, badge and challenge activity as a desktop notification; nothing is shown unless the user turns the toggle on

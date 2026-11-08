@@ -64,19 +64,44 @@ targets `firefox121` (`build.mjs:50-51,134`). The differences that matter:
   restores the queue after a browser restart.
 - **OAuth is a plain tab, not an identity window.** Neither manifest requests `identity`:
   `signInWithOAuth()` opens the authorize URL with `chrome.tabs.create` and
-  `redirectTo: chrome.runtime.getURL('callback.html')` (`background.ts:480`), so Firefox lands back
+  `redirectTo: chrome.runtime.getURL('callback.html')` (`launchOAuthTab()` in
+  `background/auth.ts`), so Firefox lands back
   on `moz-extension://<uuid>/callback.html` and `callback.ts` hands the code to the SW (rule E.5).
   A temporary install is assigned a new UUID each time it is loaded, so that exact callback URL has
   to be in Supabase's Redirect URLs before the flow will complete.
 - **No `commands` key.** Firefox does not expose `chrome.commands` to this build, so the
   `Ctrl+Shift+R` shortcut exists only in Chrome and the listener is guarded
-  (`background.ts:314-315`).
+  (`chrome.commands?.onCommand`, guarded in `background.ts`).
 - **Sentry is stubbed out.** `build.mjs` replaces `src/lib/sentry.ts` with a no-op so the
   `@sentry/browser` bundle (and the `innerHTML` usage AMO reviewers flag) never ships. Firefox
   builds report nothing; the console is the only diagnostic surface.
 - **`browser_specific_settings.gecko`** pins the add-on ID `roam@roamtheweb.app`,
   `strict_min_version: "140.0"`, the `gecko_android` floor of `142.0`, and the
   `data_collection_permissions` block AMO has required for new submissions since 2025-11-03.
+
+### 2.5 Manifest permissions
+
+Both manifests declare the same four permissions, and nothing else:
+
+| Permission | Why it is requested | Rule |
+|---|---|---|
+| `tabs` | Opens, focuses and closes the sign-in tab (`chrome.tabs.create` / `update` / `remove`), and reads the active tab for the current-page panel. | E.5 |
+| `storage` | `chrome.storage.local` holds the Supabase session, preferences and the saved list; `chrome.storage.session` holds the prefetch queue and the `auth_flow` marker. | — |
+| `alarms` | The 5-minute notification poll. Created on install, on start-up, and when the toggle is switched on — never at module scope, because re-creating an alarm resets its next fire time. | E.4 |
+| `notifications` | Desktop notifications for follows, shares, badge unlocks, level-ups and challenge completions. | E.4 |
+
+`identity` is deliberately absent: sign-in runs in a plain tab (2.4 for the Firefox
+differences, 6.1 for the sequence), so the extension never needs the
+`chromiumapp.org` redirect host. `activeTab` is not requested either — the extension
+reads the active tab through `tabs` and never injects a script.
+
+`callback.html` is the only web-accessible resource, matched to
+`https://*.supabase.co/*` so the OAuth redirect can land on it. Nothing else inside
+the extension is reachable from a page.
+
+The authoritative rule text for adding a permission — the review checklist in E.4 and
+the single-tab requirement in E.5 — lives in `extension/RULES.md`. This table is the
+tracked record of what the manifests actually declare.
 
 
 ---
@@ -105,7 +130,13 @@ extension/
 ├── src/
 │   ├── theme.css              ← Palette, @font-face and CRT layers. Shared by popup + callback.
 │   ├── background/
-│   │   └── background.ts      ← SW entry point. Message router + all handlers.
+│   │   ├── background.ts      ← SW entry point. Message router, discovery, preferences.
+│   │   ├── auth.ts            ← Session state, email/password, the single-tab OAuth flow.
+│   │   ├── account.ts         ← Password change for email accounts.
+│   │   ├── notify.ts          ← Desktop notifications and the alarm-driven poll.
+│   │   ├── profile.ts         ← Profile read/write and the username claim.
+│   │   ├── social.ts          ← Follow graph and activity feed.
+│   │   └── handlers/          ← Collections, notifications, preferences.
 │   ├── popup/
 │   │   ├── popup.html         ← Static HTML. All states present, toggled with hidden attr.
 │   │   ├── popup.css          ← Popup structure and state styles. No colours — see theme.css.
@@ -114,6 +145,7 @@ extension/
 │   │   ├── callback.html      ← Minimal page shown during OAuth redirect.
 │   │   └── callback.ts        ← Extracts tokens from URL, sends SAVE_SESSION to SW.
 │   └── lib/
+│       ├── auth-flow.ts       ← The `auth_flow` marker: key, TTL and shape check. Shared with callback.
 │       ├── constants.ts       ← FALLBACK_CATEGORIES (8 hardcoded UUIDs).
 │       ├── env.ts             ← Build-time env validation. Called once at SW startup.
 │       ├── messages.ts        ← Discriminated union Request/Response types + sendToBackground().
@@ -141,7 +173,7 @@ extension/
 - Validate build-time environment variables at startup (`validateEnvironment()`).
 - Register the `onMessage` listener — the single entry point for all popup requests.
 - Register the `onConnect` listener — used to keep the SW alive while the popup is open, and to trigger URL prefetching when the popup opens.
-- Handle all 22 message types (auth, roam, rate, collections, preferences, etc.).
+- Handle every request type defined in `messages.ts` (auth, roam, rate, collections, preferences, social, notifications).
 - Prefetch the next URL whenever the popup connects.
 
 ### 4.2 Startup sequence
@@ -203,6 +235,9 @@ To avoid serving two pages from the same domain in a row, the last-served domain
 When `ROAM_COLLECTION` or `ROAM_CATEGORY` is called, the same `lastRoamDomain` exclusion applies.
 
 ### 4.6 Handler catalogue
+
+The auth rows live in `background/auth.ts`; every other handler is either in this file
+or in `background/handlers/`.
 
 | Message type | Handler | Notes |
 |---|---|---|

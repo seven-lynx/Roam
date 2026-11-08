@@ -27,12 +27,12 @@ All notable changes to the Roam browser extension.
 - Desktop notifications (opt-in, `desktop_notifications` toggle) for follows, shares, badge unlocks, level-ups and challenge completions. Unread notifications are polled on a 5-minute `chrome.alarms` schedule and a tap opens the same target the web bell uses. Unlocks that land while the popup is closed also show as a toast on the next open.
 - Community screen: the activity feed for the people you follow, plus follower/following lists with unfollow. Follow and unfollow call the `follow` function, so social XP and badge evaluation still run server side.
 - You screen: one-time username claim, editable display name and bio, and password change for email accounts (re-authenticates first, as the web settings page does).
-- Unit coverage for notification payloads, watermark selection, activity wording and input validation (98 tests total).
+- Unit coverage for notification payloads, watermark selection, activity wording and input validation, plus the OAuth tab flow — the `auth_flow` TTL and shape check, the in-flight dedupe, and focus/relink behaviour (122 tests total).
 
 ### Changed
 - Popup colours are semantic tokens now (`--danger`, `--ok`, `--info`, `--accent-ink`) instead of hardcoded hex, so both themes colour error and success states correctly; accent-backed buttons pick an ink colour that stays legible on gold. `--text-secondary` is finally defined — it was referenced once and resolved to nothing.
-- Service worker split: the collections, notifications and preferences handlers moved to `background/handlers/`, and URL normalisation to `lib/url.ts`. `background.ts` went from 1,350 to ~1,100 lines; discovery and auth remain to be split (rule E.3).
-- Two new manifest permissions, `alarms` and `notifications`, both documented in the `extension/RULES.md` permissions table.
+- Service worker split: the collections, notifications and preferences handlers moved to `background/handlers/`, URL normalisation to `lib/url.ts`, and the whole auth surface to `background/auth.ts` — session state, email/password and the tab-based OAuth flow, with the `auth_flow` marker shared with `callback.ts` through `lib/auth-flow.ts`. `background.ts` went from 1,350 to 939 lines; discovery and the interests/saved/profile-stats handlers remain to be split (rule E.3).
+- Two new manifest permissions, `alarms` and `notifications`, both documented in the `DESIGN.md` permissions table (2.5).
 
 ### Still on the web app
 - Data export and account deletion stay on the web settings page, linked from the You screen: export needs an authenticated file download and deletion is irreversible.
@@ -64,7 +64,7 @@ All notable changes to the Roam browser extension.
 ### Fixed
 - OAuth sign-in on Chrome — Dual-path `launchWebAuthFlow` with tab fallback for reliability. Added timeout handling for the auth flow.
 - OAuth sign-in on Firefox — `postMessage` fallback, `web_accessible_resources` matches corrected, conflicting `service_worker` key removed from background config, and `chrome.commands` guarded for Firefox compatibility.
-- Chrome Web Store compliance — Removed unused `identity` permission that was flagged during review.
+- Chrome Web Store compliance — Removed unused `identity` permission that was flagged during review. (Corrected in 0.6.0: the permission stayed declared in both manifests until then, so the removal recorded here never landed — see Unreleased.)
 - Sentry — Resolved the top errors across both Chrome and Firefox, reducing noise in the issue feed.
 
 ## [0.3.0] - 2026-06-06

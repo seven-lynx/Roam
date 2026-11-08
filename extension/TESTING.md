@@ -114,15 +114,15 @@ Right-click the popup → **Inspect** opens a separate DevTools for popup code.
 
 **Precondition:** Not signed in (popup shows sign-in button)
 
-> **Firefox note:** the flow redirects to `https://roamtheweb.app/auth/callback` (see Setup → Step 4) and, on Firefox, normally completes through the tab fallback rather than `launchWebAuthFlow`. Check [TESTING-FIREFOX.md](TESTING-FIREFOX.md) §6 F1 and §7 X2 for the console sequence to expect.
+> **Firefox note:** the redirect returns to the extension's own `callback.html` (Setup → Step 4), never to the web app, and the flow is the same on Firefox apart from the `moz-extension://` origin. Check [TESTING-FIREFOX.md](TESTING-FIREFOX.md) §6 F1 and §7 X2 for the console sequence to expect.
 
 **Steps:**
 
 1. Click extension icon → popup opens
 2. Click **Sign In with Google**
 3. A new tab opens with Google OAuth — select your Google account
-4. Callback page processes the redirect and closes automatically
-5. Popup detects the session and switches to main state
+4. Callback page processes the redirect and lands the tab on your Roam profile
+5. Reopen the popup — it reads `GET_STATE` and switches to the main state
 6. Check background SW console for logs:
    ```
    [roam] background service worker started

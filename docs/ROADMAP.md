@@ -616,7 +616,7 @@ The Chrome + Firefox extension. Single codebase, Manifest V3. No page injection 
 
   Created `extension/package.json` with `esbuild`, `typescript`, and `@types/chrome` as dev dependencies, and `@supabase/supabase-js` as a runtime dependency. Installed with pnpm. Set `"type": "module"` for ESM.
 
-- [x] **5.2** Write `manifest.json` (MV3) declaring the popup, background service worker, and required permissions (`tabs`, `storage`, `identity`)
+- [x] **5.2** Write `manifest.json` (MV3) declaring the popup, background service worker, and required permissions (`tabs`, `storage`; `identity` was dropped in 0.6.0 — see EXT.7)
 
   Created `extension/manifest.json` with `manifest_version: 3`, popup pointing to `popup.html`, background service worker at `background.js`, permissions `tabs`/`storage`/`identity`, and `host_permissions` for `*.supabase.co`. Content Security Policy restricts scripts to `'self'` only.
 
@@ -638,7 +638,7 @@ The Chrome + Firefox extension. Single codebase, Manifest V3. No page injection 
 
 - [x] **5.7** Implement auth — sign in with email or Google; persist the Supabase session token in `chrome.storage.local`
 
-  Implemented `signInWithGoogle()` in the background SW using the PKCE flow: calls `supabase.auth.signInWithOAuth({ provider: 'google', skipBrowserRedirect: true })` to get the OAuth URL, hands it to `chrome.identity.launchWebAuthFlow`, then extracts the PKCE `code` from the redirect URL and calls `supabase.auth.exchangeCodeForSession(code)`. The resulting session is stored automatically by the `chromeStorageAdapter`. Also wired `SIGN_OUT`. Updated `popup.ts` boot sequence to send `GET_STATE` on mount. **Setup required:** add `https://<EXTENSION_ID>.chromiumapp.org/` to Supabase ? Authentication ? Redirect URLs.
+  Implemented `signInWithGoogle()` in the background SW using the PKCE flow: calls `supabase.auth.signInWithOAuth({ provider: 'google', skipBrowserRedirect: true })` to get the OAuth URL, hands it to `chrome.identity.launchWebAuthFlow`, then extracts the PKCE `code` from the redirect URL and calls `supabase.auth.exchangeCodeForSession(code)`. The resulting session is stored automatically by the `chromeStorageAdapter`. Also wired `SIGN_OUT`. Updated `popup.ts` boot sequence to send `GET_STATE` on mount. **Superseded in 0.6.0:** the `launchWebAuthFlow` step is gone — the authorize URL opens in one tab that redirects to the extension's own `callback.html`, so the `https://<EXTENSION_ID>.chromiumapp.org/` redirect host this step required from Supabase's Redirect URLs is gone. See EXT.7.
 
 - [x] **5.8** Implement the Roam button — calls `GET /roam`, opens the returned URL in the current tab
 
@@ -1528,7 +1528,7 @@ These must be completed before any app store submission or launch is possible.
   - **Severity:** HIGH — critical user journey; auth failure blocks entire app for new users
   - **Effort:** 3 hours (manual testing)
   - **Files:** `web/TESTING.md` (create), `extension/TESTING.md` (update), `android/TESTING.md` (create)
-  - **Test cases:** (1) Web email sign-up, (2) Web Google OAuth, (3) Extension Google OAuth + Chrome identity flow, (4) Extension Firefox OAuth (different API), (5) Android email sign-up, (6) Android Google OAuth via Custom Tab + deep link callback, (7) Session persistence after app restart
+  - **Test cases:** (1) Web email sign-up, (2) Web Google OAuth, (3) Extension Google OAuth in a single tab (no identity window — see EXT.7), (4) Extension Firefox OAuth (different API), (5) Android email sign-up, (6) Android Google OAuth via Custom Tab + deep link callback, (7) Session persistence after app restart
   - **Acceptance:** All 7 flows tested manually, signed in state persists after restart, Sentry captures OAuth errors if they occur
   
   Created comprehensive OAuth testing documentation:
@@ -1537,7 +1537,7 @@ These must be completed before any app store submission or launch is possible.
   - **android/TESTING.md** (21 KB): Existing file with email/password and Google OAuth test cases documented
   - **OAuth-Testing-Checklist.md** (new): Consolidated master checklist for all 7 OAuth flows
     - Web: Email sign-up, Google OAuth (2 tests)
-    - Extension: Chrome OAuth + identity flow, Firefox OAuth (2 tests)
+    - Extension: Chrome OAuth in one tab, Firefox OAuth (2 tests)
     - Android: Email sign-up, Google OAuth + Custom Tab + deep link (2 tests)
     - Session persistence after app restart (1 test)
     - Cross-platform validation (error handling, Sentry events, data consistency)
@@ -2328,8 +2328,8 @@ last stage of the service-worker split.
   - **Files:** `extension/src/lib/notifications.ts`, `extension/src/background/notify.ts`, `extension/src/popup/popup.ts`
 
 - [x] **EXT.2** Desktop notifications for follows, shares, badge unlocks and challenges
-  - `alarms` + `notifications` permissions added to both manifests and documented in the `extension/RULES.md` permissions table (rule E.4). The poll is a 5-minute alarm created on install/start-up and when the toggle is enabled, so waking the service worker never pushes the next fire back.
-  - **Files:** `extension/manifest.json`, `extension/manifest.firefox.json`, `extension/src/background/notify.ts`, `extension/RULES.md`
+  - `alarms` + `notifications` permissions added to both manifests and documented in the `DESIGN.md` permissions table (2.5, rule E.4). The poll is a 5-minute alarm created on install/start-up and when the toggle is enabled, so waking the service worker never pushes the next fire back.
+  - **Files:** `extension/manifest.json`, `extension/manifest.firefox.json`, `extension/src/background/notify.ts`, `extension/DESIGN.md`
 
 - [x] **EXT.3** Social graph inside the popup
   - Community screen with the activity feed (`activity-feed`) and follower/following lists; unfollow from the list. Follow calls the `follow` function so social XP and badge evaluation still run.
@@ -2344,9 +2344,9 @@ last stage of the service-worker split.
   - **Files:** `extension/src/background/account.ts`
 
 - [ ] **EXT.6** Finish the service-worker split (rule E.3)
-  - Collections, notifications and preferences handlers now live in `background/handlers/`, and URL normalisation in `lib/url.ts`; `background.ts` is ~1,100 lines. The auth flow, the prefetch/discovery core, and the interests/saved/profile-stats handlers still need modules of their own.
-  - **Files:** `extension/src/background/background.ts`
+  - Collections, notifications and preferences handlers now live in `background/handlers/`, URL normalisation in `lib/url.ts`, and the auth surface in `background/auth.ts` (session state, email/password, the tab flow, with `lib/auth-flow.ts` holding the marker shared with `callback.ts`). `background.ts` is 939 lines. The prefetch/discovery core and the interests/saved/profile-stats handlers still need modules of their own.
+  - **Files:** `extension/src/background/background.ts`, `extension/src/background/auth.ts`
 
 - [x] **EXT.7** Sign-in runs in one tab (rule E.5)
   - `signInWithOAuth()` no longer calls `chrome.identity.launchWebAuthFlow`. The authorize URL opens in a single `chrome.tabs.create` tab with `redirectTo: chrome.runtime.getURL('callback.html')`, and `callback.ts` hands the PKCE code to the service worker, so the redirect lands back inside the extension instead of on the web app's cookie session. The launch is deduped on an in-flight promise plus the `auth_flow` marker in `chrome.storage.session`, so a retry, a double click, or a reopened popup focuses the open tab rather than opening a second one. `identity` is gone from both manifests, leaving `tabs`, `storage`, `alarms` and `notifications`. `chrome-extension://<ID>/callback.html` has to be listed in Supabase `Redirect URLs` before the flow completes.
-  - **Files:** `extension/src/background/background.ts`, `extension/src/callback/callback.ts`, `extension/src/popup/popup.ts`, `extension/manifest.json`, `extension/manifest.firefox.json`
+  - **Files:** `extension/src/background/auth.ts`, `extension/src/lib/auth-flow.ts`, `extension/src/callback/callback.ts`, `extension/src/popup/popup.ts`, `extension/manifest.json`, `extension/manifest.firefox.json`, `extension/src/__tests__/auth.test.ts`
