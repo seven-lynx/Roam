@@ -4,8 +4,9 @@
 // back from Google. It hands the PKCE code (or the implicit-grant tokens) to the
 // service worker, then lands that same tab on the web app's profile page.
 
+import { AUTH_FLOW_KEY } from '../lib/auth-flow';
+
 const PROFILE_URL = 'https://roamtheweb.app/profile';
-const AUTH_FLOW_KEY = 'auth_flow';
 
 const urlParams = new URLSearchParams(location.hash.slice(1) || location.search.slice(1));
 const accessToken = urlParams.get('access_token');

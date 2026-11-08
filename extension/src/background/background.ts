@@ -18,6 +18,7 @@ import { NOTIFY_ALARM, handleNotificationClick, pollNotifications, registerNotif
 import { followUser, unfollowUser, getFollowers, getFollowing, getActivityFeed } from './social';
 import { getMyProfile, setProfileFields, claimUsername } from './profile';
 import { changePassword } from './account';
+import { getState, signInWithOAuth, signInWithEmail, signUpWithEmail, exchangeCode, saveSession, signOut } from './auth';
 
 declare const __SUPABASE_URL__: string;
 
@@ -38,8 +39,6 @@ const URL_HISTORY_KEY = 'extension_url_history';
 const MAX_HISTORY_ENTRIES = 100;
 const LOCAL_SAVED_KEY = 'saved_urls';
 const SAVED_URLS_LIMIT = 200; // server-side list cap (web/Android show the full set)
-const AUTH_FLOW_KEY = 'auth_flow';      // { tabId, windowId, startedAt } of the open sign-in tab
-const AUTH_FLOW_TTL = 5 * 60 * 1000;    // a stale marker never blocks a fresh sign-in
 
 // Deduplicates concurrent prefetch calls within a single SW activation.
 let prefetchInFlight: Promise<void> | null = null;
@@ -401,144 +400,6 @@ async function _dispatch(req: Request): Promise<Response> {
     case 'CLEAR_URL_HISTORY':     return clearUrlHistory();
     default:                      return { ok: false, error: 'Something went wrong. Please try again.' };
   }
-}
-
-// ── Auth ──────────────────────────────────────────────────────────────────────
-async function getState(): Promise<Response<StateData>> {
-  const { data: { session }, error } = await getSupabase().auth.getSession();
-  if (error) return { ok: false, error: error.message };
-  if (!session) return { ok: true, data: { signedIn: false } };
-
-  const expiresAt = session.expires_at ?? 0;
-  if (expiresAt <= Math.floor(Date.now() / 1000) + 60) {
-    const { data: refreshed, error: rErr } = await getSupabase().auth.refreshSession();
-    if (rErr) {
-      await clearAuthStorage();
-      return { ok: true, data: { signedIn: false } };
-    }
-    if (!refreshed.session) return { ok: true, data: { signedIn: false } };
-    return { ok: true, data: { signedIn: true, email: refreshed.session.user.email, userId: refreshed.session.user.id, provider: refreshed.session.user.app_metadata?.provider ?? 'email' } };
-  }
-
-  return { ok: true, data: { signedIn: true, email: session.user.email, userId: session.user.id, provider: session.user.app_metadata?.provider ?? 'email' } };
-}
-
-// ── OAuth (Google) ─────────────────────────────────────────────────────────
-//
-// Tab-based flow, no identity window. The Supabase authorize URL opens in ONE new
-// tab and Supabase redirects back to this extension's own callback.html, which
-// hands the PKCE code to the SW. The web app's /auth/callback must NOT be used as
-// redirectTo - that exchange runs against the website's cookie session, so the
-// extension never receives a session and the user is just left looking at the site.
-
-interface AuthFlowState {
-  tabId: number;
-  windowId: number;
-  startedAt: number;
-}
-
-/** The sign-in tab already open for this browser profile, if any. */
-async function getPendingAuthFlow(): Promise<AuthFlowState | null> {
-  const stored = await chrome.storage.session.get(AUTH_FLOW_KEY);
-  const flow = stored[AUTH_FLOW_KEY] as AuthFlowState | undefined;
-  if (!flow || Date.now() - flow.startedAt >= AUTH_FLOW_TTL) return null;
-  return flow;
-}
-
-// Deduplicates concurrent requests inside one SW activation: sendToBackground()
-// retries once when the SW is slow to wake, and a double click sends two messages.
-// Either would otherwise open two sign-in tabs.
-let authLaunchInFlight: Promise<Response<StateData>> | null = null;
-
-function signInWithOAuth(provider: 'google'): Promise<Response<StateData>> {
-  const existing = authLaunchInFlight;
-  if (existing) return existing;
-  const launch = launchOAuthTab(provider).finally(() => { authLaunchInFlight = null; });
-  authLaunchInFlight = launch;
-  return launch;
-}
-
-async function launchOAuthTab(provider: 'google'): Promise<Response<StateData>> {
-  try {
-    // A sign-in tab is still open (second click, popup reopened mid-flow, retry):
-    // focus it instead of opening another one.
-    const pending = await getPendingAuthFlow();
-    if (pending) {
-      try {
-        await chrome.tabs.update(pending.tabId, { active: true });
-        await chrome.windows.update(pending.windowId, { focused: true }).catch(() => {});
-        return { ok: true, data: { signedIn: false } };
-      } catch {
-        await chrome.storage.session.remove(AUTH_FLOW_KEY); // that tab is gone
-      }
-    }
-
-    // Extension-origin redirect so the code lands back inside the extension, where
-    // callback.ts can send EXCHANGE_CODE to this SW. Requires
-    // chrome-extension://<ID>/callback.html in Supabase: Authentication >
-    // URL Configuration > Redirect URLs (see extension/TESTING.md section 4).
-    const redirectTo = chrome.runtime.getURL('callback.html');
-    const { data, error } = await getSupabase().auth.signInWithOAuth({
-      provider,
-      options: { redirectTo, skipBrowserRedirect: true },
-    });
-    if (error || !data.url) {
-      Sentry.captureException(error || new Error('signInWithOAuth returned no URL'), { tags: { context: `signInWith_${provider}` } });
-      return { ok: false, error: 'Could not open the sign-in page. Please try again.' };
-    }
-
-    const tab = await chrome.tabs.create({ url: data.url, active: true });
-    if (typeof tab.id === 'number') {
-      const flow: AuthFlowState = { tabId: tab.id, windowId: tab.windowId, startedAt: Date.now() };
-      await chrome.storage.session.set({ [AUTH_FLOW_KEY]: flow });
-    }
-
-    // callback.html takes over from here; the popup closes and reads GET_STATE on
-    // its next open.
-    return { ok: true, data: { signedIn: false } };
-  } catch (err) {
-    Sentry.captureException(err, { tags: { context: `signInWith_${provider}` } });
-    return { ok: false, error: 'Could not open the sign-in page. Please try again.' };
-  }
-}
-
-async function signInWithEmail(email: string, password: string): Promise<Response<StateData>> {
-  const { data, error } = await getSupabase().auth.signInWithPassword({ email, password });
-  if (error) return { ok: false, error: error.message };
-  return { ok: true, data: { signedIn: true, email: data.user?.email, userId: data.user?.id, provider: data.user?.app_metadata?.provider ?? 'email' } };
-}
-
-async function signUpWithEmail(email: string, password: string): Promise<Response<{ needsVerification: boolean }>> {
-  const { data, error } = await getSupabase().auth.signUp({
-    email,
-    password,
-    options: { emailRedirectTo: 'https://roamtheweb.app/auth/callback' },
-  });
-  if (error) return { ok: false, error: error.message };
-  return { ok: true, data: { needsVerification: !data.session } };
-}
-
-async function exchangeCode(code: string): Promise<Response<StateData>> {
-  const { error } = await getSupabase().auth.exchangeCodeForSession(code);
-  if (error) { Sentry.captureException(error, { tags: { context: 'exchangeCode' } }); return { ok: false, error: error.message }; }
-  return getState();
-}
-
-async function saveSession(accessToken: string, refreshToken: string): Promise<Response<StateData>> {
-  try {
-    const { error } = await getSupabase().auth.setSession({ access_token: accessToken, refresh_token: refreshToken });
-    if (error) return { ok: false, error: error.message };
-    return getState();
-  } catch (err) {
-    return { ok: false, error: err instanceof Error ? err.message : 'Unknown error' };
-  }
-}
-
-async function signOut(): Promise<Response<StateData>> {
-  const { error } = await getSupabase().auth.signOut();
-  if (error) return { ok: false, error: error.message };
-  await clearAuthStorage();
-  return { ok: true, data: { signedIn: false } };
 }
 
 // ── Categories ────────────────────────────────────────────────────────────────

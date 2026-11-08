@@ -13,11 +13,11 @@ that change what "pass" means, and the checks Chrome cannot exercise.
 | Area | Chrome | Firefox | What it means for testing |
 |---|---|---|---|
 | Background context | `service_worker` (`manifest.json:25-28`) | `background.scripts` + `type: "module"` event page (`manifest.firefox.json:38-41`) | Not a service worker. It is not killed on Chrome's ~30 s timer, and it stays alive while the popup port is open (`popup.ts:325`). "Cold start" tests must reload the add-on, not wait. |
-| Keyboard shortcut | `commands.roam` → `Ctrl+Shift+R` (`manifest.json:30-38`) | **No `commands` key.** Guarded in code at `background.ts:314-315` | The shortcut must be *absent* in Firefox, and the extension must still load. Roam is popup-only. |
+| Keyboard shortcut | `commands.roam` → `Ctrl+Shift+R` (`manifest.json:30-38`) | **No `commands` key.** Guarded in code (`chrome.commands?.onCommand` in `background.ts`) | The shortcut must be *absent* in Firefox, and the extension must still load. Roam is popup-only. |
 | Error reporting | real `@sentry/browser` | build-time no-op stub (`build.mjs:109-128`, `sentry-firefox-stub.ts`) | Nothing is sent to Sentry. The console is your only signal — do not expect a Sentry issue to appear for a Firefox-only bug. |
 | Google sign-in | Supabase redirects to `chrome-extension://<ID>/callback.html` (`background.ts`, `signInWithOAuth`) | A temporary add-on gets a fresh `moz-extension://` UUID per install, so that callback URL cannot be pre-registered | Google sign-in cannot complete on a temporary Firefox install until the UUID is added to the Supabase redirect allowlist. The flow itself is identical: one new tab, `callback.html`, then `roamtheweb.app/profile`. See X2. |
-| Cross-origin `fetch` | needs host permissions | needs host permissions | Only `https://*.supabase.co/*` is granted (`manifest.firefox.json:49-51`). The HEAD reachability gate (`background.ts:182-190,221-229`) therefore drops most candidates, so the prefetch queue can legitimately stay empty. See X3. |
-| `storage.session` | present | present | Wiped on browser restart in both. The queue is mirrored to `storage.local` and restored on startup (`background.ts:142-171,306`), so a Roam after a restart can still hit cache. |
+| Cross-origin `fetch` | needs host permissions | needs host permissions | Only `https://*.supabase.co/*` is granted (`manifest.firefox.json`, `host_permissions`). The HEAD reachability gate (`isUrlReachable()` inside `fillPrefetch()`) therefore drops most candidates, so the prefetch queue can legitimately stay empty. See X3. |
+| `storage.session` | present | present | Wiped on browser restart in both. The queue is mirrored to `storage.local` and restored on startup (`restorePersistentPrefetch()`), so a Roam after a restart can still hit cache. |
 
 Minimum Firefox: **140 desktop**, **142 Android** (`manifest.firefox.json:10,16`).
 
@@ -181,57 +181,55 @@ Run in this order; each assumes the previous passed. Shared UI detail is in
 ### F0 — Smoke
 
 Load the add-on, open `about:debugging` → **Inspect**. Expect the toolbar button, no
-manifest error on the card, and background startup logs. `validateEnvironment()`
-(`background.ts:16`) throws on a missing build-time var, so a silent add-on is almost
-always a bad `.env` at build time.
+manifest error on the card, and background startup logs. `validateEnvironment()` runs at
+module scope in `background.ts` and throws on a missing build-time var, so a silent
+add-on is almost always a bad `.env` at build time.
 
 ### F1 — Sign in with Google
 
-1. Popup → **Sign in / Sign up** → **Continue with Google**. The buttons disable and
-   "Opening sign-in…" appears (`popup.ts:358-369`).
-2. Record the console sequence:
+1. Popup → **Sign in / Sign up** → **Continue with Google**. The popup disables the auth
+   buttons and shows `#auth-waiting` while one `SIGN_IN_GOOGLE` round-trip runs, then
+   closes itself. There is no `GET_STATE` polling timer any more.
+2. Confirm **one** tab opened, on `accounts.google.com` via Supabase's authorize URL.
+   Clicking sign-in again mid-flow must focus that same tab and open nothing new.
+3. After choosing the account, the tab lands on `moz-extension://<uuid>/callback.html`,
+   the page shows "Signed in" briefly, then navigates to `roamtheweb.app/profile`.
+4. Reopen the popup. It reads `GET_STATE` on open and switches to `#state-main`.
 
-   ```
-   [roam] signInWithOAuth: starting flow for google
-   [roam] signInWithOAuth: using redirectTo = https://roamtheweb.app/auth/callback
-   [roam] signInWithOAuth: trying launchWebAuthFlow
-   [roam] signInWithOAuth: launchWebAuthFlow error, falling back to tab   ← expected today
-   [roam] signInWithOAuth: falling back to tab + callback
-   ```
-
-3. The popup polls `GET_STATE` every 500 ms for up to 5 minutes
-   (`popup.ts:371-378`).
-
-Pass: the popup reaches `#state-main` within a few seconds.
-Fail: stuck on "Opening sign-in…" for 5 minutes → record the console lines and follow X2.
+Pass: `chrome.storage.local` holds the `sb-...-auth-token` entry, and the popup is signed
+in on reopen.
+Fail: the callback page shows "No authorization code found" — the redirect URL for *this*
+install is not in Supabase's Redirect URLs (Setup step in TESTING.md §4). Record the
+console lines and follow X2.
 
 ### F2 — Prefetch after popup open
 
 Open the popup, then read the session queue (§5). Either a non-empty `prefetch_queue`
 **or** an empty queue with failing HEAD requests in Network is a valid Firefox result —
-see X3. Confirm the 30 s prefetch floor (`background.ts:34,700-702`) by opening the popup
+see X3. Confirm the 30 s prefetch floor (`MIN_PREFETCH_INTERVAL`) by opening the popup
 twice in quick succession: the second open must not fire a new batch.
 
 ### F3 — Roam, cache hit
 
 With a warm queue, click **Roam**. Expect near-instant navigation, the entry popped
-(`background.ts:717-725`), the badge count dropping (`:103-114`), and a new batch starting.
+(the cache-hit branch of `roam()`), the badge count dropping (`updateBadge()`), and a new
+batch starting.
 
 ### F4 — Roam, cold path
 
 `chrome.storage.session.clear()`, then click **Roam**. Expect the live Edge Function call
-(`background.ts:744`) and a normal navigation.
+(the live branch of `roam()`) and a normal navigation.
 
 ### F5 — Roam within a category or topic
 
 Config (⚙️) → **Roam within this category** (`#btn-roam-category`). Expect the filtered
-live call (`background.ts:766-776`). `focusContext` is set so prefetch pauses (`:199`);
+live call (`roamCategory()`). `focusContext` is set so prefetch pauses;
 clear the focus afterwards and confirm prefetch resumes.
 
 ### F6 — Roam a collection
 
 `#btn-roam-collection` → pick a collection. Expect `ROAM_COLLECTION` in the console and a
-navigation (`background.ts:756-764`).
+navigation (`roamCollection()`).
 
 ### F7 — Add to collection / Save for later
 
@@ -241,14 +239,15 @@ navigation (`background.ts:756-764`).
 
 ### F8 — Rate up / down
 
-👍 then 👎. On success the session queue is invalidated (`background.ts:788`). Then force
+👍 then 👎. On success the session queue is invalidated (`rate()`). Then force
 the offline path (Network panel → offline), vote, and confirm the vote lands in
-`pending_ratings` and drains on the next popup open (`background.ts:252-278,311`).
+`pending_ratings` and drains on the next popup open (`queueFailedRating()`, drained by
+`flushPendingRatings()`).
 
 ### F9 — History
 
-`#btn-history` lists entries from `extension_url_history` (`background.ts:28,1257-1266`);
-**Clear history** empties it.
+`#btn-history` lists entries from `extension_url_history` (`URL_HISTORY_KEY`, read by
+`getUrlHistory()`); **Clear history** empties it.
 
 ### F10 — Sign out, then session persistence
 
@@ -259,7 +258,7 @@ storage adapter in `supabase.ts`) with no new OAuth round-trip.
 ### F11 — Reload the add-on
 
 Click **Reload** in `about:debugging` with the popup closed, then open the popup. Expect a
-clean boot, `restorePersistentPrefetch()` to run (`background.ts:306`), and no duplicated
+clean boot, `restorePersistentPrefetch()` to run, and no duplicated
 listeners — one popup open must produce exactly one prefetch batch.
 
 ---
@@ -273,23 +272,27 @@ service workers, so the failure mode differs: look for a missing badge and a que
 returns stale entries. Reload the add-on and repeat — behaviour should be identical, only
 the timing differs.
 
-### X2 — Which OAuth path actually ran
+### X2 — Where the redirect actually landed
 
-Treat Path 2 as the expected result for the current code (§0). Record:
+There is only one path now, so this check is about the redirect target rather than a
+fallback. Record:
 
-- the `[roam] signInWithOAuth:` lines,
-- whether a tab opened to Google and where it landed,
-- whether the popup ended up signed in.
+- which URL the tab landed on — `moz-extension://<uuid>/callback.html` is correct, anything
+  under `roamtheweb.app` means the redirect URL is misconfigured for this install,
+- what the callback page said ("Signed in" versus an inline error), and
+- whether `chrome.storage.local` gained an `sb-...-auth-token` entry.
 
-If Path 1 ever resolves (session set directly via `setSession`, `background.ts:479-490`),
-say so in the test notes — it changes the risk profile. If neither path signs the popup in,
-that is a real Firefox blocker, not a test-setup failure.
+If the tab lands on the extension page but no session appears, the PKCE exchange failed —
+that is a real Firefox blocker, not a test-setup failure. If it lands on the web app, this
+install's `moz-extension://<uuid>/callback.html` is missing from Supabase's Redirect URLs:
+add it (TESTING.md §4), reload the add-on, and retry. A temporary install gets a new UUID
+every time it is loaded, so this has to be repeated for each temporary install.
 
 ### X3 — HEAD reachability and host permissions
 
 In the background **Network** panel, look for `HEAD` requests to candidate URLs after the
 `roam` Edge Function response. Without host permission they fail, `fillPrefetch()` then
-drops every candidate (`background.ts:221-229`), and the queue stays empty. Record whether
+drops every candidate (`fillPrefetch()`), and the queue stays empty. Record whether
 the queue ever fills on your profile — that single observation decides whether "prefetch
 works" is testable on Firefox today.
 
@@ -297,7 +300,7 @@ works" is testable on Firefox today.
 
 `about:addons` → gear → **Manage Extension Shortcuts**. Roam must not appear there,
 `Ctrl+Shift+R` must do nothing, and the extension must load with no error (the
-`if (chrome.commands)` guard at `background.ts:315` is what keeps it loadable).
+`if (chrome.commands?.onCommand)` guard in `background.ts` is what keeps it loadable).
 
 ### X5 — Sentry is really off
 
@@ -308,15 +311,17 @@ reported anywhere.
 ### X6 — `session` vs `local` precedence
 
 Roam once (populates both stores), restart Firefox, reload the add-on, Roam again. The first
-Roam after restart should hit the queue restored from `local`
-(`background.ts:154-171`) and the badge should reappear.
+Roam after restart should hit the queue restored from `local` by
+`restorePersistentPrefetch()`, and the badge should reappear.
 
-### X7 — Popup close and callback messaging
+### X7 — Callback tab lifecycle
 
-`callback.ts:91-97` posts `ROAM_OAUTH_DONE` to `window.opener` and calls `window.close()`
-after 1 s. In Firefox the opener is often `null`, so the popup's 500 ms poll is the real
-mechanism. Confirm the popup switches state within ~2 s and that no orphaned callback tab is
-left behind. If the tab stays open, click **Close**.
+The callback page no longer talks to `window.opener` and no longer closes itself: it clears
+the `auth_flow` marker, then `location.replace`s the tab to `roamtheweb.app/profile`. The
+popup has already closed, so there is nothing polling. Confirm the tab navigates within a
+second or two, that no second callback tab is left behind, and that reopening the popup
+shows the signed-in state. On the error path, **Close** goes through
+`chrome.tabs.remove` — a tab the extension opened cannot close itself with `window.close()`.
 
 ### X8 — AMO validator parity
 
@@ -374,11 +379,11 @@ edits.
 
 | Symptom | Likely cause | Action |
 |---|---|---|
-| Add-on loads but nothing logs | Build-time env missing → `validateEnvironment()` threw (`background.ts:16`) | Check the root `.env`, rebuild, re-run §2.1 check 4 |
+| Add-on loads but nothing logs | Build-time env missing → `validateEnvironment()` threw at module scope in `background.ts` | Check the root `.env`, rebuild, re-run §2.1 check 4 |
 | `about:debugging` shows a manifest error | Wrong manifest in the folder (a Chrome build landed in `dist-firefox/`) | Rebuild with `-- --firefox`; confirm `background.scripts` in `dist-firefox/manifest.json` |
 | Badge never shows a number | Queue empty — HEAD checks failing (X3), or the 30 s prefetch floor | Record it; Roam still works via the live path |
-| Sign-in hangs on "Opening sign-in…" | Path 1 timed out (120 s, `background.ts:461-471`) and Path 2 never set a session in the extension | Record the console lines per X2; this is a code issue, not test setup |
-| Callback page: "No authorization code found" | Supabase redirect allowlist missing the URL the flow used | Add `https://roamtheweb.app/auth/callback`; the page prints the URL it expected (`callback.ts:86`) |
+| Sign-in shows an inline error, or the popup stays on the waiting spinner | The `SIGN_IN_GOOGLE` round-trip failed, or the tab never reached `callback.html` | Record the console lines per X2, then confirm this install's redirect URL is in Supabase |
+| Callback page: "No authorization code found" | This install's redirect URL is not in Supabase's allowlist, so the redirect brought no code back | Add the `moz-extension://<uuid>/callback.html` the page prints; the UUID changes on every temporary install |
 | A rebuild is not visible | Temporary add-ons do not hot-reload | Click **Reload**, or use `web-ext run` |
 | Add-on vanished after restart | Temporary installs are session-scoped | Expected — reload it, or test the AMO build |
 | Storage looks dirty between runs | Temp-install storage survives removal | Run the clear snippet in §5 before removing |
