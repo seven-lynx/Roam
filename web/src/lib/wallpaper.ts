@@ -3,8 +3,9 @@
 import { useEffect, useState } from 'react';
 
 /**
- * Desktop wallpaper store: built-in presets plus a user-uploaded custom image,
- * and a "cycle" mode that shuffles the whole folder every few minutes.
+ * Wallpaper store: desktop presets, portrait mobile presets, a user-uploaded
+ * custom image, and a "cycle" mode that shuffles the matching folder every few
+ * minutes.
  *
  * Mirrors the singleton + listener pattern used by `lib/roam-buffer.ts`, with
  * persistence to localStorage so the choice survives revisits. The default
@@ -48,13 +49,38 @@ export const WALLPAPERS: Wallpaper[] = [
   { id: 'deck-31', label: 'Deck 31', css: "url('/wallpapers/deck-wallpaper-31.jpg') center / cover no-repeat, #07100f" },
 ];
 
+/** Portrait presets for the handheld shell (`mobile-wallpaper-NN.jpeg`). */
+export const MOBILE_WALLPAPERS: Wallpaper[] = [
+  { id: 'mobile-01', label: 'Mobile 01', css: "url('/wallpapers/mobile/mobile-wallpaper-01.jpeg') center / cover no-repeat, #07100f" },
+  { id: 'mobile-02', label: 'Mobile 02', css: "url('/wallpapers/mobile/mobile-wallpaper-02.jpeg') center / cover no-repeat, #07100f" },
+  { id: 'mobile-03', label: 'Mobile 03', css: "url('/wallpapers/mobile/mobile-wallpaper-03.jpeg') center / cover no-repeat, #07100f" },
+  { id: 'mobile-04', label: 'Mobile 04', css: "url('/wallpapers/mobile/mobile-wallpaper-04.jpeg') center / cover no-repeat, #07100f" },
+  { id: 'mobile-05', label: 'Mobile 05', css: "url('/wallpapers/mobile/mobile-wallpaper-05.jpeg') center / cover no-repeat, #07100f" },
+  { id: 'mobile-06', label: 'Mobile 06', css: "url('/wallpapers/mobile/mobile-wallpaper-06.jpeg') center / cover no-repeat, #07100f" },
+  { id: 'mobile-07', label: 'Mobile 07', css: "url('/wallpapers/mobile/mobile-wallpaper-07.jpeg') center / cover no-repeat, #07100f" },
+  { id: 'mobile-08', label: 'Mobile 08', css: "url('/wallpapers/mobile/mobile-wallpaper-08.jpeg') center / cover no-repeat, #07100f" },
+  { id: 'mobile-09', label: 'Mobile 09', css: "url('/wallpapers/mobile/mobile-wallpaper-09.jpeg') center / cover no-repeat, #07100f" },
+  { id: 'mobile-10', label: 'Mobile 10', css: "url('/wallpapers/mobile/mobile-wallpaper-10.jpeg') center / cover no-repeat, #07100f" },
+  { id: 'mobile-11', label: 'Mobile 11', css: "url('/wallpapers/mobile/mobile-wallpaper-11.jpeg') center / cover no-repeat, #07100f" },
+  { id: 'mobile-12', label: 'Mobile 12', css: "url('/wallpapers/mobile/mobile-wallpaper-12.jpeg') center / cover no-repeat, #07100f" },
+  { id: 'mobile-13', label: 'Mobile 13', css: "url('/wallpapers/mobile/mobile-wallpaper-13.jpeg') center / cover no-repeat, #07100f" },
+];
+
 const WALLPAPER_KEY = 'roam-desktop-wallpaper';
 const MODE_KEY = 'roam-desktop-wallpaper-mode';
+const MOBILE_KEY = 'roam-mobile-wallpaper';
 
 /** How long between automatic wallpapers in cycle mode. */
 export const WALLPAPER_CYCLE_MS = 5 * 60 * 1000;
 
 export type WallpaperMode = 'cycle' | 'fixed';
+
+/**
+ * Which surface the wallpaper is resolved for: the desktop shell (which also
+ * covers landscape) or the handheld shell in portrait. Each keeps its own
+ * selection so rotating a phone swaps the image set instead of cropping it.
+ */
+export type WallpaperSurface = 'desktop' | 'mobile';
 
 export interface WallpaperSnapshot {
   mode: WallpaperMode;
@@ -65,16 +91,19 @@ export interface WallpaperSnapshot {
 interface StoredState {
   mode: WallpaperMode;
   currentId: string;
+  mobileId: string;
   custom: Wallpaper | null;
 }
 
 type Listener = () => void;
 
 function loadState(): StoredState {
-  const state: StoredState = { mode: 'cycle', currentId: WALLPAPERS[0].id, custom: null };
+  const state: StoredState = { mode: 'cycle', currentId: WALLPAPERS[0].id, mobileId: MOBILE_WALLPAPERS[0].id, custom: null };
   try {
     const rawMode = localStorage.getItem(MODE_KEY);
     if (rawMode === 'cycle' || rawMode === 'fixed') state.mode = rawMode;
+    const rawMobile = localStorage.getItem(MOBILE_KEY);
+    if (rawMobile && MOBILE_WALLPAPERS.some((w) => w.id === rawMobile)) state.mobileId = rawMobile;
     const raw = localStorage.getItem(WALLPAPER_KEY);
     if (raw) {
       const parsed = JSON.parse(raw) as { id?: string; css?: string } | null;
@@ -105,21 +134,35 @@ function resolve(id: string): Wallpaper {
   return WALLPAPERS.find((w) => w.id === id) ?? WALLPAPERS[0];
 }
 
-function snapshot(): WallpaperSnapshot {
-  return { mode: state.mode, current: resolve(state.currentId), custom: state.custom };
+/**
+ * Portrait mobile art always shuffles, but an upload from Settings or the
+ * gallery ("set as wallpaper") wins over it — the operator asked for that image.
+ */
+function resolveMobile(): Wallpaper {
+  if (state.custom) return state.custom;
+  return MOBILE_WALLPAPERS.find((w) => w.id === state.mobileId) ?? MOBILE_WALLPAPERS[0];
+}
+
+function snapshot(surface: WallpaperSurface = 'desktop'): WallpaperSnapshot {
+  return {
+    mode: state.mode,
+    current: surface === 'mobile' ? resolveMobile() : resolve(state.currentId),
+    custom: state.custom,
+  };
 }
 
 function persist() {
   try {
     localStorage.setItem(MODE_KEY, state.mode);
     localStorage.setItem(WALLPAPER_KEY, JSON.stringify(resolve(state.currentId)));
+    localStorage.setItem(MOBILE_KEY, state.mobileId);
   } catch {
     /* ignore (private mode / quota) */
   }
 }
 
-export function getWallpaperState(): WallpaperSnapshot {
-  return snapshot();
+export function getWallpaperState(surface: WallpaperSurface = 'desktop'): WallpaperSnapshot {
+  return snapshot(surface);
 }
 
 export function subscribeWallpaper(listener: Listener): () => void {
@@ -176,12 +219,29 @@ export function applyRandomWallpaper(): void {
   emit();
 }
 
+/** Pick the next mobile wallpaper at random (handheld shell, portrait). */
+export function applyRandomMobileWallpaper(): void {
+  // A custom upload is a deliberate choice — never shuffle over it.
+  if (state.custom) return;
+  const pool = MOBILE_WALLPAPERS;
+  if (pool.length === 0) return;
+  let pick = pool[Math.floor(Math.random() * pool.length)];
+  if (pick.id === state.mobileId && pool.length > 1) {
+    const others = pool.filter((w) => w.id !== state.mobileId);
+    pick = others[Math.floor(Math.random() * others.length)];
+  }
+  state = { ...state, mobileId: pick.id };
+  persist();
+  emit();
+}
+
 /** Restore factory wallpaper defaults (used by "Reset OS settings"). */
 export function resetWallpaper(): void {
-  state = { mode: 'cycle', currentId: WALLPAPERS[0].id, custom: null };
+  state = { mode: 'cycle', currentId: WALLPAPERS[0].id, mobileId: MOBILE_WALLPAPERS[0].id, custom: null };
   try {
     localStorage.removeItem(MODE_KEY);
     localStorage.removeItem(WALLPAPER_KEY);
+    localStorage.removeItem(MOBILE_KEY);
   } catch {
     /* ignore */
   }
@@ -191,16 +251,17 @@ export function resetWallpaper(): void {
 /**
  * React hook mirroring the OS-settings pattern: a deterministic default on the
  * first render (SSR-safe), synced to the store via effect on the client.
+ * Pass `'mobile'` for the handheld shell in portrait.
  */
-export function useWallpaper(): WallpaperSnapshot {
+export function useWallpaper(surface: WallpaperSurface = 'desktop'): WallpaperSnapshot {
   const [snap, setSnap] = useState<WallpaperSnapshot>(() => ({
     mode: 'cycle',
-    current: WALLPAPERS[0],
+    current: surface === 'mobile' ? MOBILE_WALLPAPERS[0] : WALLPAPERS[0],
     custom: null,
   }));
   useEffect(() => {
-    setSnap(snapshot());
-    return subscribeWallpaper(() => setSnap(snapshot()));
-  }, []);
+    setSnap(snapshot(surface));
+    return subscribeWallpaper(() => setSnap(snapshot(surface)));
+  }, [surface]);
   return snap;
 }
