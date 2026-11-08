@@ -19,6 +19,8 @@ We aim to acknowledge reports within **3 business days** and to ship a fix
 or a documented mitigation within **30 days** of confirmation. Critical
 issues (active exploitation, data exposure) are escalated to a hotfix.
 
+_Last reviewed: 2026-11-07._
+
 ## Supported versions
 
 | Component | Supported | Notes |
