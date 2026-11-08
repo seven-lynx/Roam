@@ -11,6 +11,7 @@ import { isExtensionContext } from './extension-context';
 
 declare const __SENTRY_DSN__: string;
 declare const __SENTRY_RELEASE__: string;
+declare const __ENVIRONMENT__: string;
 
 const dsn = typeof __SENTRY_DSN__ !== 'undefined' ? __SENTRY_DSN__ : '';
 

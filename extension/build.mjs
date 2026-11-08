@@ -3,6 +3,7 @@
 //   node build.mjs             → single production build (Chrome)
 //   node build.mjs --firefox   → single production build (Firefox)
 //   node build.mjs --watch     → watch mode for development (Chrome)
+//   node build.mjs --no-upload → production build (Chrome), source maps stay local
 
 import * as esbuild from 'esbuild';
 import { sentryEsbuildPlugin } from '@sentry/esbuild-plugin';
@@ -14,6 +15,7 @@ import archiver from 'archiver';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const watch = process.argv.includes('--watch');
 const firefox = process.argv.includes('--firefox');
+const noUpload = process.argv.includes('--no-upload');
 
 // ── Load env vars from root .env ────────────────────────────────────────────
 function loadRootEnv() {
@@ -177,9 +179,14 @@ if (watch) {
   await Promise.all(contexts.map((ctx) => ctx.watch()));
   console.log('[roam] Watching for changes… (Ctrl+C to stop)');
 } else {
-  const canUploadMaps = sentryDsn && sentryAuthToken;
+  // Uploading is all-or-nothing and writes to the release named in package.json, so a
+  // local build with a real token would publish source maps for uncommitted code over
+  // the shipped release. --no-upload keeps a verification build local.
+  const canUploadMaps = sentryDsn && sentryAuthToken && !noUpload;
   if (!sentryAuthToken) {
     console.warn('[roam] SENTRY_AUTH_TOKEN not set — source maps will NOT be uploaded to Sentry.');
+  } else if (noUpload) {
+    console.log('[roam] --no-upload — source maps will NOT be uploaded to Sentry.');
   }
 
   const buildPlugins = [];
