@@ -6,7 +6,7 @@
  * These tests verify logic contracts and can be extended for E2E testing.
  */
 
-import { assertEquals, assert, assertThrows, assertStringIncludes } from "https://deno.land/std@0.208.0/assert/mod.ts"
+import { assertEquals, assert, assertThrows } from "@std/assert"
 
 // ════════════════════════════════════════════════════════════════════════════════
 // MOCK SUPABASE CLIENT
@@ -42,7 +42,7 @@ interface MockSupabaseClient {
   }
 }
 
-let mockSupabaseState = {
+const mockSupabaseState = {
   authenticated: true,
   userId: "test-user-123",
   userEmail: "test@example.com",
@@ -51,6 +51,11 @@ let mockSupabaseState = {
 function createMockSupabaseClient(): MockSupabaseClient {
   return {
     auth: {
+      // The mock implements an asynchronous interface (MockSupabaseClient hands
+      // back Promises) while its bodies answer synchronously, so `require-await`
+      // does not apply. The alternative — wrapping every return in
+      // Promise.resolve — would bury the mock's actual shape. Same below.
+      // deno-lint-ignore require-await
       getUser: async () => {
         if (!mockSupabaseState.authenticated) {
           return { data: { user: null }, error: { message: "Unauthorized" } }
@@ -61,7 +66,8 @@ function createMockSupabaseClient(): MockSupabaseClient {
         }
       },
     },
-    rpc: async (name: string, params: unknown) => {
+    // deno-lint-ignore require-await
+    rpc: async (name: string, _params: unknown) => {
       // Mock roam() RPC — returns array of URLs
       if (name === "roam") {
         return {
@@ -84,13 +90,15 @@ function createMockSupabaseClient(): MockSupabaseClient {
     },
     from: (table: string) => {
       return {
-        select: (cols: string, opts?: unknown) => {
+        select: (_cols: string, _opts?: unknown) => {
           return {
             eq: (col: string, val: unknown) => {
               return {
+                // deno-lint-ignore require-await
                 gte: async (_col: string, _val: unknown) => {
                   return { data: [], error: null }
                 },
+                // deno-lint-ignore require-await
                 single: async () => {
                   // Mock profile lookup
                   if (table === "profiles" && col === "id") {
@@ -107,7 +115,8 @@ function createMockSupabaseClient(): MockSupabaseClient {
                 },
               }
             },
-            gte: async (col: string, val: unknown) => {
+            // deno-lint-ignore require-await
+            gte: async (col: string, _val: unknown) => {
               // Mock rate limit check
               if (table === "moderation_queue" && col === "created_at") {
                 return { data: [], error: null }  // 0 submissions in last hour
@@ -116,23 +125,26 @@ function createMockSupabaseClient(): MockSupabaseClient {
             },
           }
         },
-        upsert: async (data: unknown, opts?: unknown) => {
+        // deno-lint-ignore require-await
+        upsert: async (_data: unknown, _opts?: unknown) => {
           // Mock rating upsert
           return { data: { ok: true }, error: null }
         },
+        // deno-lint-ignore require-await
         insert: async (data: unknown) => {
           // Mock URL submission
           if (table === "moderation_queue") {
             return {
-              data: { id: "queue-789", url: (data as any).url },
+              data: { id: "queue-789", url: (data as { url?: string }).url },
               error: null,
             }
           }
           return { data: null, error: null }
         },
-        update: (data: unknown) => {
+        update: (_data: unknown) => {
           return {
-            eq: async (col: string, val: unknown) => {
+            // deno-lint-ignore require-await
+            eq: async (_col: string, _val: unknown) => {
               // Mock follow accept/reject
               return { data: { ok: true }, error: null }
             },
@@ -140,7 +152,8 @@ function createMockSupabaseClient(): MockSupabaseClient {
         },
         delete: () => {
           return {
-            eq: async (col: string, val: unknown) => {
+            // deno-lint-ignore require-await
+            eq: async (_col: string, _val: unknown) => {
               // Mock unfollow
               return { data: { ok: true }, error: null }
             },
@@ -178,7 +191,7 @@ Deno.test("roam - Returns 401 when not authenticated", async () => {
   const supabase = createMockSupabaseClient()
   mockSupabaseState.authenticated = false
 
-  const { data, error } = await supabase.auth.getUser()
+  const { error } = await supabase.auth.getUser()
   assert(error !== null)
   assertEquals(error.message, "Unauthorized")
 })
@@ -216,7 +229,7 @@ Deno.test("rate - Accepts POST with url_id and value (1 or -1)", async () => {
   mockSupabaseState.authenticated = true
 
   const { data: { user } } = await supabase.auth.getUser()
-  const { data, error } = await supabase
+  const { error } = await supabase
     .from("ratings")
     .upsert({ user_id: user.id, url_id: "url-123", value: 1 })
   assertEquals(error, null)
@@ -241,7 +254,7 @@ Deno.test("rate - Returns 401 when not authenticated", async () => {
   const supabase = createMockSupabaseClient()
   mockSupabaseState.authenticated = false
 
-  const { data, error } = await supabase.auth.getUser()
+  const { error } = await supabase.auth.getUser()
   assert(error !== null)
 })
 
@@ -256,7 +269,7 @@ Deno.test("submit-url - Accepts POST with url, title, description, category_id",
   const { data: { user } } = await supabase.auth.getUser()
 
   // Check rate limit
-  const { data: rateData, error: rateError } = await supabase
+  const { error: rateError } = await supabase
     .from("moderation_queue")
     .select("*", { count: "exact", head: true })
     .eq("submitted_by", user.id)
@@ -265,7 +278,7 @@ Deno.test("submit-url - Accepts POST with url, title, description, category_id",
   assertEquals(rateError, null)
 
   // Insert submission
-  const { data: insertData, error: insertError } = await supabase
+  const { error: insertError } = await supabase
     .from("moderation_queue")
     .insert({
       url: "https://example.com",
@@ -284,7 +297,7 @@ Deno.test("submit-url - Requires url parameter", () => {
   const bodyWithoutUrl = { title: "Example" }
 
   assertEquals(Boolean(typeof bodyWithUrl.url === "string" && bodyWithUrl.url), true)
-  assertEquals(Boolean(typeof (bodyWithoutUrl as any).url === "string" && (bodyWithoutUrl as any).url), false)
+  assertEquals(Boolean(typeof (bodyWithoutUrl as { url?: string }).url === "string" && (bodyWithoutUrl as { url?: string }).url), false)
 })
 
 Deno.test("submit-url - Validates url is not empty", () => {
@@ -311,7 +324,7 @@ Deno.test("submit-url - Returns 401 when not authenticated", async () => {
   const supabase = createMockSupabaseClient()
   mockSupabaseState.authenticated = false
 
-  const { data, error } = await supabase.auth.getUser()
+  const { error } = await supabase.auth.getUser()
   assert(error !== null)
 })
 
@@ -323,7 +336,7 @@ Deno.test("follow - Accept action requires follower_id", async () => {
   const supabase = createMockSupabaseClient()
   mockSupabaseState.authenticated = true
 
-  const { data: { user } } = await supabase.auth.getUser()
+  const { data: { user: _user } } = await supabase.auth.getUser()
 
   // Simulate accept follow request
   const body = { action: "accept", follower_id: "user-456" }
@@ -334,7 +347,7 @@ Deno.test("follow - Follow action requires following_id", async () => {
   const supabase = createMockSupabaseClient()
   mockSupabaseState.authenticated = true
 
-  const { data: { user } } = await supabase.auth.getUser()
+  const { data: { user: _user } } = await supabase.auth.getUser()
 
   // Check if target is public
   const { data: target } = await supabase
@@ -346,8 +359,7 @@ Deno.test("follow - Follow action requires following_id", async () => {
   assertEquals(target !== null, true)
 })
 
-Deno.test("follow - Follow pending: target profile is private", async () => {
-  const supabase = createMockSupabaseClient()
+Deno.test("follow - Follow pending: target profile is private", () => {
   mockSupabaseState.authenticated = true
 
   // Simulate checking target profile
@@ -357,8 +369,7 @@ Deno.test("follow - Follow pending: target profile is private", async () => {
   assertEquals(isPending, true)
 })
 
-Deno.test("follow - Follow not pending: target profile is public", async () => {
-  const supabase = createMockSupabaseClient()
+Deno.test("follow - Follow not pending: target profile is public", () => {
   mockSupabaseState.authenticated = true
 
   const isPublic = true
@@ -371,7 +382,7 @@ Deno.test("follow - Unfollow removes follow relationship", async () => {
   const supabase = createMockSupabaseClient()
   mockSupabaseState.authenticated = true
 
-  const { data, error } = await supabase
+  const { error } = await supabase
     .from("follows")
     .delete()
     .eq("follower_id", "user-123")
@@ -379,8 +390,7 @@ Deno.test("follow - Unfollow removes follow relationship", async () => {
   assertEquals(error, null)
 })
 
-Deno.test("follow - Returns 409 if already following", async () => {
-  const supabase = createMockSupabaseClient()
+Deno.test("follow - Returns 409 if already following", () => {
   mockSupabaseState.authenticated = true
 
   // Simulate duplicate key error
@@ -407,9 +417,7 @@ Deno.test("profile - Returns 400 when username is missing", () => {
 })
 
 Deno.test("profile - Rate limits: 60 requests per minute per IP", () => {
-  const ip = "192.168.1.1"
   const RATE_LIMIT = 60
-  const WINDOW_MS = 60_000
 
   const requests = 60
   assertEquals(requests >= RATE_LIMIT, true)
@@ -451,13 +459,13 @@ Deno.test("Integration: User can discover, rate, and submit URLs", async () => {
 
   // Step 3: Rate the URL
   const url = rpcData![0] as { id: string }
-  const { data: rateData, error: rateError } = await supabase
+  const { error: rateError } = await supabase
     .from("ratings")
     .upsert({ user_id: user.id, url_id: url.id, value: 1 })
   assertEquals(rateError, null)
 
   // Step 4: Submit a new URL
-  const { data: submitData, error: submitError } = await supabase
+  const { error: submitError } = await supabase
     .from("moderation_queue")
     .insert({
       url: "https://newsite.com",
@@ -482,12 +490,12 @@ Deno.test("Integration: User can follow/unfollow other users", async () => {
   assertEquals(target !== null, true)
 
   // Follow user
-  const { data: followData, error: followError } = await supabase
+  await supabase
     .from("follows")
     .insert({ follower_id: user.id, following_id: "user-789" })
   
   // Unfollow user
-  const { data: unfollowData, error: unfollowError } = await supabase
+  const { error: unfollowError } = await supabase
     .from("follows")
     .delete()
     .eq("follower_id", user.id)
@@ -499,22 +507,22 @@ Deno.test("Integration: Authentication required for private operations", async (
 
   // Test 1: roam requires auth
   mockSupabaseState.authenticated = false
-  const { data: roamData, error: roamError } = await supabase.auth.getUser()
+  const { error: roamError } = await supabase.auth.getUser()
   assert(roamError !== null)
 
   // Test 2: rate requires auth
   mockSupabaseState.authenticated = false
-  const { data: rateData, error: rateError } = await supabase.auth.getUser()
+  const { error: rateError } = await supabase.auth.getUser()
   assert(rateError !== null)
 
   // Test 3: submit-url requires auth
   mockSupabaseState.authenticated = false
-  const { data: submitData, error: submitError } = await supabase.auth.getUser()
+  const { error: submitError } = await supabase.auth.getUser()
   assert(submitError !== null)
 
   // Test 4: follow requires auth
   mockSupabaseState.authenticated = false
-  const { data: followData, error: followError } = await supabase.auth.getUser()
+  const { error: followError } = await supabase.auth.getUser()
   assert(followError !== null)
 })
 

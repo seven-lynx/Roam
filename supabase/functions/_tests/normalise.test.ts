@@ -4,7 +4,7 @@
  * fragment stripping, trailing slash handling, unicode handling.
  */
 
-import { assertEquals, assertThrows } from "https://deno.land/std@0.208.0/assert/mod.ts"
+import { assertEquals, assertThrows } from "@std/assert"
 import { normalizeUrl } from '../_shared/normalise.ts'
 
 Deno.test('URL Normalization - Protocol Enforcement', () => {

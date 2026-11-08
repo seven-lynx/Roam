@@ -254,16 +254,28 @@ jobs:
       # nothing ran the suites in _tests/ — which is how the sentry-webhook dedup
       # regression (#101) shipped green.
       #
-      # --no-lock: three suites import deno.land/std asserts that the tracked
-      # deno.lock does not pin, so a locked run rewrites the lockfile.
+      # --frozen-lockfile: the suites reach their asserts through the
+      # `@std/assert` map in deno.json, so the dependency is pinned in the tracked
+      # deno.lock. Frozen turns an unpinned or stale lock into a hard failure; the
+      # old `--no-lock` skipped the lock entirely, which is how it drifted to
+      # pinning nothing while eight files imported two different std versions.
       # No permission flags: the two live-DB suites (user_actions RLS, challenges
       # auto-populate) ignore themselves when SUPABASE_URL is unset, which is the
       # case here — they need `supabase start` and a seeded test user.
       - name: Test Edge Functions
         if: steps.edge-fn-changes.outputs.tests == 'true'
-        run: deno test --no-lock supabase/functions/_tests/
+        run: deno test --frozen-lockfile supabase/functions/_tests/
         env:
           DENO_DIR: ~/.cache/deno
+
+      # Scoped to the suites on purpose. Function source still carries ~87 findings
+      # of its own (37 no-explicit-any, 30 no-import-prefix on the esm.sh imports
+      # the runtime requires), so gating it is an import-map decision rather than a
+      # cleanup. This step keeps the files that already failed once (#101) clean
+      # and stops the backlog from growing.
+      - name: Lint Edge Function tests
+        if: steps.edge-fn-changes.outputs.tests == 'true'
+        run: deno lint supabase/functions/_tests/
 
       # Android layer
       - name: Set up JDK 17

@@ -11,7 +11,7 @@
 // Enforces Hard Rule 1.9 of the root rules file: client-driven gamification
 // inserts must not be possible.
 
-import { assertEquals, assertThrows } from 'https://deno.land/std@0.224.0/assert/mod.ts';
+import { assertEquals } from '@std/assert';
 
 const env = (name: string): string | undefined => {
   try {

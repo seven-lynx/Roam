@@ -1,5 +1,8 @@
 {
   "compilerOptions": {
     "types": ["./supabase/functions/_shared/deno-globals.d.ts"]
+  },
+  "imports": {
+    "@std/assert": "jsr:@std/assert@1"
   }
 }

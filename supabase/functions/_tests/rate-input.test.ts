@@ -4,7 +4,7 @@
  * send (`RoamUrl(id = "")`) is rejected; non-strings are rejected.
  */
 
-import { assertEquals } from "https://deno.land/std@0.208.0/assert/mod.ts"
+import { assertEquals } from "@std/assert"
 import { isUuid } from '../_shared/rate-input.ts'
 
 const VALID = '6f1a2b3c-4d5e-4f70-8a9b-0c1d2e3f4a5b'
