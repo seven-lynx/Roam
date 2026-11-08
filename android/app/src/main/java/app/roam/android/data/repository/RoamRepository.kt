@@ -84,7 +84,7 @@ class RoamRepository {
     private suspend fun ensureAuthenticated(): Boolean {
         val status = supabase.auth.sessionStatus.value
         val token = supabase.auth.currentAccessTokenOrNull()
-        android.util.Log.d("RoamRepository", "ensureAuthenticated: status=$status token=${token?.take(8) ?: "null"}")
+        android.util.Log.d("RoamRepository", "ensureAuthenticated: status=$status hasToken=${token != null}")
 
         // Not authenticated at all — attempt recovery via refresh
         if (status !is io.github.jan.supabase.auth.status.SessionStatus.Authenticated) {
@@ -92,7 +92,7 @@ class RoamRepository {
             try {
                 supabase.auth.refreshCurrentSession()
                 val newToken = supabase.auth.currentAccessTokenOrNull()
-                android.util.Log.d("RoamRepository", "Refresh result: token=${newToken?.take(8) ?: "null"}")
+                android.util.Log.d("RoamRepository", "Refresh result: hasToken=${newToken != null}")
                 return verifyTokenAvailable()
             } catch (e: Exception) {
                 android.util.Log.e("RoamRepository", "Session refresh failed: ${e.javaClass.simpleName}: ${e.message}", e)
@@ -116,7 +116,7 @@ class RoamRepository {
                 android.util.Log.e("RoamRepository", "No token available after refresh failure")
                 return false
             }
-            android.util.Log.w("RoamRepository", "Refresh failed but token exists; proceeding (${currentToken.take(8)}...)")
+            android.util.Log.w("RoamRepository", "Refresh failed but token exists; proceeding")
         }
         return verifyTokenAvailable()
     }
