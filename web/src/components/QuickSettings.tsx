@@ -145,61 +145,63 @@ export function QuickSettings() {
         </button>
       </div>
 
-      <div className="quick-tiles">
-        <QuickTile on={fx} label="FX" glyph="◐" onToggle={() => setFx(!fx)} />
-        <QuickTile on={sound} label="Sound" glyph="♪" onToggle={() => setSound(!sound)} />
-        <QuickTile on={muted} label="Mute" glyph="⊘" onToggle={toggleMute} />
-        <QuickTile on={inspect} label="Orbit" glyph="⟳" onToggle={toggleInspect} />
-        <QuickTile on={deckMode} label="Deck" glyph="⛶" onToggle={() => setDeckMode(!deckMode)} />
-        <QuickTile on={isFull} label="Full" glyph="⛶" onToggle={toggleFullscreen} />
-      </div>
+      <div className="quick-settings-scroll">
+        <div className="quick-tiles">
+          <QuickTile on={fx} label="FX" glyph="◐" onToggle={() => setFx(!fx)} />
+          <QuickTile on={sound} label="Sound" glyph="♪" onToggle={() => setSound(!sound)} />
+          <QuickTile on={muted} label="Mute" glyph="⊘" onToggle={toggleMute} />
+          <QuickTile on={inspect} label="Orbit" glyph="⟳" onToggle={toggleInspect} />
+          <QuickTile on={deckMode} label="Deck" glyph="⛶" onToggle={() => setDeckMode(!deckMode)} />
+          <QuickTile on={isFull} label="Full" glyph="⛶" onToggle={toggleFullscreen} />
+        </div>
 
-      <div className="quick-rows">
-        <QuickRow label="BRT" min={Math.round(BRIGHTNESS_MIN * 100)} max={Math.round(BRIGHTNESS_MAX * 100)} value={Math.round(brightness * 100)} onChange={(v) => setBrightness(v / 100)} />
-        <QuickRow label="WARP" min={0} max={100} value={Math.round(warp * 100)} onChange={(v) => setWarp(v / 100)} />
-        <QuickRow label="VOL" min={0} max={100} value={Math.round(volume * 100)} onChange={setVolumeAndUnmute} />
-      </div>
+        <div className="quick-rows">
+          <QuickRow label="BRT" min={Math.round(BRIGHTNESS_MIN * 100)} max={Math.round(BRIGHTNESS_MAX * 100)} value={Math.round(brightness * 100)} onChange={(v) => setBrightness(v / 100)} />
+          <QuickRow label="WARP" min={0} max={100} value={Math.round(warp * 100)} onChange={(v) => setWarp(v / 100)} />
+          <QuickRow label="VOL" min={0} max={100} value={Math.round(volume * 100)} onChange={setVolumeAndUnmute} />
+        </div>
 
-      <div className="quick-themes">
-        {THEME_PRESETS.map((p) => (
+        <div className="quick-themes">
+          {THEME_PRESETS.map((p) => (
+            <button
+              key={p.id}
+              type="button"
+              className={`quick-theme${theme === p.id ? ' is-active' : ''}`}
+              style={{ background: p.phosphor }}
+              aria-label={`Theme ${p.label}`}
+              title={p.label}
+              onClick={() => {
+                click();
+                setTheme(p.id);
+              }}
+            />
+          ))}
+        </div>
+
+        <div className="quick-footer">
           <button
-            key={p.id}
             type="button"
-            className={`quick-theme${theme === p.id ? ' is-active' : ''}`}
-            style={{ background: p.phosphor }}
-            aria-label={`Theme ${p.label}`}
-            title={p.label}
+            className="quick-btn"
             onClick={() => {
               click();
-              setTheme(p.id);
+              setQuickSettingsOpen(false);
+              openWindow('settings');
             }}
-          />
-        ))}
-      </div>
-
-      <div className="quick-footer">
-        <button
-          type="button"
-          className="quick-btn"
-          onClick={() => {
-            click();
-            setQuickSettingsOpen(false);
-            openWindow('settings');
-          }}
-        >
-          More settings
-        </button>
-        <button
-          type="button"
-          className="quick-btn"
-          onClick={() => {
-            click();
-            setQuickSettingsOpen(false);
-            openWindow('terminal');
-          }}
-        >
-          Terminal
-        </button>
+          >
+            More settings
+          </button>
+          <button
+            type="button"
+            className="quick-btn"
+            onClick={() => {
+              click();
+              setQuickSettingsOpen(false);
+              openWindow('terminal');
+            }}
+          >
+            Terminal
+          </button>
+        </div>
       </div>
     </div>
   );

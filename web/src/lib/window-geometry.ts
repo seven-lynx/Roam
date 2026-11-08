@@ -31,6 +31,44 @@ export interface OpenRect {
  *  right-hand widget rail). */
 export const LEFT_ANCHOR_RATIO = 0.25;
 
+/**
+ * Clamp a live window rect into the work area (below the status bar, above the
+ * dock) without applying the *open-time* size defaults. Used when the screen
+ * shrinks after a window is already open — browser resize, page zoom, an
+ * on-screen keyboard — so the title bar (and its close button) can never end up
+ * above the status bar or off the screen. Deliberately minimum-free: shrinking
+ * a window must not silently grow it past a size the operator chose.
+ */
+export function clampWindowRect(rect: WindowRect, sw: number, sh: number): WindowRect {
+  const w = Math.min(rect.w, Math.max(0, sw));
+  const h = Math.min(rect.h, Math.max(0, sh - TOP_BAR_H - DOCK_H));
+  const maxX = Math.max(0, sw - w);
+  const maxY = Math.max(TOP_BAR_H, sh - DOCK_H - h);
+  return {
+    w,
+    h,
+    x: Math.min(Math.max(0, rect.x), maxX),
+    y: Math.min(Math.max(TOP_BAR_H, rect.y), maxY),
+  };
+}
+
+/**
+ * Work-area size for window placement. Falls back to the browser viewport when
+ * the screen element has not been laid out yet: on the very first mount the
+ * deck stage is still unsized (0×0), and a 0-width screen squeezes a new window
+ * to `computeOpenRect`'s 240px floor — that is how the README used to open
+ * 240px wide instead of 680px. A screen that has been laid out always wins, so
+ * deck-view geometry still comes from the element, not the viewport.
+ */
+export function measureWorkArea(el: { clientWidth: number; clientHeight: number } | null): {
+  sw: number;
+  sh: number;
+} {
+  const sw = el && el.clientWidth > 0 ? el.clientWidth : window.innerWidth;
+  const sh = el && el.clientHeight > 0 ? el.clientHeight : window.innerHeight;
+  return { sw, sh };
+}
+
 export function computeOpenRect(
   def: WindowDefaultSize,
   saved: SavedWindowGeometry | undefined,

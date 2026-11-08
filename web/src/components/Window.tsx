@@ -2,6 +2,7 @@
 
 import { useEffect, useLayoutEffect, useRef, type CSSProperties, type PointerEvent, type ReactNode } from 'react';
 import { useWorkstation, TOP_BAR_H, DOCK_H, type WindowId, type WindowRect } from '@/components/WorkstationContext';
+import { clampWindowRect } from '@/lib/window-geometry';
 import { click } from '@/lib/sfx';
 
 interface WindowProps {
@@ -26,9 +27,45 @@ export function Window({ id, icon, children, fitContent }: WindowProps) {
   // Fit-to-content runs once per open so it never fights a manual resize.
   const fitted = useRef(false);
 
+  // Always-latest window view for the resize guard below (which is registered
+  // once per screen, not re-registered on every rect change).
+  const live = useRef(win);
+  useEffect(() => {
+    live.current = win;
+  });
+
   useEffect(() => {
     ref.current?.focus({ preventScroll: true });
   }, []);
+
+  // Re-fit into the work area when the screen itself changes size *after* the
+  // window opened — a browser resize, page zoom, or an on-screen keyboard. The
+  // title bar (and therefore the close button) must never sit above the status
+  // bar or off the edge of the screen. Handheld windows are sized in CSS, and a
+  // saved desktop rect must not be mutated by the mobile layout.
+  useEffect(() => {
+    const el = screenRef.current;
+    if (!el) return;
+    const reflow = () => {
+      const cur = live.current;
+      if (!cur || cur.minimized || cur.maximized || handheld) return;
+      const sw = el.clientWidth;
+      const sh = el.clientHeight;
+      if (!sw || !sh) return;
+      const next = clampWindowRect(cur.rect, sw, sh);
+      const moved =
+        Math.abs(next.x - cur.rect.x) > 1 ||
+        Math.abs(next.y - cur.rect.y) > 1 ||
+        Math.abs(next.w - cur.rect.w) > 1 ||
+        Math.abs(next.h - cur.rect.h) > 1;
+      if (moved) moveWindow(id, next);
+    };
+    reflow();
+    if (typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver(reflow);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [screenRef, handheld, moveWindow, id]);
 
   // Content-fit: when `fitContent` is set, grow/shrink the window in the layout
   // phase (before paint, so there is no visible snap) to exactly hold its content
