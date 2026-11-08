@@ -191,6 +191,37 @@ describe('Logger (lib/logger)', () => {
       expect(callArgs[2]).toBe(err)
       errorSpy.mockRestore()
     })
+
+    it('should send the sanitized context to Sentry when there is no Error (issue #87)', () => {
+      setDevEnv()
+      const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {})
+      const { logError } = require('@/lib/logger')
+      const Sentry = require('@sentry/nextjs')
+
+      logError('middleware', 'Supabase auth.getUser() returned error', {
+        reason: 'AuthApiError',
+        errorCode: 'refresh_token_not_found',
+        errorStatus: 400,
+        email: 'visitor@example.com',
+      })
+
+      // The event has to carry the identity of the failure, not just its message.
+      // Without this the values survived only in a console breadcrumb, scrubbed
+      // to `[Filtered]`, and every event arrived anonymous.
+      expect(Sentry.captureMessage).toHaveBeenCalledWith(
+        '[ERROR] [middleware] Supabase auth.getUser() returned error',
+        {
+          level: 'error',
+          tags: { module: 'middleware' },
+          extra: {
+            reason: 'AuthApiError',
+            errorCode: 'refresh_token_not_found',
+            errorStatus: 400,
+          },
+        }
+      )
+      errorSpy.mockRestore()
+    })
   })
 
   // ─── setLogLevel ──────────────────────────────────────────────────────────────

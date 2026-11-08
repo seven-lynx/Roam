@@ -130,7 +130,14 @@ export function logError(module: string, message: string, context?: Record<strin
       extra: sanitized,
     });
   } else {
-    Sentry.captureMessage(`[ERROR] [${module}] ${message}`, 'error');
+    // The context has to travel with the event: without it the only remnant is a
+    // console breadcrumb, and scrubbing reduces that to `[Filtered]`, so the error
+    // arrived anonymous (issue #87).
+    Sentry.captureMessage(`[ERROR] [${module}] ${message}`, {
+      level: 'error',
+      tags: { module },
+      extra: sanitized,
+    });
   }
 }
 

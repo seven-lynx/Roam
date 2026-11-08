@@ -344,6 +344,83 @@ describe('Middleware', () => {
       errorSpy.mockRestore();
     });
 
+    it('should treat a stale refresh token as expected state, not an error (issue #87)', async () => {
+      setEnv();
+
+      const { AuthApiError } = require('@supabase/supabase-js');
+
+      // Record what the middleware expires on the response; jsdom has no global
+      // Response, so next/server is stubbed in this file rather than exercised.
+      const expiredOnResponse: string[] = [];
+      jest.doMock('next/server', () => ({
+        NextResponse: {
+          next: jest.fn(() => ({
+            status: 200,
+            cookies: {
+              set: jest.fn(),
+              delete: jest.fn((name: string) => {
+                expiredOnResponse.push(name);
+              }),
+            },
+          })),
+          redirect: jest.fn((url: URL) => ({ status: 302, headers: { get: () => url.href } })),
+        },
+      }));
+
+      jest.doMock('@supabase/ssr', () => ({
+        createServerClient: jest.fn(() => ({
+          auth: {
+            // Returned, not thrown: the cookie Supabase answered 400 for was already
+            // rotated by another tab or an earlier visit, so the refresh token it
+            // carries can never be redeemed.
+            getUser: jest.fn().mockResolvedValue({
+              data: { user: null },
+              error: new AuthApiError(
+                'Invalid Refresh Token: Refresh Token Not Found',
+                400,
+                'refresh_token_not_found',
+              ),
+            }),
+          },
+        })),
+      }));
+
+      const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+
+      const mockRequest = {
+        nextUrl: { pathname: '/', href: 'http://localhost:3000/' },
+        cookies: {
+          getAll: jest.fn().mockReturnValue([
+            { name: 'sb-project-auth-token', value: 'stale' },
+            { name: 'sb-project-auth-token.0', value: 'stale-chunk' },
+            { name: 'roam-theme', value: 'dark' },
+          ]),
+          set: jest.fn(),
+          delete: jest.fn(),
+        },
+        url: 'http://localhost:3000/',
+      };
+
+      const { middleware } = require('@/middleware');
+      const result = await middleware(mockRequest);
+
+      // A credential Supabase already retired is not a failure worth reporting.
+      expect(errorSpy).not.toHaveBeenCalled();
+      expect(result).toBeDefined();
+
+      // The dead cookie and its chunks are dropped from the request and expired on
+      // the response so the browser stops sending them. Other cookies are left alone.
+      expect(mockRequest.cookies.delete).toHaveBeenCalledWith('sb-project-auth-token');
+      expect(mockRequest.cookies.delete).toHaveBeenCalledWith('sb-project-auth-token.0');
+      expect(mockRequest.cookies.delete).not.toHaveBeenCalledWith('roam-theme');
+      expect(expiredOnResponse).toEqual([
+        'sb-project-auth-token',
+        'sb-project-auth-token.0',
+      ]);
+
+      errorSpy.mockRestore();
+    });
+
     it('should report a genuine auth failure with identifying context', async () => {
       setEnv();
 
