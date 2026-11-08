@@ -25,7 +25,7 @@
 ### Universal checks
 
 - [ ] No `[deploy]`, `[ship]`, `[prod]`, or `[release]` tags in any commit message
-- [ ] No hints at automated authorship in any committed file (comments, doc, commit message)
+- [ ] No provenance notes or attribution comments in committed files (code comments, docs, commit messages)
 - [ ] No hardcoded secrets
 - [ ] No `.skip` migrations added to `supabase/migrations/` (use `_superseded/` if applicable)
 - [ ] No new duplicate filenames between `web/src/components/` and `web/src/app/<route>/`

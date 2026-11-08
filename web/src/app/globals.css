@@ -791,7 +791,7 @@ button.gadget, a.gadget { cursor: pointer; transition: transform 0.15s ease, fil
 button.gadget:hover, a.gadget:hover { transform: translateY(-3px) rotate(-1deg); filter: drop-shadow(0 10px 12px rgba(0, 0, 0, 0.6)) brightness(1.08); }
 button.gadget:active { transform: translateY(1px) scale(0.98); }
 
-/* ── Photorealistic desk art (GPT-generated, keyed to transparency) ── */
+/* ── Photorealistic desk art (keyed to transparency) ── */
 .art-img { display: block; width: 100%; height: auto; }
 .gadget[data-on] .art-img { filter: drop-shadow(0 0 8px var(--color-neon)); }
 

@@ -45,15 +45,15 @@ These are enforced by `scripts/check-rules.mjs` and CI:
 ## Public repo hygiene
 
 Roam is a single public repository — there is no separate private repo.
-Internal-only files (audit reports, offline seeder scripts, AI/agent notes,
-and secrets) are kept out of git via `.gitignore`:
+Internal-only files (audit reports, offline seeder scripts, local working
+notes, and secrets) are kept out of git via `.gitignore`:
 
 - `docs/` — all reference docs are committed and public; internal design
   docs and incident retros are kept in `.roam-local/` (gitignored)
 - `scripts/` (seeder scripts, offline tooling) — except the CI
   rule-enforcement scripts that are explicitly allowlisted
-- `.roam-local/`, `.github/skills/`, `.github/copilot-instructions.md`,
-  `CLAUDE.md`, `web/CLAUDE.md`
+- `.roam-local/`, `.github/skills/`, and local editor/tooling configuration
+  files
 - `**/*-firebase-adminsdk-*.json` (Firebase service-account files)
 - `android/app/google-services.json`, `android/roam-release.jks`
 
