@@ -303,6 +303,32 @@ Right-click the popup → **Inspect** opens a separate DevTools for popup code.
 
 ---
 
+### Flow 10: Appearance (ROAM-OS theme + CRT layers)
+
+**Precondition:** Reload the unpacked extension so the new `theme.css` and fonts are picked up
+
+**Steps:**
+
+1. Click extension icon → popup opens on the **DISCOVER** screen
+2. Confirm the top bar reads `● ROAM-OS │ DISCOVER` and the ✕ key closes the popup
+3. Confirm the body text uses Space Grotesk and the labels/kickers use IBM Plex Mono (not the OS default sans)
+4. Click **⚙️** → scroll to **Display**
+5. Toggle **ROAM-OS theme** off → the popup switches to the classic blue/pink palette and the status bar stays readable
+6. Toggle it back on → ROAM-OS returns
+7. Toggle **CRT effects** off → scanlines, grain and vignette disappear, and **CRT static** / **CRT flicker** dim and become unclickable
+8. Toggle **CRT effects** on, then **CRT static** on → faint animated snow over the popup
+9. Close the popup, reopen it → the theme and all three effect switches are exactly as you left them
+10. Complete a Google sign-in and check the OAuth tab
+
+**Verify:**
+- ✅ The theme, master effect and both animated layers survive a popup close
+- ✅ Static/flicker are off on a fresh profile and disabled while the master is off
+- ✅ No effects appear in the OAuth callback tab, and no effects appear on any browsed page
+- ✅ `chrome.storage.local` holds `app_theme_variant`, `crt_effects`, `crt_static`, `crt_flicker`
+- ✅ Restart the browser and reopen: the stored choices still apply (the popup never flashes the old palette first)
+
+---
+
 ## Debugging Tips
 
 ### Check prefetch cache state

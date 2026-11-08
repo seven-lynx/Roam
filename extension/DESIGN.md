@@ -77,12 +77,17 @@ extension/
 │   ├── icon-32.png
 │   ├── icon-48.png
 │   └── icon-128.png
+├── fonts/                     ← ROAM-OS faces, copied from android res/font
+│   ├── space-grotesk.ttf      ← variable, covers 300–700 in one file
+│   ├── ibm-plex-mono-regular.ttf
+│   └── ibm-plex-mono-medium.ttf
 ├── src/
+│   ├── theme.css              ← Palette, @font-face and CRT layers. Shared by popup + callback.
 │   ├── background/
 │   │   └── background.ts      ← SW entry point. Message router + all handlers.
 │   ├── popup/
 │   │   ├── popup.html         ← Static HTML. All states present, toggled with hidden attr.
-│   │   ├── popup.css          ← All popup styles.
+│   │   ├── popup.css          ← Popup structure and state styles. No colours — see theme.css.
 │   │   └── popup.ts           ← Popup entry point. UI state machine + event handlers.
 │   ├── callback/
 │   │   ├── callback.html      ← Minimal page shown during OAuth redirect.
@@ -92,8 +97,9 @@ extension/
 │       ├── env.ts             ← Build-time env validation. Called once at SW startup.
 │       ├── messages.ts        ← Discriminated union Request/Response types + sendToBackground().
 │       ├── sentry.ts          ← Sentry init. Must be the first import in both entry points.
-│       └── supabase.ts        ← Supabase client factory. chromeStorageAdapter for session.
-└── dist/                      ← Chrome build output (gitignored)
+│       ├── supabase.ts        ← Supabase client factory. chromeStorageAdapter for session.
+│       └── ui-theme.ts        ← ROAM-OS appearance switches. Pure; keys shared with Android.
+├── dist/                      ← Chrome build output (gitignored)
 └── dist-firefox/              ← Firefox build output (gitignored)
 ```
 
@@ -547,3 +553,51 @@ See `TESTING.md` for the full manual QA checklist. Key flows:
 12. **Feedback** — open form, submit, see success message, auto-return to main.
 13. **Sign out** — click sign out, see signed-out state, reopen shows same.
 14. **Firefox parity** — load `dist-firefox/` in Firefox, repeat flows 1–5.
+
+---
+
+## 15. Appearance (ROAM-OS theme)
+
+The popup wears the ROAM-OS skin by default: phosphor-teal and gold on abyss,
+Space Grotesk for prose, IBM Plex Mono for the machine talking to itself, and a
+status bar that names the screen you are on. Roam Classic (the pre-ROAM-OS
+palette) is one toggle away, in the config panel's **Display** section.
+
+**Palette source.** `src/theme.css` holds every colour, radius and font stack,
+mirroring the web's `globals.css :root` and Android's `ui/theme/Color.kt`. The
+ROAM-OS values live on `:root`; `[data-theme='classic']` overrides them with the
+legacy popup palette. `popup.css` holds no colours at all — it only consumes
+tokens, so switching theme is an attribute swap rather than a stylesheet swap.
+
+**Fonts.** `fonts/*.ttf` are copies of `android/app/src/main/res/font`. Space
+Grotesk is a single variable file covering 300–700; IBM Plex Mono ships regular
+and medium. `build.mjs` copies them flat into `dist/` beside `icon-*.png`, which
+is why `@font-face` references them by bare filename, and why `createZip()`'s
+flat-file sweep needs no special case. The duplication from the Android tree is
+deliberate: no build step reaches across workspaces, and a silent 404 would drop
+the popup back to system faces.
+
+**Settings.** Four `chrome.storage.local` keys, identical to the ones Android
+reads, so the same vocabulary means the same switch on both surfaces:
+
+| Key | Default | Controls |
+|---|---|---|
+| `app_theme_variant` | `roam_os` | `roam_os` or `classic` |
+| `crt_effects` | `true` | scanlines + grain + vignette |
+| `crt_static` | `false` | animated analog snow |
+| `crt_flicker` | `false` | brightness-dip flutter |
+
+`lib/ui-theme.ts` is pure — resolve functions plus an attribute map — and
+`popup.ts` does the storage I/O. The animated layers default off: the popup is
+open for a few seconds, and a screen that strobes is not a quiet one. They are
+also disabled while the master switch is off, so they can never sit in a state
+that paints nothing.
+
+**Effects are popup-only.** This is the one surface where ROAM-OS does not run
+the full-screen treatment. The overlay is a single `position: fixed`,
+`pointer-events: none` div inside `popup.html`, gated by `data-fx`, `data-static`
+and `data-flicker` on `<html>` so CSS alone decides. It never mounts on
+`callback.html` (which opens as a full browser tab), there is no content script,
+and no `web_accessible_resources` entry was added. The gating attributes are
+static in the HTML so the first paint is already correct; the async storage read
+can only ever downgrade to Classic.

@@ -16,15 +16,19 @@ All notable changes to the Roam browser extension.
 - Removed dead message types and handlers (`GET_USER_CATEGORIES`, `SET_USER_CATEGORIES`, `GET_SUBCATEGORIES`, `SET_DISCOVERY_LANGUAGE`) and the stale `lib/debug.ts`, which described the retired URL-queue architecture. Every remaining request type is reachable from a UI surface.
 
 ### Added
+- ROAM-OS theme for the popup — phosphor-teal and gold on abyss, Space Grotesk and IBM Plex Mono bundled, a status bar that names the current screen, and an opt-in CRT overlay. Effects paint inside the popup only: never on the OAuth tab and never on the page being browsed.
+- Display section in the config panel: a ROAM-OS/Classic switch plus CRT effects, static and flicker toggles, persisted as `app_theme_variant`, `crt_effects`, `crt_static` and `crt_flicker` — the same keys Android reads. Static and flicker default off.
+- `src/theme.css` as the single palette and typography source, shared by the popup and the OAuth callback page, with unit coverage for the appearance switches.
 - Collections screen in the popup — rename, delete (two-tap confirm), make public/private, copy public link — backed by the existing `collection` Edge Function actions.
 - Deep-dive discovery toggle and multi-language filtering, both persisted to `user_settings.preferred_languages` / `discovery_mode`.
 - Level, XP, day streak and roamed/submitted counters in the "You" section.
 - Desktop notifications (opt-in, `desktop_notifications` toggle) for follows, shares, badge unlocks, level-ups and challenge completions. Unread notifications are polled on a 5-minute `chrome.alarms` schedule and a tap opens the same target the web bell uses. Unlocks that land while the popup is closed also show as a toast on the next open.
 - Community screen: the activity feed for the people you follow, plus follower/following lists with unfollow. Follow and unfollow call the `follow` function, so social XP and badge evaluation still run server side.
 - You screen: one-time username claim, editable display name and bio, and password change for email accounts (re-authenticates first, as the web settings page does).
-- Unit coverage for notification payloads, watermark selection, activity wording and input validation (86 tests total).
+- Unit coverage for notification payloads, watermark selection, activity wording and input validation (98 tests total).
 
 ### Changed
+- Popup colours are semantic tokens now (`--danger`, `--ok`, `--info`, `--accent-ink`) instead of hardcoded hex, so both themes colour error and success states correctly; accent-backed buttons pick an ink colour that stays legible on gold. `--text-secondary` is finally defined — it was referenced once and resolved to nothing.
 - Service worker split: the collections, notifications and preferences handlers moved to `background/handlers/`, and URL normalisation to `lib/url.ts`. `background.ts` went from 1,350 to ~1,100 lines; discovery and auth remain to be split (rule E.3).
 - Two new manifest permissions, `alarms` and `notifications`, both documented in the `extension/RULES.md` permissions table.
 

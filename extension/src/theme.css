@@ -1,0 +1,246 @@
+/* ============================================================================
+   theme.css — ROAM-OS appearance tokens and CRT layers for the extension.
+
+   Values mirror the web's source of truth (web/src/app/globals.css :root) and
+   Android's port (ui/theme/Color.kt), so all three surfaces read the same.
+
+   Scope rule: the CRT layers in this file are only ever mounted by popup.html.
+   The extension is deliberately less obtrusive than web and Android — it never
+   paints over the page the user is browsing, never injects a content script,
+   and callback.html (which opens as a full browser tab) gets the palette and
+   fonts but none of the effects.
+   ============================================================================ */
+
+/* ── Fonts ──────────────────────────────────────────────────────────────────
+   Copied from android/app/src/main/res/font — the same faces Android ships, so
+   the popup and the app render identically. Kept flat in dist/ alongside
+   icon-*.png, which is why the URLs carry no directory. Space Grotesk is a
+   variable font: one file covers 300–700. */
+@font-face {
+  font-family: 'Space Grotesk';
+  src: url('space-grotesk.ttf') format('truetype');
+  font-weight: 300 700;
+  font-style: normal;
+  font-display: block;
+}
+@font-face {
+  font-family: 'IBM Plex Mono';
+  src: url('ibm-plex-mono-regular.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: block;
+}
+@font-face {
+  font-family: 'IBM Plex Mono';
+  src: url('ibm-plex-mono-medium.ttf') format('truetype');
+  font-weight: 500 700;
+  font-style: normal;
+  font-display: block;
+}
+
+/* ── ROAM-OS palette (default) ───────────────────────────────────────────── */
+:root {
+  --bg:             #07100f;
+  --bg-deep:        #040a0a;
+  --bg-panel:       #0f1f24;
+  --bg-panel-2:     #0a1518;
+  --bg-hover:       #172a31;
+  --border:         #28444a;
+  --border-strong:  #3f7f7d;
+  --accent:         #c9a24b;
+  --accent-hover:   #e0b45f;
+  --accent-ink:     #1c1403;
+  --phosphor:       #59b3ae;
+  --phosphor-bright:#7fd0cb;
+  --phosphor-glow:  rgba(89, 179, 174, 0.2);
+  --text:           #e6dcc3;
+  --text-muted:     #8fa3a0;
+  --text-secondary: #8fa3a0;
+  --danger:         #ff5c7a;
+  --ok:             #59b3ae;
+  --info:           #5b8bb0;
+  --warn:           #e08a4a;
+  --danger-soft:    rgba(255, 92, 122, 0.12);
+  --danger-line:    rgba(255, 92, 122, 0.4);
+  --danger-flash:   rgba(255, 92, 122, 0.25);
+  --ok-soft:        rgba(89, 179, 174, 0.1);
+  --ok-flash:       rgba(89, 179, 174, 0.25);
+
+  --radius:         6px;
+  --radius-sm:      3px;
+  --transition:     160ms ease;
+
+  --font-ui: 'Space Grotesk', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+  color-scheme: dark;
+}
+
+/* ── Roam Classic (the pre-ROAM-OS popup, kept verbatim) ─────────────────── */
+[data-theme='classic'] {
+  --bg:             #1a1a2e;
+  --bg-deep:        #131327;
+  --bg-panel:       #16213e;
+  --bg-panel-2:     #131a33;
+  --bg-hover:       #0f3460;
+  --border:         #2a2a4a;
+  --border-strong:  #3d3d6b;
+  --accent:         #e94560;
+  --accent-hover:   #c73652;
+  --accent-ink:     #ffffff;
+  --phosphor:       #e94560;
+  --phosphor-bright:#ff6d84;
+  --phosphor-glow:  rgba(233, 69, 96, 0.2);
+  --text:           #eaeaea;
+  --text-muted:     #888888;
+  --text-secondary: #888888;
+  --danger:         #f87171;
+  --ok:             #22c55e;
+  --info:           #3b82f6;
+  --warn:           #e0a24a;
+  --danger-soft:    rgba(248, 113, 113, 0.1);
+  --danger-line:    rgba(248, 113, 113, 0.4);
+  --danger-flash:   rgba(248, 113, 113, 0.25);
+  --ok-soft:        rgba(34, 197, 94, 0.08);
+  --ok-flash:       rgba(74, 222, 128, 0.25);
+
+  --radius:         10px;
+  --radius-sm:      6px;
+
+  --font-ui: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+/* ── Status bar (the popup's slice of the OS shell) ──────────────────────── */
+.os-bar {
+  position: relative;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 8px;
+  background: linear-gradient(180deg, var(--bg-hover), var(--bg-panel-2));
+  border-bottom: 1px solid var(--border);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  user-select: none;
+}
+.os-led {
+  flex: 0 0 auto;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--phosphor);
+  box-shadow: 0 0 6px var(--phosphor-glow);
+}
+.os-brand { color: var(--accent); font-weight: 600; }
+.os-sep   { color: var(--border-strong); }
+.os-title {
+  color: var(--text);
+  letter-spacing: 0.16em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.os-spacer { flex: 1 1 auto; }
+.os-key {
+  flex: 0 0 auto;
+  width: 18px;
+  height: 18px;
+  display: grid;
+  place-items: center;
+  font: inherit;
+  line-height: 1;
+  color: var(--text-muted);
+  background: var(--bg-panel-2);
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  cursor: pointer;
+  transition: color var(--transition), background var(--transition), border-color var(--transition);
+}
+.os-key:hover { color: var(--text); border-color: var(--phosphor); }
+.os-key--close:hover {
+  color: var(--accent-ink);
+  background: var(--danger);
+  border-color: var(--danger);
+}
+
+/* ── CRT layers (popup only) ─────────────────────────────────────────────── */
+.crt {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  overflow: hidden;
+  pointer-events: none;
+  contain: strict;
+}
+.crt > span {
+  position: absolute;
+  inset: 0;
+  display: block;
+}
+
+.crt-scanlines {
+  background: repeating-linear-gradient(
+    to bottom,
+    transparent 0,
+    transparent 2px,
+    rgba(0, 0, 0, 0.1) 2px,
+    rgba(0, 0, 0, 0.1) 3px
+  );
+}
+.crt-vignette {
+  background: radial-gradient(ellipse at center, transparent 55%, rgba(0, 0, 0, 0.2) 100%);
+}
+.crt-grain {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  opacity: 0.05;
+}
+/* Opt-in (crt_static): faint animated analog snow. */
+.crt-static {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='s'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23s)'/%3E%3C/svg%3E");
+  opacity: 0.04;
+  animation: crt-static 0.9s steps(2, jump-none) infinite;
+}
+/* Opt-in (crt_flicker): the tube's occasional brightness dip. */
+.crt-flicker {
+  background: #000;
+  opacity: 0;
+  animation: crt-flicker 9s infinite;
+}
+@keyframes crt-static {
+  0%   { opacity: 0.02; transform: translate(0, 0); }
+  100% { opacity: 0.06; transform: translate(40px, -30px); }
+}
+@keyframes crt-flicker {
+  0%, 100% { opacity: 0; }
+  2%  { opacity: 0.05; }
+  4%  { opacity: 0; }
+  53% { opacity: 0; }
+  54% { opacity: 0.08; }
+  56% { opacity: 0; }
+  81% { opacity: 0; }
+  82% { opacity: 0.04; }
+  84% { opacity: 0; }
+}
+
+/* Gating: attributes on <html>, set by lib/ui-theme.ts. CSS alone decides, so
+   flipping a toggle never needs a JS repaint pass. */
+[data-fx='off'] .crt,
+[data-fx='off'] .crt-static,
+[data-fx='off'] .crt-flicker,
+[data-static='off'] .crt-static,
+[data-flicker='off'] .crt-flicker,
+[data-theme='classic'] .crt {
+  display: none;
+}
+
+/* A switch that strobes is not a quiet one — respect the OS preference even
+   when the toggles are on. */
+@media (prefers-reduced-motion: reduce) {
+  .crt-static { animation: none; }
+  .crt-flicker { display: none; }
+}
