@@ -6,7 +6,7 @@
 
 import * as esbuild from 'esbuild';
 import { sentryEsbuildPlugin } from '@sentry/esbuild-plugin';
-import { copyFileSync, mkdirSync, readFileSync, createWriteStream, readdirSync } from 'fs';
+import { copyFileSync, mkdirSync, readFileSync, createWriteStream, readdirSync, rmSync } from 'fs';
 import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import archiver from 'archiver';
@@ -43,6 +43,9 @@ if (!supabaseUrl || !supabaseAnonKey) {
 }
 
 const outdir = resolve(__dirname, firefox ? 'dist-firefox' : 'dist');
+// Start from an empty outdir. Without this, a file left by a previous build survives the
+// rebuild and the loaded bundle can disagree with the manifest beside it (issue #105).
+rmSync(outdir, { recursive: true, force: true });
 mkdirSync(outdir, { recursive: true });
 
 // Copy static files that don't need bundling
@@ -145,6 +148,9 @@ const sharedConfig = {
     '__SENTRY_DSN__': JSON.stringify(sentryDsn),
     '__ENVIRONMENT__': watch ? '"development"' : '"production"',
     '__SENTRY_RELEASE__': JSON.stringify(sentryRelease),
+    // Same value, but readable at runtime: the popup compares its own with the worker's
+    // to detect a service worker left behind by a previous build (issue #105).
+    '__EXTENSION_VERSION__': JSON.stringify(sentryRelease),
   },
 };
 
@@ -211,4 +217,5 @@ if (watch) {
     process.exit(1);
   }
   console.log('[roam] Build complete → dist/');
+  console.log(`[roam] Release tag: ${sentryRelease}`);
 }

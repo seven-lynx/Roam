@@ -3,6 +3,8 @@
 import '../lib/sentry'; // must be first — initialises Sentry if SENTRY_DSN is set
 import { Sentry } from '../lib/sentry';
 import { sendToBackground } from '../lib/messages';
+import { BUILD_VERSION, isStaleWorker } from '../lib/version';
+import { UNKNOWN_MESSAGE_ERROR } from '../lib/dispatch-report';
 import type { StateData, RoamData, CheckUrlData, Collection, CategoryItem, ProfileData, SubcategoryItem, SavedUrlItem, ChallengeData, BadgeData, NotificationItem, ProfileStatsData, UserSettingsData, FollowUser, ActivityItem, MyProfileData } from '../lib/messages';
 import { FALLBACK_CATEGORIES, LANGUAGES, DEFAULT_LANGUAGE, ENGAGEMENT_MAX_DWELL_MS } from '../lib/constants';
 import { notificationLink, notificationText, recentCelebration } from '../lib/notifications';
@@ -173,6 +175,21 @@ function showToast(message: string) {
   void t.offsetWidth;
   t.classList.add('toast');
   setTimeout(() => { t.hidden = true; }, 2000);
+}
+
+/**
+ * Warns when the worker answering this popup came from an older build. The popup
+ * document reloads from disk on every open; an MV3 service worker can outlive a
+ * rebuild and keep answering from the previous bundle, which is how a stale worker
+ * used to turn into a generic "something went wrong" with no explanation (issue #105).
+ */
+function reportVersionSkew(workerVersion: string | undefined): void {
+  if (!isStaleWorker(workerVersion)) return;
+  Sentry.captureMessage(
+    `[popup] worker ${workerVersion ?? 'pre-handshake'} answered popup ${BUILD_VERSION}`,
+    { level: 'warning', tags: { context: 'version-skew' }, extra: { workerVersion, popupVersion: BUILD_VERSION } }
+  );
+  showToast(UNKNOWN_MESSAGE_ERROR);
 }
 
 /** Decrements the unread-count chip after a single notification is read/deleted. */
@@ -470,6 +487,7 @@ async function boot() {
   const res = await sendToBackground<StateData>({ type: 'GET_STATE' });
   console.log('[roam-popup] Boot GET_STATE response:', res);
   if (!res.ok) { showError(res.error, 'boot'); return; }
+  reportVersionSkew(res.data.version);
   if (!res.data.signedIn) {
     showState('signedout');
     return;
@@ -1109,6 +1127,7 @@ document.addEventListener('DOMContentLoaded', () => {
       err.hidden = false;
       return;
     }
+    if (state.ok) reportVersionSkew(state.data.version);
     const me = res.data;
     el('profile-summary').textContent =
       `Lv ${me.level} · ${me.xp_total} XP · 🔥 ${me.streak_days} · Roamed ${me.roamed} · Submitted ${me.submitted}`;

@@ -4,6 +4,11 @@ All notable changes to the Roam browser extension.
 
 ## [Unreleased]
 
+### Fixed
+- A service worker left behind by a previous build no longer files a Sentry `error` for every message type it does not recognise. It answers with a distinct `UNKNOWN_MESSAGE_TYPE` reason, reported at `warning`, so a stale worker stops looking like a broken handler.
+- The popup detects a stale worker through a build-version handshake on `GET_STATE` and tells the user to reopen the extension, instead of silently falling back to default settings or dropping the challenge chip.
+- Rebuilding empties `dist/` first, so a stale bundle cannot survive alongside a newer manifest, and the build logs the release tag it baked in.
+
 ## [0.6.0] - 2026-11-08
 
 ### Fixed

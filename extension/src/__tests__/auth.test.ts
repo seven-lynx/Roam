@@ -34,6 +34,7 @@ import {
   signOut,
 } from '../background/auth';
 import { AUTH_FLOW_KEY, AUTH_FLOW_TTL } from '../lib/auth-flow';
+import { BUILD_VERSION } from '../lib/version';
 
 const CALLBACK_URL = 'chrome-extension://test-extension-id/callback.html';
 const AUTHORIZE_URL = 'https://test.supabase.co/auth/v1/authorize?provider=google';
@@ -157,7 +158,15 @@ describe('getState', () => {
   it('reports a signed-out session', async () => {
     auth.getSession.mockResolvedValue({ data: { session: null }, error: null });
 
-    expect(await getState()).toEqual({ ok: true, data: { signedIn: false } });
+    expect(await getState()).toEqual({ ok: true, data: { signedIn: false, version: BUILD_VERSION } });
+  });
+
+  it('reports the build version so the popup can detect a stale worker', async () => {
+    auth.getSession.mockResolvedValue({ data: { session: null }, error: null });
+
+    const res = await getState();
+
+    expect(res.ok && res.data.version).toBe(BUILD_VERSION);
   });
 
   it('reports the signed-in user and provider', async () => {
@@ -165,7 +174,7 @@ describe('getState', () => {
 
     expect(await getState()).toEqual({
       ok: true,
-      data: { signedIn: true, email: 'ada@example.com', userId: 'u1', provider: 'google' },
+      data: { signedIn: true, email: 'ada@example.com', userId: 'u1', provider: 'google', version: BUILD_VERSION },
     });
     expect(auth.refreshSession).not.toHaveBeenCalled();
   });
@@ -179,7 +188,7 @@ describe('getState', () => {
     expect(auth.refreshSession).toHaveBeenCalledTimes(1);
     expect(res).toEqual({
       ok: true,
-      data: { signedIn: true, email: 'fresh@example.com', userId: 'u1', provider: 'google' },
+      data: { signedIn: true, email: 'fresh@example.com', userId: 'u1', provider: 'google', version: BUILD_VERSION },
     });
   });
 
@@ -187,7 +196,7 @@ describe('getState', () => {
     auth.getSession.mockResolvedValue(session({ email: 'ada@example.com', id: 'u1' }, 30));
     auth.refreshSession.mockResolvedValue({ data: {}, error: { message: 'Invalid Refresh Token' } });
 
-    expect(await getState()).toEqual({ ok: true, data: { signedIn: false } });
+    expect(await getState()).toEqual({ ok: true, data: { signedIn: false, version: BUILD_VERSION } });
     expect(fakes.clearAuthStorage).toHaveBeenCalledTimes(1);
   });
 });

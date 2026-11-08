@@ -8,6 +8,7 @@ import { getSupabase, clearAuthStorage } from '../lib/supabase';
 import { AUTH_FLOW_KEY, liveAuthFlow } from '../lib/auth-flow';
 import type { AuthFlowState } from '../lib/auth-flow';
 import type { Response, StateData } from '../lib/messages';
+import { BUILD_VERSION } from '../lib/version';
 
 // ── Session state ─────────────────────────────────────────────────────────────
 
@@ -17,22 +18,24 @@ import type { Response, StateData } from '../lib/messages';
  * should never render a signed-out state for a session that is merely stale.
  */
 export async function getState(): Promise<Response<StateData>> {
+  // Baked at build time, so a popup can tell this worker is a build behind (issue #105).
+  const version = BUILD_VERSION;
   const { data: { session }, error } = await getSupabase().auth.getSession();
   if (error) return { ok: false, error: error.message };
-  if (!session) return { ok: true, data: { signedIn: false } };
+  if (!session) return { ok: true, data: { signedIn: false, version } };
 
   const expiresAt = session.expires_at ?? 0;
   if (expiresAt <= Math.floor(Date.now() / 1000) + 60) {
     const { data: refreshed, error: rErr } = await getSupabase().auth.refreshSession();
     if (rErr) {
       await clearAuthStorage();
-      return { ok: true, data: { signedIn: false } };
+      return { ok: true, data: { signedIn: false, version } };
     }
-    if (!refreshed.session) return { ok: true, data: { signedIn: false } };
-    return { ok: true, data: { signedIn: true, email: refreshed.session.user.email, userId: refreshed.session.user.id, provider: refreshed.session.user.app_metadata?.provider ?? 'email' } };
+    if (!refreshed.session) return { ok: true, data: { signedIn: false, version } };
+    return { ok: true, data: { signedIn: true, email: refreshed.session.user.email, userId: refreshed.session.user.id, provider: refreshed.session.user.app_metadata?.provider ?? 'email', version } };
   }
 
-  return { ok: true, data: { signedIn: true, email: session.user.email, userId: session.user.id, provider: session.user.app_metadata?.provider ?? 'email' } };
+  return { ok: true, data: { signedIn: true, email: session.user.email, userId: session.user.id, provider: session.user.app_metadata?.provider ?? 'email', version } };
 }
 
 // ── OAuth (Google) ────────────────────────────────────────────────────────────
