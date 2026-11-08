@@ -254,10 +254,13 @@ fun FirewalkProgram(
                         ProgramDpad(onSteer = { steer -> moveSteer(steer) })
                     }
                     Spacer(Modifier.height(4.dp))
-                    ProgramActionKey(if (stickMode) "STICK ⇄ D-PAD" else "D-PAD ⇄ STICK") {
-                        stickMode = !stickMode
-                        stickHeld = null
-                    }
+                    ProgramActionKey(
+                        label = if (stickMode) "STICK ⇄ D-PAD" else "D-PAD ⇄ STICK",
+                        onClick = {
+                            stickMode = !stickMode
+                            stickHeld = null
+                        },
+                    )
                 }
             }
         }
