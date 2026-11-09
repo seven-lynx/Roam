@@ -4,7 +4,7 @@ Operational incidents, their root causes, and resolutions. Add an entry for
 every production incident and for every non-additive migration (rollback
 procedures live here).
 
-_Last reviewed: 2026-11-07._
+_Last reviewed: 2026-11-09._
 
 ## Hard Rules
 
@@ -98,6 +98,75 @@ incident's fix PR.
 | 2026-11-04 | Backend | Badge icons mojibake — 106 of 335 badge definitions garbled | Badge seed SQL saved with mixed encoding; multi-byte emoji mangled into CP1252/Latin-1 sequences | `20261104000000_badge_icon_mojibake_repair.sql` idempotent UPDATEs restore each slug's icon to the correct emoji | `20261104000000_badge_icon_mojibake_repair.sql` |
 
 Dates shown as `2026-08` (month only) or `—` (date not recorded). Fix references the migration file or commit that resolved the incident where known.
+
+## Sentry ↔ GitHub tracking
+
+Every unresolved Sentry group should have an open GitHub issue, and every
+`sentry`-labelled issue should track a live group. Three pieces keep that true:
+
+| Piece | Direction | Trigger |
+|---|---|---|
+| `supabase/functions/sentry-webhook` | Sentry → GitHub | Sentry issue webhook: files an issue, or reopens and comments on a `regressed` one |
+| `.github/workflows/sentry-issue-sync.yml` | GitHub → Sentry | A `sentry`-labelled issue is closed or reopened |
+| `.github/workflows/sentry-reconcile.yml` + `scripts/sentry-reconcile.mjs` | Both sides read-only; files on request | Mondays 07:00 UTC, plus manual `workflow_dispatch` |
+
+Sentry's issue webhooks fire on state *changes* only (`created`, `resolved`,
+`assigned`, `archived`, `unresolved`). A group that stays `unresolved` after its
+tracker is closed keeps firing and emits no webhook at all, so the bridge never
+reopens the issue: the error goes quiet on GitHub while it is still live. That is
+how #85 sat closed while `ROAM-SUPABASE-2` was still firing. Mirroring the close
+makes the two states agree, so a later recurrence becomes a genuine `regressed`
+transition — which the bridge already reopens and comments on.
+
+### Weekly reconciliation
+
+The Monday run is the drift detector. It **fails when a group and its tracker
+disagree**, so a green run means every unresolved group has an open tracker. When
+it is red:
+
+```powershell
+node scripts/sentry-reconcile.mjs --check          # the report the workflow printed
+gh workflow run sentry-reconcile.yml -f file=true  # file/reopen the drifted groups
+node scripts/sentry-reconcile.mjs --check          # now exits 0
+```
+
+`--file` posts a synthesized `action: created` payload to the same webhook Sentry
+calls, so dedupe (`create` / `reopen` / `comment` / `skip`), the `sentry` label,
+redaction, and enrichment all stay in `supabase/functions/sentry-webhook/normalize.ts`.
+Re-running it is safe: a group whose tracker is already open is commented on or
+skipped, never filed twice.
+
+Never silence a red run with `|| true` — the non-zero exit is the entire signal.
+
+### Configuration
+
+Setup (Sentry custom integration, `?secret=` URL) lives in `supabase/README.md`.
+What matters when something stops working:
+
+| Name | Where it lives | Needed by | If missing |
+|---|---|---|---|
+| `SENTRY_AUTH_TOKEN` | repo secret | both workflows | job prints a notice and mirrors/files nothing |
+| `SENTRY_WEBHOOK_SECRET` | repo secret **and** Supabase secret | reconcile `--file`; the bridge | `--file` falls back to reporting; the bridge answers `401 unauthorized` |
+| `SUPABASE_URL` | repo secret | reconcile `--file` | no URL to post to; read from `vars.SUPABASE_URL`, falling back to `secrets.SUPABASE_URL` |
+| `SENTRY_WEBHOOK_URL` | repo variable | override only | set it only if the function is not at `<SUPABASE_URL>/functions/v1/sentry-webhook` |
+| `GITHUB_PAT` | Supabase secret | the bridge | issue creation fails with `502` |
+
+Rotating `SENTRY_WEBHOOK_SECRET` means updating the Sentry integration URL as well
+as both secrets — the secret travels in the URL's `?secret=` parameter, so a
+half-done rotation silently stops filing.
+
+### Failure modes
+
+| Symptom | Cause | Action |
+|---|---|---|
+| `Sentry replied 404` (sync workflow) | group deleted or merged in Sentry | warning and exit 0 — nothing can be mirrored |
+| `No sentry-issue marker in #N` | issue hand-labelled `sentry`, or its body was edited | file again through `--file`, or drop the label |
+| `401 unauthorized` from the function | repo secret and Supabase secret have drifted apart | set both from one value; rotate together |
+| `502` from the function | `GITHUB_PAT` missing or without `Issues: write` | rotate the token |
+| Green run but a Sentry error has no issue | the group has not changed state since the integration was installed, so no webhook ever fired | run `--check`, then `--file` — this is the case the weekly run exists for |
+
+When the behaviour here changes, change the workflow files and this section in the
+same commit: the secrets table and the `--file` gate are what drift first.
 
 ## Migration rollbacks
 
