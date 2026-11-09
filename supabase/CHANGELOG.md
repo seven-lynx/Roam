@@ -2,6 +2,13 @@
 
 All notable changes to the Roam Supabase backend (PostgreSQL schema, Row-Level Security, and Deno Edge Functions).
 
+## [2026-11-09] — `roam()` v37: discovery stops paying 20 s to find nothing
+### Fixed
+- `roam()` excludes seen URLs and cooled domains with `NOT IN (SELECT ... FROM seen_urls / user_domain_cooldowns ...)` instead of `<> ALL(array)`. `<> ALL` is a ScalarArrayOpExpr and PostgreSQL cannot hash it — the executor rescans the array for every candidate row, so a 2,000-entry seen set plus 803 cooled domains cost ~23 µs per row: **22,601 ms** for a bare seq scan carrying only those two predicates. The subquery form plans as a hashed SubPlan and the same probe now measures **97 ms** (issue #118). The shape matters: `NOT EXISTS (SELECT 1 FROM unnest(arr) ...)` does *not* hash here — `unnest` is estimated at 10 rows, so the planner picks a Nested Loop Anti Join and rescans per row (measured 3.6 s, 4.7M comparisons). Tables carry statistics; arrays do not.
+- The score-ordered fallback dropped its `ORDER BY roam_score_static DESC`. That ordering made it an index walk over **990,968** index rows whenever fewer than 500 candidates existed — the only state the branch ever runs in — and it could not stop early: **44,320 ms** producing 0 rows, 12,876 ms with the exclusions already hashed. Unordered `LIMIT 500` is bounded at **1,381 ms**; the outer query still weights candidates by `eff_score * (0.7 + 0.3 * random())`.
+- The fallback, and the `v_pool_check` retry after it, are gated behind a strict probe over the fallback's *own* predicate set. When the strict set is empty — an account whose whole scope is cooling down — the function now answers "nothing available" in one probe instead of proving it row by row. Combined: saturated scope **17-22 s → 97 ms**, near-empty path **44 s → ~1.4 s**.
+- `scripts/verify-roam-rpc.mjs` fails the deploy gate if any `roam()` overload reintroduces `<> ALL` over the seen/cooldown/skip arrays. The latency was invisible to every existing check: the migration applied cleanly, the query returned correct rows, and only the clock noticed.
+
 ## [2026-11-09] — The silent failures behind the log sweep
 ### Fixed
 - `roam` reads `update_streak`'s result as what it is. `RETURNS TABLE` makes the client hand back an array of rows, so `streak_days`, `max_streak` and `is_streak_broken` came back `undefined` and every call logged `streak updated: undefined days (best: undefined, broken: false)` for a streak that had in fact been updated. The row is now taken from `data[0]`.

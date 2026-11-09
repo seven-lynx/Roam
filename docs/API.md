@@ -1610,7 +1610,7 @@ Called via `supabase.rpc()`, not HTTP. These are PostgreSQL functions that run s
 
 ### `roam()` — Weighted-random URL discovery
 
-Primary RPC function for URL discovery. Selects a weighted-random URL from the user's categories, excludes seen URLs, handles language filtering and paywall filtering. **Current version: v35.** (See `docs/ALGORITHM.md` for the scoring model; `supabase/CHANGELOG.md` for the version history.)
+Primary RPC function for URL discovery. Selects a weighted-random URL from the user's categories, excludes seen URLs, handles language filtering and paywall filtering. **Current version: v37.** (See `docs/ALGORITHM.md` for the scoring model; `supabase/CHANGELOG.md` for the version history.)
 
 **Call Signature:**
 ```sql
@@ -1651,7 +1651,12 @@ id, url, title, description, og_image_url, category_id, subcategory_id, wilson_s
 - **Seen URL exclusion:** Skips URLs in the user's `seen_urls` table
 - **Empty pool:** Returns NULL row if no URLs match the filters
 
-**Implementation note:** Runs as `SECURITY DEFINER` (elevated privileges) with `statement_timeout = '35s'`. The Edge Function handles timeout gracefully and returns 503.
+**Performance (v37, issue #118):**
+- **Exclusions are hashed subplans.** Seen URLs, domain cooldowns, skipped and paywalled domains are excluded with `NOT IN (SELECT ... FROM <table> ...)`, not `<> ALL(<array>)`. `<> ALL` is a ScalarArrayOpExpr, which PostgreSQL cannot hash — it rescans the array per candidate row, so 2,000 seen ids + 803 cooled domains cost ~23 µs per row and **22.6 s** for one saturated call. The subquery form plans as a hashed SubPlan: build once, one hash probe per row (**97 ms** measured).
+- **The fallback is bounded.** A strict probe over the fallback's own predicate set runs first; when it finds nothing (every domain in scope cooling down, for example) the full scan is skipped and the function returns NULL. The fallback also stopped sorting by `roam_score_static`, which had turned it into an index walk over every row in the table (**12,876 ms**); unordered `LIMIT 500` measures **1,381 ms**. The outer `eff_score * (0.7 + 0.3 * random())` ordering is unchanged.
+- **Net effect:** saturated scope **~97 ms** (was 17-22 s) and the near-empty path **~1.4 s** (was 44 s). `scripts/verify-roam-rpc.mjs` guards the regression with a static check for `<> ALL` on those arrays.
+
+**Implementation note:** Runs as `SECURITY DEFINER` (elevated privileges) with `statement_timeout = '30s'`. The Edge Function handles timeout gracefully and returns 503.
 
 ---
 

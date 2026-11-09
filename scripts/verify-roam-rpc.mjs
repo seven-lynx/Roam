@@ -147,6 +147,34 @@ async function checkForKnownBadAlias() {
   return true;
 }
 
+// ── Static guard: the array exclusions that cost 17-22 s (issue #118) ───────
+// `<col> != ALL(array)` is a ScalarArrayOpExpr: PostgreSQL cannot hash it, so the
+// executor rescans the array for every candidate row. Measured on production
+// 2026-11-09 with 2,000 seen ids + 803 cooled domains: 23 us per row, 22,601 ms
+// for one saturated call, and 44,320 ms for the fallback that used it. The fix is
+// `NOT IN (SELECT ... FROM seen_urls / user_domain_cooldowns ...)`, which plans as
+// a hashed SubPlan. Keep it that way — the latency is invisible in tests.
+async function checkForLinearArrayExclusions() {
+  const rows = await sql(`
+    SELECT p.oid::text AS oid
+    FROM   pg_proc p
+    JOIN   pg_namespace n ON n.oid = p.pronamespace
+    WHERE  p.proname = 'roam'
+      AND  n.nspname = 'public'
+      AND  (   pg_get_functiondef(p.oid) LIKE '%!= ALL(v_seen_ids)%'
+            OR pg_get_functiondef(p.oid) LIKE '%!= ALL(v_cooled_domains)%'
+            OR pg_get_functiondef(p.oid) LIKE '%!= ALL(v_skip_penalty_ids)%')
+  `);
+  if (rows.length > 0) {
+    console.error(`FAIL[static]: ${rows.length} roam() overload(s) still exclude with "<> ALL(array)".`);
+    console.error('  That form is linear per row (issue #118: 22.6 s for one call). Use');
+    console.error('  NOT IN (SELECT ... FROM seen_urls / user_domain_cooldowns ...) so it hashes.');
+    return false;
+  }
+  console.log('PASS[static]: roam() filters via hashed NOT IN subqueries, not "<> ALL(array)"');
+  return true;
+}
+
 // ── Pick users to probe ─────────────────────────────────────────────────────
 async function pickUsers() {
   if (onlyUser) {
@@ -207,7 +235,9 @@ async function main() {
     console.log(`Baseline ${baselinePath}: ${baseline.userIds.length} user(s), ${baseline.failedUserIds.size} already failing before the migration.\n`);
   }
 
-  const staticOk = await checkForKnownBadAlias();
+  const aliasOk = await checkForKnownBadAlias();
+  const exclusionOk = await checkForLinearArrayExclusions();
+  const staticOk = aliasOk && exclusionOk;
 
   // Re-probe the baseline's exact user set so the two runs are comparable; the
   // most-recently-seen sample can otherwise shift as real traffic arrives.
