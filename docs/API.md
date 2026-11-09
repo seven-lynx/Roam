@@ -1617,6 +1617,13 @@ id, url, title, description, og_image_url, category_id, subcategory_id, wilson_s
 
 **Discovery state (v38, issue #122):** A returned row used to always write a `seen_urls` row and refresh a 24 h `user_domain_cooldowns` entry. It now does that through `mark_url_seen()` **unless** the transaction-local GUC `roam.prefetch` is `'on'` — which only `roam_prefetch()` sets. The flag is a GUC rather than a 7th parameter because `CREATE OR REPLACE FUNCTION` cannot add an argument: a new signature would land as a *second overload*, which PostgREST cannot resolve reliably. `scripts/verify-roam-rpc.mjs` enforces both invariants (exactly one `roam()` overload; the body still consults the flag).
 
+**Exhaustion reason (v39, issue #120):** A serve that finds nothing records *why* in `user_exhaustion_state`, so the Edge Function can explain the 404 instead of leaving the user at a dead end:
+- `pool_empty` — nothing left in scope at all (the seen-filter is included, so reading everything lands here).
+- `cooldown` — candidates exist but every one is blocked, and the user has a live domain cooldown. `available_later` carries the earliest `cooldown_until`.
+- `filters` — suppression, paywall, skip-penalty or caller-supplied `exclude_domains` removed the remainder, or a candidate was rejected at the domain gate.
+
+The reason is derived from probes the function already ran (`v_pool_check`, `v_strict_pool`, `v_cooled_domains`), so it costs one indexed lookup for the expiry and only on the empty path. The write is skipped while `roam.prefetch` is `'on'`: a prefetch is not a serve and must not claim the user is exhausted. It is a stored row and not a return column because `CREATE OR REPLACE` cannot change `roam()`'s return type; changing it would mean dropping the function and its grant.
+
 ---
 
 ### `roam_prefetch()` — Batch discovery that records nothing
