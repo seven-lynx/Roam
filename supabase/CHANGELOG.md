@@ -2,6 +2,16 @@
 
 All notable changes to the Roam Supabase backend (PostgreSQL schema, Row-Level Security, and Deno Edge Functions).
 
+## [2026-11-09] — `report_engagement()`: engagement reports actually persist (issue #122 follow-up)
+### Fixed
+- **`report-engagement` had never written a row.** It used a client-side `.from('seen_urls').update(...)` under the caller's JWT, and `seen_urls` is RLS-enabled with a SELECT-only policy (`20260423000000_initial.sql:262,347` — "Written exclusively by roam() ... no INSERT policy needed"). The UPDATE matched zero rows and PostgREST answered 204, so there was no error to log: `dwell_ms`/`skipped` stayed NULL for every report the browser extension sent. That also left `trg_seen_urls_engagement_pair_scores` (`AFTER UPDATE OF dwell_ms, skipped`) unfired, so `interest_pair_scores` never learned from engagement, and `roam()`'s skip penalty (`skipped = TRUE`) never saw a row.
+- **The write moved into `public.report_engagement(url_id, dwell_ms, skipped)`** — `SECURITY DEFINER`, user from `auth.uid()`, so there is no `p_user_id` to spoof and no UPDATE policy to add to a table whose writes are deliberately server-only. Same shape as `mark_url_seen()`.
+- **A report is proof of a serve.** The RPC upserts: a URL that reached the screen without a row — a v38 prefetch, or any client predating `mark_url_seen()` — is now recorded instead of being dropped. On conflict only `dwell_ms`/`skipped` move, so reporting engagement never re-orders the 3,000-row exclusion window or extends a 24 h cooldown.
+- A `url_id` that does not exist maps to **400**, not 500: an FK violation there is a stale client, not a server fault.
+
+### Deploy order
+- Migration **before** Edge Function — the function calls `report_engagement()`, which does not exist until the migration lands. Reversed, every report 500s; the extension fires it per page and ignores failures, so the failure mode is missing engagement data, not a broken browse.
+
 ## [2026-11-09] — `roam()` v38: prefetch stops consuming discovery state (issue #122)
 ### Fixed
 - **A prefetch no longer writes `seen_urls` or refreshes a domain cooldown.** The `roam` Edge Function's `prefetch` flag only gated XP, so every buffered URL cost a seen row and a 24 h `user_domain_cooldowns` entry exactly like a real serve. With the web deck ticking every 4,000 ms in batches of 5, a user who reads 12 URLs in a minute buffered enough to cool every domain in a narrow scope for a day — the state #118 then had to make cheap to *detect*. Prefetch now routes to `roam_prefetch()`, which sets the transaction-local GUC `roam.prefetch` and loops `roam()`, accumulating returned domains so a non-writing `roam()` still yields distinct rows.

@@ -1,6 +1,13 @@
 // POST /functions/v1/report-engagement
 // Reports dwell time and skip status for a URL the user was served.
-// The seen_urls row must already exist (created by the roam() RPC).
+//
+// Writes go through the report_engagement() RPC (SECURITY DEFINER, keyed off
+// auth.uid()). It upserts the seen_urls row, so a URL that reached the screen
+// without a row — a v38 prefetch, or any client that predates mark_url_seen() —
+// is recorded instead of the report silently matching 0 rows. Never UPDATE
+// seen_urls directly: RLS is enabled with a SELECT-only policy, so a client-side
+// UPDATE reports success while persisting nothing.
+//
 // Idempotent — multiple calls for the same (user, url) are safe, last write wins.
 //
 // Body: { url_id: string, dwell_ms: number, skipped: boolean }
@@ -48,13 +55,18 @@ Deno.serve(async (req) => {
     return new Response(JSON.stringify({ error: 'skipped must be a boolean' }), { status: 400, headers })
   }
 
-  const { error } = await supabase
-    .from('seen_urls')
-    .update({ dwell_ms, skipped })
-    .eq('user_id', user.id)
-    .eq('url_id', url_id)
+  const { error } = await supabase.rpc('report_engagement', {
+    p_url_id: url_id,
+    p_dwell_ms: dwell_ms,
+    p_skipped: skipped,
+  })
 
   if (error) {
+    // 23503 = foreign-key violation: the URL does not exist. That is a stale
+    // client, not a server fault — a 500 here would page on someone's old tab.
+    if (error.code === '23503') {
+      return new Response(JSON.stringify({ error: 'Unknown url_id' }), { status: 400, headers })
+    }
     console.error('[report-engagement] db error:', error)
     return new Response(JSON.stringify({ error: 'Failed to report engagement' }), { status: 500, headers })
   }

@@ -228,6 +228,11 @@ Non-additive migrations (DROP, ALTER TYPE, …) must document a rollback here.
 - Rollback: Re-apply the `roam()` body from `20261109043000_roam_v37_bounded_exhaustion.sql`, then `DROP FUNCTION IF EXISTS public.roam_prefetch(uuid, integer, text[], uuid, uuid); DROP FUNCTION IF EXISTS public.mark_url_seen(uuid, boolean);`. **Deploy the Edge Function first in that direction**: the current `roam` function calls `roam_prefetch`, which 503s every prefetch until it is redeployed. The clients swallow that, so the failure mode is an empty prefetch buffer, not a broken serve.
 - Related: `docs/API.md` (`roam`, `roam_prefetch()`, `mark_url_seen()`), `docs/ALGORITHM.md` §9.
 
+### 20261109070000_report_engagement_rpc.sql
+- Change: Adds `public.report_engagement(url_id, dwell_ms, skipped)` (`SECURITY DEFINER`, user from `auth.uid()`), an upsert on `(user_id, url_id)` that creates the `seen_urls` row when it is missing and otherwise sets only `dwell_ms`/`skipped`. `report-engagement` was writing with a client-side `UPDATE`, which `seen_urls`' SELECT-only RLS policy silently dropped — PostgREST returns 204 for an UPDATE that touches nothing, so the engagement data, the `interest_pair_scores` trigger, and `roam()`'s skip penalty were all inert.
+- Rollback: **Deploy the previous `report-engagement` Edge Function first** — the current one calls `report_engagement()`, which 500s every report once the function is gone (the extension ignores the failure, so the failure mode is missing engagement data, not a broken browse). Then `DROP FUNCTION IF EXISTS public.report_engagement(uuid, integer, boolean);`. The data already written is retained by design; nothing is dropped with the function.
+- Related: `docs/API.md` §`report-engagement`.
+
 ## How to cut an entry
 
 When to write an entry:
