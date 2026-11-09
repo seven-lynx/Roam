@@ -2,6 +2,10 @@
 
 All notable changes to the Roam Supabase backend (PostgreSQL schema, Row-Level Security, and Deno Edge Functions).
 
+## [2026-11-09] — Submitting a non-URL answers 400 instead of 500
+### Fixed
+- `submit-url` guards its `normalizeUrl()` call. `_shared/normalise.ts` throws on anything that is not an absolute http(s) URL — `new URL('test@roamtheweb.app')` raises `TypeError: Invalid URL` — and the handler called it unguarded, so the throw escaped `Deno.serve` as a **500** carrying a body no client could explain. Android maps every status outside its listed branches to "Something went wrong — please try again", which is the entire content of `ROAM-ANDROID-P`: 80 events, no stack on any of them, first seen 2026-06-07 (issue #112). The handler now mirrors `scrape-url` and returns `400 { error: <reason> }`. Reachable only by authenticated callers, so nothing leaked; the cost was an unactionable Sentry group plus a false server-fault signal for what is a plain input error.
+
 ## [2026-11-08] — Sentry groups and their GitHub trackers stay in step
 ### Fixed
 - Closing a Sentry-filed issue now resolves the Sentry group it tracks, and reopening the issue un-resolves it (`.github/workflows/sentry-issue-sync.yml`, keyed off the `<!-- sentry-issue:<id> -->` marker the bridge writes). Sentry's issue webhooks fire on state *changes* only — `created`, `resolved`, `assigned`, `archived`, `unresolved` — so a group left `unresolved` next to a closed tracker emitted nothing afterwards. It could never become `regressed` either, which meant the reopen/comment path added for #101 never ran for it: #85 was closed at 17:35:48 while `ROAM-SUPABASE-2` was still unresolved and still receiving events.
