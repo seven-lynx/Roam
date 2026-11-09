@@ -11,6 +11,7 @@ import androidx.lifecycle.viewModelScope
 import app.roam.android.R
 import app.roam.android.data.repository.RetryableRoamException
 import app.roam.android.data.repository.RoamRepository
+import app.roam.android.data.repository.SubmitResult
 import app.roam.android.model.Badge
 import app.roam.android.model.CelebrationEvent
 import app.roam.android.model.CategoryItem
@@ -40,6 +41,7 @@ import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.auth.status.SessionStatus
 import io.github.jan.supabase.exceptions.UnauthorizedRestException
 import io.sentry.Sentry
+import io.sentry.SentryLevel
 import java.io.IOException
 import java.net.HttpURLConnection
 import java.net.URL
@@ -2045,12 +2047,12 @@ class MainViewModel(
             _showSubmitSheet.value = false
             result.fold(
                 onSuccess = { outcome ->
-                    if (outcome is app.roam.android.data.repository.SubmitResult.Queued) playSfx(R.raw.save_url)
+                    if (outcome is SubmitResult.Queued) playSfx(R.raw.save_url)
                     _submitToast.value = when (outcome) {
-                        is app.roam.android.data.repository.SubmitResult.Queued -> outcome.message
-                        is app.roam.android.data.repository.SubmitResult.Duplicate -> outcome.message
-                        is app.roam.android.data.repository.SubmitResult.Failed -> {
-                            Sentry.captureMessage("submit-url failed: ${outcome.message}")
+                        is SubmitResult.Queued -> outcome.message
+                        is SubmitResult.Duplicate -> outcome.message
+                        is SubmitResult.Failed -> {
+                            reportSubmitFailure(outcome)
                             "Couldn't submit: ${outcome.message}"
                         }
                     }
@@ -2065,6 +2067,26 @@ class MainViewModel(
         viewModelScope.launch {
             delay(4000)
             _submitToast.value = null
+        }
+    }
+
+    /**
+     * Records a failed submission with enough detail to identify it next time.
+     *
+     * The old capture sent the toast copy and nothing else, so every failure whose
+     * response could not be parsed — including gateway errors with no body at all —
+     * collapsed into one `info`-level group quoting a user-facing string: 80 events,
+     * no stack, no status, nothing to act on. The status now leads the message so
+     * distinct failures group separately, and the server's own copy plus the
+     * response body ride along as extras.
+     */
+    private fun reportSubmitFailure(outcome: SubmitResult.Failed) {
+        val status = outcome.httpStatus?.toString() ?: "none"
+        Sentry.withScope { scope ->
+            scope.setTag("http.status", status)
+            scope.setExtra("server_message", outcome.message)
+            outcome.detail?.takeIf { it.isNotBlank() }?.let { scope.setExtra("response_body", it) }
+            Sentry.captureMessage("submit-url failed: HTTP $status", SentryLevel.WARNING)
         }
     }
 

@@ -1,0 +1,83 @@
+name: Sentry Reconcile
+
+# Weekly drift check between Sentry and GitHub, plus a manual "file them" run.
+#
+# WHY THIS EXISTS
+#   The bridge only reacts to Sentry webhooks, and those fire on state *changes*.
+#   A group that has never changed state since the integration was installed, or
+#   whose tracker was closed while the group stayed unresolved, produces neither a
+#   webhook nor anything `gh issue list --label sentry` can see. `scripts/
+#   sentry-reconcile.mjs` compares both sides; this workflow is what makes the
+#   comparison happen without anyone remembering to run it.
+#
+#   The report step fails when drift exists, which is the point: a green run means
+#   every unresolved Sentry group has a live GitHub tracker.
+
+on:
+  schedule:
+    # Mondays 07:00 UTC — before the week's triage, after the weekend's traffic.
+    - cron: '0 7 * * 1'
+  workflow_dispatch:
+    inputs:
+      file:
+        description: 'File or reopen the drifted groups through the bridge'
+        type: boolean
+        default: false
+
+concurrency:
+  group: sentry-reconcile-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  issues: read
+
+jobs:
+  reconcile:
+    name: Compare unresolved Sentry groups with their trackers
+    runs-on: ubuntu-24.04
+    env:
+      SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      SENTRY_WEBHOOK_SECRET: ${{ secrets.SENTRY_WEBHOOK_SECRET }}
+      SENTRY_WEBHOOK_URL: ${{ vars.SENTRY_WEBHOOK_URL }}
+      SUPABASE_URL: ${{ vars.SUPABASE_URL }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+
+      - name: Notice when the Sentry token is not configured
+        if: env.SENTRY_AUTH_TOKEN == ''
+        run: |
+          echo "::notice::SENTRY_AUTH_TOKEN is not set on this repository - reconciliation skipped."
+
+      - name: Report drift
+        if: env.SENTRY_AUTH_TOKEN != '' && !inputs.file
+        run: |
+          # No `| tee`: the exit code has to survive, because a non-zero status is
+          # the entire signal this workflow produces.
+          status=0
+          node scripts/sentry-reconcile.mjs --check > report.txt || status=$?
+          cat report.txt
+          cat report.txt >> "$GITHUB_STEP_SUMMARY"
+          exit $status
+
+      - name: File the drifted groups
+        if: env.SENTRY_AUTH_TOKEN != '' && inputs.file && env.SENTRY_WEBHOOK_SECRET != ''
+        run: |
+          node scripts/sentry-reconcile.mjs --file | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: Notice when filing is unavailable
+        if: env.SENTRY_AUTH_TOKEN != '' && inputs.file && env.SENTRY_WEBHOOK_SECRET == ''
+        run: |
+          echo "::notice::SENTRY_WEBHOOK_SECRET is not set on this repository - reporting instead of filing."
+          status=0
+          node scripts/sentry-reconcile.mjs --check > report.txt || status=$?
+          cat report.txt
+          cat report.txt >> "$GITHUB_STEP_SUMMARY"
+          exit $status

@@ -40,7 +40,19 @@ import java.util.TimeZone
 sealed interface SubmitResult {
     data class Queued(val message: String) : SubmitResult
     data class Duplicate(val message: String) : SubmitResult
-    data class Failed(val message: String) : SubmitResult
+    /**
+     * [message] is the copy the toast shows. [httpStatus] and [detail] exist for
+     * diagnosis, not for the UI: the report used to carry [message] alone, and for
+     * an empty or unparseable response that is the generic "Something went wrong"
+     * fallback — 80 such Android events piled into a single Sentry group with no
+     * status, no body and no stack to tell them apart. Both stay null when the
+     * call never reached the server (no session, transport failure).
+     */
+    data class Failed(
+        val message: String,
+        val httpStatus: Int? = null,
+        val detail: String? = null,
+    ) : SubmitResult
 }
 
 /**
@@ -334,17 +346,20 @@ class RoamRepository {
         val message = (parsed?.get("message") as? kotlinx.serialization.json.JsonPrimitive)?.content
             ?: (parsed?.get("error") as? kotlinx.serialization.json.JsonPrimitive)?.content
         val duplicateFlag = (parsed?.get("duplicate") as? kotlinx.serialization.json.JsonPrimitive)?.content == "true"
+        // Capped so a large HTML error page cannot ride along on the report; the
+        // first lines carry the status and the server's own message.
+        val detail = text.take(800)
         return when {
             duplicateFlag || status == 409 ->
                 SubmitResult.Duplicate(message ?: "This URL is already in our database.")
             status in 200..299 ->
                 SubmitResult.Queued(message ?: "Submitted for review — thanks!")
             status == 503 ->
-                SubmitResult.Failed(message ?: "Safety check unavailable — try again in a moment")
+                SubmitResult.Failed(message ?: "Safety check unavailable — try again in a moment", status, detail)
             status == 429 ->
-                SubmitResult.Failed(message ?: "Too many submissions — wait an hour and try again")
+                SubmitResult.Failed(message ?: "Too many submissions — wait an hour and try again", status, detail)
             else ->
-                SubmitResult.Failed(message ?: "Something went wrong — please try again")
+                SubmitResult.Failed(message ?: "Something went wrong — please try again", status, detail)
         }
     }
 

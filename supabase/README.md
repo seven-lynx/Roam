@@ -106,6 +106,24 @@ supabase functions deploy sentry-webhook
    `key=value` credentials and email addresses never reach the (public) repo.
    See **Redaction** in `docs/API.md`.
 
+### Keeping GitHub and Sentry in step
+
+Issue webhooks fire on state *changes* only (`created`, `resolved`, `assigned`,
+`archived`, `unresolved`), which leaves two blind spots: a group that has been
+unresolved since before the integration was installed never emits a `created`
+webhook, and a group whose tracking issue was closed while it stayed unresolved
+emits nothing afterwards — it was never resolved, so it cannot become `regressed`
+and the reopen path never runs.
+
+| Workflow | Trigger | What it does |
+| --- | --- | --- |
+| `sentry-issue-sync.yml` | issue closed / reopened with label `sentry` | Resolves (or un-resolves) the Sentry group named by the body's `sentry-issue:<id>` marker |
+| `sentry-reconcile.yml` | weekly, plus `workflow_dispatch` | Runs `scripts/sentry-reconcile.mjs`; `--file` hands drifted groups to the bridge as a synthesized `action: created` payload |
+
+Both need the repository secret `SENTRY_AUTH_TOKEN` (org-scoped, `event:write`).
+Filing from CI additionally needs `SENTRY_WEBHOOK_SECRET` and a `SUPABASE_URL`
+repository variable. Locally: `node scripts/sentry-reconcile.mjs --check`.
+
 ## `push-notify` database webhook
 
 `functions/push-notify/` is triggered by a **Supabase Database Webhook** on

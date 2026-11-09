@@ -74,6 +74,7 @@ scripts/*
 !scripts/validate-env.mjs
 !scripts/verify-roam-rpc.mjs
 !scripts/record-android.mjs
+!scripts/sentry-reconcile.mjs
 !scripts/.rules-allowlist
 # Backend tooling under supabase/scripts is tracked (unlike the local-only
 # root scripts/ directory used for offline seeders).

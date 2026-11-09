@@ -2,6 +2,11 @@
 
 All notable changes to the Roam Supabase backend (PostgreSQL schema, Row-Level Security, and Deno Edge Functions).
 
+## [2026-11-08] — Sentry groups and their GitHub trackers stay in step
+### Fixed
+- Closing a Sentry-filed issue now resolves the Sentry group it tracks, and reopening the issue un-resolves it (`.github/workflows/sentry-issue-sync.yml`, keyed off the `<!-- sentry-issue:<id> -->` marker the bridge writes). Sentry's issue webhooks fire on state *changes* only — `created`, `resolved`, `assigned`, `archived`, `unresolved` — so a group left `unresolved` next to a closed tracker emitted nothing afterwards. It could never become `regressed` either, which meant the reopen/comment path added for #101 never ran for it: #85 was closed at 17:35:48 while `ROAM-SUPABASE-2` was still unresolved and still receiving events.
+- `scripts/sentry-reconcile.mjs` (weekly via `.github/workflows/sentry-reconcile.yml`, or on demand) compares every unresolved Sentry group with its GitHub tracker and reports the drift. Two states never reach GitHub on their own: a group that has been unresolved since before the integration was installed never emits a `created` webhook (`ROAM-ANDROID-P`, first seen 2026-06-07, 80 events, no tracker of any kind), and the closed-tracker case above. `--file` hands a drifted group to the existing bridge as a synthesized `action: created` payload, so dedupe, labels, redaction, stack-trace enrichment and the reopen decision all run unchanged instead of being re-implemented in a second place.
+
 ## [2026-11-08] — Sentry issue bodies keep their stack traces after the payload change
 ### Fixed
 - `sentry-webhook` reads the exception from the shape the events API actually returns. `exceptionValues` only looked at a top-level `exception` key, which webhook payloads carry but `…/events/latest/` does not — it nests the same data under `entries[]` as `{ type: 'exception', data: { values } }`. Enrichment therefore fetched a valid event, parsed zero frames, and filed the issue without a `### Stack trace` section on its **silent** exit, so the #43 warnings never fired and the outage read as a rotated `SENTRY_AUTH_TOKEN`. The secret was correct throughout: its published digest matches `sha256` of the working token, and the same token read 15 frames off issue #71's event while the GitHub issue showed none (issue #93).
