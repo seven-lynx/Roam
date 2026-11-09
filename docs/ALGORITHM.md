@@ -134,9 +134,9 @@ The `+0.1` floor prevents zero-score URLs from being permanently buried.
 
 ## 8. Candidate pool — TABLESAMPLE + conditional fallback
 
-1. **Phase 1**: `TABLESAMPLE BERNOULLI(30)` — random ~30% of the table, no sequential scan (v35; was BERNOULLI(25) in v17)
-2. **Phase 2** (conditional): only executed when Phase 1 finds no eligible URL — top **500** by `roam_score_static` for standard mode, top **100** for collection mode (v35; was 100 / 50 in v17)
-3. **Pool-empty guard**: if both phases return no eligible URL, the query retries with a wider `BERNOULLI(30)` sample and relaxed filters rather than returning "you've seen everything" (added in v31–v35)
+1. **Phase 1**: `TABLESAMPLE SYSTEM(2)` — a ~2% block sample of the table, so a large pool is decided from ~20k candidate rows (measured 1,019 ms on 990k approved URLs; v37)
+2. **Phase 2** (conditional): only executed when Phase 1 finds no eligible URL, **and only after a strict probe confirms that at least one row can actually be served**. Takes an unordered `LIMIT 500` in both standard and collection mode (v37; it was top-500 `ORDER BY roam_score_static DESC`, which turned the branch into an index walk over every row in the table — 990,968 rows, 44,320 ms to produce zero rows — because it cannot stop early when fewer than 500 candidates exist, which is the only state it ever runs in. Unordered is bounded at 1,381 ms; the outer query still weights by `eff_score * (0.7 + 0.3·random())`)
+3. **Pool-empty guard**: if both phases return no eligible URL, a single `EXISTS` probe decides between "genuinely empty" and "nothing available right now" (every domain still cooling down), and the wider `SYSTEM(5)` retry only runs when the probe found something that could be served. Never report "you've seen everything" for a query that timed out or scanned in vain (added in v31–v35; the probe is v37, issue #118)
 
 Both phases apply: `approved = TRUE`, `wilson_score > -0.1`, language match, domain suppression, paywall opt-out, not already seen. The `roam_score_static` column is precomputed by a trigger on every vote and kept current, so the query avoids per-row arithmetic across the TABLESAMPLE pool.
 
@@ -144,7 +144,7 @@ Both phases apply: `approved = TRUE`, `wilson_score > -0.1`, language match, dom
 
 ## 9. Domain diversity cooldown
 
-After each URL is served in **discovery mode** (standard, non-collection), its domain is suppressed for **30 minutes** via `user_domain_cooldowns`. Prevents the same outlet dominating a session. Not applied in collection mode or deep_dive mode.
+After each URL is served in **discovery mode** (standard, non-collection), its domain is suppressed for **24 hours** via `user_domain_cooldowns`. Prevents the same outlet dominating a session. Not applied in collection mode or deep_dive mode. (This is the mechanism that can make a narrow scope go permanently empty: 198 domains, 94 serves a minute, and no served URL can ever be served from a cooled domain again — see issue #118.)
 
 ---
 
