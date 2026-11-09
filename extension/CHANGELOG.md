@@ -9,6 +9,9 @@ All notable changes to the Roam browser extension.
 - The popup detects a stale worker through a build-version handshake on `GET_STATE` and tells the user to reopen the extension, instead of silently falling back to default settings or dropping the challenge chip.
 - Rebuilding empties `dist/` first, so a stale bundle cannot survive alongside a newer manifest, and the build logs the release tag it baked in.
 
+### Removed
+- Dwell-time reporting is removed rather than repaired: the popup no longer measures how long a page stayed open. `dwell_ms`/`skipped` were only ever read to nudge recommendations, and the write was silently dropped by row-level security anyway, so nothing changes about what Roam knows — which URLs it served you. That ledger is `seen_urls`, written by `roam()` on a live serve and by `mark_url_seen()` when a prefetched URL reaches the screen.
+
 ## [0.6.0] - 2026-11-08
 
 ### Fixed

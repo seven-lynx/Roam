@@ -228,10 +228,10 @@ Non-additive migrations (DROP, ALTER TYPE, …) must document a rollback here.
 - Rollback: Re-apply the `roam()` body from `20261109043000_roam_v37_bounded_exhaustion.sql`, then `DROP FUNCTION IF EXISTS public.roam_prefetch(uuid, integer, text[], uuid, uuid); DROP FUNCTION IF EXISTS public.mark_url_seen(uuid, boolean);`. **Deploy the Edge Function first in that direction**: the current `roam` function calls `roam_prefetch`, which 503s every prefetch until it is redeployed. The clients swallow that, so the failure mode is an empty prefetch buffer, not a broken serve.
 - Related: `docs/API.md` (`roam`, `roam_prefetch()`, `mark_url_seen()`), `docs/ALGORITHM.md` §9.
 
-### 20261109070000_report_engagement_rpc.sql
-- Change: Adds `public.report_engagement(url_id, dwell_ms, skipped)` (`SECURITY DEFINER`, user from `auth.uid()`), an upsert on `(user_id, url_id)` that creates the `seen_urls` row when it is missing and otherwise sets only `dwell_ms`/`skipped`. `report-engagement` was writing with a client-side `UPDATE`, which `seen_urls`' SELECT-only RLS policy silently dropped — PostgREST returns 204 for an UPDATE that touches nothing, so the engagement data, the `interest_pair_scores` trigger, and `roam()`'s skip penalty were all inert.
-- Rollback: **Deploy the previous `report-engagement` Edge Function first** — the current one calls `report_engagement()`, which 500s every report once the function is gone (the extension ignores the failure, so the failure mode is missing engagement data, not a broken browse). Then `DROP FUNCTION IF EXISTS public.report_engagement(uuid, integer, boolean);`. The data already written is retained by design; nothing is dropped with the function.
-- Related: `docs/API.md` §`report-engagement`.
+### 20261109120000_retire_engagement_metrics.sql
+- Change: Retires the engagement metrics. Drops `trg_seen_urls_engagement_pair_scores`, `update_pair_scores_from_engagement()`, `idx_seen_urls_engagement`, and `report_engagement()` (defensive `IF EXISTS`: that RPC shipped in `20261109070000` (#126) but was never applied to any project — `supabase migration list` shows no remote version — and its file is deleted with this change). `seen_urls.dwell_ms`/`skipped` are kept and marked deprecated: both are permanently NULL, because their only writer was an RLS-blocked client UPDATE, so the trigger and `roam()`'s seven `skipped = TRUE` filters were inert. Nothing reads them.
+- Rollback: Recreate the trigger and function from `20260708000004_interest_pair_scores_v2.sql` and the index from `20260708000003_seen_urls_engagement.sql`, then restore the Edge Function and the extension plumbing from git history. No data is lost by design — the columns were never written.
+- Related: `supabase/CHANGELOG.md`, `docs/API.md` (`mark_url_seen`), `extension/CHANGELOG.md`.
 
 ## How to cut an entry
 

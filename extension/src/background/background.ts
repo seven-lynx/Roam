@@ -36,7 +36,6 @@ const RECENT_DOMAINS_MAX = 20; // up to 20 recent domains to exclude (was 5)
 const RECENT_DOMAINS_TTL = 30 * 60 * 1000; // 30 minutes per entry (was 2 min)
 const RATING_QUEUE_KEY = 'pending_ratings';
 const RATING_FLUSH_BATCH = 10; // max ratings to flush at once
-const CURRENT_URL_KEY = 'current_url';  // { url_id: string, served_at: number }
 const URL_HISTORY_KEY = 'extension_url_history';
 const MAX_HISTORY_ENTRIES = 100;
 const LOCAL_SAVED_KEY = 'saved_urls';
@@ -391,7 +390,6 @@ async function _dispatch(req: Request): Promise<Response> {
     case 'GET_FOLLOWERS':         return getFollowers();
     case 'GET_FOLLOWING':         return getFollowing();
     case 'GET_ACTIVITY_FEED':     return getActivityFeed(req.limit);
-    case 'REPORT_ENGAGEMENT':     return reportEngagement(req.url_id, req.dwell_ms, req.skipped);
     case 'GET_NOTIFICATIONS':     return getNotifications();
     case 'GET_UNREAD_COUNT':      return getUnreadNotificationCount();
     case 'MARK_NOTIFICATIONS_READ': return markNotificationsRead();
@@ -574,8 +572,6 @@ async function roam(categoryId?: string, subcategoryId?: string): Promise<Respon
   const live = await callRoamApi(body);
   if (live.ok && live.data.url) {
     void recordUrlVisit(live.data.url, live.data.title || live.data.url); // fire-and-forget — don't block the response
-    // Store current URL for engagement tracking (Phase 1 — skip + dwell)
-    chrome.storage.session.set({ [CURRENT_URL_KEY]: { url_id: live.data.id, served_at: Date.now() } }).catch(() => {});
     const translatedUrl = await maybeTranslate(live.data.url);
     return { ok: true, data: { ...live.data, url: translatedUrl } };
   }
@@ -841,27 +837,6 @@ async function getProfilePublic(): Promise<Response<{ is_public: boolean; userna
     ok: true,
     data: { is_public: data.is_public, username: data.username },
   };
-}
-
-// ── Engagement reporting ─────────────────────────────────────────────────────
-async function reportEngagement(url_id: string, dwell_ms: number, skipped: boolean): Promise<Response<null>> {
-  const session = (await getSupabase().auth.getSession()).data.session;
-  if (!session) return { ok: true, data: null }; // silently skip if not signed in
-
-  try {
-    const res = await fetch(`${__SUPABASE_URL__}/functions/v1/report-engagement`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
-      body: JSON.stringify({ url_id, dwell_ms, skipped }),
-    });
-    if (!res.ok) {
-      const err = (await res.json().catch(() => ({}))) as { error?: string };
-      console.warn('[roam] reportEngagement failed:', err.error ?? res.status);
-    }
-  } catch {
-    // Never block UX — engagement reporting is fire-and-forget
-  }
-  return { ok: true, data: null };
 }
 
 // ── URL sharing ───────────────────────────────────────────────────────────────

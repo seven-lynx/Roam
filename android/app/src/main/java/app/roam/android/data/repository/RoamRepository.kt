@@ -616,9 +616,8 @@ class RoamRepository {
      * Prefetched URLs deliberately carry no discovery state (issue #122) — the
      * `roam` edge function calls `roam_prefetch()` for them, which writes neither.
      * The row therefore has to be created here, when a buffered URL actually
-     * reaches the screen; otherwise `report-engagement`'s UPDATE matches 0 rows,
-     * the skip penalty never sets, and the domain cooldown never fires for a real
-     * serve, so the deck keeps re-serving the same domain.
+     * reaches the screen; otherwise it gets no row at all and the domain cooldown
+     * never fires for a real serve, so the deck keeps re-serving the same domain.
      */
     suspend fun markUrlSeen(urlId: String) {
         if (urlId.isBlank()) return
