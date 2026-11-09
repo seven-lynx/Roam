@@ -1,0 +1,97 @@
+name: Sentry Issue Sync
+
+# Closing a Sentry-filed tracking issue resolves the Sentry group it tracks;
+# reopening the issue un-resolves that group again.
+#
+# WHY THIS EXISTS
+#   Sentry's issue webhooks fire on state *changes* only — `created`, `resolved`,
+#   `assigned`, `archived`, `unresolved`. A group that stays `unresolved` while
+#   its GitHub tracker is closed keeps receiving events and emits no webhook at
+#   all, so the closed tracker is never reopened and the error goes quiet on
+#   GitHub while it is still live (issue #85 was closed at 17:35 while
+#   ROAM-SUPABASE-2 was still unresolved and still firing). Mirroring the close
+#   keeps the two states in step: the group resolves in Sentry, and a later
+#   recurrence becomes a genuine `regressed` transition, which the bridge
+#   (`supabase/functions/sentry-webhook`) already reopens and comments on.
+#
+#   The marker read below is written by that same bridge — `buildBody` in
+#   `supabase/functions/sentry-webhook/normalize.ts` emits
+#   `<!-- sentry-issue:<id> -->`.
+#
+# REQUIRES
+#   Repository secret `SENTRY_AUTH_TOKEN` — org-scoped token with `event:write`
+#   (the same token the skills use also resolves issues). Without it the job
+#   prints a notice and mirrors nothing.
+
+on:
+  issues:
+    types: [closed, reopened]
+
+# Keyed off the issue, not a branch: this workflow has no PR context, and an
+# issue-scoped group stops two issues from cancelling each other's run.
+concurrency:
+  group: sentry-issue-sync-${{ github.event.issue.number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  issues: read
+
+jobs:
+  mirror-state:
+    name: Mirror the issue state to Sentry
+    runs-on: ubuntu-24.04
+    # Only Sentry-filed trackers carry this label; `createIssue` applies it.
+    if: contains(github.event.issue.labels.*.name, 'sentry')
+    env:
+      SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+      SENTRY_API: https://us.sentry.io/api/0
+      REPO: ${{ github.repository }}
+      ISSUE_NUMBER: ${{ github.event.issue.number }}
+      ISSUE_STATE: ${{ github.event.issue.state }}
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - name: Notice when the Sentry token is not configured
+        if: env.SENTRY_AUTH_TOKEN == ''
+        run: |
+          echo "::notice::SENTRY_AUTH_TOKEN is not set on this repository, so the Sentry group was left untouched."
+
+      - name: Read the Sentry issue id from the issue body
+        id: marker
+        if: env.SENTRY_AUTH_TOKEN != ''
+        run: |
+          # Read the body through the API rather than interpolating it into the
+          # shell: an issue body is untrusted input.
+          body=$(gh api "repos/$REPO/issues/$ISSUE_NUMBER" --jq .body)
+          # `|| true`: grep exits 1 when there is no match, and the runner's shell
+          # runs with `set -e -o pipefail` — without it a hand-labelled issue with
+          # no marker would fail the run instead of printing the notice below.
+          id=$(printf '%s' "$body" | grep -oE 'sentry-issue:[0-9]+' | head -n 1 | cut -d: -f2 || true)
+          if [ -z "$id" ]; then
+            echo "::notice::No sentry-issue marker in #$ISSUE_NUMBER - nothing to mirror."
+            exit 0
+          fi
+          echo "sentry_id=$id" >> "$GITHUB_OUTPUT"
+
+      - name: Resolve or un-resolve the Sentry group
+        if: steps.marker.outputs.sentry_id != ''
+        run: |
+          if [ "$ISSUE_STATE" = "closed" ]; then status=resolved; else status=unresolved; fi
+          sentry_id="${{ steps.marker.outputs.sentry_id }}"
+          code=$(curl -sS -o "$RUNNER_TEMP/sentry.json" -w '%{http_code}' \
+            -X PUT "$SENTRY_API/issues/$sentry_id/" \
+            -H "Authorization: Bearer $SENTRY_AUTH_TOKEN" \
+            -H 'Content-Type: application/json' \
+            --data "{\"status\":\"$status\"}")
+          echo "Sentry replied $code for issue $sentry_id -> $status"
+          if [ "$code" -ge 200 ] && [ "$code" -lt 300 ]; then
+            exit 0
+          fi
+          if [ "$code" = "404" ]; then
+            # The group was deleted or merged in Sentry. Nothing can be mirrored,
+            # and a red run here would be unactionable.
+            echo "::warning::Sentry issue $sentry_id no longer exists - nothing to mirror."
+            exit 0
+          fi
+          echo "::error::Sentry replied $code: $(head -c 400 "$RUNNER_TEMP/sentry.json")"
+          exit 1
