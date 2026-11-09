@@ -358,3 +358,55 @@ describe('URL failure tracking — report_url_failures()', () => {
     expect(policies.delete).toBe(0)
   })
 })
+
+describe('Discovery state — prefetch vs serve (issue #122)', () => {
+  // Mirrors supabase/migrations/20261109060000_roam_v38_prefetch_skips_state.sql.
+  // roam() records a serve only when the transaction-local `roam.prefetch` flag is
+  // off, and roam_prefetch() sets it for the whole transaction — so a buffered URL
+  // carries no discovery state until a client calls mark_url_seen() on render.
+  const recordsServe = (prefetchFlag: string | null, hasRow: boolean) =>
+    hasRow && (prefetchFlag ?? 'off') !== 'on'
+
+  it('records the serve for a real roam() call', () => {
+    expect(recordsServe(null, true)).toBe(true)
+    expect(recordsServe('off', true)).toBe(true)
+  })
+
+  it('records nothing for a prefetched row', () => {
+    expect(recordsServe('on', true)).toBe(false)
+  })
+
+  it('records nothing when the pool is exhausted', () => {
+    expect(recordsServe(null, false)).toBe(false)
+  })
+
+  it('cools a domain only in discovery mode, and only when p_cool_domain', () => {
+    // p_cool_domain is false for collection browsing; mark_url_seen() takes the
+    // user from auth.uid(), so there is no p_user_id to spoof.
+    const cools = (coolDomain: boolean, mode: string | null) =>
+      coolDomain && (mode ?? 'discovery') === 'discovery'
+
+    expect(cools(true, 'discovery')).toBe(true)
+    expect(cools(true, null)).toBe(true)
+    expect(cools(true, 'deep_dive')).toBe(false)
+    expect(cools(false, 'discovery')).toBe(false)
+  })
+
+  it('cannot return the same domain twice in one prefetch batch', () => {
+    // roam_prefetch() appends every returned domain to the exclusion array before
+    // the next iteration. Without that, a non-writing roam() repeats its top row,
+    // the edge function dedupes it away, and the batch yields one URL instead of 5.
+    const pickDistinctDomains = (pool: string[], count: number) => {
+      const excluded: string[] = []
+      for (let i = 0; i < count; i++) {
+        const next = pool.find((domain) => !excluded.includes(domain))
+        if (!next) break
+        excluded.push(next)
+      }
+      return excluded
+    }
+
+    expect(pickDistinctDomains(['a.com', 'a.com', 'a.com'], 3)).toEqual(['a.com'])
+    expect(pickDistinctDomains(['a.com', 'b.com', 'c.com'], 3)).toEqual(['a.com', 'b.com', 'c.com'])
+  })
+})

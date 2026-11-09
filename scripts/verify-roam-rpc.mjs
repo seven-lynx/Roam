@@ -175,6 +175,71 @@ async function checkForLinearArrayExclusions() {
   return true;
 }
 
+// ── Static guard: exactly one roam() overload (issue #122) ──────────────────
+// PostgREST resolves an RPC by argument names; two overloads make the same call
+// ambiguous, which is why a new `roam()` parameter needs DROP-then-create rather
+// than a second signature. Both guards above scan *every* overload, so a stale
+// duplicate body stayed invisible to them — this is the check that was missing.
+async function checkSingleRoamOverload() {
+  const rows = await sql(`
+    SELECT count(*)::int AS n
+    FROM   pg_proc p
+    JOIN   pg_namespace n ON n.oid = p.pronamespace
+    WHERE  p.proname = 'roam'
+      AND  n.nspname = 'public'
+  `);
+  const n = Number(rows[0]?.n ?? 0);
+  if (n === 0) {
+    console.error('FAIL[static]: no public.roam() function exists.');
+    return false;
+  }
+  if (n > 1) {
+    console.error(`FAIL[static]: ${n} public.roam() overloads exist — PostgREST cannot resolve the call reliably.`);
+    console.error('  Use CREATE OR REPLACE with the identical argument list, or DROP the old signature first.');
+    return false;
+  }
+  console.log('PASS[static]: exactly one public.roam() overload');
+  return true;
+}
+
+// ── Static guard: roam() still honours the prefetch flag (issue #122) ───────
+// The flag travels as a transaction-local GUC set by roam_prefetch(), not as a
+// parameter, because a new parameter would land as a second overload. That is
+// only safe while roam() keeps reading it — a later version that drops the check
+// silently makes every prefetch call write seen_urls and cool a domain again.
+//
+// Skipped when roam_prefetch() is absent: the pre-migration preflight runs
+// against the function that is about to be replaced, and migration-before-
+// edge-function is the required deploy order.
+async function checkPrefetchGate() {
+  const deployed = await sql(`
+    SELECT p.oid::text AS oid
+    FROM   pg_proc p
+    JOIN   pg_namespace n ON n.oid = p.pronamespace
+    WHERE  p.proname = 'roam_prefetch'
+      AND  n.nspname = 'public'
+  `);
+  if (deployed.length === 0) {
+    console.log('SKIP[static]: roam_prefetch() not deployed yet — prefetch gate not checked');
+    return true;
+  }
+  const rows = await sql(`
+    SELECT p.oid::text AS oid
+    FROM   pg_proc p
+    JOIN   pg_namespace n ON n.oid = p.pronamespace
+    WHERE  p.proname = 'roam'
+      AND  n.nspname = 'public'
+      AND  pg_get_functiondef(p.oid) NOT LIKE '%roam.prefetch%'
+  `);
+  if (rows.length > 0) {
+    console.error(`FAIL[static]: ${rows.length} roam() overload(s) no longer consult the roam.prefetch flag.`);
+    console.error('  Prefetch would write seen_urls and refresh a domain cooldown again (issue #122).');
+    return false;
+  }
+  console.log('PASS[static]: roam() skips discovery writes while roam.prefetch is on');
+  return true;
+}
+
 // ── Pick users to probe ─────────────────────────────────────────────────────
 async function pickUsers() {
   if (onlyUser) {
@@ -237,7 +302,9 @@ async function main() {
 
   const aliasOk = await checkForKnownBadAlias();
   const exclusionOk = await checkForLinearArrayExclusions();
-  const staticOk = aliasOk && exclusionOk;
+  const overloadOk = await checkSingleRoamOverload();
+  const prefetchOk = await checkPrefetchGate();
+  const staticOk = aliasOk && exclusionOk && overloadOk && prefetchOk;
 
   // Re-probe the baseline's exact user set so the two runs are comparable; the
   // most-recently-seen sample can otherwise shift as real traffic arrives.

@@ -1625,6 +1625,10 @@ class MainViewModel(
                 _userRating.value = prefetched.userRating ?: 0
                 playSfx(R.raw.load_complete)
                 recordUrlVisit(prefetched.url, prefetched.title ?: prefetched.url)
+                // Issue #122: a prefetched URL carries no discovery state, so the
+                // serve is recorded here — the only place it reaches the screen.
+                // Guarded so a bookkeeping failure cannot break the serve.
+                viewModelScope.launch { runCatching { repo.markUrlSeen(prefetched.id) } }
                 // If background WebView preloading is enabled, expose the next hot-queue entry
                 // so the UI can start warming it in an invisible WebView right now.
                 if (_prefetchWebView.value) {

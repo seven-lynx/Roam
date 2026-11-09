@@ -146,6 +146,8 @@ Both phases apply: `approved = TRUE`, `wilson_score > -0.1`, language match, dom
 
 After each URL is served in **discovery mode** (standard, non-collection), its domain is suppressed for **24 hours** via `user_domain_cooldowns`. Prevents the same outlet dominating a session. Not applied in collection mode or deep_dive mode. (This is the mechanism that can make a narrow scope go permanently empty: 198 domains, 94 serves a minute, and no served URL can ever be served from a cooled domain again — see issue #118.)
 
+**A prefetch no longer cools anything (v38, issue #122).** The cooldown — and the `seen_urls` row beside it — is written by `mark_url_seen()`, which `roam()` calls only when the transaction-local `roam.prefetch` flag is off. Prefetch calls go through `roam_prefetch()`, which sets that flag: they return URLs and record nothing. The state is created when the URL *reaches the screen*, which for a buffered URL is the client's job (`roamBufferNext()` on the web, the hot-queue pop on Android). Before v38 every prefetched URL cooled its whole domain for a day, so the deck could lock out a narrow scope in twelve reads — that is the "94 serves a minute" state above.
+
 ---
 
 ## 10. Discovery mode overlays
