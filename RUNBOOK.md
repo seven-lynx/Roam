@@ -18,7 +18,7 @@ and CI. Incident resolutions cite them by number.
 | 1.3 | No hardcoded secret prefixes | `scripts/check-rules.mjs` (R3); `secrets-scan.yml` |
 | 1.4 | No `.skip` migrations in the active directory; move to `_superseded/` | `scripts/check-rules.mjs` (R4) |
 | 1.5 | Every env var is documented in the matching `.env.example` | review; `web/src/lib/env.ts` fails the build when a required var is missing |
-| 1.6 | SQL functions verified under the `authenticated` role with the real 8s `statement_timeout` | `deploy.yml` / `deploy-staging.yml` ("Verify roam() RPC under authenticated role" — pre-flight step is advisory, the post-migration step blocks); `scripts/verify-roam-rpc.mjs` |
+| 1.6 | SQL functions verified under the `authenticated` role with the real 8s `statement_timeout` | `deploy.yml` / `deploy-staging.yml` ("Verify roam() RPC under authenticated role" — pre-flight step is advisory and records a per-user baseline, the post-migration step blocks on regressions against it); `scripts/verify-roam-rpc.mjs` |
 | 1.6½ | Workflow path filters use `dorny/paths-filter`, never `contains(fromJSON([...]))` | `scripts/check-rules.mjs` (R10) |
 | 1.7 | No duplicate component filenames (e.g. `web/src/components/X.tsx` vs `app/.../X.tsx`) | `scripts/check-rules.mjs` (R5) |
 | 1.8 | `proxy.ts` does not exist; middleware lives in `middleware.ts` | `scripts/check-rules.mjs` (R6) |

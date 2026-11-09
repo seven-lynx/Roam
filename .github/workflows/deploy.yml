@@ -149,12 +149,16 @@ jobs:
       # halted the run before `Apply migrations` could ship v36, and every
       # dispatch deadlocked on the same slow call. The verdict is still printed
       # and annotated, but the blocking check is the post-migration one below.
+      #
+      # `--json-out` is what makes that blocking check judge a *diff*: a user
+      # that is already slow here is pre-existing, not a regression, and must
+      # not freeze Edge Function deploys (issue #118, dispatch 42555657789).
       - name: Verify roam() RPC under authenticated role (pre-flight, advisory)
         continue-on-error: true
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-        run: node scripts/verify-roam-rpc.mjs
+        run: node scripts/verify-roam-rpc.mjs --json-out "$RUNNER_TEMP/roam-preflight.json"
 
       # ── Deploy ───────────────────────────────────────────────────────────
       - name: Apply migrations
@@ -169,14 +173,22 @@ jobs:
             supabase db push --remote --yes
           fi
 
-      # Blocking. Runs against the migrations just applied, so it judges the
-      # function this run actually shipped instead of the one it replaced.
-      # This is the step that enforces Hard Rule 1.6 for discovery.
+      # Blocking on regressions only. Runs against the migrations just applied,
+      # so it judges the function this run actually shipped instead of the one it
+      # replaced, and this is the step that enforces Hard Rule 1.6 for discovery.
+      #
+      # `--baseline` hands it the pre-flight verdict: it re-probes the same users
+      # and fails only where a user that was healthy before is now failing (or a
+      # user is newly slow/empty). The static `array_agg(u.subcategory_id)` check
+      # fails unconditionally, baseline or not. Without this, one account already
+      # spending 20s in the exhaustion branch blocked every deploy — including a
+      # submit-url fix that had nothing to do with it (issue #118). If the
+      # baseline file is missing, the strict pre-#118 behaviour applies.
       - name: Verify roam() RPC under authenticated role (post-migration)
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-        run: node scripts/verify-roam-rpc.mjs
+        run: node scripts/verify-roam-rpc.mjs --baseline "$RUNNER_TEMP/roam-preflight.json"
 
       - name: Deploy Edge Functions
         if: inputs.deploy_functions
