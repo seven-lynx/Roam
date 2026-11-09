@@ -121,8 +121,10 @@ and the reopen path never runs.
 | `sentry-reconcile.yml` | weekly, plus `workflow_dispatch` | Runs `scripts/sentry-reconcile.mjs`; `--file` hands drifted groups to the bridge as a synthesized `action: created` payload |
 
 Both need the repository secret `SENTRY_AUTH_TOKEN` (org-scoped, `event:write`).
-Filing from CI additionally needs `SENTRY_WEBHOOK_SECRET` and a `SUPABASE_URL`
-repository variable. Locally: `node scripts/sentry-reconcile.mjs --check`.
+Filing from CI additionally needs the repository secret `SENTRY_WEBHOOK_SECRET`; the
+webhook URL is derived from the existing `SUPABASE_URL` repository secret, and
+`vars.SENTRY_WEBHOOK_URL` overrides it if a non-standard URL is ever needed.
+Locally: `node scripts/sentry-reconcile.mjs --check`.
 
 ## `push-notify` database webhook
 

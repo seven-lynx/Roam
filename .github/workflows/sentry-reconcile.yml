@@ -40,8 +40,12 @@ jobs:
       SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       SENTRY_WEBHOOK_SECRET: ${{ secrets.SENTRY_WEBHOOK_SECRET }}
+      # The project URL is already a repository secret, so it needs no separate
+      # variable; `vars` stays first so an override can be added later without a
+      # code change. `SENTRY_WEBHOOK_URL` is only an override — the script derives
+      # it from SUPABASE_URL.
       SENTRY_WEBHOOK_URL: ${{ vars.SENTRY_WEBHOOK_URL }}
-      SUPABASE_URL: ${{ vars.SUPABASE_URL }}
+      SUPABASE_URL: ${{ vars.SUPABASE_URL || secrets.SUPABASE_URL }}
     steps:
       - name: Checkout
         uses: actions/checkout@v5
