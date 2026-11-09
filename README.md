@@ -120,7 +120,7 @@ See [web/README.md](web/README.md) for the current route map and UI spec.
 
 The database does the heavy lifting. Discovery runs as a `plpgsql` RPC (`roam()`) invoked via a Deno Edge Function. Row-Level Security enforces all access control at the database level. Every successful discovery is tracked via `serve_count` for analytics.
 
-Edge Functions (Deno) handle operations that need more than a simple query: `roam`, `rate`, `submit-url`, `save-url`, `collection`, `follow`, `profile`, `feedback`, `report-url`, `leaderboard`, `share-url`, `delete-user`, `export-user`, `beta-signup`, `send-bulk-email`, `push-notify`, `activity-feed`, `admin-moderation`, `report-engagement`, `scrape-url`, `sentry-webhook`, `game-action`, `roll-action`, plus the scheduled ones: `challenges`, `cron-daily-challenges`, `cron-secret-badges`, `cron-streak-cleanup`, `cron-notification-cleanup`, `roam-health-check`, `evaluate-badges`. See [`docs/API.md`](docs/API.md) for the full contract on each.
+Edge Functions (Deno) handle operations that need more than a simple query: `roam`, `rate`, `submit-url`, `save-url`, `collection`, `follow`, `profile`, `feedback`, `report-url`, `leaderboard`, `share-url`, `delete-user`, `export-user`, `beta-signup`, `send-bulk-email`, `push-notify`, `activity-feed`, `admin-moderation`, `scrape-url`, `sentry-webhook`, `game-action`, `roll-action`, plus the scheduled ones: `challenges`, `cron-daily-challenges`, `cron-secret-badges`, `cron-streak-cleanup`, `cron-notification-cleanup`, `roam-health-check`, `evaluate-badges`. See [`docs/API.md`](docs/API.md) for the full contract on each.
 
 **Key tables:**
 

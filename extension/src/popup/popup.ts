@@ -6,7 +6,7 @@ import { sendToBackground } from '../lib/messages';
 import { BUILD_VERSION, isStaleWorker } from '../lib/version';
 import { UNKNOWN_MESSAGE_ERROR } from '../lib/dispatch-report';
 import type { StateData, RoamData, CheckUrlData, Collection, CategoryItem, ProfileData, SubcategoryItem, SavedUrlItem, ChallengeData, BadgeData, NotificationItem, ProfileStatsData, UserSettingsData, FollowUser, ActivityItem, MyProfileData } from '../lib/messages';
-import { FALLBACK_CATEGORIES, LANGUAGES, DEFAULT_LANGUAGE, ENGAGEMENT_MAX_DWELL_MS } from '../lib/constants';
+import { FALLBACK_CATEGORIES, LANGUAGES, DEFAULT_LANGUAGE } from '../lib/constants';
 import { notificationLink, notificationText, recentCelebration } from '../lib/notifications';
 import { activityLink, activityText, relativeTime } from '../lib/social';
 import { validatePassword } from '../lib/validate';
@@ -67,22 +67,6 @@ const STATE_TITLES: Record<AppState, string> = {
   community: 'COMMUNITY',
   profile: 'YOU',
 };
-
-// Report engagement on the previous URL before requesting the next Roam.
-async function reportCurrentEngagement(): Promise<void> {
-  try {
-    const stored = await chrome.storage.session.get('current_url');
-    const current = stored.current_url as { url_id: string; served_at: number } | undefined;
-    if (!current) return;
-    chrome.storage.session.remove('current_url').catch(() => {});
-    const dwellMs = Date.now() - current.served_at;
-    // The popup closes straight after a roam, so a sample still present on the
-    // next open is stale (browser or tab left idle). Drop it rather than
-    // reporting an inflated dwell as a genuine view.
-    if (!Number.isFinite(dwellMs) || dwellMs > ENGAGEMENT_MAX_DWELL_MS) return;
-    sendToBackground({ type: 'REPORT_ENGAGEMENT', url_id: current.url_id, dwell_ms: dwellMs, skipped: dwellMs < 3000 });
-  } catch { /* never block */ }
-}
 
 function showState(name: AppState) {
   for (const s of ALL_STATES) {
@@ -690,7 +674,6 @@ document.addEventListener('DOMContentLoaded', () => {
     roamBtn.disabled = true;
     roamBtn.textContent = 'Roaming…';
     setStatus('Finding next page…');
-    void reportCurrentEngagement();
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     const res = await sendToBackground<RoamData>({
       type: 'ROAM',
@@ -733,7 +716,6 @@ document.addEventListener('DOMContentLoaded', () => {
     setStatus('Finding next page…');
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     const url = tab?.url ?? '';
-    void reportCurrentEngagement();
     const roamPromise = sendToBackground<RoamData>({
       type: 'ROAM',
       ...(focusModeEnabled && focusCategoryId ? { categoryId: focusCategoryId } : {}),

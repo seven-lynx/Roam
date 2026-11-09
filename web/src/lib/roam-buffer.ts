@@ -191,9 +191,9 @@ export async function roamBufferTick(excludeDomain?: string | null): Promise<voi
  *
  * A prefetched URL carries no discovery state (issue #122): `roam_prefetch` writes
  * neither `seen_urls` nor a domain cooldown, so the row has to be created when the
- * URL actually reaches the screen. Without this, `report-engagement` would update
- * nothing, the skip penalty would never set, and the 24 h domain cooldown would
- * never fire for a served URL — the deck would keep re-serving the same domain.
+ * URL actually reaches the screen. Without this, a buffered-then-shown URL would
+ * get no row at all and the 24 h domain cooldown would never fire for it — the
+ * deck would keep re-serving the same domain.
  *
  * Fire-and-forget on purpose: the URL is already on its way to the screen, and a
  * failed bookkeeping call must not cost the user their page.

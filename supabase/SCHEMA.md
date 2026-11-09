@@ -9,7 +9,7 @@ High-level reference for the core tables. This is a summary — [`supabase/migra
 | `urls` | All discovered pages — URL, title, description, votes, scores, source. Retired rows carry `inactive` + `inactive_since` and are filtered out of `roam()` |
 | `ratings` | Per-user up/down votes |
 | `url_ratings` | Aggregated rating state per URL |
-| `seen_urls` | Which URLs a user has already been served |
+| `seen_urls` | Which URLs a user has already been served. `dwell_ms`/`skipped` are deprecated and permanently NULL — the engagement metric was retired (`20261109120000`) |
 | `serve_counter` | Successful-serve analytics (`serve_count`) |
 | `categories` | The 8 category pillars |
 | `subcategories` | The ~72 subcategories (topics) under the pillars |

@@ -36,6 +36,3 @@ export const LANGUAGES: { code: string; label: string }[] = [
 
 /** English is always included by the backend language filter. */
 export const DEFAULT_LANGUAGE = 'en';
-
-/** Stale engagement samples (popup closed before the next roam) are dropped. */
-export const ENGAGEMENT_MAX_DWELL_MS = 30 * 60 * 1000;

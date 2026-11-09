@@ -22,7 +22,6 @@ Complete documentation of all Supabase Edge Functions and PostgreSQL RPC functio
   - [`leaderboard` — Fetch leaderboard rankings](#leaderboard--fetch-leaderboard-rankings)
   - [`feedback` — Submit feedback](#feedback--submit-feedback)
   - [`report-url` — Report broken link](#report-url--report-broken-link)
-  - [`report-engagement` — Report dwell time and skip status](#report-engagement--report-dwell-time-and-skip-status)
   - [`activity-feed` — Following activity feed](#activity-feed--following-activity-feed)
   - [`admin-moderation` — Admin moderation queue](#admin-moderation--admin-moderation-queue)
   - [`scrape-url` — Moderator OG scraper](#scrape-url--moderator-og-scraper)
@@ -843,57 +842,6 @@ supabase.functions.invoke("report-url", buildJsonObject {
     put("url_id", currentUrlId)
 })
 // Then call roam() to skip to the next URL
-```
-
----
-
-### `report-engagement` — Report dwell time and skip status
-
-Reports how long the user dwelled on a served URL and whether they skipped it. Called before requesting the next Roam. Idempotent — last write wins.
-
-**Endpoint:** `POST /functions/v1/report-engagement`
-
-**Authentication:** Required (Bearer token)
-
-**Request Body:**
-```json
-{
-  "url_id": "uuid",
-  "dwell_ms": 4500,
-  "skipped": false
-}
-```
-
-**Response (200):**
-```json
-{
-  "ok": true
-}
-```
-
-**Error Responses:**
-- **400** — Invalid input (missing url_id, negative dwell_ms, missing skipped, or a url_id that does not exist)
-- **401** — Unauthorized
-- **405** — Method not allowed (must be POST)
-- **500** — Internal server error
-
-**Details:**
-- Writes `dwell_ms` and `skipped` through the `report_engagement()` RPC (`SECURITY DEFINER`, keyed off `auth.uid()`)
-- **Creates the `seen_urls` row when it is absent** — a reported view is proof of a serve, so a URL that reached the screen without a row (a prefetched one, or a client that predates `mark_url_seen()`) is recorded rather than silently dropped
-- `seen_at` and the domain cooldown are left to `mark_url_seen()`: reporting engagement never re-orders the 3,000-row exclusion window or extends a cooldown
-- Idempotent: multiple calls for the same `(user, url)` are safe, last write wins
-- Typical client logic: `dwell = now - pageLoadTimestamp`, `skipped = dwell < 3000ms`
-
-**Example (Web):**
-```typescript
-const dwellMs = Date.now() - pageLoadTime;
-await supabase.functions.invoke('report-engagement', {
-  body: {
-    url_id: currentUrlId,
-    dwell_ms: dwellMs,
-    skipped: dwellMs < 3000
-  }
-});
 ```
 
 ---
@@ -1719,7 +1667,7 @@ SELECT mark_url_seen(
 **Returns:** `void`.
 
 **Details:**
-- Upserts `seen_urls` with `ON CONFLICT (user_id, url_id) DO UPDATE SET seen_at = now(), dwell_ms = NULL, skipped = NULL` — a re-seen URL moves to the top of the 3,000-row exclusion window and its engagement fields reset.
+- Upserts `seen_urls` with `ON CONFLICT (user_id, url_id) DO UPDATE SET seen_at = now()` — a re-seen URL moves to the top of the 3,000-row exclusion window. (The statement also clears `dwell_ms`/`skipped`; both are deprecated and permanently NULL — see `20261109120000_retire_engagement_metrics.sql`.)
 - Refreshes `user_domain_cooldowns` to `now() + 24 hours`, but only in discovery mode (`user_settings.discovery_mode = 'discovery'`) and only when `p_cool_domain`.
 - The user comes from `auth.uid()`, so there is no `p_user_id` to spoof. `SECURITY DEFINER`, `search_path = public`, `EXECUTE` granted to `authenticated` only.
 
@@ -1936,7 +1884,6 @@ SELECT report_url_failures(p_entries jsonb) RETURNS jsonb
 | `leaderboard` | none | — (the snapshot rebuild is capped at once per hour per period) |
 | `feedback` | 5 | 10 minutes (per IP address) |
 | `report-url` | 20 | 10 minutes (per authenticated user) |
-| `report-engagement` | 60 | 1 minute (per authenticated user) |
 | `activity-feed` | 30 | 1 minute (per authenticated user) |
 | `admin-moderation` | 60 | 1 minute (per authenticated user) |
 | `scrape-url` | 30 | 1 minute (per authenticated user) |
@@ -1974,14 +1921,9 @@ await supabase
 const response = await supabase.functions.invoke('roam');
 const { url, id } = response.data;
 
-// 4. Load URL, report engagement before next roam
-const pageLoadTime = Date.now();
+// 4. Load it, then record the serve so it is not handed out again
 window.open(url);
-// (after user dwells)
-const dwellMs = Date.now() - pageLoadTime;
-await supabase.functions.invoke('report-engagement', {
-  body: { url_id: id, dwell_ms: dwellMs, skipped: dwellMs < 3000 }
-});
+await supabase.rpc('mark_url_seen', { p_url_id: id });
 
 // 5. Rate it
 await supabase.functions.invoke('rate', {

@@ -495,7 +495,6 @@ export type Request =
   | { type: 'GET_FOLLOWING' }
   | { type: 'GET_ACTIVITY_FEED'; limit?: number }
   | { type: 'GET_PROFILE_PUBLIC' }
-  | { type: 'REPORT_ENGAGEMENT'; url_id: string; dwell_ms: number; skipped: boolean }
   | { type: 'GET_NOTIFICATIONS' }
   | { type: 'GET_UNREAD_COUNT' }
   | { type: 'MARK_NOTIFICATIONS_READ' }

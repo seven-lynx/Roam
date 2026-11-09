@@ -116,8 +116,7 @@ describe('roam-buffer', () => {
 
   // Issue #122: prefetch no longer records a serve, so the hot path must. Without
   // this call a buffered-then-shown URL would never get a seen_urls row at all
-  // (report-engagement would match 0 rows, the skip penalty would never set, and
-  // the 24 h domain cooldown would never fire).
+  // (and the 24 h domain cooldown would never fire).
   it('records the serve via mark_url_seen when it hands out a buffered URL', async () => {
     const rpc = jest.fn().mockResolvedValue({ data: null, error: null });
     mockedCreateClient.mockReturnValue({

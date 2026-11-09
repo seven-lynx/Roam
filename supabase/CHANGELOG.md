@@ -2,15 +2,16 @@
 
 All notable changes to the Roam Supabase backend (PostgreSQL schema, Row-Level Security, and Deno Edge Functions).
 
-## [2026-11-09] — `report_engagement()`: engagement reports actually persist (issue #122 follow-up)
-### Fixed
-- **`report-engagement` had never written a row.** It used a client-side `.from('seen_urls').update(...)` under the caller's JWT, and `seen_urls` is RLS-enabled with a SELECT-only policy (`20260423000000_initial.sql:262,347` — "Written exclusively by roam() ... no INSERT policy needed"). The UPDATE matched zero rows and PostgREST answered 204, so there was no error to log: `dwell_ms`/`skipped` stayed NULL for every report the browser extension sent. That also left `trg_seen_urls_engagement_pair_scores` (`AFTER UPDATE OF dwell_ms, skipped`) unfired, so `interest_pair_scores` never learned from engagement, and `roam()`'s skip penalty (`skipped = TRUE`) never saw a row.
-- **The write moved into `public.report_engagement(url_id, dwell_ms, skipped)`** — `SECURITY DEFINER`, user from `auth.uid()`, so there is no `p_user_id` to spoof and no UPDATE policy to add to a table whose writes are deliberately server-only. Same shape as `mark_url_seen()`.
-- **A report is proof of a serve.** The RPC upserts: a URL that reached the screen without a row — a v38 prefetch, or any client predating `mark_url_seen()` — is now recorded instead of being dropped. On conflict only `dwell_ms`/`skipped` move, so reporting engagement never re-orders the 3,000-row exclusion window or extends a 24 h cooldown.
-- A `url_id` that does not exist maps to **400**, not 500: an FK violation there is a stale client, not a server fault.
+## [2026-11-09] — Engagement metrics retired (`dwell_ms` / `skipped`)
+### Removed
+- **`report-engagement` is deleted, and so is the data it was meant to collect.** `dwell_ms` and `skipped` were added 2026-07-08 (`20260708000003`) to feed `interest_pair_scores` and `roam()`'s skip penalty, and neither has ever held a value: the only writer was the `report-engagement` Edge Function, which did a client-side `UPDATE` on `seen_urls` — RLS-enabled with a SELECT-only policy — so every report matched zero rows and PostgREST answered 204. `trg_seen_urls_engagement_pair_scores` and the seven `skipped = TRUE` filters in `roam()` were therefore inert from the day they shipped, and `interest_pair_scores` has only ever been fed by `trg_ratings_pair_scores`.
+- **The product decision is to collect nothing of the sort.** Roam needs to know which URLs were served; that is `seen_urls` itself — `roam()` writes the row for a live serve, `mark_url_seen()` when a prefetched URL reaches the screen. A dwell metric existed only to sharpen recommendations by measuring attention, which is the engagement farming this product defines itself against.
+- `20261109120000_retire_engagement_metrics.sql` drops the trigger, `update_pair_scores_from_engagement()`, `idx_seen_urls_engagement`, and (defensively) `report_engagement()` — that RPC shipped this morning in #126 (`20261109070000`) and was never applied to any project (`supabase migration list` shows no remote version), so the file goes with it. The two columns stay and are commented as deprecated: dropping them means rewriting the `roam()` body that still references `skipped`, so that is a follow-up.
+- The `report-engagement` Edge Function is gone from the repo, and the extension no longer computes dwell (`reportCurrentEngagement`, `ENGAGEMENT_MAX_DWELL_MS`, the `REPORT_ENGAGEMENT` message, `current_url`/`served_at`). The deployed function lingers until `supabase functions delete report-engagement` runs; nothing calls it.
+- Ops reports `report-d3-dwell-distribution` and `report-d4-skip-by-category` retire with their only input.
 
-### Deploy order
-- Migration **before** Edge Function — the function calls `report_engagement()`, which does not exist until the migration lands. Reversed, every report 500s; the extension fires it per page and ignores failures, so the failure mode is missing engagement data, not a broken browse.
+### Rollback
+- Recreate the trigger and function from `20260708000004_interest_pair_scores_v2.sql` and the index from `20260708000003_seen_urls_engagement.sql`, then restore the Edge Function and the extension plumbing from git history. Nothing was dropped, so no data restores — the columns were always NULL.
 
 ## [2026-11-09] — `roam()` v38: prefetch stops consuming discovery state (issue #122)
 ### Fixed
