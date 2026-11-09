@@ -11,6 +11,7 @@ import app.roam.android.model.CollectionItem
 import app.roam.android.model.GameId
 import app.roam.android.model.GameXpAward
 import app.roam.android.model.GameXpKind
+import app.roam.android.model.RoamExhaustion
 import app.roam.android.model.RoamUrl
 import app.roam.android.model.SavedUrl
 import app.roam.android.model.SubcategoryItem
@@ -29,7 +30,10 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.add
 import kotlinx.serialization.json.buildJsonArray
+import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.put
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -195,10 +199,13 @@ class RoamRepository {
      * Calls POST /functions/v1/roam.
      * Optionally restricts to a specific collection, subcategory, or category.
      *
-     * Returns null ONLY on genuine pool exhaustion (server returns 404 with the
-     * explicit `exhausted` marker). Any server error (503 — RPC exception, timeout,
-     * or circuit breaker) throws [RetryableRoamException] so the UI shows a
-     * retryable error instead of the misleading "exhausted" end-of-content screen.
+     * Exhaustion has two shapes, both meaning "nothing to serve": null, and a
+     * [RoamUrl] with an empty [RoamUrl.url] carrying [RoamUrl.exhaustion]. The second
+     * arrives when the server explains itself, which is the normal case since issue
+     * #120; null remains for the RestException path and for older deployments. Any
+     * server error (503 - RPC exception, timeout, or circuit breaker) throws
+     * [RetryableRoamException] so the UI shows a retryable error instead of the
+     * misleading "exhausted" end-of-content screen.
      */
     suspend fun roam(
         collectionId: String? = null,
@@ -226,7 +233,13 @@ class RoamRepository {
 
         return try {
             val response = supabase.functions.invoke("roam", body = body)
-            if (response.status.value == 404) return null // genuine pool exhaustion
+            if (response.status.value == 404) {
+                // Not an error: the RPC found nothing to serve and the body says why
+                // (issue #120). An empty url keeps the "nothing to serve" contract the
+                // callers branch on, and exhaustion is null when there is no reason to
+                // read - an older deployment, or a body that is not the expected shape.
+                return RoamUrl(id = "", url = "", exhaustion = parseExhaustion(response.bodyAsText()))
+            }
             if (response.status.value == 503) {
                 throw RetryableRoamException("Discovery temporarily unavailable. Please try again.")
             }
@@ -239,6 +252,27 @@ class RoamRepository {
             throw e // re-throw real errors
         }
     }
+    /**
+     * Reads `{ reason, scope, available_later }` out of a 404 body (issue #120).
+     * Returns null for anything else - an unknown reason, a bare `{ "error": ... }`
+     * body from an older deployment, non-JSON - so the UI keeps its generic
+     * end-of-feed copy instead of inventing a cause.
+     */
+    private fun parseExhaustion(body: String): RoamExhaustion? {
+        val obj = runCatching { json.parseToJsonElement(body).jsonObject }.getOrNull() ?: return null
+        val reason = when ((obj["reason"] as? JsonPrimitive)?.contentOrNull) {
+            "pool_empty" -> RoamExhaustion.Reason.POOL_EMPTY
+            "cooldown" -> RoamExhaustion.Reason.COOLDOWN
+            "filters" -> RoamExhaustion.Reason.FILTERS
+            else -> return null
+        }
+        return RoamExhaustion(
+            reason = reason,
+            scope = (obj["scope"] as? JsonPrimitive)?.contentOrNull,
+            availableLater = (obj["available_later"] as? JsonPrimitive)?.contentOrNull,
+        )
+    }
+
 
     /**
      * Batch fetch multiple URLs in a single API call using the edge function's

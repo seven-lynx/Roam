@@ -94,6 +94,9 @@ import app.roam.android.ui.component.RoamWebView
 import app.roam.android.ui.component.ShareUrlBottomSheet
 import app.roam.android.ui.component.SubmitBottomSheet
 import app.roam.android.ui.component.UserSearchSheet
+import app.roam.android.ui.component.exhaustionBody
+import app.roam.android.ui.component.exhaustionHeadline
+import app.roam.android.ui.component.exhaustionStatusLabel
 import app.roam.android.ui.component.pickRandomMessage
 import app.roam.android.ui.theme.LocalHardwarePalette
 import app.roam.android.ui.theme.RoamThemeVariant
@@ -1003,7 +1006,7 @@ private fun DiscoverTab(
                             Text("\u26A0 ${(state as RoamState.Error).message}", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.error, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
                             TextButton(onClick = { vm.roam() }) { Text("Retry", style = MaterialTheme.typography.labelMedium) }
                         }
-                        state is RoamState.Exhausted -> Text("You've seen everything \u2014 adjust categories in Settings", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        state is RoamState.Exhausted -> Text(exhaustionStatusLabel((state as RoamState.Exhausted).exhaustion), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
                         !isOnline -> Text("\u26A0 Offline \u2014 ratings queued", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         else -> {
                             if (isRoaming) {
@@ -1076,6 +1079,9 @@ private fun DiscoverTab(
                                 }
                             }
                             state is RoamState.Exhausted -> {
+                                // Issue #120: a dry feed has three causes and only the
+                                // empty pool is fixed in Settings.
+                                val exhaustion = (state as RoamState.Exhausted).exhaustion
                                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                     Icon(
                                         imageVector = Icons.Filled.GpsFixed,
@@ -1084,13 +1090,13 @@ private fun DiscoverTab(
                                     )
                                     Spacer(Modifier.size(12.dp))
                                     Text(
-                                        text = "You've seen everything!",
+                                        text = exhaustionHeadline(exhaustion),
                                         style = MaterialTheme.typography.bodyMedium,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     )
                                     Spacer(Modifier.size(4.dp))
                                     Text(
-                                        text = "Adjust your categories in Settings to find more.",
+                                        text = exhaustionBody(exhaustion),
                                         style = MaterialTheme.typography.bodySmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
                                     )

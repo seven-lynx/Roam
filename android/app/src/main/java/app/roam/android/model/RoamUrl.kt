@@ -2,6 +2,7 @@ package app.roam.android.model
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.Transient
 
 /** Response shape from POST /functions/v1/roam */
 @Serializable
@@ -15,4 +16,9 @@ data class RoamUrl(
     @SerialName("subcategory_id") val subcategoryId: String? = null,
     @SerialName("wilson_score") val wilsonScore: Double? = null,
     @SerialName("user_rating") val userRating: Int? = null,
+    /**
+     * Set only on the 404 path (issue #120): the serve found nothing, [url] is
+     * empty, and this says why. Never serialised - it is not part of the wire shape.
+     */
+    @Transient val exhaustion: RoamExhaustion? = null,
 )
