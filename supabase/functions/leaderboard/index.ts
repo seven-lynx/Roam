@@ -166,17 +166,23 @@ async function refreshSnapshot(period: string) {
     // Clear old snapshot for this period
     await adminClient.from('leaderboard_snapshots').delete().eq('period', period)
 
-    // Insert new snapshot
-    const { error: insertError } = await adminClient.from('leaderboard_snapshots').insert(
-      sorted.map((s) => ({
-        period,
-        user_id: s.user_id,
-        xp_earned: s.xp_earned,
-        badge_count: s.badge_count,
-        rank: s.rank,
-        snapshot_at: snapshotAt,
-      }))
-    )
+    // Upsert, not insert: two refreshes can start inside the same millisecond, and
+    // then both delete and both insert the same (period, user_id, snapshot_at) — the
+    // second one collided on the primary key and logged a 23505. Ignoring the
+    // duplicate makes the loser a no-op, and the row it wanted is already there.
+    const { error: insertError } = await adminClient
+      .from('leaderboard_snapshots')
+      .upsert(
+        sorted.map((s) => ({
+          period,
+          user_id: s.user_id,
+          xp_earned: s.xp_earned,
+          badge_count: s.badge_count,
+          rank: s.rank,
+          snapshot_at: snapshotAt,
+        })),
+        { onConflict: 'period,user_id,snapshot_at', ignoreDuplicates: true },
+      )
     if (insertError) {
       console.error('leaderboard insert failed', insertError)
     }
