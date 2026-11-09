@@ -146,9 +146,11 @@ Deno.serve(async (req) => {
           pg_details: pgError.details ?? '',
         })
         recordFailure()
-        // Same contract the sequential loop produced when every call failed: the
-        // client stops filling this tick and retries on the next one.
-        return json({ error: 'No more URLs to discover', exhausted: true }, 404)
+        // A DB exception is never "exhausted" - the same invariant the serve path
+        // enforces below. 503 makes the client retry on the next tick; a 404 here
+        // renders a hard fault as a benign end-of-discovery state, which is the
+        // incident described in 20260804000000_roam_v32_fix_recent_subcats_alias.sql.
+        return json({ error: 'Discovery failed. Please try again.', retryable: true }, 503)
       }
       recordSuccess()
       for (const row of Array.isArray(data) ? data : []) {

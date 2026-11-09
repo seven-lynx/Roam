@@ -111,8 +111,7 @@ Returns a single weighted-random unseen URL matching the user's category prefere
 **Error Responses:**
 - **401** — Unauthorized (invalid or missing token)
 - **404** — No URLs available (all categories explored or language-filtered to empty pool)
-- **500** — Internal server error (non-timeout RPC errors)
-- **503** — Discovery timed out (RPC query exceeded 35s statement timeout)
+- **503** — Retryable server-side failure; the body carries `retryable: true`. Emitted by the circuit breaker, by a non-timeout RPC error on either the serve or the `prefetch` path, and by a statement timeout. An RPC error is **never** reported as `404 exhausted` — a hard fault must not render as "you have seen everything"
 
 **Notes:**
 - Internally calls the `roam()` RPC function which handles seen URL tracking, language filtering, paywall filtering, domain cooldown, and scoring
