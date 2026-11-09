@@ -155,3 +155,13 @@ Deno.test('URL Normalization - Invalid URLs', () => {
   assertThrows(() => normalizeUrl('://example.com'))
   assertThrows(() => normalizeUrl(''))
 })
+
+// The guard contract: normalizeUrl throws instead of returning a falsy value, so
+// every caller has to catch. Un-guarded call sites turn plain user input into an
+// unhandled 500, and the client sees only a generic failure.
+Deno.test('URL Normalization - Non-URL input that callers must catch', () => {
+  // Looks like an address, carries no scheme.
+  assertThrows(() => normalizeUrl('test@roamtheweb.app'))
+  // A scheme, but not one Roam accepts.
+  assertThrows(() => normalizeUrl('ftp://example.com'))
+})

@@ -41,8 +41,14 @@ Deno.serve(async (req) => {
 
   if (!rawUrl) return json({ error: 'url required' }, 400)
 
-  const normalizedUrl = normalizeUrl(rawUrl)
-  if (!normalizedUrl) return json({ error: 'Invalid URL' }, 400)
+  // normalizeUrl throws on anything that is not an absolute http(s) URL, so the
+  // call must be guarded: an unguarded throw here escapes Deno.serve as a 500 and
+  // the client only sees a generic failure with no server message. Same convention
+  // as scrape-url.
+  let normalizedUrl: string
+  try { normalizedUrl = normalizeUrl(rawUrl) } catch (e) {
+    return json({ error: e instanceof Error ? e.message : 'Invalid URL' }, 400)
+  }
 
   // Rate limit: count submissions in the last hour
   const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString()
