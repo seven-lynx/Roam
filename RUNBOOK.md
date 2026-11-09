@@ -233,6 +233,21 @@ Non-additive migrations (DROP, ALTER TYPE, …) must document a rollback here.
 - Rollback: Recreate the trigger and function from `20260708000004_interest_pair_scores_v2.sql` and the index from `20260708000003_seen_urls_engagement.sql`, then restore the Edge Function and the extension plumbing from git history. No data is lost by design — the columns were never written.
 - Related: `supabase/CHANGELOG.md`, `docs/API.md` (`mark_url_seen`), `extension/CHANGELOG.md`.
 
+### 20261109130000_user_exhaustion_state.sql
+- Change: Adds `public.user_exhaustion_state` (PK `(user_id, scope_key)`; `reason` CHECK `pool_empty|cooldown|filters`; `available_later` permitted only when `reason = 'cooldown'`; `notified_at` for the nudge), its partial index `idx_user_exhaustion_state_unnotified`, RLS with a single owner-`SELECT` policy and deliberately no write policy, and `public.record_exhaustion(UUID, TEXT, TEXT, TIMESTAMPTZ)` (SECURITY DEFINER, 15-minute debounce, re-arms `notified_at` when the reason changes). Additive on its own, but `20261109140000` writes it and `20261109150000` drains it, so all three roll back together.
+- Rollback: Reverse in migration order. `roam()` fails with `relation "public.user_exhaustion_state" does not exist` on the next empty serve if the table goes first, so restore the `roam()` body (see `20261109140000`), remove the notifier (see `20261109150000`), and only then `DROP TABLE IF EXISTS public.user_exhaustion_state; DROP FUNCTION IF EXISTS public.record_exhaustion(UUID, TEXT, TEXT, TIMESTAMPTZ);`.
+- Related: `docs/API.md` (`record_exhaustion()`), `supabase/SCHEMA.md`.
+
+### 20261109140000_roam_v39_exhaustion_reason.sql
+- Change: `roam()` v39. The body is byte-identical to v38 apart from one block above the single `RETURN QUERY`: when the serve returns no row and the transaction-local `roam.prefetch` flag is not `on`, it classifies why and calls `record_exhaustion()`. `pool_empty` when the loose pool (seen-filter only) is empty; `cooldown` when the strict pool is empty but the loose pool is not and the user has a live domain cooldown, with `available_later` set to the earliest such `cooldown_until`; `filters` otherwise (suppression, paywall, explicit exclusions). `scope_key` is `collection:<id>`, `subcategory:<id>`, `category:<id>` or `global`. A prefetch records nothing, because a prefetch is not a serve (issue #122). The six-argument signature is unchanged, so `CREATE OR REPLACE` keeps the OID and the grants and cannot create a second overload.
+- Rollback: `CREATE OR REPLACE` the body from `20261109060000_roam_v38_prefetch_skips_state.sql`. No client redeploy is needed in this direction: the edge function reads the reason back from `user_exhaustion_state` and falls back to the bare 404 body when no fresh row exists, which all three clients already handle.
+- Related: `docs/API.md` (`roam`).
+
+### 20261109150000_notifications_discovery_exhausted.sql
+- Change: Widens `notifications_type_check` to include `discovery_exhausted` (the eighth type) and adds `public.claim_exhaustion_notifications()` (SECURITY DEFINER, `service_role` only), which marks rows notified and inserts the notifications in one statement so a retry cannot double-notify. Ships with the `cron-exhaustion-notify` Edge Function (`0 16 * * *`, daily 16:00 UTC, `supabase/config.toml`). Push and in-app only: `discovery_exhausted` is absent from `EMAIL_NOTIFICATION_TYPES` in `push-notify/index.ts`, and the body is always non-empty because `push-notify` rejects an empty one.
+- Rollback: Delete the rows before narrowing the CHECK, or the `ADD CONSTRAINT` fails. `DELETE FROM public.notifications WHERE type = 'discovery_exhausted'; SELECT cron.unschedule('cron-exhaustion-notify'); DROP FUNCTION IF EXISTS public.claim_exhaustion_notifications();` then restore `notifications_type_check` with the seven types from `20260805000000_challenge_system.sql`, and `supabase functions delete cron-exhaustion-notify --project-ref <ref>`.
+- Irreversible: the notification rows go with the claim (`notified_at`), so re-applying notifies those users a second time.
+
 ## How to cut an entry
 
 When to write an entry:
