@@ -488,7 +488,7 @@ async function callRoamApi(body: Record<string, unknown> = {}, maxAttempts = 3):
     mergedBody.exclude_domains = [...new Set([...existing, ...recentDomains])];
   }
 
-  const invoker = async () => {
+  const invoker = async (): Promise<Response<RoamData>> => {
     const supabase = getSupabase();
     const { data, error } = await supabase.functions.invoke('roam', { body: mergedBody });
     if (error) {
@@ -516,8 +516,8 @@ async function callRoamApi(body: Record<string, unknown> = {}, maxAttempts = 3):
       if (parsed?.error) return { ok: false, error: parsed.error };
       return { ok: false, error: error.message };
     }
-    if (data?.error) return { ok: false, error: data.error } as Response<RoamData>;
-    return { ok: true, data: data as RoamData } as Response<RoamData>;
+    if (data?.error) return { ok: false, error: data.error };
+    return { ok: true, data: data as RoamData };
   };
 
   try {
