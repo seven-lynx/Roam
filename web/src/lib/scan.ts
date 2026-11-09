@@ -1,5 +1,5 @@
 import { createClient } from '@/lib/supabase/client';
-import { roamBufferNext } from '@/lib/roam-buffer';
+import { roamBufferNext, parseRoamExhaustion, type RoamExhaustion } from '@/lib/roam-buffer';
 
 export interface ScanTarget {
   id: string;
@@ -98,6 +98,12 @@ async function fetchTargetByUrl(url: string): Promise<ScanTarget | null> {
 export interface ScanOutcome {
   target: ScanTarget | null;
   error: string | null;
+  /**
+   * Set when the `roam` function reported a dry feed. Carries *why* so the result
+   * card can explain the wait instead of showing a generic "no signal" (issue #120).
+   * Absent when the reply predates v39 or had no fresh reason for the scope.
+   */
+  exhaustion?: RoamExhaustion | null;
 }
 
 /**
@@ -125,26 +131,37 @@ export async function fetchScanTarget(): Promise<ScanOutcome> {
 
   // 2. Signed in → roam edge function (records gamification + respects prefs).
   const viaEdge = await fetchRoamViaEdge();
-  if (viaEdge) return { target: viaEdge, error: null };
+  if (viaEdge.target) return { target: viaEdge.target, error: null };
 
-  // 3. Anonymous / edge-failure fallback → direct catalog query.
-  return fetchScanTargetDirect();
+  // 3. Anonymous / edge-failure fallback → direct catalog query. The exhaustion
+  // reason rides along: the card only shows it when this also found nothing, but
+  // it is the honest answer for why the edge call came back empty.
+  const direct = await fetchScanTargetDirect();
+  return { ...direct, exhaustion: viaEdge.exhaustion };
 }
 
 /**
  * Ask the `roam` edge function for a single URL and enrich it into a full
- * `ScanTarget`. Returns null when signed out, the pool is exhausted (404), or the
- * request fails — the caller then falls back to the direct query.
+ * `ScanTarget`. Returns null when signed out, the request fails, or the pool is
+ * exhausted (404) — the caller then falls back to the direct query.
+ *
+ * The 404 body is not discarded: since v39 it carries `reason`, `scope` and
+ * `available_later`, which is the difference between "try again" and "every
+ * domain here is resting until 21:40".
  */
-async function fetchRoamViaEdge(): Promise<ScanTarget | null> {
+async function fetchRoamViaEdge(): Promise<{
+  target: ScanTarget | null;
+  exhaustion: RoamExhaustion | null;
+}> {
+  const none = { target: null, exhaustion: null };
   try {
     const supabase = createClient();
-    if (typeof supabase.auth?.getSession !== 'function') return null;
+    if (typeof supabase.auth?.getSession !== 'function') return none;
     const { data: { session } } = await supabase.auth.getSession();
-    if (!session?.access_token) return null;
+    if (!session?.access_token) return none;
 
     const base = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    if (!base) return null;
+    if (!base) return none;
 
     const res = await fetch(`${base}/functions/v1/roam`, {
       method: 'POST',
@@ -154,19 +171,26 @@ async function fetchRoamViaEdge(): Promise<ScanTarget | null> {
       },
       body: JSON.stringify({ count: 1 }),
     });
-    // 404 = genuine pool exhaustion; any other non-2xx = retry later.
-    if (!res.ok) return null;
+    // 404 = genuine pool exhaustion (the body explains why); any other non-2xx =
+    // retry later.
+    if (!res.ok) {
+      if (res.status === 404) {
+        const body = await res.json().catch(() => null);
+        return { target: null, exhaustion: parseRoamExhaustion(body) };
+      }
+      return none;
+    }
 
     const json = (await res.json().catch(() => null)) as { url?: unknown } | null;
     const url = typeof json?.url === 'string' ? json.url : null;
-    if (!url) return null;
+    if (!url) return none;
 
     // The edge function returns the normalized `url`; enrich it into the full
     // target (original_url, votes, category/subcategory names).
-    return await fetchTargetByUrl(url);
+    return { target: await fetchTargetByUrl(url), exhaustion: null };
   } catch (e) {
     console.error('[roam] edge-function roam failed', e);
-    return null;
+    return none;
   }
 }
 

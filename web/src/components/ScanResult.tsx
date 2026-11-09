@@ -2,16 +2,50 @@
 
 import type { RefObject } from 'react';
 import { extractDomain } from '@/lib/url-utils';
+import { describeWait } from '@/lib/format';
 import { useWorkstation } from '@/components/WorkstationContext';
 import { WilsonScoreMeter } from '@/components/WilsonScoreMeter';
 import type { ScanTarget } from '@/lib/scan';
+import type { RoamExhaustion } from '@/lib/roam-buffer';
 
 interface Props {
   target: ScanTarget | null;
   error?: string | null;
+  /** Why the feed came back empty (issue #120), when the server said why. */
+  exhaustion?: RoamExhaustion | null;
   actionRef: RefObject<HTMLElement | null>;
   onAgain: () => void;
   onClose: () => void;
+}
+
+/**
+ * Copy for a dry feed. A cooldown is a wait, an empty pool is a wall, and hidden
+ * filters are the user's own doing — three different situations that used to read
+ * as one "no signal". Returns null when the server gave no reason, so the plain
+ * fallback copy still covers older replies.
+ */
+function explainExhaustion(
+  exhaustion: RoamExhaustion | null | undefined,
+): { head: string; body: string } | null {
+  switch (exhaustion?.reason) {
+    case 'pool_empty':
+      return {
+        head: 'read it all',
+        body: 'Nothing unseen is left in this feed. Other categories still hold pages you haven\u2019t opened.',
+      };
+    case 'cooldown':
+      return {
+        head: 'feed resting',
+        body: `Every domain here was shown in the last day, and each rests 24 h after a visit. The first one returns ${describeWait(exhaustion.available_later)}.`,
+      };
+    case 'filters':
+      return {
+        head: 'filtered out',
+        body: 'Nothing left matches your categories. Loosen them in Settings and the feed reopens.',
+      };
+    default:
+      return null;
+  }
 }
 
 /**
@@ -19,15 +53,16 @@ interface Props {
  * OS browser (with a "new tab" fallback for sites that refuse framing); the
  * card also surfaces the category · subcategory readout and the Wilson score.
  */
-export function ScanResult({ target, error, actionRef, onAgain, onClose }: Props) {
+export function ScanResult({ target, error, exhaustion, actionRef, onAgain, onClose }: Props) {
   const { openUrl, closeWindow, openAppView } = useWorkstation();
 
   if (!target) {
+    const why = explainExhaustion(exhaustion);
     return (
       <div className="panel w-full max-w-md" role="status">
-        <div className="panel-head"><span className="led" />no signal</div>
+        <div className="panel-head"><span className="led" />{why?.head ?? 'no signal'}</div>
         <div className="space-y-3 p-5 text-sm text-muted">
-          <p>The catalog didn&rsquo;t answer. Try again, or browse the collections instead.</p>
+          <p>{why?.body ?? 'The catalog didn\u2019t answer. Try again, or browse the collections instead.'}</p>
           {error && (
             <p className="break-all text-xs text-muted">
               <span className="kicker">trace</span> {error}

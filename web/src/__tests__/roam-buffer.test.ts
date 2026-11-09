@@ -4,6 +4,8 @@ import { createClient } from '@/lib/supabase/client';
 import {
   NIXIE_MAX,
   getRoamBufferSnapshot,
+  getRoamExhaustion,
+  parseRoamExhaustion,
   resetRoamBuffer,
   roamBufferNext,
   roamBufferTick,
@@ -177,5 +179,117 @@ describe('roam-buffer', () => {
     expect(secondBody.exclude_domains).toHaveLength(5);
     expect(secondBody.exclude_domains).toContain('site1.example.com');
     expect(secondBody.prefetch).toBe(true);
+  });
+});
+
+// Issue #120: the 404 body now carries why the feed is dry. The buffer is where the
+// web app hears about it, and the scan card is what reads it back out.
+describe('roam-buffer exhaustion', () => {
+  const OLD_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
+
+  beforeEach(() => {
+    resetRoamBuffer();
+    process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://supabase.test.co';
+    jest.clearAllMocks();
+  });
+
+  afterEach(() => {
+    resetRoamBuffer();
+    if (OLD_URL === undefined) delete process.env.NEXT_PUBLIC_SUPABASE_URL;
+    else process.env.NEXT_PUBLIC_SUPABASE_URL = OLD_URL;
+    jest.restoreAllMocks();
+  });
+
+  it('keeps the reason from a 404 so the UI can explain the gap', async () => {
+    mockSession({ access_token: 'token' });
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: false,
+      status: 404,
+      json: async () => ({
+        error: 'No more URLs to discover',
+        exhausted: true,
+        reason: 'cooldown',
+        scope: 'global',
+        available_later: '2026-11-10T00:56:40Z',
+      }),
+    }) as unknown as typeof fetch;
+
+    await roamBufferTick();
+
+    expect(getRoamExhaustion()).toEqual({
+      reason: 'cooldown',
+      scope: 'global',
+      available_later: '2026-11-10T00:56:40Z',
+    });
+  });
+
+  it('treats a 404 without a reason as dry but unexplained', async () => {
+    mockSession({ access_token: 'token' });
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: false,
+      status: 404,
+      json: async () => ({ error: 'No more URLs to discover', exhausted: true }),
+    }) as unknown as typeof fetch;
+
+    await roamBufferTick();
+
+    expect(getRoamExhaustion()).toEqual({ reason: null, scope: null, available_later: null });
+  });
+
+  it('clears the reason once URLs are flowing again', async () => {
+    mockSession({ access_token: 'token' });
+    const candidates = [1, 2, 3, 4].map(mockCandidate);
+    global.fetch = jest
+      .fn()
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 404,
+        json: async () => ({ exhausted: true, reason: 'pool_empty' }),
+      })
+      .mockResolvedValueOnce({ ok: true, status: 200, json: async () => candidates })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({ results: candidates.map((c) => ({ url: c.url, status: 'reachable' })) }),
+      }) as unknown as typeof fetch;
+
+    await roamBufferTick();
+    expect(getRoamExhaustion()?.reason).toBe('pool_empty');
+
+    await roamBufferTick();
+    expect(getRoamExhaustion()).toBeNull();
+  });
+
+  it('drops the reason on reset', async () => {
+    mockSession({ access_token: 'token' });
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: false,
+      status: 404,
+      json: async () => ({ exhausted: true, reason: 'filters' }),
+    }) as unknown as typeof fetch;
+
+    await roamBufferTick();
+    expect(getRoamExhaustion()?.reason).toBe('filters');
+
+    resetRoamBuffer();
+    expect(getRoamExhaustion()).toBeNull();
+  });
+
+  it('parses an exhaustion body and ignores anything else', () => {
+    expect(parseRoamExhaustion(null)).toBeNull();
+    expect(parseRoamExhaustion('nope')).toBeNull();
+    // A plain error reply is not an exhaustion reply.
+    expect(parseRoamExhaustion({ error: 'boom' })).toBeNull();
+    // An unknown reason still counts as dry, it just cannot be explained.
+    expect(parseRoamExhaustion({ exhausted: true, reason: 'nonsense' })).toEqual({
+      reason: null,
+      scope: null,
+      available_later: null,
+    });
+    expect(parseRoamExhaustion({ exhausted: true, reason: 'filters', scope: 'category:x' })).toEqual({
+      reason: 'filters',
+      scope: 'category:x',
+      available_later: null,
+    });
   });
 });

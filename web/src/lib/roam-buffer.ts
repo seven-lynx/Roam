@@ -42,6 +42,45 @@ export interface RoamBufferSnapshot {
   warm: number;
 }
 
+// ── Exhaustion (issue #120) ──────────────────────────────────────────────────
+// The `roam` 404 has always meant "nothing to serve", but until v39 the body said
+// nothing about *why*, so every dry feed read as the same dead end. The reason now
+// arrives with the 404; it is kept here so the deck's scan result can explain the
+// wait instead of apologising for it.
+
+/** What `roam()` recorded at its exit: the loose pool was empty, every candidate
+ *  was inside a domain cooldown, or the user's filters excluded the rest. */
+export type RoamExhaustionReason = 'pool_empty' | 'cooldown' | 'filters';
+
+export interface RoamExhaustion {
+  /** null when the reply carried no fresh reason (older server, or a row that had
+   *  aged out) — callers then keep their generic copy rather than inventing one. */
+  reason: RoamExhaustionReason | null;
+  /** `global`, `category:<uuid>`, `subcategory:<uuid>` or `collection:<uuid>`. */
+  scope: string | null;
+  /** ISO timestamp for the earliest cooldown expiry; only set for `cooldown`. */
+  available_later: string | null;
+}
+
+const EXHAUSTION_REASONS: readonly string[] = ['pool_empty', 'cooldown', 'filters'];
+
+/**
+ * Parse a `roam` 404 body into `RoamExhaustion`. Returns null when the body is not
+ * an exhaustion reply at all, so a caller can tell "dry feed" from "malformed".
+ */
+export function parseRoamExhaustion(body: unknown): RoamExhaustion | null {
+  if (!body || typeof body !== 'object') return null;
+  const raw = body as Record<string, unknown>;
+  if (raw.exhausted !== true && typeof raw.reason !== 'string') return null;
+  return {
+    reason: typeof raw.reason === 'string' && EXHAUSTION_REASONS.includes(raw.reason)
+      ? (raw.reason as RoamExhaustionReason)
+      : null,
+    scope: typeof raw.scope === 'string' ? raw.scope : null,
+    available_later: typeof raw.available_later === 'string' ? raw.available_later : null,
+  };
+}
+
 type Listener = () => void;
 
 let hotQueue: RoamBufferUrl[] = [];
@@ -49,12 +88,38 @@ let warmQueue: RoamBufferUrl[] = [];
 let busy = false;
 const listeners = new Set<Listener>();
 
+/** Last exhaustion reason, or null when the feed is healthy or never tried. */
+let exhaustion: RoamExhaustion | null = null;
+
 function emit() {
   for (const l of listeners) l();
 }
 
 export function getRoamBufferSnapshot(): RoamBufferSnapshot {
   return { hot: hotQueue.length, warm: warmQueue.length };
+}
+
+/** Why the last prefetch or serve came back empty, if it did. */
+export function getRoamExhaustion(): RoamExhaustion | null {
+  return exhaustion;
+}
+
+/**
+ * Store the reason and notify subscribers — but only when it actually changed.
+ * The prefetch loop retries every few seconds, so an unconditional emit would
+ * re-render the deck on every dry tick.
+ */
+function setExhaustion(next: RoamExhaustion | null): void {
+  const unchanged =
+    exhaustion === next ||
+    (exhaustion !== null &&
+      next !== null &&
+      exhaustion.reason === next.reason &&
+      exhaustion.scope === next.scope &&
+      exhaustion.available_later === next.available_later);
+  if (unchanged) return;
+  exhaustion = next;
+  emit();
 }
 
 export function subscribeRoamBuffer(listener: Listener): () => void {
@@ -66,6 +131,7 @@ export function subscribeRoamBuffer(listener: Listener): () => void {
 export function resetRoamBuffer(): void {
   hotQueue = [];
   warmQueue = [];
+  exhaustion = null;
   emit();
 }
 
@@ -96,10 +162,20 @@ async function fetchWarmBatch(count: number, excludeDomain?: string | null): Pro
   });
   // 404 = genuine pool exhaustion (not an error); any other failure just stops
   // this fill — the next tick retries.
-  if (res.status === 404) return [];
+  if (res.status === 404) {
+    // Keep the reason so the UI can explain the gap instead of showing an
+    // unexplained dead end. A body without one (older server, aged-out row) still
+    // counts as dry, so the generic copy keeps working.
+    const body = await res.json().catch(() => null);
+    setExhaustion(parseRoamExhaustion(body) ?? { reason: null, scope: null, available_later: null });
+    return [];
+  }
   if (!res.ok) return [];
   const json = (await res.json().catch(() => [])) as RoamBufferUrl[];
-  return Array.isArray(json) ? json : [];
+  if (!Array.isArray(json)) return [];
+  // Anything to serve means the feed is healthy again, whatever it said before.
+  if (json.length > 0) setExhaustion(null);
+  return json;
 }
 
 async function validateUrls(urls: string[]): Promise<Map<string, 'reachable' | 'blocked' | 'unreachable'>> {

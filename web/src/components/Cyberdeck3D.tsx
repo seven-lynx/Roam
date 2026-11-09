@@ -27,7 +27,11 @@ import { BootSequence } from '@/components/BootSequence';
 import { SplineScene } from '@/components/SplineScene';
 import { DeckOverlay } from '@/components/DeckOverlay';
 import { DeckHud } from '@/components/DeckHud';
-import { getRoamBufferSnapshot, roamBufferTick, subscribeRoamBuffer } from '@/lib/roam-buffer';
+import { getRoamBufferSnapshot, getRoamExhaustion, roamBufferTick, subscribeRoamBuffer } from '@/lib/roam-buffer';
+
+/** Prefetch cadence: fast while the feed has URLs, slow while it is dry. */
+const TICK_MS = 4000;
+const DRY_TICK_MS = 60_000;
 
 // Camera framing: Spline exposes `setZoom` (documented) and, through the `controls`
 // getter, a three.js-style OrbitControls whose `pan(dx, dy)` (screen pixels) nudges
@@ -405,13 +409,18 @@ export function Cyberdeck3D({ children }: { children: ReactNode }) {
   useEffect(() => subscribeRoamBuffer(() => setBuffer(getRoamBufferSnapshot())), []);
 
   // Drive the prefetch loop: one tick shortly after mount, then on a fixed cadence.
+  // A dry feed backs off rather than retrying every tick: a cooldown lasts hours and
+  // an empty pool lasts until new URLs land, so the fast cadence only burns calls.
+  // It keeps checking (a `stop` would strand the deck once the cooldown lifts) —
+  // it just checks once a minute while there is nothing to fetch.
   useEffect(() => {
     let cancelled = false;
     let timer = 0;
     const loop = () => {
       if (cancelled) return;
       void roamBufferTick().finally(() => {
-        if (!cancelled) timer = window.setTimeout(loop, 4000);
+        if (cancelled) return;
+        timer = window.setTimeout(loop, getRoamExhaustion() ? DRY_TICK_MS : TICK_MS);
       });
     };
     timer = window.setTimeout(loop, 800);

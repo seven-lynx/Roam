@@ -238,5 +238,53 @@ describe('fetchScanTarget', () => {
       expect(outcome.target?.id).toBe('d1');
       expect(global.fetch).toHaveBeenCalledTimes(1);
     });
+
+    // Issue #120: a 404 is the one failure worth explaining. When the direct
+    // fallback also finds nothing, the reason has to reach the card.
+    it('keeps the reason from a 404 so the card can explain the gap', async () => {
+      const chain = mockCatalogue({ data: [], error: null });
+      mockedCreateClient.mockReturnValue({
+        auth: { getSession: jest.fn().mockResolvedValue({ data: { session: { access_token: 'tok' } } }) },
+        from: jest.fn(() => chain),
+      });
+      global.fetch = jest.fn().mockResolvedValue({
+        ok: false,
+        status: 404,
+        json: async () => ({
+          error: 'No more URLs to discover',
+          exhausted: true,
+          reason: 'cooldown',
+          scope: 'global',
+          available_later: '2026-11-10T00:56:40Z',
+        }),
+      }) as unknown as typeof fetch;
+
+      const outcome = await fetchScanTarget();
+
+      expect(outcome.target).toBeNull();
+      expect(outcome.error).toBe('catalog is empty');
+      expect(outcome.exhaustion).toEqual({
+        reason: 'cooldown',
+        scope: 'global',
+        available_later: '2026-11-10T00:56:40Z',
+      });
+    });
+
+    it('reports no reason when the 404 body predates v39', async () => {
+      const chain = mockCatalogue({ data: [], error: null });
+      mockedCreateClient.mockReturnValue({
+        auth: { getSession: jest.fn().mockResolvedValue({ data: { session: { access_token: 'tok' } } }) },
+        from: jest.fn(() => chain),
+      });
+      global.fetch = jest.fn().mockResolvedValue({
+        ok: false,
+        status: 404,
+        json: async () => ({ error: 'No more URLs to discover', exhausted: true }),
+      }) as unknown as typeof fetch;
+
+      const outcome = await fetchScanTarget();
+
+      expect(outcome.exhaustion).toEqual({ reason: null, scope: null, available_later: null });
+    });
   });
 });
