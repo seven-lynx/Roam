@@ -38,6 +38,7 @@ Complete documentation of all Supabase Edge Functions and PostgreSQL RPC functio
   - [`cron-streak-cleanup` — Reset stale streaks (scheduled)](#cron-streak-cleanup--reset-stale-streaks-scheduled)
   - [`game-action` — Award in-OS game XP](#game-action--award-in-os-game-xp)
   - [`cron-notification-cleanup` — Notification retention cleanup (scheduled)](#cron-notification-cleanup--notification-retention-cleanup-scheduled)
+  - [`cron-exhaustion-notify` — Discovery exhaustion nudge (scheduled)](#cron-exhaustion-notify--discovery-exhaustion-nudge-scheduled)
   - [`roll-action` — Record a Cyberdeck Roll gallery action](#roll-action--record-a-cyberdeck-roll-gallery-action)
   - [`sentry-webhook` — Sentry → GitHub issue bridge (webhook)](#sentry-webhook--sentry--github-issue-bridge-webhook)
 - [RPC Functions (Database)](#rpc-functions-database)
@@ -1498,6 +1499,31 @@ Runs daily via Supabase cron. Deletes `notifications` older than 90 days and
 
 ---
 
+### `cron-exhaustion-notify` — Discovery exhaustion nudge (scheduled)
+
+Runs daily via Supabase cron. Tells a user **once** that discovery went dry, using the reason `roam()` recorded — `pool_empty`, `cooldown` or `filters` (issue #120). Not client-facing.
+
+**Endpoint:** `POST /functions/v1/cron-exhaustion-notify`
+
+**Authentication:** Optional `Authorization: Bearer <CRON_SECRET>` (enforced only when `CRON_SECRET` is set). The scheduler sends the service-role key, which also satisfies `verify_jwt`.
+
+**Response (200):**
+```json
+{ "success": true, "notified": 4 }
+```
+
+**Details:**
+- **Exactly once, structurally.** The entire job is one call to `claim_exhaustion_notifications()`, which claims the rows (setting `notified_at`) and inserts the notifications in a single statement. A retry answers `notified: 0`; an interruption claims nothing and the next run retries.
+- **Only live reasons.** Rows whose `last_detected_at` is older than 24 hours are skipped: `record_exhaustion()` refreshes it at least every 15 minutes while the state lasts, so an old row means the user has not hit exhaustion recently.
+- **Push, not email.** `discovery_exhausted` is absent from `EMAIL_NOTIFICATION_TYPES`, so the `notifications` insert webhook runs `push-notify` for the push and in-app row only. Per-type opt-out (`notification_preferences.discovery_exhausted.push = false`) is honoured there.
+- **The copy needs `available_later`, so it is written in SQL:** `pool_empty` → "You have read it all"; `cooldown` → "Your feed is resting", with a body naming the hours until the earliest cooldown lifts ("refills in about 3 hours"); `filters` → "Nothing matched your filters". `data` carries `reason`, `scope`, `available_later` and `url: "/"`.
+
+**Error Responses:**
+- **401** — Unauthorized (missing/invalid `CRON_SECRET`, when configured)
+- **500** — The RPC failed and nothing was claimed, so the next run retries
+
+---
+
 ### `roll-action` — Record a Cyberdeck Roll gallery action
 
 Records a `user_actions` row for a Roll gallery interaction on the web ROAM-OS
@@ -1691,6 +1717,31 @@ SELECT mark_url_seen(
 ```typescript
 // Prefetched URLs carry no state; record the one the user actually sees.
 await supabase.rpc('mark_url_seen', { p_url_id: urlId });
+```
+
+---
+
+### `claim_exhaustion_notifications()` — Notify exhausted users (internal)
+
+Claims the exhaustion rows and writes the notifications in one statement. Called only by `cron-exhaustion-notify`; not client-facing.
+
+**Call Signature:**
+```sql
+SELECT claim_exhaustion_notifications()
+```
+
+**Returns:** `integer` — how many notifications were written.
+
+**Details:**
+- **One statement does both halves.** `UPDATE ... RETURNING` claims the rows by setting `notified_at`, and the `INSERT` reads from that CTE. Row locks mean a concurrent run sees `notified_at` already set, and a failure leaves nothing claimed — which is what makes the cron retry-safe.
+- Skips rows whose `last_detected_at` is older than 24 hours (see the cron entry above).
+- Writes `type = 'discovery_exhausted'`. The `notifications.body` column is nullable but `push-notify` rejects a notification without one (`push-notify/index.ts:606`), so every branch sets it.
+- `SECURITY DEFINER`, `search_path = public`, `EXECUTE` granted to `service_role` only: a client must not be able to fire every user's notifications.
+
+**Example (cron only):**
+```typescript
+const { data, error } = await supabase.rpc('claim_exhaustion_notifications')
+// data: number of notifications written
 ```
 
 ---

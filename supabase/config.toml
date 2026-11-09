@@ -387,6 +387,13 @@ schedule = "0 0 * * *"
 # Requires CRON_SECRET auth if set (see .env.example).
 schedule = "0 3 * * *"
 
+[functions.cron-exhaustion-notify]
+# Discovery exhaustion nudge (issue #120). Daily at 16:00 UTC: claim and insert
+# happen in one statement (claim_exhaustion_notifications), so a user is told once
+# per exhaustion episode and a retry cannot duplicate it. Push only - the type is
+# not in push-notify's EMAIL_NOTIFICATION_TYPES. Requires CRON_SECRET auth if set.
+schedule = "0 16 * * *"
+
 [functions.sentry-webhook]
 # Public webhook receiver for Sentry (server-to-server). Deployed with
 # verify_jwt=false and protected by a shared secret instead:
