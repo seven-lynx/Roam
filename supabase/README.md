@@ -124,7 +124,9 @@ Both need the repository secret `SENTRY_AUTH_TOKEN` (org-scoped, `event:write`).
 Filing from CI additionally needs the repository secret `SENTRY_WEBHOOK_SECRET`; the
 webhook URL is derived from the existing `SUPABASE_URL` repository secret, and
 `vars.SENTRY_WEBHOOK_URL` overrides it if a non-standard URL is ever needed.
-Locally: `node scripts/sentry-reconcile.mjs --check`.
+Locally: `node scripts/sentry-reconcile.mjs --check`. Operating procedure, failure
+modes, and the response to a red weekly run are in `RUNBOOK.md` → *Sentry ↔ GitHub
+tracking*.
 
 ## `push-notify` database webhook
 
