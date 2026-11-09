@@ -846,6 +846,41 @@ class MainViewModel(
         updateQueueSizesLocked()
     }
 
+    /**
+     * Domains currently held in either queue, in the form the server stores them,
+     * for the batch call's `exclude_domains` (issue #125).
+     *
+     * Prefetch records nothing server-side since #122, so a second batch has no
+     * memory of the first and can return domains we are already holding. Those
+     * candidates are then all rejected by the domain guard in the warm-fill loop,
+     * which leaves the queue short and re-requests every 500 ms for nothing.
+     *
+     * Caller must hold [prefetchMutex].
+     */
+    internal fun bufferedDomainsLocked(): List<String> {
+        val out = LinkedHashSet<String>()
+        for (entry in hotQueue) hostDomain(entry.url)?.let { out.add(it) }
+        for (entry in warmQueue) hostDomain(entry.url)?.let { out.add(it) }
+        return out.toList()
+    }
+
+    /**
+     * The host form of [url] — lowercased, `www.` stripped — which is exactly what
+     * the `set_url_domain` trigger writes to `urls.domain`, and what `roam()`'s
+     * `u.domain != ALL(v_excluded)` compares against.
+     *
+     * Deliberately NOT [extractDomain]: that one collapses to the registrable
+     * domain (`someone.itch.io` → `itch.io`), so an exclusion built from it matches
+     * no row at all for a subdomain host. It stays the right helper for the
+     * client-side guards, which must treat sibling subdomains as one domain.
+     */
+    private fun hostDomain(url: String?): String? {
+        url ?: return null
+        return runCatching {
+            android.net.Uri.parse(url).host?.lowercase()?.removePrefix("www.")
+        }.getOrNull()
+    }
+
     /** Current exclude-domain for the running prefill (updated without restarting). */
     @Volatile private var prefetchExcludeDomain: String? = null
 
@@ -1814,11 +1849,18 @@ class MainViewModel(
                         // function's `count` parameter. This replaces N individual API
                         // calls with 1 batched call, reducing cold-start pressure.
                         val batchSize = minOf(5, WARM_TARGET - warmSize)
+                        // #125: tell the server which domains we already hold. Without it
+                        // a redundant batch is non-empty, so `warmFails` never trips and the
+                        // loop re-requests every 500 ms while the queue stays starved.
+                        // The single `exclude_domain` below rides along separately; the
+                        // edge function merges the two.
+                        val excludeDomains = prefetchMutex.withLock { bufferedDomainsLocked() }
                         val candidates = runCatching {
                             repo.roamBatch(
                                 count = batchSize,
                                 collectionId = _activeCollectionId.value,
                                 excludeDomain = prefetchExcludeDomain,
+                                excludeDomains = excludeDomains,
                                 categoryId = if (_focusModeEnabled.value) _focusCategoryId.value else null,
                                 subcategoryId = if (_focusModeEnabled.value) _focusSubcategoryId.value else null,
                                 prefetch = true,
