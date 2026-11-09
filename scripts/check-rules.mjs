@@ -420,6 +420,40 @@ function checkWorkflowPathFilter(file) {
   }
 }
 
+// ─── R12: Remote Supabase commands must name --project-ref ────────────────
+// `supabase db push` with no `--project-ref` targets whatever the CLI is linked
+// to. Locally that link is staging (`supabase/.temp/project-ref`), which is how
+// 8 migrations landed on staging on 2026-11-09 while the run was reported as
+// production. The environment table lives in RUNBOOK.md.
+//
+// Scope is deliberately workflows only. Both deploy workflows legitimately run
+// `supabase link --project-ref …` and then `db push --remote`, so a file-level
+// explicit link satisfies the rule; an unlinked file must name the ref on the
+// command. Docs are excluded because prose ("a migration blocks `supabase db
+// push`") is indistinguishable from a command line by line, and the resulting
+// noise would train everyone to ignore the check.
+const SUPABASE_REMOTE_RE = /\bsupabase(?:\.exe)?\s+(?:db\s+push|db\s+reset|functions\s+(?:deploy|delete)|secrets\s+set)\b/i;
+
+function checkRemoteSupabaseTarget(file) {
+  const rel = relative(ROOT, file).replace(/\\/g, '/');
+  if (!rel.startsWith('.github/workflows/')) return;
+  let content;
+  try { content = readFileSync(file, "utf8"); } catch { /* file unreadable - skip */ return; }
+  // An explicit link earlier in the job anchors every later command to a named ref.
+  if (/supabase\s+link\s+--project-ref\b/i.test(content)) return;
+  if (isAllowed('R12', rel)) return;
+  const lines = content.split(/\r?\n/);
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    if (!SUPABASE_REMOTE_RE.test(line)) continue;
+    if (/--project-ref\b/i.test(line)) continue;
+    // `db reset --local` never leaves the machine.
+    if (/\bdb\s+reset\b/i.test(line) && /--local\b/i.test(line)) continue;
+    fail('R12', rel, i + 1,
+      'remote Supabase command without --project-ref and no `supabase link --project-ref` in this workflow - it would target the linked project (staging). See RUNBOOK.md - Environments.');
+  }
+}
+
 // ─── Run all per-file checks ──────────────────────────────────────────────
 console.log(`Scanning ${sourceFiles.length} source files...`);
 
@@ -433,6 +467,7 @@ for (const file of sourceFiles) {
 
 for (const file of workflowFiles) {
   checkWorkflowPathFilter(file);
+  checkRemoteSupabaseTarget(file);
 }
 
 // ─── Report ────────────────────────────────────────────────────────────────
