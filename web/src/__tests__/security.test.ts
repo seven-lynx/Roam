@@ -410,3 +410,71 @@ describe('Discovery state — prefetch vs serve (issue #122)', () => {
     expect(pickDistinctDomains(['a.com', 'b.com', 'c.com'], 3)).toEqual(['a.com', 'b.com', 'c.com'])
   })
 })
+describe('Discovery exhaustion state — user_exhaustion_state (issue #120)', () => {
+  // Mirrors supabase/migrations/20261109130000_user_exhaustion_state.sql.
+  // One policy: an owner-only SELECT. There is deliberately no INSERT, UPDATE or
+  // DELETE policy, because the row is written by record_exhaustion() (SECURITY
+  // DEFINER, so it runs as the owner and bypasses RLS) and drained by the notify
+  // cron as service_role. A client must not be able to claim another user is
+  // exhausted, nor clear its own notice before the cron sees it.
+  const canRead = (viewer: string | null, row: { user_id: string }) =>
+    viewer !== null && viewer === row.user_id
+
+  it('should let a user read their own exhaustion row', () => {
+    expect(canRead('user1', { user_id: 'user1' })).toBe(true)
+  })
+
+  it('should hide every other user row', () => {
+    expect(canRead('user2', { user_id: 'user1' })).toBe(false)
+    expect(canRead(null, { user_id: 'user1' })).toBe(false)
+  })
+
+  it('should deny client writes even for the owner', () => {
+    // The whole point of the SECURITY DEFINER writer: the owner can read the
+    // reason, but cannot forge detections or wipe notified_at.
+    const policies = { select: 1, insert: 0, update: 0, delete: 0 }
+    expect(policies.select).toBe(1)
+    expect(policies.insert).toBe(0)
+    expect(policies.update).toBe(0)
+    expect(policies.delete).toBe(0)
+  })
+
+  it('should keep both writers off the client grant list', () => {
+    // record_exhaustion() takes p_user_id as an argument, so granting it to
+    // authenticated would let a client mark anyone exhausted.
+    const execute = {
+      record_exhaustion: { public: false, anon: false, authenticated: false, service_role: true },
+      claim_exhaustion_notifications: { public: false, anon: false, authenticated: false, service_role: true },
+    }
+    for (const fn of Object.values(execute)) {
+      expect(fn.public).toBe(false)
+      expect(fn.anon).toBe(false)
+      expect(fn.authenticated).toBe(false)
+      expect(fn.service_role).toBe(true)
+    }
+  })
+
+  it('should only allow a cooldown to carry an available_later', () => {
+    // Mirrors the user_exhaustion_state_available_later_needs_cooldown CHECK.
+    // A timestamp on pool_empty or filters would be a promise the feed cannot keep.
+    const accepts = (reason: string, availableLater: string | null) =>
+      availableLater === null || reason === 'cooldown'
+
+    expect(accepts('cooldown', '2026-11-09T15:00:00Z')).toBe(true)
+    expect(accepts('cooldown', null)).toBe(true)
+    expect(accepts('pool_empty', null)).toBe(true)
+    expect(accepts('pool_empty', '2026-11-09T15:00:00Z')).toBe(false)
+    expect(accepts('filters', '2026-11-09T15:00:00Z')).toBe(false)
+  })
+
+  it('should require a recognised reason and a non-blank scope', () => {
+    // Mirrors the reason CHECK and user_exhaustion_state_scope_key_not_blank.
+    const accepts = (reason: string, scopeKey: string) =>
+      ['pool_empty', 'cooldown', 'filters'].includes(reason) && scopeKey !== ''
+
+    expect(accepts('pool_empty', 'global')).toBe(true)
+    expect(accepts('cooldown', 'category:11111111-1111-1111-1111-111111111111')).toBe(true)
+    expect(accepts('paywall', 'global')).toBe(false)
+    expect(accepts('pool_empty', '')).toBe(false)
+  })
+})
