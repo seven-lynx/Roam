@@ -77,7 +77,7 @@ class MainViewModelTest {
         coEvery { repo.roam(any(), any(), any(), any()) } returns null
         // Belt and braces: an empty batch means even a restarted prefill worker
         // backs off through delay() instead of spinning.
-        coEvery { repo.roamBatch(any(), any(), any(), any(), any(), any()) } returns emptyList()
+        coEvery { repo.roamBatch(any(), any(), any(), any(), any(), any(), any()) } returns emptyList()
         // hasSession() must be false while the ViewModel is constructed: init
         // launches `while (isActive) { delay(60_000); checkForNewCelebrations() }`
         // when it is true, and advanceUntilIdle() would spin that endless loop
@@ -101,6 +101,29 @@ class MainViewModelTest {
         clearAllMocks()
         org.robolectric.shadows.ShadowLooper.idleMainLooper()
         Dispatchers.resetMain()
+    }
+
+    // ─── Prefetch exclusions (#125) ────────────────────────────────────────────
+
+    @Test
+    fun `bufferedDomainsLocked reports held hosts in urls domain form`() {
+        vm.hotQueue.addLast(RoamUrl(id = "hot-1", url = "https://www.Example.com/a"))
+        vm.warmQueue.addLast(RoamUrl(id = "warm-1", url = "https://someone.itch.io/game"))
+        vm.warmQueue.addLast(RoamUrl(id = "warm-2", url = "https://example.com/dupe"))
+
+        // Both queues, deduped by host as the server stores it: `www.` and case
+        // collapse, and a subdomain keeps its own host because the RPC compares
+        // `u.domain != ALL(...)` exactly. The registrable-domain form ("itch.io")
+        // would match no row at all.
+        assertEquals(
+            listOf("example.com", "someone.itch.io"),
+            vm.bufferedDomainsLocked(),
+        )
+    }
+
+    @Test
+    fun `bufferedDomainsLocked is empty when nothing is held`() {
+        assertTrue(vm.bufferedDomainsLocked().isEmpty())
     }
 
     // ─── Initial state ─────────────────────────────────────────────────────────

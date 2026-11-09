@@ -62,6 +62,41 @@ sealed interface SubmitResult {
  */
 class RetryableRoamException(message: String) : Exception(message)
 
+/**
+ * Body for the batch path of POST /functions/v1/roam.
+ *
+ * Extracted from [RoamRepository.roamBatch] so the wire shape can be asserted
+ * offline — the call itself needs a session and a network.
+ *
+ * [excludeDomains] is #125: a prefetch writes no discovery state (issue #122),
+ * so two batches have no memory of each other and the second can hand back a
+ * domain we already hold. The server already accepts the array
+ * (`exclude_domains`, merged with `exclude_domain` and passed through to
+ * `roam_prefetch`), and web/extension both send it; Android did not, so the
+ * batch could come back entirely redundant and the warm queue stopped refilling.
+ */
+internal fun buildRoamBatchBody(
+    count: Int,
+    collectionId: String? = null,
+    excludeDomain: String? = null,
+    excludeDomains: List<String> = emptyList(),
+    categoryId: String? = null,
+    subcategoryId: String? = null,
+    prefetch: Boolean = true,
+): JsonObject = buildJsonObject {
+    put("count", count)
+    collectionId?.let { put("collection_id", it) }
+    excludeDomain?.let { put("exclude_domain", it) }
+    // Omitted when empty: `[]` and "absent" mean the same thing to the edge
+    // function, and an empty array is noise in the request log.
+    if (excludeDomains.isNotEmpty()) {
+        put("exclude_domains", buildJsonArray { excludeDomains.forEach { add(it) } })
+    }
+    categoryId?.let { put("category_id", it) }
+    subcategoryId?.let { put("subcategory_id", it) }
+    if (prefetch) put("prefetch", true)
+}
+
 class RoamRepository {
 
     private val json = kotlinx.serialization.json.Json {
@@ -217,18 +252,20 @@ class RoamRepository {
         count: Int = 5,
         collectionId: String? = null,
         excludeDomain: String? = null,
+        excludeDomains: List<String> = emptyList(),
         categoryId: String? = null,
         subcategoryId: String? = null,
         prefetch: Boolean = true,
     ): List<RoamUrl> {
-        val body = buildJsonObject {
-            put("count", count)
-            collectionId?.let { put("collection_id", it) }
-            excludeDomain?.let { put("exclude_domain", it) }
-            categoryId?.let { put("category_id", it) }
-            subcategoryId?.let { put("subcategory_id", it) }
-            if (prefetch) put("prefetch", true)
-        }
+        val body = buildRoamBatchBody(
+            count = count,
+            collectionId = collectionId,
+            excludeDomain = excludeDomain,
+            excludeDomains = excludeDomains,
+            categoryId = categoryId,
+            subcategoryId = subcategoryId,
+            prefetch = prefetch,
+        )
 
         if (!ensureAuthenticated()) {
             val status = supabase.auth.sessionStatus.value

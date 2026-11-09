@@ -67,6 +67,47 @@ class RoamRepositoryTest {
         validateUrlId("   ")
     }
 
+    // ─── Roam batch body (#125) ────────────────────────────────────────────────
+
+    @Test
+    fun `roam batch body omits exclude_domains when nothing is held`() {
+        val body = buildRoamBatchBody(count = 5)
+
+        assertEquals("5", body["count"].toString())
+        assertNull(body["exclude_domains"])
+        assertEquals("true", body["prefetch"].toString())
+    }
+
+    @Test
+    fun `roam batch body sends the held domains as exclude_domains`() {
+        val body = buildRoamBatchBody(
+            count = 3,
+            excludeDomains = listOf("example.com", "someone.itch.io"),
+        )
+
+        assertEquals("[\"example.com\",\"someone.itch.io\"]", body["exclude_domains"].toString())
+    }
+
+    @Test
+    fun `roam batch body keeps the single exclude_domain beside the array`() {
+        // The edge function merges the two (`supabase/functions/roam/index.ts:88-95`),
+        // so both stay on the wire rather than one replacing the other.
+        val body = buildRoamBatchBody(
+            count = 2,
+            excludeDomain = "just-served.example",
+            excludeDomains = listOf("held.example"),
+            categoryId = "cat-1",
+            subcategoryId = "sub-1",
+            prefetch = false,
+        )
+
+        assertEquals("\"just-served.example\"", body["exclude_domain"].toString())
+        assertEquals("[\"held.example\"]", body["exclude_domains"].toString())
+        assertEquals("\"cat-1\"", body["category_id"].toString())
+        assertEquals("\"sub-1\"", body["subcategory_id"].toString())
+        assertNull(body["prefetch"])
+    }
+
     // ─── Model defaults ────────────────────────────────────────────────────────
 
     @Test

@@ -120,7 +120,7 @@ Returns a single weighted-random unseen URL matching the user's category prefere
 - When `collection_id` is provided, category filtering is bypassed and URLs are drawn from `collection_items`
 - When `count > 1`, multiple RPC calls are made and results are returned as an array; duplicate URLs within the batch are de-duplicated (on the `prefetch` path the batching happens in `roam_prefetch()` instead, in a single call)
 - **`prefetch: true` writes no discovery state** (issue #122): the call routes to `roam_prefetch()`, which leaves `seen_urls` and `user_domain_cooldowns` untouched. A prefetched URL is recorded only when the client serves it — `mark_url_seen()`, called by the web deck's `roamBufferNext()` and the Android hot-queue pop. Cache the ids you fetch and record the one the user actually sees, once.
-- Because a prefetch records nothing, two prefetch calls have no memory of each other and can return the same URLs. Pass `exclude_domains` with the domains you are already holding (the web deck does: `web/src/lib/roam-buffer.ts`) so a batch does not come back redundant.
+- Because a prefetch records nothing, two prefetch calls have no memory of each other and can return the same URLs. Pass `exclude_domains` with the domains you are already holding — in the server's own `urls.domain` form (lowercased host, `www.` stripped), because the RPC compares with `u.domain != ALL(...)` — so a batch does not come back redundant. All three buffered clients do: the web deck (`bufferedDomains()`, `web/src/lib/roam-buffer.ts`), the extension (`recentDomains`, `extension/src/background/background.ts`) and the Android hot/warm queues (`bufferedDomainsLocked()`, `MainViewModel.kt`, issue #125). Only the domains actually buffered are worth excluding: a redundant batch is *non-empty*, so a fill loop sees "nothing new" rather than "nothing left" and keeps re-requesting.
 - Gamification (streak update + XP award) is fire-and-forget for non-prefetch, first result only
 - Response includes `Cache-Control: private, max-age=5` header
 
@@ -141,7 +141,11 @@ chrome.tabs.update(tab.id, { url: response.data.url });
 **Example (Batch prefetch):**
 ```typescript
 const { data } = await supabase.functions.invoke('roam', {
-  body: { count: 5, prefetch: true }
+  body: {
+    count: 5,
+    prefetch: true,
+    exclude_domains: ['example.com', 'someone.itch.io'], // domains already buffered
+  },
 });
 // data is an array of 5 URLs (fewer if pool is exhausted)
 ```
