@@ -610,6 +610,32 @@ class RoamRepository {
     }
 
     /**
+     * Marks a URL as served: writes the `seen_urls` row and refreshes the 24 h
+     * domain cooldown.
+     *
+     * Prefetched URLs deliberately carry no discovery state (issue #122) — the
+     * `roam` edge function calls `roam_prefetch()` for them, which writes neither.
+     * The row therefore has to be created here, when a buffered URL actually
+     * reaches the screen; otherwise `report-engagement`'s UPDATE matches 0 rows,
+     * the skip penalty never sets, and the domain cooldown never fires for a real
+     * serve, so the deck keeps re-serving the same domain.
+     */
+    suspend fun markUrlSeen(urlId: String) {
+        if (urlId.isBlank()) return
+        runCatching {
+            supabase.postgrest.rpc(
+                function = "mark_url_seen",
+                parameters = buildJsonObject { put("p_url_id", urlId) },
+            )
+        }.onFailure {
+            android.util.Log.w(
+                "RoamRepository",
+                "mark_url_seen failed: ${it.javaClass.simpleName}: ${it.message}",
+            )
+        }
+    }
+
+    /**
      * Sends user feedback via a Supabase edge function.
      */
     suspend fun sendFeedback(message: String, email: String?) {

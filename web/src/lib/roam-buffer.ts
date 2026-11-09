@@ -79,6 +79,12 @@ async function fetchWarmBatch(count: number, excludeDomain?: string | null): Pro
 
   const body: Record<string, unknown> = { count, prefetch: true };
   if (excludeDomain) body.exclude_domain = excludeDomain;
+  // Prefetch records nothing (issue #122), so a second call has no memory of the
+  // first and can return the same URLs. Ask the server to skip the domains we are
+  // already holding — otherwise a full batch can come back entirely redundant and
+  // the buffer stops filling until a serve cools a domain.
+  const buffered = bufferedDomains();
+  if (buffered.length > 0) body.exclude_domains = buffered;
 
   const res = await fetch(`${base}/functions/v1/roam`, {
     method: 'POST',
@@ -112,6 +118,16 @@ async function validateUrls(urls: string[]): Promise<Map<string, 'reachable' | '
     /* validation unavailable: leave empty so nothing is promoted this tick */
   }
   return out;
+}
+
+/** Domains currently held in either queue, as the prefetch exclusion list. */
+function bufferedDomains(): string[] {
+  const out = new Set<string>();
+  for (const entry of [...hotQueue, ...warmQueue]) {
+    const d = extractDomain(entry.url);
+    if (d) out.add(d);
+  }
+  return [...out];
 }
 
 function domainQueued(url: string): boolean {
@@ -171,6 +187,31 @@ export async function roamBufferTick(excludeDomain?: string | null): Promise<voi
 }
 
 /**
+ * Record a buffered URL as seen.
+ *
+ * A prefetched URL carries no discovery state (issue #122): `roam_prefetch` writes
+ * neither `seen_urls` nor a domain cooldown, so the row has to be created when the
+ * URL actually reaches the screen. Without this, `report-engagement` would update
+ * nothing, the skip penalty would never set, and the 24 h domain cooldown would
+ * never fire for a served URL — the deck would keep re-serving the same domain.
+ *
+ * Fire-and-forget on purpose: the URL is already on its way to the screen, and a
+ * failed bookkeeping call must not cost the user their page.
+ */
+function markSeen(urlId: string): void {
+  void (async () => {
+    try {
+      const supabase = createClient();
+      if (typeof supabase.rpc !== 'function') return;
+      const { error } = await supabase.rpc('mark_url_seen', { p_url_id: urlId });
+      if (error) console.error('[roam] mark_url_seen failed', error.message);
+    } catch (e) {
+      console.error('[roam] mark_url_seen failed', e);
+    }
+  })();
+}
+
+/**
  * Pop the next validated (hot) URL, skipping any entry whose domain matches
  * `excludeDomain`. Returns null when the hot queue has nothing servable — the
  * caller should fall back to a direct catalog query.
@@ -180,6 +221,8 @@ export function roamBufferNext(excludeDomain?: string | null): RoamBufferUrl | n
     if (excludeDomain && extractDomain(hotQueue[i].url) === excludeDomain) continue;
     const [entry] = hotQueue.splice(i, 1);
     emit();
+    // Handing it over is the serve, so this is where it gets recorded.
+    if (entry.id) markSeen(entry.id);
     return entry;
   }
   return null;

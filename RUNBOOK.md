@@ -223,6 +223,11 @@ Non-additive migrations (DROP, ALTER TYPE, …) must document a rollback here.
 - Rollback: Redeploy the pre-upsert `report-url` first — it fails with "no unique or exclusion constraint matching the ON CONFLICT specification" the moment `uq_url_reports_url_user` is dropped. Then: `DROP FUNCTION IF EXISTS public.report_url_failures(jsonb); DROP TABLE IF EXISTS public.url_failure_reports; DROP TRIGGER IF EXISTS trg_urls_inactive_since_ins ON public.urls; DROP TRIGGER IF EXISTS trg_urls_inactive_since ON public.urls; DROP FUNCTION IF EXISTS public.handle_urls_inactive_since(); ALTER TABLE public.urls DROP COLUMN IF EXISTS inactive_since; DROP INDEX IF EXISTS public.uq_url_reports_url_user; SELECT cron.unschedule('delete-old-url-failure-reports');`
 - Irreversible: the `url_reports` dedupe deletes duplicate rows. They are not recoverable; only write this migration off if the retired pairs can be re-collected from clients.
 
+### 20261109060000_roam_v38_prefetch_skips_state.sql
+- Change: Adds `public.mark_url_seen(url_id, cool_domain)` (the single definition of "a serve happened": the `seen_urls` upsert plus the 24 h domain cooldown) and `public.roam_prefetch(user, count, exclude_domains, category, subcategory)`, which sets the transaction-local GUC `roam.prefetch` and loops `roam()` accumulating returned domains. `roam()` keeps its six-argument signature, so the gate is a `CREATE OR REPLACE` — the OID and the existing grants survive and no second overload can appear. Prefetch stops consuming discovery state (issue #122).
+- Rollback: Re-apply the `roam()` body from `20261109043000_roam_v37_bounded_exhaustion.sql`, then `DROP FUNCTION IF EXISTS public.roam_prefetch(uuid, integer, text[], uuid, uuid); DROP FUNCTION IF EXISTS public.mark_url_seen(uuid, boolean);`. **Deploy the Edge Function first in that direction**: the current `roam` function calls `roam_prefetch`, which 503s every prefetch until it is redeployed. The clients swallow that, so the failure mode is an empty prefetch buffer, not a broken serve.
+- Related: `docs/API.md` (`roam`, `roam_prefetch()`, `mark_url_seen()`), `docs/ALGORITHM.md` §9.
+
 ## How to cut an entry
 
 When to write an entry:

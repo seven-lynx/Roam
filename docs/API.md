@@ -43,6 +43,8 @@ Complete documentation of all Supabase Edge Functions and PostgreSQL RPC functio
   - [`sentry-webhook` — Sentry → GitHub issue bridge (webhook)](#sentry-webhook--sentry--github-issue-bridge-webhook)
 - [RPC Functions (Database)](#rpc-functions-database)
   - [`roam()` — Weighted-random URL discovery](#roam--weighted-random-url-discovery)
+  - [`roam_prefetch()` — Batch discovery that records nothing](#roam_prefetch--batch-discovery-that-records-nothing)
+  - [`mark_url_seen()` — Record a serve](#mark_url_seen--record-a-serve)
   - [`admin_url_stats()` — Fetch admin dashboard statistics](#admin_url_stats--fetch-admin-dashboard-statistics)
   - [`report_url_failures()` — Record URL failures and retire repeat offenders](#report_url_failures--record-url-failures-and-retire-repeat-offenders)
 - [Error Codes](#error-codes)
@@ -80,7 +82,8 @@ Returns a single weighted-random unseen URL matching the user's category prefere
   "category_id": "uuid|null",        // Optional: filter to a specific pillar category
   "subcategory_id": "uuid|null",     // Optional: filter to a specific subcategory
   "count": 1,                        // Optional: batch count (1–10, defaults to 1)
-  "prefetch": false                  // Optional: when true, suppresses gamification awards
+  "prefetch": false                  // Optional: when true, no discovery state is written
+                                       //   and gamification is suppressed (see Notes)
 }
 ```
 
@@ -115,7 +118,9 @@ Returns a single weighted-random unseen URL matching the user's category prefere
 **Notes:**
 - Internally calls the `roam()` RPC function which handles seen URL tracking, language filtering, paywall filtering, domain cooldown, and scoring
 - When `collection_id` is provided, category filtering is bypassed and URLs are drawn from `collection_items`
-- When `count > 1`, multiple RPC calls are made and results are returned as an array; duplicate URLs within the batch are de-duplicated
+- When `count > 1`, multiple RPC calls are made and results are returned as an array; duplicate URLs within the batch are de-duplicated (on the `prefetch` path the batching happens in `roam_prefetch()` instead, in a single call)
+- **`prefetch: true` writes no discovery state** (issue #122): the call routes to `roam_prefetch()`, which leaves `seen_urls` and `user_domain_cooldowns` untouched. A prefetched URL is recorded only when the client serves it — `mark_url_seen()`, called by the web deck's `roamBufferNext()` and the Android hot-queue pop. Cache the ids you fetch and record the one the user actually sees, once.
+- Because a prefetch records nothing, two prefetch calls have no memory of each other and can return the same URLs. Pass `exclude_domains` with the domains you are already holding (the web deck does: `web/src/lib/roam-buffer.ts`) so a batch does not come back redundant.
 - Gamification (streak update + XP award) is fire-and-forget for non-prefetch, first result only
 - Response includes `Cache-Control: private, max-age=5` header
 
@@ -1610,7 +1615,7 @@ Called via `supabase.rpc()`, not HTTP. These are PostgreSQL functions that run s
 
 ### `roam()` — Weighted-random URL discovery
 
-Primary RPC function for URL discovery. Selects a weighted-random URL from the user's categories, excludes seen URLs, handles language filtering and paywall filtering. **Current version: v37.** (See `docs/ALGORITHM.md` for the scoring model; `supabase/CHANGELOG.md` for the version history.)
+Primary RPC function for URL discovery. Selects a weighted-random URL from the user's categories, excludes seen URLs, handles language filtering and paywall filtering. **Current version: v38.** (See `docs/ALGORITHM.md` for the scoring model; `supabase/CHANGELOG.md` for the version history.)
 
 **Call Signature:**
 ```sql
@@ -1657,6 +1662,71 @@ id, url, title, description, og_image_url, category_id, subcategory_id, wilson_s
 - **Net effect:** saturated scope **~97 ms** (was 17-22 s) and the near-empty path **~1.4 s** (was 44 s). `scripts/verify-roam-rpc.mjs` guards the regression with a static check for `<> ALL` on those arrays.
 
 **Implementation note:** Runs as `SECURITY DEFINER` (elevated privileges) with `statement_timeout = '30s'`. The Edge Function handles timeout gracefully and returns 503.
+
+**Discovery state (v38, issue #122):** A returned row used to always write a `seen_urls` row and refresh a 24 h `user_domain_cooldowns` entry. It now does that through `mark_url_seen()` **unless** the transaction-local GUC `roam.prefetch` is `'on'` — which only `roam_prefetch()` sets. The flag is a GUC rather than a 7th parameter because `CREATE OR REPLACE FUNCTION` cannot add an argument: a new signature would land as a *second overload*, which PostgREST cannot resolve reliably. `scripts/verify-roam-rpc.mjs` enforces both invariants (exactly one `roam()` overload; the body still consults the flag).
+
+---
+
+### `roam_prefetch()` — Batch discovery that records nothing
+
+The batch path behind `prefetch: true` on the `roam` Edge Function. Sets `roam.prefetch` for the duration of the transaction, then loops `roam()` accumulating the domains already returned.
+
+**Call Signature:**
+```sql
+SELECT * FROM roam_prefetch(
+  p_user_id uuid,
+  p_count integer DEFAULT 5,
+  p_exclude_domains text[] DEFAULT NULL,
+  p_category_id uuid DEFAULT NULL,
+  p_subcategory_id uuid DEFAULT NULL
+)
+```
+
+**Parameters:**
+- `p_user_id` — Must equal `auth.uid()`; anything else raises `Unauthorized`
+- `p_count` — Rows wanted, clamped to 1–10
+- `p_exclude_domains` — Domains to exclude up front (the Edge Function passes its merged list)
+- `p_category_id` / `p_subcategory_id` — Same filters as `roam()`
+
+**Returns:** the same eight columns as `roam()`, one row per URL, up to `p_count`.
+
+**Details:**
+- **Writes nothing.** No `seen_urls`, no `user_domain_cooldowns`. That is the entire point (issue #122): a prefetch must not cost the user discovery state.
+- **Why it loops with a domain exclusion.** A non-writing `roam()` would return the same top-scored row every iteration. The domains already returned are appended to the exclusion array, so each iteration differs — and it costs one round trip instead of `p_count` (the web deck used to fire 5 sequential calls every 4,000 ms).
+- **Domain granularity matches the clients,** whose buffers are domain-deduped anyway.
+- **Exhaustion** returns fewer rows (or none); the Edge Function maps an empty result to `404 { exhausted: true }`.
+- `SECURITY DEFINER`, `search_path = public`, `statement_timeout = '45s'`, `EXECUTE` granted to `authenticated` only.
+
+---
+
+### `mark_url_seen()` — Record a serve
+
+Creates the `seen_urls` row and refreshes the 24 h domain cooldown for the calling user. Called by `roam()` for a real serve, and directly by the clients when a **prefetched** URL reaches the screen.
+
+**Call Signature:**
+```sql
+SELECT mark_url_seen(
+  p_url_id uuid,
+  p_cool_domain boolean DEFAULT true
+)
+```
+
+**Parameters:**
+- `p_url_id` — URL that was shown
+- `p_cool_domain` — Defaults to `true`. `roam()` passes `false` when browsing a collection, matching the behaviour before v38.
+
+**Returns:** `void`.
+
+**Details:**
+- Upserts `seen_urls` with `ON CONFLICT (user_id, url_id) DO UPDATE SET seen_at = now(), dwell_ms = NULL, skipped = NULL` — a re-seen URL moves to the top of the 3,000-row exclusion window and its engagement fields reset.
+- Refreshes `user_domain_cooldowns` to `now() + 24 hours`, but only in discovery mode (`user_settings.discovery_mode = 'discovery'`) and only when `p_cool_domain`.
+- The user comes from `auth.uid()`, so there is no `p_user_id` to spoof. `SECURITY DEFINER`, `search_path = public`, `EXECUTE` granted to `authenticated` only.
+
+**Example (Web / Android hot path):**
+```typescript
+// Prefetched URLs carry no state; record the one the user actually sees.
+await supabase.rpc('mark_url_seen', { p_url_id: urlId });
+```
 
 ---
 

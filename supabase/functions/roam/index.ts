@@ -102,60 +102,101 @@ Deno.serve(async (req) => {
       return json({ error: 'Discovery temporarily unavailable. Please try again.', retryable: true }, 503)
     }
 
-    // ── Batch discovery (sequential) ──────────────────────────────────────────
-    // Calls the roam RPC sequentially — parallelization is left to the caller
-    // (Android prefetch loop) to avoid overwhelming DB connection pools.
     const isPrefetch = body.prefetch === true
     let timedOut = false
     const seenIds = new Set<string>()
     const results: Array<Record<string, unknown>> = []
 
-    for (let i = 0; i < count; i++) {
-      const { data, error } = await supabase.rpc('roam', rpcParams)
+    /** Shape a roam()/roam_prefetch() row for the client. */
+    const toEntry = (row: Record<string, unknown>) => ({
+      id:             row.id,
+      url:            row.url,
+      title:          row.title,
+      description:    row.description,
+      og_image_url:   row.og_image_url,
+      category_id:    row.category_id ?? null,
+      subcategory_id: row.subcategory_id ?? null,
+      wilson_score:   row.wilson_score,
+    })
+
+    // ── Prefetch: one round trip, and no discovery state written (issue #122) ─
+    // roam_prefetch sets a transaction-local flag, so its nested roam() calls
+    // return rows without touching seen_urls or a domain cooldown, and it loops
+    // server-side so a batch costs one call instead of `count`. The clients call
+    // mark_url_seen when a buffered URL actually reaches the screen — that is the
+    // only place that state should be created for a prefetched URL.
+    if (isPrefetch) {
+      const { data, error } = await supabase.rpc('roam_prefetch', {
+        p_user_id: user.id,
+        p_count: count,
+        p_exclude_domains: (rpcParams.p_exclude_domains as string[] | undefined) ?? null,
+        p_category_id: categoryId,
+        p_subcategory_id: subcategoryId,
+      })
       if (error) {
         const pgError = error as { code?: string; message?: string; details?: string }
         const errCode = pgError.code ?? 'unknown'
-        const errMsg = pgError.message ?? ''
-        const errDetails = pgError.details ?? ''
-        console.error('roam RPC error', JSON.stringify({ code: errCode, message: errMsg, details: errDetails, attempt: i + 1, rpcParams }))
-        // Capture the underlying pg error to Sentry so a broken function pings.
-        await report(new Error(`roam RPC error ${errCode}: ${errMsg}`), 'error', {
+        console.error('roam_prefetch RPC error', JSON.stringify({
+          code: errCode,
+          message: pgError.message ?? '',
+          details: pgError.details ?? '',
+        }))
+        await report(new Error(`roam_prefetch RPC error ${errCode}: ${pgError.message ?? ''}`), 'error', {
           pg_code: errCode,
-          pg_details: errDetails,
-          attempt: i + 1,
+          pg_details: pgError.details ?? '',
         })
         recordFailure()
-        const isTimeout = errCode === '57014' || errCode === '57P01'
-          || errMsg.toLowerCase().includes('timeout')
-          || errMsg.toLowerCase().includes('canceling statement')
-          || errMsg.toLowerCase().includes('query_canceled')
-        if (isTimeout) {
-          timedOut = true
-          continue
-        }
-        if (count > 1) continue
-        // A DB exception is never "exhausted". 503 tells the client to retry.
-        return json({ error: 'Discovery failed. Please try again.', retryable: true }, 503)
+        // Same contract the sequential loop produced when every call failed: the
+        // client stops filling this tick and retries on the next one.
+        return json({ error: 'No more URLs to discover', exhausted: true }, 404)
       }
       recordSuccess()
-
-      const row = Array.isArray(data) ? data[0] : null
-      if (!row) continue // pool exhausted for this call
-
-      if (seenIds.has(row.id)) continue
-      seenIds.add(row.id)
-
-      const entry = {
-        id:             row.id,
-        url:            row.url,
-        title:          row.title,
-        description:    row.description,
-        og_image_url:   row.og_image_url,
-        category_id:    row.category_id ?? null,
-        subcategory_id: row.subcategory_id ?? null,
-        wilson_score:   row.wilson_score,
+      for (const row of Array.isArray(data) ? data : []) {
+        const entry = row as Record<string, unknown>
+        const id = entry.id
+        if (typeof id !== 'string' || seenIds.has(id)) continue
+        seenIds.add(id)
+        results.push(toEntry(entry))
       }
-      results.push(entry)
+    } else {
+      // ── Serve path: sequential, so a slow user cannot fill the pool ─────────
+      for (let i = 0; i < count; i++) {
+        const { data, error } = await supabase.rpc('roam', rpcParams)
+        if (error) {
+          const pgError = error as { code?: string; message?: string; details?: string }
+          const errCode = pgError.code ?? 'unknown'
+          const errMsg = pgError.message ?? ''
+          const errDetails = pgError.details ?? ''
+          console.error('roam RPC error', JSON.stringify({ code: errCode, message: errMsg, details: errDetails, attempt: i + 1, rpcParams }))
+          // Capture the underlying pg error to Sentry so a broken function pings.
+          await report(new Error(`roam RPC error ${errCode}: ${errMsg}`), 'error', {
+            pg_code: errCode,
+            pg_details: errDetails,
+            attempt: i + 1,
+          })
+          recordFailure()
+          const isTimeout = errCode === '57014' || errCode === '57P01'
+            || errMsg.toLowerCase().includes('timeout')
+            || errMsg.toLowerCase().includes('canceling statement')
+            || errMsg.toLowerCase().includes('query_canceled')
+          if (isTimeout) {
+            timedOut = true
+            continue
+          }
+          if (count > 1) continue
+          // A DB exception is never "exhausted". 503 tells the client to retry.
+          return json({ error: 'Discovery failed. Please try again.', retryable: true }, 503)
+        }
+        recordSuccess()
+
+        const row = Array.isArray(data) ? data[0] : null
+        if (!row) continue // pool exhausted for this call
+
+        if (seenIds.has(row.id)) continue
+        seenIds.add(row.id)
+
+        results.push(toEntry(row as Record<string, unknown>))
+      }
     }
 
     if (results.length === 0 && timedOut) {

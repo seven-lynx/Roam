@@ -2,6 +2,21 @@
 
 All notable changes to the Roam Supabase backend (PostgreSQL schema, Row-Level Security, and Deno Edge Functions).
 
+## [2026-11-09] — `roam()` v38: prefetch stops consuming discovery state (issue #122)
+### Fixed
+- **A prefetch no longer writes `seen_urls` or refreshes a domain cooldown.** The `roam` Edge Function's `prefetch` flag only gated XP, so every buffered URL cost a seen row and a 24 h `user_domain_cooldowns` entry exactly like a real serve. With the web deck ticking every 4,000 ms in batches of 5, a user who reads 12 URLs in a minute buffered enough to cool every domain in a narrow scope for a day — the state #118 then had to make cheap to *detect*. Prefetch now routes to `roam_prefetch()`, which sets the transaction-local GUC `roam.prefetch` and loops `roam()`, accumulating returned domains so a non-writing `roam()` still yields distinct rows.
+- **`roam()` keeps its 6-argument signature**, so the write gate could be added with `CREATE OR REPLACE`: the OID and the existing `REVOKE`/`GRANT` survive and no second overload can appear. Adding a 7th parameter would have landed as an overload beside the 6-argument one (PostgREST cannot resolve that reliably), and a `DROP`-and-recreate discards privileges that a replace keeps.
+- **`mark_url_seen(url_id, cool_domain)` is now the single definition of "a serve happened"** — the seen upsert plus the cooldown refresh, `SECURITY DEFINER`, keyed off `auth.uid()`. `roam()` calls it for a real serve; the clients call it when a *prefetched* URL reaches the screen, which is the only place that state should be created. Without it, a buffered-then-shown URL would get no row at all: `report-engagement`'s `UPDATE` would match 0 rows with no error, the skip penalty would never set, and the 24 h cooldown would never fire for a served URL, so the deck would keep re-serving the same domain.
+- **The batch is one round trip.** `roam_prefetch()` loops server-side, so the deck's ~94 `roam()` calls/min drops to ~19 (`count` 5 → 1 call).
+
+### Added
+- `scripts/verify-roam-rpc.mjs` guards both invariants the design rests on: **exactly one** `public.roam()` overload, and that overload's body still consults `roam.prefetch`. Neither previous static check could have caught a duplicate overload — both scan *all* overloads for a regex, so a stale 6-argument body passed them, and the DB-backed half of `rules-check.yml`'s `verify-roam-static` job is a stub that exits 0. The prefetch-gate check skips itself when `roam_prefetch()` is absent, so the pre-migration preflight still passes.
+- `docs/API.md` entries for `roam_prefetch()` and `mark_url_seen()`, and the `prefetch` request flag re-documented as "writes no discovery state".
+
+### Deploy order
+- Migration **before** Edge Function: `roam_prefetch()` does not exist until the migration lands, and the reverse order 503s every prefetch. The client already swallows that (`web/src/lib/roam-buffer.ts`), so the failure mode is an empty buffer, not a broken serve.
+
+
 ## [2026-11-09] — `roam()` v37: discovery stops paying 20 s to find nothing
 ### Fixed
 - `roam()` excludes seen URLs and cooled domains with `NOT IN (SELECT ... FROM seen_urls / user_domain_cooldowns ...)` instead of `<> ALL(array)`. `<> ALL` is a ScalarArrayOpExpr and PostgreSQL cannot hash it — the executor rescans the array for every candidate row, so a 2,000-entry seen set plus 803 cooled domains cost ~23 µs per row: **22,601 ms** for a bare seq scan carrying only those two predicates. The subquery form plans as a hashed SubPlan and the same probe now measures **97 ms** (issue #118). The shape matters: `NOT EXISTS (SELECT 1 FROM unnest(arr) ...)` does *not* hash here — `unnest` is estimated at 10 rows, so the planner picks a Nested Loop Anti Join and rescans per row (measured 3.6 s, 4.7M comparisons). Tables carry statistics; arrays do not.
