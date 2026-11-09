@@ -872,14 +872,15 @@ Reports how long the user dwelled on a served URL and whether they skipped it. C
 ```
 
 **Error Responses:**
-- **400** — Invalid input (missing url_id, negative dwell_ms, or missing skipped)
+- **400** — Invalid input (missing url_id, negative dwell_ms, missing skipped, or a url_id that does not exist)
 - **401** — Unauthorized
 - **405** — Method not allowed (must be POST)
 - **500** — Internal server error
 
 **Details:**
-- Updates the `seen_urls` row (created by the `roam()` RPC) with `dwell_ms` and `skipped` status
-- The `seen_urls` row must already exist — this function does not create it
+- Writes `dwell_ms` and `skipped` through the `report_engagement()` RPC (`SECURITY DEFINER`, keyed off `auth.uid()`)
+- **Creates the `seen_urls` row when it is absent** — a reported view is proof of a serve, so a URL that reached the screen without a row (a prefetched one, or a client that predates `mark_url_seen()`) is recorded rather than silently dropped
+- `seen_at` and the domain cooldown are left to `mark_url_seen()`: reporting engagement never re-orders the 3,000-row exclusion window or extends a cooldown
 - Idempotent: multiple calls for the same `(user, url)` are safe, last write wins
 - Typical client logic: `dwell = now - pageLoadTimestamp`, `skipped = dwell < 3000ms`
 
