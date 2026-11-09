@@ -41,12 +41,12 @@
 **Roam Status:** **Live and published (v1.2.1).** All four surfaces — Supabase backend, web app, browser extension (Chrome + Firefox), and Android app — are in production.
 
 **Completion:**
-- ✅ **Core launch complete** — Stages 1, 2, 5, 6, 8, 12, 13, 14, 15 done; Stage 3 (web) and Stage 4 (seeding) are core-complete with optional enhancements remaining
-- ⏳ **Non-blocking remainder** — Stage 7 (end-to-end testing), Stage 9 (security audit), and Stages 10/11 (polish & hardening) have a few optional items left
+- ✅ **Every task closed** — Stages 1, 2, 5, 6, 8, 13, 14, 15. Overall 300 of 369 boxes (81%).
+- ⏳ **Open work, 69 boxes** — Stage 3 (3 admin enhancements), Stage 4 (17 optional seeders), Stage 7 (9, testing), Stage 9 (5), Stage 10 (14), Stage 11 (5), Stage 12 (1, GitHub OAuth), post-launch (7), follow-up audits (8)
 - 📋 **Post-Launch:** Roadmap ready
 
 **Major Milestones:**
-- ✅ Supabase backend: 186 migrations, 27 Edge Functions, RLS on every table
+- ✅ Supabase backend: 187 migrations, 30 Edge Functions, RLS on every table
 - ✅ Web app (Next.js 16), browser extension (MV3), Android app (Kotlin/Compose) — all published
 - ✅ ROAM-OS cyberdeck — 3D cyberdeck desktop (`/desktop`) + window manager + four in-device programs (RELAY, BOTFIELD, COMPILER, DEBRIS)
 - ✅ ~990K URLs live in the discovery pool (down from ~2.8M after dead-URL cleanup)
@@ -66,25 +66,28 @@
 ## How to read this document
 
 - `[ ]` — Not started
-- `[x]` — Complete
+- `[x]` — Complete, **or closed without shipping** and marked **ABANDONED** / **OBSOLETED** / **CANCELLED** / *duplicate of N*. A task that can never be done is closed with its reason, because an open box that nobody will ever tick makes every count below wrong.
 - Each completed task includes a short note explaining the work in plain English.
+- The totals in **Project Progress** are counted straight from the boxes in this file — if a number here disagrees with the boxes, the boxes win and the number is a bug.
 
 ---
 
 ## Project Progress
 
-**Overall Completion: 279 / 355 tasks (79%)**
+**Overall Completion: 300 / 369 tasks (81%)** — counted from the boxes in this file, 2026-11-09.
 
 | Category | Complete | Total | % |
 |----------|----------|-------|-----|
-| Core Launch (Stages 1–6, 8) | 152 | 176 | 86% |
+| Core Launch (Stages 1–6, 8) | 152 | 172 | 88% |
 | Testing & QA (Stage 7) | 0 | 9 | 0% |
 | Security & Quality (Stage 9) | 32 | 37 | 86% |
 | Web Polish & Hardening (Stages 10–12) | 56 | 76 | 74% |
 | Extension Rebuild (Stage 13) | 9 | 9 | 100% |
-| Android Rebuild (Stage 14) | 8 | 11 | 73% |
+| Android Rebuild (Stage 14) | 11 | 11 | 100% |
 | P0 Reliability (Stage 15) | 6 | 6 | 100% |
-| Post-Launch Roadmap | 18 | 30 | 60% |
+| Post-Launch Roadmap | 25 | 32 | 78% |
+| Follow-up audits (Documentation, Audit Findings, Extension Parity, infra decisions) | 9 | 17 | 53% |
+| **Total** | **300** | **369** | **81%** |
 
 **Time invested: 400+ hours**
 
@@ -92,27 +95,29 @@
 
 ## Stages by Status
 
-### ✅ Complete & Tested
-- Stage 1 (Repository): 3/3 tasks ✅
-- Stage 2 (Supabase): 38/38 tasks ✅
-- Stage 3 (Web): 11/14 tasks ✅ *(3 admin enhancement tasks planned)*
-- Stage 4 (Seeding): 40/61 tasks ✅ *(22 optional seeders planned)*
-- Stage 5 (Extension): 26/26 tasks ✅
-- Stage 6 (Android): 29/29 tasks ✅ *(published on Google Play)*
-- Stage 8 (Infrastructure): 5/5 tasks ✅
-- Stage 12 (Web Rebuild): 21/22 tasks ✅
-- Stage 13 (Extension Rebuild): 9/9 tasks ✅
-- Stage 14 (Android Rebuild): 8/11 tasks ✅ *(3 cancelled: swipe, card UI, swipe/Paparazzi tests)*
-- Stage 15 (P0 Reliability): 6/6 tasks ✅
+### ✅ Complete — no open boxes
+- Stage 1 (Repository): 3/3
+- Stage 2 (Supabase): 38/38
+- Stage 5 (Extension): 26/26 *(1 abandoned: failed-URL moderation, replaced by the `report_url_failures()` RPC)*
+- Stage 6 (Android): 29/29 *(published on Google Play)*
+- Stage 8 (Infrastructure): 5/5
+- Stage 13 (Extension Rebuild): 9/9
+- Stage 14 (Android Rebuild): 11/11 *(2 cancelled: swipe gesture, card UI)*
+- Stage 15 (P0 Reliability): 6/6
 
 ### ⏳ In Progress
-- Stage 7 (Testing): 0/9 tasks
-- Stage 9 (Security Audit): 32/37 tasks
-- Stage 10 (Web Polish): 6/20 tasks
-- Stage 11 (Hardening): 29/34 tasks
+- Stage 3 (Web): 11/14 *(3 admin enhancements)*
+- Stage 4 (Seeding): 40/57 *(17 optional seeder candidates)*
+- Stage 7 (Testing): 0/9 *(the one real pre-launch gap)*
+- Stage 9 (Security Audit): 32/37 *(1 obsoleted: 9.30)*
+- Stage 10 (Web Polish): 6/20
+- Stage 11 (Hardening): 29/34
+- Stage 12 (Web Rebuild): 21/22 *(12.1 — GitHub OAuth)*
+- Post-Launch Roadmap: 25/32
+- Follow-up audits: 9/17 *(Documentation 3/4, Audit Findings 0/5, Extension Parity 5/7, infra decisions 1/1)*
 
 ### Post-Launch Roadmap
-- Pool quality (8.1–8.3): wilson floor, broken link reporting, dead-link cleanup scripts
+- Pool quality (8.33–8.34, 8.9): wilson floor, broken-link reporting, dead-link cleanup script
 - Feature enhancements: peer serendipity (8.8), browsing history (8.7), submission emails (8.6)
 
 ---
@@ -343,6 +348,8 @@ The publicly accessible website. Hosted on Vercel. Serves profile pages, collect
 
 Filling the discovery pool before launch so that the Roam button has something to return on day one. All sources are free, human-curated APIs or public datasets. No automated crawls or LLM-generated content — human editorial judgment is the quality baseline.
 
+**Scope note (2026-11-09):** the checkboxes below are the *original plan*, not a live inventory. `scripts/` is gitignored (`.gitignore:72`; only five CI scripts are tracked), and the machine that maintains this file holds ~625 `seed-*.{js,mjs}` seeders there, indexed by `seeders-manifest.json` (the recurring schedule for the Raspberry Pi runner — only listed seeders are auto-scheduled, the rest are manual) and `SEEDING_CONTROL.md`. Local files therefore exist for several sources still marked open below, including Europeana, DPLA, Podcast Index, JSTOR and BoardGameGeek, without any of them being run-and-verified. Judge this section by its pre-launch intent; check the manifest before trusting a seeder count, and never quote a count in a tracked doc.
+
 ### Seeder run log
 
 | Script | Source | API key | Result |
@@ -446,7 +453,7 @@ Filling the discovery pool before launch so that the Roam button has something t
   Created `scripts/seed-wiby.js`. 51 queries — 3 pages at 2s each. Parses HTML results. `fetchOg: true`. Cached to `scripts/.cache/wiby.json`. ?? Two bugs were found and fixed: the fetch URL path was wrong (`/search/?q=` returns HTTP 404; correct path is `/?q=`), and the HTML parser looked for `<h2>` tags that don't exist in wiby's markup (results use `<blockquote>` + `.tlink` anchor elements). Both fixes are committed to `seed-wiby.js`. Rerun with `--no-cache` to populate.
 
   **Result: 1,747 rows inserted** (after rerun with `--no-cache` following the two bug fixes).
-- [ ] **4.12** Import JSTOR open-access — pull available open-access article metadata; map to Science, History, and Mind & Body
+- [ ] **4.12** Import JSTOR open-access — pull available open-access article metadata; map to Science, History, and Mind & Body. *(4.45 duplicated this task and was merged here on 2026-11-09. A local-only `seed-jstor-daily.mjs` exists under the gitignored `scripts/`; the import itself has not been verified against the pool, so this stays open.)*
 
 ### 4c. Additional API seeders
 
@@ -462,7 +469,7 @@ Filling the discovery pool before launch so that the Roam button has something t
 - [ ] **4.16** Write the CORE seeder — queries the CORE API by subject; pulls open-access paper metadata; maps to Science, History, and Mind & Body subcategories
 - [ ] **4.17** Write the DPLA seeder — queries the Digital Public Library of America API by subject; pulls digitised cultural heritage records; maps to History & Ideas, Arts & Culture, and People & Places
 - [x] **4.18** Write the BoardGameGeek seeder — **ABANDONED:** Cloudflare blocks both the browse pages (403 after page 11) and the XML API (401 for all batches). Not worth pursuing. BGG now also requires a registered Bearer token with 1+ week approval time.
-- [ ] **4.19** Write the IGDB seeder — queries the IGDB API for top-rated games; maps to the Video Games subcategory
+- [ ] **4.19** Write the IGDB seeder — queries the IGDB API for top-rated games; maps to the Video Games subcategory. *(Formerly also filed as 4.36 and 4.50; those were duplicates and were merged here on 2026-11-09. They disagreed on the target category — Video Games vs Weird & Wonderful vs Games & Hobbies — so settle that when this is implemented.)*
 - [x] **4.20** Write the NYT seeder — queries the NYT Article Search API by section; maps article metadata to History & Ideas, Science, Technology, Arts & Culture, and People & Places
 
   Created `scripts/seed-nyt.js`. Uses the Article Search API (`api.nytimes.com/svc/search/v2/articlesearch.json`). 12 sections — up to 10 pages — 10 results = up to 1,200 articles. Rate-limited to 1 request per 6.5s (API limit: 10 req/min). Requires `NYT_API_KEY` in `.env` (free at developer.nytimes.com). `fetchOg: false` — titles and abstracts come from the API. Note: NYT articles are paywalled; users with "Skip paywalled sites" enabled will not see them. Cached to `scripts/.cache/nyt.json`.
@@ -519,7 +526,7 @@ Filling the discovery pool before launch so that the Roam button has something t
 
 - [ ] **4.28** Run all seeders and verify a minimum of 5,000 discoverable URLs per category pillar
 
-### 4d. Additional seeder candidates & content strategy
+### 4f. Additional seeder candidates & content strategy
 
 **Current state:** ~1.45M URLs across 16 seeders. Strong in Technology/Science/Humanities. **Gaps:** Mind & Body (health), niche categories.
 
@@ -555,7 +562,6 @@ Filling the discovery pool before launch so that the Roam button has something t
 
 #### Lower Priority — Niche content
 
-- [ ] **4.36** Write the IGDB seeder — video games (free API key); top 5K games by rating; maps to Weird & Wonderful niche; effort: 2 hours
 
 - [ ] **4.37** Write the Podcast Index seeder — decentralized audio metadata (free API); top 100 podcasts — 10 episodes each = ~5K URLs; new medium (currently all websites); effort: 2-3 hours
 
@@ -567,7 +573,7 @@ Filling the discovery pool before launch so that the Roam button has something t
 
   Created `scripts/seed-itchio.js`. Uses `https://itch.io/games/{path}?format=json&sort=top&page=N` (36 items/page). Parses embedded HTML via regex to extract URL, title, description (from `title` attribute of `.game_text`), and genre. Queries 32 sources (genre-action, genre-rpg, tag-horror, tag-experimental, genre-visual-novel, etc.) mapped to Games & Hobbies, Arts & Culture, Weird & Wonderful, and History & Ideas. 30 pages/source — ~36 items = ~1,080/source; ~30K+ total before dedup. Rate: 600ms delay. `fetchOg: false`. Cache: `scripts/.cache/itchio.json`.
 
-- [ ] **4.40** Write the BoardGameGeek seeder — XML API (free, no key); top 10K board games by rank; pulls title, description, thumbnail from BGG API; maps to Games & Hobbies; strong community signal (ratings-based); effort: 2 hours
+- [x] **4.40** **ABANDONED (duplicate of 4.18):** Write the BoardGameGeek seeder — XML API (free, no key); top 10K board games by rank; pulls title, description, thumbnail from BGG API; maps to Games & Hobbies; strong community signal (ratings-based); effort: 2 hours
 
 - [x] **4.41** Write the LibriVox seeder — free public domain audiobooks catalog API (`librivox.org/api`); ~15K books with descriptions and cover art; maps to Arts & Culture and History & Ideas; no key required; effort: 2 hours
 
@@ -584,12 +590,10 @@ Filling the discovery pool before launch so that the Roam button has something t
 #### Future seeder candidates
 
 - [ ] **4.44** Write the Smithsonian Open Access seeder — `edan.si.edu` open metadata API; museum objects, images, natural history specimens; maps to Science & Nature, History & Ideas, Arts & Culture; no key required; ~500K+ open-access records; effort: 3 hours
-- [ ] **4.45** Write the JSTOR Open Access seeder — `jstor.org/open/` feed; humanities & social science articles; maps to History & Ideas, Science, Mind & Body; no key required; ~50K+ rows; effort: 2 hours
 - [ ] **4.46** Write the Vimeo Staff Picks seeder — `vimeo.com/channels/staffpicks` sitemap or oEmbed API; editorially curated short films; maps to Arts & Culture, Weird & Wonderful; no key required; ~10K videos; effort: 2 hours
 - [ ] **4.47** Write the Mastodon Trending Links seeder — `mastodon.social/api/v1/trends/links`; community-curated links across many topics; maps to all 8 categories; no key required; runs periodically for fresh content; effort: 1 hour
 - [ ] **4.48** Write the PubChem seeder — NCBI PubChem REST API; chemistry compound and assay pages; maps to Science & Nature; no key required; same Entrez pattern as PubMed; effort: 2 hours
 - [ ] **4.49** Write the Spotify Podcasts seeder — `api.spotify.com` podcast search by category; maps to Music, Society, Science subcategories; requires free API key; ~10K podcast episodes; effort: 2-3 hours
-- [ ] **4.50** Write the IGDB seeder — video games (free API key via Twitch); top 5K games by rating; maps to Games & Hobbies; effort: 2 hours
 - [ ] **4.51** Write the Aeon Magazine seeder — `aeon.co/feed.rss` (RSS feed, no auth); 1K+ philosophy, science, and psychology essays; maps to History & Ideas, Science, Mind & Body; stable URLs, no paywall, evergreen content; effort: 1 hour
 - [ ] **4.52** Write the Longreads seeder — `longreads.com/feed/` (RSS); editorially curated long-form journalism from dozens of publications; maps to History & Ideas, People & Places, Mind & Body; no API key required; very high signal-to-noise ratio; effort: 1 hour
 - [ ] **4.53** Write the Nautilus Magazine seeder — `nautil.us/sitemap.xml` or RSS feed; science narrative articles for a general audience (physics, neuroscience, evolution); maps to Science, Mind & Body; older articles freely accessible; effort: 1 hour
@@ -602,7 +606,7 @@ Filling the discovery pool before launch so that the Roam button has something t
 
 #### Pre-Launch Essential
 
-- [x] **4.23a** Create `paywalled_domains` table in Supabase — lookup table (`domain TEXT PRIMARY KEY`) seeded with ~20 known paywalled sites (nytimes.com, wsj.com, ft.com, bloomberg.com, theatlantic.com, newyorker.com, thetimes.co.uk, etc.); the `roam()` RPC filters these out when user has "skip paywalled sites" enabled; RLS: publicly readable, service-role only for writes. ? Done — see task 4.23a above.
+Paywalled-domain filtering shipped as **4.23a** in §4c above — it was listed twice, so it is recorded once as a task.
 
 ---
 
@@ -676,7 +680,7 @@ Background worker maintains a prefetch queue to minimize wait times when users c
 
   Implemented `startRefillLoop()` in `queueManager.ts` running every 5s, checks if `hot_count + warming_count < REFILL_THRESHOLD` (5), calls `refillQueue()` to fetch needed URLs. `refillQueue()` calls `fetchFreshUrls(needed)` which invokes `roam()` RPC with `category_filter: categoryFilter`. New URLs added to warming queue for background validation. `updateCategoryFilter(newCategoryIds)` clears queue completely and refetches to ensure all new URLs match user's updated preferences. `categoryFilter` tracked in memory, passed to RPC on each refill.
 
-- [ ] **5.11e** Log failed URLs for moderation — **abandoned, replaced.** Originally: maintain a `failed_urls` list in `chrome.storage.local` with `{ url, failure_reason, timestamp, retry_count }`; periodically (every 100 failed URLs or on sign-out) send batch to new `POST /log-failed-urls` Edge Function which inserts rows into `moderation_queue` with `status: 'auto_flagged'` for admin review; helps identify consistently broken/slow pages
+- [x] **5.11e** Log failed URLs for moderation — **abandoned, replaced.** Originally: maintain a `failed_urls` list in `chrome.storage.local` with `{ url, failure_reason, timestamp, retry_count }`; periodically (every 100 failed URLs or on sign-out) send batch to new `POST /log-failed-urls` Edge Function which inserts rows into `moderation_queue` with `status: 'auto_flagged'` for admin review; helps identify consistently broken/slow pages
 
   The `log-failed-urls` Edge Function was never functional and never called: it wrote `submitted_by_id` and `status = 'auto_flagged'` to `moderation_queue`, neither of which exists there, and upserted on a column with no unique constraint, so every invocation returned 500. The `queue.ts` / `queueManager.ts` extension layer described here (`logFailedUrl()`, `sendFailedUrlBatch()`, `cleanupOnSignOut()`) was removed along with the rest of the extension validation queue. Replaced by the `report_url_failures()` RPC: clients send one batch of `{url_id, fail_count, reason}` entries, one row per (URL, reporter) lands in `url_failure_reports`, and a URL is retired when ≥2 distinct users and ≥3 failures accumulate within 30 days. See `docs/API.md`. Other entries in this file that mention `log-failed-urls` are historical records of the original plan.
 
@@ -1038,7 +1042,7 @@ Final checks before making the app public.
   - **Severity:** MEDIUM
   - **Files:** `supabase/functions/collection/index.ts` (L131�147)
 
-- [ ] **9.30** Fix export syntax in `log-failed-urls` Edge Function — **obsoleted, function deleted.** `Deno.serve(async (req: Request) => {...})` was the correct entry point, but the function was never callable end-to-end for a different reason: it inserted `submitted_by_id` and `status = 'auto_flagged'` into `moderation_queue` (neither exists) and upserted on a non-unique column. Replaced by the `report_url_failures()` RPC — see issue #48 and `docs/API.md`.
+- [x] **9.30** Fix export syntax in `log-failed-urls` Edge Function — **obsoleted, function deleted.** `Deno.serve(async (req: Request) => {...})` was the correct entry point, but the function was never callable end-to-end for a different reason: it inserted `submitted_by_id` and `status = 'auto_flagged'` into `moderation_queue` (neither exists) and upserted on a non-unique column. Replaced by the `report_url_failures()` RPC — see issue #48 and `docs/API.md`.
   - **Severity:** MEDIUM
   - **Files:** `supabase/functions/log-failed-urls/index.ts`
   - Verified: `Deno.serve(...)` was indeed the correct entry point — but the function was never callable end-to-end, because every insert into `moderation_queue` failed on schema mismatches (`submitted_by_id`, `status = 'auto_flagged'`, upsert on a non-unique `url`). It has been deleted; failure tracking moved to the `report_url_failures()` RPC.
@@ -1981,9 +1985,9 @@ Ground-up polish of the Android app. The existing Compose + MVVM foundation is s
 
 - [x] **14.1** Replace `BottomBar` action buttons with a proper Material3 `NavigationBar` + `NavHost` with 4 destinations: Discover, Saved, Profile, Settings. Each tab has filled/outlined icon toggle. Back press on any tab returns to Discover.
 
-- [ ] **14.2** ~Swipe gesture engine~ — Cancelled. Explored swipe gestures but they didn't fit the UX. Button-based interaction via `BottomBar` (Skip / Roam / Like) kept instead. Haptic feedback fires on button press via `MainViewModel.haptic()`.
+- [x] **14.2** ~Swipe gesture engine~ — Cancelled. Explored swipe gestures but they didn't fit the UX. Button-based interaction via `BottomBar` (Skip / Roam / Like) kept instead. Haptic feedback fires on button press via `MainViewModel.haptic()`.
 
-- [ ] **14.3** ~Card UI with Coil/AsyncImage~ — Cancelled. Card-based browsing added unnecessary complexity. Plain `RoamWebView` kept — pages render natively, no Coil dependency needed. Category/domain info shown in the status bar above the WebView.
+- [x] **14.3** ~Card UI with Coil/AsyncImage~ — Cancelled. Card-based browsing added unnecessary complexity. Plain `RoamWebView` kept — pages render natively, no Coil dependency needed. Category/domain info shown in the status bar above the WebView.
 
 - [x] **14.4** Prefetch pipeline in `MainViewModel`: hot queue (12 URLs) + warm queue (15 URLs) with concurrent fill/promote workers. Hot queue served instantly on button press; warm queue fills via parallel API calls with batch deduplication. 3-attempt retry with exponential backoff (1s/2s/4s). Domain deduplication across both queues. `RoamState.Loaded` is near-instant on hot-queue hit.
 
@@ -2043,6 +2047,8 @@ Addresses three live P0 Sentry incidents on Android, closes remaining testing/CI
 
 ## Post-Launch (after first users) {#post-launch}
 
+**Numbering note (2026-11-09):** six items here had colliding IDs — 8.1–8.5 clashed with Stage 8's own 8.1–8.5, and 8.24 was used twice. They are unchanged in content and renumbered as: 8.1 → **8.33** (wilson floor), 8.2 → **8.34** (dead-link report), 8.3 → **8.35** (Sentry), 8.4 → **8.36** (backup doc), 8.5 → **8.37** (staging env), and the duplicate 8.24 on social features → **8.32** (the collections-UI entry keeps 8.24).
+
 These tasks are not required for launch but should be completed before Roam has significant traffic.
 
 - [x] **8.26** Challenge system — daily challenges with XP rewards and real-time progress tracking
@@ -2065,24 +2071,24 @@ These tasks are not required for launch but should be completed before Roam has 
 - [x] **8.31** Android status bar persistence fix during WebView URL loads
   - **Completed:** 2026-08-04
 
-- [x] **8.24** Social features — URL sharing and activity feed (Phase 1 & 2 of Social Audit)
+- [x] **8.32** Social features — URL sharing and activity feed (Phase 1 & 2 of Social Audit)
   - **Phase 1 (URL Sharing):** `shared_urls` table + RLS + 3 RPC functions (`share_url_with_user`, `get_shared_urls_for_user`, `get_share_recipients`) + `share-url` Edge Function + web UI (ShareUrlButton, ShareUrlModal, ShareRecipientSearch) integrated into SavedUrlsManager and CollectionItemsClient. Deployed `20260702000000_shared_urls.sql`.
   - **Phase 1b (Follow fix):** Fixed followers/following list query (two-step query to avoid `auth.users` FK join error); removed pending/request flow — all follows are now immediate; removed accept/reject actions from follow Edge Function.
   - **Phase 2 (Activity Feed):** `user_activity` table + RLS + DB triggers on `ratings`, `collections`, `moderation_queue` + `get_activity_feed()` RPC + `activity-feed` Edge Function + `/following` page with `ActivityFeedClient`. "Following" link added to desktop and mobile nav. Deployed `20260702000001_activity_feed.sql`.
 
-- [x] **8.1** Add wilson_score floor to `roam()` — add `AND u.wilson_score > -0.1` guard to all candidate-pool branches; stops chronically-downvoted URLs from re-surfacing via TABLESAMPLE while community data accumulates
+- [x] **8.33** Add wilson_score floor to `roam()` — add `AND u.wilson_score > -0.1` guard to all candidate-pool branches; stops chronically-downvoted URLs from re-surfacing via TABLESAMPLE while community data accumulates
 
   Created `supabase/migrations/20260502000003_wilson_score_floor.sql`. Added `AND u.wilson_score > -0.1` to all four candidate-pool WHERE blocks in `roam()` (TABLESAMPLE + ORDER BY fallback in both standard and collection modes). Also added `CHECK (wilson_score >= -1 AND wilson_score <= 1) NOT VALID` constraint to `urls` — `NOT VALID` skips row-by-row validation on the existing 1.69M rows for a fast migration. This is `roam()` v9. Deployed with `supabase db push`.
 
-- [x] **8.2** Dead link report button — small "Report broken link" action in the URL card's config area near "Send feedback"; one click marks `urls.inactive = true` and immediately skips to the next URL
+- [x] **8.34** Dead link report button — small "Report broken link" action in the URL card's config area near "Send feedback"; one click marks `urls.inactive = true` and immediately skips to the next URL
 
   Created `supabase/migrations/20260502000004_url_inactive.sql` adding `urls.inactive BOOLEAN NOT NULL DEFAULT FALSE`, a `url_reports` audit table, and an index on `(inactive, approved)`. Upgraded `roam()` to v10 with `AND NOT u.inactive` in all four candidate branches. Created `supabase/functions/report-url/index.ts` — authenticated POST endpoint that sets `urls.inactive = TRUE` and logs the report; rate-limited to 20/10 min per user. Added `REPORT_URL` message type to `extension/src/lib/messages.ts`, "Report broken link" button to the config panel in `popup.html`, click handler in `popup.ts` (CHECK_URL ? REPORT_URL ? ROAM ? close), and `reportUrl()` in `background.ts`. Android: added `reportUrl()` to `RoamRepository`, `reportBrokenLink()` to `MainViewModel`, `onReportBrokenLink` param to `ConfigBottomSheet`, and wired it in `MainScreen`. Migration pushed and function deployed with `supabase db push` / `supabase functions deploy report-url`.
 
-- [x] **8.3** Set up error monitoring — integrate Sentry (free tier, ~5K errors/month) or enable Supabase Edge Function log alerts; goal is an email notification when an Edge Function throws an unhandled exception in production, rather than discovering failures from user reports
+- [x] **8.35** Set up error monitoring — integrate Sentry (free tier, ~5K errors/month) or enable Supabase Edge Function log alerts; goal is an email notification when an Edge Function throws an unhandled exception in production, rather than discovering failures from user reports
 
   Completed as part of task 9.18 — Sentry integrated across web, extension, and Android. See 9.18 for full details. To activate: set `NEXT_PUBLIC_SENTRY_DSN` + `SENTRY_DSN` in Vercel env vars; set `SENTRY_DSN` in root `.env` for extension builds; add `SENTRY_DSN` to `android/local.properties` for Android.
-- [ ] **8.4** Document the database backup and restore procedure — confirm the Supabase backup schedule (Pro: daily point-in-time), test a full restore to a throwaway project, and write the exact steps in `supabase/README.md` so recovery is not improvised under pressure
-- [ ] **8.5** Create a staging environment — provision a second free Supabase project and add a `NEXT_PUBLIC_SUPABASE_URL` override in a Vercel preview branch environment; gives a safe place to test schema migrations (especially irreversible ones) before running them on the production database
+- [ ] **8.36** Document the database backup and restore procedure — confirm the Supabase backup schedule (Pro: daily point-in-time), test a full restore to a throwaway project, and write the exact steps in `supabase/README.md` so recovery is not improvised under pressure
+- [ ] **8.37** Create a staging environment — provision a second free Supabase project and add a `NEXT_PUBLIC_SUPABASE_URL` override in a Vercel preview branch environment; gives a safe place to test schema migrations (especially irreversible ones) before running them on the production database
 - [ ] **8.6** Send email notifications on submission status change — when a user's `moderation_queue` row moves from `pending` to `approved` or `rejected`, trigger a transactional email via Supabase Auth's SMTP integration (or a free Resend.com account); include the URL and decision in the message body so users know their contribution was reviewed
 - [ ] **8.7** Build a browsing history page — add `/u/[username]/history` (private, owner-only) that shows the URLs a user was served from `seen_urls`, not just the ones they rated; gives users a way to rediscover a page they forgot to bookmark or rate
 
