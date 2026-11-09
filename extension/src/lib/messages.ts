@@ -82,6 +82,22 @@ export interface StateData {
   version?: string;
 }
 
+/** Why a serve came back empty (issue #120). Mirrors the `roam` function's 404 body. */
+export type RoamExhaustionReason = 'pool_empty' | 'cooldown' | 'filters';
+
+/**
+ * Explanation attached to an empty serve. `reason` is null when the server did not
+ * say (an older deployment, or a body that failed to parse), so callers keep the
+ * generic copy instead of inventing a cause.
+ */
+export interface RoamExhaustion {
+  reason: RoamExhaustionReason | null;
+  /** `global`, `category:<uuid>`, `subcategory:<uuid>` or `collection:<uuid>`. */
+  scope: string | null;
+  /** ISO timestamp the feed refills at; only meaningful for `cooldown`. */
+  available_later: string | null;
+}
+
 export interface RoamData {
   id: string;
   url: string;
@@ -89,6 +105,8 @@ export interface RoamData {
   description: string | null;
   og_image_url: string | null;
   category_id?: string;
+  /** Present when the reply was a 404: the serve found nothing and says why. */
+  exhaustion?: RoamExhaustion | null;
 }
 
 export interface CheckUrlData {

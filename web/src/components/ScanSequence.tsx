@@ -6,6 +6,7 @@ import { Window } from '@/components/Window';
 import { CompileView, ScanView, StageTracker, TriangulateView } from '@/components/ScanStages';
 import { ScanResult } from '@/components/ScanResult';
 import { STAGE_MS, fetchScanTarget, hexLine, type ScanStage, type ScanTarget } from '@/lib/scan';
+import type { RoamExhaustion } from '@/lib/roam-buffer';
 import { scanBlip } from '@/lib/sfx';
 
 /**
@@ -20,6 +21,7 @@ export function ScanSequence() {
   const [stage, setStage] = useState<ScanStage>('scan');
   const [target, setTarget] = useState<ScanTarget | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [exhaustion, setExhaustion] = useState<RoamExhaustion | null>(null);
   const [resolved, setResolved] = useState(false);
   const [hex, setHex] = useState<string[]>([]);
   const [run, setRun] = useState(0);
@@ -37,6 +39,7 @@ export function ScanSequence() {
     let cancelled = false;
     setTarget(null);
     setError(null);
+    setExhaustion(null);
     setResolved(false);
     setStage('scan');
     scanBlip();
@@ -45,6 +48,7 @@ export function ScanSequence() {
       if (cancelled) return;
       setTarget(outcome.target);
       setError(outcome.error);
+      setExhaustion(outcome.exhaustion ?? null);
       setResolved(true);
     });
 
@@ -109,7 +113,7 @@ export function ScanSequence() {
         {stage === 'triangulate' && <TriangulateView lines={hex} />}
         {stage === 'compile' && <CompileView />}
         {stage === 'mount' && !resolved && <p className="text-sm text-muted" role="status">resolving target…</p>}
-        {showResult && <ScanResult target={target} error={error} actionRef={actionRef} onAgain={() => setRun((n) => n + 1)} onClose={close} />}
+        {showResult && <ScanResult target={target} error={error} exhaustion={exhaustion} actionRef={actionRef} onAgain={() => setRun((n) => n + 1)} onClose={close} />}
         {stage !== 'mount' && <p className="text-[10px] tracking-widest text-muted">press any key to skip</p>}
       </div>
     </Window>

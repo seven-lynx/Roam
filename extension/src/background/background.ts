@@ -11,6 +11,7 @@ import { getSupabase, clearAuthStorage } from '../lib/supabase';
 import { FALLBACK_CATEGORIES } from '../lib/constants';
 import { addLocalSaved, normaliseLocalSaved, removeLocalSaved } from '../lib/local-saved';
 import { EDGE_UNREACHABLE_MESSAGE, isRetryableEdgeFailure } from '../lib/edge-error';
+import { parseRoamExhaustion } from '../lib/exhaustion';
 import { dispatchReport, unknownMessageTypeResponse } from '../lib/dispatch-report';
 import { getDomain, normalizeUrl } from '../lib/url';
 import { getCollections, createCollection, addUrlToCollection, deleteCollection, renameCollection, updateCollectionPublic } from './handlers/collections';
@@ -473,6 +474,11 @@ async function setUserInterests(pillarIds: string[], topicIds: string[]): Promis
 }
 
 // ── Roam ──────────────────────────────────────────────────────────────────────
+
+// What a 404 produces: no id, no url, no page. `url === ''` is the "nothing to
+// serve" signal the call sites branch on; `exhaustion` is added by the caller below.
+const EMPTY_ROAM: RoamData = { id: '', url: '', title: null, description: null, og_image_url: null };
+
 async function callRoamApi(body: Record<string, unknown> = {}, maxAttempts = 3): Promise<Response<RoamData>> {
   const recentDomains = await getRecentDomains();
 
@@ -482,24 +488,36 @@ async function callRoamApi(body: Record<string, unknown> = {}, maxAttempts = 3):
     mergedBody.exclude_domains = [...new Set([...existing, ...recentDomains])];
   }
 
-  const invoker = async () => {
+  const invoker = async (): Promise<Response<RoamData>> => {
     const supabase = getSupabase();
     const { data, error } = await supabase.functions.invoke('roam', { body: mergedBody });
     if (error) {
       // No response at all (DNS, TLS, a reset connection, a CORS rejection): throw it
       // so withRetry() can make another attempt instead of returning it as final.
       if (isRetryableEdgeFailure(error)) throw error;
-      type FnError = { context?: { status?: number; json?: () => Promise<{ error?: string }> } };
+      type FnError = {
+        context?: {
+          status?: number;
+          json?: () => Promise<{ error?: string; reason?: string; scope?: string; available_later?: string | null }>;
+        };
+      };
       const fnErr = error as FnError;
       const status = fnErr.context?.status;
-      if (status === 404) return { ok: true, data: { url: '' } } as Response<RoamData>;
-      let parsed: { error?: string } | null = null;
-      try { parsed = (await fnErr.context?.json?.()) ?? null; } catch { /* ignore */ }
-      if (parsed?.error) return { ok: false, error: parsed.error } as Response<RoamData>;
-      return { ok: false, error: error.message } as Response<RoamData>;
+      let parsed: { error?: string; reason?: string; scope?: string; available_later?: string | null } | null = null;
+      try { parsed = (await fnErr.context?.json?.()) ?? null; } catch { /* body consumed or not JSON - treat as absent */ }
+      // 404 is an answer, not a failure: the RPC found nothing to serve and the body
+      // says why (issue #120). The empty url keeps the "nothing to serve" contract the
+      // call sites branch on, and the parsed reason lets them explain it instead of
+      // dumping the user on a generic dead end. A 404 with no reason - an older
+      // deployment - still parses to a generic payload.
+      if (status === 404) {
+        return { ok: true, data: { ...EMPTY_ROAM, exhaustion: parseRoamExhaustion(parsed) } };
+      }
+      if (parsed?.error) return { ok: false, error: parsed.error };
+      return { ok: false, error: error.message };
     }
-    if (data?.error) return { ok: false, error: data.error } as Response<RoamData>;
-    return { ok: true, data: data as RoamData } as Response<RoamData>;
+    if (data?.error) return { ok: false, error: data.error };
+    return { ok: true, data: data as RoamData };
   };
 
   try {

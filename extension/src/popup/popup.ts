@@ -5,11 +5,12 @@ import { Sentry } from '../lib/sentry';
 import { sendToBackground } from '../lib/messages';
 import { BUILD_VERSION, isStaleWorker } from '../lib/version';
 import { UNKNOWN_MESSAGE_ERROR } from '../lib/dispatch-report';
-import type { StateData, RoamData, CheckUrlData, Collection, CategoryItem, ProfileData, SubcategoryItem, SavedUrlItem, ChallengeData, BadgeData, NotificationItem, ProfileStatsData, UserSettingsData, FollowUser, ActivityItem, MyProfileData } from '../lib/messages';
+import type { StateData, RoamData, RoamExhaustion, CheckUrlData, Collection, CategoryItem, ProfileData, SubcategoryItem, SavedUrlItem, ChallengeData, BadgeData, NotificationItem, ProfileStatsData, UserSettingsData, FollowUser, ActivityItem, MyProfileData } from '../lib/messages';
 import { FALLBACK_CATEGORIES, LANGUAGES, DEFAULT_LANGUAGE } from '../lib/constants';
 import { notificationLink, notificationText, recentCelebration } from '../lib/notifications';
 import { activityLink, activityText, relativeTime } from '../lib/social';
 import { validatePassword } from '../lib/validate';
+import { describeExhaustion } from '../lib/exhaustion';
 import {
   applyTheme,
   resolveFx,
@@ -75,6 +76,23 @@ function showState(name: AppState) {
   // The OS bar names the screen you're on, as the web shell does.
   const title = document.getElementById('os-title');
   if (title) title.textContent = STATE_TITLES[name];
+}
+
+/**
+ * The noresults panel, explained (issue #120). A dry feed has three different
+ * causes and only the empty-pool one is fixed by adding categories, so the copy
+ * swaps and the button hides when the advice would not help. Without a reason -
+ * an older server - the shipped copy stands.
+ */
+function showNoResults(exhaustion: RoamExhaustion | null) {
+  const copy = describeExhaustion(exhaustion);
+  const panel = document.getElementById('state-noresults');
+  const msg = panel?.querySelector('.error-msg');
+  const sub = panel?.querySelector('.error-sub');
+  if (msg) msg.textContent = copy.title;
+  if (sub) sub.textContent = copy.sub;
+  el<HTMLButtonElement>('btn-add-categories').hidden = !copy.showCategories;
+  showState('noresults');
 }
 
 // ── Appearance (ROAM-OS theme + CRT layers) ───────────────────────────────────
@@ -683,7 +701,7 @@ document.addEventListener('DOMContentLoaded', () => {
     roamBtn.disabled = false;
     roamBtn.textContent = 'Roam';
     if (!res.ok) { showError(res.error, 'roam'); return; }
-    if (!res.data?.url) { showState('noresults'); return; }
+    if (!res.data?.url) { showNoResults(res.data?.exhaustion ?? null); return; }
     if (tab?.id) chrome.tabs.update(tab.id, { url: res.data.url });
     window.close();
   });
@@ -730,7 +748,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     const roamRes = await roamPromise;
     if (!roamRes.ok) { showError(roamRes.error, 'downvote'); return; }
-    if (!roamRes.data?.url) { showState('noresults'); return; }
+    if (!roamRes.data?.url) { showNoResults(roamRes.data?.exhaustion ?? null); return; }
     if (tab?.id) chrome.tabs.update(tab.id, { url: roamRes.data.url });
     window.close();
   });

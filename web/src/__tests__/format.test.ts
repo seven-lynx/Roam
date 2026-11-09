@@ -1,4 +1,4 @@
-import { formatCount } from '@/lib/format';
+import { formatCount, describeWait } from '@/lib/format';
 
 describe('formatCount', () => {
   it('leaves small numbers unchanged', () => {
@@ -23,5 +23,26 @@ describe('formatCount', () => {
 
   it('treats non-finite values as zero', () => {
     expect(formatCount(Number.NaN)).toBe('0');
+  });
+});
+
+describe('describeWait', () => {
+  const now = new Date('2026-11-09T12:00:00Z');
+
+  it('falls back to "soon" without a usable timestamp', () => {
+    expect(describeWait(null, now)).toBe('soon');
+    expect(describeWait('not-a-date', now)).toBe('soon');
+  });
+
+  it('uses minutes below the hour, rounded to five', () => {
+    expect(describeWait('2026-11-09T12:02:00Z', now)).toBe('within minutes');
+    expect(describeWait('2026-11-09T12:25:00Z', now)).toBe('in about 25 minutes');
+    expect(describeWait('2026-11-09T12:52:00Z', now)).toBe('in about 50 minutes');
+  });
+
+  it('uses hours from one hour up, singular included', () => {
+    expect(describeWait('2026-11-09T13:10:00Z', now)).toBe('in about 1 hour');
+    expect(describeWait('2026-11-09T15:05:00Z', now)).toBe('in about 3 hours');
+    expect(describeWait('2026-11-10T00:00:00Z', now)).toBe('in about 12 hours');
   });
 });

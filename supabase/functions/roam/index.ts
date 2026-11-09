@@ -40,6 +40,24 @@ function recordSuccess(): void {
   circuitOpenUntil = 0
 }
 
+/**
+ * The scope key `roam()` (v39+) records an exhaustion reason under.
+ *
+ * Must mirror the precedence in the function body exactly — collection, then
+ * subcategory, then category, then global — or the edge function looks up a row
+ * the RPC never wrote and every 404 goes back to being unexplained.
+ */
+function exhaustionScopeKey(ids: {
+  collectionId: string | null
+  subcategoryId: string | null
+  categoryId: string | null
+}): string {
+  if (ids.collectionId) return `collection:${ids.collectionId}`
+  if (ids.subcategoryId) return `subcategory:${ids.subcategoryId}`
+  if (ids.categoryId) return `category:${ids.categoryId}`
+  return 'global'
+}
+
 Deno.serve(async (req) => {
   // Extension callers arrive from their own origin; echo it back (see _shared/cors.ts).
   const corsHeaders = getCorsHeaders(req.headers.get('origin'))
@@ -146,9 +164,11 @@ Deno.serve(async (req) => {
           pg_details: pgError.details ?? '',
         })
         recordFailure()
-        // Same contract the sequential loop produced when every call failed: the
-        // client stops filling this tick and retries on the next one.
-        return json({ error: 'No more URLs to discover', exhausted: true }, 404)
+        // A DB exception is never "exhausted" - the same invariant the serve path
+        // enforces below. 503 makes the client retry on the next tick; a 404 here
+        // renders a hard fault as a benign end-of-discovery state, which is the
+        // incident described in 20260804000000_roam_v32_fix_recent_subcats_alias.sql.
+        return json({ error: 'Discovery failed. Please try again.', retryable: true }, 503)
       }
       recordSuccess()
       for (const row of Array.isArray(data) ? data : []) {
@@ -205,7 +225,38 @@ Deno.serve(async (req) => {
     if (results.length === 0) {
       // Genuine exhaustion: the RPC succeeded but returned no rows. The explicit
       // `exhausted` marker lets clients distinguish this from any error path.
-      return json({ error: 'No more URLs to discover', exhausted: true }, 404)
+      //
+      // Issue #120: `roam()` also records *why* it came back empty, so a client can
+      // say something useful instead of showing a dead end. The row is written by
+      // the call that produced this very response, and `record_exhaustion()`
+      // refreshes `last_detected_at` at least every 15 minutes while the reason is
+      // live, so the freshness check can only ever discard a stale scope state —
+      // never the reason for this reply. Anything going wrong here (older schema,
+      // RLS surprise, network) degrades to exactly the body this branch returned
+      // before #120: an explanation is never worth turning a 404 into a 500.
+      let exhaustion: Record<string, unknown> = {}
+      try {
+        const scopeKey = exhaustionScopeKey({ collectionId, subcategoryId, categoryId })
+        const { data: stateRow, error: stateError } = await supabase
+          .from('user_exhaustion_state')
+          .select('reason, available_later, last_detected_at')
+          .eq('user_id', user.id)
+          .eq('scope_key', scopeKey)
+          .maybeSingle()
+        if (stateError) throw stateError
+        const row = stateRow as { reason?: string; available_later?: string | null; last_detected_at?: string } | null
+        const detectedAt = row?.last_detected_at ? Date.parse(row.last_detected_at) : NaN
+        if (row?.reason && Number.isFinite(detectedAt) && Date.now() - detectedAt <= 15 * 60 * 1000) {
+          exhaustion = {
+            reason: row.reason,
+            available_later: row.available_later ?? null,
+            scope: scopeKey,
+          }
+        }
+      } catch (e) {
+        console.error('exhaustion state lookup failed', e instanceof Error ? e.message : String(e))
+      }
+      return json({ error: 'No more URLs to discover', exhausted: true, ...exhaustion }, 404)
     }
 
     if (!isPrefetch && results.length > 0) {

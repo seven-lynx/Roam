@@ -23,6 +23,7 @@ import app.roam.android.model.GameId
 import app.roam.android.model.GameXpAward
 import app.roam.android.model.GameXpKind
 import app.roam.android.model.LevelSystem
+import app.roam.android.model.RoamExhaustion
 import app.roam.android.model.RoamUrl
 import app.roam.android.model.SavedUrl
 import app.roam.android.model.UrlHistoryEntry
@@ -80,7 +81,8 @@ sealed interface RoamState {
     data object Idle : RoamState
     data object Loading : RoamState
     data class Loaded(val roamUrl: RoamUrl) : RoamState
-    data object Exhausted : RoamState  // 404 — user has seen everything
+    /** 404 - nothing to serve. [exhaustion] says why when the server explained (#120). */
+    data class Exhausted(val exhaustion: RoamExhaustion? = null) : RoamState
     data class Error(val message: String) : RoamState
 }
 
@@ -1730,9 +1732,9 @@ class MainViewModel(
 
             if (success) {
                 val roamUrl = result
-                if (roamUrl == null) {
+                if (roamUrl == null || roamUrl.url.isEmpty()) {
                     android.util.Log.i("MainViewModel", "Roam pool exhausted")
-                    _state.value = RoamState.Exhausted
+                    _state.value = RoamState.Exhausted(roamUrl?.exhaustion)
                 } else {
                     android.util.Log.i("MainViewModel", "Roam success: ${roamUrl.url}")
                     _rawUrl.value = roamUrl.url
@@ -2700,7 +2702,7 @@ class MainViewModel(
                     categoryId = categoryId,
                 )
             }.onSuccess { result ->
-                if (result == null) _state.value = RoamState.Exhausted
+                if (result == null || result.url.isEmpty()) _state.value = RoamState.Exhausted(result?.exhaustion)
                 else {
                     _rawUrl.value = result.url
                     _currentUrl.value = result.url

@@ -263,7 +263,7 @@ class MainViewModelTest {
         coEvery { repo.roam(any(), any(), any(), any()) } returns null
         vm.roam()
         testDispatcher.scheduler.advanceUntilIdle()
-        assertEquals(RoamState.Exhausted, vm.state.value)
+        assertEquals(RoamState.Exhausted(), vm.state.value)
     }
 
     @Test

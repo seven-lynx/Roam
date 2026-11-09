@@ -38,6 +38,7 @@ Complete documentation of all Supabase Edge Functions and PostgreSQL RPC functio
   - [`cron-streak-cleanup` — Reset stale streaks (scheduled)](#cron-streak-cleanup--reset-stale-streaks-scheduled)
   - [`game-action` — Award in-OS game XP](#game-action--award-in-os-game-xp)
   - [`cron-notification-cleanup` — Notification retention cleanup (scheduled)](#cron-notification-cleanup--notification-retention-cleanup-scheduled)
+  - [`cron-exhaustion-notify` — Discovery exhaustion nudge (scheduled)](#cron-exhaustion-notify--discovery-exhaustion-nudge-scheduled)
   - [`roll-action` — Record a Cyberdeck Roll gallery action](#roll-action--record-a-cyberdeck-roll-gallery-action)
   - [`sentry-webhook` — Sentry → GitHub issue bridge (webhook)](#sentry-webhook--sentry--github-issue-bridge-webhook)
 - [RPC Functions (Database)](#rpc-functions-database)
@@ -110,12 +111,17 @@ Returns a single weighted-random unseen URL matching the user's category prefere
 
 **Error Responses:**
 - **401** — Unauthorized (invalid or missing token)
-- **404** — No URLs available (all categories explored or language-filtered to empty pool)
-- **500** — Internal server error (non-timeout RPC errors)
-- **503** — Discovery timed out (RPC query exceeded 35s statement timeout)
+- **404** — No URLs available for this scope. The body is `{ error, exhausted: true, reason?, available_later?, scope? }`; the last three appear only when a reason was recorded for this request's scope, so treat them as optional (see the note below)
+- **503** — Retryable server-side failure; the body carries `retryable: true`. Emitted by the circuit breaker, by a non-timeout RPC error on either the serve or the `prefetch` path, and by a statement timeout. An RPC error is **never** reported as `404 exhausted` — a hard fault must not render as "you have seen everything"
 
 **Notes:**
 - Internally calls the `roam()` RPC function which handles seen URL tracking, language filtering, paywall filtering, domain cooldown, and scoring
+- **The 404 explains itself** (issue #120). `roam()` v39 records why a serve came back empty, and this function merges that into the 404 body. `reason` is one of:
+  - `pool_empty` — nothing left in scope at all; the seen-filter is included, so "I have read everything" lands here.
+  - `cooldown` — candidates exist but every one was filtered, and a live domain cooldown is the cause. `available_later` carries the earliest `cooldown_until`.
+  - `filters` — suppression, paywall, skip-penalty, the caller's own `exclude_domains`, or a candidate rejected at the domain gate.
+
+  `scope` is the key the reason was recorded under: `global`, `category:<uuid>`, `subcategory:<uuid>` or `collection:<uuid>`, using the same precedence the RPC applies. The row is refreshed at least every 15 minutes while the reason is live and the function only passes it on when it is that fresh, so read it as the current state rather than a promise. If the lookup fails for any reason the 404 is returned unchanged — the explanation is never allowed to become an error. A prefetch never records a reason; one appearing on a prefetch reply came from a recent serve in the same scope.
 - When `collection_id` is provided, category filtering is bypassed and URLs are drawn from `collection_items`
 - When `count > 1`, multiple RPC calls are made and results are returned as an array; duplicate URLs within the batch are de-duplicated (on the `prefetch` path the batching happens in `roam_prefetch()` instead, in a single call)
 - **`prefetch: true` writes no discovery state** (issue #122): the call routes to `roam_prefetch()`, which leaves `seen_urls` and `user_domain_cooldowns` untouched. A prefetched URL is recorded only when the client serves it — `mark_url_seen()`, called by the web deck's `roamBufferNext()` and the Android hot-queue pop. Cache the ids you fetch and record the one the user actually sees, once.
@@ -1493,6 +1499,31 @@ Runs daily via Supabase cron. Deletes `notifications` older than 90 days and
 
 ---
 
+### `cron-exhaustion-notify` — Discovery exhaustion nudge (scheduled)
+
+Runs daily via Supabase cron. Tells a user **once** that discovery went dry, using the reason `roam()` recorded — `pool_empty`, `cooldown` or `filters` (issue #120). Not client-facing.
+
+**Endpoint:** `POST /functions/v1/cron-exhaustion-notify`
+
+**Authentication:** Optional `Authorization: Bearer <CRON_SECRET>` (enforced only when `CRON_SECRET` is set). The scheduler sends the service-role key, which also satisfies `verify_jwt`.
+
+**Response (200):**
+```json
+{ "success": true, "notified": 4 }
+```
+
+**Details:**
+- **Exactly once, structurally.** The entire job is one call to `claim_exhaustion_notifications()`, which claims the rows (setting `notified_at`) and inserts the notifications in a single statement. A retry answers `notified: 0`; an interruption claims nothing and the next run retries.
+- **Only live reasons.** Rows whose `last_detected_at` is older than 24 hours are skipped: `record_exhaustion()` refreshes it at least every 15 minutes while the state lasts, so an old row means the user has not hit exhaustion recently.
+- **Push, not email.** `discovery_exhausted` is absent from `EMAIL_NOTIFICATION_TYPES`, so the `notifications` insert webhook runs `push-notify` for the push and in-app row only. Per-type opt-out (`notification_preferences.discovery_exhausted.push = false`) is honoured there.
+- **The copy needs `available_later`, so it is written in SQL:** `pool_empty` → "You have read it all"; `cooldown` → "Your feed is resting", with a body naming the hours until the earliest cooldown lifts ("refills in about 3 hours"); `filters` → "Nothing matched your filters". `data` carries `reason`, `scope`, `available_later` and `url: "/"`.
+
+**Error Responses:**
+- **401** — Unauthorized (missing/invalid `CRON_SECRET`, when configured)
+- **500** — The RPC failed and nothing was claimed, so the next run retries
+
+---
+
 ### `roll-action` — Record a Cyberdeck Roll gallery action
 
 Records a `user_actions` row for a Roll gallery interaction on the web ROAM-OS
@@ -1618,6 +1649,13 @@ id, url, title, description, og_image_url, category_id, subcategory_id, wilson_s
 
 **Discovery state (v38, issue #122):** A returned row used to always write a `seen_urls` row and refresh a 24 h `user_domain_cooldowns` entry. It now does that through `mark_url_seen()` **unless** the transaction-local GUC `roam.prefetch` is `'on'` — which only `roam_prefetch()` sets. The flag is a GUC rather than a 7th parameter because `CREATE OR REPLACE FUNCTION` cannot add an argument: a new signature would land as a *second overload*, which PostgREST cannot resolve reliably. `scripts/verify-roam-rpc.mjs` enforces both invariants (exactly one `roam()` overload; the body still consults the flag).
 
+**Exhaustion reason (v39, issue #120):** A serve that finds nothing records *why* in `user_exhaustion_state`, so the Edge Function can explain the 404 instead of leaving the user at a dead end:
+- `pool_empty` — nothing left in scope at all (the seen-filter is included, so reading everything lands here).
+- `cooldown` — candidates exist but every one is blocked, and the user has a live domain cooldown. `available_later` carries the earliest `cooldown_until`.
+- `filters` — suppression, paywall, skip-penalty or caller-supplied `exclude_domains` removed the remainder, or a candidate was rejected at the domain gate.
+
+The reason is derived from probes the function already ran (`v_pool_check`, `v_strict_pool`, `v_cooled_domains`), so it costs one indexed lookup for the expiry and only on the empty path. The write is skipped while `roam.prefetch` is `'on'`: a prefetch is not a serve and must not claim the user is exhausted. It is a stored row and not a return column because `CREATE OR REPLACE` cannot change `roam()`'s return type; changing it would mean dropping the function and its grant.
+
 ---
 
 ### `roam_prefetch()` — Batch discovery that records nothing
@@ -1679,6 +1717,31 @@ SELECT mark_url_seen(
 ```typescript
 // Prefetched URLs carry no state; record the one the user actually sees.
 await supabase.rpc('mark_url_seen', { p_url_id: urlId });
+```
+
+---
+
+### `claim_exhaustion_notifications()` — Notify exhausted users (internal)
+
+Claims the exhaustion rows and writes the notifications in one statement. Called only by `cron-exhaustion-notify`; not client-facing.
+
+**Call Signature:**
+```sql
+SELECT claim_exhaustion_notifications()
+```
+
+**Returns:** `integer` — how many notifications were written.
+
+**Details:**
+- **One statement does both halves.** `UPDATE ... RETURNING` claims the rows by setting `notified_at`, and the `INSERT` reads from that CTE. Row locks mean a concurrent run sees `notified_at` already set, and a failure leaves nothing claimed — which is what makes the cron retry-safe.
+- Skips rows whose `last_detected_at` is older than 24 hours (see the cron entry above).
+- Writes `type = 'discovery_exhausted'`. The `notifications.body` column is nullable but `push-notify` rejects a notification without one (`push-notify/index.ts:606`), so every branch sets it.
+- `SECURITY DEFINER`, `search_path = public`, `EXECUTE` granted to `service_role` only: a client must not be able to fire every user's notifications.
+
+**Example (cron only):**
+```typescript
+const { data, error } = await supabase.rpc('claim_exhaustion_notifications')
+// data: number of notifications written
 ```
 
 ---

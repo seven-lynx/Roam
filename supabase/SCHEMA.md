@@ -22,6 +22,7 @@ High-level reference for the core tables. This is a summary — [`supabase/migra
 | `user_category_scores` | Per-user, per-category calibration (for unsegmented URLs) |
 | `interest_pair_scores` | Adjacent-category pair scoring for serendipity |
 | `user_domain_cooldowns` | 24-hour per-session domain cooldown |
+| `user_exhaustion_state` | Per-scope record of why discovery returned nothing: reason, next cooldown expiry, notify state (issue #120) |
 | `user_suppressed_domains` | 30-day domain suppression (from repeated downvotes) |
 | `user_subcategory_affinity` | Per-user subcategory affinity |
 | `user_tag_weights` | Per-user tag weights |
@@ -39,7 +40,7 @@ High-level reference for the core tables. This is a summary — [`supabase/migra
 | `moderation_audit_log` | Immutable log of admin moderation decisions |
 | `url_reports` | User reports of broken/dead links |
 | `url_failure_reports` | One row per (URL, reporter) failure aggregate — drives threshold retirement via `report_url_failures()` |
-| `push_tokens` / `notifications` | Push notification infrastructure |
+| `push_tokens` / `notifications` | Push notification infrastructure; `discovery_exhausted` (issue #120) is the push-only "your feed ran dry" nudge |
 | `beta_signups` / `feedback` | Waitlist signups and in-app feedback |
 
 ## Gamification tables

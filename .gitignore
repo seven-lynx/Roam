@@ -53,6 +53,7 @@ storage/
 
 # Supabase
 supabase/.temp/
+supabase/.branches/
 
 # Embedded repos in scripts
 scripts/.cache/stumbleupon-awesome/
