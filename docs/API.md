@@ -110,11 +110,17 @@ Returns a single weighted-random unseen URL matching the user's category prefere
 
 **Error Responses:**
 - **401** — Unauthorized (invalid or missing token)
-- **404** — No URLs available (all categories explored or language-filtered to empty pool)
+- **404** — No URLs available for this scope. The body is `{ error, exhausted: true, reason?, available_later?, scope? }`; the last three appear only when a reason was recorded for this request's scope, so treat them as optional (see the note below)
 - **503** — Retryable server-side failure; the body carries `retryable: true`. Emitted by the circuit breaker, by a non-timeout RPC error on either the serve or the `prefetch` path, and by a statement timeout. An RPC error is **never** reported as `404 exhausted` — a hard fault must not render as "you have seen everything"
 
 **Notes:**
 - Internally calls the `roam()` RPC function which handles seen URL tracking, language filtering, paywall filtering, domain cooldown, and scoring
+- **The 404 explains itself** (issue #120). `roam()` v39 records why a serve came back empty, and this function merges that into the 404 body. `reason` is one of:
+  - `pool_empty` — nothing left in scope at all; the seen-filter is included, so "I have read everything" lands here.
+  - `cooldown` — candidates exist but every one was filtered, and a live domain cooldown is the cause. `available_later` carries the earliest `cooldown_until`.
+  - `filters` — suppression, paywall, skip-penalty, the caller's own `exclude_domains`, or a candidate rejected at the domain gate.
+
+  `scope` is the key the reason was recorded under: `global`, `category:<uuid>`, `subcategory:<uuid>` or `collection:<uuid>`, using the same precedence the RPC applies. The row is refreshed at least every 15 minutes while the reason is live and the function only passes it on when it is that fresh, so read it as the current state rather than a promise. If the lookup fails for any reason the 404 is returned unchanged — the explanation is never allowed to become an error. A prefetch never records a reason; one appearing on a prefetch reply came from a recent serve in the same scope.
 - When `collection_id` is provided, category filtering is bypassed and URLs are drawn from `collection_items`
 - When `count > 1`, multiple RPC calls are made and results are returned as an array; duplicate URLs within the batch are de-duplicated (on the `prefetch` path the batching happens in `roam_prefetch()` instead, in a single call)
 - **`prefetch: true` writes no discovery state** (issue #122): the call routes to `roam_prefetch()`, which leaves `seen_urls` and `user_domain_cooldowns` untouched. A prefetched URL is recorded only when the client serves it — `mark_url_seen()`, called by the web deck's `roamBufferNext()` and the Android hot-queue pop. Cache the ids you fetch and record the one the user actually sees, once.
