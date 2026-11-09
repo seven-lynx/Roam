@@ -175,22 +175,33 @@ Deno.serve(async (req) => {
         (async () => {
           try {
             const result = await supabase.rpc('update_streak', { p_user_id: user.id })
-            const r = result as { data?: { streak_days?: number; max_streak?: number; is_streak_broken?: boolean } }
-            if (r?.data) {
+            // update_streak is RETURNS TABLE, so the client hands back an array of
+            // rows. Reading the fields off the array logged "undefined days" for a
+            // streak that had in fact been updated.
+            const { data, error } = result as {
+              data?: Array<{ streak_days?: number; max_streak?: number; is_streak_broken?: boolean }>
+              error?: { message?: string } | null
+            }
+            if (error) console.error('streak update failed:', error.message)
+            const row = data?.[0]
+            if (row) {
               console.log(
-                `streak updated: ${r.data.streak_days} days (best: ${r.data.max_streak}, broken: ${r.data.is_streak_broken ?? false})`
+                `streak updated: ${row.streak_days} days (best: ${row.max_streak}, broken: ${row.is_streak_broken ?? false})`
               )
             }
           } catch (e) {
             console.error('streak update failed', e)
           }
           try {
-            await supabase.rpc('award_xp', {
+            // supabase-js reports an RPC failure in `error` rather than throwing, so
+            // an unchecked call fails silently and no log line is the only symptom.
+            const { error } = await supabase.rpc('award_xp', {
               p_user_id: user.id,
               p_action: 'roam',
               p_metadata: { url_id: firstRow.id },
               p_idempotency_key: idemKey,
             })
+            if (error) console.error('xp award failed:', error.message)
           } catch (e) {
             console.error('xp award failed', e)
           }

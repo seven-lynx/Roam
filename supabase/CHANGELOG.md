@@ -2,6 +2,12 @@
 
 All notable changes to the Roam Supabase backend (PostgreSQL schema, Row-Level Security, and Deno Edge Functions).
 
+## [2026-11-09] — The silent failures behind the log sweep
+### Fixed
+- `roam` reads `update_streak`'s result as what it is. `RETURNS TABLE` makes the client hand back an array of rows, so `streak_days`, `max_streak` and `is_streak_broken` came back `undefined` and every call logged `streak updated: undefined days (best: undefined, broken: false)` for a streak that had in fact been updated. The row is now taken from `data[0]`.
+- `roam` checks the `error` that `update_streak` and `award_xp` return. supabase-js reports an RPC failure in `error` rather than throwing, so the `catch` blocks wrapped around these calls could never fire: an award that failed left no log line at all. That is why the `42702` above surfaced from `game-action`, which does check, and never from `roam`, which generates most of the traffic.
+- `leaderboard` upserts its snapshot instead of inserting it. Two refreshes can start inside the same millisecond, and `delete`-then-`insert` then writes the same `(period, user_id, snapshot_at)` twice — the second one collided on `leaderboard_snapshots_pkey` and logged a 23505 for a row that was already correct. `ignoreDuplicates` turns the loser into a no-op.
+
 ## [2026-11-09] — `award_xp()` stops raising 42702 on every call
 ### Fixed
 - `award_xp()` no longer dies with `column reference "xp_awarded" is ambiguous`. It declares `RETURNS TABLE(new_xp_total, new_level, xp_awarded)` and then ran `RETURN QUERY SELECT * FROM public.apply_xp(...)`, whose result carries those same three names — one namespace, two candidates, `42702`. `apply_xp` is correct and untouched; the wrapper now aliases the call and qualifies every column. **All** `award_xp()` calls had been failing since `20261103000002_unify_xp_badges.sql` turned the function into this wrapper on 2026-11-03, so XP and levels were frozen while callers saw success: `game-action` catches the error and logs `[game-action] apply_xp failed: …` as a **warning**, observed every ~20 s on 2026-11-07. Nothing exercised the wrapper's `RETURN QUERY`, so the migration applied cleanly and only runtime traffic found it.
