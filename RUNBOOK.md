@@ -6,6 +6,18 @@ procedures live here).
 
 _Last reviewed: 2026-11-09._
 
+## Environments
+
+| Environment | Supabase project | Ref | Notes |
+|---|---|---|---|
+| Production | `Roam` | `yrhckctwtdjowulfuaqc` | Real users. Migrations and function deploys land here after merge. |
+| Staging | `roam-staging` | `awycbpktifjibdasyqzk` | What the local CLI links to (`supabase/.temp/project-ref`). Deliberately has **no** `SENTRY_DSN`, `FCM_SERVICE_ACCOUNT_JSON`, `FCM_PROJECT_ID`, `VAPID_*` or `RESEND_API_KEY`, so nothing delivers a notification or reports an error from there. |
+| Local | — | — | `supabase start` and `supabase db reset --local`. Never a remote target. |
+
+Never infer the target from the CLI link: every remote-mutating command names
+`--project-ref`, and `supabase projects list -o json` is what settles which ref is which.
+Enforced by `R12` in `scripts/check-rules.mjs`.
+
 ## Hard Rules
 
 Hard Rules are project-wide invariants enforced by `scripts/check-rules.mjs`
