@@ -326,10 +326,10 @@ export function Desktop() {
         )}
         {widgets.rankings && (
           <div
-            className="dw-wrap dw-wrap--fixed"
+            className="dw-wrap dw-wrap--fixed dw-wrap--rankings"
             ref={(el) => { widgetRefs.current.rankings = el; }}
             inert={covered.rankings}
-            style={{ width: 320, height: 210, pointerEvents: covered.rankings ? 'none' : 'auto' }}
+            style={{ pointerEvents: covered.rankings ? 'none' : 'auto' }}
           >
             {WIDGETS.rankings}
           </div>

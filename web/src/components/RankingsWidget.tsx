@@ -79,11 +79,14 @@ export function RankingsWidget({ limit = 5 }: { limit?: number }) {
                   key={entry.user_id}
                   href={`/u/${entry.username}`}
                   onClick={(e) => { e.preventDefault(); openAppView(`/u/${entry.username}`, 'Profile'); }}
-                  className={`rank-row flex items-center gap-3 px-3 py-2 transition-colors ${
+                  className={`rank-row flex items-center gap-3 px-3 py-1.5 transition-colors ${
                     isTop3 ? 'rank-row--top' : ''
                   }`}
                 >
-                  <span className="w-7 text-center font-bold tabular-nums text-ink">
+                  {/* `leading-5` pins the glyph cell's line box to the 20px the
+                      text-sm columns already use: at the inherited 16px/1.5 it
+                      set every row 4px taller than its text needed. */}
+                  <span className="w-7 text-center font-bold tabular-nums text-ink leading-5">
                     {entry.rank <= 3 ? ['🥇', '🥈', '🥉'][entry.rank - 1] : `#${entry.rank}`}
                   </span>
                   <span className="flex-1 min-w-0 truncate text-ink text-sm">

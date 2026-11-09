@@ -2,6 +2,16 @@
 
 All notable changes to the Roam web platform.
 
+## [2026-11-08] — Rankings tile fits five rows
+
+### Fixed
+- The rankings widget no longer cuts itself off. The desktop tile was pinned to 210px — the height of the two square tiles beside it in the top-right rail — so its body scrolled and everything past roughly two entries was clipped by the chamfered edge, including both footers. It now sizes to its content: five rows, the `Full rankings →` link and the `~/.roam/ranks.log` chip all fit (336px).
+- Each ranking row was 42px tall although its tallest text set a 20px line: the leaderboard glyph cell (`🥇` / `#4`) inherited the widget's 16px/1.5 line box and grew the row by 4px. Pinned it to `leading-5`, matching the `text-sm` columns, and trimmed the row padding from `py-2` to `py-1.5` — 34px a row, which buys 40px back for entries and drops the viewport height needed for all five from 875px to 835px.
+
+### Changed
+- The tile's height is a shared `--rankings-h` custom property on `.desktop`, and the showcase rail's top cap is derived from it (`calc(60px + var(--rankings-h))`) instead of the hard-coded 270px, which encoded the old 210px tile height and would have gone stale — the taller tile now sits directly above "This month's picks", so the two would collide on any viewport that could not hold both.
+- On a viewport too short for the rankings tile and the showcase at once, the tile shrinks (down to its old 210px) and its list scrolls, rather than the showcase climbing up over its footer. At 1280×720 that is 221px — four entries instead of the two the old fixed tile showed.
+
 ## [2026-11-08] — A stale refresh token is not an auth failure
 ### Fixed
 - A returning visitor whose refresh token Supabase had already rotated no longer files an error: the middleware read `refresh_token_not_found` as a genuine auth failure, reported it, and left the dead cookie in place so every later request paid for a refresh that could never succeed. The stale cookie is expired on the way out now, and the same goes for `refresh_token_already_used`, `session_not_found` and `session_expired`.

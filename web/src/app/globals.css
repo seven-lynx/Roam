@@ -1527,6 +1527,13 @@ button.gadget:active { transform: translateY(1px) scale(0.98); }
   inset: 0;
   z-index: 4;
   pointer-events: none;
+  /* Tallest tile in the top-right rail: five ranking rows plus both footers
+     (333px measured at 1440×900). On a viewport too short to hold it and the
+     showcase tile (383px) at once it shrinks and the rankings list scrolls; the
+     bottom rail's cap below is derived from this same value, so the two tiles
+     can never overlap. The 499px = 116px of fixed chrome (48px rail + 12px gap
+     + 56px bottom clearance) + the 383px showcase tile. */
+  --rankings-h: clamp(210px, calc(100dvh - 499px), 336px);
 }
 .desktop-icon {
   position: absolute;
@@ -2451,6 +2458,8 @@ button.gadget:active { transform: translateY(1px) scale(0.98); }
 }
 .dw-wrap--fixed .widget { height: 100%; display: flex; flex-direction: column; }
 .dw-wrap--fixed .widget-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
+/* Rankings is the only tile taller than the 210px square pair beside it. */
+.dw-wrap--rankings { width: 320px; height: var(--rankings-h); }
 .desktop-widget { flex: 0 0 auto; }
 .desktop-widgets--left {
   left: 12px;
@@ -2459,10 +2468,11 @@ button.gadget:active { transform: translateY(1px) scale(0.98); }
   align-items: flex-start;
 }
 .desktop-widgets--bottom {
-  /* Cap the showcase so it can never ride up into the top cluster: the top rail
-     starts at 48px and its tiles are 210px tall, so 270px + a 12px gap is the
-     earliest it may begin. It still hugs the bottom on tall screens. */
-  top: 270px;
+  /* Cap the showcase so it can never ride up into the top cluster, which starts
+     at 48px: the rail's tallest tile (rankings) plus a 12px gap is the earliest
+     it may begin. Derived from --rankings-h so the two stay in step. It still
+     hugs the bottom on tall screens. */
+  top: calc(60px + var(--rankings-h));
   bottom: 56px;
   align-items: flex-end;
   /* `safe` falls back to start alignment if the tile ever overflows the capped
