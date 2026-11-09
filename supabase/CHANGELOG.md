@@ -2,6 +2,10 @@
 
 All notable changes to the Roam Supabase backend (PostgreSQL schema, Row-Level Security, and Deno Edge Functions).
 
+## [2026-11-09] — `award_xp()` stops raising 42702 on every call
+### Fixed
+- `award_xp()` no longer dies with `column reference "xp_awarded" is ambiguous`. It declares `RETURNS TABLE(new_xp_total, new_level, xp_awarded)` and then ran `RETURN QUERY SELECT * FROM public.apply_xp(...)`, whose result carries those same three names — one namespace, two candidates, `42702`. `apply_xp` is correct and untouched; the wrapper now aliases the call and qualifies every column. **All** `award_xp()` calls had been failing since `20261103000002_unify_xp_badges.sql` turned the function into this wrapper on 2026-11-03, so XP and levels were frozen while callers saw success: `game-action` catches the error and logs `[game-action] apply_xp failed: …` as a **warning**, observed every ~20 s on 2026-11-07. Nothing exercised the wrapper's `RETURN QUERY`, so the migration applied cleanly and only runtime traffic found it.
+
 ## [2026-11-09] — Submitting a non-URL answers 400 instead of 500
 ### Fixed
 - `submit-url` guards its `normalizeUrl()` call. `_shared/normalise.ts` throws on anything that is not an absolute http(s) URL — `new URL('test@roamtheweb.app')` raises `TypeError: Invalid URL` — and the handler called it unguarded, so the throw escaped `Deno.serve` as a **500** carrying a body no client could explain. Android maps every status outside its listed branches to "Something went wrong — please try again", which is the entire content of `ROAM-ANDROID-P`: 80 events, no stack on any of them, first seen 2026-06-07 (issue #112). The handler now mirrors `scrape-url` and returns `400 { error: <reason> }`. Reachable only by authenticated callers, so nothing leaked; the cost was an unactionable Sentry group plus a false server-fault signal for what is a plain input error.
