@@ -485,6 +485,15 @@ body {
   margin: -2px 0 2px;
 }
 .categories-chips { margin-bottom: 4px; }
+/* Scope line + "Select all": "everything" is a first-class choice, not the
+   by-product of zero rows (issue #121). */
+.categories-scope-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.categories-scope-row .categories-sub { margin: 0; }
 
 /* ── Interest mode toggle ───────────────────────────────────────────── */
 .interest-mode-toggle {

@@ -5,7 +5,7 @@ import { createClient } from '@/lib/supabase/client';
 import { useAuth } from '@/components/AuthProvider';
 import { useWorkstation, type WebappTheme } from '@/components/WorkstationContext';
 import { InterestPicker, type Category, type Subcategory } from '@/components/InterestPicker';
-import { saveUserInterests, type InterestMode } from '@/lib/interests';
+import { saveUserInterests, selectAllCategories, type InterestMode } from '@/lib/interests';
 import Image from 'next/image';
 
 const USERNAME_RE = /^[a-z0-9_-]+$/;
@@ -96,6 +96,15 @@ export function Walkthrough() {
   const clean = username.trim().toLowerCase();
   const usernameValid = clean.length >= 3 && USERNAME_RE.test(clean);
   const interestsReady = mode === 'pillars' ? pillars.size > 0 : topics.size > 0;
+  const interestSelected = mode === 'pillars' ? pillars.size : topics.size;
+  const interestTotal = mode === 'pillars' ? categories.length : subcategories.length;
+
+  /** "Everything" as a first-class choice: all categories, or all topics. */
+  function selectAll() {
+    if (mode === 'pillars') setPillars(selectAllCategories(categories));
+    else setTopics(new Set(subcategories.map((s) => s.id)));
+  }
+
   const last = step === STEPS - 1;
 
   let canContinue = true;
@@ -110,8 +119,9 @@ export function Walkthrough() {
       setWebappTheme(themeChoice);
     } else if (step === 2) {
       const supabase = createClient();
-      const parentMap = new Map(subcategories.map((s) => [s.id, s.category_id]));
-      await saveUserInterests(supabase, session!.user.id, mode, pillars, topics, parentMap).catch(() => {});
+      // One RPC: the mode is persisted and the rows replaced in a single
+      // transaction, so onboarding cannot leave a half-applied scope (#121).
+      await saveUserInterests(supabase, mode, pillars, topics).catch(() => {});
     } else if (step === 3) {
       const supabase = createClient();
       await supabase
@@ -278,6 +288,8 @@ export function Walkthrough() {
               onPillarToggle={(id) => setPillars((p) => { const n = new Set(p); if (n.has(id)) n.delete(id); else n.add(id); return n; })}
               onTopicToggle={(id) => setTopics((p) => { const n = new Set(p); if (n.has(id)) n.delete(id); else n.add(id); return n; })}
               onModeChange={setMode}
+              scope={{ selected: interestSelected, total: interestTotal }}
+              onSelectAll={selectAll}
             />
           </div>
         )}

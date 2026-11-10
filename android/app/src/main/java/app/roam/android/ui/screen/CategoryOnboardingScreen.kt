@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -146,8 +147,40 @@ fun CategoryOnboardingScreen(
         }
 
         item {
+            // Scope line + "Select all": the user can see how wide their scope is, and
+            // "everything" is a real choice rather than the by-product of saving
+            // nothing (issue #121).
+            val interestTotal = if (interestMode == "pillars") categories.size else subcategories.size
+            val interestSelected = if (interestMode == "pillars") selectedPillars.size else selectedTopics.size
+            val interestNoun = if (interestMode == "pillars") "categories" else "topics"
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = "$interestSelected of $interestTotal $interestNoun selected",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                )
+                if (interestSelected < interestTotal) {
+                    TextButton(onClick = { vm.selectAllInterests() }) {
+                        Text("Select all $interestNoun")
+                    }
+                }
+            }
+        }
+
+        item {
             Button(
-                onClick = onComplete,
+                onClick = {
+                    // This screen used to complete without writing anything: pillar
+                    // taps were persisted one row at a time and topic selections were
+                    // lost entirely. Now the whole selection saves in one transaction
+                    // (issue #121); the coroutine outlives the navigation.
+                    vm.saveInterests()
+                    onComplete()
+                },
                 enabled = hasSelection,
                 modifier = Modifier
                     .fillMaxWidth()

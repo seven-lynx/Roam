@@ -23,6 +23,10 @@ interface InterestPickerProps {
   onPillarToggle: (id: string) => void;
   onTopicToggle: (id: string) => void;
   onModeChange: (mode: InterestMode) => void;
+  /** Current scope, e.g. `{ selected: 3, total: 8 }`. Shown under the chips. */
+  scope?: { selected: number; total: number };
+  /** Renders a "Select all …" action for the active mode (issue #121). */
+  onSelectAll?: () => void;
 }
 
 export function InterestPicker({
@@ -34,6 +38,8 @@ export function InterestPicker({
   onPillarToggle,
   onTopicToggle,
   onModeChange,
+  scope,
+  onSelectAll,
 }: InterestPickerProps) {
   // Group subcategories by parent category for the topics view
   const subcatsByCategory = new Map<string, Subcategory[]>();
@@ -42,6 +48,28 @@ export function InterestPicker({
     group.push(sc);
     subcatsByCategory.set(sc.category_id, group);
   }
+
+  const noun = mode === 'pillars' ? 'categories' : 'topics';
+
+  // "Everything" is a first-class choice rather than the by-product of zero rows:
+  // an empty selection used to mean "no filter at all", which `roam()` read as the
+  // whole corpus and the picker could not distinguish from "not set up yet".
+  const footer = scope ? (
+    <div className="flex items-center justify-between gap-3 text-xs text-muted">
+      <span>
+        {scope.selected} of {scope.total} {noun} selected
+      </span>
+      {onSelectAll && scope.selected < scope.total && (
+        <button
+          type="button"
+          onClick={onSelectAll}
+          className="underline underline-offset-2 hover:text-ink transition-colors"
+        >
+          Select all {noun}
+        </button>
+      )}
+    </div>
+  ) : null;
 
   if (mode === 'pillars') {
     return (
@@ -66,6 +94,7 @@ export function InterestPicker({
             );
           })}
         </div>
+        {footer}
         {subcategories.length > 0 && (
           <button
             type="button"
@@ -122,6 +151,8 @@ export function InterestPicker({
           );
         })}
       </div>
+
+      {footer}
     </div>
   );
 }

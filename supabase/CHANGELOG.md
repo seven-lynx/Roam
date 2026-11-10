@@ -2,6 +2,20 @@
 
 All notable changes to the Roam Supabase backend (PostgreSQL schema, Row-Level Security, and Deno Edge Functions).
 
+## [2026-11-09] — The interest mode is stored, and saving interests is one transaction (issue #121)
+### Added
+- **`user_settings.interest_mode`** (`'pillars'`/`'topics'`, default `'pillars'`, CHECK-constrained). The mode used to exist only as a *shape* of `user_categories`: `loadUserInterests()` returned topics mode if **any** row carried a `subcategory_id`, so one stray topic row flipped the entire picker and the choice was re-inferred on every load, in all three clients, from the same rule. It is now persisted and read.
+- **`replace_user_interests(p_mode, p_pillar_ids, p_topic_ids)`** — the single writer for a user's interests. It deletes, inserts and stores the mode in one transaction, and it refuses an empty selection (`22023`: *Pick at least one category* / *Pick at least one topic*), so "zero rows" is unreachable from a client. It derives each topic's parent category itself and rejects unknown ids before writing anything. `SECURITY INVOKER`, so the existing owner-scoped RLS policies remain the security boundary; `EXECUTE` granted to `authenticated`.
+
+### Fixed
+- **A partial or aborted save could silently narrow discovery to nothing.** Saving was delete-all-then-insert as two PostgREST requests: a failure between them left **zero** rows (which `roam()` reads as *no filter at all*) or a partial set, and nothing in the UI showed the resulting scope. The same two-request shape existed in all three clients — web `web/src/lib/interests.ts`, extension `background.ts`, Android `RoamRepository.saveUserInterests` — and Android additionally wrote each pillar tap on its own through `setUserCategory()`, so a single unintended tap changed what `roam()` served before any save and with no undo. The three-account cost of one such state is on record: a single subcategory is 41,968 URLs across 198 domains, permanently exhausted (#118 is what that costs the database).
+- **"Everything" is a first-class choice.** An all-categories selection (all 8 pillars) is what `roam()` has always read as the whole pool; it is now a *Select all* action in the web picker, the extension popup and the Android picker, instead of the accidental by-product of saving nothing.
+- **The scope is visible.** All three surfaces show `N of M categories selected` (or topics) next to the picker, so narrowing can no longer happen invisibly.
+- **`roam()` is unchanged.** Rows remain the serving source of truth; the stored mode is presentation and a write guard. The backfill derives `interest_mode` with the exact rule the clients used, so every account serves identically on deploy.
+
+### Rollback
+- See `RUNBOOK.md` → `20261109160000_interest_mode_and_atomic_replace.sql`. Additive: dropping the function and the column restores the previous shape, and the backfill only ever wrote the mode the clients already inferred, so no user data is lost.
+
 ## [2026-11-09] — Discovery exhaustion is explained, not just reported (issue #120)
 ### Added
 - **`roam()` v39 records why a serve found nothing.** The RPC signals exhaustion by returning zero rows, and the 404 that follows carried no reason, so "you have read everything in scope" and "every domain you can see is cooling down" reached all three clients as the same dead end. Immediately before the single `RETURN QUERY`, a zero-row serve now writes `user_exhaustion_state`: `pool_empty` when the loose pool is empty (the seen-filter is included, so reading everything lands here), `cooldown` when candidates exist but every one is blocked while the user still has a live domain cooldown (`available_later` carries the earliest expiry), and `filters` otherwise. The reason is derived from probes the function already ran — `v_pool_check`, `v_strict_pool`, `v_cooled_domains` — so the only added cost is one indexed lookup, and only on the empty path.

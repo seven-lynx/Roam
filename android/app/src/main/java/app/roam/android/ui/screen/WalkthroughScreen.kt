@@ -395,6 +395,29 @@ private fun InterestsStep(vm: MainViewModel) {
                 HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
             }
         }
+
+        // Scope line + "Select all": the narrowing used to be invisible, and
+        // "everything" was the by-product of saving nothing (issue #121).
+        Spacer(Modifier.height(12.dp))
+        val interestTotal = if (interestMode == "pillars") categories.size else subcategories.size
+        val interestSelected = if (interestMode == "pillars") selectedPillars.size else selectedTopics.size
+        val interestNoun = if (interestMode == "pillars") "categories" else "topics"
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = "$interestSelected of $interestTotal $interestNoun selected",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+            )
+            if (interestSelected < interestTotal) {
+                TextButton(onClick = { vm.selectAllInterests() }) {
+                    Text("Select all $interestNoun")
+                }
+            }
+        }
     }
 }
 

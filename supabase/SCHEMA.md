@@ -18,6 +18,8 @@ High-level reference for the core tables. This is a summary — [`supabase/migra
 
 | Table | Purpose |
 |---|---|
+| `user_categories` | What a user wants served: one row per selected pillar (`subcategory_id` NULL) or per selected topic. Written only through `replace_user_interests()` (issue #121) |
+| `user_settings` | Per-user preferences: `preferred_languages`, `skip_paywalled`, `discovery_mode`, `interest_mode` (`'pillars'`/`'topics'`, issue #121), notification prefs |
 | `user_interest_scores` | Per-user, per-subcategory calibration weights |
 | `user_category_scores` | Per-user, per-category calibration (for unsegmented URLs) |
 | `interest_pair_scores` | Adjacent-category pair scoring for serendipity |

@@ -8,7 +8,7 @@ import * as Sentry from "@sentry/nextjs";
 import { createClient } from "@/lib/supabase/client";
 import { validateEmail, validatePassword, validatePasswordsMatch, getPasswordStrengthColor, getPasswordStrengthLabel } from "@/lib/validation";
 import { InterestPicker } from "@/components/InterestPicker";
-import { saveUserInterests, type InterestMode } from "@/lib/interests";
+import { saveUserInterests, selectAllCategories, type InterestMode } from "@/lib/interests";
 import type { Subcategory } from "@/components/InterestPicker";
 
 import { FALLBACK_CATEGORIES } from "@/lib/constants";
@@ -199,6 +199,14 @@ export default function SignupPageContent() {
   const hasSelection =
     (interestMode === 'pillars' && selectedPillars.size > 0) ||
     (interestMode === 'topics' && selectedTopics.size > 0);
+  const interestTotal = interestMode === 'pillars' ? categories.length : subcategories.length;
+  const interestSelected = interestMode === 'pillars' ? selectedPillars.size : selectedTopics.size;
+
+  /** "Everything" as a first-class choice: all categories, or all topics. */
+  function handleSelectAll() {
+    if (interestMode === 'pillars') setSelectedPillars(selectAllCategories(categories));
+    else setSelectedTopics(new Set(subcategories.map((s) => s.id)));
+  }
 
   async function handleCategories(e: React.FormEvent) {
     e.preventDefault();
@@ -210,8 +218,8 @@ export default function SignupPageContent() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) { setError("Not signed in — please refresh and try again."); setLoading(false); return; }
 
-      const subcategoryParentMap = new Map(subcategories.map((s) => [s.id, s.category_id]));
-      await saveUserInterests(supabase, user.id, interestMode, selectedPillars, selectedTopics, subcategoryParentMap);
+      // One RPC: mode and rows are written in the same transaction (issue #121).
+      await saveUserInterests(supabase, interestMode, selectedPillars, selectedTopics);
 
       if (isAndroid) {
         try {
@@ -260,6 +268,8 @@ export default function SignupPageContent() {
             onPillarToggle={handlePillarToggle}
             onTopicToggle={handleTopicToggle}
             onModeChange={handleModeChange}
+            scope={{ selected: interestSelected, total: interestTotal }}
+            onSelectAll={handleSelectAll}
           />
 
           {error && <p className="text-sm text-danger text-center">{error}</p>}
