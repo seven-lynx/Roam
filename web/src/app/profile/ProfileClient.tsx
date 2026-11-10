@@ -12,7 +12,7 @@ import { SavedUrlsManager } from './SavedUrlsManager';
 import type { SavedUrlRow } from './SavedUrlsManager';
 import { InterestPicker } from '@/components/InterestPicker';
 import type { Subcategory } from '@/components/InterestPicker';
-import { saveUserInterests, type InterestMode } from '@/lib/interests';
+import { saveUserInterests, selectAllCategories, type InterestMode } from '@/lib/interests';
 import { LevelProgress } from '@/components/badges/LevelProgress';
 import { BadgeDisplay } from '@/components/badges/BadgeDisplay';
 import type { BadgeData } from '@/components/badges/BadgeDisplay';
@@ -42,6 +42,8 @@ interface ProfileClientProps {
   allSubcategories: Subcategory[];
   initialCategoryIds: string[];
   initialTopicIds: string[];
+  /** Persisted mode from `user_settings.interest_mode` (issue #121). */
+  initialMode: InterestMode;
   initialCollections: CollectionRow[];
   initialSavedUrls: SavedUrlRow[];
   initialBadges?: Record<string, unknown>[];
@@ -51,7 +53,7 @@ interface ProfileClientProps {
 
 type Tab = 'collections' | 'saved' | 'badges' | 'following' | 'about';
 
-export function ProfileClient({ userId, email, profile, allCategories, allSubcategories, initialCategoryIds, initialTopicIds, initialCollections, initialSavedUrls, initialBadges, followerCount, followingCount }: ProfileClientProps) {
+export function ProfileClient({ userId, email, profile, allCategories, allSubcategories, initialCategoryIds, initialTopicIds, initialMode, initialCollections, initialSavedUrls, initialBadges, followerCount, followingCount }: ProfileClientProps) {
   const supabase = createClient();
 
   const [activeTab, setActiveTab] = useState<Tab>('collections');
@@ -68,8 +70,9 @@ export function ProfileClient({ userId, email, profile, allCategories, allSubcat
   const [editingBio, setEditingBio] = useState(false);
   const [bioLoading, setBioLoading] = useState(false);
 
-  // Interest selection
-  const initialMode: InterestMode = initialTopicIds.length > 0 ? 'topics' : 'pillars';
+  // Interest selection. The mode is persisted in `user_settings` (issue #121) and
+  // comes in with the server render — it is never inferred from row shape, so a
+  // stray topic row can no longer flip the whole picker into topics mode.
   const [interestMode, setInterestMode] = useState<InterestMode>(initialMode);
   const [selectedPillars, setSelectedPillars] = useState<Set<string>>(new Set(initialCategoryIds));
   const [selectedTopics, setSelectedTopics] = useState<Set<string>>(new Set(initialTopicIds));
@@ -136,12 +139,26 @@ export function ProfileClient({ userId, email, profile, allCategories, allSubcat
     setInterestsSaved(false);
   }
 
+  /** "Everything" as a first-class choice: all categories, or all topics. */
+  function handleSelectAll() {
+    if (interestMode === 'pillars') setSelectedPillars(selectAllCategories(allCategories));
+    else setSelectedTopics(new Set(allSubcategories.map((s) => s.id)));
+    setInterestsDirty(true);
+    setInterestsSaved(false);
+  }
+
+  const interestTotal =
+    interestMode === 'pillars' ? allCategories.length : allSubcategories.length;
+  const interestSelected =
+    interestMode === 'pillars' ? selectedPillars.size : selectedTopics.size;
+
   async function saveInterests() {
     setInterestsSaving(true);
     setError(null);
     try {
-      const subcategoryParentMap = new Map(allSubcategories.map((s) => [s.id, s.category_id]));
-      await saveUserInterests(supabase, userId, interestMode, selectedPillars, selectedTopics, subcategoryParentMap);
+      // One RPC: the mode and the rows land in the same transaction, so a failed
+      // save can no longer strip the user down to zero or partial rows.
+      await saveUserInterests(supabase, interestMode, selectedPillars, selectedTopics);
       setInterestsDirty(false);
       setInterestsSaved(true);
       setTimeout(() => setInterestsSaved(false), 2500);
@@ -422,17 +439,27 @@ export function ProfileClient({ userId, email, profile, allCategories, allSubcat
                   onPillarToggle={handlePillarToggle}
                   onTopicToggle={handleTopicToggle}
                   onModeChange={handleModeChange}
+                  scope={{ selected: interestSelected, total: interestTotal }}
+                  onSelectAll={handleSelectAll}
                 />
               </div>
 
               {interestsDirty && (
-                <button
-                  onClick={saveInterests}
-                  disabled={interestsSaving}
-                  className="text-sm bg-accent text-ink px-5 py-2 rounded-lg font-medium hover:opacity-90 disabled:opacity-50 transition-opacity"
-                >
-                  {interestsSaving ? 'Saving…' : 'Save interests'}
-                </button>
+                <div className="flex flex-col gap-2">
+                  <button
+                    onClick={saveInterests}
+                    disabled={interestsSaving || interestSelected === 0}
+                    className="self-start text-sm bg-accent text-ink px-5 py-2 rounded-lg font-medium hover:opacity-90 disabled:opacity-50 transition-opacity"
+                  >
+                    {interestsSaving ? 'Saving…' : 'Save interests'}
+                  </button>
+                  {interestSelected === 0 && (
+                    <p className="text-xs text-muted">
+                      Pick at least one {interestMode === 'pillars' ? 'category' : 'topic'}, or use
+                      &ldquo;Select all&rdquo; to roam everything.
+                    </p>
+                  )}
+                </div>
               )}
               {interestsSaved && (
                 <p className="text-sm text-ok mt-2">✓ Interests saved</p>

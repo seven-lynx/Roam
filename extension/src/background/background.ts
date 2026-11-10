@@ -351,7 +351,7 @@ async function _dispatch(req: Request): Promise<Response> {
     case 'GET_CATEGORIES':        return getCategories();
     case 'GET_USER_INTERESTS':    return getUserInterests();
     case 'GET_USER_SETTINGS':     return getUserSettings();
-    case 'SET_USER_INTERESTS':    return setUserInterests(req.pillarIds, req.topicIds);
+    case 'SET_USER_INTERESTS':    return setUserInterests(req.mode, req.pillarIds, req.topicIds);
     case 'GET_ALL_SUBCATEGORIES': return getAllSubcategories();
     case 'ROAM':                  return roam(req.categoryId, req.subcategoryId);
     case 'ROAM_COLLECTION':       return roamCollection(req.collectionId);
@@ -419,21 +419,28 @@ async function getCategories(): Promise<Response<CategoryItem[]>> {
   return { ok: true, data: FALLBACK_CATEGORIES };
 }
 
+/**
+ * The mode is read from `user_settings.interest_mode`, never inferred from row
+ * shape (issue #121): one stray topic row used to flip the whole picker into
+ * topics mode. Rows that do not belong to the stored mode are ignored.
+ */
 async function getUserInterests(): Promise<Response<{ mode: 'pillars' | 'topics'; pillarIds: string[]; topicIds: string[] }>> {
   const session = (await getSupabase().auth.getSession()).data.session;
   if (!session) return { ok: false, error: "You're not signed in. Please sign in and try again." };
-  const { data, error } = await getSupabase()
-    .from('user_categories')
-    .select('category_id, subcategory_id')
-    .eq('user_id', session.user.id);
-  if (error) return { ok: false, error: "Couldn't load your interests. Please try again." };
+  const [settings, rowsResult] = await Promise.all([
+    getSupabase().from('user_settings').select('interest_mode').eq('user_id', session.user.id).maybeSingle(),
+    getSupabase().from('user_categories').select('category_id, subcategory_id').eq('user_id', session.user.id),
+  ]);
+  // A missing settings row is not an error: the column defaults to 'pillars'.
+  if (rowsResult.error) return { ok: false, error: "Couldn't load your interests. Please try again." };
   type InterestRow = { category_id: string; subcategory_id: string | null };
-  const rows = (data ?? []) as InterestRow[];
-  const topicRows = rows.filter((r) => r.subcategory_id !== null);
-  const pillarRows = rows.filter((r) => r.subcategory_id === null);
-  if (topicRows.length > 0) {
+  const rows = (rowsResult.data ?? []) as InterestRow[];
+  const stored = (settings.data as { interest_mode?: string } | null)?.interest_mode;
+  if (stored === 'topics') {
+    const topicRows = rows.filter((r) => r.subcategory_id !== null);
     return { ok: true, data: { mode: 'topics', pillarIds: [], topicIds: topicRows.map((r) => r.subcategory_id as string) } };
   }
+  const pillarRows = rows.filter((r) => r.subcategory_id === null);
   return { ok: true, data: { mode: 'pillars', pillarIds: pillarRows.map((r) => r.category_id), topicIds: [] } };
 }
 
@@ -450,25 +457,32 @@ async function getAllSubcategories(): Promise<Response<SubcategoryItem[]>> {
   }
 }
 
-async function setUserInterests(pillarIds: string[], topicIds: string[]): Promise<Response<null>> {
+/**
+ * Writes the mode and the rows in one transaction through
+ * `replace_user_interests()` (issue #121). The old delete-then-insert pair was
+ * two requests, and when both topic and pillar ids were present the topic branch
+ * silently dropped the pillars; the RPC takes one mode and one list.
+ */
+async function setUserInterests(
+  mode: 'pillars' | 'topics',
+  pillarIds: string[],
+  topicIds: string[],
+): Promise<Response<null>> {
   const session = (await getSupabase().auth.getSession()).data.session;
   if (!session) return { ok: false, error: "You're not signed in. Please sign in and try again." };
-  const { error: delError } = await getSupabase().from('user_categories').delete().eq('user_id', session.user.id);
-  if (delError) return { ok: false, error: "Couldn't save your preferences. Please try again." };
-  if (topicIds.length > 0) {
-    const { data: scData, error: scError } = await getSupabase()
-      .from('subcategories')
-      .select('id, category_id')
-      .in('id', topicIds);
-    if (scError || !scData) return { ok: false, error: "Couldn't save your preferences. Please try again." };
-    const parentMap = Object.fromEntries((scData as Array<{ id: string; category_id: string }>).map((r) => [r.id, r.category_id]));
-    const rows = topicIds.map((id) => ({ user_id: session.user.id, category_id: parentMap[id], subcategory_id: id }));
-    const { error: insError } = await getSupabase().from('user_categories').insert(rows);
-    if (insError) return { ok: false, error: "Couldn't save your preferences. Please try again." };
-  } else if (pillarIds.length > 0) {
-    const rows = pillarIds.map((id) => ({ user_id: session.user.id, category_id: id }));
-    const { error: insError } = await getSupabase().from('user_categories').insert(rows);
-    if (insError) return { ok: false, error: "Couldn't save your preferences. Please try again." };
+  const fallback = "Couldn't save your preferences. Please try again.";
+  const { error } = await getSupabase().rpc('replace_user_interests', {
+    p_mode: mode,
+    p_pillar_ids: mode === 'pillars' ? pillarIds : [],
+    p_topic_ids: mode === 'topics' ? topicIds : [],
+  });
+  if (error) {
+    // The RPC's own validation messages are already user-facing; anything else
+    // (RLS denial, constraint) stays opaque.
+    const friendly = /^(Pick at least one|Unknown|Invalid interest mode)/.test(error.message)
+      ? error.message
+      : fallback;
+    return { ok: false, error: friendly };
   }
   return { ok: true, data: null };
 }

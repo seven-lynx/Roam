@@ -382,6 +382,20 @@ function populateInterestChips(
     : selectedTopicIds.length > 0;
   const saveBtn = document.getElementById('btn-save-categories') as HTMLButtonElement | null;
   if (saveBtn) saveBtn.disabled = !anySelected;
+  updateCategoryScope();
+}
+
+/** Shows how wide the current selection is — the narrowing used to be invisible. */
+function updateCategoryScope(): void {
+  const chips = Array.from(
+    el('category-select-chips').querySelectorAll<HTMLButtonElement>('.chip'),
+  );
+  const selected = chips.filter((c) => c.classList.contains('selected')).length;
+  const noun = currentInterestMode === 'pillars' ? 'categories' : 'topics';
+  el('categories-scope').textContent = `${selected} of ${chips.length} ${noun} selected`;
+  const selectAllBtn = el<HTMLButtonElement>('btn-select-all-categories');
+  selectAllBtn.textContent = `Select all ${noun}`;
+  selectAllBtn.hidden = selected >= chips.length || chips.length === 0;
 }
 
 /** @deprecated Use populateInterestChips instead */
@@ -634,6 +648,17 @@ document.addEventListener('DOMContentLoaded', () => {
     const anySelected = el('category-select-chips').querySelectorAll('.chip.selected').length > 0;
     el<HTMLButtonElement>('btn-save-categories').disabled = !anySelected;
     el('categories-error').hidden = true;
+    updateCategoryScope();
+  });
+
+  el('btn-select-all-categories').addEventListener('click', () => {
+    const chips = Array.from(
+      el('category-select-chips').querySelectorAll<HTMLButtonElement>('.chip'),
+    );
+    for (const chip of chips) chip.classList.add('selected');
+    el<HTMLButtonElement>('btn-save-categories').disabled = chips.length === 0;
+    el('categories-error').hidden = true;
+    updateCategoryScope();
   });
 
   el('btn-mode-pillars').addEventListener('click', () => {
@@ -665,7 +690,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const errEl = el<HTMLParagraphElement>('categories-error');
     errEl.hidden = true;
 
-    const res = await sendToBackground({ type: 'SET_USER_INTERESTS', pillarIds, topicIds });
+    const res = await sendToBackground({
+      type: 'SET_USER_INTERESTS',
+      mode: currentInterestMode,
+      pillarIds,
+      topicIds,
+    });
     saveBtn.disabled = false;
     if (!res.ok) {
       errEl.textContent = res.error;

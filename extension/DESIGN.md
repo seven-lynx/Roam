@@ -257,8 +257,8 @@ or in `background/handlers/`.
 | `SAVE_SESSION` | `saveSession()` | Implicit grant tokens → session (called from callback.ts) |
 | `SIGN_OUT` | `signOut()` | Calls `clearAuthStorage()` to wipe all session keys |
 | `GET_CATEGORIES` | `getCategories()` | 20-minute in-memory TTL cache; falls back to FALLBACK_CATEGORIES |
-| `GET_USER_INTERESTS` | `getUserInterests()` | Reads the user's saved pillar and topic selections |
-| `SET_USER_INTERESTS` | `setUserInterests()` | Replaces the user's saved pillar and topic selections |
+| `GET_USER_INTERESTS` | `getUserInterests()` | Mode from `user_settings.interest_mode`, rows from `user_categories`; the mode is never inferred from row shape (issue #121) |
+| `SET_USER_INTERESTS` | `setUserInterests(mode, pillarIds, topicIds)` | One `replace_user_interests()` RPC — mode and rows in a single transaction; an empty selection is refused |
 | `ROAM` | `roam()` | Cache-first. Calls `prefetchNext()` on cache hit. |
 | `ROAM_COLLECTION` | `roamCollection()` | Live call with `collection_id`. No prefetch. |
 | `ROAM_CATEGORY` | `roamCategory()` | Live call with `category_id`. No prefetch. |
@@ -462,7 +462,7 @@ export type Request =
   | { type: 'GET_CATEGORIES' }
   | { type: 'GET_USER_INTERESTS' }
   | { type: 'GET_USER_SETTINGS' }
-  | { type: 'SET_USER_INTERESTS'; pillarIds: string[]; topicIds: string[] }
+  | { type: 'SET_USER_INTERESTS'; mode: 'pillars' | 'topics'; pillarIds: string[]; topicIds: string[] }
   | { type: 'GET_ALL_SUBCATEGORIES' }
   | { type: 'SIGN_OUT' }
   | { type: 'ROAM'; categoryId?: string; subcategoryId?: string }

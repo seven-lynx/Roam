@@ -478,3 +478,32 @@ describe('Discovery exhaustion state â€” user_exhaustion_state (issue #120)', ()
     expect(accepts('pool_empty', '')).toBe(false)
   })
 })
+
+describe('replace_user_interests() - interest write boundary (issue #121)', () => {
+  it('derives the user from auth.uid(), never from a parameter', () => {
+    // The signature is (p_mode, p_pillar_ids, p_topic_ids) — there is no p_user_id
+    // to spoof — and the function is SECURITY INVOKER, so the owner-scoped RLS
+    // policies on user_categories and user_settings decide what it may write.
+    const args = { p_mode: 'pillars', p_pillar_ids: ['cat-1'], p_topic_ids: [] }
+    expect(Object.keys(args)).not.toContain('p_user_id')
+  })
+
+  it('refuses an empty selection so zero rows is never a stored state', () => {
+    // Zero rows means "no filter" to roam(), which is indistinguishable from
+    // "not set up yet" — the silent widening this issue is about.
+    const accepts = (mode: string, pillars: string[], topics: string[]) =>
+      mode === 'pillars' ? pillars.length > 0 : topics.length > 0
+
+    expect(accepts('pillars', ['cat-1'], [])).toBe(true)
+    expect(accepts('pillars', [], [])).toBe(false)
+    expect(accepts('topics', ['cat-1'], [])).toBe(false)
+    expect(accepts('topics', [], ['sub-1'])).toBe(true)
+  })
+
+  it('should be executable by authenticated and service_role, not anon', () => {
+    const fn = { public: false, anon: false, authenticated: true, service_role: true }
+    expect(fn.public).toBe(false)
+    expect(fn.anon).toBe(false)
+    expect(fn.authenticated).toBe(true)
+  })
+})

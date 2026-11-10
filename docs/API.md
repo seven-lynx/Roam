@@ -1721,6 +1721,45 @@ await supabase.rpc('mark_url_seen', { p_url_id: urlId });
 
 ---
 
+### `replace_user_interests()` — The single writer for interest selections
+
+Replaces the caller's `user_categories` rows and stores the mode in `user_settings.interest_mode`, in **one transaction** (issue #121). The mode used to be inferred from row shape, and the save was a delete request followed by an insert request — so a failure between them left zero rows (which `roam()` reads as "no filter at all") or a partial set that silently narrowed discovery.
+
+**Call Signature:**
+```sql
+SELECT replace_user_interests(
+  p_mode       text,
+  p_pillar_ids uuid[] DEFAULT NULL,
+  p_topic_ids  uuid[] DEFAULT NULL
+)
+```
+
+**Parameters:**
+- `p_mode` — `'pillars'` or `'topics'`. Anything else raises `22023`.
+- `p_pillar_ids` — Category ids, used when `p_mode = 'pillars'`.
+- `p_topic_ids` — Subcategory ids, used when `p_mode = 'topics'`. Each topic's parent category is derived server-side.
+
+The list for the inactive mode is ignored rather than rejected, so a client carrying a stale copy of it still saves.
+
+**Returns:** `void`.
+
+**Details:**
+- **Atomic.** The delete, the insert and the mode write are one transaction, so the stored mode and the rows can never disagree.
+- **An empty selection is refused** (`22023`: *Pick at least one category* / *Pick at least one topic*). Zero rows means "no filter" to `roam()`, which was indistinguishable from "not set up yet" and was reachable through a partially applied save. "Everything" is all eight categories — `roam()` already reads that as the whole pool.
+- **Unknown ids are rejected before any write** (`22023`) rather than surfacing an FK violation.
+- `SECURITY INVOKER`: the owner-scoped RLS policies on `user_categories` and `user_settings` remain the security boundary, and the user always comes from `auth.uid()`. `EXECUTE` granted to `authenticated`.
+
+**Example (Web / extension / Android):**
+```typescript
+await supabase.rpc('replace_user_interests', {
+  p_mode: 'pillars',
+  p_pillar_ids: [SCIENCE_ID, TECH_ID],
+  p_topic_ids: [],
+});
+```
+
+---
+
 ### `claim_exhaustion_notifications()` — Notify exhausted users (internal)
 
 Claims the exhaustion rows and writes the notifications in one statement. Called only by `cron-exhaustion-notify`; not client-facing.
@@ -1976,13 +2015,13 @@ await supabase.auth.signUp({
   password: 'secure-password'
 });
 
-// 2. After email verification, select categories
-await supabase
-  .from('user_categories')
-  .insert([
-    { user_id: user.id, category_id: SCIENCE_ID },
-    { user_id: user.id, category_id: TECH_ID }
-  ]);
+// 2. After email verification, save the interest selection.
+//    One RPC: it replaces the rows and records the mode in a single transaction.
+await supabase.rpc('replace_user_interests', {
+  p_mode: 'pillars',
+  p_pillar_ids: [SCIENCE_ID, TECH_ID],
+  p_topic_ids: [],
+});
 
 // 3. Get a discovery URL
 const response = await supabase.functions.invoke('roam');

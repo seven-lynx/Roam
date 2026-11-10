@@ -11,7 +11,7 @@ export type Request =
   | { type: 'GET_CATEGORIES' }
   | { type: 'GET_USER_INTERESTS' }
   | { type: 'GET_USER_SETTINGS' }
-  | { type: 'SET_USER_INTERESTS'; pillarIds: string[]; topicIds: string[] }
+  | { type: 'SET_USER_INTERESTS'; mode: 'pillars' | 'topics'; pillarIds: string[]; topicIds: string[] }
   | { type: 'GET_ALL_SUBCATEGORIES' }
   | { type: 'SIGN_OUT' }
   | { type: 'ROAM'; categoryId?: string; subcategoryId?: string }

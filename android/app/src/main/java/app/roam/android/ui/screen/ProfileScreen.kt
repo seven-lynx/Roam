@@ -377,6 +377,29 @@ fun ProfileScreen(
                 }
             }
 
+            // Scope line + "Select all": the user can see how wide their scope is, and
+            // "everything" is now a real choice rather than the by-product of saving
+            // nothing (issue #121).
+            val interestTotal = if (interestMode == "pillars") categories.size else subcategories.size
+            val interestSelected = if (interestMode == "pillars") userCategoryIds.size else userTopicIds.size
+            val interestNoun = if (interestMode == "pillars") "categories" else "topics"
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = "$interestSelected of $interestTotal $interestNoun selected",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                )
+                if (interestSelected < interestTotal) {
+                    TextButton(onClick = { vm.selectAllInterests() }) {
+                        Text("Select all $interestNoun")
+                    }
+                }
+            }
+
             if (interestsDirty) {
                 Button(
                     onClick = { vm.saveInterests() },

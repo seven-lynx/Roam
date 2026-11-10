@@ -59,7 +59,11 @@ export function useProfile() {
 }
 
 /**
- * Hook to get user's followed categories
+ * Hook to get user's followed categories.
+ *
+ * Only pillar-level rows count: in topics mode every row carries a
+ * `subcategory_id`, and returning those parents made a topic selection look like
+ * whole-category follows (issue #121).
  */
 export function useUserCategories() {
   // Memoize the Supabase client to prevent re-creation on every render
@@ -77,11 +81,15 @@ export function useUserCategories() {
       try {
         const { data } = await supabase
           .from('user_categories')
-          .select('category_id')
+          .select('category_id, subcategory_id')
           .eq('user_id', session.user.id);
 
         if (!cancelled) {
-          setCategories(data?.map(d => d.category_id) || []);
+          setCategories(
+            (data ?? [])
+              .filter((d) => d.subcategory_id == null)
+              .map((d) => d.category_id),
+          );
         }
       } finally {
         if (!cancelled) setLoading(false);

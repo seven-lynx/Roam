@@ -782,80 +782,67 @@ class RoamRepository {
     )
 
     /**
-     * Returns the set of subcategory IDs the user has selected (topic mode).
-     * Returns an empty set when the user is in pillar mode.
+     * Returns (pillarIds, topicIds) from `user_categories` in one query.
+     *
+     * The mode is deliberately *not* inferred from these sets (issue #121): one
+     * stray topic row used to flip the whole picker into topics mode. It lives in
+     * `user_settings.interest_mode` and is read by [getInterestMode].
      */
-    suspend fun getUserTopicIds(): Set<String> {
-        val userId = supabase.auth.currentUserOrNull()?.id ?: return emptySet()
-        return supabase.postgrest
+    suspend fun getUserInterests(): Pair<Set<String>, Set<String>> {
+        val userId = supabase.auth.currentUserOrNull()?.id ?: return emptySet<String>() to emptySet()
+        val rows = supabase.postgrest
             .from("user_categories")
-            .select(Columns.list("subcategory_id")) {
+            .select(Columns.list("category_id", "subcategory_id")) {
                 filter { eq("user_id", userId) }
             }
-            .decodeList<TopicIdRow>()
-            .asSequence()
-            .mapNotNull { it.subcategoryId }
-            .toSet()
+            .decodeList<UserCategoryRow>()
+        val pillars = rows.filter { it.subcategoryId == null }.map { it.categoryId }.toSet()
+        val topics = rows.mapNotNull { it.subcategoryId }.toSet()
+        return pillars to topics
+    }
+
+    /** The persisted interest mode ("pillars" or "topics"). Null when never saved. */
+    suspend fun getInterestMode(): String? {
+        val userId = supabase.auth.currentUserOrNull()?.id ?: return null
+        return supabase.postgrest
+            .from("user_settings")
+            .select(Columns.list("interest_mode")) {
+                filter { eq("user_id", userId) }
+                limit(1)
+            }
+            .decodeList<InterestModeRow>()
+            .firstOrNull()
+            ?.interestMode
     }
 
     /**
-     * Replaces all user_categories rows for the current user.
-     * In pillar mode [topicIds] is empty; in topic mode [pillarIds] is empty.
-     * [subcategoryParentMap] maps subcategoryId → categoryId for topic rows.
+     * Replaces the user's interests through `replace_user_interests()`.
+     *
+     * The mode and the rows are written in one transaction (issue #121), so a
+     * failed save can no longer leave zero rows (which `roam()` reads as "no
+     * filter at all") or a partial set. `roam()` keeps reading the rows — the
+     * stored mode is presentation plus a guard against unintended writes.
+     *
+     * Only the active mode's list is sent; the RPC derives each topic's parent
+     * category itself.
      */
-    suspend fun saveUserInterests(
-        pillarIds: Set<String>,
-        topicIds: Set<String>,
-        subcategoryParentMap: Map<String, String>,
-    ) {
-        val userId = supabase.auth.currentUserOrNull()?.id ?: return
-        supabase.postgrest.from("user_categories").delete {
-            filter { eq("user_id", userId) }
-        }
-        val rows: List<UserCategoryFullRow> = pillarIds.map { catId ->
-            UserCategoryFullRow(userId = userId, categoryId = catId)
-        } + topicIds.mapNotNull { subId ->
-            val catId = subcategoryParentMap[subId] ?: return@mapNotNull null
-            UserCategoryFullRow(userId = userId, categoryId = catId, subcategoryId = subId)
-        }
-        if (rows.isNotEmpty()) {
-            supabase.postgrest.from("user_categories").insert(rows)
-        }
+    suspend fun saveUserInterests(mode: String, pillarIds: Set<String>, topicIds: Set<String>) {
+        val pillars = if (mode == "pillars") pillarIds else emptySet()
+        val topics = if (mode == "topics") topicIds else emptySet()
+        supabase.postgrest.rpc(
+            function = "replace_user_interests",
+            parameters = buildJsonObject {
+                put("p_mode", mode)
+                put("p_pillar_ids", buildJsonArray { pillars.forEach { add(it) } })
+                put("p_topic_ids", buildJsonArray { topics.forEach { add(it) } })
+            },
+        )
     }
 
-    /**
-     * Returns the set of category IDs the user has selected (pillar mode).
-     * Returns an empty set when the user is in topic mode.
-     */
-    suspend fun getUserCategoryIds(): Set<String> {
-        val userId = supabase.auth.currentUserOrNull()?.id ?: return emptySet()
-        return supabase.postgrest
-            .from("user_categories")
-            .select(Columns.list("category_id")) {
-                filter { eq("user_id", userId) }
-            }
-            .decodeList<CategoryIdRow>()
-            .map { it.categoryId }
-            .toSet()
-    }
-
-    /** Adds or removes a whole-category selection for the current user. */
-    suspend fun setUserCategory(categoryId: String, selected: Boolean) {
-        val userId = supabase.auth.currentUserOrNull()?.id ?: return
-        if (selected) {
-            supabase.postgrest.from("user_categories").upsert(
-                UserCategoryInsertRow(userId = userId, categoryId = categoryId),
-            ) { ignoreDuplicates = true }
-        } else {
-            // Delete all rows for this category (whole-category + any subcategory refinements)
-            supabase.postgrest.from("user_categories").delete {
-                filter {
-                    eq("user_id", userId)
-                    eq("category_id", categoryId)
-                }
-            }
-        }
-    }
+    // Interests are read with getUserInterests()/getInterestMode() and written with
+    // saveUserInterests(). The per-row setUserCategory() writer was removed (issue
+    // #121): it applied each tap on its own, so a single unintended tap changed what
+    // roam() served before any save happened, and nothing was atomic.
 
     /**
      * Returns (pagesRoamed, pagesSubmitted) counts for the current user.
@@ -932,20 +919,14 @@ class RoamRepository {
     )
 
     @Serializable
-    data class UserCategoryFullRow(
-        @SerialName("user_id") val userId: String,
+    data class UserCategoryRow(
         @SerialName("category_id") val categoryId: String,
         @SerialName("subcategory_id") val subcategoryId: String? = null,
     )
 
     @Serializable
-    data class TopicIdRow(
-        @SerialName("subcategory_id") val subcategoryId: String? = null,
-    )
-
-    @Serializable
-    data class CategoryIdRow(
-        @SerialName("category_id") val categoryId: String,
+    data class InterestModeRow(
+        @SerialName("interest_mode") val interestMode: String? = null,
     )
 
     // ── Notifications ───────────────────────────────────────────────────────
@@ -1289,14 +1270,7 @@ class RoamRepository {
         }
     }
 
-    @Serializable
-    data class UserCategoryInsertRow(
-        @SerialName("user_id") val userId: String,
-        @SerialName("category_id") val categoryId: String,
-    )
-
     // ── Admin / Moderator ─────────────────────────────────────────────────────
-
     /**
      * Fetches the moderation queue via the admin-moderation edge function.
      * Requires JWT with app_metadata.role = 'admin' or 'moderator'.

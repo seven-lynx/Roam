@@ -222,6 +222,10 @@ Non-additive migrations (DROP, ALTER TYPE, …) must document a rollback here.
 - Change: Re-inserts the dropped "Complete 5 weekly challenges" badge under the unique slug `weekly-challenge-warrior` (category `curiosity`) after the original `weekly-warrior` slug was already taken by the streaks badge.
 - Rollback: None required — additive (`INSERT ... ON CONFLICT (slug) DO NOTHING`). To reverse: `DELETE FROM public.badges WHERE slug = 'weekly-challenge-warrior';`
 
+### 20261109160000_interest_mode_and_atomic_replace.sql
+- Change: Adds `user_settings.interest_mode` (`'pillars'`/`'topics'`, default `'pillars'`, CHECK-constrained) and `replace_user_interests(p_mode, p_pillar_ids, p_topic_ids)`, the single writer for `user_categories`. Replaces a save that was a delete request followed by an insert request, and a mode that was inferred from row shape (issue #121). The backfill sets `'topics'` for every user whose rows already carried a `subcategory_id` — the exact rule the clients inferred from — so `roam()` serves identically on deploy.
+- Rollback: None required — additive. To reverse: `DROP FUNCTION IF EXISTS public.replace_user_interests(text, uuid[], uuid[]);` then `ALTER TABLE public.user_settings DROP COLUMN interest_mode;`. Clients must also be rolled back in the same window, or they will call a function that no longer exists; the rows themselves are untouched, so no data is lost.
+
 ### 20261104000020_approval_copy_catalog_to_database.sql
 - Change: Rewords the moderation decision notification body from "...was approved and is now in the catalog." to "...was approved and is now in the database." for consistency across the in-app notification and transactional approval email.
 - Rollback: Restore the prior body wording in `public.notify_on_moderation_decision()` (replace "the database." with "the catalog." in the approved branch).

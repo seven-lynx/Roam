@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation';
 import type { Metadata } from 'next';
 import { createClient } from '@/lib/supabase/server';
+import { resolveInterestState, type InterestMode, type InterestRow } from '@/lib/interests';
 import { ProfileClient, type Profile } from './ProfileClient';
 import type { CollectionRow } from './CollectionsManager';
 import type { SavedUrlRow } from './SavedUrlsManager';
@@ -33,6 +34,8 @@ export default async function ProfilePage() {
     supabase.rpc('get_user_badges', { p_user_id: user.id }),
     supabase.from('follows').select('*', { count: 'exact', head: true }).eq('following_id', user.id),
     supabase.from('follows').select('*', { count: 'exact', head: true }).eq('follower_id', user.id),
+    // Appended last on purpose: the unwrap() indices above are positional.
+    supabase.from('user_settings').select('interest_mode').eq('user_id', user.id).maybeSingle(),
   ]);
 
   // Helper: safely unwrap a settled promise result
@@ -59,8 +62,20 @@ export default async function ProfilePage() {
   const allCategories = ((categoriesResult.data ?? []) as Record<string, unknown>[]).map((c: Record<string, unknown>) => ({ id: c.id as string, label: c.name as string, emoji: c.icon as string }));
   const allSubcategories = ((subcategoriesResult.data ?? []) as Record<string, unknown>[]).map((s: Record<string, unknown>) => ({ id: s.id as string, name: s.name as string, category_id: s.category_id as string }));
   const userCategoryRows = (userCategoriesResult.data ?? []) as Record<string, unknown>[];
-  const userCategoryIds = userCategoryRows.filter(r => r.subcategory_id == null).map(r => r.category_id as string);
-  const userTopicIds = userCategoryRows.filter(r => r.subcategory_id != null).map(r => r.subcategory_id as string);
+
+  // The mode is read from `user_settings.interest_mode`, never inferred from row
+  // shape (issue #121); `resolveInterestState` is the one definition of that rule.
+  const settingsResult = results[9];
+  const settingsRow = settingsResult.status === 'fulfilled'
+    ? (settingsResult.value as { data: { interest_mode?: string } | null }).data
+    : null;
+  const interestState = resolveInterestState(
+    settingsRow?.interest_mode,
+    userCategoryRows as unknown as InterestRow[],
+  );
+  const interestMode: InterestMode = interestState.mode;
+  const userCategoryIds = [...interestState.selectedPillars];
+  const userTopicIds = [...interestState.selectedTopics];
 
   const collections: CollectionRow[] = ((collectionsResult.data ?? []) as Record<string, unknown>[]).map(c => ({
     id: c.id as string,
@@ -83,6 +98,7 @@ export default async function ProfilePage() {
       allSubcategories={allSubcategories}
       initialCategoryIds={userCategoryIds}
       initialTopicIds={userTopicIds}
+      initialMode={interestMode}
       initialCollections={collections}
       initialSavedUrls={savedUrls}
       initialBadges={(badgesResult.data ?? []) as Record<string, unknown>[]}

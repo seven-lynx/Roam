@@ -2780,20 +2780,26 @@ class MainViewModel(
                 delay(150)
                 sessionWait++
             }
-            val loaded = runCatching {
-                val topicIds = repo.getUserTopicIds()
-                if (topicIds.isNotEmpty()) {
-                    _userTopicIds.value = topicIds
-                    _interestMode.value = "topics"
-                } else {
-                    _userCategoryIds.value = repo.getUserCategoryIds()
-                    _interestMode.value = "pillars"
-                }
-            }
-            loaded.onFailure {
+            runCatching { loadInterestState() }.onFailure {
                 _profileInterestsError.value = "Couldn't load your saved interests. Pull to refresh."
             }
         }
+    }
+
+    /**
+     * Reads the persisted mode and both selections.
+     *
+     * The mode comes from `user_settings.interest_mode` (issue #121) instead of
+     * being inferred from row shape, so one stray topic row can no longer flip the
+     * whole picker into topics mode. Rows that do not belong to the stored mode are
+     * ignored rather than allowed to change it.
+     */
+    private suspend fun loadInterestState() {
+        val mode = repo.getInterestMode() ?: "pillars"
+        val (pillars, topics) = repo.getUserInterests()
+        _interestMode.value = mode
+        _userCategoryIds.value = if (mode == "pillars") pillars else emptySet()
+        _userTopicIds.value = if (mode == "topics") topics else emptySet()
     }
 
     /** Re-runs the interests query, incrementing a version so ProfileScreen re-reads. */
@@ -2805,17 +2811,7 @@ class MainViewModel(
                 delay(150)
                 sessionWait++
             }
-            val loaded = runCatching {
-                val topicIds = repo.getUserTopicIds()
-                if (topicIds.isNotEmpty()) {
-                    _userTopicIds.value = topicIds
-                    _interestMode.value = "topics"
-                } else {
-                    _userCategoryIds.value = repo.getUserCategoryIds()
-                    _interestMode.value = "pillars"
-                }
-            }
-            loaded.onFailure {
+            runCatching { loadInterestState() }.onFailure {
                 _profileInterestsError.value = "Couldn't load your saved interests. Pull to refresh."
             }
         }
@@ -2857,7 +2853,13 @@ class MainViewModel(
         }
     }
 
-    /** Optimistically toggles a pillar category, then syncs to Supabase. */
+    /**
+     * Toggles a pillar category locally. Nothing is written until [saveInterests].
+     *
+     * It used to write the row immediately through `setUserCategory()`, which meant
+     * a single unintended tap changed what `roam()` served before any save, with no
+     * undo (issue #121). Topics already behaved this way.
+     */
     fun toggleCategory(categoryId: String, selected: Boolean) {
         _userCategoryIds.value = if (selected) {
             _userCategoryIds.value + categoryId
@@ -2865,9 +2867,6 @@ class MainViewModel(
             _userCategoryIds.value - categoryId
         }
         _interestsDirty.value = true
-        viewModelScope.launch {
-            runCatching { repo.setUserCategory(categoryId, selected) }
-        }
     }
 
     /** Toggles a topic (subcategory) selection in topic mode. Does not auto-save. */
@@ -2880,6 +2879,21 @@ class MainViewModel(
         _interestsDirty.value = true
     }
 
+    /**
+     * Selects everything in the active mode — all categories, or all topics.
+     *
+     * "Everything" used to be the by-product of saving nothing, which `roam()`
+     * reads as "no filter" and the UI could not show; it is now a real choice.
+     */
+    fun selectAllInterests() {
+        if (_interestMode.value == "pillars") {
+            _userCategoryIds.value = _categories.value.map { it.id }.toSet()
+        } else {
+            _userTopicIds.value = _subcategories.value.map { it.id }.toSet()
+        }
+        _interestsDirty.value = true
+    }
+
     /** Switches between pillar and topic modes, clearing the other mode's selection. */
     fun setInterestMode(mode: String) {
         _interestMode.value = mode
@@ -2888,22 +2902,29 @@ class MainViewModel(
         _interestsDirty.value = true
     }
 
-    /** Saves current pillar or topic selections to Supabase. */
+    /**
+     * Saves the current selection through `replace_user_interests()` — one
+     * transaction for the mode and the rows, so a failure cannot leave zero or
+     * partial rows (issue #121).
+     */
     fun saveInterests() {
         val mode = _interestMode.value
         val pillars = _userCategoryIds.value
         val topics = _userTopicIds.value
-        val subcats = _subcategories.value
         if (mode == "pillars" && pillars.isEmpty()) return
         if (mode == "topics" && topics.isEmpty()) return
         _interestsSaving.value = true
         viewModelScope.launch {
-            runCatching {
-                val parentMap = subcats.associate { it.id to it.categoryId }
-                repo.saveUserInterests(pillars, topics, parentMap)
-                _interestsDirty.value = false
-                pushSystemMessage("INTEREST VECTOR UPDATED // SWEEP RETUNED")
-            }
+            runCatching { repo.saveUserInterests(mode, pillars, topics) }
+                .onSuccess {
+                    _interestsDirty.value = false
+                    _profileInterestsError.value = null
+                    pushSystemMessage("INTEREST VECTOR UPDATED // SWEEP RETUNED")
+                }
+                .onFailure {
+                    // A silent failure here used to look like a successful save.
+                    _profileInterestsError.value = "Couldn't save your interests. Try again."
+                }
             _interestsSaving.value = false
         }
     }
