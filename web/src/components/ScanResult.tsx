@@ -1,10 +1,12 @@
 'use client';
 
 import type { RefObject } from 'react';
+import { useEffect, useState } from 'react';
 import { extractDomain } from '@/lib/url-utils';
 import { describeWait } from '@/lib/format';
 import { useWorkstation } from '@/components/WorkstationContext';
 import { WilsonScoreMeter } from '@/components/WilsonScoreMeter';
+import { checkFramableOne } from '@/lib/framing-client';
 import type { ScanTarget } from '@/lib/scan';
 import type { RoamExhaustion } from '@/lib/roam-buffer';
 
@@ -55,6 +57,36 @@ function explainExhaustion(
  */
 export function ScanResult({ target, error, exhaustion, actionRef, onAgain, onClose }: Props) {
   const { openUrl, closeWindow, openAppView } = useWorkstation();
+  // Start from whatever the roam path already knew (the prefetch buffer probes
+  // every URL it hands out) and probe the rest here, so the primary action is
+  // honest *before* the click instead of after a blank white frame.
+  const [framable, setFramable] = useState<boolean | null>(target?.framable ?? null);
+
+  useEffect(() => {
+    if (!target) {
+      setFramable(null);
+      return;
+    }
+    if (target.framable === true || target.framable === false) {
+      setFramable(target.framable);
+      return;
+    }
+    let cancelled = false;
+    setFramable(null);
+    void checkFramableOne(target.original_url).then((policy) => {
+      if (cancelled) return;
+      setFramable(policy === 'allow' ? true : policy === 'refuse' ? false : null);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [target]);
+
+  // The verdict can land seconds after the card does and swaps the primary action
+  // from a button to a link — keep the keyboard position on it.
+  useEffect(() => {
+    if (framable !== null) actionRef.current?.focus({ preventScroll: true });
+  }, [framable, actionRef]);
 
   if (!target) {
     const why = explainExhaustion(exhaustion);
@@ -81,6 +113,23 @@ export function ScanResult({ target, error, exhaustion, actionRef, onAgain, onCl
   }
 
   const domain = extractDomain(target.original_url);
+
+  const openInOs = () => {
+    closeWindow('scan');
+    openUrl({
+      url: target.original_url,
+      title: target.title,
+      domain,
+      category: target.category,
+      subcategory: target.subcategory,
+      wilsonScore: target.wilson_score,
+      upvotes: target.upvotes,
+      downvotes: target.downvotes,
+      urlId: target.id,
+      framable,
+    });
+  };
+
   return (
     <div className="panel w-full max-w-md" role="status">
       <div className="panel-head"><span className="led" />target acquired</div>
@@ -101,33 +150,42 @@ export function ScanResult({ target, error, exhaustion, actionRef, onAgain, onCl
         </div>
         <WilsonScoreMeter score={target.wilson_score} upvotes={target.upvotes} downvotes={target.downvotes} />
         <div className="flex flex-wrap gap-3 pt-1">
-          <button
-            ref={actionRef as RefObject<HTMLButtonElement>}
-            type="button"
-            className="btn btn-primary"
-            onClick={() => {
-              closeWindow('scan');
-              openUrl({
-                url: target.original_url,
-                title: target.title,
-                domain,
-                category: target.category,
-                subcategory: target.subcategory,
-                wilsonScore: target.wilson_score,
-                upvotes: target.upvotes,
-                downvotes: target.downvotes,
-                urlId: target.id,
-              });
-            }}
-          >
-            Open
-          </button>
+          {framable === false ? (
+            <>
+              {/* A real anchor, not a button: the site refuses framing, so the honest
+                  primary action is a tab — and the click needs no popup workaround. */}
+              <a
+                ref={actionRef as RefObject<HTMLAnchorElement>}
+                className="btn btn-primary"
+                href={target.original_url}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                open in new tab ↗
+              </a>
+              <button type="button" className="btn btn-secondary" onClick={openInOs}>
+                try in OS anyway
+              </button>
+            </>
+          ) : (
+            <button
+              ref={actionRef as RefObject<HTMLButtonElement>}
+              type="button"
+              className="btn btn-primary"
+              onClick={openInOs}
+            >
+              Open
+            </button>
+          )}
           <a href={target.original_url} target="_blank" rel="noopener noreferrer" className="btn btn-secondary">
             ↗ new tab
           </a>
           <button type="button" className="btn btn-secondary" onClick={onAgain}>Scan again</button>
           <button type="button" className="btn btn-ghost" onClick={onClose}>Close</button>
         </div>
+        {framable === false && (
+          <p className="text-xs text-muted">{domain} refuses to be embedded, so it opens as a real tab.</p>
+        )}
       </div>
     </div>
   );

@@ -9,13 +9,16 @@ import { WilsonScoreMeter } from '@/components/WilsonScoreMeter';
 import { extractDomain } from '@/lib/url-utils';
 import { fetchUrlMeta } from '@/lib/scan';
 import { saveUrlForUser } from '@/lib/save-url';
+import { checkFramableOne } from '@/lib/framing-client';
+import type { FramePolicy } from '@/lib/framing';
 import { saveUrl as playSaveUrl } from '@/lib/sfx';
 
 /**
  * The in-OS browser window. Loads a roam URL inside the screen and shows a
  * diegetic "control deck": category · domain · subcategory, the Wilson score
  * meter, and up/down vote controls. The URL is framed in an iframe; sites that
- * refuse framing (X-Frame-Options / CSP) can be opened in a real tab.
+ * refuse framing (X-Frame-Options / CSP `frame-ancestors`) are detected up front
+ * and offered as a real tab instead of a blank white frame.
  */
 export function BrowserWindow() {
   const { browse, windows, updateBrowse, closeBrowse, showAlert } = useWorkstation();
@@ -26,9 +29,42 @@ export function BrowserWindow() {
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
+  const [policy, setPolicy] = useState<FramePolicy | null>(null);
+  const [forced, setForced] = useState(false);
   const enrichedUrlRef = useRef<string | null>(null);
 
   const open = !!windows.browser;
+
+  const targetUrl = browse?.url ?? null;
+  const targetFramable = browse?.framable ?? null;
+
+  // Decide up front whether the page may be framed at all. Known verdicts arrive
+  // on the browse target (the roam buffer probes everything it serves); the rest
+  // — links opened from the launcher, showcase tiles, the app drawer — get one
+  // probe per URL. `frameKey` re-probes on Reload.
+  useEffect(() => {
+    setForced(false);
+    if (!targetUrl) {
+      setPolicy(null);
+      return;
+    }
+    if (targetFramable === true) {
+      setPolicy('allow');
+      return;
+    }
+    if (targetFramable === false) {
+      setPolicy('refuse');
+      return;
+    }
+    let cancelled = false;
+    setPolicy(null);
+    void checkFramableOne(targetUrl).then((next) => {
+      if (!cancelled) setPolicy(next);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [targetUrl, targetFramable, frameKey]);
 
   // Keep `browse` in sync with the window: closing via the title-bar ✕ clears it.
   useEffect(() => {
@@ -188,15 +224,41 @@ export function BrowserWindow() {
 
       <div className="browser-frame">
         {enriching && <span className="browser-loading blink">resolving metadata…</span>}
-        <iframe
-          key={frameKey}
-          src={browse.url}
-          title={label || 'Roam'}
-          className="browser-iframe"
-          referrerPolicy="no-referrer"
-        />
+        {policy === 'refuse' && !forced ? (
+          <div className="browser-blocked" role="status">
+            <p className="browser-blocked-kicker">frame refused</p>
+            <h3 className="browser-blocked-title">{domain}</h3>
+            <p className="browser-blocked-copy">
+              This site forbids embedding (<code>X-Frame-Options</code> / <code>frame-ancestors</code>), so
+              the OS cannot show it in here. Open it as a real tab instead.
+            </p>
+            <div className="browser-blocked-actions">
+              <a className="btn btn-primary" href={browse.url} target="_blank" rel="noopener noreferrer">
+                open in a new tab ↗
+              </a>
+              <button type="button" className="btn btn-secondary" onClick={() => setForced(true)}>
+                try anyway
+              </button>
+              <button type="button" className="btn btn-ghost" onClick={() => setFrameKey((k) => k + 1)}>
+                check again
+              </button>
+            </div>
+          </div>
+        ) : (
+          <iframe
+            key={frameKey}
+            src={browse.url}
+            title={label || 'Roam'}
+            className="browser-iframe"
+            referrerPolicy="no-referrer"
+          />
+        )}
       </div>
-      <p className="browser-hint">Some sites refuse to load inside the OS — use ↗ to open in a new tab.</p>
+      <p className="browser-hint">
+        {policy === 'refuse' && !forced
+          ? 'Checked before loading: this page refuses to be embedded.'
+          : 'Some sites refuse to load inside the OS — use ↗ to open in a new tab.'}
+      </p>
     </Window>
   );
 }

@@ -180,6 +180,75 @@ describe('roam-buffer', () => {
     expect(secondBody.exclude_domains).toContain('site1.example.com');
     expect(secondBody.prefetch).toBe(true);
   });
+
+  // A blank white frame is what "none of the urls are showing" looked like: the
+  // page was alive but refused framing. Those entries are parked, not promoted.
+  it('keeps a page that refuses framing out of the hot queue', async () => {
+    mockSession({ access_token: 'token' });
+    const candidates = [1, 2, 3, 4].map(mockCandidate);
+    global.fetch = jest
+      .fn()
+      .mockResolvedValueOnce({ ok: true, status: 200, json: async () => candidates })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          results: [
+            { url: candidates[0].url, status: 'reachable', framable: true },
+            { url: candidates[1].url, status: 'reachable', framable: false },
+            { url: candidates[2].url, status: 'unreachable', framable: null },
+            { url: candidates[3].url, status: 'blocked', framable: false },
+          ],
+        }),
+      }) as unknown as typeof fetch;
+
+    await roamBufferTick();
+
+    // Only the framable page is hot.
+    expect(getRoamBufferSnapshot()).toEqual({ hot: 1, warm: 0 });
+    const first = roamBufferNext();
+    expect(first?.url).toBe(candidates[0].url);
+    expect(first?.framable).toBe(true);
+
+    // A refusal is only handed over when nothing else is left, flagged so the UI
+    // can open it as a real tab instead of framing it.
+    const fallback = roamBufferNext();
+    expect(fallback?.url).toBe(candidates[1].url);
+    expect(fallback?.framable).toBe(false);
+    expect(roamBufferNext()?.url).toBe(candidates[3].url);
+    expect(roamBufferNext()).toBeNull();
+  });
+
+  // Prefetch remembers nothing, so without this the server keeps handing back the
+  // same unframable domain and the hot queue quietly stops filling.
+  it('keeps a refused domain out of the next prefetch', async () => {
+    mockSession({ access_token: 'token' });
+    const candidates = [1, 2, 3, 4].map(mockCandidate);
+    const fetchMock = jest
+      .fn()
+      .mockResolvedValueOnce({ ok: true, status: 200, json: async () => candidates })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          results: [
+            { url: candidates[0].url, status: 'reachable', framable: false },
+            { url: candidates[1].url, status: 'unreachable', framable: null },
+            { url: candidates[2].url, status: 'unreachable', framable: null },
+            { url: candidates[3].url, status: 'unreachable', framable: null },
+          ],
+        }),
+      })
+      .mockResolvedValueOnce({ ok: true, status: 200, json: async () => [] });
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    await roamBufferTick();
+    await roamBufferTick();
+
+    const secondBody = JSON.parse(fetchMock.mock.calls[2][1].body as string);
+    expect(secondBody.exclude_domains).toContain('site1.example.com');
+    expect(getRoamBufferSnapshot()).toEqual({ hot: 0, warm: 0 });
+  });
 });
 
 // Issue #120: the 404 body now carries why the feed is dry. The buffer is where the

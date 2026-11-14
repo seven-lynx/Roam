@@ -2005,6 +2005,37 @@ button.gadget:active { transform: translateY(1px) scale(0.98); }
 .roll-nav { flex: 0 0 auto; min-width: 2.4rem; }
 .browser-frame { position: relative; flex: 1 1 auto; min-height: 0; background: #fff; overscroll-behavior: contain; }
 .browser-iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; background: #fff; }
+/* Shown instead of the iframe when the destination refuses framing: a blank white
+   pane read as "nothing loaded", which is exactly the report this replaces. */
+.browser-blocked {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  padding: 1.25rem;
+  background: var(--bg);
+  text-align: center;
+}
+.browser-blocked-kicker {
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.browser-blocked-title { font-family: var(--font-mono); font-size: 1rem; color: var(--ink); }
+.browser-blocked-copy {
+  max-width: 34rem;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  line-height: 1.6;
+  color: var(--muted);
+}
+.browser-blocked-copy code { font-size: 0.65rem; color: var(--ink); }
+.browser-blocked-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; justify-content: center; margin-top: 0.4rem; }
 .browser-loading {
   position: absolute;
   inset: 0;
