@@ -5,13 +5,16 @@
  *
  *   warm — URLs fetched from the roam edge function but not yet reachability
  *          checked. Filled in batches of `WARM_BATCH` and deduped by domain.
- *   hot  — warm URLs that passed a HEAD probe (or were HEAD-blocked, which we
- *          treat as servable). Popped first when the user roams.
+ *   hot  — warm URLs that passed a reachability probe *and* answered that they
+ *          may be framed. Popped first when the user roams.
+ *   cool — URLs that are alive but refuse framing (X-Frame-Options / CSP
+ *          `frame-ancestors`). Never handed out ahead of a hot entry; used only
+ *          when nothing else is ready, and then opened as a real tab.
  *
- * The browser can't HEAD arbitrary third-party URLs (CORS), so validation goes
- * through a same-origin API route (`/api/check-urls`) that probes server-side.
- * Both queues feed the deck's nixie tubes (display clamped to 9) and the ROAM
- * key / random-page button prefer hot entries.
+ * The browser can't inspect arbitrary third-party origins (CORS), so validation
+ * goes through a same-origin API route (`/api/check-urls`) that probes
+ * server-side. Both queues feed the deck's nixie tubes (display clamped to 9) and
+ * the ROAM key / random-page button prefer hot entries.
  */
 
 import { createClient } from '@/lib/supabase/client';
@@ -27,12 +30,18 @@ export interface RoamBufferUrl {
   category_id?: string | null;
   subcategory_id?: string | null;
   wilson_score?: number | null;
+  /** true when the page renders in the OS, false when it must open as a tab. */
+  framable?: boolean | null;
 }
 
 export const HOT_TARGET = 12;
 export const WARM_TARGET = 15;
 const WARM_BATCH = 5;
 const VALIDATE_BATCH = 4;
+/** Refused pages kept on standby so an empty hot queue still serves something. */
+const MAX_COOL = 6;
+/** Refused domains remembered for 40 entries, to keep prefetch from re-offering them. */
+const MAX_REFUSED_DOMAINS = 40;
 
 /** Nixie tubes are single-digit; display saturates at 9. */
 export const NIXIE_MAX = 9;
@@ -85,6 +94,10 @@ type Listener = () => void;
 
 let hotQueue: RoamBufferUrl[] = [];
 let warmQueue: RoamBufferUrl[] = [];
+/** Alive but unframable: standby only, served when nothing hot is ready. */
+let coolQueue: RoamBufferUrl[] = [];
+/** Domains we already know refuse framing, kept out of the next prefetch. */
+let refusedDomains: string[] = [];
 let busy = false;
 const listeners = new Set<Listener>();
 
@@ -127,10 +140,12 @@ export function subscribeRoamBuffer(listener: Listener): () => void {
   return () => listeners.delete(listener);
 }
 
-/** Drop both queues (sign-out, error, etc.). */
+/** Drop all queues (sign-out, error, etc.). */
 export function resetRoamBuffer(): void {
   hotQueue = [];
   warmQueue = [];
+  coolQueue = [];
+  refusedDomains = [];
   exhaustion = null;
   emit();
 }
@@ -147,10 +162,10 @@ async function fetchWarmBatch(count: number, excludeDomain?: string | null): Pro
   if (excludeDomain) body.exclude_domain = excludeDomain;
   // Prefetch records nothing (issue #122), so a second call has no memory of the
   // first and can return the same URLs. Ask the server to skip the domains we are
-  // already holding — otherwise a full batch can come back entirely redundant and
-  // the buffer stops filling until a serve cools a domain.
-  const buffered = bufferedDomains();
-  if (buffered.length > 0) body.exclude_domains = buffered;
+  // already holding — and the ones that just refused framing, or a full batch can
+  // come back entirely unusable and the buffer stops filling.
+  const excluded = exclusions();
+  if (excluded.length > 0) body.exclude_domains = excluded;
 
   const res = await fetch(`${base}/functions/v1/roam`, {
     method: 'POST',
@@ -178,8 +193,16 @@ async function fetchWarmBatch(count: number, excludeDomain?: string | null): Pro
   return json;
 }
 
-async function validateUrls(urls: string[]): Promise<Map<string, 'reachable' | 'blocked' | 'unreachable'>> {
-  const out = new Map<string, 'reachable' | 'blocked' | 'unreachable'>();
+type UrlStatus = 'reachable' | 'blocked' | 'unreachable';
+
+interface UrlVerdict {
+  status: UrlStatus;
+  /** false = the page refuses framing; null/absent = could not tell. */
+  framable: boolean | null;
+}
+
+async function validateUrls(urls: string[]): Promise<Map<string, UrlVerdict>> {
+  const out = new Map<string, UrlVerdict>();
   if (urls.length === 0) return out;
   try {
     const res = await fetch('/api/check-urls', {
@@ -188,8 +211,12 @@ async function validateUrls(urls: string[]): Promise<Map<string, 'reachable' | '
       body: JSON.stringify({ urls }),
     });
     if (!res.ok) return out;
-    const json = (await res.json()) as { results?: Array<{ url: string; status: 'reachable' | 'blocked' | 'unreachable' }> };
-    for (const r of json.results ?? []) out.set(r.url, r.status);
+    const json = (await res.json()) as {
+      results?: Array<{ url: string; status: UrlStatus; framable?: boolean | null }>;
+    };
+    for (const r of json.results ?? []) {
+      out.set(r.url, { status: r.status, framable: r.framable ?? null });
+    }
   } catch {
     /* validation unavailable: leave empty so nothing is promoted this tick */
   }
@@ -199,11 +226,39 @@ async function validateUrls(urls: string[]): Promise<Map<string, 'reachable' | '
 /** Domains currently held in either queue, as the prefetch exclusion list. */
 function bufferedDomains(): string[] {
   const out = new Set<string>();
-  for (const entry of [...hotQueue, ...warmQueue]) {
+  for (const entry of [...hotQueue, ...warmQueue, ...coolQueue]) {
     const d = extractDomain(entry.url);
     if (d) out.add(d);
   }
   return [...out];
+}
+
+/**
+ * Domains the next prefetch should not return: everything already held, plus the
+ * ones that only just told us they refuse framing.
+ */
+function exclusions(): string[] {
+  const out = new Set(bufferedDomains());
+  for (const d of refusedDomains) out.add(d);
+  return [...out];
+}
+
+/** Remember a page that refused framing, so prefetch stops offering its domain. */
+function rememberRefused(url: string): void {
+  const d = extractDomain(url);
+  if (!d || refusedDomains.includes(d)) return;
+  refusedDomains.push(d);
+  if (refusedDomains.length > MAX_REFUSED_DOMAINS) {
+    refusedDomains = refusedDomains.slice(-MAX_REFUSED_DOMAINS);
+  }
+}
+
+/** Park a live-but-unframable entry for the empty-hot-queue fallback. */
+function cool(candidate: RoamBufferUrl): void {
+  const d = extractDomain(candidate.url);
+  if (d && coolQueue.some((c) => extractDomain(c.url) === d)) return;
+  coolQueue.push({ ...candidate, framable: false });
+  if (coolQueue.length > MAX_COOL) coolQueue.shift();
 }
 
 function domainQueued(url: string): boolean {
@@ -211,7 +266,8 @@ function domainQueued(url: string): boolean {
   if (!d) return false;
   return (
     warmQueue.some((w) => extractDomain(w.url) === d) ||
-    hotQueue.some((h) => extractDomain(h.url) === d)
+    hotQueue.some((h) => extractDomain(h.url) === d) ||
+    coolQueue.some((c) => extractDomain(c.url) === d)
   );
 }
 
@@ -244,15 +300,24 @@ export async function roamBufferTick(excludeDomain?: string | null): Promise<voi
       const results = await validateUrls(batch.map((b) => b.url));
       let changed = false;
       for (const candidate of batch) {
-        const status = results.get(candidate.url) ?? 'unreachable';
-        // HEAD_BLOCKED (405/403/501) is treated as servable, matching Android.
-        if (status !== 'unreachable' && hotQueue.length < HOT_TARGET) {
-          const d = extractDomain(candidate.url);
-          const dup = !!d && hotQueue.some((h) => extractDomain(h.url) === d);
-          if (!dup) {
-            hotQueue.push(candidate);
-            changed = true;
-          }
+        const verdict = results.get(candidate.url);
+        // An unreachable page is dropped; an unprobed one (validation down) keeps
+        // its old behaviour and is treated as servable.
+        if (!verdict || verdict.status === 'unreachable') continue;
+        // Alive but refuses framing: park it for the empty-hot fallback instead of
+        // promoting a page that would only ever show a blank frame.
+        if (verdict.framable === false) {
+          rememberRefused(candidate.url);
+          cool(candidate);
+          changed = true;
+          continue;
+        }
+        if (hotQueue.length >= HOT_TARGET) continue;
+        const d = extractDomain(candidate.url);
+        const dup = !!d && hotQueue.some((h) => extractDomain(h.url) === d);
+        if (!dup) {
+          hotQueue.push({ ...candidate, framable: verdict.framable });
+          changed = true;
         }
       }
       if (changed || batch.length > 0) emit();
@@ -287,21 +352,28 @@ function markSeen(urlId: string): void {
   })();
 }
 
-/**
- * Pop the next validated (hot) URL, skipping any entry whose domain matches
- * `excludeDomain`. Returns null when the hot queue has nothing servable — the
- * caller should fall back to a direct catalog query.
- */
-export function roamBufferNext(excludeDomain?: string | null): RoamBufferUrl | null {
-  for (let i = 0; i < hotQueue.length; i++) {
-    if (excludeDomain && extractDomain(hotQueue[i].url) === excludeDomain) continue;
-    const [entry] = hotQueue.splice(i, 1);
+/** Take the first entry in `queue` whose domain is not excluded, else null. */
+function take(queue: RoamBufferUrl[], excludeDomain?: string | null): RoamBufferUrl | null {
+  for (let i = 0; i < queue.length; i++) {
+    if (excludeDomain && extractDomain(queue[i].url) === excludeDomain) continue;
+    const [entry] = queue.splice(i, 1);
     emit();
     // Handing it over is the serve, so this is where it gets recorded.
     if (entry.id) markSeen(entry.id);
     return entry;
   }
   return null;
+}
+
+/**
+ * Pop the next validated (hot) URL, skipping any entry whose domain matches
+ * `excludeDomain`. When nothing framable is ready but a refused page is on
+ * standby, that page is handed over instead (flagged `framable: false`) so the
+ * operator still gets a URL — the UI opens it as a real tab. Returns null only
+ * when both queues are empty; the caller then falls back to a catalog query.
+ */
+export function roamBufferNext(excludeDomain?: string | null): RoamBufferUrl | null {
+  return take(hotQueue, excludeDomain) ?? take(coolQueue, excludeDomain);
 }
 
 

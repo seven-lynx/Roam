@@ -120,6 +120,12 @@ in-device programs) plus the account hub. Settings live in the **Settings**
 route and include discovery mode, notifications, appearance, security, and the
 Danger Zone (data export & account deletion).
 
+Roam opens each page in the in-OS browser. A site that forbids being embedded
+(`X-Frame-Options` or a Content-Security-Policy `frame-ancestors` refusal) is
+detected before it loads, so the OS offers to open it in a real tab instead of
+showing a blank window — pages that are known to refuse never reach the framed
+browser, and the ones that do can still be forced in with "try anyway".
+
 **Browser extension (Chrome & Firefox)**
 - One-click discovery: click, roam, rate, close — nothing is injected into the
   pages you visit.

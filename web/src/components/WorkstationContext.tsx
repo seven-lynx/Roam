@@ -151,6 +151,11 @@ export interface BrowseTarget {
   urlId?: string | null;
   /** The signed-in user's current rating for this URL (1 up / -1 down). */
   rated?: 1 | -1 | null;
+  /**
+   * Whether the page may render inside the OS. Known values come from the roam
+   * buffer's probe; `null`/undefined means the browser checks on open.
+   */
+  framable?: boolean | null;
 }
 
 /** An internal roamtheweb.app page opened as an app-style window. */

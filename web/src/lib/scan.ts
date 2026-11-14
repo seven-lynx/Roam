@@ -14,6 +14,12 @@ export interface ScanTarget {
   category: string | null;
   /** Resolved subcategory name (joined from `subcategories`). */
   subcategory: string | null;
+  /**
+   * Whether the page may render inside the in-OS browser. `false` means the site
+   * refuses framing (X-Frame-Options / CSP `frame-ancestors`) and must open as a
+   * real tab; `null`/undefined means it has not been probed yet.
+   */
+  framable?: boolean | null;
 }
 
 /** URL metadata surfaced in the in-OS browser's control deck. */
@@ -126,7 +132,9 @@ export async function fetchScanTarget(): Promise<ScanOutcome> {
   const hot = roamBufferNext();
   if (hot) {
     const full = await fetchTargetByUrl(hot.url);
-    if (full) return { target: full, error: null };
+    // The buffer already knows whether the page can be framed; carry it so the
+    // result card can offer the right action without probing again.
+    if (full) return { target: { ...full, framable: hot.framable ?? null }, error: null };
   }
 
   // 2. Signed in → roam edge function (records gamification + respects prefs).
@@ -209,9 +217,13 @@ async function fetchScanTargetDirect(): Promise<ScanOutcome> {
         .select(SCAN_SELECT)
         .eq('approved', true);
       if (requireActive) query = query.eq('inactive', false);
+      // A wide sample, not the podium: the top few dozen URLs are the mainstream
+      // publishers that almost all refuse framing, so sampling only those put the
+      // in-OS browser on a blank page after blank page. Reaching deeper into the
+      // catalog surfaces the older, self-hosted pages the OS can actually show.
       const { data, error } = await query
         .order('wilson_score', { ascending: false })
-        .limit(60);
+        .limit(240);
 
       if (error) {
         lastError = error.message;
