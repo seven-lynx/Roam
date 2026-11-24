@@ -42,7 +42,7 @@ Hard Rules themselves — commit tags, provenance notes, secrets, `.skip` migrat
 duplicate component filenames, `proxy.ts`, the v31 `array_agg(u.*)` warning (R7),
 an uncommented empty `catch {}` (R8), and `as any` casts (R9). R10
 (`contains(fromJSON(...))` predicates, see 1.6½) and R11 (`<type>/<kebab>` branch
-names, Process Rule 2.1 in `RULES.md`) enforce process rules rather than Hard
+names, see `CONTRIBUTING.md`) enforce process rules rather than Hard
 Rules. R11 also runs locally through `.githooks/pre-push` — register the hook once
 per clone with `git config core.hooksPath .githooks`.
 

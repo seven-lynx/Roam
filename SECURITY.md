@@ -51,11 +51,10 @@ Internal-only files (audit reports, offline seeder scripts, local working
 notes, and secrets) are kept out of git via `.gitignore`:
 
 - `docs/` — all reference docs are committed and public; internal design
-  docs and incident retros are kept in `.roam-local/` (gitignored)
+  docs and incident retros are kept outside version control
 - `scripts/` (seeder scripts, offline tooling) — except the CI
   rule-enforcement scripts that are explicitly allowlisted
-- `.roam-local/`, `.github/skills/`, and local editor/tooling configuration
-  files
+- local working notes and local editor/tooling configuration files
 - `**/*-firebase-adminsdk-*.json` (Firebase service-account files)
 - `android/app/google-services.json`, `android/roam-release.jks`
 
