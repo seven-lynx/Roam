@@ -99,9 +99,10 @@ reads the active tab through `tabs` and never injects a script.
 `https://*.supabase.co/*` so the OAuth redirect can land on it. Nothing else inside
 the extension is reachable from a page.
 
-The authoritative rule text for adding a permission — the review checklist in E.4 and
-the single-tab requirement in E.5 — lives in `extension/RULES.md`. This table is the
-tracked record of what the manifests actually declare.
+Adding a permission means passing the E.4 checklist: declared in a manifest,
+exercised by code, and listed in the table below. Sign-in stays inside the single
+tab that E.5 requires. The table is the tracked record of what the manifests
+actually declare.
 
 
 ---

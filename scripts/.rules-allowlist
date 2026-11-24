@@ -1,0 +1,95 @@
+# Allowlist for scripts/check-rules.mjs
+#
+# Format: <RULE_ID>: <glob-pattern>
+#
+# Glob patterns supported:
+#   path/relative/to/repo.ts       — exact path match
+#   path/to/dir/**                  — matches anything under that dir
+#   **/filename.ts                  — matches anywhere with that filename
+#
+# R2 = attribution patterns; R3 = hardcoded secret; R8 = empty catch;
+# R9 = `as any` cast. Each rule's message in scripts/check-rules.mjs names what
+# it checks and what to do about it; use this file only to waive a specific file.
+
+# ── Self-allowlist ──────────────────────────────────────────────────────────
+# The rules script must mention the rule IDs it enforces.
+R2: scripts/check-rules.mjs
+
+# The vitest test file for the rules script intentionally contains example
+# violations (hardcoded secrets, `as any`, empty catches) so the script can
+# detect them. The test runs in a tempdir; the real repo is scanned normally.
+R2: extension/src/__tests__/check-rules.test.ts
+R3: extension/src/__tests__/check-rules.test.ts
+R8: extension/src/__tests__/check-rules.test.ts
+R9: extension/src/__tests__/check-rules.test.ts
+
+# ── Legacy `as any` casts ───────────────────────────────────────────────────
+# Existing casts that predate the project rules. New code must use
+# `as unknown as T` with a comment explaining why. These entries are
+# an audit backlog; refactor them opportunistically, not in this PR.
+R9: extension/src/background/background.ts
+R9: extension/src/callback/callback.ts
+R9: extension/src/lib/debug.ts
+R9: supabase/functions/admin-moderation/index.ts
+R9: supabase/functions/cron-secret-badges/index.ts
+R9: supabase/functions/evaluate-badges/index.ts
+R9: supabase/functions/roam/index.ts
+# supabase/functions/_shared/challenge-progress.ts was here previously; the
+# `as any` casts were removed in this PR (challenge_instances now typed as
+# an array via ?.[0], matching evaluate-badges). Remove this line if it
+# reappears in the diff — that means someone re-added a cast.
+R9: supabase/functions/_tests/integration.test.ts
+R9: supabase/functions/_tests/safe-browsing.test.ts
+
+# ── Legacy empty catches ────────────────────────────────────────────────────
+# Best-effort cleanup scripts and one-off maintenance scripts.
+# The rule is still enforced for production code under web/src/, extension/src/,
+# and supabase/functions/<name>/index.ts (not _shared/ or _tests/).
+R8: scripts/audit-badges-full.mjs
+R8: scripts/check-dead-urls.mjs
+R8: scripts/fix-all-badges.mjs
+R8: scripts/fix-redirects.mjs
+R8: scripts/lib/seed.js
+R8: scripts/repair-badges-comprehensive.mjs
+R8: scripts/repair-badges-v2.mjs
+R8: scripts/repair-badges-v3.mjs
+R8: scripts/repair-milestones.mjs
+R8: scripts/reports/lib/report-utils.js
+R8: scripts/reports/report-c4-safe-browsing.mjs
+R8: scripts/tagging-worker.mjs
+R8: supabase/functions/cron-secret-badges/index.ts
+R8: web/src/app/layout.tsx
+
+# ── Legacy R2 (attribution patterns) — false positives ──────────────────────
+# scripts/tagging-worker.mjs talks to LM Studio (a local inference tool).
+# The phrase "load the model in LM Studio" refers to LM Studio's model
+# concept, not to attribution of automated authorship.
+R2: scripts/tagging-worker.mjs
+
+# scripts/seed-webgames.mjs has a description field describing a website
+# that catalogues content produced by automation. The seeder is describing
+# the source material, not claiming it as such.
+R2: scripts/seed-webgames.mjs
+
+# ─── Docs that document a local-inference tagging feature ──────────────────
+# These docs describe a planned local inference pipeline (LM Studio,
+# llama.cpp, etc.). They use words like "model" and "LLM" as descriptions
+# of the third-party tool, not as attribution of automated authorship of
+# the docs themselves. The feature is on the post-launch roadmap; if it
+# ships, remove these entries and rephrase the docs to use neutral language.
+R2: docs/LOCAL_LLM_TAGGING_PLAN.md
+R2: docs/tagging-prompt.md
+R2: docs/TAG_GRAPH_PLAN.md
+
+# docs/SECRETS_AUDIT.md references `copilot-instructions.md` once as a
+# provenance note (a hardcoded value also lives there). The reference is
+# about a file path, not attribution of automated authorship.
+R2: docs/SECRETS_AUDIT.md
+
+# SECURITY.md lists the paths that `sync-public.ps1` strips from the
+# public mirror. Documenting those paths (including `CLAUDE.md`,
+# `web/CLAUDE.md`, `copilot-instructions.md`) is the whole point of that
+# section; the references are file paths, not authorship claims.
+R2: SECURITY.md
+
+

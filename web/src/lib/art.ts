@@ -2,7 +2,7 @@
  * Photorealistic desk-art registry.
  *
  * The hardware renders are stored as keyed WebP under `/public/desk/`,
- * produced by `web/scripts/convert-art.mjs` (one-time, kept for reproducibility).
+ * produced one-time from the source renders and committed with the build.
  * Every slug has two variants (`'a' | 'b'`); the active variant is a user
  * setting surfaced through `WorkstationContext`.
  */

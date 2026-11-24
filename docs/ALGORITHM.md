@@ -1,5 +1,7 @@
 # Roam Algorithm (v17)
 
+**Status:** current
+
 **Last Updated:** 2026-11-07
 
 > **Version note:** This document describes the scoring model at **v17**. Production discovery currently runs **v31–v35** (see `supabase/CHANGELOG.md` and `extension/CHANGELOG.md` for the version history). The scoring formula (Wilson score, calibrated weight, freshness, exploration bonus) is unchanged; what changed is the candidate-pool sampling and the pool-empty guard, noted in §8.

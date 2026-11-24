@@ -454,8 +454,165 @@ function checkRemoteSupabaseTarget(file) {
   }
 }
 
+// ─── R13: No tracked file cites a local-only tree ─────────────────────────
+// `.roam-local/`, `.clinerules/`, `.github/skills/` and the five RULES.md rulebooks are never
+// committed (see .git/info/exclude and .gitignore). A tracked file that cites one is a broken
+// reference for every reader of the public repo - and twice it was worse than broken: three
+// web/scripts read 29.78 MB of private art, so a fresh clone could not run them at all.
+//
+// W13 in .roam-local/scripts/check_plans.py is the plan-set view of the same rule. This one is
+// the one CI can enforce, because it is tracked.
+const LOCAL_TREE_RE = /(?:\.roam-local\/|\.clinerules\/|\.github\/skills\/|\bRULES\.md\b)/;
+
+// Files whose job is to name the tree, not to depend on it. Without these the rule fails on
+// untouched code, which is how a gate gets switched off.
+const R13_ALLOW = new Set(['.gitignore', 'scripts/check-rules.mjs']);
+// Applied migrations are immutable history, so a comment in one cannot be corrected
+// retroactively. R13 cannot be retroactive there.
+const R13_ALLOW_PREFIX = ['supabase/migrations/'];
+
+const R13_EXTS = new Set([
+  ...ALL_SOURCE_EXTS, '.json', '.yml', '.yaml', '.sh', '.ps1', '.psm1',
+  '.html', '.toml', '.py', '.kts', '.gradle', '.xml', '.svg', '.service',
+]);
+// The allowlist has no extension, so it is matched by name instead: it is the one
+// extensionless tracked file that sits beside the rules and can cite them.
+
+function checkLocalTreeCitations() {
+  if (!COMMITTABLE) return;
+  for (const rel of [...COMMITTABLE].sort()) {
+    if (R13_ALLOW.has(rel)) continue;
+    if (R13_ALLOW_PREFIX.some(p => rel.startsWith(p))) continue;
+    if (!R13_EXTS.has(extname(rel)) && rel !== ALLOWLIST_PATH) continue;
+    let body;
+    try { body = readFileSync(rel, 'utf8'); } catch { continue; }
+    const lines = body.split(/\r?\n/);
+    for (let i = 0; i < lines.length; i++) {
+      const m = LOCAL_TREE_RE.exec(lines[i]);
+      if (!m) continue;
+      fail('R13', rel, i + 1,
+        `cites the local-only tree \`${m[0]}\` - it is never committed, so the reference is dead for every reader`);
+      break;
+    }
+  }
+}
+
+// ─── R14: No tracked generated or machine-local path ──────────────────────
+// A .pyc, a build output or a SQLite file in the index is either a mistake or a leak. Gitignored
+// copies never reach here, so a hit means the ignore rule has a hole.
+const GENERATED_RE = [
+  /(?:^|\/)__pycache__\//,
+  /\.pyc$/,
+  /(?:^|\/)node_modules\//,
+  /(?:^|\/)\.next\//,
+  /(?:^|\/)dist(?:-firefox)?\//,
+  /(?:^|\/)coverage\//,
+  /(?:^|\/)android\/build\//,
+  /\.(?:db|db-wal|db-shm)$/,
+];
+
+function checkGeneratedPaths() {
+  if (!COMMITTABLE) return;
+  for (const rel of [...COMMITTABLE].sort()) {
+    const hit = GENERATED_RE.find(re => re.test(rel));
+    if (hit) fail('R14', rel, null, 'tracked generated or machine-local path - .gitignore has a hole');
+  }
+}
+
+// ─── R15: No mojibake in a tracked text file ──────────────────────────────
+// A UTF-8 file read as cp1252 and written back turns an em dash into three junk glyphs and a
+// section sign into two. The repaired text is always correct UTF-8; a round trip through another
+// codec is not the fix, and `chcp 65001` is not a repair either.
+//
+// Named separately from R13 so a mojibake hit is never mistaken for a tree citation.
+//
+// PowerShell note: a correct UTF-8 file renders as garbage in a cp437 console. Diagnose this with
+// the checker, never by eye - `Get-Content` lies about the same bytes that Node reads correctly.
+const MOJIBAKE_RE = /(?:\u00e2\u20ac|\u00c2\u00a7|\u00c2\u00ab|\u00c2\u00bb|\u00c2\u00bd|\u00c2\u00bc|\u00c2\u00a1|\u00c2\u00bf|\u00c3\u00a9|\u00c3\u00a8|\u00c3\u00a2|\u00c3\u00a4|\u00c3\u00b6|\u00c3\u00bc|\u0393\u00c7|\u252c\u00ba|\u252c\u00bd)/;
+
+
+function checkMojibake() {
+  if (!COMMITTABLE) return;
+  for (const rel of [...COMMITTABLE].sort()) {
+    if (!R13_EXTS.has(extname(rel))) continue;
+    let body;
+    try { body = readFileSync(rel, 'utf8'); } catch { continue; }
+    const lines = body.split(/\r?\n/);
+    for (let i = 0; i < lines.length; i++) {
+      if (!MOJIBAKE_RE.test(lines[i])) continue;
+      // An applied migration cannot be edited (a content change is invisible to
+      // `db push --dry-run`, so only a replay would ever notice), so its mojibake is reported and
+      // lived with rather than failed. Anything else is a one-line fix in a tracked file.
+      if (rel.startsWith('supabase/migrations/')) {
+        warn('R15', rel, i + 1, 'mojibake in an applied migration - cannot be fixed in place; note it in the next migration');
+      } else {
+        fail('R15', rel, i + 1, 'mojibake - UTF-8 was read as cp1252 and written back; rewrite the text as UTF-8');
+      }
+      break;
+    }
+  }
+}
+
+// ─── R16: Every tracked doc under docs/ is linked from docs/INDEX.md ──────
+// docs/DOCS.md has said "every doc in docs/ should be linked from here" since it was written; this
+// is the first time anything checked that. An unlinked doc is a doc nobody finds.
+function checkDocsIndex() {
+  const index = 'docs/INDEX.md';
+  if (!COMMITTABLE || !existsSync(index)) return;
+  const body = readFileSync(index, 'utf8');
+  const docs = [...COMMITTABLE].filter(p => /^docs\/[^/]+\.md$/.test(p) && p !== index).sort();
+  for (const rel of docs) {
+    if (!body.includes(basename(rel))) {
+      fail('R16', rel, null, `not linked from ${index} - a doc nobody finds`);
+    }
+  }
+}
+
+// ─── R17 (warning): A commit that changes a manifest carries a `Deps:` trailer ─
+// A dependency change and its reason travel together or the next reader cannot tell why a pin
+// moved. Warning, not a failure: it is the only rule here that judges intent.
+const MANIFESTS = new Set([
+  'package.json', 'web/package.json', 'extension/package.json',
+  'pnpm-lock.yaml', 'web/pnpm-lock.yaml', 'extension/pnpm-lock.yaml',
+  'package-lock.json', 'web/package-lock.json',
+  'deno.json', 'deno.lock', 'android/app/build.gradle.kts',
+]);
+
+function checkDepsTrailer() {
+  let shas;
+  try {
+    shas = execSync('git rev-list origin/main..HEAD', { encoding: 'utf8' }).trim().split(/\r?\n/).filter(Boolean);
+  } catch { return; }
+  for (const sha of shas) {
+    let files, body;
+    try {
+      files = execSync(`git show --name-only --format= ${sha}`, { encoding: 'utf8' }).split(/\r?\n/).filter(Boolean);
+      body = execSync(`git log -1 --format=%B ${sha}`, { encoding: 'utf8' });
+    } catch { continue; }
+    if (!files.some(f => MANIFESTS.has(f.replace(/\\/g, '/')))) continue;
+    if (/^Deps:\s*\S/m.test(body)) continue;
+    warn('R17', sha.slice(0, 7), null, 'changes a manifest without a `Deps: <reason>` trailer');
+  }
+}
+
+// ─── R18 (warning): Every tracked doc under docs/ carries a `Status:` line ─
+// docs/DOCS.md's convention is `**Last Updated:**`, which says when a doc moved but not whether it
+// still applies. `Status:` says the second thing, and the plan gate reads it too (W15).
+function checkDocStatus() {
+  if (!COMMITTABLE) return;
+  for (const rel of [...COMMITTABLE].sort()) {
+    if (!/^docs\/[^/]+\.md$/.test(rel)) continue;
+    let body;
+    try { body = readFileSync(rel, 'utf8'); } catch { continue; }
+    if (!/^\*{0,2}Status\*{0,2}:/m.test(body.split('\n## ')[0])) {
+      warn('R18', rel, null, 'no `Status:` line under the title - add one of current, draft, superseded, reference');
+    }
+  }
+}
+
 // ─── Run all per-file checks ──────────────────────────────────────────────
 console.log(`Scanning ${sourceFiles.length} source files...`);
+
 
 for (const file of sourceFiles) {
   checkProvenance(file);
@@ -469,6 +626,14 @@ for (const file of workflowFiles) {
   checkWorkflowPathFilter(file);
   checkRemoteSupabaseTarget(file);
 }
+
+// ─── Repo-wide checks (R13-R18) ───────────────────────────────────────────
+checkLocalTreeCitations();
+checkGeneratedPaths();
+checkMojibake();
+checkDocsIndex();
+checkDepsTrailer();
+checkDocStatus();
 
 // ─── Report ────────────────────────────────────────────────────────────────
 if (errors.length === 0 && warningsList.length === 0) {

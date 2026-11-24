@@ -1,5 +1,7 @@
 # Roam — Documentation Index
 
+**Status:** current
+
 Roam is a "stumble upon the good parts of the web" product: a browser extension, an Android app, and a web portal, all backed by Supabase (PostgreSQL + Deno Edge Functions).
 
 This index is the entry point to the repository documentation. Start with the quick links, then follow the link to the specific doc you need.

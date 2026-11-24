@@ -1,5 +1,7 @@
 # Visual recording — every screen across Roam platforms
 
+**Status:** reference
+
 **Last Updated:** 2026-11-07
 
 Automated capture of **screenshots + videos** for every screen of the Web app

@@ -1,5 +1,7 @@
 # Help & FAQ
 
+**Status:** current
+
 Roam is a web-discovery platform: a browser extension, an Android app, and a web
 portal (Roam-OS desktop + account hub). Use this guide to answer the questions we
 hear most often. Still stuck? See the **Where to get help** section below.

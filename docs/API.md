@@ -1,5 +1,7 @@
 # Roam Supabase API Reference
 
+**Status:** current
+
 Complete documentation of all Supabase Edge Functions and PostgreSQL RPC functions used by Roam clients.
 
 **Last Updated:** 2026-11-07  
