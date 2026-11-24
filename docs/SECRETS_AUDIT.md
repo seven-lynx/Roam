@@ -1,5 +1,7 @@
 # Secrets Audit & Rotation Procedure
 
+**Status:** reference
+
 ## Secrets inventory
 
 The following secrets are declared in `.env.example` (gitignored; copy to `.env` and fill from the secure password manager):

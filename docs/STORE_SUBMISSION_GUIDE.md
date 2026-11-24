@@ -1,5 +1,7 @@
 # Store Submission Guide
 
+**Status:** reference
+
 **Last Updated:** 2026-11-08
 
 ## Overview

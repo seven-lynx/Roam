@@ -1,5 +1,8 @@
 # Roam — Build Tasks & Learning Log
 
+**Status:** frozen 2026-11-24 — history only. No task writes to this file any more; the open
+checkboxes below are being triaged into GitHub issues in #138, and new work is tracked there.
+
 **Last Updated:** 2026-11-07
 
 ---

@@ -1,5 +1,7 @@
 # Badge System Architecture
 
+**Status:** current
+
 Last updated: 2026-11-03
 
 ## Overview

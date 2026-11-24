@@ -1,5 +1,7 @@
 # Architecture
 
+**Status:** current
+
 Roam is a multi-platform discovery product built around a PostgreSQL database that does the heavy lifting. Three clients — a browser extension, an Android app, and a web portal — talk to Supabase either directly over the PostgREST/Auth APIs or through Deno Edge Functions.
 
 ## System overview

@@ -1,5 +1,7 @@
 # Documentation Conventions
 
+**Status:** current
+
 This guide describes how the `docs/` folder is organized, how to keep docs in sync with code, and what to do when adding or changing user-facing features.
 
 ## Where docs live
