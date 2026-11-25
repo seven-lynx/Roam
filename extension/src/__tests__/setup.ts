@@ -11,6 +11,9 @@ import { beforeEach } from 'vitest'
 const localStore: Record<string, unknown> = {}
 const sessionStore: Record<string, unknown> = {}
 
+/** Data-collection categories the stubbed browser has granted (Firefox's axis). */
+const grantedDataCollection: string[] = []
+
 /** One chrome.storage area backed by a plain object. */
 function storageArea(store: Record<string, unknown>) {
   return {
@@ -64,6 +67,29 @@ const chromeMock = {
     clear: (...args: unknown[]) => { void args; },
     onClicked: { addListener: (...args: unknown[]) => { void args; } },
   },
+  permissions: {
+    getAll: async () => ({
+      origins: [] as string[],
+      permissions: [] as string[],
+      // Firefox-only member; `@types/chrome` does not model it.
+      data_collection: [...grantedDataCollection],
+    }),
+    request: async (request: { data_collection?: string[] }) => {
+      for (const category of request.data_collection ?? []) {
+        if (!grantedDataCollection.includes(category)) grantedDataCollection.push(category)
+      }
+      return true
+    },
+    remove: async (request: { data_collection?: string[] }) => {
+      for (const category of request.data_collection ?? []) {
+        const at = grantedDataCollection.indexOf(category)
+        if (at >= 0) grantedDataCollection.splice(at, 1)
+      }
+      return true
+    },
+    onAdded: { addListener: (...args: unknown[]) => { void args; } },
+    onRemoved: { addListener: (...args: unknown[]) => { void args; } },
+  },
 }
 
 // Expose as a global so any source file using `chrome.*` resolves correctly.
@@ -73,9 +99,10 @@ Object.defineProperty(globalThis, 'chrome', {
   configurable: true,
 })
 
-// Reset storage between tests to keep state isolated.
+// Reset storage and grants between tests to keep state isolated.
 beforeEach(() => {
   for (const store of [localStore, sessionStore]) {
     for (const k of Object.keys(store)) delete store[k]
   }
+  grantedDataCollection.length = 0
 })
