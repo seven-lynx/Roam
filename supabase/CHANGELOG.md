@@ -2,6 +2,21 @@
 
 All notable changes to the Roam Supabase backend (PostgreSQL schema, Row-Level Security, and Deno Edge Functions).
 
+## [2026-11-25] — The tag graph and the onboarding prior are derived from the corpus (#147)
+
+### Added
+- **`subcategory_tag_affinity`** — 667 rows over 61 subcategories, generated from the offline corpus by `scripts/tag-graph-derive.mjs` (derived 2026-11-24: 782,357 tagged URLs). For each subcategory it stores `url_count`, `tag_count` and `weight = tag_count / url_count`. This is the onboarding prior's source: a new user with no action history gets a tag profile from the subcategories they picked, computed at read time, so no backfill and no onboarding write is needed. It replaces `subcategory_tag_mapping` for that job because the hand-written bridge agrees with the tagger's tags on only **21.88 %** of tagged URLs — `modern-history` holds 15,783 tagged URLs and 3 agree (issue #147).
+- **714 corpus-derived `tag_relations` edges** (`seed_tag_relations_derived`), on top of 25 curated non-`related_to` edges, covering **173 of the 204** active tags (33 curated + 722 `related_to` total). A pair is kept when both tags share at least 5 URLs and Jaccard ≥ 0.002, capped at the 10 most similar neighbours per tag, minus every pair the curated graph already holds in either direction. Weight is `sqrt(Jaccard)` to 2 dp, clamped to `[0.02, 0.9]`: the column is `NUMERIC(3,2)` in `0..1`, and raw Jaccard over a corpus this sparse rounds to `0.00`, which would leave the graph inert. `sqrt` is monotone, so it preserves rank rather than absolute similarity.
+- **Cross-pillar edges are 43.4 %** of the derived set — the supply side of "adjacent topics". Whether a serve may actually cross a pillar is still governed by the `user_categories` pool gate, which this change does not touch.
+
+### Fixed
+- **`url_attributes` accepts what the tagger writes.** Its four enum CHECKs rejected the corpus: `advanced` (32,229 rows), `reference` / `gallery` as content types (159,185 / 103,724), `reference` as a depth, and `tone`, which is *always* a JSON array — so 100 % of the 977,745 attribute rows failed validation and none ever uploaded. `tone` is now `TEXT[]` checked element-wise by containment; the other three sets are widened to exactly `tagging.enums.values` in the Skyhook defaults, the same table the upload mapper reads, so the database and the mapper cannot drift apart again. The constraints are dropped by `pg_constraint` lookup rather than by name — inline column CHECK names are assigned by the server, and `pg_constraint` is not reachable through PostgREST.
+- The table holds 0 rows in production, so the `tone` type change is metadata-only there.
+
+### Rollback
+- See `RUNBOOK.md` → `20261125014457_tag_affinity.sql` and `20261125014504_widen_url_attributes.sql`. Both are additive: dropping the table, and restoring the four original CHECK definitions, returns the previous shape, and no row was rewritten.
+
+
 ## [2026-11-09] — The interest mode is stored, and saving interests is one transaction (issue #121)
 ### Added
 - **`user_settings.interest_mode`** (`'pillars'`/`'topics'`, default `'pillars'`, CHECK-constrained). The mode used to exist only as a *shape* of `user_categories`: `loadUserInterests()` returned topics mode if **any** row carried a `subcategory_id`, so one stray topic row flipped the entire picker and the choice was re-inferred on every load, in all three clients, from the same rule. It is now persisted and read.
