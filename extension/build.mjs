@@ -130,7 +130,11 @@ function sentryFirefoxStubPlugin() {
         () => ({
           contents:
             'function noop() {}\n' +
-            'export const Sentry = { init: noop, captureException: noop, captureMessage: noop };\n',
+            // Same export shape as src/lib/sentry.ts, so the entry points and the
+            // service worker compile unchanged while this stub is still installed.
+            'export const Sentry = { captureException: noop, captureMessage: noop };\n' +
+            'export function initSentry() { return false; }\n' +
+            'export function disableErrorReporting() {}\n',
           loader: 'ts',
         }),
       );
@@ -153,6 +157,8 @@ const sharedConfig = {
     // Same value, but readable at runtime: the popup compares its own with the worker's
     // to detect a service worker left behind by a previous build (issue #105).
     '__EXTENSION_VERSION__': JSON.stringify(sentryRelease),
+    // Build target: lib/sentry-config.ts tags events with it and uses it as Sentry's `dist`.
+    '__PLATFORM__': JSON.stringify(firefox ? 'firefox' : 'chrome'),
   },
 };
 

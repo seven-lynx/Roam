@@ -14,6 +14,8 @@ export default defineConfig({
       __SENTRY_RELEASE__: '"test"',
       __EXTENSION_VERSION__: '"test"',
       __ENVIRONMENT__: '"test"',
+      // Build target, read by lib/sentry-config.ts and used as Sentry's `dist`.
+      __PLATFORM__: '"chrome"',
     },
   },
 })
