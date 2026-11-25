@@ -276,6 +276,25 @@ Non-additive migrations (DROP, ALTER TYPE, …) must document a rollback here.
   ALTER TABLE public.url_attributes ALTER COLUMN tone TYPE TEXT USING (tone[1]);
   ```
 - Related: `supabase/CHANGELOG.md`, `supabase/SCHEMA.md`.
+### 20261125150142_user_tag_signal_writers.sql
+- Change: Additive. Adds `public.user_tag_signal(p_user, p_url, p_delta)` (SECURITY DEFINER, `service_role` only) plus one trigger function per source table, and attaches `trg_ratings_tag_signal` (INSERT/UPDATE/DELETE), `trg_saved_urls_tag_signal` (INSERT/DELETE) and `trg_share_events_tag_signal` (INSERT/DELETE) — the first writers `user_tag_weights` has ever had. A delta is spread across the URL's tags, each weight is floored at 0, and `signal_count` increments on every action. Serves are deliberately excluded (D4).
+- Rollback: drop the triggers, then the functions. Weights already written stay readable and keep decaying, so clear them only if the feature is being removed as well.
+  ```sql
+  DROP TRIGGER IF EXISTS trg_ratings_tag_signal      ON public.ratings;
+  DROP TRIGGER IF EXISTS trg_saved_urls_tag_signal   ON public.saved_urls;
+  DROP TRIGGER IF EXISTS trg_share_events_tag_signal ON public.share_events;
+  DROP FUNCTION IF EXISTS public.ratings_tag_signal();
+  DROP FUNCTION IF EXISTS public.saved_urls_tag_signal();
+  DROP FUNCTION IF EXISTS public.share_events_tag_signal();
+  DROP FUNCTION IF EXISTS public.user_tag_signal(UUID, UUID, NUMERIC);
+  -- optional: DELETE FROM public.user_tag_weights;
+  ```
+- Related: `docs/API.md` (`user_tag_signal()`), `supabase/SCHEMA.md`, `supabase/CHANGELOG.md`.
+
+### 20261125150143_user_tag_prior_decay_profile.sql
+- Change: Additive, read-time only — nothing is written. Adds `user_tag_prior(uuid)` (the user's subcategories/pillars mapped through `subcategory_tag_affinity`, divided by the number of interests, capped at 1.0), `user_tag_weight_map(uuid)` (0.95/week decay, one-hop `tag_relations` neighbours at half weight × edge weight, prior at half weight) and `user_tag_profile(uuid, int)` (ranked, refuses a cross-user read with `42501`).
+- Rollback: `DROP FUNCTION IF EXISTS public.user_tag_profile(UUID, INT); DROP FUNCTION IF EXISTS public.user_tag_weight_map(UUID); DROP FUNCTION IF EXISTS public.user_tag_prior(UUID);` Nothing else calls them until `roam()` v41 lands (tag-rollout T11). Once v41 calls the map, restore v40's body first, or every serve fails to resolve the function. No data is lost: `user_tag_weights` is untouched, and dropping `subcategory_tag_affinity` requires dropping the prior first.
+- Related: `docs/API.md`, `supabase/SCHEMA.md`, `supabase/CHANGELOG.md`.
 
 
 ## How to cut an entry

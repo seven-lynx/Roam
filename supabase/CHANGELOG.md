@@ -2,6 +2,20 @@
 
 All notable changes to the Roam Supabase backend (PostgreSQL schema, Row-Level Security, and Deno Edge Functions).
 
+## [2026-11-25] — The tag profile gets writers, an onboarding prior and a decayed read (tag-rollout T10)
+
+### Added
+- **`user_tag_weights` has writers for the first time.** `user_tag_signal(p_user, p_url, p_delta)` spreads one explicit signal evenly across the URL's tags and upserts `(user_id, tag_id)` with the weight floored at 0, and three triggers feed it: `ratings` (`value` on insert, `new - old` on update, reversed on delete), `saved_urls` (`+1`/`-1`, skipping a NULL `url_id`) and `share_events` (`+2`/`-2` for a URL share). The function is `SECURITY DEFINER` and **not executable by clients**, so `user_tag_weights` keeps its single owner-read policy: a client can read its own weights and can only move them by acting. Shares weigh double because they are the most deliberate of the three; `seen_urls` is deliberately absent — a served URL is not a viewed one (D4).
+- **`user_tag_prior(uuid)` — the onboarding prior is computed at read time.** It joins `user_categories` to `subcategories` to `subcategory_tag_affinity`, expanding a pillar row to every subcategory in it, sums the affinity shares, divides by the number of interests and caps each tag at 1.0. A user with no action history therefore has a profile on their first serve, and editing interests needs no backfill: nothing is written (D5, amended the same day to read the corpus-derived map rather than the hand-written bridge — issue #147).
+- **`user_tag_weight_map(uuid)` — one weight per tag, decayed and expanded.** Stored weight decays 0.95 per week on read, `tag_relations` neighbours contribute half of their source weight times the edge weight (`sqrt(Jaccard)` for derived edges, best edge only), and the prior joins at half weight so an acted tag always outranks an assumed one. This is the single input `roam()` v41 reads, which is what keeps the multiplier from being re-derived at eight scoring sites (D6, D7).
+- **`user_tag_profile(uuid, int)` — the ranked profile, caller-guarded.** Returns `(tag_id, slug, display_name, pillar, weight, source)` where `source` is `actions`, `prior` or `graph`. It is `SECURITY DEFINER` and takes a user id, so it raises `42501` for anyone who is not the user, an admin or `service_role`: an empty result would read as "no interests yet" and hide the boundary.
+
+### Security
+- Cross-user reads are refused by the function, not by RLS policy alone. `user_tag_signal` takes `p_user` and writes weights, so granting it to `authenticated` would let one account move another's profile — it is `service_role` only. Verified against the local database with real JWT claims (`request.jwt.claims`): owner read succeeds, cross-user read raises `42501`, anonymous raises `42501`, `service_role` succeeds.
+
+### Rollback
+- See `RUNBOOK.md` → `20261125150142_user_tag_signal_writers.sql` and `20261125150143_user_tag_prior_decay_profile.sql`. Both are additive: dropping the triggers stops new signals, dropping the three readers restores the previous surface, and no weight row is rewritten. Once `roam()` v41 calls the map (T11), restore v40 first.
+
 ## [2026-11-25] — The tag graph and the onboarding prior are derived from the corpus (#147)
 
 ### Added
