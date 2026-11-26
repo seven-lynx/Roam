@@ -1,7 +1,7 @@
 // popup.ts — Roam extension popup entry point
 
-import '../lib/sentry'; // must be first — initialises Sentry if SENTRY_DSN is set
-import { Sentry } from '../lib/sentry';
+import { Sentry, initSentry } from '../lib/sentry';
+import { isErrorReportingGranted } from '../lib/consent';
 import { sendToBackground } from '../lib/messages';
 import { BUILD_VERSION, isStaleWorker } from '../lib/version';
 import { UNKNOWN_MESSAGE_ERROR } from '../lib/dispatch-report';
@@ -516,6 +516,11 @@ document.addEventListener('DOMContentLoaded', () => {
   try { chrome.runtime.connect({ name: 'popup-keepalive' }); } catch { /* ignore */ }
 
   initAppearance();
+
+  // Error reporting starts only when the consent decision resolves true (E3).
+  // Inert until then: every `Sentry.capture*` call below is a no-op.
+  void isErrorReportingGranted().then((granted) => { initSentry(granted); });
+
   boot();
 
   // ── Sign in button ───────────────────────────────────────────────────────────

@@ -4,8 +4,9 @@
 // Chrome may terminate and restart this SW at any time.
 // The Supabase client rehydrates its session from chrome.storage.local automatically.
 
-import { Sentry } from '../lib/sentry';
+import { Sentry, initSentry, disableErrorReporting as stopReporting } from '../lib/sentry';
 import { validateEnvironment } from '../lib/env';
+import { isErrorReportingGranted, disableErrorReporting as revokeErrorReporting } from '../lib/consent';
 import type { Request, Response, StateData, RoamData, CheckUrlData, CategoryItem, ProfileData, SubcategoryItem, SavedUrlItem, ChallengeData, BadgeData, ProfileStatsData, LocalSavedUrl } from '../lib/messages';
 import { getSupabase, clearAuthStorage } from '../lib/supabase';
 import { FALLBACK_CATEGORIES } from '../lib/constants';
@@ -27,6 +28,21 @@ declare const __SUPABASE_URL__: string;
 
 // Validate env vars at SW startup. Throws (crashing the SW with a clear message) if missing.
 validateEnvironment();
+
+// ── Error reporting is consent-gated (E3) ─────────────────────────────────────
+// Nothing leaves the browser until the consent decision resolves true; on Firefox
+// that decision also needs the optional `technicalAndInteraction` grant, so a
+// revoked permission silences reporting even though the stored preference is on.
+//
+// This runs at module scope, which is once per service-worker activation — the
+// wake-by-message case included — and again from the install/startup listeners
+// and the permission listeners below.
+async function syncErrorReporting(): Promise<void> {
+  if (await isErrorReportingGranted()) initSentry(true);
+  else stopReporting();
+}
+
+void syncErrorReporting();
 
 const PREFETCH_KEY = 'prefetch_queue';
 const PERSISTENT_PREFETCH_KEY = 'prefetch_queue_persist'; // survives browser restarts
@@ -279,8 +295,21 @@ self.addEventListener('error', (event) => {
 // Restore persistent prefetch on SW startup so the first roam() call after a
 // browser restart hits cache instead of waiting for a cold network round-trip.
 restorePersistentPrefetch().finally(() => prefetchNext());
-chrome.runtime.onStartup.addListener(() => { prefetchNext(); registerNotificationAlarm(); });
-chrome.runtime.onInstalled.addListener(() => { prefetchNext(); registerNotificationAlarm(); });
+chrome.runtime.onStartup.addListener(() => { prefetchNext(); registerNotificationAlarm(); void syncErrorReporting(); });
+chrome.runtime.onInstalled.addListener(() => { prefetchNext(); registerNotificationAlarm(); void syncErrorReporting(); });
+
+// Granting or revoking the optional data permission in about:addons takes effect
+// without a browser restart. Event-driven only — no polling, no timers (E.2).
+if (chrome.permissions?.onAdded) {
+  chrome.permissions.onAdded.addListener(() => { void syncErrorReporting(); });
+}
+if (chrome.permissions?.onRemoved) {
+  // Consent first (give the grant back, store the refusal), then the façade,
+  // which stops capture and closes the client. Both exports share a name (E2).
+  chrome.permissions.onRemoved.addListener(() => {
+    void revokeErrorReporting().then(() => stopReporting());
+  });
+}
 chrome.runtime.onConnect.addListener((_port) => {
   prefetchNext();
   flushPendingRatings(); // flush ratings whenever popup opens
