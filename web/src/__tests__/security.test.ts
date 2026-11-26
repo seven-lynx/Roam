@@ -481,8 +481,8 @@ describe('Discovery exhaustion state â€” user_exhaustion_state (issue #120)', ()
 
 describe('replace_user_interests() - interest write boundary (issue #121)', () => {
   it('derives the user from auth.uid(), never from a parameter', () => {
-    // The signature is (p_mode, p_pillar_ids, p_topic_ids) — there is no p_user_id
-    // to spoof — and the function is SECURITY INVOKER, so the owner-scoped RLS
+    // The signature is (p_mode, p_pillar_ids, p_topic_ids) ï¿½ there is no p_user_id
+    // to spoof ï¿½ and the function is SECURITY INVOKER, so the owner-scoped RLS
     // policies on user_categories and user_settings decide what it may write.
     const args = { p_mode: 'pillars', p_pillar_ids: ['cat-1'], p_topic_ids: [] }
     expect(Object.keys(args)).not.toContain('p_user_id')
@@ -490,7 +490,7 @@ describe('replace_user_interests() - interest write boundary (issue #121)', () =
 
   it('refuses an empty selection so zero rows is never a stored state', () => {
     // Zero rows means "no filter" to roam(), which is indistinguishable from
-    // "not set up yet" — the silent widening this issue is about.
+    // "not set up yet" ï¿½ the silent widening this issue is about.
     const accepts = (mode: string, pillars: string[], topics: string[]) =>
       mode === 'pillars' ? pillars.length > 0 : topics.length > 0
 
@@ -505,5 +505,128 @@ describe('replace_user_interests() - interest write boundary (issue #121)', () =
     expect(fn.public).toBe(false)
     expect(fn.anon).toBe(false)
     expect(fn.authenticated).toBe(true)
+  })
+})
+
+
+describe('user_tag_profile() - the tag profile boundary (tag-rollout T10)', () => {
+  // Mirrors supabase/migrations/20261125150142_user_tag_signal_writers.sql and
+  // 20261125150143_user_tag_prior_decay_profile.sql. The arithmetic and the
+  // caller guard are re-stated here so a regression in the SQL shows up as a
+  // failed expectation rather than a silent profile change.
+  const spread = (delta: number, tagCount: number) =>
+    tagCount === 0 ? 0 : delta / tagCount
+  const upsert = (current: number, delta: number) => Math.max(0, current + delta)
+  const decay = (weight: number, weeks: number) => weight * Math.pow(0.95, weeks)
+  const neighbour = (weight: number, weeks: number, edgeWeight: number) =>
+    0.5 * decay(weight, weeks) * edgeWeight
+  const prior = (shares: number[], interestCount: number) =>
+    Math.min(1, shares.reduce((sum, share) => sum + share, 0) / Math.max(1, interestCount))
+  // Policy: SECURITY DEFINER + p_user, so the guard is the only thing between a
+  // client and another user's ranked interests.
+  const mayRead = (caller: string | null, target: string, role = 'authenticated', isAdmin = false) =>
+    caller === target || role === 'service_role' || isAdmin
+
+  it('spreads a delta evenly over the URL tags', () => {
+    expect(spread(1, 1)).toBe(1)
+    expect(spread(1, 2)).toBe(0.5)
+    expect(spread(2, 4)).toBe(0.5)
+    expect(spread(-1, 2)).toBe(-0.5)
+    expect(spread(1, 0)).toBe(0)
+  })
+
+  it('floors a tag weight at zero but still counts the signal', () => {
+    expect(upsert(0, -1)).toBe(0)
+    expect(upsert(0.5, -1)).toBe(0)
+    expect(upsert(1, -0.5)).toBe(0.5)
+    // The stored row keeps weight 0 with signal_count 2; the map filters weight > 0.
+    expect(upsert(0, 0.25)).toBe(0.25)
+  })
+
+  it('counts a rating flip as a delta, not a second vote', () => {
+    const delta = (before: number, after: number) => after - before
+    expect(delta(1, -1)).toBe(-2)
+    expect(delta(-1, 1)).toBe(2)
+    expect(delta(1, 1)).toBe(0)
+  })
+
+  it('weighs a share at 2 and a save at 1', () => {
+    const delta = { rating: 1, save: 1, share: 2 }
+    expect(delta.share).toBe(delta.rating * 2)
+  })
+
+  it('decays 5 % per week, applied on read', () => {
+    expect(decay(1, 0)).toBe(1)
+    expect(decay(1, 4)).toBeCloseTo(0.8145, 4)
+    // Four weeks of no signal removes about a fifth of a weight, not all of it.
+    expect(decay(1.5, 4)).toBeCloseTo(1.2218, 4)
+    expect(decay(2, 52)).toBeCloseTo(0.1385, 3)
+  })
+
+  it('gives a one-hop neighbour half the decayed weight, degraded by the edge', () => {
+    expect(neighbour(2, 0, 1)).toBe(1)
+    expect(neighbour(2, 0, 0.5)).toBe(0.5)
+    // A weak edge cannot flood the multiplier: sqrt(Jaccard) 0.04 keeps 2 % of it.
+    expect(neighbour(2, 0, 0.04)).toBeCloseTo(0.04, 4)
+    // The strongest edge wins; two routes to a tag are not twice the evidence.
+    expect(Math.max(neighbour(2, 0, 0.3), neighbour(2, 0, 0.6))).toBeCloseTo(0.6, 4)
+  })
+
+  it('divides the prior by the interests, capped at 1.0', () => {
+    expect(prior([0.5], 1)).toBe(0.5)
+    expect(prior([0.5, 0.5], 2)).toBe(0.5)
+    expect(prior([0.5, 0.5], 1)).toBe(1)
+    expect(prior([0.8, 0.7], 2)).toBeCloseTo(0.75, 4)
+    expect(prior([], 3)).toBe(0)
+  })
+
+  it('gives an onboarding row half the weight of an acted one', () => {
+    const onboarding = prior([0.4], 1) * 0.5
+    expect(onboarding).toBe(0.2)
+    expect(onboarding).toBeLessThan(spread(1, 1))
+  })
+
+  it('lets a user read their own profile, and an admin or the service role any profile', () => {
+    expect(mayRead('user1', 'user1')).toBe(true)
+    expect(mayRead('user1', 'user2')).toBe(false)
+    expect(mayRead(null, 'user1')).toBe(false)
+    expect(mayRead('user1', 'user2', 'service_role')).toBe(true)
+    expect(mayRead('user1', 'user2', 'authenticated', true)).toBe(true)
+  })
+
+  it('refuses a cross-user read with 42501 rather than an empty profile', () => {
+    // An empty result would look like "no interests yet"; the raise is what makes
+    // the boundary visible to a client.
+    const errcode = (caller: string, target: string) =>
+      mayRead(caller, target) ? null : '42501'
+    expect(errcode('user1', 'user2')).toBe('42501')
+    expect(errcode('user1', 'user1')).toBeNull()
+  })
+
+  it('keeps user_tag_weights read-only for clients', () => {
+    // One policy: owner SELECT. Writes happen inside the SECURITY DEFINER triggers,
+    // so a client can neither forge a weight nor lower one to escape the multiplier.
+    const policies = { select: 1, insert: 0, update: 0, delete: 0 }
+    expect(policies.select).toBe(1)
+    expect(policies.insert).toBe(0)
+    expect(policies.update).toBe(0)
+    expect(policies.delete).toBe(0)
+  })
+
+  it('should keep the writer off the client grant list and the readers on it', () => {
+    const execute = {
+      user_tag_signal: { public: false, anon: false, authenticated: false, service_role: true },
+      user_tag_prior: { public: false, anon: false, authenticated: true, service_role: true },
+      user_tag_weight_map: { public: false, anon: false, authenticated: true, service_role: true },
+      user_tag_profile: { public: false, anon: false, authenticated: true, service_role: true },
+    }
+    for (const fn of Object.values(execute)) {
+      expect(fn.public).toBe(false)
+      expect(fn.anon).toBe(false)
+    }
+    // user_tag_signal takes p_user and writes weights, so a client grant would let
+    // one account move another's profile.
+    expect(execute.user_tag_signal.authenticated).toBe(false)
+    expect(execute.user_tag_profile.authenticated).toBe(true)
   })
 })

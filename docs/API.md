@@ -1762,6 +1762,108 @@ await supabase.rpc('replace_user_interests', {
 
 ---
 
+### `user_tag_profile()` — A user's ranked tag profile
+
+The ranked tag profile `roam()` personalises from, best tag first. Read-only: it writes nothing, so editing interests needs no backfill.
+
+**Call Signature:**
+```sql
+SELECT * FROM user_tag_profile(
+  p_user  uuid,
+  p_limit integer DEFAULT 50
+)
+```
+
+**Parameters:**
+- `p_user` — The user whose profile to read. Must be the caller, unless the caller is an admin or `service_role`.
+- `p_limit` — Rows to return, clamped to 1..200.
+
+**Returns:** `TABLE(tag_id uuid, slug text, display_name text, pillar text, weight numeric, source text)`.
+`source` is `'actions'` (the user has a stored weight for the tag), `'prior'` (it comes from their chosen subcategories) or `'graph'` (a one-hop neighbour of something they acted on). It is informative — `weight` already carries the arithmetic.
+
+**Details:**
+- Rows come from `user_tag_weight_map()`, joined to `tags` where `is_active`, ordered by weight.
+- **Refuses a cross-user read** with `42501` rather than returning an empty profile — an empty result would read as "no interests yet". `SECURITY DEFINER` and it takes a user id, so the guard is the boundary; `service_role` and admins are exempt.
+- A user with no recorded actions still gets rows, from the onboarding prior alone.
+
+**Example (Web / extension / Android):**
+```typescript
+const { data, error } = await supabase.rpc('user_tag_profile', {
+  p_user: user.id,
+  p_limit: 20,
+})
+// data: [{ tag_id, slug: 'cities', display_name, pillar, weight: 1.4478, source: 'actions' }, ...]
+```
+
+---
+
+### `user_tag_weight_map()` — One weight per tag, decayed and expanded (internal)
+
+The single input `roam()` v41 reads: one weight per tag, so the eight scoring sites never re-derive the profile.
+
+**Call Signature:**
+```sql
+SELECT * FROM user_tag_weight_map(p_user uuid)
+```
+
+**Returns:** `TABLE(tag_id uuid, weight numeric)` — tags with a positive weight only.
+
+**Details:**
+- **Stored weight decays on read** (`weight * 0.95 ^ weeks since updated_at`). No cron, nothing to backfill, and a stale row loses influence instead of disappearing.
+- **One-hop neighbours** from `tag_relations` count at half the source weight, multiplied by the edge weight (`sqrt(Jaccard)` for derived edges), so a weak edge cannot flood the multiplier. An edge stored either way round is followed once, and a tag reachable by several edges keeps its strongest contribution.
+- **The onboarding prior** is added at half weight, so an acted tag always outranks an assumed one.
+- `SECURITY DEFINER`, `search_path = public`, `EXECUTE` granted to `authenticated` and `service_role`.
+
+---
+
+### `user_tag_prior()` — The onboarding prior (internal)
+
+The tags a brand-new user should start with, derived at read time from the subcategories (or pillars) they picked.
+
+**Call Signature:**
+```sql
+SELECT * FROM user_tag_prior(p_user uuid)
+```
+
+**Returns:** `TABLE(tag_id uuid, weight numeric)`.
+
+**Details:**
+- Joins `user_categories` to `subcategories` to **`subcategory_tag_affinity`** — the corpus-derived map (667 rows over 61 subcategories), not the hand-written `subcategory_tag_mapping` bridge, which agrees with the tagger on only 21.88 % of tagged URLs (issue #147).
+- A pillar row (`subcategory_id IS NULL`) expands to every subcategory in that category; a topic row is one subcategory.
+- The shares are summed and divided by the number of interests, capped at 1.0, so a prior never outranks a real signal by itself.
+- **Read time only** — nothing is written, so `replace_user_interests()` needs no hook.
+- `SECURITY DEFINER`, `search_path = public`, `EXECUTE` granted to `authenticated` and `service_role`.
+
+---
+
+### `user_tag_signal()` — Write one explicit signal into the weights (trigger-only)
+
+Spreads one rating, save or share delta over the URL's tags and upserts `user_tag_weights`. Called by the triggers on `ratings`, `saved_urls` and `share_events`; **not executable by clients**.
+
+**Call Signature:**
+```sql
+SELECT user_tag_signal(
+  p_user  uuid,
+  p_url   uuid,
+  p_delta numeric
+)
+```
+
+**Parameters:**
+- `p_user` — Owner of the weights. Supplied by the trigger, never by a client.
+- `p_url` — The URL acted on.
+- `p_delta` — `+1`/`-1` for a save, the rating `value` on insert and `new - old` on update, `+2`/`-2` for a URL share.
+
+**Returns:** `void`.
+
+**Details:**
+- The delta is split evenly across the URL's tags, so a two-tag URL moves each tag by half. A weight is floored at 0; `signal_count` increments on every action, including a downvote, and is what tightens the multiplier's clamp for a cold-start user.
+- An untagged URL is a no-op (20.99 % of the corpus has no tags), and so is a `NULL` `url_id` on a saved row.
+- `SECURITY DEFINER` so the trigger can write past `user_tag_weights`' owner-read-only RLS policy. `EXECUTE` is granted to `service_role` only.
+
+---
+
+
 ### `claim_exhaustion_notifications()` — Notify exhausted users (internal)
 
 Claims the exhaustion rows and writes the notifications in one statement. Called only by `cron-exhaustion-notify`; not client-facing.

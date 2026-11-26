@@ -27,7 +27,7 @@ High-level reference for the core tables. This is a summary — [`supabase/migra
 | `user_exhaustion_state` | Per-scope record of why discovery returned nothing: reason, next cooldown expiry, notify state (issue #120) |
 | `user_suppressed_domains` | 30-day domain suppression (from repeated downvotes) |
 | `user_subcategory_affinity` | Per-user subcategory affinity |
-| `user_tag_weights` | Per-user tag weights |
+| `user_tag_weights` | Per-user tag weights, written only by triggers on `ratings` / `saved_urls` / `share_events` through `user_tag_signal()` — explicit actions only, never serves (D4). Read through `user_tag_weight_map()`: 0.95/week decay applied on read, one-hop `tag_relations` neighbours at half weight × edge weight, and the onboarding prior at half weight. `user_tag_profile()` is the ranked, caller-guarded read (tag-rollout T10) |
 
 ## Social & content tables
 
