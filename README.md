@@ -2,6 +2,8 @@
 
 > Press one button. Land somewhere interesting.
 
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/seven-lynx/roam)
+
 Roam is a web discovery platform built around a simple idea: the internet is full of genuinely great content, but the tools we use to find it are broken. Algorithms optimise for engagement. Search requires knowing what you're looking for. Bookmarks pile up unread.
 
 Press the button and land on a real page, curated by real users, matched to what you actually care about. No feeds, no infinite scroll, no recommendation engine trying to maximise your session time.
