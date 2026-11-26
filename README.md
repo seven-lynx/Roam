@@ -2,8 +2,6 @@
 
 > Press one button. Land somewhere interesting.
 
-[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/seven-lynx/roam)
-
 Roam is a web discovery platform built around a simple idea: the internet is full of genuinely great content, but the tools we use to find it are broken. Algorithms optimise for engagement. Search requires knowing what you're looking for. Bookmarks pile up unread.
 
 Press the button and land on a real page, curated by real users, matched to what you actually care about. No feeds, no infinite scroll, no recommendation engine trying to maximise your session time.
@@ -378,6 +376,12 @@ Run `pnpm lint` before pushing. Use TypeScript throughout.
 - [`CODE_OF_CONDUCT.md`](CODE_OF_CONDUCT.md) — expected behaviour and reporting.
 - [`SECURITY.md`](SECURITY.md) — how to report vulnerabilities.
 - [`RUNBOOK.md`](RUNBOOK.md) — operational incidents and their resolutions.
+
+## Questions about the code
+
+When you would rather ask the repository than read it, [DeepWiki](https://deepwiki.com/seven-lynx/roam) indexes it and answers questions such as "where does the discovery query live?" or "how is the vote score recalculated?", with links back to the files.
+
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/seven-lynx/roam)
 
 ---
 
