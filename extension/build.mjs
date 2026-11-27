@@ -8,7 +8,7 @@
 import * as esbuild from 'esbuild';
 import { sentryEsbuildPlugin } from '@sentry/esbuild-plugin';
 import { copyFileSync, mkdirSync, readFileSync, createWriteStream, readdirSync, rmSync } from 'fs';
-import { resolve, dirname } from 'path';
+import { resolve, dirname, relative } from 'path';
 import { fileURLToPath } from 'url';
 import archiver from 'archiver';
 
@@ -94,8 +94,12 @@ function createZip() {
 
     archive.pipe(output);
 
-    // Add all files from dist except the zip file itself
-    const files = readdirSync(outdir).filter(f => !f.endsWith('.zip'));
+    // Add all files from dist except the zip file itself and the source maps.
+    // Maps are only meaningful in Sentry: the AMO package must not carry them
+    // (issue #163). Excluding them here instead of leaning on the upload plugin's
+    // `filesToDeleteAfterUpload` also covers a build with no SENTRY_AUTH_TOKEN,
+    // where that deletion never runs.
+    const files = readdirSync(outdir).filter(f => !f.endsWith('.zip') && !f.endsWith('.map'));
     for (const file of files) {
       const filePath = resolve(outdir, file);
       archive.file(filePath, { name: file });
@@ -117,30 +121,12 @@ try {
   sentryRelease = pkg.version ?? 'unknown';
 } catch { /* ignore */ }
 
-// Firefox-specific plugin: replace src/lib/sentry.ts with a no-op stub so that
-// @sentry/browser (and its innerHTML usage via rrweb/Preact) is tree-shaken
-// out of the build artifact entirely.
-function sentryFirefoxStubPlugin() {
-  return {
-    name: 'sentry-firefox-stub',
-    setup(build) {
-      // The resolved path on Windows uses backslashes. Match either separator.
-      build.onLoad(
-        { filter: /[\\\/]lib[\\\/]sentry\.ts$/ },
-        () => ({
-          contents:
-            'function noop() {}\n' +
-            // Same export shape as src/lib/sentry.ts, so the entry points and the
-            // service worker compile unchanged while this stub is still installed.
-            'export const Sentry = { captureException: noop, captureMessage: noop };\n' +
-            'export function initSentry() { return false; }\n' +
-            'export function disableErrorReporting() {}\n',
-          loader: 'ts',
-        }),
-      );
-    },
-  };
-}
+// Firefox used to be built against a no-op Sentry stub (sentryFirefoxStubPlugin),
+// because a reviewer objected to the `innerHTML` in the SDK's rrweb and ContextLines
+// integrations. lib/sentry.ts now imports the SDK by name, sets
+// `defaultIntegrations: false` and installs exactly three integrations that neither
+// of those two belong to, so the objection no longer applies and the stub is gone
+// (issue #141, EXT segment E6).
 
 const sharedConfig = {
   bundle: true,
@@ -173,7 +159,6 @@ if (watch) {
     entryPoints.map(({ in: entryPoint, out: name }) =>
       esbuild.context({
         ...sharedConfig,
-        plugins: firefox ? [sentryFirefoxStubPlugin()] : [],
         entryPoints: [entryPoint],
         outfile: resolve(outdir, name + '.js'),
         format: 'iife',
@@ -196,9 +181,6 @@ if (watch) {
   }
 
   const buildPlugins = [];
-  if (firefox) {
-    buildPlugins.push(sentryFirefoxStubPlugin());
-  }
   if (canUploadMaps && !firefox) {
     buildPlugins.push(
       sentryEsbuildPlugin({
@@ -229,6 +211,8 @@ if (watch) {
     console.error('[roam] Error creating zip file:', err);
     process.exit(1);
   }
-  console.log('[roam] Build complete → dist/');
+  // The resolved directory, not a constant: a `--firefox` build writes dist-firefox/
+  // and used to announce dist/ (issue #143).
+  console.log(`[roam] Build complete → ${relative(__dirname, outdir)}/`);
   console.log(`[roam] Release tag: ${sentryRelease}`);
 }

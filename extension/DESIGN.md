@@ -72,9 +72,11 @@ targets `firefox121` (`build.mjs:50-51,134`). The differences that matter:
 - **No `commands` key.** Firefox does not expose `chrome.commands` to this build, so the
   `Ctrl+Shift+R` shortcut exists only in Chrome and the listener is guarded
   (`chrome.commands?.onCommand`, guarded in `background.ts`).
-- **Sentry is stubbed out.** `build.mjs` replaces `src/lib/sentry.ts` with a no-op so the
-  `@sentry/browser` bundle (and the `innerHTML` usage AMO reviewers flag) never ships. Firefox
-  builds report nothing; the console is the only diagnostic surface.
+- **Sentry ships, behind consent.** Both builds carry `@sentry/browser` through the named-import
+  facade in `src/lib/sentry.ts`. Nothing is transmitted until `initSentry()` sees the opt-out
+  preference (on by default, Chrome) plus, on Firefox, the optional `technicalAndInteraction`
+  grant the popup asks for. Events carry no user, no request, no URL-keyed field, and no URL in
+  free text.
 - **`browser_specific_settings.gecko`** pins the add-on ID `roam@roamtheweb.app`,
   `strict_min_version: "140.0"`, the `gecko_android` floor of `142.0`, and the
   `data_collection_permissions` block AMO has required for new submissions since 2025-11-03.
@@ -594,9 +596,11 @@ Static files (HTML, CSS, icons, manifest) are copied as-is by `copyStatics()`.
 
 Production Chrome builds upload source maps to Sentry via `@sentry/esbuild-plugin` and then delete the `.map` files from `dist/` so they are not included in the store submission zip. The upload targets the release named in `package.json`, so a local build would publish maps for uncommitted code over the shipped release; `--no-upload` skips the plugin and leaves the `.map` files in `dist/` for local debugging.
 
-Firefox builds differ in two ways (`build.mjs:120-139,182-210`): the upload is skipped, and `src/lib/sentry.ts` is replaced at bundle time by a no-op stub (`src/lib/sentry-firefox-stub.ts`), which tree-shakes `@sentry/browser` out entirely. The `.map` files therefore stay in `dist-firefox/` and in `roam-extension-firefox.zip`, and **Firefox builds report nothing to Sentry** — use the console when testing them.
+Firefox builds skip the upload (`build.mjs` gates it on `canUploadMaps && !firefox`), so their maps are never published and stay in `dist-firefox/` for local debugging. Both builds exclude `*.map` from `createZip()`, so neither submission package carries them however the build was run — including a CI build with no `SENTRY_AUTH_TOKEN`, where the plugin's own post-upload deletion never runs.
 
-The DSN string itself is still inlined: `env.ts:12` reads `__SENTRY_DSN__` for startup validation, so `background.js` contains it even though no SDK code ships. That is expected, not a leak.
+Errors from the Firefox build are reported through the same consent-gated facade as Chrome (see 2.4), tagged `dist: firefox`, so a crash group can be told apart without a user agent a Firefox background page cannot read.
+
+The DSN is inlined into every bundle (`__SENTRY_DSN__`, read by `lib/env.ts` for startup validation); the SDK transmits nothing until consent resolves, and then only the scrubbed event described above.
 
 `Sentry.init()` is gated on the extension context as well as the DSN (`isExtensionContext()` in `sentry.ts`). Because the DSN is inlined into every non-watch build, an ungated init meant a `dist/` page opened from disk reported to the production project tagged `environment=production` and `platform=extension-chrome` — events no installed extension could reproduce (issue #75). Loading a built page outside the extension now reports nothing, the same outcome as a Firefox build: use the console.
 
