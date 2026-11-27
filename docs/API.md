@@ -1713,6 +1713,7 @@ SELECT mark_url_seen(
 **Details:**
 - Upserts `seen_urls` with `ON CONFLICT (user_id, url_id) DO UPDATE SET seen_at = now()` — a re-seen URL moves to the top of the 3,000-row exclusion window. (The statement also clears `dwell_ms`/`skipped`; both are deprecated and permanently NULL — see `20261109120000_retire_engagement_metrics.sql`.)
 - Refreshes `user_domain_cooldowns` to `now() + 24 hours`, but only in discovery mode (`user_settings.discovery_mode = 'discovery'`) and only when `p_cool_domain`.
+- Deletes up to **50** of the caller's `user_domain_cooldowns` rows whose `cooldown_until` has already passed, on every call (issue #129). Nothing else removed them, so the table kept a permanent row per (user, domain) while every `roam()` call scanned it. The bound keeps a serve from paying for a large write; the table drains over a session.
 - The user comes from `auth.uid()`, so there is no `p_user_id` to spoof. `SECURITY DEFINER`, `search_path = public`, `EXECUTE` granted to `authenticated` only.
 
 **Example (Web / Android hot path):**
