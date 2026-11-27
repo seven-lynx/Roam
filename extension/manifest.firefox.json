@@ -9,7 +9,8 @@
       "id": "roam@roamtheweb.app",
       "strict_min_version": "140.0",
       "data_collection_permissions": {
-        "required": ["browsingActivity"]
+        "required": ["browsingActivity"],
+        "optional": ["technicalAndInteraction"]
       }
     },
     "gecko_android": {
