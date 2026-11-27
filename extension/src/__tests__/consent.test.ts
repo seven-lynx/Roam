@@ -63,6 +63,25 @@ describe('getPreference', () => {
   })
 })
 
+describe('hasStoredPreference', () => {
+  it('is false until an answer is stored, even though the default is on', async () => {
+    const { getPreference, hasStoredPreference } = await load('chrome')
+
+    expect(await getPreference()).toBe(true)
+    expect(await hasStoredPreference()).toBe(false)
+  })
+
+  it('is true once either answer is stored', async () => {
+    const { hasStoredPreference, setPreference } = await load('firefox')
+
+    await setPreference(false)
+    expect(await hasStoredPreference()).toBe(true)
+
+    await setPreference(true)
+    expect(await hasStoredPreference()).toBe(true)
+  })
+})
+
 describe('isErrorReportingGranted on Chrome', () => {
   it('follows the preference, because there is no data-collection grant', async () => {
     const { isErrorReportingGranted, setPreference } = await load('chrome')
