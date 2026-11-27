@@ -1,6 +1,7 @@
+import { readFileSync } from 'node:fs'
 import { describe, expect, it, vi } from 'vitest'
 
-/** Mirrors the category E5 declares under `data_collection_permissions.optional`. */
+/** The category E5 declares under `data_collection_permissions.optional`; asserted below. */
 const CATEGORY = 'technicalAndInteraction'
 
 interface PermissionsStub {
@@ -234,3 +235,43 @@ describe('disableErrorReporting', () => {
     expect(await getPreference()).toBe(false)
   })
 })
+
+/**
+ * E5 declared the category in the manifest; this case is what keeps the declaration
+ * honest. A category added to `REQUEST` without a matching manifest entry fails the
+ * suite here rather than failing AMO review (issue #158).
+ */
+describe('the Firefox manifest declares every requested category', () => {
+  it('lists each data_collection clause under optional', async () => {
+    const { requestErrorReporting } = await load('firefox')
+    const permissions = permissionsStub()
+    const requests: { data_collection?: string[] }[] = []
+    const original = permissions.request
+    permissions.request = async (request) => {
+      requests.push(request)
+      return original(request)
+    }
+
+    try {
+      await requestErrorReporting()
+    } finally {
+      permissions.request = original
+    }
+
+    const manifest = JSON.parse(
+      readFileSync(new URL('../../manifest.firefox.json', import.meta.url), 'utf8'),
+    ) as {
+      browser_specific_settings?: {
+        gecko?: { data_collection_permissions?: { optional?: string[] } }
+      }
+    }
+    const optional =
+      manifest.browser_specific_settings?.gecko?.data_collection_permissions?.optional ?? []
+    const requested = requests.flatMap((request) => request.data_collection ?? [])
+
+    // A request that named nothing would make the loop below vacuous.
+    expect(requested.length).toBeGreaterThan(0)
+    for (const category of requested) expect(optional).toContain(category)
+  })
+})
+
