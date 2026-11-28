@@ -158,7 +158,7 @@ jobs:
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-        run: node scripts/verify-roam-rpc.mjs --json-out "$RUNNER_TEMP/roam-preflight.json"
+        run: node scripts/verify-roam-rpc.mjs --allow-writes --json-out "$RUNNER_TEMP/roam-preflight.json"
 
       # ── Deploy ───────────────────────────────────────────────────────────
       - name: Apply migrations
@@ -188,7 +188,7 @@ jobs:
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-        run: node scripts/verify-roam-rpc.mjs --baseline "$RUNNER_TEMP/roam-preflight.json"
+        run: node scripts/verify-roam-rpc.mjs --allow-writes --baseline "$RUNNER_TEMP/roam-preflight.json"
 
       - name: Deploy Edge Functions
         if: inputs.deploy_functions
