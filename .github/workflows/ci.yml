@@ -28,6 +28,7 @@ jobs:
       android: ${{ steps.filter.outputs.android }}
       supabase: ${{ steps.filter.outputs.supabase }}
       migrations: ${{ steps.filter.outputs.migrations }}
+      rls: ${{ steps.filter.outputs.rls }}
     steps:
       - uses: actions/checkout@v5
       - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d
@@ -53,6 +54,15 @@ jobs:
             migrations:
               - 'supabase/migrations/**'
               - 'supabase/config.toml'
+            # Issue #156: the real-JWT RLS suite needs a replayed schema and a
+            # running local stack, so it lives in the Validate Migrations job.
+            # ci.yml is listed so that editing this workflow exercises the step
+            # it wires instead of silently skipping it on its own PR.
+            rls:
+              - 'web/src/__tests__/rls.integration.test.ts'
+              - 'web/src/lib/supabase/**'
+              - 'supabase/migrations/**'
+              - '.github/workflows/ci.yml'
 
   # Replay the entire migration history against a scratch database. Without this
   # a migration that only works on an already-migrated project passes CI and
@@ -64,7 +74,7 @@ jobs:
   supabase-migrations:
     name: Validate Migrations
     needs: changed-paths
-    if: needs.changed-paths.outputs.migrations == 'true'
+    if: needs.changed-paths.outputs.migrations == 'true' || needs.changed-paths.outputs.rls == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     concurrency:
@@ -87,6 +97,44 @@ jobs:
         run: |
           supabase start
           supabase db reset --local --no-seed
+
+      # Issue #156: `security.test.ts` asserts against object literals, so
+      # dropping a policy left every one of its cases green. This suite signs two
+      # users in against the stack the step above just replayed and asserts the
+      # boundary with their real JWTs, per table: own rows visible, another user's
+      # absent, writes denied. Never `service_role` — its bypass would make every
+      # assertion pass whatever the policies say, which is how the August 2026
+      # outage stayed invisible.
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v5
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # The suite reads its target from RLS_TEST_SUPABASE_URL/ANON_KEY and skips
+      # itself when either is absent, so a mis-wired step would pass by doing
+      # nothing. `test -n` fails the step instead, and the URL/port are the ones
+      # config.toml pins (api 54321, mailpit 54324).
+      - name: Read the local stack's URL and anon key
+        run: |
+          supabase status -o env > /tmp/supabase-env.txt
+          anon_key=$(grep '^ANON_KEY=' /tmp/supabase-env.txt | head -n1 | cut -d= -f2- | tr -d '"')
+          test -n "$anon_key"
+          {
+            echo "RLS_TEST_SUPABASE_URL=http://127.0.0.1:54321"
+            echo "RLS_TEST_SUPABASE_ANON_KEY=$anon_key"
+          } >> "$GITHUB_ENV"
+
+      - name: Verify RLS with real JWTs
+        working-directory: ./web
+        run: pnpm exec jest --watchAll=false --silent src/__tests__/rls.integration.test.ts
 
   lint-and-test:
     name: Lint & Test
