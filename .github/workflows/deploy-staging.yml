@@ -157,9 +157,9 @@ jobs:
           SUPABASE_URL: ${{ vars.STAGING_SUPABASE_URL }}
         run: |
           if [ -n "${{ vars.STAGING_ROAM_TEST_USER_ID }}" ]; then
-            node scripts/verify-roam-rpc.mjs --user "${{ vars.STAGING_ROAM_TEST_USER_ID }}"
+            node scripts/verify-roam-rpc.mjs --allow-writes --user "${{ vars.STAGING_ROAM_TEST_USER_ID }}"
           else
-            node scripts/verify-roam-rpc.mjs
+            node scripts/verify-roam-rpc.mjs --allow-writes
           fi
 
       # ── Deploy ───────────────────────────────────────────────────────────
@@ -181,9 +181,9 @@ jobs:
           SUPABASE_URL: ${{ vars.STAGING_SUPABASE_URL }}
         run: |
           if [ -n "${{ vars.STAGING_ROAM_TEST_USER_ID }}" ]; then
-            node scripts/verify-roam-rpc.mjs --user "${{ vars.STAGING_ROAM_TEST_USER_ID }}"
+            node scripts/verify-roam-rpc.mjs --allow-writes --user "${{ vars.STAGING_ROAM_TEST_USER_ID }}"
           else
-            node scripts/verify-roam-rpc.mjs
+            node scripts/verify-roam-rpc.mjs --allow-writes
           fi
 
       - name: Deploy Edge Functions

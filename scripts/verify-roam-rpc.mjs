@@ -20,6 +20,18 @@
  *   node scripts/verify-roam-rpc.mjs --budget-ms 3000 # fail if slower than this
  *   node scripts/verify-roam-rpc.mjs --json-out <path> # record this run's verdict per user
  *   node scripts/verify-roam-rpc.mjs --baseline <path> # tolerate failures recorded there
+ *   node scripts/verify-roam-rpc.mjs --allow-writes   # required when the target is production
+ *   node scripts/verify-roam-rpc.mjs --static-only    # the four shape guards, no probe, no write
+ *
+ * THE WRITE IS EXPLICIT (issue #164)
+ *   A probe is a real serve: roam() -> mark_url_seen() inserts a seen_urls row and
+ *   refreshes that user's 24 h domain cooldown. That cannot be faked (only a real
+ *   call proves the function executes) so the hazard is never the write itself, it
+ *   is that the default target is production. On 2026-11-27 a plan named this script
+ *   as its post-migration step, it was run as-is, and five production users were
+ *   served a URL by it. Production now refuses to run without --allow-writes;
+ *   deploy.yml passes it because CI is supposed to probe. A step that only wants the
+ *   alias/overload/`<> ALL` checks asks for --static-only instead.
  *
  * BASELINE MODE
  *   deploy.yml runs this twice: before the migrations (advisory — it measures the
@@ -36,8 +48,9 @@
  *   1 = a user that was not already failing got an error, zero rows, or blew the budget
  *
  * NOTE: each probe performs one real roam() call, which counts as a served URL
- * for that user (same side effects as the user tapping "next"). In CI, point
- * --user at a dedicated test account.
+ * for that user (same side effects as the user tapping "next"). Against
+ * production that needs --allow-writes; in CI, point --user at a dedicated test
+ * account.
  */
 
 import { readFileSync, writeFileSync } from 'node:fs';
@@ -80,6 +93,24 @@ const limit = Number.parseInt(argOf('--limit', '5'), 10);
 const budgetMs = Number.parseInt(argOf('--budget-ms', '8000'), 10);
 const jsonOut = argOf('--json-out', null);
 const baselinePath = argOf('--baseline', null);
+const allowWrites = args.includes('--allow-writes');
+const staticOnly = args.includes('--static-only');
+
+// ── Write guard (issue #164) ────────────────────────────────────────────────
+// Production is the default target because the root `.env` points there, so the
+// one command a plan step copies must not be able to serve a real user without
+// saying so. Refusing here rather than at the probe keeps the run honest: a step
+// that only wants the static guards asks for --static-only and never gets as far
+// as a decision about writes.
+const PRODUCTION_REF = 'yrhckctwtdjowulfuaqc';
+const IS_PRODUCTION = PROJECT_REF === PRODUCTION_REF;
+
+if (!staticOnly && IS_PRODUCTION && !allowWrites) {
+  console.error(`REFUSED: ${PROJECT_REF} is production and every probe serves a real URL.`);
+  console.error('  Each probe is one roam() call: a seen_urls row plus a 24 h domain cooldown.');
+  console.error('  Re-run with --allow-writes (deploy.yml does), or --static-only for the guards alone.');
+  process.exit(1);
+}
 
 
 // ── SQL over the Management API ─────────────────────────────────────────────
@@ -293,9 +324,16 @@ async function probe(userId) {
 
 // ── Main ────────────────────────────────────────────────────────────────────
 async function main() {
-  console.log(`roam() RPC verification — project ${PROJECT_REF}, budget ${budgetMs}ms\n`);
+  const scope = [
+    IS_PRODUCTION ? 'production' : 'not production',
+    staticOnly ? 'static only' : 'probing',
+  ].join(', ');
+  console.log(`roam() RPC verification — project ${PROJECT_REF} (${scope}), budget ${budgetMs}ms\n`);
+  if (staticOnly && (jsonOut || baselinePath)) {
+    console.log('NOTE: --static-only ignores --json-out and --baseline — no probe, nothing to record.\n');
+  }
 
-  const baseline = loadBaseline(baselinePath);
+  const baseline = staticOnly ? null : loadBaseline(baselinePath);
   if (baseline) {
     console.log(`Baseline ${baselinePath}: ${baseline.userIds.length} user(s), ${baseline.failedUserIds.size} already failing before the migration.\n`);
   }
@@ -305,6 +343,11 @@ async function main() {
   const overloadOk = await checkSingleRoamOverload();
   const prefetchOk = await checkPrefetchGate();
   const staticOk = aliasOk && exclusionOk && overloadOk && prefetchOk;
+
+  if (staticOnly) {
+    console.log(`\nRESULT: ${staticOk ? 'PASS' : 'FAIL'} — static guards only, roam() was not executed`);
+    process.exit(staticOk ? 0 : 1);
+  }
 
   // Re-probe the baseline's exact user set so the two runs are comparable; the
   // most-recently-seen sample can otherwise shift as real traffic arrives.
@@ -317,7 +360,7 @@ async function main() {
     console.error('FAIL: no users found to probe.');
     process.exit(1);
   }
-  console.log(`\nProbing ${users.length} user(s):`);
+  console.log(`\nProbing ${users.length} user(s)${IS_PRODUCTION ? ' in production' : ''} — each call serves one URL and writes seen_urls:`);
 
   const results = [];
   for (const u of users) {
