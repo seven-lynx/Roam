@@ -573,8 +573,8 @@ async function callRoamApi(body: Record<string, unknown> = {}, maxAttempts = 3):
   } catch (err) {
     if (isRetryableEdgeFailure(err)) {
       // `context` carries the raw fetch error — the only place the real cause (DNS,
-      // TLS, CORS, reset connection) is visible, and in the Firefox build the console
-      // is the only signal we get: Sentry is stubbed out there.
+      // TLS, CORS, reset connection) is visible. It is reported when consent allows
+      // it and logged either way.
       const cause = (err as { context?: unknown }).context;
       console.warn('[roam] edge unreachable:', cause instanceof Error ? cause.message : (err instanceof Error ? err.message : String(err)));
       // A user-initiated roam is worth reporting; the prefetch passes maxAttempts = 1

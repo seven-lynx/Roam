@@ -46,6 +46,23 @@ Run the project rule checks and test suites before pushing
 (`node scripts/check-rules.mjs`, then lint/typecheck/tests for the
 platform you touched).
 
+## Local pipeline deck
+
+The offline tagging pipeline is driven from skyhook's deck. Install the local
+tooling once per clone and copy the tracked example:
+
+```bash
+cd scripts && pnpm install --ignore-workspace   # restores skyhook into scripts/node_modules
+cd .. && cp skyhook.config.example.json skyhook.config.json
+```
+
+`skyhook.config.json` is gitignored, so `skyhook.config.example.json` is the only
+copy in the repo. The job buttons in the example work from that file alone. The
+status script behind the deck's own cards (`scripts/pipeline-status.mjs`) is
+local-only by the same rule, so add `"status": "scripts/pipeline-status.mjs"` to
+the `pipeline` block when you have it; without that line the deck renders its
+built-in cards and the buttons still run.
+
 ## Contributor licence grant
 
 By submitting a pull request you agree that your contribution is licensed under

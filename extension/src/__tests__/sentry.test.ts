@@ -169,4 +169,28 @@ describe('scrubEvent', () => {
     expect(scrubbed.user).toBeUndefined()
     expect(scrubbed.extra).toEqual({ messageType: 'GET_ROAM' })
   })
+
+  it('redacts URL-shaped text in the message and in exception values', async () => {
+    const { scrubEvent } = await load()
+
+    const event = structuredClone(EVENT)
+    event.message = 'popup error [load]: Failed to fetch https://example.com/private?q=1'
+    event.exception = {
+      values: [{ type: 'Error', value: 'failed at http://example.org/a and www.example.net/b' }],
+    }
+
+    const scrubbed = scrubEvent(event)
+
+    expect(scrubbed.message).toBe('popup error [load]: Failed to fetch [url]')
+    expect(scrubbed.exception?.values?.[0].value).toBe('failed at [url] and [url]')
+  })
+
+  it('leaves text without a URL readable, so E8 can still describe the payload', async () => {
+    const { scrubEvent } = await load()
+
+    const event = structuredClone(EVENT)
+    event.message = 'GET_ROAM returned no rows'
+
+    expect(scrubEvent(event).message).toBe('GET_ROAM returned no rows')
+  })
 })

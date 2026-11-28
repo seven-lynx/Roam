@@ -59,6 +59,20 @@ export async function getPreference(): Promise<boolean> {
   }
 }
 
+/**
+ * Has the user answered the consent question yet? `getPreference()` cannot say —
+ * it reports `true` for "nothing stored", which is the default, not an answer. The
+ * card asks once and never again (D9), so it needs the distinction.
+ */
+export async function hasStoredPreference(): Promise<boolean> {
+  try {
+    const stored = await chrome.storage.local.get(PREF_KEY);
+    return typeof stored[PREF_KEY] === 'boolean';
+  } catch {
+    return false;
+  }
+}
+
 /** Persist the preference. Storage failures are not the caller's problem. */
 export async function setPreference(value: boolean): Promise<void> {
   try {

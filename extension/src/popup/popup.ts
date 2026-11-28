@@ -2,6 +2,7 @@
 
 import { Sentry, initSentry } from '../lib/sentry';
 import { isErrorReportingGranted } from '../lib/consent';
+import { initTelemetryConsent } from './telemetry-consent';
 import { sendToBackground } from '../lib/messages';
 import { BUILD_VERSION, isStaleWorker } from '../lib/version';
 import { UNKNOWN_MESSAGE_ERROR } from '../lib/dispatch-report';
@@ -520,6 +521,10 @@ document.addEventListener('DOMContentLoaded', () => {
   // Error reporting starts only when the consent decision resolves true (E3).
   // Inert until then: every `Sentry.capture*` call below is a no-op.
   void isErrorReportingGranted().then((granted) => { initSentry(granted); });
+
+  // The consent card and Settings → Privacy toggle (E4). They read and write the same
+  // decision, so a card answer needs no restart — `initSentry` above is idempotent.
+  void initTelemetryConsent();
 
   boot();
 

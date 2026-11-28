@@ -4,6 +4,15 @@ All notable changes to the Roam browser extension.
 
 ## [Unreleased]
 
+### Added
+- Firefox builds report errors to Sentry. The no-op stub is gone: both builds carry the same consent-gated facade (`src/lib/sentry.ts`), so a Firefox crash reaches `ROAM-EXTENSION` tagged `dist: firefox` instead of vanishing. On Firefox the popup asks for the optional `technicalAndInteraction` permission before anything is sent, and events still carry no user, request, or URL-keyed field.
+
+### Fixed
+- A URL inside an error message is redacted before the event leaves the browser. `fetch` writes the requested URL into its own error text, where the field-level scrubber could not see it; messages and exception values now go through the same scrubber, so the opt-out promise holds for free text too.
+- Source maps no longer reach a submission package. `createZip()` excludes `*.map` in both builds, so the AMO zip stays clean even without `SENTRY_AUTH_TOKEN`, where the upload plugin's post-upload deletion never runs.
+- `--firefox` builds report `dist-firefox/` instead of `dist/`, so the one line the build prints names the directory the artefact is actually in.
+- `validateEnvironment()` takes the three build constants as an argument. The suite that claimed to stub them could not — `define` had already inlined the values — so the `SENTRY_DSN` warning case now fails when the branch is removed.
+
 ### Fixed
 - A service worker left behind by a previous build no longer files a Sentry `error` for every message type it does not recognise. It answers with a distinct `UNKNOWN_MESSAGE_TYPE` reason, reported at `warning`, so a stale worker stops looking like a broken handler.
 - The popup detects a stale worker through a build-version handshake on `GET_STATE` and tells the user to reopen the extension, instead of silently falling back to default settings or dropping the challenge chip.

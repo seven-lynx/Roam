@@ -19,6 +19,32 @@
     <button id="btn-os-close" type="button" class="os-key os-key--close" title="Close" aria-label="Close">✕</button>
   </header>
 
+  <!-- ── Error-reporting consent (Firefox only; revealed by telemetry-consent.ts)
+         Sits outside every `.state`, so a signed-out popup still shows it — nothing
+         in the extension is gated on the answer. -->
+  <section id="consent-card" class="consent-card" aria-labelledby="consent-title" hidden>
+    <div class="signal-notice">
+      <p class="signal-notice-kicker">// diagnostics</p>
+      <p id="consent-title" class="signal-notice-title">SEND ERROR REPORTS?</p>
+      <p class="signal-notice-body">
+        If Roam breaks, the error type, message, stack trace and extension version go to
+        Sentry. No URLs, no account data, no browsing history &mdash; and turning it off
+        changes nothing else.
+      </p>
+      <div class="panel-row panel-row--toggle">
+        <span>Send error reports</span>
+        <label class="toggle">
+          <input type="checkbox" id="toggle-consent-card" checked />
+          <span class="toggle-track"></span>
+        </label>
+      </div>
+      <div class="consent-actions">
+        <button id="btn-consent-save" class="btn-primary">Save choice</button>
+        <button id="btn-consent-privacy" class="btn-secondary">Privacy &#8599;</button>
+      </div>
+    </div>
+  </section>
+
 
   <!-- ── Signed-out state ───────────────────────────────────────────── -->
   <div id="state-signedout" class="state" hidden>
@@ -285,6 +311,18 @@
           </label>
         </div>
         <p class="panel-hint">Effects stay inside this popup — never on the page you're browsing.</p>
+      </section>
+
+      <section id="settings-privacy" class="panel-section" hidden>
+        <h3 class="panel-section-title">Privacy</h3>
+        <div class="panel-row panel-row--toggle">
+          <span>Send error reports</span>
+          <label class="toggle">
+            <input type="checkbox" id="toggle-error-reporting" />
+            <span class="toggle-track"></span>
+          </label>
+        </div>
+        <p class="panel-hint">Error type, message, stack trace and version only &mdash; never your URLs or account. Off ends every report immediately.</p>
       </section>
 
       <section class="panel-section">

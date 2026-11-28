@@ -2,6 +2,17 @@
 
 All notable changes to the Roam Supabase backend (PostgreSQL schema, Row-Level Security, and Deno Edge Functions).
 
+## [2026-11-27] — Expired domain cooldowns are pruned on the serve path (#129)
+
+### Changed
+- **`mark_url_seen()` deletes the caller's expired cooldowns.** The table only ever grew: the function upserts a 24 h row per served domain and nothing removed one once `cooldown_until` passed, so `user_domain_cooldowns` accumulated a permanent row per (user, domain) pair while every `roam()` call scanned the table to exclude domains that are still cooling. Each call now deletes up to 50 of the caller's expired rows before recording the serve. The bound is deliberate: a serve must not pay for a large write, and a returning user accumulates expired rows far slower than one per serve, so the table drains over a session instead of in one statement. The signature, the grants and the rest of the body are unchanged.
+
+### Added
+- **`idx_user_domain_cooldowns_expiry (user_id, cooldown_until)`.** The `(user_id, domain)` unique index cannot serve a range on its second column, so neither the delete nor the "when does the first cooling domain come back" read in `roam()` could use an index. The old single-column `idx_user_domain_cooldowns` was dropped in `20260505000000_roam_performance_indexes.sql`, which left nothing for this path.
+
+### Rollback
+- Additive and reversible: `DROP INDEX public.idx_user_domain_cooldowns_expiry;` and restore the `mark_url_seen()` body from `20261109060000_roam_v38_prefetch_skips_state.sql`. Dropping the index costs query time only; restoring the body stops the pruning and leaves no row behind that the old code cannot read.
+
 ## [2026-11-25] — The tag profile gets writers, an onboarding prior and a decayed read (tag-rollout T10)
 
 ### Added

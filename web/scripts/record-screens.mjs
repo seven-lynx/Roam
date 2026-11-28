@@ -281,9 +281,26 @@ async function openViaDrawer(page, query) {
   return clickByExactLabel(drawer, '.app-tile-label', query);
 }
 
-/** Open a surface from a handheld home-screen tile (used for README). */
+/** Open a surface from a desktop home-screen tile (used for README). */
 async function openViaIcon(page, label) {
   return clickByExactLabel(page, '.desktop-label', label);
+}
+
+/**
+ * README is the one surface the desktop shell opens by itself
+ * (`WorkstationShell`: "show the README tour every time the desktop mounts"), and on
+ * a narrow viewport its desktop tile is clipped, so the auto-open is the only opener
+ * there. Try the tile first for a deterministic click, then accept the window if the
+ * shell already opened it (issue #146).
+ */
+async function openViaIconOrAutoOpen(page, surface) {
+  if (surface.icon && (await openViaIcon(page, surface.icon))) return true;
+
+  return page
+    .locator(`section[role="dialog"][aria-label="${surface.title}"]`)
+    .first()
+    .isVisible()
+    .catch(() => false);
 }
 
 async function captureOsSurface(browser, surface, viewportName, viewport, opts, manifest) {
@@ -300,16 +317,19 @@ async function captureOsSurface(browser, surface, viewportName, viewport, opts, 
   });
 
   const page = await context.newPage();
-  // Force ROAM-OS + handheld so the app drawer is the universal launcher and the
-  // desktop README auto-open (desktop-only) doesn't interfere.
-  await page.addInitScript(() => {
+  // Handheld is forced for drawer surfaces so the app drawer is the universal
+  // launcher. An `icon` surface is a desktop window with a desktop tile, and the
+  // handheld shell renders no `.desktop-label` at all, so forcing handheld made
+  // those surfaces unreachable and failed the run (issue #146).
+  const uiMode = surface.icon ? 'desktop' : 'handheld';
+  await page.addInitScript((mode) => {
     try {
       localStorage.setItem('roam-webapp-theme', 'roam-os');
-      localStorage.setItem('roam-ui-mode', 'handheld');
+      localStorage.setItem('roam-ui-mode', mode);
     } catch {
       /* ignore */
     }
-  });
+  }, uiMode);
 
   let ok = true;
   let error = '';
@@ -324,7 +344,9 @@ async function captureOsSurface(browser, surface, viewportName, viewport, opts, 
       .click({ timeout: 800 })
       .catch(() => {});
 
-    const opened = surface.icon ? await openViaIcon(page, surface.icon) : await openViaDrawer(page, surface.query ?? surface.title);
+    const opened = surface.icon
+      ? await openViaIconOrAutoOpen(page, surface)
+      : await openViaDrawer(page, surface.query ?? surface.title);
     if (!opened) {
       throw new Error(`No opener could launch ${surface.title} (${surface.icon ? `icon "${surface.icon}"` : `drawer "${surface.query}"`})`);
     }

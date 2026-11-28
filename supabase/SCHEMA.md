@@ -23,7 +23,7 @@ High-level reference for the core tables. This is a summary — [`supabase/migra
 | `user_interest_scores` | Per-user, per-subcategory calibration weights |
 | `user_category_scores` | Per-user, per-category calibration (for unsegmented URLs) |
 | `interest_pair_scores` | Adjacent-category pair scoring for serendipity |
-| `user_domain_cooldowns` | 24-hour per-session domain cooldown |
+| `user_domain_cooldowns` | 24-hour per-session domain cooldown. `mark_url_seen()` prunes up to 50 of the caller's expired rows per call, and `(user_id, cooldown_until)` is indexed for both that delete and the "first domain back" read (issue #129) |
 | `user_exhaustion_state` | Per-scope record of why discovery returned nothing: reason, next cooldown expiry, notify state (issue #120) |
 | `user_suppressed_domains` | 30-day domain suppression (from repeated downvotes) |
 | `user_subcategory_affinity` | Per-user subcategory affinity |

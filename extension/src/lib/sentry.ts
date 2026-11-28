@@ -32,6 +32,21 @@ let enabled = false;
 /** Keys in `extra` and in breadcrumb data that can carry a URL, an identity or a credential. */
 const SENSITIVE_KEY = /url|href|token|email|password|session|cookie|key/i;
 
+/** A URL inside free text, where `Failed to fetch https://…` is the common case. */
+const URL_SHAPED = /\b(?:https?|wss?|ftp):\/\/[^\s"'<>]+|\bwww\.[^\s"'<>]+/gi;
+
+/**
+ * Replace URL-shaped substrings in free text (issue #151). The structured fields
+ * below are keyed and can be dropped; a `message` cannot, because `fetch` writes the
+ * requested URL into it and no call site controls that. Redacting here is what keeps
+ * an event from carrying a page URL, which is what makes D5's opt-out honest. Stack
+ * frames are deliberately untouched: the SDK generates their paths, and rewriting
+ * them would change how events group.
+ */
+function redactUrls(text: string): string {
+  return text.replace(URL_SHAPED, '[url]');
+}
+
 /** Breadcrumb data keys page-navigation instrumentation adds for a move. */
 const BREADCRUMB_URL_KEYS = new Set(['url', 'from', 'to']);
 
@@ -59,6 +74,15 @@ export function scrubEvent(event: ErrorEvent): ErrorEvent {
           delete breadcrumb.data[key];
         }
       }
+    }
+  }
+
+  // Free text last: it is the only field a call site cannot sanitise (issue #151).
+  if (event.message) event.message = redactUrls(event.message);
+
+  if (event.exception?.values) {
+    for (const exception of event.exception.values) {
+      if (exception.value) exception.value = redactUrls(exception.value);
     }
   }
 
